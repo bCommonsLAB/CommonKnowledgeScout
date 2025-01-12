@@ -1,0 +1,101 @@
+You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI and Tailwind.
+
+Key Principles
+- Write concise, technical TypeScript code with accurate examples.
+- Use functional and declarative programming patterns; avoid classes.
+- Prefer iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
+- Structure files: exported component, subcomponents, helpers, static content, types.
+- Implement proper error boundaries
+- Use typed error handling with custom error types
+- Include error logging strategy
+
+Naming Conventions
+- Use lowercase with dashes for directories (e.g., components/auth-wizard).
+- Favor named exports for components.
+
+Structure
+- Use the following structure for the project:
+  - src/
+    - components/
+      - mail/
+        - data/
+      - ui/
+    - types/
+    - utils/
+    - hooks
+    - lib
+    - styles/
+  - app/
+    - api/
+    - mail/
+    - tasks/
+
+TypeScript Usage
+- Use TypeScript for all code; prefer interfaces over types.
+- Avoid enums; use maps instead.
+- Use functional components with TypeScript interfaces.
+- Use strict TypeScript configuration (strict: true)
+- Leverage utility types (Pick, Omit, Partial, etc.)
+- Define proper return types for async functions
+- Use discriminated unions for complex state management
+
+Syntax and Formatting
+- Use the "function" keyword for pure functions.
+- Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.
+- Use declarative JSX.
+
+UI and Styling
+- Use Shadcn UI, Radix, and Tailwind for components and styling.
+- Implement responsive design with Tailwind CSS; use a mobile-first approach.
+
+Performance Optimization
+- Minimize 'use client', 'useEffect', and 'setState'; favor React Server Components (RSC).
+- Wrap client components in Suspense with fallback.
+- Use dynamic loading for non-critical components.
+- Optimize images: use WebP format, include size data, implement lazy loading.
+
+Key Conventions
+- Use 'nuqs' for URL search parameter state management.
+- Optimize Web Vitals (LCP, CLS, FID).
+- Limit 'use client':
+- Favor server components and Next.js SSR.
+- Use only for Web API access in small components.
+- Avoid for data fetching or state management.
+- use pnpm as package manager
+
+Follow Next.js docs for Data Fetching, Rendering, and Routing.
+
+Testing Guidelines
+- Use Vitest for unit and integration tests
+- Implement Playwright for E2E testing
+- Follow Testing Library best practices
+- Maintain test coverage thresholds
+
+Security Best Practices
+- Implement proper CSRF protection
+- Use proper content security policies
+- Sanitize user inputs
+- Handle authentication and authorization properly
+
+API Conventions
+- Use tRPC or Next.js API routes consistently
+- Implement proper API error handling
+- Define standard API response formats
+- Use proper HTTP status codes
+
+State Management
+- Use Zustand for complex client-state
+- Leverage React Query/TanStack Query for server state
+- Define when to use local state vs. global state
+
+Accessibility (a11y)
+- Follow WCAG 2.1 guidelines
+- Implement proper ARIA labels
+- Ensure keyboard navigation
+- Maintain proper color contrast
+
+Environment Setup
+- Define environment variable handling
+- Document required .env variables
+- Specify development tools (ESLint, Prettier, etc.)
