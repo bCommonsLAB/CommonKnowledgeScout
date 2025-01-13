@@ -90,20 +90,62 @@ src/
 ├── styles/          # Globale Styles
 └── types/           # TypeScript Typdefinitionen
 
+## 🔐 Umgebungsvariablen
+
+Erstellen Sie eine `.env.local` Datei im Root-Verzeichnis mit folgenden Variablen:
+
+```bash
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_************
+CLERK_SECRET_KEY=sk_test_************
+
+# API URLs
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
+
+# Database
+DATABASE_URL="postgresql://..."
+
+# Optional: Analytics
+NEXT_PUBLIC_ANALYTICS_ID=
+```
+
+Clerk Keys können Sie hier erhalten:
+1. Registrieren Sie sich bei [Clerk](https://clerk.com)
+2. Erstellen Sie eine neue Anwendung
+3. Gehen Sie zu API Keys im Dashboard
+4. Kopieren Sie die Publishable Key und Secret Key
+
 ## 💻 Installation
 
-1. Repository klonen:
+1. pnpm installieren (falls noch nicht vorhanden):
+   ```bash
+   # Verwendung von npm
+   npm install -g pnpm
+
+   # Alternativ unter macOS mit Homebrew
+   brew install pnpm
+   ```
+
+2. Repository klonen:
+   ```bash
    git clone https://github.com/username/project-name.git
    cd project-name
+   ```
 
-2. Abhängigkeiten installieren:
+3. Abhängigkeiten installieren:
+   ```bash
    pnpm install
+   ```
 
-3. Umgebungsvariablen konfigurieren:
+4. Umgebungsvariablen konfigurieren:
+   ```bash
    cp .env.example .env.local
+   ```
 
-4. Entwicklungsserver starten:
+5. Entwicklungsserver starten:
+   ```bash
    pnpm dev
+   ```
 
 ## 🔧 Entwicklung
 

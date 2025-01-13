@@ -1,33 +1,25 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect } from 'react';
 import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { SignInButton, UserButton, SignedIn, SignedOut, useAuth, useUser } from "@clerk/nextjs";
-
+import * as React from "react"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import * as React from "react"
+
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
+import { LibrarySwitcher } from "@/components/library/library-switcher"
+import { LibraryContextProps } from "@/components/library/library"
 
 const navItems = [
   {
-    name: "Library",
+    name: "Bibliothek",
     href: "/library",
   },
   {
-    name: "Examples",
-    href: "/cards",
-  },
-  {
-    name: "Mail",
-    href: "/mail",
-  },
-  {
-    name: "Tasks",
+    name: "Aufgaben",
     href: "/tasks",
   },
   {
@@ -35,58 +27,62 @@ const navItems = [
     href: "/dashboard",
   },
   {
-    name: "Forms",
-    href: "/forms",
-  },
-  {
-    name: "Music",
-    href: "/music",
-  },
-  {
     name: "Playground",
     href: "/playground",
   },
 ]
 
-
-interface TopNavProps extends React.HTMLAttributes<HTMLDivElement> {}
-
-export function TopNav({ className, ...props }: TopNavProps) {
+export function TopNav() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
+  const isLibraryPage = pathname.startsWith('/library')
+  const [libraryContext, setLibraryContext] = React.useState<LibraryContextProps | null>(null)
 
-  const { isSignedIn } = useAuth();
-  const { user } = useUser();
-  
-  useEffect(() => {
-    if (isSignedIn && user) {
-      const email = user.primaryEmailAddress?.emailAddress;
-      const name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-
-      if (email) {
-        // updateUserAccess(email, name).catch(error => {
-        //   console.error('Fehler beim Aktualisieren des Benutzerzugriffs:', error);
-        // });
-      }
+  // Empfange die Library-Props über Events
+  React.useEffect(() => {
+    const handleLibraryContextChange = (event: CustomEvent<LibraryContextProps | null>) => {
+      setLibraryContext(event.detail)
     }
-  }, [isSignedIn, user]);
+
+    window.addEventListener('libraryContextChange', handleLibraryContextChange as EventListener)
+
+    return () => {
+      window.removeEventListener('libraryContextChange', handleLibraryContextChange as EventListener)
+    }
+  }, [])
 
   return (
     <div className="border-b">
       <div className="flex h-16 items-center px-4">
         <ScrollArea className="max-w-[600px] lg:max-w-none">
-          <div className={cn("flex items-center", className)} {...props}>
+          <div className="flex items-center space-x-4">
             {navItems.map((item) => (
-              <NavLink
+              <Link
                 key={item.href}
-                item={item}
-                isActive={pathname?.startsWith(item.href) ?? false}
-              />
+                href={item.href}
+                className={cn(
+                  "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
+                  pathname === item.href
+                    ? "bg-muted text-primary"
+                    : "text-muted-foreground hover:text-primary"
+                )}
+              >
+                {item.name}
+              </Link>
             ))}
           </div>
           <ScrollBar orientation="horizontal" className="invisible" />
         </ScrollArea>
         <div className="ml-auto flex items-center space-x-4">
+          {isLibraryPage && libraryContext && (
+            <div className="w-[200px]">
+              <LibrarySwitcher 
+                libraries={libraryContext.libraries}
+                activeLibraryId={libraryContext.activeLibraryId}
+                onLibraryChange={libraryContext.onLibraryChange}
+              />
+            </div>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -108,33 +104,8 @@ export function TopNav({ className, ...props }: TopNavProps) {
               <UserButton afterSignOutUrl="/" />
             </SignedIn>
           </div>
-          <Avatar>
-            <AvatarFallback>PA</AvatarFallback>
-          </Avatar>
         </div>
       </div>
     </div>
-  )
-}
-
-function NavLink({
-  item,
-  isActive,
-}: {
-  item: (typeof navItems)[number]
-  isActive: boolean
-}) {
-  return (
-    <Link
-      href={item.href}
-      className={cn(
-        "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
-        isActive
-          ? "bg-muted text-primary"
-          : "text-muted-foreground hover:text-primary"
-      )}
-    >
-      {item.name}
-    </Link>
   )
 } 
