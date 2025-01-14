@@ -137,4 +137,11 @@ export class MockStorageProvider implements StorageProvider {
     // Simuliere einen Download mit einem leeren Blob
     return new Blob(['Mock file content'], { type: (file.item as StorageFile).mimeType });
   }
+
+  async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string; }> {
+    // Simuliere eine Binärdatei mit einem Mock-Inhalt
+    const mimeType = 'application/octet-stream';
+    const blob = new Blob(['Mock binary content'], { type: mimeType });
+    return { blob, mimeType };
+  }
 } 

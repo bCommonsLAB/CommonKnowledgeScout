@@ -2,7 +2,7 @@
 
 import { StorageItem, StorageFile } from "@/lib/storage/types";
 import { cn } from "@/lib/utils";
-import { File } from "lucide-react";
+import { File, FileText, FileVideo, FileAudio, FileIcon } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -32,6 +32,32 @@ export function FileList({ items, onSelect, selectedItem, currentPath = '/' }: F
     item.type === 'file' && !item.item.name.startsWith('.')
   );
 
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    
+    switch(extension) {
+      case 'md':
+      case 'mdx':
+        return <FileText className="h-4 w-4" />;
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+        return <FileVideo className="h-4 w-4" />;
+      case 'mp3':
+      case 'wav':
+      case 'ogg':
+        return <FileAudio className="h-4 w-4" />;
+      case 'pdf':
+        return <FileIcon className="h-4 w-4" />;
+      case 'txt':
+      case 'doc':
+      case 'docx':
+        return <FileText className="h-4 w-4" />;
+      default:
+        return <File className="h-4 w-4" />;
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-220px)]">
       {filteredItems.length === 0 ? (
@@ -48,35 +74,28 @@ export function FileList({ items, onSelect, selectedItem, currentPath = '/' }: F
           </div>
           
           {/* Items */}
-          <div className="flex-1 overflow-y-auto">
-            {filteredItems.map((item) => {
-              const isSelected = selectedItem?.item.id === item.item.id;
-              
-              return (
-                <div
-                  key={item.item.id}
-                  className={cn(
-                    "grid grid-cols-12 gap-2 px-4 py-2 cursor-pointer hover:bg-accent hover:text-accent-foreground",
-                    isSelected && "bg-accent text-accent-foreground"
-                  )}
-                  onClick={() => onSelect?.(item)}
-                >
-                  <div className="col-span-6 flex items-center gap-2">
-                    <File className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{item.item.name}</span>
-                  </div>
-                  <div className="col-span-2 text-muted-foreground">
-                    {item.type === 'file' ? formatFileSize((item.item as StorageFile).size) : '-'}
-                  </div>
-                  <div className="col-span-4 text-muted-foreground">
-                    {formatDistanceToNow(item.item.modifiedAt, { 
-                      addSuffix: true,
-                      locale: de 
-                    })}
-                  </div>
+          <div className="flex-1 overflow-auto">
+            {filteredItems.map((item, index) => (
+              <div
+                key={item.item.path}
+                className={cn(
+                  "grid grid-cols-12 gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-muted/50",
+                  selectedItem?.item.path === item.item.path && "bg-muted"
+                )}
+                onClick={() => onSelect?.(item)}
+              >
+                <div className="col-span-6 flex items-center gap-2">
+                  {getFileIcon(item.item.name)}
+                  <span className="truncate">{item.item.name}</span>
                 </div>
-              );
-            })}
+                <div className="col-span-2">
+                  {item.type === 'file' ? formatFileSize((item.item as unknown as StorageFile).size || 0) : '-'}
+                </div>
+                <div className="col-span-4">
+                  {item.item.modifiedAt ? formatDistanceToNow(new Date(item.item.modifiedAt), { addSuffix: true, locale: de }) : '-'}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

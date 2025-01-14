@@ -27,24 +27,89 @@ function getLibrary(libraryId: string): LibraryType | undefined {
 function getAbsolutePath(library: LibraryType, relativePath: string): string {
   // Entferne führende Slashes und Backslashes
   const cleanPath = relativePath.replace(/^[/\\]+/, '');
+  
   // Verhindere Directory Traversal
   const normalizedPath = pathLib.normalize(cleanPath).replace(/^(\.\.(\/|\\|$))+/, '');
+  
   // Wenn der Pfad bereits absolut ist, gib ihn zurück
   if (pathLib.isAbsolute(normalizedPath)) {
     return normalizedPath;
   }
-  // Ansonsten füge den Library-Pfad hinzu
-  return pathLib.join(library.path, normalizedPath);
+
+  // Behandle OneDrive-Pfade speziell
+  const basePath = library.path.replace(/\\/g, '/');
+  
+  // Behandle Sonderzeichen im Pfad
+  const decodedPath = decodeURIComponent(normalizedPath);
+  const fullPath = pathLib.join(basePath, decodedPath);
+  
+  // Normalisiere den finalen Pfad und stelle sicher, dass Sonderzeichen korrekt kodiert sind
+  const finalPath = pathLib.normalize(fullPath);
+  
+  console.log('Pfad-Verarbeitung:', {
+    original: relativePath,
+    decoded: decodedPath,
+    final: finalPath
+  });
+  
+  return finalPath;
+}
+
+// Helfer-Funktion für die Verzeichnis-Prüfung
+async function ensureDirectoryAccess(path: string): Promise<{ isAccessible: boolean; details: string }> {
+  try {
+    console.log('Prüfe Verzeichniszugriff:', {
+      path,
+      exists: await fs.access(path).then(() => true).catch(() => false)
+    });
+    
+    const stats = await fs.stat(path);
+    const files = await fs.readdir(path);
+    
+    console.log('Verzeichnis gefunden:', {
+      path,
+      isDirectory: stats.isDirectory(),
+      entries: files.length,
+      mode: stats.mode
+    });
+    
+    return { 
+      isAccessible: true, 
+      details: `Verzeichnis gefunden mit ${files.length} Einträgen` 
+    };
+  } catch (error: any) {
+    console.error('Verzeichniszugriff fehlgeschlagen:', {
+      path,
+      error: error.message,
+      code: error.code,
+      syscall: error.syscall,
+      stackTrace: error.stack
+    });
+    return { 
+      isAccessible: false, 
+      details: `Zugriffsfehler: ${error.code} (${error.syscall}) - ${error.message}` 
+    };
+  }
 }
 
 // Helfer-Funktion für die Konvertierung in StorageItem
 async function itemToStorageItem(basePath: string, path: string, stats: Stats): Promise<StorageItem> {
+  const relativePath = path.replace(basePath, '').replace(/^[/\\]+/, '');
+  
   if (stats.isDirectory()) {
-    const folder = statsToStorageFolder(path, stats);
-    return { type: 'folder', item: folder, provider };
+    const folder = statsToStorageFolder(relativePath, stats);
+    return { 
+      type: 'folder', 
+      item: folder, 
+      provider 
+    };
   } else {
-    const file = statsToStorageFile(path, stats);
-    return { type: 'file', item: file, provider };
+    const file = statsToStorageFile(relativePath, stats);
+    return { 
+      type: 'file', 
+      item: file, 
+      provider 
+    };
   }
 }
 
@@ -70,15 +135,61 @@ function statsToStorageFolder(path: string, stats: Stats): StorageFolder {
   };
 }
 
+// Helfer-Funktion für Fehlermeldungen
+function getReadableError(error: any): string {
+  if (!error) return 'Unbekannter Fehler';
+  
+  // Behandle Node.js Filesystem Fehler
+  if (error.code) {
+    switch (error.code) {
+      case 'ENOENT':
+        return `Das Verzeichnis ist nicht verfügbar (${error.path}). 
+                Bei OneDrive: 
+                1. Stellen Sie sicher, dass das Verzeichnis auf "Offline verfügbar" gesetzt ist
+                2. Warten Sie, bis OneDrive die Synchronisation abgeschlossen hat
+                3. Prüfen Sie, ob Sie Zugriff auf das Verzeichnis haben`;
+      case 'EPERM':
+      case 'EACCES':
+        return `Keine Berechtigung für den Zugriff auf: ${error.path}`;
+      case 'ETIMEDOUT':
+        return 'Zeitüberschreitung beim Zugriff auf das Verzeichnis. Möglicherweise ist OneDrive noch beim Synchronisieren.';
+      case 'EBUSY':
+        return 'Das Verzeichnis wird gerade von einem anderen Prozess verwendet (z.B. OneDrive Sync).';
+      default:
+        return `Dateisystemfehler (${error.code}): ${error.path || 'Unbekannter Pfad'}`;
+    }
+  }
+  
+  return error.message || 'Unbekannter Fehler';
+}
+
 // Implementiere die Provider-Funktionen
 async function listItems(path: string): Promise<StorageItem[]> {
-  const items = await fs.readdir(path);
-  const itemPromises = items.map(async (item) => {
-    const itemPath = pathLib.join(path, item);
-    const stats = await fs.stat(itemPath);
-    return itemToStorageItem(path, itemPath, stats);
-  });
-  return await Promise.all(itemPromises);
+  try {
+    // Prüfe zuerst den Verzeichniszugriff
+    const access = await ensureDirectoryAccess(path);
+    if (!access.isAccessible) {
+      throw new Error(`Verzeichniszugriff nicht möglich: ${access.details}`);
+    }
+
+    const items = await fs.readdir(path);
+    const itemPromises = items.map(async (item) => {
+      const itemPath = pathLib.join(path, item);
+      try {
+        const stats = await fs.stat(itemPath);
+        return itemToStorageItem(path, itemPath, stats);
+      } catch (itemError: any) {
+        console.warn(`Überspringe Element ${item}:`, itemError.message);
+        return null;
+      }
+    });
+
+    // Filtere fehlgeschlagene Items heraus
+    const results = await Promise.all(itemPromises);
+    return results.filter((item): item is StorageItem => item !== null);
+  } catch (error) {
+    throw new Error(getReadableError(error));
+  }
 }
 
 async function getItem(path: string): Promise<StorageItem> {
@@ -121,74 +232,175 @@ async function downloadFile(path: string): Promise<Blob> {
   return new Blob([buffer], { type: mimeType });
 }
 
-// Definiere den Provider
+// Logging-Funktion für bessere Übersichtlichkeit
+function logWithRequestId(requestId: string, message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [${requestId}] ${message}`, data || '');
+}
+
+// Definiere den Provider mit Logging
 const provider: StorageProvider = {
   name: 'Local Filesystem',
   id: 'local',
-  validateConfiguration: async () => ({ isValid: true }),
+  validateConfiguration: async () => {
+    const library = getLibrary('local');
+    if (!library) return { isValid: false, error: 'Library nicht gefunden' };
+    
+    const access = await ensureDirectoryAccess(library.path);
+    return { 
+      isValid: access.isAccessible,
+      error: access.isAccessible ? undefined : access.details
+    };
+  },
   listItems,
   getItem,
   createFolder,
   deleteItem,
   moveItem,
   uploadFile,
-  downloadFile
+  downloadFile,
+  async getBinary(fileId: string) {
+    console.log('[Provider] getBinary aufgerufen', { fileId });
+    
+    try {
+      const decodedPath = Buffer.from(fileId, 'base64').toString();
+      console.log('[Provider] Dekodierter Pfad:', decodedPath);
+      
+      const filePath = pathLib.join(process.env.STORAGE_BASE_PATH || '', decodedPath);
+      console.log('[Provider] Vollständiger Dateipfad:', filePath);
+      
+      const content = await fs.readFile(filePath);
+      const mimeType = mime.lookup(filePath) || 'application/octet-stream';
+      
+      console.log('[Provider] Datei gelesen', {
+        size: content.length,
+        mimeType
+      });
+      
+      return { 
+        blob: new Blob([content], { type: mimeType }), 
+        mimeType 
+      };
+    } catch (error) {
+      console.error('[Provider] Fehler in getBinary:', error);
+      throw error;
+    }
+  }
 };
 
 export async function GET(request: NextRequest) {
+  const requestId = crypto.randomUUID();
   const searchParams = request.nextUrl.searchParams;
   const action = searchParams.get('action');
-  const reqPath = searchParams.get('path') || '/';
-  const libraryId = searchParams.get('libraryId') || 'local';
+  const libraryId = searchParams.get('libraryId');
+  const path = searchParams.get('path') || '/';
+  const fileId = searchParams.get('fileId');
 
-  const library = getLibrary(libraryId);
-  if (!library || !library.isEnabled) {
-    return NextResponse.json({ error: 'Library not found or disabled' }, { status: 404 });
+  logWithRequestId(requestId, 'Neue GET Anfrage', {
+    action,
+    libraryId,
+    path,
+    fileId
+  });
+
+  // Validiere die Library
+  const library = getLibrary(libraryId || 'local');
+  if (!library) {
+    logWithRequestId(requestId, 'Library nicht gefunden oder deaktiviert');
+    return NextResponse.json({ 
+      error: 'Die ausgewählte Bibliothek wurde nicht gefunden oder ist deaktiviert.' 
+    }, { status: 404 });
   }
 
   try {
     switch (action) {
-      case 'list': {
-        const absolutePath = getAbsolutePath(library, reqPath);
-        const items = await fs.readdir(absolutePath);
-        const itemPromises = items.map(async (item) => {
-          const itemPath = pathLib.join(absolutePath, item);
-          const stats = await fs.stat(itemPath);
-          return itemToStorageItem(library.path, itemPath, stats);
-        });
-        const result = await Promise.all(itemPromises);
-        return NextResponse.json(result);
-      }
+      case 'list':
+        const absolutePath = getAbsolutePath(library, path);
+        const items = await listItems(absolutePath);
+        return NextResponse.json(items);
 
-      case 'get': {
-        const absolutePath = getAbsolutePath(library, reqPath);
-        const stats = await fs.stat(absolutePath);
-        const item = await itemToStorageItem(library.path, absolutePath, stats);
+      case 'get':
+        const itemPath = getAbsolutePath(library, path);
+        const stats = await fs.stat(itemPath);
+        const item = await itemToStorageItem(library.path, itemPath, stats);
         return NextResponse.json(item);
-      }
 
-      case 'download': {
-        const absolutePath = getAbsolutePath(library, reqPath);
-        const stats = await fs.stat(absolutePath);
-        if (!stats.isFile()) {
+      case 'download':
+        const filePath = getAbsolutePath(library, path);
+        const fileStats = await fs.stat(filePath);
+        if (!fileStats.isFile()) {
           return NextResponse.json({ error: 'Not a file' }, { status: 400 });
         }
-        const buffer = await fs.readFile(absolutePath);
-        const mimeType = mime.lookup(absolutePath) || 'application/octet-stream';
-        return new NextResponse(buffer, {
+        const fileContent = await fs.readFile(filePath);
+        const mimeType = mime.lookup(filePath) || 'application/octet-stream';
+        return new NextResponse(fileContent, {
           headers: {
             'Content-Type': mimeType,
-            'Content-Disposition': `attachment; filename="${pathLib.basename(absolutePath)}"`,
+            'Content-Length': fileStats.size.toString(),
           },
         });
-      }
+
+      case 'binary':
+        if (!fileId) {
+          logWithRequestId(requestId, 'Fehlende File ID');
+          return NextResponse.json({ error: 'File ID is required' }, { status: 400 });
+        }
+        
+        try {
+          logWithRequestId(requestId, 'Starte Binary-Verarbeitung', { fileId });
+          
+          // Dekodiere die Base64-ID zurück in den Pfad
+          const decodedPath = Buffer.from(fileId, 'base64').toString();
+          logWithRequestId(requestId, 'Dekodierter Pfad', { decodedPath });
+          
+          const binaryPath = getAbsolutePath(library, decodedPath);
+          logWithRequestId(requestId, 'Absoluter Pfad', { binaryPath });
+          
+          const binaryStats = await fs.stat(binaryPath);
+          
+          if (!binaryStats.isFile()) {
+            logWithRequestId(requestId, 'Pfad ist keine Datei');
+            return NextResponse.json({ error: 'Not a file' }, { status: 400 });
+          }
+          
+          logWithRequestId(requestId, 'Dateistatistik', {
+            size: binaryStats.size,
+            modified: binaryStats.mtime
+          });
+          
+          const binaryContent = await fs.readFile(binaryPath);
+          const binaryMimeType = mime.lookup(binaryPath) || 'application/octet-stream';
+          
+          logWithRequestId(requestId, 'Sende Binärdaten', {
+            mimeType: binaryMimeType,
+            size: binaryContent.length
+          });
+          
+          return new NextResponse(binaryContent, {
+            headers: {
+              'Content-Type': binaryMimeType,
+              'Content-Length': binaryStats.size.toString(),
+              'Cache-Control': 'no-store',
+              'X-Request-ID': requestId
+            },
+          });
+        } catch (error) {
+          logWithRequestId(requestId, 'Fehler beim Dateizugriff', { error });
+          return NextResponse.json({ error: 'File not found' }, { status: 404 });
+        }
 
       default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        logWithRequestId(requestId, 'Ungültige Aktion');
+        return NextResponse.json({ 
+          error: 'Die angeforderte Aktion ist nicht gültig.' 
+        }, { status: 400 });
     }
   } catch (error) {
-    console.error('Storage API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    logWithRequestId(requestId, 'Storage-Operation fehlgeschlagen', { error });
+    return NextResponse.json(
+      { error: getReadableError(error) },
+      { status: 500 }
+    );
   }
 }
 

@@ -4,7 +4,7 @@ import * as React from "react"
 import { Search } from "lucide-react"
 
 import { LibrarySwitcher } from "./library-switcher"
-import { MailDisplay } from "@/components/mail/mail-display"
+import { FilePreview } from "./file-preview"
 import { Input } from "@/components/ui/input"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Separator } from "@/components/ui/separator"
@@ -316,8 +316,11 @@ export function Library({
               </Tabs>
             </ResizablePanel>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={defaultLayout[2]} minSize={30}>
-              <MailDisplay mail={null} />
+            <ResizablePanel defaultSize={defaultLayout[2]} className="hidden lg:block">
+              <FilePreview 
+                item={selectedItem} 
+                className="h-full"
+              />
             </ResizablePanel>
           </ResizablePanelGroup>
         </TooltipProvider>

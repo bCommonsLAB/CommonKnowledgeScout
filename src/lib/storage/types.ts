@@ -47,6 +47,7 @@ export interface StorageProvider {
   // Datei-spezifische Operationen
   uploadFile(path: string, file: File): Promise<StorageFile>;
   downloadFile(path: string): Promise<Blob>;
+  getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string; }>;
 }
 
 export interface StorageError extends Error {
