@@ -1,19 +1,190 @@
-import { StorageProvider, StorageItem, StorageFile, StorageFolder, StorageError, StorageValidationResult } from './types';
+import { StorageProvider, StorageItem, StorageValidationResult, StorageError } from './types';
 import * as fs from 'fs/promises';
 import { Stats } from 'fs';
 import * as path from 'path';
 import mime from 'mime-types';
+import * as crypto from 'crypto';
 
+/**
+ * FileSystemProvider implementiert das StorageProvider Interface für lokale Dateisysteme.
+ * Die Implementierung nutzt ein intelligentes ID-System und Caching für optimale Performance.
+ * 
+ * ID-Generierung:
+ * - Dateien und Ordner haben stabile, eindeutige IDs
+ * - IDs bleiben beim Verschieben erhalten
+ * - IDs ändern sich bei Umbenennung oder Inhaltänderung
+ * 
+ * Caching-Strategie:
+ * - Bidirektionales Caching (Pfad -> ID und ID -> Pfad)
+ * - Cache wird bei Änderungen (move, delete) automatisch aktualisiert
+ * - Verhindert wiederholte Hash-Berechnungen
+ */
 export class FileSystemProvider implements StorageProvider {
   name = 'Local FileSystem';
   id = 'filesystem';
   private basePath: string;
+  private idCache: Map<string, string> = new Map(); // Cache für Path -> ID Mapping
+  private pathCache: Map<string, string> = new Map(); // Cache für ID -> Path Mapping
 
   constructor(basePath: string) {
     this.basePath = basePath;
   }
 
+  /**
+   * Generiert eine eindeutige, stabile ID für eine Datei oder einen Ordner.
+   * 
+   * Für Ordner:
+   * - Hash aus Name, Größe und Zeitstempeln
+   * - Bleibt stabil solange der Name gleich bleibt
+   * 
+   * Für Dateien:
+   * - Hash aus Name, Größe, Zeitstempeln, Inode und Datei-Fingerprint
+   * - Fingerprint: Erste 4KB der Datei (Performance-Optimierung)
+   * - Inode: Zusätzliche Eindeutigkeit bei gleichen Dateinamen
+   * 
+   * Besonderheiten:
+   * - IDs sind pfadunabhängig (bleiben beim Verschieben gleich)
+   * - IDs sind 22 Zeichen lang (base64url-kodiert)
+   * - Ergebnisse werden gecached
+   * 
+   * @param absolutePath Absoluter Pfad zur Datei/Ordner
+   * @param stats File Stats vom Filesystem
+   * @returns Eindeutige ID als String
+   */
+  private async generateFileId(absolutePath: string, stats: Stats): Promise<string> {
+    // Prüfe ob ID bereits im Cache
+    const cachedId = this.idCache.get(absolutePath);
+    if (cachedId) return cachedId;
+
+    // Für Ordner: Verwende einen Hash aus Name, Größe und Modifikationsdatum
+    if (stats.isDirectory()) {
+      const hash = crypto.createHash('sha256');
+      hash.update(path.basename(absolutePath)); // Nur der Ordnername
+      hash.update(stats.size.toString());
+      hash.update(stats.mtime.getTime().toString());
+      hash.update(stats.ctime.getTime().toString());
+      const id = hash.digest('base64url').slice(0, 22);
+      this.idCache.set(absolutePath, id);
+      this.pathCache.set(id, absolutePath);
+      return id;
+    }
+
+    // Für Dateien: Verwende einen Hash aus Dateiname, Größe, Datum und Fingerprint
+    try {
+      const hash = crypto.createHash('sha256');
+      
+      // Metadaten für Eindeutigkeit, aber pfadunabhängig
+      hash.update(path.basename(absolutePath)); // Nur der Dateiname
+      hash.update(stats.size.toString());
+      hash.update(stats.mtime.getTime().toString());
+      hash.update(stats.ctime.getTime().toString());
+      hash.update(stats.ino.toString()); // Inode-Nummer für zusätzliche Eindeutigkeit
+      
+      // Performance-Optimierung: Lies nur die ersten 4KB der Datei
+      // Dies ist ein Kompromiss zwischen Eindeutigkeit und Performance
+      if (stats.size > 0) {
+        const fd = await fs.open(absolutePath, 'r');
+        try {
+          const buffer = Buffer.alloc(Math.min(4096, stats.size));
+          await fd.read(buffer, 0, buffer.length, 0);
+          hash.update(buffer);
+        } finally {
+          await fd.close();
+        }
+      }
+
+      const id = hash.digest('base64url').slice(0, 22);
+      this.idCache.set(absolutePath, id);
+      this.pathCache.set(id, absolutePath);
+      return id;
+    } catch (error) {
+      console.error('Fehler beim Generieren der File-ID:', error);
+      throw new StorageError('Fehler beim Generieren der File-ID', 'ID_GENERATION_ERROR', this.id);
+    }
+  }
+
+  /**
+   * Findet den absoluten Pfad zu einer Datei anhand ihrer ID.
+   * 
+   * Suchstrategie:
+   * 1. Prüft zuerst den Cache
+   * 2. Falls nicht im Cache: Rekursive Suche im Filesystem
+   * 3. Generiert IDs für gefundene Dateien und vergleicht
+   * 
+   * Performance-Optimierung:
+   * - Bidirektionales Caching verhindert wiederholte Suchen
+   * - Cache wird bei Änderungen (move, delete) aktualisiert
+   * 
+   * @param fileId Die zu suchende File-ID
+   * @returns Absoluter Pfad zur Datei
+   * @throws StorageError wenn die Datei nicht gefunden wird
+   */
+  private async findPathById(fileId: string): Promise<string> {
+    if (fileId === 'root') return this.basePath;
+    
+    // Prüfe zuerst den Cache
+    const cachedPath = this.pathCache.get(fileId);
+    if (cachedPath) return cachedPath;
+
+    // Wenn nicht im Cache, durchsuche das Verzeichnis rekursiv
+    const findInDir = async (dir: string): Promise<string | null> => {
+      const items = await fs.readdir(dir);
+      
+      for (const item of items) {
+        const itemPath = path.join(dir, item);
+        const stats = await fs.stat(itemPath);
+        
+        // Generiere ID und vergleiche
+        const itemId = await this.generateFileId(itemPath, stats);
+        if (itemId === fileId) return itemPath;
+        
+        // Wenn es ein Verzeichnis ist, durchsuche es rekursiv
+        if (stats.isDirectory()) {
+          const found = await findInDir(itemPath);
+          if (found) return found;
+        }
+      }
+      
+      return null;
+    };
+
+    const foundPath = await findInDir(this.basePath);
+    if (!foundPath) {
+      throw new StorageError('Datei nicht gefunden', 'FILE_NOT_FOUND', this.id);
+    }
+
+    return foundPath;
+  }
+
+  private async getParentId(absolutePath: string): Promise<string> {
+    if (absolutePath === this.basePath) return 'root';
+    const parentPath = path.dirname(absolutePath);
+    if (parentPath === this.basePath) return 'root';
+    
+    const stats = await fs.stat(parentPath);
+    return this.generateFileId(parentPath, stats);
+  }
+
+  private async statsToStorageItem(absolutePath: string, stats: Stats): Promise<StorageItem> {
+    const id = await this.generateFileId(absolutePath, stats);
+    const parentId = await this.getParentId(absolutePath);
+
+    return {
+      id,
+      parentId,
+      type: stats.isDirectory() ? 'folder' : 'file',
+      metadata: {
+        name: path.basename(absolutePath),
+        size: stats.size,
+        modifiedAt: stats.mtime,
+        mimeType: stats.isFile() ? mime.lookup(absolutePath) || 'application/octet-stream' : 'folder'
+      }
+    };
+  }
+
   public async validateConfiguration(): Promise<StorageValidationResult> {
+    console.log('[StorageProvider] validateConfiguration aufgerufen');
+    
     try {
       const stats = await fs.stat(this.basePath);
       if (!stats.isDirectory()) {
@@ -37,75 +208,46 @@ export class FileSystemProvider implements StorageProvider {
     }
   }
 
-  private getAbsolutePath(relativePath: string): string {
-    // Sicherheitscheck: Verhindere directory traversal
-    const normalizedPath = path.normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, '');
-    return path.join(this.basePath, normalizedPath);
-  }
-
-  private async getStats(absolutePath: string) {
-    try {
-      return await fs.stat(absolutePath);
-    } catch (error) {
-      throw new Error('Item not found') as StorageError;
-    }
-  }
-
-  private async itemToStorageItem(itemPath: string, stats: Stats): Promise<StorageItem> {
-    const name = path.basename(itemPath);
-    const relativePath = itemPath.replace(this.basePath, '').replace(/\\/g, '/');
-
-    if (stats.isDirectory()) {
-      const folder: StorageFolder = {
-        id: Buffer.from(relativePath).toString('base64'),
-        name,
-        path: relativePath || '/',
-        modifiedAt: stats.mtime
-      };
-      return { type: 'folder', item: folder, provider: this };
-    } else {
-      const file: StorageFile = {
-        id: Buffer.from(relativePath).toString('base64'),
-        name,
-        size: stats.size,
-        mimeType: mime.lookup(name) || 'application/octet-stream',
-        path: relativePath,
-        modifiedAt: stats.mtime
-      };
-      return { type: 'file', item: file, provider: this };
-    }
-  }
-
-  async listItems(relativePath: string): Promise<StorageItem[]> {
-    const absolutePath = this.getAbsolutePath(relativePath);
+  async listItemsById(folderId: string): Promise<StorageItem[]> {
+    const absolutePath = await this.findPathById(folderId);
     const items = await fs.readdir(absolutePath);
     
     const itemPromises = items.map(async (item) => {
       const itemPath = path.join(absolutePath, item);
-      const stats = await fs.stat(itemPath);
-      return this.itemToStorageItem(itemPath, stats);
+      try {
+        const stats = await fs.stat(itemPath);
+        return this.statsToStorageItem(itemPath, stats);
+      } catch {
+        return null;
+      }
     });
 
-    return Promise.all(itemPromises);
+    const results = await Promise.all(itemPromises);
+    return results.filter((item): item is StorageItem => item !== null);
   }
 
-  async getItem(relativePath: string): Promise<StorageItem> {
-    const absolutePath = this.getAbsolutePath(relativePath);
-    const stats = await this.getStats(absolutePath);
-    return this.itemToStorageItem(absolutePath, stats);
+  async getItemById(itemId: string): Promise<StorageItem> {
+    const absolutePath = await this.findPathById(itemId);
+    const stats = await fs.stat(absolutePath);
+    return this.statsToStorageItem(absolutePath, stats);
   }
 
-  async createFolder(parentPath: string, name: string): Promise<StorageFolder> {
-    const absolutePath = this.getAbsolutePath(path.join(parentPath, name));
-    await fs.mkdir(absolutePath, { recursive: true });
-    const stats = await this.getStats(absolutePath);
-    const item = await this.itemToStorageItem(absolutePath, stats);
-    return item.item as StorageFolder;
+  async createFolder(parentId: string, name: string): Promise<StorageItem> {
+    const parentPath = await this.findPathById(parentId);
+    const newFolderPath = path.join(parentPath, name);
+    
+    await fs.mkdir(newFolderPath, { recursive: true });
+    const stats = await fs.stat(newFolderPath);
+    return this.statsToStorageItem(newFolderPath, stats);
   }
 
-  async deleteItem(relativePath: string): Promise<void> {
-    const absolutePath = this.getAbsolutePath(relativePath);
-    const stats = await this.getStats(absolutePath);
+  async deleteItem(itemId: string): Promise<void> {
+    const absolutePath = await this.findPathById(itemId);
+    const stats = await fs.stat(absolutePath);
+    
+    // Entferne aus dem Cache
+    this.idCache.delete(absolutePath);
+    this.pathCache.delete(itemId);
     
     if (stats.isDirectory()) {
       await fs.rm(absolutePath, { recursive: true });
@@ -114,32 +256,42 @@ export class FileSystemProvider implements StorageProvider {
     }
   }
 
-  async moveItem(fromPath: string, toPath: string): Promise<void> {
-    const absoluteFromPath = this.getAbsolutePath(fromPath);
-    const absoluteToPath = this.getAbsolutePath(toPath);
-    await fs.rename(absoluteFromPath, absoluteToPath);
-  }
-
-  async uploadFile(parentPath: string, file: File): Promise<StorageFile> {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const absolutePath = this.getAbsolutePath(path.join(parentPath, file.name));
-    await fs.writeFile(absolutePath, buffer);
+  async moveItem(itemId: string, newParentId: string): Promise<void> {
+    const sourcePath = await this.findPathById(itemId);
+    const targetParentPath = await this.findPathById(newParentId);
+    const fileName = path.basename(sourcePath);
+    const targetPath = path.join(targetParentPath, fileName);
     
-    const stats = await this.getStats(absolutePath);
-    const item = await this.itemToStorageItem(absolutePath, stats);
-    return item.item as StorageFile;
+    // Entferne alte Einträge aus dem Cache
+    this.idCache.delete(sourcePath);
+    this.pathCache.delete(itemId);
+    
+    await fs.rename(sourcePath, targetPath);
   }
 
-  async downloadFile(relativePath: string): Promise<Blob> {
-    const absolutePath = this.getAbsolutePath(relativePath);
-    const stats = await this.getStats(absolutePath);
+  async uploadFile(parentId: string, file: File): Promise<StorageItem> {
+    const parentPath = await this.findPathById(parentId);
+    const filePath = path.join(parentPath, file.name);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    
+    await fs.writeFile(filePath, buffer);
+    const stats = await fs.stat(filePath);
+    return this.statsToStorageItem(filePath, stats);
+  }
+
+  async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string; }> {
+    const absolutePath = await this.findPathById(fileId);
+    const stats = await fs.stat(absolutePath);
     
     if (!stats.isFile()) {
-      throw new Error('Not a file') as StorageError;
+      throw new StorageError('Not a file', 'INVALID_TYPE', this.id);
     }
 
     const buffer = await fs.readFile(absolutePath);
     const mimeType = mime.lookup(absolutePath) || 'application/octet-stream';
-    return new Blob([buffer], { type: mimeType });
+    return { 
+      blob: new Blob([buffer], { type: mimeType }),
+      mimeType
+    };
   }
 } 

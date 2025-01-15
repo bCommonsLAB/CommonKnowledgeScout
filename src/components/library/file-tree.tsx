@@ -13,60 +13,34 @@ interface FileTreeProps {
 }
 
 interface TreeItemProps {
-  item: StorageItem
-  level: number
-  onSelect: (item: StorageItem) => void
-  loadChildren: (item: StorageItem) => Promise<StorageItem[]>
-  selectedId: string
+  item: StorageItem;
+  children: StorageItem[];
+  onExpand: (folderId: string) => Promise<void>;
+  onSelect: (item: StorageItem) => void;
+  selectedId: string;
+  level: number;
 }
 
-/**
- * Individual tree item component that handles expansion and child loading.
- */
+// TreeItem Komponente
 function TreeItem({
   item,
-  level,
+  children,
+  onExpand,
   onSelect,
-  loadChildren,
-  selectedId
+  selectedId,
+  level
 }: TreeItemProps) {
-  const [isExpanded, setIsExpanded] = React.useState(false)
-  const [children, setChildren] = React.useState<StorageItem[]>([])
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [hasLoadedOnce, setHasLoadedOnce] = React.useState(false)
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
-  // Lade Kinder nur wenn expandiert und noch nicht geladen
-  React.useEffect(() => {
-    const load = async () => {
-      if (isExpanded && !hasLoadedOnce && !isLoading) {
-        setIsLoading(true)
-        try {
-          const items = await loadChildren(item)
-          setChildren(items)
-          setHasLoadedOnce(true)
-        } catch (error) {
-          console.error('Failed to load children:', error)
-          setChildren([])
-        } finally {
-          setIsLoading(false)
-        }
+  const handleClick = async () => {
+    if (item.type === 'folder') {
+      if (!isExpanded) {
+        await onExpand(item.id);
       }
-    }
-
-    load()
-  }, [isExpanded, hasLoadedOnce, isLoading, item, loadChildren])
-
-  const handleNodeClick = (e: React.MouseEvent) => {
-    // Wenn auf den Chevron geklickt wurde, nur aufklappen
-    const isChevronClick = (e.target as HTMLElement).closest('.chevron-button');
-    if (isChevronClick) {
-      setIsExpanded(!isExpanded);
-    } else {
-      // Ansonsten aufklappen und selektieren
       setIsExpanded(!isExpanded);
       onSelect(item);
     }
-  }
+  };
 
   return (
     <div>
@@ -77,9 +51,9 @@ function TreeItem({
           level === 0 && "rounded-sm"
         )}
         style={{ paddingLeft: level * 12 + 4 }}
-        onClick={handleNodeClick}
+        onClick={handleClick}
       >
-        <div className="chevron-button h-4 w-4 mr-1 hover:bg-accent-foreground/10 rounded">
+        <div className="h-4 w-4 mr-1">
           {isExpanded ? (
             <ChevronDown className="h-4 w-4" />
           ) : (
@@ -91,11 +65,7 @@ function TreeItem({
       </div>
       {isExpanded && (
         <div>
-          {isLoading ? (
-            <div className="pl-9 py-1 text-sm text-muted-foreground">
-              Lädt...
-            </div>
-          ) : children.length === 0 ? (
+          {children.length === 0 ? (
             <div className="pl-9 py-1 text-sm text-muted-foreground">
               Keine Unterordner
             </div>
@@ -104,17 +74,18 @@ function TreeItem({
               <TreeItem
                 key={child.id}
                 item={child}
-                level={level + 1}
+                children={[]} // Leeres Array, da Kinder erst beim Aufklappen geladen werden
+                onExpand={onExpand}
                 onSelect={onSelect}
-                loadChildren={loadChildren}
                 selectedId={selectedId}
+                level={level + 1}
               />
             ))
           )}
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export function FileTree({
@@ -123,69 +94,72 @@ export function FileTree({
   currentFolderId,
   libraryName = "/"
 }: FileTreeProps) {
-  const [items, setItems] = React.useState<StorageItem[]>([]);
+  const [rootItems, setRootItems] = React.useState<StorageItem[]>([]);
+  const [loadedChildren, setLoadedChildren] = React.useState<Record<string, StorageItem[]>>({});
   const [isLoading, setIsLoading] = React.useState(false);
 
-  // Lade Root-Verzeichnis
+  // Lade nur erste Ebene beim Start
   React.useEffect(() => {
-    const loadRootItems = async () => {
-      if (!provider) {
-        setItems([]);
-        return;
-      }
-
+    const loadRoot = async () => {
+      if (!provider) return;
       setIsLoading(true);
       try {
-        const rootItems = await provider.listItemsById('root');
-        setItems(rootItems);
+        const items = await provider.listItemsById('root');
+        setRootItems(items.filter(item => 
+          item.type === 'folder' && 
+          !item.metadata.name.startsWith('.')
+        ));
       } catch (error) {
-        console.error('Failed to load root items:', error);
-        setItems([]);
+        console.error('Failed to load root:', error);
       } finally {
         setIsLoading(false);
       }
     };
-
-    loadRootItems();
+    loadRoot();
   }, [provider]);
 
-  // Lade Unterverzeichnisse
-  const loadChildren = React.useCallback(async (item: StorageItem) => {
-    if (!provider || item.type !== 'folder') return [];
-
+  // Handler für Expand-Click
+  const handleExpand = async (folderId: string) => {
+    if (loadedChildren[folderId]) return; // Bereits geladen
+    
     try {
-      const children = await provider.listItemsById(item.id);
-      return children
-        .filter(item => item.type === 'folder')
-        .filter(item => !item.metadata.name.startsWith('.'))
-        .sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
+      const children = await provider?.listItemsById(folderId);
+      if (children) {
+        const folderChildren = children
+          .filter(item => item.type === 'folder')
+          .filter(item => !item.metadata.name.startsWith('.'))
+          .sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
+          
+        setLoadedChildren(prev => ({
+          ...prev,
+          [folderId]: folderChildren
+        }));
+      }
     } catch (error) {
       console.error('Failed to load children:', error);
-      return [];
     }
-  }, [provider]);
-
-  // Filter nur Ordner
-  const folders = items
-    .filter(item => item.type === 'folder')
-    .filter(item => !item.metadata.name.startsWith('.'))
-    .sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
+  };
 
   return (
     <div className="overflow-auto p-2">
-      {folders.length === 0 ? (
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground">
+          Lädt...
+        </div>
+      ) : rootItems.length === 0 ? (
         <div className="text-sm text-muted-foreground">
           Keine Ordner gefunden
         </div>
       ) : (
-        folders.map((item) => (
+        rootItems.map((item) => (
           <TreeItem
             key={item.id}
             item={item}
-            level={0}
+            children={loadedChildren[item.id] || []}
+            onExpand={handleExpand}
             onSelect={onSelect}
-            loadChildren={loadChildren}
             selectedId={currentFolderId}
+            level={0}
           />
         ))
       )}

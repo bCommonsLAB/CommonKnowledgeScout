@@ -4,16 +4,10 @@ import { FileSystemClient } from './filesystem-client';
 
 export class StorageService {
   private static instance: StorageService;
-  private providers: Map<string, StorageProvider>;
+  private providers = new Map<string, StorageProvider>();
 
   private constructor() {
-    this.providers = new Map();
-    
-    // Registriere die Standard-Provider
-    const mockProvider = new MockStorageProvider();
     const filesystemProvider = new FileSystemClient();
-    
-    this.providers.set(mockProvider.id, mockProvider);
     this.providers.set(filesystemProvider.id, filesystemProvider);
   }
 

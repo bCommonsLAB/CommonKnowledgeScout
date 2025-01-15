@@ -1,4 +1,4 @@
-import { StorageProvider, StorageItem, StorageFile, StorageFolder, StorageValidationResult } from './types';
+import { StorageProvider, StorageItem, StorageValidationResult, StorageError } from './types';
 
 export class FileSystemClient implements StorageProvider {
   name = 'Local FileSystem';
@@ -13,8 +13,8 @@ export class FileSystemClient implements StorageProvider {
     this.libraryId = libraryId;
   }
 
-  private getCacheKey(action: string, path: string): string {
-    return `${action}:${path}:${this.libraryId}`;
+  private getCacheKey(action: string, id: string): string {
+    return `${action}:${id}:${this.libraryId}`;
   }
 
   private getFromCache<T>(key: string): T | null {
@@ -42,7 +42,7 @@ export class FileSystemClient implements StorageProvider {
 
   async validateConfiguration(): Promise<StorageValidationResult> {
     try {
-      await this.listItems('/');
+      await this.listItemsById('root');
       return { isValid: true };
     } catch (error) {
       return {
@@ -68,57 +68,43 @@ export class FileSystemClient implements StorageProvider {
         status: response.status,
         error: error.error || 'Network error'
       });
-      throw new Error(error.error || 'Network error');
+      throw new StorageError(
+        error.error || 'Network error',
+        'HTTP_ERROR',
+        this.id
+      );
     }
     
     return response;
   }
 
-  private ensureProviderReference(items: StorageItem | StorageItem[]): void {
-    if (Array.isArray(items)) {
-      items.forEach(item => {
-        item.provider = this;
-      });
-    } else {
-      items.provider = this;
-    }
-  }
-
-  async listItems(path: string): Promise<StorageItem[]> {
-    const cacheKey = this.getCacheKey('list', path);
+  async listItemsById(folderId: string): Promise<StorageItem[]> {
+    const cacheKey = this.getCacheKey('list', folderId);
     const cached = this.getFromCache<StorageItem[]>(cacheKey);
-    if (cached) {
-      this.ensureProviderReference(cached);
-      return cached;
-    }
+    if (cached) return cached;
 
-    const url = `${this.baseUrl}?action=list&path=${encodeURIComponent(path)}`;
+    const url = `${this.baseUrl}?action=list&fileId=${encodeURIComponent(folderId)}`;
     const response = await this.fetchWithError(url);
     const data = await response.json();
-    this.ensureProviderReference(data);
     this.setCache(cacheKey, data);
     return data;
   }
 
-  async getItem(path: string): Promise<StorageItem> {
-    const cacheKey = this.getCacheKey('get', path);
+  async getItemById(itemId: string): Promise<StorageItem> {
+    const cacheKey = this.getCacheKey('get', itemId);
     const cached = this.getFromCache<StorageItem>(cacheKey);
-    if (cached) {
-      this.ensureProviderReference(cached);
-      return cached;
-    }
+    if (cached) return cached;
 
-    const url = `${this.baseUrl}?action=get&path=${encodeURIComponent(path)}`;
+    const url = `${this.baseUrl}?action=get&fileId=${encodeURIComponent(itemId)}`;
     const response = await this.fetchWithError(url);
     const data = await response.json();
-    this.ensureProviderReference(data);
     this.setCache(cacheKey, data);
     return data;
   }
 
-  async createFolder(path: string, name: string): Promise<StorageFolder> {
+  async createFolder(parentId: string, name: string): Promise<StorageItem> {
     this.invalidateCache();
-    const url = `${this.baseUrl}?action=createFolder&path=${encodeURIComponent(path)}`;
+    const url = `${this.baseUrl}?action=createFolder&fileId=${encodeURIComponent(parentId)}`;
     const response = await this.fetchWithError(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -127,25 +113,21 @@ export class FileSystemClient implements StorageProvider {
     return response.json();
   }
 
-  async deleteItem(path: string): Promise<void> {
+  async deleteItem(itemId: string): Promise<void> {
     this.invalidateCache();
-    const url = `${this.baseUrl}?path=${encodeURIComponent(path)}`;
+    const url = `${this.baseUrl}?fileId=${encodeURIComponent(itemId)}`;
     await this.fetchWithError(url, { method: 'DELETE' });
   }
 
-  async moveItem(fromPath: string, toPath: string): Promise<void> {
+  async moveItem(itemId: string, newParentId: string): Promise<void> {
     this.invalidateCache();
-    const url = this.baseUrl;
-    await this.fetchWithError(url, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fromPath, toPath }),
-    });
+    const url = `${this.baseUrl}?fileId=${encodeURIComponent(itemId)}&newParentId=${encodeURIComponent(newParentId)}`;
+    await this.fetchWithError(url, { method: 'PATCH' });
   }
 
-  async uploadFile(path: string, file: File): Promise<StorageFile> {
+  async uploadFile(parentId: string, file: File): Promise<StorageItem> {
     this.invalidateCache();
-    const url = `${this.baseUrl}?action=upload&path=${encodeURIComponent(path)}`;
+    const url = `${this.baseUrl}?action=upload&fileId=${encodeURIComponent(parentId)}`;
     const formData = new FormData();
     formData.append('file', file);
     
@@ -154,12 +136,6 @@ export class FileSystemClient implements StorageProvider {
       body: formData,
     });
     return response.json();
-  }
-
-  async downloadFile(path: string): Promise<Blob> {
-    const url = `${this.baseUrl}?action=download&path=${encodeURIComponent(path)}`;
-    const response = await this.fetchWithError(url);
-    return response.blob();
   }
 
   async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string; }> {

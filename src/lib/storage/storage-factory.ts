@@ -1,4 +1,4 @@
-import { StorageProvider, StorageItem } from './types';
+import { StorageProvider, StorageItem, StorageValidationResult } from './types';
 import { ClientLibrary } from '@/types/library';
 
 class LocalStorageProvider implements StorageProvider {
@@ -17,15 +17,15 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
-    const response = await fetch(`/api/storage/filesystem?action=list&itemId=${folderId}&libraryId=${this.library.id}`);
+    const response = await fetch(`/api/storage/filesystem?action=list&fileId=${folderId}&libraryId=${this.library.id}`);
     if (!response.ok) {
       throw new Error('Failed to list items');
     }
     return response.json();
   }
 
-  async getItemById(itemId: string): Promise<StorageItem> {
-    const response = await fetch(`/api/storage/filesystem?action=get&itemId=${itemId}&libraryId=${this.library.id}`);
+  async getItemById(fileId: string): Promise<StorageItem> {
+    const response = await fetch(`/api/storage/filesystem?action=get&fileId=${fileId}&libraryId=${this.library.id}`);
     if (!response.ok) {
       throw new Error('Failed to get item');
     }
@@ -33,7 +33,7 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async createFolder(parentId: string, name: string): Promise<StorageItem> {
-    const response = await fetch(`/api/storage/filesystem?action=createFolder&parentId=${parentId}&libraryId=${this.library.id}`, {
+    const response = await fetch(`/api/storage/filesystem?action=createFolder&fileId=${parentId}&libraryId=${this.library.id}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -46,8 +46,8 @@ class LocalStorageProvider implements StorageProvider {
     return response.json();
   }
 
-  async deleteItem(itemId: string): Promise<void> {
-    const response = await fetch(`/api/storage/filesystem?action=delete&itemId=${itemId}&libraryId=${this.library.id}`, {
+  async deleteItem(fileId: string): Promise<void> {
+    const response = await fetch(`/api/storage/filesystem?action=delete&fileId=${fileId}&libraryId=${this.library.id}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -55,8 +55,8 @@ class LocalStorageProvider implements StorageProvider {
     }
   }
 
-  async moveItem(itemId: string, newParentId: string): Promise<void> {
-    const response = await fetch(`/api/storage/filesystem?action=move&itemId=${itemId}&newParentId=${newParentId}&libraryId=${this.library.id}`, {
+  async moveItem(fileId: string, newParentId: string): Promise<void> {
+    const response = await fetch(`/api/storage/filesystem?action=move&fileId=${fileId}&newParentId=${newParentId}&libraryId=${this.library.id}`, {
       method: 'PATCH',
     });
     if (!response.ok) {
@@ -68,7 +68,7 @@ class LocalStorageProvider implements StorageProvider {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`/api/storage/filesystem?action=upload&parentId=${parentId}&libraryId=${this.library.id}`, {
+    const response = await fetch(`/api/storage/filesystem?action=upload&fileId=${parentId}&libraryId=${this.library.id}`, {
       method: 'POST',
       body: formData,
     });
@@ -78,16 +78,16 @@ class LocalStorageProvider implements StorageProvider {
     return response.json();
   }
 
-  async downloadFile(itemId: string): Promise<Blob> {
-    const response = await fetch(`/api/storage/filesystem?action=download&itemId=${itemId}&libraryId=${this.library.id}`);
+  async downloadFile(fileId: string): Promise<Blob> {
+    const response = await fetch(`/api/storage/filesystem?action=download&fileId=${fileId}&libraryId=${this.library.id}`);
     if (!response.ok) {
       throw new Error('Failed to download file');
     }
     return response.blob();
   }
 
-  async getBinary(itemId: string): Promise<{ blob: Blob; mimeType: string }> {
-    const response = await fetch(`/api/storage/filesystem?action=binary&itemId=${itemId}&libraryId=${this.library.id}`);
+  async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string }> {
+    const response = await fetch(`/api/storage/filesystem?action=binary&fileId=${fileId}&libraryId=${this.library.id}`);
     if (!response.ok) {
       throw new Error('Failed to get binary');
     }
@@ -96,6 +96,10 @@ class LocalStorageProvider implements StorageProvider {
       blob,
       mimeType: response.headers.get('Content-Type') || 'application/octet-stream',
     };
+  }
+
+  async validateConfiguration(): Promise<StorageValidationResult> {
+    return { isValid: true };
   }
 }
 
