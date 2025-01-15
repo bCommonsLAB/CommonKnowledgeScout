@@ -1,12 +1,24 @@
 /**
+ * Storage system type definitions.
+ * Contains all types related to storage operations and providers.
+ */
+
+/**
  * Represents metadata for storage items.
  * Contains common properties for both files and folders.
  */
 export interface StorageItemMetadata {
-  name: string;      // Item name
-  size: number;      // Size in bytes (files only)
-  modifiedAt: Date;  // Last modification date
-  mimeType: string;  // MIME type (files only)
+  /** Display name of the item */
+  name: string;
+  
+  /** Size in bytes (0 for folders) */
+  size: number;
+  
+  /** Last modification timestamp */
+  modifiedAt: Date;
+  
+  /** MIME type (application/folder for folders) */
+  mimeType: string;
 }
 
 /**
@@ -14,9 +26,16 @@ export interface StorageItemMetadata {
  * Used as the primary type for item operations.
  */
 export interface StorageItem {
-  id: string;          // Unique identifier
-  parentId: string;    // ID of the parent folder
+  /** Unique identifier within the storage provider */
+  id: string;
+  
+  /** ID of the parent folder (empty for root) */
+  parentId: string;
+  
+  /** Item type discriminator */
   type: 'file' | 'folder';
+  
+  /** Item metadata */
   metadata: StorageItemMetadata;
 }
 
@@ -25,8 +44,11 @@ export interface StorageItem {
  * Used to verify storage configurations and permissions.
  */
 export interface StorageValidationResult {
+  /** Whether the validation was successful */
   isValid: boolean;
-  error?: string;      // Error message if validation fails
+  
+  /** Optional error message if validation failed */
+  error?: string;
 }
 
 /**
@@ -34,18 +56,66 @@ export interface StorageValidationResult {
  * Implements all necessary operations for file/folder management.
  */
 export interface StorageProvider {
-  name: string;        // Display name of the provider
-  id: string;          // Unique provider identifier
+  /** Display name of the provider */
+  name: string;
   
+  /** Unique provider identifier */
+  id: string;
+  
+  /**
+   * Validates the provider configuration.
+   * Checks if the provider is properly configured and accessible.
+   */
   validateConfiguration(): Promise<StorageValidationResult>;
   
-  // ID-based operations
+  /**
+   * Lists items in a folder by its ID.
+   * @param folderId - ID of the folder to list (empty for root)
+   * @returns Array of storage items in the folder
+   */
   listItemsById(folderId: string): Promise<StorageItem[]>;
+  
+  /**
+   * Retrieves a single item by its ID.
+   * @param itemId - ID of the item to retrieve
+   * @returns The storage item
+   */
   getItemById(itemId: string): Promise<StorageItem>;
+  
+  /**
+   * Creates a new folder.
+   * @param parentId - ID of the parent folder
+   * @param name - Name of the new folder
+   * @returns The created folder item
+   */
   createFolder(parentId: string, name: string): Promise<StorageItem>;
+  
+  /**
+   * Deletes an item by its ID.
+   * @param itemId - ID of the item to delete
+   */
   deleteItem(itemId: string): Promise<void>;
+  
+  /**
+   * Moves an item to a new parent folder.
+   * @param itemId - ID of the item to move
+   * @param newParentId - ID of the new parent folder
+   */
   moveItem(itemId: string, newParentId: string): Promise<void>;
+  
+  /**
+   * Uploads a file to a folder.
+   * @param parentId - ID of the parent folder
+   * @param file - File to upload
+   * @returns The created file item
+   */
   uploadFile(parentId: string, file: File): Promise<StorageItem>;
+  
+  /**
+   * Retrieves the binary content of a file.
+   * @param fileId - ID of the file
+   * @returns Binary content and MIME type
+   */
   getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string; }>;
 }
 
@@ -54,6 +124,12 @@ export interface StorageProvider {
  * Provides additional context for storage-related errors.
  */
 export class StorageError extends Error {
+  /**
+   * Creates a new storage error.
+   * @param message - Error message
+   * @param code - Error code for categorization
+   * @param provider - ID of the provider where the error occurred
+   */
   constructor(
     message: string,
     public code: string = 'UNKNOWN',

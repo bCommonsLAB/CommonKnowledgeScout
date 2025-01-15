@@ -1,5 +1,4 @@
 import { StorageProvider } from './types';
-import { MockStorageProvider } from './mock-provider';
 import { FileSystemClient } from './filesystem-client';
 
 export class StorageService {

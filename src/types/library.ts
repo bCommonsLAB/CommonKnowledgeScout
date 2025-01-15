@@ -1,3 +1,8 @@
+/**
+ * Core library type definitions.
+ * Contains all types related to library configuration and management.
+ */
+
 import { ReactNode } from 'react';
 
 /**
@@ -8,70 +13,107 @@ export type StorageProviderType = 'local' | 'onedrive' | 'gdrive';
 
 /**
  * Configuration options for storage providers.
- * Contains authentication and connection settings.
+ * Contains provider-specific settings and authentication details.
  */
 export interface StorageConfig {
-  clientId?: string;      // OAuth client ID
-  clientSecret?: string;  // OAuth client secret
-  tenantId?: string;     // OneDrive Business tenant ID
-  redirectUri?: string;   // OAuth redirect URI
-  scope?: string[];      // OAuth permission scopes
+  /** OAuth client ID for authentication */
+  clientId?: string;
+  
+  /** OAuth client secret (server-side only) */
+  clientSecret?: string;
+  
+  /** Tenant ID for enterprise providers (e.g., OneDrive Business) */
+  tenantId?: string;
+  
+  /** OAuth redirect URI for authentication flow */
+  redirectUri?: string;
+  
+  /** Required OAuth permission scopes */
+  scope?: string[];
 }
 
 /**
  * Server-side library configuration.
- * Contains complete library settings including sensitive data.
- * @property {string} id - Unique identifier for the library
- * @property {string} label - Display name of the library
- * @property {string} path - Base path for the library
- * @property {ReactNode} [icon] - Optional icon component
- * @property {StorageProviderType} type - Type of storage provider
- * @property {StorageConfig} [config] - Provider-specific configuration
- * @property {boolean} isEnabled - Whether the library is active
- * @property {string} transcription - Transcription 'shadowTwin' (stored in same directory as original file) or 'db' (stored in database) 
+ * Complete library settings including sensitive data.
  */
 export interface Library {
+  /** Unique identifier for the library */
   id: string;
+  
+  /** Display name shown in the UI */
   label: string;
+  
+  /** Base path for local filesystem providers */
   path: string;
+  
+  /** Optional icon component for UI representation */
   icon?: ReactNode;
+  
+  /** Type of storage provider used */
   type: StorageProviderType;
+  
+  /** Provider-specific configuration */
   config?: StorageConfig;
+  
+  /** Whether the library is currently active */
   isEnabled: boolean;
-  transcription: string;
+  
+  /** Transcription storage strategy:
+   * - 'shadowTwin': stored alongside original file
+   * - 'db': stored in database
+   */
+  transcription: 'shadowTwin' | 'db';
 }
 
 /**
  * Client-side library representation.
- * Excludes sensitive configuration data.
- * @property {string} id - Unique identifier for the library
- * @property {string} label - Display name of the library
- * @property {StorageProviderType} type - Type of storage provider
- * @property {string} path - Base path for the library
- * @property {boolean} isEnabled - Whether the library is active
- * @property {Record<string, unknown>} config - Safe configuration data
+ * Excludes sensitive configuration data for security.
  */
 export interface ClientLibrary {
+  /** Unique identifier matching server-side library */
   id: string;
+  
+  /** Display name shown in the UI */
   label: string;
+  
+  /** Type of storage provider used */
   type: StorageProviderType;
+  
+  /** Base path for local filesystem providers */
   path: string;
+  
+  /** Whether the library is currently active */
   isEnabled: boolean;
+  
+  /** Safe configuration data (excludes sensitive information) */
   config: Record<string, unknown>;
 }
 
 /**
- * Represents an item in the file list view.
- * Contains display-relevant metadata for files and folders.
+ * UI representation of a file or folder.
+ * Used in list views and file browsers.
  */
 export interface FileListItem {
-  id: string;           // Unique identifier
-  name: string;         // Display name
+  /** Unique identifier */
+  id: string;
+  
+  /** Display name */
+  name: string;
+  
+  /** Item type */
   type: 'file' | 'folder';
-  size?: number;        // File size (optional for folders)
-  modified: Date;       // Last modification date
-  path: string;         // Full path in the library
-  mimeType?: string;    // MIME type (optional for folders)
+  
+  /** File size in bytes (undefined for folders) */
+  size?: number;
+  
+  /** Last modification timestamp */
+  modified: Date;
+  
+  /** Full path within the library */
+  path: string;
+  
+  /** MIME type for files (undefined for folders) */
+  mimeType?: string;
 }
 
 /**
@@ -79,11 +121,24 @@ export interface FileListItem {
  * Contains data needed for rendering file previews.
  */
 export interface FilePreview {
-  id: string;           // Unique identifier
-  name: string;         // File name
-  content: string | Blob; // File content
-  mimeType: string;     // MIME type for rendering
-  size: number;         // File size in bytes
-  modified: Date;       // Last modification date
-  metadata?: Record<string, unknown>; // Additional metadata
+  /** Unique identifier */
+  id: string;
+  
+  /** File name */
+  name: string;
+  
+  /** File content as string or binary blob */
+  content: string | Blob;
+  
+  /** MIME type for rendering */
+  mimeType: string;
+  
+  /** File size in bytes */
+  size: number;
+  
+  /** Last modification timestamp */
+  modified: Date;
+  
+  /** Additional metadata for preview rendering */
+  metadata?: Record<string, unknown>;
 } 
