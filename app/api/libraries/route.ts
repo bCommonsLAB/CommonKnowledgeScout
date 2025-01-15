@@ -9,18 +9,21 @@ const defaultLibraries: Library[] = [
     path: process.env.STORAGE_BASE_PATH || '',
     type: 'local',
     isEnabled: process.env.STORAGE_BASE_PATH ? true : false,
-    config: {} // Lokaler Provider braucht keine zusätzliche Konfiguration
+    config: {}, // Lokaler Provider braucht keine zusätzliche Konfiguration
+    transcription: "shadowTwin"
   }
 ];
 
 // Konvertiert Library in ClientLibrary (entfernt sensible Daten)
 function toClientLibrary(library: Library): ClientLibrary {
-  const { id, label, type, isEnabled } = library;
+  const { id, label, type, isEnabled, path, config } = library;
   return {
     id,
     label,
     type,
-    isEnabled
+    isEnabled,
+    path,
+    config: config as Record<string, unknown>
   };
 }
 

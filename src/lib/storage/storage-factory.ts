@@ -1,81 +1,149 @@
-import { StorageProvider, StorageValidationResult } from './types';
-import { FileSystemClient } from './filesystem-client';
-import { MockStorageProvider } from './mock-provider';
-import { ClientLibrary, StorageProviderType } from '@/types/library';
+import { StorageProvider, StorageItem } from './types';
+import { ClientLibrary } from '@/types/library';
+
+class LocalStorageProvider implements StorageProvider {
+  private library: ClientLibrary;
+
+  constructor(library: ClientLibrary) {
+    this.library = library;
+  }
+
+  get name() {
+    return 'Local Filesystem';
+  }
+
+  get id() {
+    return 'local';
+  }
+
+  async listItemsById(folderId: string): Promise<StorageItem[]> {
+    const response = await fetch(`/api/storage/filesystem?action=list&itemId=${folderId}&libraryId=${this.library.id}`);
+    if (!response.ok) {
+      throw new Error('Failed to list items');
+    }
+    return response.json();
+  }
+
+  async getItemById(itemId: string): Promise<StorageItem> {
+    const response = await fetch(`/api/storage/filesystem?action=get&itemId=${itemId}&libraryId=${this.library.id}`);
+    if (!response.ok) {
+      throw new Error('Failed to get item');
+    }
+    return response.json();
+  }
+
+  async createFolder(parentId: string, name: string): Promise<StorageItem> {
+    const response = await fetch(`/api/storage/filesystem?action=createFolder&parentId=${parentId}&libraryId=${this.library.id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create folder');
+    }
+    return response.json();
+  }
+
+  async deleteItem(itemId: string): Promise<void> {
+    const response = await fetch(`/api/storage/filesystem?action=delete&itemId=${itemId}&libraryId=${this.library.id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete item');
+    }
+  }
+
+  async moveItem(itemId: string, newParentId: string): Promise<void> {
+    const response = await fetch(`/api/storage/filesystem?action=move&itemId=${itemId}&newParentId=${newParentId}&libraryId=${this.library.id}`, {
+      method: 'PATCH',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to move item');
+    }
+  }
+
+  async uploadFile(parentId: string, file: File): Promise<StorageItem> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`/api/storage/filesystem?action=upload&parentId=${parentId}&libraryId=${this.library.id}`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      throw new Error('Failed to upload file');
+    }
+    return response.json();
+  }
+
+  async downloadFile(itemId: string): Promise<Blob> {
+    const response = await fetch(`/api/storage/filesystem?action=download&itemId=${itemId}&libraryId=${this.library.id}`);
+    if (!response.ok) {
+      throw new Error('Failed to download file');
+    }
+    return response.blob();
+  }
+
+  async getBinary(itemId: string): Promise<{ blob: Blob; mimeType: string }> {
+    const response = await fetch(`/api/storage/filesystem?action=binary&itemId=${itemId}&libraryId=${this.library.id}`);
+    if (!response.ok) {
+      throw new Error('Failed to get binary');
+    }
+    const blob = await response.blob();
+    return {
+      blob,
+      mimeType: response.headers.get('Content-Type') || 'application/octet-stream',
+    };
+  }
+}
 
 export class StorageFactory {
   private static instance: StorageFactory;
-  private providers: Map<string, StorageProvider>;
-  private validationResults: Map<string, StorageValidationResult>;
-  private libraries: ClientLibrary[];
+  private libraries: ClientLibrary[] = [];
+  private providers = new Map<string, StorageProvider>();
 
-  private constructor() {
-    this.providers = new Map();
-    this.validationResults = new Map();
-    this.libraries = [];
-  }
+  private constructor() {}
 
-  public static getInstance(): StorageFactory {
+  static getInstance(): StorageFactory {
     if (!StorageFactory.instance) {
       StorageFactory.instance = new StorageFactory();
     }
     return StorageFactory.instance;
   }
 
-  public setLibraries(libraries: ClientLibrary[]): void {
+  setLibraries(libraries: ClientLibrary[]) {
     this.libraries = libraries;
-    // Bestehende Provider zurücksetzen, da sich die Konfiguration geändert hat
+    // Reset providers when libraries change
     this.providers.clear();
-    this.validationResults.clear();
   }
 
-  private async createProvider(library: ClientLibrary): Promise<StorageProvider> {
-    switch (library.type) {
-      case 'local':
-        return new FileSystemClient('/api/storage/filesystem', library.id);
-
-      case 'mock':
-        return new MockStorageProvider();
-
-      // Weitere Provider hier hinzufügen
-      default:
-        throw new Error(`Unsupported storage type: ${library.type}`);
-    }
-  }
-
-  public async getProvider(libraryId: string): Promise<StorageProvider> {
-    const existingProvider = this.providers.get(libraryId);
-    if (existingProvider) {
-      return existingProvider;
+  async getProvider(libraryId: string): Promise<StorageProvider> {
+    // Check if provider already exists
+    if (this.providers.has(libraryId)) {
+      return this.providers.get(libraryId)!;
     }
 
+    // Find library
     const library = this.libraries.find(lib => lib.id === libraryId);
     if (!library) {
       throw new Error(`Library ${libraryId} not found`);
     }
 
-    if (!library.isEnabled) {
-      throw new Error(`Library ${libraryId} is disabled`);
+    // Create provider based on library type
+    let provider: StorageProvider;
+    switch (library.type) {
+      case 'local':
+        provider = new LocalStorageProvider(library);
+        break;
+      // Add more provider types here
+      default:
+        throw new Error(`Unsupported library type: ${library.type}`);
     }
 
-    const provider = await this.createProvider(library);
-    const validationResult = await provider.validateConfiguration();
-    
-    if (!validationResult.isValid) {
-      throw new Error(`Storage provider ${library.type} validation failed: ${validationResult.error}`);
-    }
-
+    // Cache provider
     this.providers.set(libraryId, provider);
-    this.validationResults.set(libraryId, validationResult);
-    
     return provider;
-  }
-
-  public getValidationResult(libraryId: string): StorageValidationResult | undefined {
-    return this.validationResults.get(libraryId);
-  }
-
-  public getLibraries(): ClientLibrary[] {
-    return this.libraries;
   }
 } 

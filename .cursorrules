@@ -95,6 +95,14 @@ Accessibility (a11y)
 - Ensure keyboard navigation
 - Maintain proper color contrast
 
+Documentation
+- Use JSDoc for function and component documentation
+- Document all public APIs
+- Document all components and types
+- Document all hooks and utils
+- Document all libraries and providers
+- Document all pages and routes
+
 Environment Setup
 - Define environment variable handling
 - Document required .env variables

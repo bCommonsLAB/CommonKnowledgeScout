@@ -17,7 +17,6 @@ import { ClientLibrary } from "@/types/library"
 import { StorageFactory } from "@/lib/storage/storage-factory"
 import { StorageProvider, StorageItem } from "@/lib/storage/types"
 
-// Exportiere die Library-Props für die TopNav
 export interface LibraryContextProps {
   libraries: ClientLibrary[];
   activeLibraryId: string;
@@ -31,6 +30,12 @@ interface LibraryProps {
   navCollapsedSize: number
 }
 
+// Styles für die verschiedenen Panel-Typen
+const panelStyles = "h-full flex flex-col min-h-0";
+const treeStyles = "h-full overflow-auto";
+const fileListStyles = "h-full overflow-auto";
+const previewStyles = "h-full overflow-auto";
+
 export function Library({
   libraries,
   defaultLayout = [20, 32, 48],
@@ -42,9 +47,10 @@ export function Library({
   const [activeLibraryId, setActiveLibraryId] = React.useState<string>(libraries[0]?.id || '')
   const [activeProvider, setActiveProvider] = React.useState<StorageProvider | null>(null)
   const [currentItems, setCurrentItems] = React.useState<StorageItem[]>([])
-  const [currentPath, setCurrentPath] = React.useState<string>('/')
+  const [currentFolderId, setCurrentFolderId] = React.useState<string>('root')
   const [isLoading, setIsLoading] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [itemsCache, setItemsCache] = React.useState<Map<string, StorageItem>>(new Map())
 
   // Initialisiere die StorageFactory mit den Libraries
   React.useEffect(() => {
@@ -61,6 +67,9 @@ export function Library({
         const factory = StorageFactory.getInstance();
         const provider = await factory.getProvider(activeLibraryId);
         setActiveProvider(provider);
+        // Reset auf Root-Verzeichnis
+        setCurrentFolderId('root');
+        setSelectedItem(null);
       } catch (error) {
         console.error('Failed to load storage provider:', error);
         setActiveProvider(null);
@@ -70,7 +79,7 @@ export function Library({
     loadProvider();
   }, [activeLibraryId]);
 
-  // Lade Dateien wenn sich der Provider oder der Pfad ändert
+  // Lade Dateien wenn sich der Provider oder der Ordner ändert
   React.useEffect(() => {
     const loadItems = async () => {
       if (!activeProvider) {
@@ -80,7 +89,13 @@ export function Library({
 
       setIsLoading(true);
       try {
-        const items = await activeProvider.listItems(currentPath);
+        const items = await activeProvider.listItemsById(currentFolderId);
+        
+        // Update Cache
+        const newCache = new Map(itemsCache);
+        items.forEach(item => newCache.set(item.id, item));
+        setItemsCache(newCache);
+        
         setCurrentItems(items);
       } catch (error) {
         console.error('Failed to load items:', error);
@@ -91,19 +106,19 @@ export function Library({
     };
 
     loadItems();
-  }, [activeProvider, currentPath]);
+  }, [activeProvider, currentFolderId]);
 
   // Handler für Library-Wechsel
   const handleLibraryChange = (libraryId: string) => {
     setActiveLibraryId(libraryId);
     setSelectedItem(null);
-    setCurrentPath('/');
+    setCurrentFolderId('root');
   };
 
   // Handler für Verzeichniswechsel
   const handleFolderSelect = (item: StorageItem) => {
     if (item.type === 'folder') {
-      setCurrentPath(item.item.path);
+      setCurrentFolderId(item.id);
       setSelectedItem(null);
     }
   };
@@ -121,49 +136,37 @@ export function Library({
     
     const query = searchQuery.toLowerCase();
     return currentItems.filter(item => 
-      item.item.name.toLowerCase().includes(query)
+      item.metadata.name.toLowerCase().includes(query)
     );
   }, [currentItems, searchQuery]);
 
   // Finde die aktuelle Bibliothek
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
 
-  // Handler für Pfadwechsel
-  const handlePathChange = async (newPath: string) => {
-    setCurrentPath(newPath);
+  // Generiere Breadcrumb-Pfad
+  const getBreadcrumbPath = React.useCallback(async () => {
+    if (!activeProvider || currentFolderId === 'root') return [];
     
-    // Finde das entsprechende StorageItem für den Tree
-    if (activeProvider) {
-      try {
-        // Wenn wir zum Root navigieren
-        if (newPath === '/') {
-          setSelectedItem(null);
-          return;
-        }
-
-        // Lade die Items des übergeordneten Verzeichnisses
-        const parentPath = newPath.split('/').slice(0, -1).join('/') || '/';
-        const items = await activeProvider.listItems(parentPath);
-        
-        // Finde das Zielverzeichnis
-        const targetFolder = items.find(item => 
-          item.type === 'folder' && item.item.path === newPath
-        );
-
-        if (targetFolder) {
-          // Aktualisiere die Selektion im Tree
-          setSelectedItem(targetFolder);
-          handleFolderSelect(targetFolder);
-        } else {
-          console.warn('Target folder not found:', newPath);
-          setSelectedItem(null);
-        }
-      } catch (error) {
-        console.error('Failed to sync tree with path:', error);
-        setSelectedItem(null);
-      }
+    const path: StorageItem[] = [];
+    let currentId = currentFolderId;
+    
+    while (currentId !== 'root') {
+      const item = itemsCache.get(currentId);
+      if (!item) break;
+      path.unshift(item);
+      currentId = item.parentId;
     }
-  };
+    
+    return path;
+  }, [currentFolderId, itemsCache, activeProvider]);
+
+  // Breadcrumb-Pfad State
+  const [breadcrumbPath, setBreadcrumbPath] = React.useState<StorageItem[]>([]);
+
+  // Aktualisiere Breadcrumb wenn sich der Ordner ändert
+  React.useEffect(() => {
+    getBreadcrumbPath().then(setBreadcrumbPath);
+  }, [currentFolderId, getBreadcrumbPath]);
 
   // Übermittle die Library-Props an die TopNav
   React.useEffect(() => {
@@ -177,58 +180,51 @@ export function Library({
     window.dispatchEvent(event);
 
     return () => {
-      // Setze den Kontext zurück wenn die Komponente unmounted wird
       const resetEvent = new CustomEvent('libraryContextChange', { detail: null });
       window.dispatchEvent(resetEvent);
     };
   }, [libraries, activeLibraryId]);
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen overflow-hidden">
       {/* Header Panel */}
-      <div className="border-b bg-background">
+      <div className="border-b bg-background flex-shrink-0">
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-4 min-w-0">
             <div className="text-sm flex items-center gap-2 min-w-0 overflow-hidden">
               <span className="text-muted-foreground flex-shrink-0">Pfad:</span>
               <div className="flex items-center gap-1 overflow-hidden">
                 <button
-                  onClick={() => handlePathChange('/')}
+                  onClick={() => setCurrentFolderId('root')}
                   className={cn(
                     "hover:text-foreground flex-shrink-0 font-medium",
-                    currentPath === '/' ? "text-foreground" : "text-muted-foreground"
+                    currentFolderId === 'root' ? "text-foreground" : "text-muted-foreground"
                   )}
                 >
                   {activeLibrary?.label || '/'}
                 </button>
-                {currentPath !== '/' && currentPath.split('/').filter(Boolean).map((segment, index, array) => {
-                  const segmentPath = '/' + array.slice(0, index + 1).join('/');
-                  return (
-                    <React.Fragment key={segmentPath}>
-                      <span className="text-muted-foreground flex-shrink-0">/</span>
-                      <button
-                        onClick={() => handlePathChange(segmentPath)}
-                        className={cn(
-                          "hover:text-foreground truncate",
-                          currentPath === segmentPath ? "text-foreground font-medium" : "text-muted-foreground"
-                        )}
-                      >
-                        {segment}
-                      </button>
-                    </React.Fragment>
-                  );
-                })}
+                {breadcrumbPath.map((item) => (
+                  <React.Fragment key={item.id}>
+                    <span className="text-muted-foreground flex-shrink-0">/</span>
+                    <button
+                      onClick={() => setCurrentFolderId(item.id)}
+                      className={cn(
+                        "hover:text-foreground truncate",
+                        currentFolderId === item.id ? "text-foreground font-medium" : "text-muted-foreground"
+                      )}
+                    >
+                      {item.metadata.name}
+                    </button>
+                  </React.Fragment>
+                ))}
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Hier können weitere Header-Elemente hinzugefügt werden */}
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1">
+      <div className="flex-1 min-h-0">
         <TooltipProvider delayDuration={0}>
           <ResizablePanelGroup
             direction="horizontal"
@@ -262,65 +258,41 @@ export function Library({
                 isCollapsed && "min-w-[50px] transition-all duration-300 ease-in-out"
               )}
             >
-              <FileTree 
-                provider={activeProvider}
-                onSelect={handleFolderSelect}
-                currentPath={currentPath}
-                libraryName={activeLibrary?.label}
-              />
+              <div className={cn(panelStyles)}>
+                <div className={cn(treeStyles)}>
+                  <FileTree 
+                    provider={activeProvider}
+                    onSelect={handleFolderSelect}
+                    currentFolderId={currentFolderId}
+                    libraryName={activeLibrary?.label}
+                  />
+                </div>
+              </div>
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={defaultLayout[1]} minSize={30} className="border-r">
-              <Tabs defaultValue="all">
-                <div className="flex items-center px-4 py-2">
-                  <h1 className="text-xl font-bold">Dateien</h1>
-                  <TabsList className="ml-auto">
-                    <TabsTrigger value="all" className="text-zinc-600 dark:text-zinc-200">
-                      Alle Dateien
-                    </TabsTrigger>
-                    <TabsTrigger value="recent" className="text-zinc-600 dark:text-zinc-200">
-                      Zuletzt geöffnet
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-                <Separator />
-                <div className="bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                  <form onSubmit={(e) => e.preventDefault()}>
-                    <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        placeholder="Suchen" 
-                        className="pl-8"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                  </form>
-                </div>
-                <TabsContent value="all" className="m-0">
-                  <FileList 
-                    items={filteredItems}
-                    selectedItem={selectedItem}
-                    onSelect={handleFileSelect}
-                    currentPath={currentPath}
-                  />
-                </TabsContent>
-                <TabsContent value="recent" className="m-0">
-                  <FileList 
-                    items={filteredItems}
-                    selectedItem={selectedItem}
-                    onSelect={handleFileSelect}
-                    currentPath={currentPath}
-                  />
-                </TabsContent>
-              </Tabs>
+              <div className="flex items-center px-4 py-2">
+                <h1 className="text-xl font-bold">Dateien</h1>
+              </div>
+              <Separator />
+                <FileList 
+                  items={filteredItems}
+                  selectedItem={selectedItem}
+                  onSelect={handleFileSelect}
+                  currentFolderId={currentFolderId}
+                />
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={defaultLayout[2]} className="hidden lg:block">
-              <FilePreview 
-                item={selectedItem} 
-                className="h-full"
-              />
+              <div className={cn(panelStyles)}>
+                <div className={cn(previewStyles)}>
+                  <FilePreview 
+                    item={selectedItem} 
+                    provider={activeProvider}
+                    className="h-full"
+                  />
+                </div>
+              </div>
             </ResizablePanel>
           </ResizablePanelGroup>
         </TooltipProvider>

@@ -1,20 +1,36 @@
 'use client';
 
-import { StorageItem, StorageFile } from "@/lib/storage/types";
-import { cn } from "@/lib/utils";
-import { File, FileText, FileVideo, FileAudio, FileIcon } from "lucide-react";
-import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import * as React from "react"
+import { File, FileText, FileVideo, FileAudio, FileIcon } from "lucide-react"
+import { StorageItem } from "@/lib/storage/types"
+import { cn } from "@/lib/utils"
 
 interface FileListProps {
-  items: StorageItem[];
-  onSelect?: (item: StorageItem) => void;
-  selectedItem?: StorageItem | null;
-  currentPath?: string;
+  items: StorageItem[]
+  selectedItem: StorageItem | null
+  onSelect: (item: StorageItem) => void
+  searchTerm?: string
+  currentFolderId: string
 }
 
-export function FileList({ items, onSelect, selectedItem, currentPath = '/' }: FileListProps) {
-  const formatFileSize = (size: number) => {
+export function FileList({
+  items,
+  selectedItem,
+  onSelect,
+  searchTerm = ""
+}: FileListProps) {
+  // Filter files and apply search
+  const files = items
+    .filter(item => item.type === 'file')
+    .filter(item => !item.metadata.name.startsWith('.'))
+    .filter(item => 
+      searchTerm === "" || 
+      item.metadata.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+  // Formatiere Dateigröße
+  const formatFileSize = (size?: number) => {
+    if (!size) return '-';
     const units = ['B', 'KB', 'MB', 'GB'];
     let value = size;
     let unitIndex = 0;
@@ -27,78 +43,48 @@ export function FileList({ items, onSelect, selectedItem, currentPath = '/' }: F
     return `${value.toFixed(1)} ${units[unitIndex]}`;
   };
 
-  // Filtere nur Dateien (keine Ordner) und keine versteckten Dateien
-  const filteredItems = items.filter(item => 
-    item.type === 'file' && !item.item.name.startsWith('.')
-  );
+  // Bestimme das Icon basierend auf dem MIME-Type
+  const getFileIcon = (item: StorageItem) => {
+    const mimeType = item.metadata.mimeType;
+    if (!mimeType) return <File className="h-4 w-4" />;
 
-  const getFileIcon = (fileName: string) => {
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    
-    switch(extension) {
-      case 'md':
-      case 'mdx':
-        return <FileText className="h-4 w-4" />;
-      case 'mp4':
-      case 'avi':
-      case 'mov':
-        return <FileVideo className="h-4 w-4" />;
-      case 'mp3':
-      case 'wav':
-      case 'ogg':
-        return <FileAudio className="h-4 w-4" />;
-      case 'pdf':
-        return <FileIcon className="h-4 w-4" />;
-      case 'txt':
-      case 'doc':
-      case 'docx':
-        return <FileText className="h-4 w-4" />;
-      default:
-        return <File className="h-4 w-4" />;
+    if (mimeType.startsWith('video/')) {
+      return <FileVideo className="h-4 w-4" />;
+    } else if (mimeType.startsWith('audio/')) {
+      return <FileAudio className="h-4 w-4" />;
+    } else if (mimeType.startsWith('text/')) {
+      return <FileText className="h-4 w-4" />;
     }
+
+    return <File className="h-4 w-4" />;
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-220px)]">
-      {filteredItems.length === 0 ? (
-        <div className="p-8 text-center text-muted-foreground">
+    <div className="h-full overflow-auto">
+      {files.length === 0 ? (
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
           Keine Dateien gefunden
         </div>
       ) : (
-        <div className="flex flex-col">
-          {/* Header */}
-          <div className="sticky top-0 bg-background grid grid-cols-12 gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
-            <div className="col-span-6">Name</div>
-            <div className="col-span-2">Größe</div>
-            <div className="col-span-4">Geändert</div>
-          </div>
-          
-          {/* Items */}
-          <div className="flex-1 overflow-auto">
-            {filteredItems.map((item, index) => (
-              <div
-                key={item.item.path}
-                className={cn(
-                  "grid grid-cols-12 gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-muted/50",
-                  selectedItem?.item.path === item.item.path && "bg-muted"
-                )}
-                onClick={() => onSelect?.(item)}
-              >
-                <div className="col-span-6 flex items-center gap-2">
-                  {getFileIcon(item.item.name)}
-                  <span className="truncate">{item.item.name}</span>
-                </div>
-                <div className="col-span-2">
-                  {item.type === 'file' ? formatFileSize((item.item as unknown as StorageFile).size || 0) : '-'}
-                </div>
-                <div className="col-span-4">
-                  {item.item.modifiedAt ? formatDistanceToNow(new Date(item.item.modifiedAt), { addSuffix: true, locale: de }) : '-'}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="divide-y">
+          {files.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onSelect(item)}
+              className={cn(
+                "w-full px-4 py-2 text-sm hover:bg-muted/50 flex items-center gap-4",
+                selectedItem?.id === item.id && "bg-muted"
+              )}
+            >
+              {getFileIcon(item)}
+              <span className="flex-1 text-left truncate">{item.metadata.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {formatFileSize(item.metadata.size)}
+              </span>
+            </button>
+          ))}
         </div>
       )}
     </div>
-  );
+  )
 } 
