@@ -50,7 +50,8 @@ export function Library({
   const [currentFolderId, setCurrentFolderId] = React.useState<string>('root')
   const [isLoading, setIsLoading] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [itemsCache, setItemsCache] = React.useState<Map<string, StorageItem>>(new Map())
+  const [folderCache, setFolderCache] = React.useState<Map<string, StorageItem>>(new Map())
+  const [breadcrumbPath, setBreadcrumbPath] = React.useState<StorageItem[]>([])
 
   // Initialisiere die StorageFactory mit den Libraries
   React.useEffect(() => {
@@ -92,9 +93,9 @@ export function Library({
         const items = await activeProvider.listItemsById(currentFolderId);
         
         // Update Cache
-        const newCache = new Map(itemsCache);
+        const newCache = new Map(folderCache);
         items.forEach(item => newCache.set(item.id, item));
-        setItemsCache(newCache);
+        setFolderCache(newCache);
         
         setCurrentItems(items);
       } catch (error) {
@@ -113,15 +114,69 @@ export function Library({
     setActiveLibraryId(libraryId);
     setSelectedItem(null);
     setCurrentFolderId('root');
+    setBreadcrumbPath([]);
+    setFolderCache(new Map()); // Cache beim Library-Wechsel leeren
   };
+
+  // Aktualisiere Cache wenn neue Items geladen werden
+  React.useEffect(() => {
+    const newCache = new Map(folderCache);
+    currentItems.forEach(item => {
+      if (item.type === 'folder') {
+        newCache.set(item.id, item);
+      }
+    });
+    setFolderCache(newCache);
+  }, [currentItems]);
 
   // Handler für Verzeichniswechsel
   const handleFolderSelect = (item: StorageItem) => {
     if (item.type === 'folder') {
       setCurrentFolderId(item.id);
       setSelectedItem(null);
+      
+      // Aktualisiere Cache mit dem ausgewählten Ordner
+      const newCache = new Map(folderCache);
+      newCache.set(item.id, item);
+      setFolderCache(newCache);
+
+      // Rekonstruiere den Pfad aus dem Cache
+      const path = [];
+      let current = item;
+      
+      while (current && current.id !== 'root') {
+        path.unshift(current);
+        const parent = folderCache.get(current.parentId);
+        if (!parent || parent.id === current.id) break;
+        current = parent;
+      }
+      
+      setBreadcrumbPath(path);
     }
   };
+
+  // Aktualisiere den Pfad wenn sich der Cache ändert
+  React.useEffect(() => {
+    if (currentFolderId === 'root') {
+      setBreadcrumbPath([]);
+      return;
+    }
+
+    const currentFolder = folderCache.get(currentFolderId);
+    if (currentFolder) {
+      const path = [];
+      let current = currentFolder;
+      
+      while (current && current.id !== 'root') {
+        path.unshift(current);
+        const parent = folderCache.get(current.parentId);
+        if (!parent || parent.id === current.id) break;
+        current = parent;
+      }
+      
+      setBreadcrumbPath(path);
+    }
+  }, [folderCache, currentFolderId]);
 
   // Handler für Dateiauswahl
   const handleFileSelect = (item: StorageItem) => {
@@ -142,31 +197,6 @@ export function Library({
 
   // Finde die aktuelle Bibliothek
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
-
-  // Generiere Breadcrumb-Pfad
-  const getBreadcrumbPath = React.useCallback(async () => {
-    if (!activeProvider || currentFolderId === 'root') return [];
-    
-    const path: StorageItem[] = [];
-    let currentId = currentFolderId;
-    
-    while (currentId !== 'root') {
-      const item = itemsCache.get(currentId);
-      if (!item) break;
-      path.unshift(item);
-      currentId = item.parentId;
-    }
-    
-    return path;
-  }, [currentFolderId, itemsCache, activeProvider]);
-
-  // Breadcrumb-Pfad State
-  const [breadcrumbPath, setBreadcrumbPath] = React.useState<StorageItem[]>([]);
-
-  // Aktualisiere Breadcrumb wenn sich der Ordner ändert
-  React.useEffect(() => {
-    getBreadcrumbPath().then(setBreadcrumbPath);
-  }, [currentFolderId, getBreadcrumbPath]);
 
   // Übermittle die Library-Props an die TopNav
   React.useEffect(() => {

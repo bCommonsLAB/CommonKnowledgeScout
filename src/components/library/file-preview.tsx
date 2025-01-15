@@ -82,6 +82,42 @@ const md = new Remarkable('full', {
   }
 });
 
+// Konfiguriere die Erkennung von horizontalen Linien
+md.block.ruler.disable(['hr']);
+md.block.ruler.at('hr', function (state, startLine, endLine, silent) {
+  const pos = state.bMarks[startLine] + state.tShift[startLine];
+  const max = state.eMarks[startLine];
+  const marker = state.src.charCodeAt(pos);
+
+  if (marker !== 0x2A /* * */ && marker !== 0x2D /* - */ && marker !== 0x5F /* _ */) {
+    return false;
+  }
+
+  let count = 1;
+  let ch = marker;
+  let pos2 = pos + 1;
+
+  while (pos2 < max) {
+    ch = state.src.charCodeAt(pos2);
+    if (ch !== marker) { break; }
+    count++;
+    pos2++;
+  }
+
+  if (count < 3) { return false; }
+
+  if (silent) { return true; }
+
+  state.line = startLine + 1;
+  const token = (state as any).push('hr', 'hr', 0);
+  token.map = [startLine, state.line];
+  token.markup = Array(count + 1).join(String.fromCharCode(marker));
+
+  return true;
+}, {});
+
+md.inline.ruler.enable(['emphasis']);
+
 // Anpassen der Renderer-Regeln für bessere Formatierung
 md.renderer.rules.heading_open = function(tokens, idx) {
   const token = tokens[idx];
@@ -140,6 +176,24 @@ md.renderer.rules.bullet_list_open = function() {
   return '<ul class="list-disc list-outside space-y-1 my-4">';
 };
 
+// Horizontale Linien
+md.renderer.rules.hr = function() {
+  return '<div class="w-full px-0 my-8"><hr class="w-full border-0 border-b-[3px] border-muted-foreground/40" /></div>';
+};
+
+// Absätze und Zeilenumbrüche
+md.renderer.rules.paragraph_open = function() {
+  return '<p class="mb-4 whitespace-pre-wrap">';
+};
+
+md.renderer.rules.softbreak = function() {
+  return '\n';
+};
+
+md.renderer.rules.hardbreak = function() {
+  return '<br />';
+};
+
 md.renderer.rules.ordered_list_open = function() {
   return '<ol class="list-decimal list-outside space-y-1 my-4">';
 };
@@ -177,6 +231,15 @@ md.renderer.rules.th_open = function() {
 
 md.renderer.rules.td_open = function() {
   return '<td class="px-4 py-2 text-sm border-t border-muted-foreground/10">';
+};
+
+// Hervorhebungen
+md.renderer.rules.em_open = function() {
+  return '<em class="italic">';
+};
+
+md.renderer.rules.strong_open = function() {
+  return '<strong class="font-bold">';
 };
 
 /**
@@ -419,6 +482,11 @@ function processObsidianContent(content: string, basePath: string = '', provider
   return content;
 }
 
+function processMarkdownContent(content: string): string {
+  // Ersetze *** durch eine eindeutige horizontale Linie
+  return content.replace(/^\s*\*{3,}\s*$/gm, '\n---\n');
+}
+
 export function FilePreview({ item, className, provider }: FilePreviewProps) {
   const [binaryUrl, setBinaryUrl] = useState<string | null>(null);
   const [markdownContent, setMarkdownContent] = useState<string | null>(null);
@@ -571,74 +639,20 @@ export function FilePreview({ item, className, provider }: FilePreviewProps) {
               </pre>
             )}
             {fileType === 'markdown' && markdownContent && (
-              <div className="prose dark:prose-invert max-w-none">
-                {/* Render frontmatter */}
-                {markdownContent.includes('---') && (
-                  <div className="bg-muted/30 rounded-lg overflow-hidden mb-8">
-                    <div className="px-4 py-2 bg-muted/50 border-b border-muted">
-                      <div className="text-xs font-medium text-muted-foreground">Metadaten</div>
-                    </div>
-                    <div className="p-4">
-                      <div className="grid gap-2 text-sm">
-                        {markdownContent.split('---')[1]?.split('\n').map((line, index) => {
-                          if (!line.trim() || line === '---') return null;
-                          if (line.includes(':')) {
-                            const [key, ...valueParts] = line.split(':');
-                            const value = valueParts.join(':').trim();
-                            
-                            // Handle arrays/lists
-                            if (value.includes(',') || (value.startsWith('[') && value.endsWith(']'))) {
-                              const tags = value
-                                .replace(/^\[|\]$/g, '') // Remove brackets if present
-                                .split(',')
-                                .map(tag => tag.trim())
-                                .filter(Boolean);
-                              
-                              return (
-                                <div key={index} className="grid grid-cols-[120px,1fr] gap-2">
-                                  <div className="text-xs font-medium text-muted-foreground">{key.trim()}</div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {tags.map((tag, i) => (
-                                      <span key={i} className="inline-flex items-center px-2 py-1 rounded-md bg-muted text-xs">
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              );
-                            }
-                            
-                            // Handle single values
-                            return (
-                              <div key={index} className="grid grid-cols-[120px,1fr] gap-2">
-                                <div className="text-xs font-medium text-muted-foreground">{key.trim()}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  <span className="inline-flex items-center px-2 py-1 rounded-md bg-muted">
-                                    {value || '—'}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          }
-                          return null;
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Render markdown content */}
+              <div className="prose dark:prose-invert max-w-none w-full">
                 <div 
-                  className="p-4"
+                  className="p-4 w-full"
                   dangerouslySetInnerHTML={{ 
                     __html: md.render(
-                      processObsidianContent(
-                        markdownContent.split('---').length > 2 
-                          ? markdownContent.split('---').slice(2).join('---')
-                          : markdownContent,
-                        item.metadata.path?.split('/').slice(0, -1).join('/') || '',
-                        provider,
-                        item
+                      processMarkdownContent(
+                        processObsidianContent(
+                          markdownContent.split('---').length > 2 
+                            ? markdownContent.split('---').slice(2).join('---')
+                            : markdownContent,
+                          item.metadata.path?.split('/').slice(0, -1).join('/') || '',
+                          provider,
+                          item
+                        )
                       )
                     ) 
                   }}
