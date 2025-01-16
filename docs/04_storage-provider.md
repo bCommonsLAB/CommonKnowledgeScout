@@ -1,220 +1,243 @@
-# Storage Provider Konzept
+# Storage Provider System
 
-## Architektur
+## Architektur-Übersicht
 
-Das Storage Provider System ist als abstrahierte Schnittstelle für verschiedene Speichersysteme konzipiert. Es besteht aus mehreren Ebenen:
+Das Storage Provider System ist eine modulare Architektur zur Abstraktion verschiedener Dateispeicher-Backends. Es ermöglicht die einheitliche Handhabung von Dateien und Ordnern über verschiedene Speichersysteme hinweg.
 
-### 1. Client-Komponenten Ebene
-- **Library Component**: Hauptkomponente für UI und Benutzerinteraktion
-- **FileTree/FileList**: Spezialisierte Komponenten für Navigation und Anzeige
-- **FilePreview**: Vorschau-Komponente für verschiedene Dateitypen
+### System-Architektur
 
-### 2. Provider-Abstraktions-Ebene
-- **StorageFactory**: Singleton für Provider-Verwaltung und -Erstellung
-- **StorageProvider Interface**: Definiert einheitliche Schnittstelle für alle Provider
-- **Konkrete Provider-Implementierungen**: Spezifische Implementierungen für verschiedene Systeme
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        UI[Library Component]
+        Factory[Storage Factory]
+        Client[Storage Client]
+    end
+    
+    subgraph "API Layer"
+        API[Next.js API Routes]
+        Auth[Auth Middleware]
+    end
+    
+    subgraph "Provider Layer"
+        FSP[Filesystem Provider]
+        SPP[SharePoint Provider]
+        GDP[Google Drive Provider]
+        ODP[OneDrive Provider]
+    end
+    
+    subgraph "Storage Layer"
+        FS[Local Filesystem]
+        SP[SharePoint]
+        GD[Google Drive]
+        OD[OneDrive]
+    end
 
-### 3. API-Ebene
-- **API Routes**: Next.js API-Routen für Backend-Kommunikation
-- **Storage Service**: Backend-Service für Dateisystem-Operationen
-- **Provider-spezifische Handler**: Spezialisierte Handler für verschiedene Speichersysteme
-
-## Storage Provider Interface
-
-Das Interface definiert einheitliche Operationen:
-
-```typescript
-interface StorageProvider {
-  name: string;
-  id: string;
-  
-  validateConfiguration(): Promise<StorageValidationResult>;
-  listItemsById(folderId: string): Promise<StorageItem[]>;
-  getItemById(itemId: string): Promise<StorageItem>;
-  createFolder(parentId: string, name: string): Promise<StorageItem>;
-  deleteItem(itemId: string): Promise<void>;
-  moveItem(itemId: string, newParentId: string): Promise<void>;
-  uploadFile(parentId: string, file: File): Promise<StorageItem>;
-  getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string; }>;
-}
+    UI --> Factory
+    Factory --> Client
+    Client --> API
+    API --> Auth
+    Auth --> FSP & SPP & GDP & ODP
+    FSP --> FS
+    SPP --> SP
+    GDP --> GD
+    ODP --> OD
 ```
 
-## Integration verschiedener Speichersysteme
+### Detaillierter Datenfluss für Dateioperationen
 
-### 1. Lokales Dateisystem
-- Direkter Zugriff über Backend-APIs
-- Filesystem-spezifische Pfad-Behandlung
-- Datei-Operationen über Node.js fs-APIs
+```mermaid
+sequenceDiagram
+    participant UI as Library Component
+    participant Factory as Storage Factory
+    participant Client as Storage Client
+    participant Cache as Client Cache
+    participant API as API Routes
+    participant Auth as Auth Middleware
+    participant Provider as Storage Provider
+    participant Storage as Storage System
 
-### 2. SharePoint/OneDrive (Implementierungsmöglichkeit)
-- Microsoft Graph API Integration
-- OAuth2 Authentifizierung
-- Spezialisierte SharePoint-Provider-Implementierung
-
-### 3. Google Drive (Implementierungsmöglichkeit)
-- Google Drive API Integration
-- OAuth2 Authentifizierung
-- Drive-spezifische Metadaten-Behandlung
-
-### 4. Andere Cloud-Speicher
-- Provider-spezifische API-Integration
-- Authentifizierungs-Handling
-- Metadaten-Mapping auf StorageItem Interface
-
-## Datenfluss
-### Event-Sequenz für Dateioperationen
-
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
-    <!-- Participants -->
-    <style>
-        text { font-family: Arial, sans-serif; font-size: 14px; }
-        .participant { font-weight: bold; }
-        .note { font-style: italic; }
-    </style>
+    UI->>Factory: getProvider(libraryId)
+    Factory->>Factory: checkProviderType
+    Factory->>Client: createProvider(config)
     
-    <!-- Background -->
-    <rect width="800" height="600" fill="#ffffff"/>
+    Note over UI,Client: Datei-Listung anfordern
+    UI->>Client: listItemsById(folderId)
+    Client->>Cache: checkCache(key)
     
-    <!-- Participant boxes -->
-    <g transform="translate(0, 20)">
-        <rect x="50" y="0" width="100" height="40" fill="#ededed" stroke="#666"/>
-        <text x="100" y="25" text-anchor="middle" class="participant">Library Component</text>
-        
-        <rect x="200" y="0" width="100" height="40" fill="#ededed" stroke="#666"/>
-        <text x="250" y="25" text-anchor="middle" class="participant">StorageFactory</text>
-        
-        <rect x="350" y="0" width="100" height="40" fill="#ededed" stroke="#666"/>
-        <text x="400" y="25" text-anchor="middle" class="participant">StorageProvider</text>
-        
-        <rect x="500" y="0" width="100" height="40" fill="#ededed" stroke="#666"/>
-        <text x="550" y="25" text-anchor="middle" class="participant">API Routes</text>
-        
-        <rect x="650" y="0" width="100" height="40" fill="#ededed" stroke="#666"/>
-        <text x="700" y="25" text-anchor="middle" class="participant">File System</text>
-    </g>
+    alt Cache Hit
+        Cache-->>Client: cachedData
+        Client-->>UI: return cachedData
+    else Cache Miss
+        Client->>API: GET /api/storage/{provider}
+        API->>Auth: validateRequest
+        Auth->>Provider: authorize
+        Provider->>Storage: listFiles(path)
+        Storage-->>Provider: rawFiles
+        Provider->>Provider: mapToStorageItems
+        Provider-->>API: storageItems
+        API-->>Client: response
+        Client->>Cache: updateCache
+        Client-->>UI: return data
+    end
+```
+
+### Provider-Integration-Architektur
+
+```mermaid
+classDiagram
+    class StorageProvider {
+        <<interface>>
+        +String name
+        +String id
+        +validateConfiguration()
+        +listItemsById(folderId)
+        +getItemById(itemId)
+        +createFolder(parentId, name)
+        +deleteItem(itemId)
+        +moveItem(itemId, newParentId)
+        +uploadFile(parentId, file)
+        +getBinary(fileId)
+    }
     
-    <!-- Lifelines -->
-    <g stroke="#666" stroke-dasharray="5,5">
-        <line x1="100" y1="60" x2="100" y2="550" />
-        <line x1="250" y1="60" x2="250" y2="550" />
-        <line x1="400" y1="60" x2="400" y2="550" />
-        <line x1="550" y1="60" x2="550" y2="550" />
-        <line x1="700" y1="60" x2="700" y2="550" />
-    </g>
+    class BaseProvider {
+        #config: ProviderConfig
+        #cache: CacheManager
+        +constructor(config)
+        #validateAuth()
+        #handleError()
+    }
     
-    <!-- Messages -->
-    <g>
-        <!-- Initialize Provider -->
-        <line x1="100" y1="100" x2="250" y2="100" stroke="#666" marker-end="url(#arrow)"/>
-        <text x="175" y="95" class="note">getProvider(libraryId)</text>
-        
-        <line x1="250" y1="130" x2="400" y2="130" stroke="#666" marker-end="url(#arrow)"/>
-        <text x="325" y="125" class="note">create provider</text>
-        
-        <line x1="400" y1="160" x2="100" y2="160" stroke="#666" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
-        <text x="250" y="155" class="note">return provider</text>
-        
-        <!-- List Items -->
-        <line x1="100" y1="220" x2="400" y2="220" stroke="#666" marker-end="url(#arrow)"/>
-        <text x="250" y="215" class="note">listItemsById(folderId)</text>
-        
-        <line x1="400" y1="250" x2="550" y2="250" stroke="#666" marker-end="url(#arrow)"/>
-        <text x="475" y="245" class="note">GET /api/storage/{type}</text>
-        
-        <line x1="550" y1="280" x2="700" y2="280" stroke="#666" marker-end="url(#arrow)"/>
-        <text x="625" y="275" class="note">read directory</text>
-        
-        <line x1="700" y1="310" x2="550" y2="310" stroke="#666" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
-        <text x="625" y="305" class="note">return files</text>
-        
-        <line x1="550" y1="340" x2="400" y2="340" stroke="#666" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
-        <text x="475" y="335" class="note">return StorageItems</text>
-        
-        <line x1="400" y1="370" x2="100" y2="370" stroke="#666" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
-        <text x="250" y="365" class="note">update UI</text>
-    </g>
+    class FileSystemProvider {
+        -basePath: string
+        -idCache: Map
+        -pathCache: Map
+        +generateFileId()
+        +findPathById()
+    }
     
-    <!-- Arrow marker -->
-    <defs>
-        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0 L0,6 L9,3 z" fill="#666"/>
-        </marker>
-    </defs>
+    class SharePointProvider {
+        -siteUrl: string
+        -credentials: SPCredentials
+        +authenticateRequest()
+        +mapSPItemToStorage()
+    }
     
-    <!-- Notes -->
-    <g transform="translate(0, 400)">
-        <rect x="50" y="0" width="700" height="60" fill="#f8f8f8" stroke="#666"/>
-        <text x="400" y="25" text-anchor="middle" class="note">
-            Similar flow for other operations (upload, delete, move)
-        </text>
-        <text x="400" y="45" text-anchor="middle" class="note">
-            Provider abstracts storage implementation details
-        </text>
-    </g>
-</svg>
+    class GoogleDriveProvider {
+        -clientId: string
+        -clientSecret: string
+        +authenticateWithOAuth()
+        +mapGDriveItemToStorage()
+    }
 
-1. **Initialisierung:**
-   - Library Component lädt
-   - StorageFactory erstellt Provider
-   - Provider initialisiert Verbindung
+    StorageProvider <|-- BaseProvider
+    BaseProvider <|-- FileSystemProvider
+    BaseProvider <|-- SharePointProvider
+    BaseProvider <|-- GoogleDriveProvider
+```
 
-2. **Dateilistenanfrage:**
-   - UI-Event triggert listItemsById
-   - Provider formatiert API-Anfrage
-   - Backend verarbeitet Anfrage
-   - Ergebnis wird durch Provider transformiert
-   - UI aktualisiert sich
+## Provider-Integration
 
-3. **Dateioperationen:**
-   - UI-Event triggert Provider-Methode
-   - Provider wandelt in API-Anfrage um
-   - Backend führt Operation aus
-   - Ergebnis wird zurück propagiert
-   - UI-Status wird aktualisiert
+### Implementierungsebenen
 
-## Provider-Implementierung
+1. **UI-Ebene** (`/src/components/library/`)
+   - Benutzerinteraktion
+   - State Management
+   - Event Handling
+   - Provider-Auswahl
 
-### Basis-Struktur für neue Provider:
+2. **Factory-Ebene** (`/src/lib/storage/storage-factory.ts`)
+   - Provider-Instanziierung
+   - Konfigurationsmanagement
+   - Provider-Typ-Erkennung
+   - Instanz-Caching
+
+3. **Client-Ebene** (`/src/lib/storage/filesystem-client.ts`)
+   - HTTP-Kommunikation
+   - Request/Response-Handling
+   - Client-seitiges Caching
+   - Fehlerbehandlung
+
+4. **API-Ebene** (`/app/api/storage/[provider]/route.ts`)
+   - Request-Routing
+   - Authentifizierung
+   - Validierung
+   - Error-Handling
+
+5. **Provider-Ebene** (`/src/lib/storage/providers/`)
+   - Backend-Integration
+   - Datei-Operationen
+   - Format-Mapping
+   - Caching
+
+### Integration neuer Provider
 
 ```typescript
-class CustomStorageProvider implements StorageProvider {
+// 1. Provider-Interface implementieren
+class NewStorageProvider extends BaseProvider implements StorageProvider {
   constructor(config: ProviderConfig) {
-    // Provider-spezifische Initialisierung
+    super(config);
   }
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
-    // 1. API-Anfrage an Speichersystem
-    // 2. Transformation der Antwort in StorageItems
-    // 3. Fehlerbehandlung
-    // 4. Rückgabe standardisierter Daten
+    // Provider-spezifische Implementierung
   }
+  
+  // Weitere Interface-Methoden implementieren
+}
 
-  // Weitere Interface-Implementierungen...
+// 2. Factory erweitern
+class StorageFactory {
+  async getProvider(libraryId: string): Promise<StorageProvider> {
+    const library = this.findLibrary(libraryId);
+    
+    switch (library.type) {
+      case 'local':
+        return new FileSystemProvider(library.config);
+      case 'sharepoint':
+        return new SharePointProvider(library.config);
+      case 'gdrive':
+        return new GoogleDriveProvider(library.config);
+      // Neuen Provider hinzufügen
+      case 'newtype':
+        return new NewStorageProvider(library.config);
+    }
+  }
+}
+
+// 3. API Route erstellen
+// /app/api/storage/[provider]/route.ts
+export async function GET(
+  req: Request,
+  { params }: { params: { provider: string } }
+) {
+  const provider = await getProviderInstance(params.provider);
+  // Request verarbeiten
 }
 ```
 
-## Ebenen und ihre Funktionen
+### Provider-spezifische Anforderungen
 
-1. **UI-Ebene (Frontend)**
-   - Benutzerinteraktion
-   - Status-Management
-   - Datei-Vorschau
-   - Drag & Drop
+#### Filesystem
+- Lokaler Dateizugriff
+- Pfad-Mapping
+- Berechtigungsprüfung
+- ID-Generierung
 
-2. **Provider-Ebene (Frontend)**
-   - Abstraktion der Speichersysteme
-   - Einheitliche Schnittstelle
-   - Caching
-   - Fehlerbehandlung
+#### SharePoint
+- OAuth Authentication
+- Graph API Integration
+- Site/Library Mapping
+- Berechtigungsmodell
 
-3. **API-Ebene (Backend)**
-   - Request-Handling
-   - Authentifizierung
-   - Dateisystem-Operationen
-   - Fehler-Logging
+#### Google Drive
+- OAuth 2.0 Flow
+- API Quotas
+- File Picking
+- Sharing Settings
 
-4. **Storage-Ebene (Backend/External)**
-   - Physische Dateispeicherung
-   - Cloud-API-Integration
-   - Metadaten-Management
-   - Backup/Recovery
+#### OneDrive
+- Microsoft Authentication
+- Graph API
+- Delta Queries
+- Sharing Links 

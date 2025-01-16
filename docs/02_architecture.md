@@ -1,69 +1,97 @@
-# Knowledge Scout - Technische Architektur
+# Technische Architektur
 
 ## Haupttechnologien
 
 ### Frontend Framework
-- Next.js 14.0.4 mit App Router
-- React 18
-- TypeScript 5
-- Tailwind CSS 3.3.0 für Styling
+- **Next.js 14** (App Router)
+  - React 18 als Basis
+  - Strikte TypeScript-Integration
+  - Server Components als Standard
+  - Routing über App Router
 
-### UI Komponenten
-- Radix UI für grundlegende UI-Komponenten
-- shadcn/ui als UI-Komponenten-System
-- Lucide React für Icons
-- Geist für Typografie
-- next-themes für Dark/Light Mode
+### UI und Styling
+- **Tailwind CSS** als Styling-Framework
+  - Mit PostCSS und Autoprefixer
+  - Tailwind Animations Plugin
+  - Aspect Ratio Plugin
+- **shadcn/ui** als Komponenten-Framework
+  - Basiert auf Radix UI Primitives
+  - Vollständig typisiert
+  - Themefähig via `next-themes`
+- **Geist** für Typografie
 
-### State Management & Datenfluss
-- Jotai für globales State Management
-- React Hook Form für Formularverarbeitung
-- Zod für Schema Validierung
+### State Management
+- **Jotai** für atomaren globalen Zustand
+- **React Hook Form** für Formular-Management
+  - Mit Zod für Schema-Validierung
+- **TanStack Table** für Tabellen-State
 
-### Markdown Processing
-- react-markdown für Markdown Rendering
-- rehype-plugins für Code-Highlighting und Sanitization
-- remark-plugins für Markdown Erweiterungen (GFM, Frontmatter)
-
-### Datenvisualisierung
-- Recharts für Diagramme und Visualisierungen
-- react-resizable-panels für flexible Layouts
-
-## Authentifizierung
-- Clerk für Benutzerauthentifizierung und -verwaltung
-
-## Build und Development Setup
-
-### Development Tools
-- TypeScript für statische Typisierung
-- ESLint für Code-Qualität
-- Autoprefixer und PostCSS für CSS-Processing
-- PNPM als Package Manager
-
-### Scripts
-- `dev`: Next.js Entwicklungsserver
-- `build`: Produktions-Build
-- `start`: Produktionsserver starten
-- `lint`: Code-Linting
-
-## API-Integration
-
-Das Projekt nutzt:
-- Next.js API Routes für Backend-Funktionalität
-- Middleware für Request-Handling
-- TypeScript Types für API-Typsicherheit
+### Authentifizierung
+- **Clerk** für Benutzer-Authentifizierung und -Verwaltung
 
 ## Datenfluss
 
-1. **State Management:**
-   - Jotai für globalen Zustand
-   - React Hooks für lokalen Komponenten-Zustand
-   - Form State Management durch React Hook Form
+### Client-seitig
+- Komponenten-lokaler State via React Hooks
+- Globaler State via Jotai Atoms
+- Formular-State via React Hook Form
+- Authentifizierungs-State via Clerk
 
-2. **Datenvalidierung:**
-   - Zod für Schema-Validierung
-   - TypeScript für statische Typsicherheit
+### Server-seitig
+- Server Components für direkte Datenbankzugriffe
+- API Routes für client-seitige Anfragen
+- Filesystem Storage System für Dateioperationen
 
-3. **API-Kommunikation:**
-   - Next.js API Routes für Backend-Kommunikation
-   - Typisierte API-Responses
+## API-Integration
+
+### Interne APIs
+- Next.js API Routes unter `/app/api`
+- Filesystem API für Speicherverwaltung
+  - `storage-service` als Abstraktionsschicht
+  - `filesystem-provider` für konkrete Implementierung
+
+### Externe APIs
+- Unterstützung für Remote-Bilder von:
+  - images.unsplash.com
+  - youtube.com
+  - ytimg.com
+
+## Build & Deploy Setup
+
+### Development
+- `pnpm` als Paketmanager
+- TypeScript für statische Typisierung
+- ESLint für Code-Qualität
+- Entwicklungsserver via `next dev`
+
+### Build-Prozess
+- Produktions-Build via `next build`
+- Strict Mode aktiviert
+- TypeScript-Kompilierung
+- PostCSS-Verarbeitung für Tailwind
+
+### Produktions-Setup
+- Server-Start via `next start`
+- Optimierte Builds
+- Image Optimization
+- Konfigurierte Remote Patterns für Bilder
+
+## Zusätzliche Features
+
+### Markdown-Verarbeitung
+- React Markdown für Rendering
+- Syntax Highlighting via:
+  - highlight.js
+  - react-syntax-highlighter
+  - rehype-pretty-code mit shiki
+- Unterstützung für:
+  - Frontmatter
+  - GitHub Flavored Markdown
+  - Sanitization
+
+### UI/UX Features
+- Responsive Design
+- Dark Mode Support
+- Toast Notifications
+- Resizable Panels
+- Verschiedene interaktive Komponenten (Dialoge, Menüs, etc.) 

@@ -1,121 +1,159 @@
-# Knowledge Scout - Hauptfunktionen und Anwendungsfälle
+# Funktionen und Benutzergruppen
 
-## Kernfunktionalitäten
+## Hauptfunktionen
 
-### Datei- und Dokumentenmanagement
-- Hochladen, Organisieren und Verwalten von Dateien verschiedener Formate
-- Hierarchische Ordnerstruktur für übersichtliche Organisation
-- Vorschau-Funktion für gängige Dateiformate (PDF, Bilder, Markdown, Text)
-- Versionierung wichtiger Dokumente
-- Intelligente Suchfunktion über Dateinamen und Inhalte
+### Dokumenten-Management
 
-### Bibliotheksverwaltung
-- Erstellen und Verwalten verschiedener Bibliotheken für unterschiedliche Zwecke
-- Flexible Strukturierung durch anpassbare Ordnerhierarchien
-- Zugriffsverwaltung auf Bibliotheksebene
-- Import/Export-Funktionen für Bibliotheksinhalte
+```mermaid
+graph LR
+    subgraph "Dokumentenverwaltung"
+        A[Dateien hochladen] --> B[Organisieren]
+        B --> C[Vorschau]
+        B --> D[Teilen]
+        C --> E[Bearbeiten]
+    end
+```
 
-### Kollaboration und Sharing
-- Teilen von Dokumenten und Ordnern mit anderen Nutzern
-- Kommentarfunktion für Feedback und Diskussionen
-- Echtzeit-Benachrichtigungen bei Änderungen
-- Gemeinsames Bearbeiten von Dokumenten
+#### Datei-Operationen
+- Hochladen von Dokumenten und Medien
+- Erstellen von Ordnerstrukturen
+- Verschieben und Umbenennen
+- Löschen von Dateien und Ordnern
+- Vorschau verschiedener Dateitypen
+- Datei-Sharing und Berechtigungsverwaltung
+
+#### Organisationsfunktionen
+- Hierarchische Ordnerstruktur
+- Datei-Kategorisierung
+- Metadaten-Verwaltung
+- Suchfunktion über Inhalte und Namen
+- Sortierung und Filterung
+
+### Bibliotheks-Management
+
+```mermaid
+graph TD
+    subgraph "Bibliotheksverwaltung"
+        A[Bibliothek erstellen] --> B[Provider konfigurieren]
+        B --> C[Berechtigungen setzen]
+        C --> D[Nutzer einladen]
+        D --> E[Aktivitäten überwachen]
+    end
+```
+
+- Verwaltung mehrerer Bibliotheken
+- Integration verschiedener Storage-Provider
+- Konfiguration von Zugriffsrechten
+- Benutzer- und Gruppenverwaltung
+- Aktivitätsprotokollierung
 
 ## Typische Workflows
 
-### 1. Dokumentenablage und -organisation
-1. Hochladen neuer Dokumente in die entsprechende Bibliothek
-2. Einordnen in die passende Ordnerstruktur
-3. Ergänzen von Metadaten und Tags
-4. Optional: Teilen mit relevanten Teammitgliedern
+### 1. Dokumenten-Upload und Organisation
 
-### 2. Dokumentensuche und -zugriff
-1. Navigation zur gewünschten Bibliothek
-2. Nutzen der Suchfunktion oder Browsing durch Ordnerstruktur
-3. Vorschau des Dokuments
-4. Download oder direkte Bearbeitung
+```mermaid
+sequenceDiagram
+    participant User
+    participant App
+    participant Storage
+    
+    User->>App: Login
+    User->>App: Bibliothek auswählen
+    User->>App: Zielordner navigieren
+    User->>App: Dateien hochladen
+    App->>Storage: Speichern
+    App->>User: Bestätigung
+    User->>App: Metadaten bearbeiten
+    User->>App: Berechtigungen setzen
+```
 
-### 3. Teamkollaboration
-1. Erstellen oder Hochladen eines Dokuments
-2. Festlegen der Zugriffsberechtigungen
-3. Benachrichtigen relevanter Teammitglieder
-4. Gemeinsames Bearbeiten und Kommentieren
-5. Versionskontrolle und Änderungsverfolgung
+### 2. Dokumenten-Suche und Zugriff
 
-## Benutzergruppen
+```mermaid
+sequenceDiagram
+    participant User
+    participant App
+    participant Search
+    
+    User->>App: Suchbegriff eingeben
+    App->>Search: Suche ausführen
+    Search-->>App: Ergebnisse
+    App-->>User: Ergebnisliste
+    User->>App: Dokument auswählen
+    App-->>User: Vorschau anzeigen
+```
 
-### 1. Administratoren
-**Verantwortlichkeiten:**
-- System- und Benutzerverwaltung
-- Einrichten neuer Bibliotheken
-- Vergabe von Berechtigungen
-- Überwachung der Systemnutzung
+### 3. Kollaboration und Sharing
 
-### 2. Bibliotheksmanager
-**Verantwortlichkeiten:**
-- Verwaltung spezifischer Bibliotheken
-- Organisation der Ordnerstruktur
-- Zugriffsrechte innerhalb der Bibliothek
-- Qualitätssicherung der Inhalte
+```mermaid
+sequenceDiagram
+    participant Owner
+    participant App
+    participant User
+    
+    Owner->>App: Dokument auswählen
+    Owner->>App: Sharing aktivieren
+    Owner->>App: Berechtigungen festlegen
+    App->>User: Einladung senden
+    User->>App: Zugriff akzeptieren
+    User->>App: Dokument bearbeiten
+```
 
-### 3. Standardnutzer
-**Verantwortlichkeiten:**
+## Benutzergruppen und Rollen
+
+### Administrator
+- Vollzugriff auf alle Funktionen
+- Bibliotheken erstellen und konfigurieren
+- Benutzer und Gruppen verwalten
+- System-Einstellungen anpassen
+- Zugriffsprotokolle einsehen
+
+### Bibliotheks-Manager
+- Bibliothek-spezifische Verwaltung
+- Ordnerstrukturen erstellen
+- Berechtigungen verwalten
+- Benutzer einladen
+- Aktivitäten überwachen
+
+### Standard-Benutzer
 - Dokumente hochladen und verwalten
-- Suchen und Zugreifen auf Dokumente
-- Teilnahme an Kollaboration
-- Kommentare und Feedback
+- Ordner erstellen und organisieren
+- Eigene Dateien teilen
+- Suchen und Zugreifen
+- Metadaten bearbeiten
 
-### 4. Externe Nutzer / Gäste
-**Verantwortlichkeiten:**
-- Lesezugriff auf freigegebene Dokumente
-- Kommentieren (wenn erlaubt)
+### Gast-Benutzer
+- Lesezugriff auf freigegebene Inhalte
+- Dokumenten-Vorschau
+- Basis-Suchfunktion
 - Keine Bearbeitungsrechte
 
-## Berechtigungssystem
+## Berechtigungskonzept
 
-### Systemebene
-| Rolle | Berechtigungen |
-|-------|----------------|
-| System-Administrator | - Vollzugriff auf alle Funktionen<br>- Benutzerverwaltung<br>- Systemkonfiguration<br>- Audit-Logs einsehen |
-| Benutzer-Administrator | - Benutzerverwaltung<br>- Rollenzuweisung<br>- Zugriffskontrolle |
+### Zugriffsebenen
 
-### Bibliotheksebene
-| Rolle | Berechtigungen |
-|-------|----------------|
-| Bibliotheks-Administrator | - Vollzugriff auf Bibliothek<br>- Struktur verwalten<br>- Berechtigungen vergeben<br>- Nutzer einladen |
-| Bibliotheks-Manager | - Inhalte verwalten<br>- Ordner erstellen/ändern<br>- Dokumente verwalten |
-| Editor | - Dokumente bearbeiten<br>- Ordner erstellen<br>- Kommentieren |
-| Autor | - Dokumente hochladen<br>- Eigene Dokumente bearbeiten<br>- Kommentieren |
-| Leser | - Dokumente lesen<br>- Herunterladen<br>- Kommentieren |
-| Gast | - Nur Lesezugriff auf freigegebene Dokumente |
+```mermaid
+graph TD
+    A[System-Ebene] --> B[Bibliotheks-Ebene]
+    B --> C[Ordner-Ebene]
+    C --> D[Datei-Ebene]
+    
+    subgraph "Berechtigungen"
+        E[Vollzugriff]
+        F[Schreibzugriff]
+        G[Lesezugriff]
+        H[Kein Zugriff]
+    end
+```
 
-### Dokumentenebene
-- **Besitzer**: Vollzugriff auf das Dokument
-- **Editor**: Kann Dokument bearbeiten
-- **Kommentator**: Kann Dokument kommentieren
-- **Leser**: Kann Dokument nur lesen
+### Berechtigungstypen
+- **Vollzugriff**: Alle Operationen erlaubt
+- **Schreibzugriff**: Lesen, Hochladen, Bearbeiten
+- **Lesezugriff**: Nur Ansicht und Download
+- **Kein Zugriff**: Keine Operationen erlaubt
 
-## Spezielle Funktionen nach Benutzergruppe
-
-### Administratoren
-- System-Monitoring und Wartung
-- Benutzerverwaltung und -support
-- Backup und Wiederherstellung
-- Audit-Logging und Compliance
-
-### Bibliotheksmanager
-- Template-Verwaltung
-- Metadaten-Management
-- Qualitätskontrolle
-- Berichtswesen
-
-### Standardnutzer
-- Persönliche Favoriten
-- Dokumenten-Sharing
-- Benachrichtigungen
-- Versionskontrolle
-
-### Externe Nutzer
-- Eingeschränkte Suchfunktion
-- Basis-Vorschau
-- Kommentarfunktion (wenn aktiviert)
+### Vererbung
+- Berechtigungen werden hierarchisch vererbt
+- Überschreibungen auf jeder Ebene möglich
+- Explizite Berechtigungen haben Vorrang
+- Automatische Propagierung von Änderungen 

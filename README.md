@@ -1,121 +1,98 @@
-# Knowledge Scout
+# Next.js Document Management System
 
-A sophisticated file management and knowledge organization system built with Next.js 14, featuring a flexible storage provider architecture and modern UI components.
+Ein modernes, erweiterbares Dokumentenmanagementsystem, gebaut mit Next.js 14, TypeScript und Tailwind CSS. Das System ermöglicht die einheitliche Verwaltung von Dokumenten über verschiedene Storage-Provider hinweg.
 
-## Features
+## ✨ Hauptfunktionen
 
-- 📁 Advanced file management with hierarchical navigation
-- 🔍 Powerful file preview for multiple formats (Markdown, Audio, Video, Images)
-- 🎨 Modern, responsive UI with dark/light mode support
-- 🔄 Flexible storage provider system for different backends
-- 📝 Rich Markdown support with Obsidian compatibility
-- 🎵 Audio transcription capabilities
-- 🔒 Secure authentication with Clerk
+- 📁 **Multi-Provider Storage System**
+  - Lokales Dateisystem
+  - SharePoint Integration (vorbereitet)
+  - Google Drive Integration (vorbereitet)
+  - OneDrive Integration (vorbereitet)
 
-## Tech Stack
+- 🔍 **Erweiterte Dokumentenverwaltung**
+  - Hierarchische Ordnerstruktur
+  - Datei-Vorschau
+  - Metadaten-Verwaltung
+  - Volltextsuche
 
-- **Framework:** Next.js 14.0.4 (App Router)
-- **Language:** TypeScript 5
-- **Styling:** Tailwind CSS 3.3.0
-- **UI Components:** 
-  - shadcn/ui
-  - Radix UI
-  - Geist UI
-  - Lucide React icons
-- **State Management:**
-  - Jotai for atomic state
-  - TanStack Query for server state
-  - React Hook Form + Zod for forms
-- **Authentication:** Clerk
-- **Package Manager:** pnpm
+- 👥 **Benutzer & Berechtigungen**
+  - Rollenbasierte Zugriffssteuerung
+  - Benutzer- und Gruppenverwaltung
+  - Feingranulare Berechtigungen
 
-## Getting Started
+- 🛠 **Technische Features**
+  - Modern UI mit Tailwind & shadcn/ui
+  - TypeScript & Next.js 14
+  - Server Components
+  - API Routes
 
-1. Clone the repository:
-\`\`\`bash
+## 🚀 Quick Start
+
+```bash
+# Repository klonen
 git clone [repository-url]
-cd knowledge-scout
-\`\`\`
+cd [projekt-verzeichnis]
 
-2. Install dependencies:
-\`\`\`bash
+# Dependencies installieren
 pnpm install
-\`\`\`
 
-3. Copy the environment variables:
-\`\`\`bash
-cp .env.example .env
-\`\`\`
+# Umgebungsvariablen konfigurieren
+cp .env.example .env.local
+# .env.local anpassen
 
-4. Configure your environment variables in \`.env\`
-
-5. Start the development server:
-\`\`\`bash
+# Entwicklungsserver starten
 pnpm dev
-\`\`\`
+```
 
-## Project Structure
+Die Anwendung ist nun unter `http://localhost:3000` verfügbar.
 
-\`\`\`
-/app                    # Next.js App Router directory
-  /api                  # API routes
-  /library             # Library components
-  layout.tsx           # Main layout
-  page.tsx             # Main page
-/src
-  /components          # Reusable React components
-    /library          # Library-specific components
-    /mail            # Mail components
-    /ui              # UI components
-    /shared          # Shared components
-  /hooks              # Custom React hooks
-  /lib                # Utilities and libraries
-  /styles            # Styling files
-  /types             # TypeScript definitions
-\`\`\`
+## 📚 Dokumentation
 
-## Storage Provider System
+Detaillierte Dokumentation finden Sie in den folgenden Bereichen:
 
-The application uses a flexible storage provider architecture that allows integration with various storage backends:
+### Architektur & Setup
+- [Projektübersicht](docs/01_project_overview.md)
+- [Technische Architektur](docs/02_architecture.md)
+- [Kernkomponenten](docs/03_core_components.md)
+- [Storage Provider System](docs/04_storage-provider.md)
 
-- Local filesystem
-- SharePoint/OneDrive (planned)
-- Google Drive (planned)
-- Custom storage implementations
+### Benutzer & Features
+- [Funktionen und Benutzergruppen](docs/05_features.md)
+- [Entwickler Setup Guide](docs/05_setup.md)
+- [API Dokumentation](docs/07_api.md)
 
-Each provider implements a standard interface for consistent file operations across different storage systems.
+## 🛠 Technologie-Stack
 
-## Development
+- **Frontend**: Next.js 14, React 18, TypeScript
+- **UI**: Tailwind CSS, shadcn/ui, Radix UI
+- **State**: Jotai, React Hook Form
+- **Auth**: Clerk
+- **Build**: pnpm
 
-### Code Style
+## 📋 Systemanforderungen
 
-- Functional and declarative programming patterns
-- TypeScript with strict mode enabled
-- ESLint and Prettier for code formatting
-- Component-based architecture
+- Node.js >= 18
+- pnpm >= 9.15
+- Git
 
-### Testing
+## 🤝 Beitragen
 
-- Vitest for unit and integration tests
-- Playwright for E2E testing
-- Testing Library best practices
+1. Fork das Repository
+2. Feature Branch erstellen (`git checkout -b feature/AmazingFeature`)
+3. Änderungen committen (`git commit -m 'Add some AmazingFeature'`)
+4. Branch pushen (`git push origin feature/AmazingFeature`)
+5. Pull Request erstellen
 
-### Performance
+## 📝 Lizenz
 
-- React Server Components (RSC) where possible
-- Dynamic imports for code splitting
-- Image optimization with next/image
-- Proper caching strategies
+Dieses Projekt ist unter der MIT Lizenz lizenziert - siehe die [LICENSE](LICENSE) Datei für Details.
 
-## Contributing
+## 🙏 Danksagungen
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-[License Type] - See LICENSE file for details
+- [Next.js](https://nextjs.org/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [shadcn/ui](https://ui.shadcn.com/)
+- [Clerk](https://clerk.dev/)
+- [Radix UI](https://www.radix-ui.com/)
 

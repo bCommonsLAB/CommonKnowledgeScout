@@ -1,112 +1,119 @@
-# Knowledge Scout - Kernkomponenten
+# Kernkomponenten
 
 ## Bibliotheks-Komponenten
 
 ### Library
-**Hauptzweck:** Hauptkomponente für die Dateibibliothek-Ansicht
+**Hauptzweck**: Hauptkomponente für die Dateibibliothek-Ansicht mit dreispaltigem Layout.
 
-**Props:**
-- `libraries`: Array von ClientLibrary-Objekten
-- `defaultLayout`: Array für Standard-Panel-Größen [20, 32, 48]
+**Props**:
+- `libraries`: Array von `ClientLibrary`-Objekten
+- `defaultLayout`: Array für die Standard-Spaltenbreiten [20, 32, 48]
 - `defaultCollapsed`: Boolean für initialen Zustand
-- `navCollapsedSize`: Nummer für minimierte Nav-Größe
+- `navCollapsedSize`: Größe der kollabierten Navigation
 
-**Zentrale Funktionen:**
-- State Management für aktive Bibliothek und Dateien
-- Verzeichnisnavigation und Breadcrumb-Handling
-- Datei-Preview Integration
-- Responsives Layout mit veränderbaren Panels
+**Zentrale Funktionen**:
+- Verwaltung des aktiven Providers und der Bibliotheksauswahl
+- Ordner-Navigation und Breadcrumb-Pfad
+- Datei-Vorschau und -Auswahl
+- Responsive Layout mit anpassbaren Spaltenbreiten
 
-**Besonderheiten:**
-- Verwendet ResizablePanelGroup für flexible Layouts
-- Cache-System für Ordnerstruktur
+**Besonderheiten**:
+- Integrierte Suche
+- Transcription-Twin-Unterstützung
+- Persistentes Layout über Cookies
 - Event-basierte Kommunikation mit TopNav
 
 ### FileTree
-**Hauptzweck:** Zeigt die Ordnerstruktur der Bibliothek an
+**Hauptzweck**: Hierarchische Darstellung der Ordnerstruktur.
 
-**Props:**
-- `provider`: StorageProvider Interface
+**Props**:
+- `provider`: StorageProvider für Dateizugriff
 - `onSelect`: Callback für Ordnerauswahl
-- `currentFolderId`: Aktuelle Ordner-ID
-- `libraryName`: Name der aktiven Bibliothek
+- `currentFolderId`: Aktiver Ordner
+- `libraryName`: Name der Bibliothek
 
-**Besonderheiten:**
-- Hierarchische Darstellung der Ordnerstruktur
-- Interaktive Navigation
+**Zentrale Funktionen**:
+- Lazy-Loading von Unterordnern
+- Filterung versteckter Dateien
+- Rekursive Ordnerstruktur-Darstellung
+
+**Besonderheiten**:
+- Optimierte Performance durch bedarfsgesteuertes Laden
+- Visuelle Hervorhebung des aktiven Ordners
 
 ### FileList
-**Hauptzweck:** Listenansicht der Dateien im aktuellen Ordner
+**Hauptzweck**: Listenansicht von Dateien und Ordnern.
 
-**Props:**
+**Props**:
 - `items`: Array von StorageItems
 - `selectedItem`: Aktuell ausgewähltes Item
-- `onSelect`: Callback für Dateiauswahl
-- `currentFolderId`: Aktuelle Ordner-ID
+- `onSelectAction`: Callback für Dateiauswahl
+- `searchTerm`: Suchfilter
+- `currentFolderId`: Aktueller Ordner
 
-**Besonderheiten:**
-- Sortier- und Filterfunktionen
-- Verschiedene Anzeigemodi (Liste/Grid)
-
-### FilePreview
-**Hauptzweck:** Vorschau für ausgewählte Dateien
-
-**Props:**
-- `item`: StorageItem für Preview
-- `provider`: StorageProvider für Datenzugriff
-- `className`: CSS Klassen
-
-**Besonderheiten:**
-- Unterstützung verschiedener Dateitypen
-- Markdown-Rendering mit react-markdown
-- Code-Highlighting
+**Besonderheiten**:
+- Dateitypspezifische Icons
+- Integrierte Suchfunktion
+- Unterstützung für Transcription-Twins
 
 ### LibrarySwitcher
-**Hauptzweck:** Auswahl zwischen verschiedenen Bibliotheken
+**Hauptzweck**: Dropdown zur Auswahl der aktiven Bibliothek.
 
-**Props:**
+**Props**:
+- `isCollapsed`: Kollabierter Zustand
 - `libraries`: Verfügbare Bibliotheken
-- `activeLibraryId`: Aktuelle Bibliothek
+- `activeLibraryId`: Aktive Bibliothek
 - `onLibraryChange`: Callback für Bibliothekswechsel
 
-**Besonderheiten:**
-- Dropdownmenü mit Bibliotheksauswahl
-- Zeigt Bibliotheksstatus an
+**Besonderheiten**:
+- Responsive Design mit Kollaps-Unterstützung
+- Icon-Integration für Bibliotheken
 
 ## UI-Komponenten
 
-### ThemeProvider
-**Hauptzweck:** Theme-Management
+### Tree
+**Hauptzweck**: Wiederverwendbare Baumstruktur-Komponente.
 
-**Besonderheiten:**
-- Dark/Light Mode Unterstützung
-- System-Theme-Detection
-- Theme-Persistenz
+**Komponenten**:
+- `Tree.Root`: Container für Baumstruktur
+- `Tree.Item`: Einzelnes Baumelement
+
+**Props (TreeItem)**:
+- `label`: Anzeigetext
+- `icon`: Optionales Icon
+- `isExpanded`: Ausgeklappter Zustand
+- `isSelected`: Auswahlzustand
+- `level`: Verschachtelungstiefe
+
+**Besonderheiten**:
+- Rekursive Struktur
+- Anpassbare Icons
+- Automatische Einrückung
+
+### Card
+**Hauptzweck**: Container für strukturierte Inhalte.
+
+**Komponenten**:
+- `Card`: Hauptcontainer
+- `CardHeader`: Kopfbereich
+- `CardTitle`: Überschrift
+- `CardDescription`: Beschreibungstext
+
+**Besonderheiten**:
+- Konsistentes Styling
+- Flexible Komposition
+- Schatten und Rundungen
 
 ### TopNav
-**Hauptzweck:** Hauptnavigation
+**Hauptzweck**: Hauptnavigationsleiste der Anwendung.
 
-**Besonderheiten:**
+**Funktionen**:
+- Navigation zwischen Hauptbereichen
+- Bibliotheksauswahl-Integration
+- Theme-Umschaltung
+- Authentifizierungs-UI
+
+**Besonderheiten**:
 - Responsive Design
-- Integration mit LibrarySwitcher
-- Authentifizierungsstatus
-
-## Datenfluss zwischen Komponenten
-
-1. **Hierarchie:**
-   ```
-   Library
-   ├─ FileTree (Navigation)
-   ├─ FileList (Inhaltsanzeige)
-   └─ FilePreview (Detailansicht)
-   ```
-
-2. **State-Management:**
-   - Zentraler State in Library-Komponente
-   - Props-Drilling für untergeordnete Komponenten
-   - Event-System für komponenten-übergreifende Updates
-
-3. **Daten-Handling:**
-   - StorageProvider-Interface für Datenzugriff
-   - Cache-System für Ordnerstruktur
-   - Optimierte Ladestrategie für große Datenmengen
+- Clerk-Integration für Auth
+- Dynamische Bibliotheksauswahl 

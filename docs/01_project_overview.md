@@ -1,60 +1,60 @@
-# Knowledge Scout Projektübersicht
+# Projektübersicht
 
 ## Projektstruktur
 
 ### Hauptverzeichnisse
 
-- `/app`: Next.js 13+ App Router Verzeichnis
-  - `/api`: API-Routen
-  - `/library`: Bibliotheks-bezogene Komponenten
-  - `layout.tsx`: Haupt-Layout-Komponente
-  - `page.tsx`: Hauptseiten-Komponente
+- `/app` - Next.js App Router Verzeichnis
+  - `/api` - API-Routen
+  - `/library` - Bibliotheks-Funktionalität
+  - `/mail` - E-Mail-bezogene Funktionen
+  - `/tasks` - Aufgabenverwaltung
+  - Weitere Funktionsmodule: cards, dashboard, forms, music, playground
 
-- `/src`: Quellcode-Verzeichnis
-  - `/components`: Wiederverwendbare React-Komponenten
-  - `/hooks`: Custom React Hooks
-  - `/lib`: Utility-Funktionen und Bibliotheken
-  - `/styles`: Styling-Dateien
-  - `/types`: TypeScript Typ-Definitionen
-  - `middleware.ts`: Next.js Middleware
-
-- `/docs`: Projektdokumentation
-- `/types`: Globale TypeScript Typ-Definitionen
+- `/src` - Quellcode-Hauptverzeichnis
+  - `/components` - React-Komponenten
+    - `/library` - Bibliotheks-bezogene Komponenten
+    - `/ui` - Basis-UI-Komponenten (shadcn/ui)
+  - `/lib` - Kernfunktionalität
+    - `/storage` - Speicher-Management und Dateisystem
+  - `/types` - TypeScript Typdefinitionen
+  - `/hooks` - React Hooks
+  - `/styles` - Styling und Tailwind-Konfiguration
 
 ### Wichtige Konfigurationsdateien
 
-- `package.json`: NPM-Paket-Konfiguration und Projektabhängigkeiten
-- `pnpm-lock.yaml`: PNPM Dependency Lock-Datei
-- `next.config.js`: Next.js Konfiguration
-- `tsconfig.json`: TypeScript Konfiguration
-- `tailwind.config.ts`: Tailwind CSS Konfiguration
-- `postcss.config.js`: PostCSS Konfiguration
-- `components.json`: Komponenten-Konfiguration
-- `.env`: Umgebungsvariablen (nicht versioniert)
-- `.env.example`: Beispiel für Umgebungsvariablen
-- `.gitignore`: Git-Ignore Konfiguration
-- `.cursorrules`: Cursor-spezifische Regeln
+- `package.json` - Projekt-Konfiguration und Abhängigkeiten
+- `pnpm-lock.yaml` - Exakte Abhängigkeitsversionen (pnpm)
+- `next.config.js` - Next.js Konfiguration
+- `tailwind.config.ts` - Tailwind CSS Konfiguration
+- `tsconfig.json` - TypeScript Konfiguration
+- `components.json` - shadcn/ui Komponenten-Konfiguration
+- `.env` / `.env.local` / `.env.example` - Umgebungsvariablen
 
-## Architektur und Beziehungen
+### Kernkomponenten
 
-Das Projekt basiert auf Next.js 13+ mit dem App Router und verwendet:
+#### Storage System
+- `src/lib/storage/storage-factory.ts`
+- `src/lib/storage/filesystem-provider.ts`
+- `src/lib/storage/filesystem-client.ts`
+- `src/lib/storage/storage-service.ts`
 
-1. **Frontend:**
-   - React mit TypeScript
-   - Tailwind CSS für Styling
-   - Komponenten-basierte Architektur in `/src/components`
+#### Bibliotheks-Komponenten
+- `src/components/library/file-explorer.tsx`
+- `src/components/library/file-list.tsx`
+- `src/components/library/file-preview.tsx`
+- `src/components/library/library.tsx`
 
-2. **Backend/API:**
-   - Next.js API Routes in `/app/api`
-   - Middleware für Request-Handling
+#### UI-Komponenten
+- `src/components/ui/tree.tsx`
+- `src/components/ui/skeleton.tsx`
+- `src/components/ui/card.tsx`
+- `src/components/ui/alert.tsx`
 
-3. **Daten und Logik:**
-   - Custom Hooks für wiederverwendbare Logik
-   - Utility-Funktionen in `/src/lib`
-   - Typisierung durch TypeScript
+## Technologie-Stack
 
-Die Anwendung folgt den Best Practices von Next.js 13+ mit einer klaren Trennung von:
-- Seitenkomponenten (`/app`)
-- Wiederverwendbaren Komponenten (`/src/components`)
-- Business-Logik (`/src/lib`)
-- API-Endpunkten (`/app/api`)
+- Next.js mit App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui Komponenten-Bibliothek
+- pnpm als Paketmanager 

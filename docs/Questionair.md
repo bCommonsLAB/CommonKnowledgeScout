@@ -1,3 +1,5 @@
+
+# Konzept - wie tut man?
 P: ich habe über ein RAG System zugriff auf die sourcedateien eines komplexen React Projektes. Ich möchte jetzt eine fundierte Dokumentation erstellen. Für Entwickler und für Anwender. Wie könnte ich systematisch vorgehen und alle Aspekte einer Dokumentation Berücksichtigen, aber mit den beschränkten Kontextfenstern eines LLMs umgehen? Was sind die richtigen Schritte?
 
 Claude:
@@ -190,9 +192,10 @@ Wichtige Prinzipien:
 - Kurze, prägnante Beschreibungen
 - Codebeispiele nur für wichtige Konzepte
 - Klare Struktur und Navigation
+- 
 - Versionierung der Dokumentation
 
-Möchten Sie, dass ich einen der Schritte konkret mit Ihnen durchgehe?
+## Prompts
 
 
 ## Projektstruktur
@@ -200,9 +203,8 @@ Möchten Sie, dass ich einen der Schritte konkret mit Ihnen durchgehe?
 > [!NOTE]
 > Analysiere die Projektstruktur und erstelle eine knappe Übersicht der wichtigsten Verzeichnisse und deren Zweck. Identifizieren Sie Hauptkomponenten und deren Beziehungen * Markieren Sie zentrale Dateien wie package.json, Konfigurationsdateien etc.
 > Können sie diese Verzeichnisstruktur genau analysieren und dies dokumentierten was da ist. Nichts frei erfinden.
-> C:\Users\peter.aichner\Documents\MCP\knowledge-scout
 > 
-> Speichern als: C:\Users\peter.aichner\Documents\MCP\knowledge-scout\docs\01_project_overview.md
+> Speichern als: docs\01_project_overview.md
 
 
 ## Technische Architektur
@@ -214,7 +216,7 @@ Möchten Sie, dass ich einen der Schritte konkret mit Ihnen durchgehe?
 > - API-Integration
 > - Build/Deploy Setup"
 > Nichts frei erfinden.
-> Speichern als: C:\Users\peter.aichner\Documents\MCP\knowledge-scout\docs\02_architecture.md
+> Speichern als: docs\02_architecture.md
 
 
 # Core Components
@@ -226,15 +228,16 @@ Möchten Sie, dass ich einen der Schritte konkret mit Ihnen durchgehe?
 > - Zentrale Funktionen
 > - Besonderheiten
 > 
-> Speichern als: C:\Users\peter.aichner\Documents\MCP\knowledge-scout\docs\03_core_components.md
+> Speichern als: docs\03_core_components.md
 
 
 ## Storage Provider
 
 > [!NOTE]
-> Wie Funktioniert das Konzept der Storage Provider? Welche komponenten spielen Server und Clientseitig wie zusammen? Erkläre wie man prinzipiell Filesystem, Sharepoint, Onedrive, Google drive, etc. einbinden kann. Wie ist der Eventfolge der Library Componente vom Client zur Api und der Datenfluss zurück? Kann man das in einem Fluss Diagramm darstellen und als svg ausgeben?
+> Wie Funktioniert das Konzept der Storage Provider? Welche komponenten spielen Server und Clientseitig wie zusammen? Erkläre wie man prinzipiell Filesystem, Sharepoint, Onedrive, Google drive, etc. einbinden kann. Wie ist der Eventfolge der Library Componente vom Client zur Api und der Datenfluss zurück? Kann man das in einem Fluss Diagramm darstellen und als svg ins dokument einbetten?
 > 
-> Welche Ebenen werden angesprochen und welche Funktion hat welche Ebene? Speichern als: C:\Users\peter.aichner\Documents\MCP\knowledge-scout\docs\04_storage-provider.md
+> Welche Ebenen werden angesprochen und welche Funktion hat welche Ebene? 
+> Speichern als: docs\04_storage-provider.md
 
 ## Features
 
@@ -245,8 +248,44 @@ Möchten Sie, dass ich einen der Schritte konkret mit Ihnen durchgehe?
 > - Welche Benutzergruppen gibt es?
 > - Welche Berechtigungen existieren?"
 > 
-> Speichern als: C:\Users\peter.aichner\Documents\MCP\knowledge-scout\docs\05_features.md
+> Speichern als: docs\05_features.md
 
+
+# Setup Guide
+
+> [!NOTE]
+> Erstelle eine knappe Anleitung für:
+> - Lokales Setup für Entwickler
+> - Wichtige Umgebungsvariablen
+> - Build-Prozess
+> - Deployment-Schritte"
+> 
+> Speichern als: docs\06_setup.md
+
+
+# API Documentation
+
+> [!NOTE]
+> Dokumentiere die wichtigsten API-Endpunkte:
+> - Endpunkt
+> - Methode
+> - Parameter
+> - Response
+> - Beispiel"
+> 
+> Speichern als: docs/07_api.md
+> 
+
+## README.md erstellen
+
+> [!NOTE]
+> Erstelle ein README.md mit:
+> - Kurze Projektbeschreibung
+> - Hauptfunktionen
+> - Quick Start Guide
+> - Links zur detaillierten Dokumentation"
+> 
+> Speichern als: README.md
 
 ## LLM Context
 
