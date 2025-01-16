@@ -283,7 +283,7 @@ Wichtige Prinzipien:
 > - Kurze Projektbeschreibung
 > - Hauptfunktionen
 > - Quick Start Guide
-> - Links zur detaillierten Dokumentation"
+> - Links zur detaillierten Dokumentation die unter docs/* organisiert sind
 > 
 > Speichern als: README.md
 

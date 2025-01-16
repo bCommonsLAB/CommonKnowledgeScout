@@ -17,6 +17,7 @@ import { ClientLibrary } from "@/types/library"
 import { StorageFactory } from "@/lib/storage/storage-factory"
 import { StorageProvider, StorageItem } from "@/lib/storage/types"
 import { useTranscriptionTwins } from "@/hooks/use-transcription-twins"
+import { useSelectedFile } from "@/hooks/use-selected-file"
 
 export interface LibraryContextProps {
   libraries: ClientLibrary[];
@@ -37,206 +38,242 @@ const treeStyles = "h-full overflow-auto";
 const fileListStyles = "h-full overflow-auto";
 const previewStyles = "h-full overflow-auto";
 
+// Reduziere State durch Zusammenfassung zusammengehöriger States
+interface LibraryState {
+  isCollapsed: boolean;
+  currentFolder: {
+    id: string;
+    items: StorageItem[];
+  };
+  provider: {
+    id: string;
+    instance: StorageProvider | null;
+  };
+  ui: {
+    isLoading: boolean;
+    searchQuery: string;
+  };
+}
+
 export function Library({
   libraries,
   defaultLayout = [20, 32, 48],
   defaultCollapsed = false,
   navCollapsedSize,
 }: LibraryProps) {
-  const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed)
-  const [selectedItem, setSelectedItem] = React.useState<StorageItem | null>(null)
-  const [activeLibraryId, setActiveLibraryId] = React.useState<string>(libraries[0]?.id || '')
-  const [activeProvider, setActiveProvider] = React.useState<StorageProvider | null>(null)
-  const [currentItems, setCurrentItems] = React.useState<StorageItem[]>([])
-  const [currentFolderId, setCurrentFolderId] = React.useState<string>('root')
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [searchQuery, setSearchQuery] = React.useState("")
-  const [folderCache, setFolderCache] = React.useState<Map<string, StorageItem>>(new Map())
-  const [breadcrumbPath, setBreadcrumbPath] = React.useState<StorageItem[]>([])
+  // Zusammengefasster State
+  const [state, setState] = React.useState<LibraryState>({
+    isCollapsed: defaultCollapsed,
+    currentFolder: {
+      id: 'root',
+      items: [],
+    },
+    provider: {
+      id: libraries[0]?.id || '',
+      instance: null
+    },
+    ui: {
+      isLoading: false,
+      searchQuery: ''
+    }
+  });
 
-  // Initialisiere die StorageFactory mit den Libraries
+  // Zentraler File-Selection Hook
+  const {
+    selected,
+    selectFile,
+    updateBreadcrumb,
+    clearSelection,
+    isSelected,
+    parentId
+  } = useSelectedFile();
+
+  // Memoized Folder Cache
+  const folderCache = React.useMemo(() => new Map<string, StorageItem>(), []);
+
+  // Optimierter Provider Load
+  const loadProvider = React.useCallback(async () => {
+    if (!state.provider.id) return;
+    
+    try {
+      const factory = StorageFactory.getInstance();
+      const provider = await factory.getProvider(state.provider.id);
+      
+      setState(prev => ({
+        ...prev,
+        provider: {
+          ...prev.provider,
+          instance: provider
+        },
+        currentFolder: {
+          id: 'root',
+          items: []
+        }
+      }));
+      clearSelection();
+    } catch (error) {
+      console.error('Failed to load storage provider:', error);
+      setState(prev => ({
+        ...prev,
+        provider: {
+          ...prev.provider,
+          instance: null
+        }
+      }));
+    }
+  }, [state.provider.id, clearSelection]);
+
+  // Optimierter Items Load
+  const loadItems = React.useCallback(async () => {
+    if (!state.provider.instance) return;
+
+    setState(prev => ({
+      ...prev,
+      ui: { ...prev.ui, isLoading: true }
+    }));
+
+    try {
+      const items = await state.provider.instance.listItemsById(state.currentFolder.id);
+      
+      // Update Cache und Items in einer Transaktion
+      items.forEach(item => {
+        if (item.type === 'folder') {
+          folderCache.set(item.id, item);
+        }
+      });
+      
+      setState(prev => ({
+        ...prev,
+        currentFolder: {
+          ...prev.currentFolder,
+          items
+        },
+        ui: { ...prev.ui, isLoading: false }
+      }));
+    } catch (error) {
+      console.error('Failed to load items:', error);
+      setState(prev => ({
+        ...prev,
+        currentFolder: {
+          ...prev.currentFolder,
+          items: []
+        },
+        ui: { ...prev.ui, isLoading: false }
+      }));
+    }
+  }, [state.provider.instance, state.currentFolder.id, folderCache]);
+
+  // Initialisiere StorageFactory - nur einmal
   React.useEffect(() => {
-    const factory = StorageFactory.getInstance();
-    factory.setLibraries(libraries);
+    StorageFactory.getInstance().setLibraries(libraries);
   }, [libraries]);
 
-  // Aktualisiere den aktiven Provider wenn sich die Library ändert
+  // Load Provider wenn ID sich ändert
   React.useEffect(() => {
-    const loadProvider = async () => {
-      if (!activeLibraryId) return;
-      
-      try {
-        const factory = StorageFactory.getInstance();
-        const provider = await factory.getProvider(activeLibraryId);
-        setActiveProvider(provider);
-        // Reset auf Root-Verzeichnis
-        setCurrentFolderId('root');
-        setSelectedItem(null);
-      } catch (error) {
-        console.error('Failed to load storage provider:', error);
-        setActiveProvider(null);
-      }
-    };
-
     loadProvider();
-  }, [activeLibraryId]);
+  }, [loadProvider]);
 
-  // Lade Dateien wenn sich der Provider oder der Ordner ändert
+  // Load Items wenn Provider oder Folder sich ändern
   React.useEffect(() => {
-    const loadItems = async () => {
-      if (!activeProvider) {
-        setCurrentItems([]);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const items = await activeProvider.listItemsById(currentFolderId);
-        
-        // Update Cache
-        const newCache = new Map(folderCache);
-        items.forEach(item => newCache.set(item.id, item));
-        setFolderCache(newCache);
-        
-        setCurrentItems(items);
-      } catch (error) {
-        console.error('Failed to load items:', error);
-        setCurrentItems([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadItems();
-  }, [activeProvider, currentFolderId]);
+  }, [loadItems]);
 
   // Handler für Library-Wechsel
-  const handleLibraryChange = (libraryId: string) => {
-    setActiveLibraryId(libraryId);
-    setSelectedItem(null);
-    setCurrentFolderId('root');
-    setBreadcrumbPath([]);
-    setFolderCache(new Map()); // Cache beim Library-Wechsel leeren
-  };
+  const handleLibraryChange = React.useCallback((libraryId: string) => {
+    setState(prev => ({
+      ...prev,
+      provider: {
+        id: libraryId,
+        instance: null
+      },
+      currentFolder: {
+        id: 'root',
+        items: []
+      },
+      selectedItem: null
+    }));
+  }, []);
 
-  // Aktualisiere Cache wenn neue Items geladen werden
-  React.useEffect(() => {
-    const newCache = new Map(folderCache);
-    currentItems.forEach(item => {
-      if (item.type === 'folder') {
-        newCache.set(item.id, item);
-      }
-    });
-    setFolderCache(newCache);
-  }, [currentItems]);
+  // Handler für Ordnerwechsel
+  const handleFolderSelect = React.useCallback((item: StorageItem) => {
+    if (item.type !== 'folder') return;
 
-  // Handler für Verzeichniswechsel
-  const handleFolderSelect = (item: StorageItem) => {
-    if (item.type === 'folder') {
-      setCurrentFolderId(item.id);
-      setSelectedItem(null);
-      
-      // Aktualisiere Cache mit dem ausgewählten Ordner
-      const newCache = new Map(folderCache);
-      newCache.set(item.id, item);
-      setFolderCache(newCache);
-
-      // Rekonstruiere den Pfad aus dem Cache
-      const path = [];
-      let current = item;
-      
-      while (current && current.id !== 'root') {
-        path.unshift(current);
-        const parent = folderCache.get(current.parentId);
-        if (!parent || parent.id === current.id) break;
-        current = parent;
-      }
-      
-      setBreadcrumbPath(path);
-    }
-  };
-
-  // Aktualisiere den Pfad wenn sich der Cache ändert
-  React.useEffect(() => {
-    if (currentFolderId === 'root') {
-      setBreadcrumbPath([]);
-      return;
+    // Berechne neuen Pfad
+    const path: StorageItem[] = [];
+    let current = item;
+    while (current && current.id !== 'root') {
+      path.unshift(current);
+      const parent = folderCache.get(current.parentId);
+      if (!parent || parent.id === current.id) break;
+      current = parent;
     }
 
-    const currentFolder = folderCache.get(currentFolderId);
-    if (currentFolder) {
-      const path = [];
-      let current = currentFolder;
-      
-      while (current && current.id !== 'root') {
-        path.unshift(current);
-        const parent = folderCache.get(current.parentId);
-        if (!parent || parent.id === current.id) break;
-        current = parent;
+    setState(prev => ({
+      ...prev,
+      currentFolder: {
+        id: item.id,
+        items: prev.currentFolder.items
       }
-      
-      setBreadcrumbPath(path);
-    }
-  }, [folderCache, currentFolderId]);
+    }));
+    
+    updateBreadcrumb(path, item.id);
+    clearSelection();
+  }, [folderCache, updateBreadcrumb, clearSelection]);
 
   // Handler für Dateiauswahl
-  const handleFileSelect = (item: StorageItem) => {
-    if (item.type === 'file') {
-      setSelectedItem(item);
-    }
-  };
+  const handleFileSelect = React.useCallback((item: StorageItem) => {
+    if (item.type !== 'file') return;
+    selectFile(item);
+  }, [selectFile]);
 
-  // Gefilterte Items basierend auf der Suche und Transcription
+  // Memoized gefilterte Items
   const filteredItems = React.useMemo(() => {
-    if (!searchQuery) return currentItems;
+    if (!state.ui.searchQuery) return state.currentFolder.items;
     
-    const query = searchQuery.toLowerCase();
-    return currentItems.filter(item => 
+    const query = state.ui.searchQuery.toLowerCase();
+    return state.currentFolder.items.filter(item => 
       item.metadata.name.toLowerCase().includes(query)
     );
-  }, [currentItems, searchQuery]);
+  }, [state.currentFolder.items, state.ui.searchQuery]);
 
-  // Prüfe ob Transcription aktiviert ist
+  // Memoized Transcription Check
   const transcriptionEnabled = React.useMemo(() => {
-    const activeLib = libraries.find(lib => lib.id === activeLibraryId);
-    // Prüfe ob die transcription Konfiguration als string 'shadowTwin' existiert
+    const activeLib = libraries.find(lib => lib.id === state.provider.id);
     return activeLib?.config?.transcription === 'shadowTwin';
-  }, [libraries, activeLibraryId]);
+  }, [libraries, state.provider.id]);
 
-  // Debug logging
-  console.log('Library Config:', {
-    activeLibraryId,
-    transcriptionEnabled,
-    config: libraries.find(lib => lib.id === activeLibraryId)?.config,
-    rawConfig: libraries.map(lib => ({
-      id: lib.id,
-      config: lib.config,
-      transcription: lib.config?.transcription
-    }))
-  });
+  // Debug logging - nur in Development
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Library Config:', {
+        activeLibraryId: state.provider.id,
+        transcriptionEnabled,
+        config: libraries.find(lib => lib.id === state.provider.id)?.config
+      });
+    }
+  }, [state.provider.id, libraries, transcriptionEnabled]);
 
   // Verarbeite Transcription Twins
   const processedItems = useTranscriptionTwins(filteredItems, transcriptionEnabled);
 
-  // Finde die aktuelle Bibliothek
-  const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
+  // Aktuelle Bibliothek
+  const activeLibrary = libraries.find(lib => lib.id === state.provider.id);
 
-  // Übermittle die Library-Props an die TopNav
+  // Library Context Events
   React.useEffect(() => {
     const event = new CustomEvent('libraryContextChange', {
       detail: {
         libraries,
-        activeLibraryId,
+        activeLibraryId: state.provider.id,
         onLibraryChange: handleLibraryChange
       }
     });
     window.dispatchEvent(event);
 
     return () => {
-      const resetEvent = new CustomEvent('libraryContextChange', { detail: null });
-      window.dispatchEvent(resetEvent);
+      window.dispatchEvent(new CustomEvent('libraryContextChange', { detail: null }));
     };
-  }, [libraries, activeLibraryId]);
+  }, [libraries, state.provider.id, handleLibraryChange]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -248,22 +285,31 @@ export function Library({
               <span className="text-muted-foreground flex-shrink-0">Pfad:</span>
               <div className="flex items-center gap-1 overflow-hidden">
                 <button
-                  onClick={() => setCurrentFolderId('root')}
+                  onClick={() => {
+                    setState(prev => ({
+                      ...prev,
+                      currentFolder: {
+                        id: 'root',
+                        items: []
+                      }
+                    }));
+                    updateBreadcrumb([], 'root');
+                  }}
                   className={cn(
                     "hover:text-foreground flex-shrink-0 font-medium",
-                    currentFolderId === 'root' ? "text-foreground" : "text-muted-foreground"
+                    selected.breadcrumb.currentId === 'root' ? "text-foreground" : "text-muted-foreground"
                   )}
                 >
                   {activeLibrary?.label || '/'}
                 </button>
-                {breadcrumbPath.map((item) => (
+                {selected.breadcrumb.items.map((item) => (
                   <React.Fragment key={item.id}>
                     <span className="text-muted-foreground flex-shrink-0">/</span>
                     <button
-                      onClick={() => setCurrentFolderId(item.id)}
+                      onClick={() => handleFolderSelect(item)}
                       className={cn(
                         "hover:text-foreground truncate",
-                        currentFolderId === item.id ? "text-foreground font-medium" : "text-muted-foreground"
+                        selected.breadcrumb.currentId === item.id ? "text-foreground font-medium" : "text-muted-foreground"
                       )}
                     >
                       {item.metadata.name}
@@ -295,28 +341,28 @@ export function Library({
               minSize={15}
               maxSize={20}
               onCollapse={() => {
-                setIsCollapsed(true)
+                setState(prev => ({ ...prev, isCollapsed: true }));
                 document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
                   true
                 )}`
               }}
               onExpand={() => {
-                setIsCollapsed(false)
+                setState(prev => ({ ...prev, isCollapsed: false }));
                 document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
                   false
                 )}`
               }}
               className={cn(
                 "border-r",
-                isCollapsed && "min-w-[50px] transition-all duration-300 ease-in-out"
+                state.isCollapsed && "min-w-[50px] transition-all duration-300 ease-in-out"
               )}
             >
               <div className={cn(panelStyles)}>
                 <div className={cn(treeStyles)}>
                   <FileTree 
-                    provider={activeProvider}
+                    provider={state.provider.instance}
                     onSelect={handleFolderSelect}
-                    currentFolderId={currentFolderId}
+                    currentFolderId={selected.breadcrumb.currentId}
                     libraryName={activeLibrary?.label}
                   />
                 </div>
@@ -330,10 +376,10 @@ export function Library({
               <Separator />
                 <FileList 
                   items={processedItems}
-                  selectedItem={selectedItem}
+                  selectedItem={selected.item}
                   onSelectAction={handleFileSelect}
-                  searchTerm={searchQuery}
-                  currentFolderId={currentFolderId}
+                  searchTerm={state.ui.searchQuery}
+                  currentFolderId={selected.breadcrumb.currentId}
                 />
             </ResizablePanel>
             <ResizableHandle withHandle />
@@ -341,8 +387,8 @@ export function Library({
               <div className={cn(panelStyles)}>
                 <div className={cn(previewStyles)}>
                   <FilePreview 
-                    item={selectedItem} 
-                    provider={activeProvider}
+                    item={selected.item} 
+                    provider={state.provider.instance}
                     className="h-full"
                   />
                 </div>

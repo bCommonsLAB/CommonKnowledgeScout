@@ -11,6 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Image as ImageIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
+import { AudioPlayer } from './audio-player';
+import './markdown-audio'; // Importiere die Client-Komponente
 
 interface FilePreviewProps {
   item: StorageItem | null;
@@ -242,23 +244,39 @@ md.renderer.rules.strong_open = function() {
   return '<strong class="font-bold">';
 };
 
-/**
- * Extrahiert die YouTube Video ID aus verschiedenen URL-Formaten
- */
-function getYouTubeId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s]+)/,
-    /youtube\.com\/watch\?.*v=([^&\s]+)/,
-    /youtube\.com\/shorts\/([^&\s]+)/
-  ];
+// Cache für aufgelöste FileIds
+const resolvedFileIds = new Map<string, string>();
 
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
+/**
+ * Löst einen Dateinamen in eine FileId auf
+ */
+async function resolveFileIdByName(
+  fileName: string, 
+  currentFolderId: string,
+  provider: StorageProvider
+): Promise<string | null> {
+  // Prüfe Cache
+  const cacheKey = `${currentFolderId}:${fileName}`;
+  if (resolvedFileIds.has(cacheKey)) {
+    return resolvedFileIds.get(cacheKey) || null;
   }
-  return null;
+
+  try {
+    // Liste alle Dateien im aktuellen Ordner
+    const items = await provider.listItemsById(currentFolderId);
+    // Suche die Datei mit dem passenden Namen
+    const file = items.find(item => item.metadata.name === fileName);
+    
+    // Cache das Ergebnis
+    if (file?.id) {
+      resolvedFileIds.set(cacheKey, file.id);
+    }
+    
+    return file?.id || null;
+  } catch (error) {
+    console.error('Failed to resolve file:', error);
+    return null;
+  }
 }
 
 /**
@@ -337,76 +355,21 @@ ${restContent}`;
 }
 
 /**
- * Lädt eine Audio-Datei und gibt die Binary-URL zurück
- */
-async function getAudioUrl(filename: string, provider: StorageProvider | null, basePath: string): Promise<string | null> {
-  if (!provider) {
-    console.warn('No provider available');
-    return null;
-  }
-  
-  try {
-    console.log('Loading audio file:', { filename, basePath });
-    
-    // Hole zuerst das aktuelle Item, um dessen parentId zu bekommen
-    const currentItem = await provider.getItemById(basePath);
-    console.log('Current item:', currentItem);
-    
-    // Suche nach der Datei im aktuellen Verzeichnis
-    const files = await provider.listItemsById(currentItem.parentId);
-    console.log('Found files:', files);
-    
-    const audioFile = files.find((f: StorageItem) => 
-      f.type === 'file' && f.metadata.name === filename
-    );
-    
-    if (!audioFile) {
-      console.warn(`Audio file not found: ${filename} in path ${basePath}`);
-      return null;
-    }
-    
-    console.log('Found audio file:', audioFile);
-    const { blob } = await provider.getBinary(audioFile.id);
-    return URL.createObjectURL(blob);
-  } catch (error) {
-    console.error('Error loading audio file:', error);
-    return null;
-  }
-}
-
-/**
  * Konvertiert Obsidian-Bildpfade und bereitet den Markdown-Inhalt vor
  */
-function processObsidianContent(content: string, basePath: string = '', provider: StorageProvider | null = null, currentItem: StorageItem | null = null): string {
-  // Konvertiere Obsidian-Audio-Einbettungen (![[audio.m4a]] -> HTML5 Audio Player)
+function processObsidianContent(
+  content: string, 
+  currentFolderId: string = 'root',
+  provider: StorageProvider | null = null,
+  currentItem: StorageItem | null = null
+): string {
+  if (!provider) return content;
+
+  // Konvertiere Obsidian-Audio-Einbettungen zu Links
   content = content.replace(/!\[\[(.*?\.(?:mp3|m4a|wav|ogg))\]\]/g, (match, audioFile) => {
-    const audioPath = basePath ? `${basePath}/${audioFile}` : audioFile;
-    
-    // Erstelle einen Platzhalter mit einer eindeutigen ID
-    const placeholderId = `audio-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Lade die Audio-Datei asynchron
-    if (currentItem) {
-      getAudioUrl(audioFile, provider, currentItem.id).then(url => {
-        if (url) {
-          const placeholder = document.getElementById(placeholderId);
-          if (placeholder) {
-            placeholder.innerHTML = `
-              <div class="my-4">
-                <div class="text-xs text-muted-foreground mb-2">${audioFile}</div>
-                <audio controls class="w-full">
-                  <source src="${url}" type="audio/mpeg">
-                  Ihr Browser unterstützt das Audio-Element nicht.
-                </audio>
-              </div>`;
-          }
-        }
-      });
-    }
-    
-    // Gib den Platzhalter zurück
-    return `<div id="${placeholderId}" class="my-4">
-      <div class="text-xs text-muted-foreground">Lade Audio: ${audioFile}...</div>
+    // Zeige nur einen Link für Audio-Dateien
+    return `<div class="my-4">
+      <div class="text-xs text-muted-foreground">Audio: ${audioFile}</div>
     </div>`;
   });
 
@@ -463,10 +426,10 @@ function processObsidianContent(content: string, basePath: string = '', provider
   );
 
   // Füge Basis-URL zu relativen Bildpfaden hinzu
-  if (basePath) {
+  if (currentFolderId) {
     content = content.replace(
       /!\[(.*?)\]\((?!http)(.*?)\)/g,
-      `![$1](${basePath}/$2)`
+      `![$1](${currentFolderId}/$2)`
     );
   }
 
@@ -487,40 +450,63 @@ function processMarkdownContent(content: string): string {
   return content.replace(/^\s*\*{3,}\s*$/gm, '\n---\n');
 }
 
+/**
+ * Extrahiert die YouTube-ID aus verschiedenen URL-Formaten
+ */
+function getYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s]+)/,
+    /youtube\.com\/watch\?.*v=([^&\s]+)/
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) return match[1];
+  }
+  return null;
+}
+
 export function FilePreview({ item, className, provider }: FilePreviewProps) {
   const [content, setContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [transcriptionContent, setTranscriptionContent] = useState<string | null>(null);
 
-  // Lade den Inhalt der Datei
-  useEffect(() => {
-    if (!item || !provider) {
-      setContent('');
-      setTranscriptionContent(null);
-      return;
-    }
+  // Debug: Log re-renders
+  console.log('FilePreview render:', {
+    itemId: item?.id,
+    name: item?.metadata.name
+  });
 
+  useEffect(() => {
     const loadContent = async () => {
+      if (!item || !provider) return;
+      
+      // Skip content loading for audio files
+      if (getFileType(item.metadata.name) === 'audio') {
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
+
       try {
-        // Wenn die Datei ein Transkript hat, lade dieses zuerst
+        // Debug: Log content loading
+        console.log('Loading content for:', item.id);
+
+        const content = await provider.getBinary(item.id).then(({ blob }) => blob.text());
+        setContent(content);
+
+        // Check for transcription
         if (item.metadata.transcriptionTwin) {
           const transcriptItem = await provider.getItemById(item.metadata.transcriptionTwin.id);
-          const { blob } = await provider.getBinary(transcriptItem.id);
-          const text = await blob.text();
-          setTranscriptionContent(text);
+          const transcriptContent = await provider.getBinary(transcriptItem.id).then(({ blob }) => blob.text());
+          setTranscriptionContent(transcriptContent);
         }
-
-        // Lade den Originalinhalt
-        const { blob } = await provider.getBinary(item.id);
-        const text = await blob.text();
-        setContent(text);
-        setIsLoading(false);
       } catch (err) {
         console.error('Failed to load file:', err);
         setError('Fehler beim Laden der Datei');
+      } finally {
         setIsLoading(false);
       }
     };
@@ -529,73 +515,11 @@ export function FilePreview({ item, className, provider }: FilePreviewProps) {
   }, [item, provider]);
 
   const renderFileContent = () => {
-    if (!item) {
-      return (
-        <div className="flex items-center justify-center h-full text-muted-foreground">
-          Keine Datei ausgewählt
-        </div>
-      );
-    }
-
-    if (isLoading) {
-      return <Skeleton className="w-full h-[200px]" />;
-    }
-
-    if (error) {
-      return (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      );
-    }
+    if (!item) return null;
+    if (error) return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>;
+    if (isLoading) return <Skeleton className="w-full h-32" />;
 
     const fileType = getFileType(item.metadata.name);
-
-    // Wenn ein Transkript verfügbar ist, zeige es in einem Tab an
-    if (transcriptionContent) {
-      return (
-        <div className="space-y-4">
-          {/* Original Content */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Original</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderContentByType(fileType, content, item)}
-            </CardContent>
-          </Card>
-
-          {/* Transcription Content */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Transkript</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="prose dark:prose-invert max-w-none">
-                <div 
-                  className="p-4 w-full"
-                  dangerouslySetInnerHTML={{ 
-                    __html: md.render(
-                      processObsidianContent(
-                        transcriptionContent.split('---').length > 2 
-                          ? transcriptionContent.split('---').slice(2).join('---')
-                          : transcriptionContent,
-                        item.id.split('/').slice(0, -1).join('/') || '',
-                        provider,
-                        item
-                      )
-                    ) 
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
-    // Wenn kein Transkript verfügbar ist, zeige nur den Original-Content
     return renderContentByType(fileType, content, item);
   };
 
@@ -612,7 +536,7 @@ export function FilePreview({ item, className, provider }: FilePreviewProps) {
                     content.split('---').length > 2 
                       ? content.split('---').slice(2).join('---')
                       : content,
-                    item.id.split('/').slice(0, -1).join('/') || '',
+                    item.parentId || 'root',
                     provider,
                     item
                   )
@@ -622,12 +546,8 @@ export function FilePreview({ item, className, provider }: FilePreviewProps) {
           </div>
         );
       case 'audio':
-        return (
-          <audio controls className="w-full">
-            <source src={`/api/storage/filesystem?action=binary&fileId=${item.id}`} type={item.metadata.mimeType} />
-            Ihr Browser unterstützt das Audio-Element nicht.
-          </audio>
-        );
+        // Optimierter Audio-Player mit memo
+        return <AudioPlayer item={item} />;
       // ... andere Dateitypen ...
       default:
         return <pre className="whitespace-pre-wrap">{content}</pre>;

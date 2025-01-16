@@ -77,6 +77,9 @@ Testing Guidelines
 - Implement Playwright for E2E testing
 - Follow Testing Library best practices
 - Maintain test coverage thresholds
+- Implement Component Tests mit Testing Library
+- Verwende Mock Service Worker für API Tests
+- Implementiere Snapshot Tests für UI Komponenten
 
 Security Best Practices
 - Implement proper CSRF protection
@@ -89,6 +92,9 @@ API Conventions
 - Implement proper API error handling
 - Define standard API response formats
 - Use proper HTTP status codes
+- Implementiere Typed Response Schemas
+- Nutze API Versioning für Breaking Changes
+- Dokumentiere alle Endpoints mit OpenAPI
 
 State Management
 - Use Jotai for atomic state management
@@ -120,6 +126,10 @@ Documentation
 - Document all hooks and utils
 - Document all libraries and providers
 - Document all pages and routes
+- Erstelle Mermaid Diagramme für komplexe Flows
+- Füge Beispiele für alle APIs hinzu
+- Dokumentiere Error Handling Strategien
+- Pflege ein Changelog
 
 Environment Setup
 - Define environment variable handling
