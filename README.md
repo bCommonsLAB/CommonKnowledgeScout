@@ -1,159 +1,121 @@
-# Next.js Mail & Dashboard Application
+# Knowledge Scout
 
-Eine moderne Web-Anwendung gebaut mit Next.js 14, die verschiedene UI-Komponenten und Funktionalitäten demonstriert.
+A sophisticated file management and knowledge organization system built with Next.js 14, featuring a flexible storage provider architecture and modern UI components.
 
-## 🚀 Inhaltsverzeichnis
+## Features
 
-- [Features](#-features)
-- [Technologie-Stack](#-technologie-stack)
-- [Projektstruktur](#-projektstruktur)
-- [Installation](#-installation)
-- [Entwicklung](#-entwicklung)
-- [Tests](#-tests)
-- [Deployment](#-deployment)
-- [Umgebungsvariablen](#-umgebungsvariablen)
-- [Beiträge](#-beiträge)
-- [Lizenz](#-lizenz)
+- 📁 Advanced file management with hierarchical navigation
+- 🔍 Powerful file preview for multiple formats (Markdown, Audio, Video, Images)
+- 🎨 Modern, responsive UI with dark/light mode support
+- 🔄 Flexible storage provider system for different backends
+- 📝 Rich Markdown support with Obsidian compatibility
+- 🎵 Audio transcription capabilities
+- 🔒 Secure authentication with Clerk
 
-## 🚀 Features
+## Tech Stack
 
-- Mail Interface
-  - Vollständiges Mail-Interface mit Konversationsansicht
-  - Echtzeit-Updates durch Server-Sent Events
-  - Drag & Drop Dateianhänge
-  - Intelligente Suche und Filterung
+- **Framework:** Next.js 14.0.4 (App Router)
+- **Language:** TypeScript 5
+- **Styling:** Tailwind CSS 3.3.0
+- **UI Components:** 
+  - shadcn/ui
+  - Radix UI
+  - Geist UI
+  - Lucide React icons
+- **State Management:**
+  - Jotai for atomic state
+  - TanStack Query for server state
+  - React Hook Form + Zod for forms
+- **Authentication:** Clerk
+- **Package Manager:** pnpm
 
-- Dashboard
-  - Analytisches Dashboard mit interaktiven Diagrammen
-  - Echtzeit-Statistiken und KPIs
-  - Anpassbare Widgets
-  - Export-Funktionalität
+## Getting Started
 
-- Task Management
-  - Kanban-Board mit Drag & Drop
-  - Aufgabenverwaltung mit Prioritäten
-  - Teamzuweisung und Tracking
-  - Deadline-Management
+1. Clone the repository:
+\`\`\`bash
+git clone [repository-url]
+cd knowledge-scout
+\`\`\`
 
-- Weitere Features
-  - Fortgeschrittene Formulare mit Validierung
-  - AI-Playground Interface
-  - Dark/Light Mode
-  - Responsive Design für alle Geräte
-  - Barrierefreiheit nach WCAG 2.1
+2. Install dependencies:
+\`\`\`bash
+pnpm install
+\`\`\`
 
-## 🛠 Technologie-Stack
+3. Copy the environment variables:
+\`\`\`bash
+cp .env.example .env
+\`\`\`
 
-Core
-- Framework: Next.js 14 (App Router)
-- Sprache: TypeScript
-- Package Manager: pnpm
+4. Configure your environment variables in \`.env\`
 
-UI & Styling
-- CSS Framework: Tailwind CSS
-- UI Components: 
-  - Shadcn UI
-  - Radix UI Primitives
-- Icons: Lucide React
-- Fonts: Geist Font Family
+5. Start the development server:
+\`\`\`bash
+pnpm dev
+\`\`\`
 
-State Management & Data Handling
-- Client State: Zustand
-- Server State: TanStack Query
-- Forms: React Hook Form + Zod
-- URL State: nuqs
+## Project Structure
 
-Visualisierung & Interaktivität
-- Charting: Recharts
-- Drag & Drop: @hello-pangea/dnd
+\`\`\`
+/app                    # Next.js App Router directory
+  /api                  # API routes
+  /library             # Library components
+  layout.tsx           # Main layout
+  page.tsx             # Main page
+/src
+  /components          # Reusable React components
+    /library          # Library-specific components
+    /mail            # Mail components
+    /ui              # UI components
+    /shared          # Shared components
+  /hooks              # Custom React hooks
+  /lib                # Utilities and libraries
+  /styles            # Styling files
+  /types             # TypeScript definitions
+\`\`\`
 
-Testing
-- Unit Tests: Vitest
-- E2E Tests: Playwright
-- Component Tests: @testing-library/react
+## Storage Provider System
 
-## 🏗 Projektstruktur 
+The application uses a flexible storage provider architecture that allows integration with various storage backends:
 
-src/
-├── app/
-│   ├── api/         # API Routes
-│   ├── mail/        # Mail Funktionalität
-│   └── tasks/       # Task Management
-├── components/
-│   ├── ui/          # Basis UI-Komponenten
-│   ├── mail/        # Mail-bezogene Komponenten
-│   │   └── data/    # Mail-Daten & Logik
-│   ├── tasks/       # Task-Management Komponenten
-│   └── forms/       # Formular-Komponenten
-├── lib/             # Utilities und Hilfsfunktionen
-├── hooks/           # Custom React Hooks
-├── styles/          # Globale Styles
-└── types/           # TypeScript Typdefinitionen
+- Local filesystem
+- SharePoint/OneDrive (planned)
+- Google Drive (planned)
+- Custom storage implementations
 
-## 🔐 Umgebungsvariablen
+Each provider implements a standard interface for consistent file operations across different storage systems.
 
-Erstellen Sie eine `.env.local` Datei im Root-Verzeichnis mit folgenden Variablen:
+## Development
 
-```bash
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_************
-CLERK_SECRET_KEY=sk_test_************
+### Code Style
 
-# API URLs
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
+- Functional and declarative programming patterns
+- TypeScript with strict mode enabled
+- ESLint and Prettier for code formatting
+- Component-based architecture
 
-# Database
-DATABASE_URL="postgresql://..."
+### Testing
 
-# Optional: Analytics
-NEXT_PUBLIC_ANALYTICS_ID=
-```
+- Vitest for unit and integration tests
+- Playwright for E2E testing
+- Testing Library best practices
 
-Clerk Keys können Sie hier erhalten:
-1. Registrieren Sie sich bei [Clerk](https://clerk.com)
-2. Erstellen Sie eine neue Anwendung
-3. Gehen Sie zu API Keys im Dashboard
-4. Kopieren Sie die Publishable Key und Secret Key
+### Performance
 
-## 💻 Installation
+- React Server Components (RSC) where possible
+- Dynamic imports for code splitting
+- Image optimization with next/image
+- Proper caching strategies
 
-1. pnpm installieren (falls noch nicht vorhanden):
-   ```bash
-   # Verwendung von npm
-   npm install -g pnpm
+## Contributing
 
-   # Alternativ unter macOS mit Homebrew
-   brew install pnpm
-   ```
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-2. Repository klonen:
-   ```bash
-   git clone https://github.com/username/project-name.git
-   cd project-name
-   ```
+## License
 
-3. Abhängigkeiten installieren:
-   ```bash
-   pnpm install
-   ```
-
-4. Umgebungsvariablen konfigurieren:
-   ```bash
-   cp .env.example .env.local
-   ```
-
-5. Entwicklungsserver starten:
-   ```bash
-   pnpm dev
-   ```
-
-## 🔧 Entwicklung
-
-Scripts:
-- pnpm dev - Entwicklungsserver starten
-- pnpm build - Produktions-Build erstellen
-- pnpm start - Produktions-Build starten
-- pnpm test - Tests ausführen
-- pnpm lint - Code-Linting durchführen
-- pnpm format - Code formatieren
+[License Type] - See LICENSE file for details
 

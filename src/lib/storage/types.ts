@@ -19,6 +19,22 @@ export interface StorageItemMetadata {
   
   /** MIME type (application/folder for folders) */
   mimeType: string;
+
+  /** Indicates if this file has a markdown transcription twin */
+  hasTranscript?: boolean;
+
+  /** Indicates if this file is a transcription twin */
+  isTwin?: boolean;
+
+  /** Reference to the twin file if exists */
+  transcriptionTwin?: {
+    /** ID of the twin file */
+    id: string;
+    /** Name of the twin file */
+    name: string;
+    /** Whether this file is the transcription (true) or the original (false) */
+    isTranscription: boolean;
+  };
 }
 
 /**

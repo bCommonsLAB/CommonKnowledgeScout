@@ -18,18 +18,24 @@ Structure
 - Use the following structure for the project:
   - src/
     - components/
+      - library/
+        - file-tree.tsx
+        - file-list.tsx
+        - file-preview.tsx
       - mail/
         - data/
       - ui/
+      - shared/
     - types/
     - utils/
-    - hooks
-    - lib
+    - hooks/
+    - lib/
     - styles/
   - app/
     - api/
     - mail/
     - tasks/
+    - library/
 
 TypeScript Usage
 - Use TypeScript for all code; prefer interfaces over types.
@@ -85,9 +91,21 @@ API Conventions
 - Use proper HTTP status codes
 
 State Management
-- Use Zustand for complex client-state
-- Leverage React Query/TanStack Query for server state
-- Define when to use local state vs. global state
+- Use Jotai for atomic state management
+- Use TanStack Query for server state
+- Use React Hook Form + Zod for form handling
+- Define clear state boundaries between global and local
+
+Authentication & Security
+- Implement Clerk for authentication
+- Use Next.js middleware for route protection
+- Handle auth state consistently across app
+
+UI Components
+- Primary: shadcn/ui, Radix UI
+- Secondary: Geist UI for specific components
+- Icons: Lucide React
+- Ensure consistent component APIs
 
 Accessibility (a11y)
 - Follow WCAG 2.1 guidelines

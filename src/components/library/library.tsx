@@ -16,6 +16,7 @@ import { FileList } from "./file-list"
 import { ClientLibrary } from "@/types/library"
 import { StorageFactory } from "@/lib/storage/storage-factory"
 import { StorageProvider, StorageItem } from "@/lib/storage/types"
+import { useTranscriptionTwins } from "@/hooks/use-transcription-twins"
 
 export interface LibraryContextProps {
   libraries: ClientLibrary[];
@@ -185,7 +186,7 @@ export function Library({
     }
   };
 
-  // Gefilterte Items basierend auf der Suche
+  // Gefilterte Items basierend auf der Suche und Transcription
   const filteredItems = React.useMemo(() => {
     if (!searchQuery) return currentItems;
     
@@ -194,6 +195,28 @@ export function Library({
       item.metadata.name.toLowerCase().includes(query)
     );
   }, [currentItems, searchQuery]);
+
+  // Prüfe ob Transcription aktiviert ist
+  const transcriptionEnabled = React.useMemo(() => {
+    const activeLib = libraries.find(lib => lib.id === activeLibraryId);
+    // Prüfe ob die transcription Konfiguration als string 'shadowTwin' existiert
+    return activeLib?.config?.transcription === 'shadowTwin';
+  }, [libraries, activeLibraryId]);
+
+  // Debug logging
+  console.log('Library Config:', {
+    activeLibraryId,
+    transcriptionEnabled,
+    config: libraries.find(lib => lib.id === activeLibraryId)?.config,
+    rawConfig: libraries.map(lib => ({
+      id: lib.id,
+      config: lib.config,
+      transcription: lib.config?.transcription
+    }))
+  });
+
+  // Verarbeite Transcription Twins
+  const processedItems = useTranscriptionTwins(filteredItems, transcriptionEnabled);
 
   // Finde die aktuelle Bibliothek
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
@@ -306,9 +329,10 @@ export function Library({
               </div>
               <Separator />
                 <FileList 
-                  items={filteredItems}
+                  items={processedItems}
                   selectedItem={selectedItem}
-                  onSelect={handleFileSelect}
+                  onSelectAction={handleFileSelect}
+                  searchTerm={searchQuery}
                   currentFolderId={currentFolderId}
                 />
             </ResizablePanel>

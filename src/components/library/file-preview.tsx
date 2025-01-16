@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Remarkable } from 'remarkable';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css';
-import { StorageItem, StorageProvider, StorageFile } from "@/lib/storage/types";
+import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -488,205 +488,155 @@ function processMarkdownContent(content: string): string {
 }
 
 export function FilePreview({ item, className, provider }: FilePreviewProps) {
-  const [binaryUrl, setBinaryUrl] = useState<string | null>(null);
-  const [markdownContent, setMarkdownContent] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [content, setContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [transcriptionContent, setTranscriptionContent] = useState<string | null>(null);
 
+  // Lade den Inhalt der Datei
   useEffect(() => {
-    if (item?.type === 'file' && provider) {
-      loadBinary();
+    if (!item || !provider) {
+      setContent('');
+      setTranscriptionContent(null);
+      return;
     }
-    return () => {
-      if (binaryUrl) {
-        URL.revokeObjectURL(binaryUrl);
+
+    const loadContent = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Wenn die Datei ein Transkript hat, lade dieses zuerst
+        if (item.metadata.transcriptionTwin) {
+          const transcriptItem = await provider.getItemById(item.metadata.transcriptionTwin.id);
+          const { blob } = await provider.getBinary(transcriptItem.id);
+          const text = await blob.text();
+          setTranscriptionContent(text);
+        }
+
+        // Lade den Originalinhalt
+        const { blob } = await provider.getBinary(item.id);
+        const text = await blob.text();
+        setContent(text);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Failed to load file:', err);
+        setError('Fehler beim Laden der Datei');
+        setIsLoading(false);
       }
     };
+
+    loadContent();
   }, [item, provider]);
 
-  const loadBinary = async () => {
-    if (!item || !provider) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const { blob, mimeType } = await provider.getBinary(item.id);
-      
-      if (getFileType(item.metadata.name) === 'markdown') {
-        const text = await blob.text();
-        // Speichere den Rohtext, die Verarbeitung erfolgt beim Rendern
-        setMarkdownContent(text);
-        setBinaryUrl(null);
-      } else {
-        const url = URL.createObjectURL(blob);
-        setBinaryUrl(url);
-        setMarkdownContent(null);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Fehler beim Laden der Datei';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
+  const renderFileContent = () => {
+    if (!item) {
+      return (
+        <div className="flex items-center justify-center h-full text-muted-foreground">
+          Keine Datei ausgewählt
+        </div>
+      );
     }
-  };
 
-  if (!item) {
-    return (
-      <div className={cn("p-6", className)}>
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Bitte wählen Sie eine Datei aus, um die Vorschau anzuzeigen.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+    if (isLoading) {
+      return <Skeleton className="w-full h-[200px]" />;
+    }
 
-  if (error) {
-    return (
-      <div className={cn("p-6", className)}>
+    if (error) {
+      return (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-      </div>
-    );
-  }
+      );
+    }
 
-  // TODO: Hier würden wir die Metadaten von der API abrufen
-  const metadata: FileMetadata = {
-    content: {
-      title: item.metadata.name,
-      description: "Beschreibung der Datei wird hier angezeigt...",
-    },
-    transcriptionStatus: 'pending',
-  };
-
-  const renderFileContent = () => {
     const fileType = getFileType(item.metadata.name);
 
-    if (isLoading) {
+    // Wenn ein Transkript verfügbar ist, zeige es in einem Tab an
+    if (transcriptionContent) {
       return (
-        <div className="w-full h-[400px] flex items-center justify-center">
-          <Skeleton className="w-full h-full" />
-        </div>
-      );
-    }
+        <div className="space-y-4">
+          {/* Original Content */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Original</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {renderContentByType(fileType, content, item)}
+            </CardContent>
+          </Card>
 
-    // Separate loading check for markdown files
-    if (fileType === 'markdown' && !markdownContent) {
-      return (
-        <div className="flex flex-col items-center justify-center h-[200px]">
-          <p className="text-sm text-muted-foreground">Markdown wird geladen...</p>
-        </div>
-      );
-    }
-
-    // Loading check for non-markdown files
-    if (fileType !== 'markdown' && !binaryUrl) {
-      return (
-        <div className="flex flex-col items-center justify-center h-[200px]">
-          <p className="text-sm text-muted-foreground">Datei wird geladen...</p>
-        </div>
-      );
-    }
-
-    return (
-      <>
-        <CardHeader>
-          <CardTitle>{metadata.content.title}</CardTitle>
-          <p className="text-muted-foreground line-clamp-2">
-            {metadata.content.description}
-          </p>
-        </CardHeader>
-        
-        <CardContent>
-          <div className="mb-6">
-            {fileType === 'audio' && binaryUrl && (
-              <audio controls className="w-full">
-                <source src={binaryUrl as string} type="audio/mpeg" />
-                Ihr Browser unterstützt das Audio-Element nicht.
-              </audio>
-            )}
-            {fileType === 'video' && binaryUrl && (
-              <video controls className="w-full max-h-[400px]">
-                <source src={binaryUrl as string} type="video/mp4" />
-                Ihr Browser unterstützt das Video-Element nicht.
-              </video>
-            )}
-            {fileType === 'image' && binaryUrl && (
-              <div className="relative w-full h-[400px] bg-muted rounded-md overflow-hidden">
-                <Image
-                  src={binaryUrl as string}
-                  alt={item.metadata.name}
-                  fill
-                  className="object-contain"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                />
-              </div>
-            )}
-            {fileType === 'pdf' && binaryUrl && (
-              <iframe 
-                src={binaryUrl as string}
-                className="w-full h-[400px] border-none rounded-md"
-              />
-            )}
-            {fileType === 'text' && binaryUrl && (
-              <pre className="p-4 bg-muted rounded-md overflow-auto max-h-[400px]">
-                {binaryUrl}
-              </pre>
-            )}
-            {fileType === 'markdown' && markdownContent && (
-              <div className="prose dark:prose-invert max-w-none w-full">
+          {/* Transcription Content */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Transkript</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose dark:prose-invert max-w-none">
                 <div 
                   className="p-4 w-full"
                   dangerouslySetInnerHTML={{ 
                     __html: md.render(
-                      processMarkdownContent(
-                        processObsidianContent(
-                          markdownContent.split('---').length > 2 
-                            ? markdownContent.split('---').slice(2).join('---')
-                            : markdownContent,
-                          item.metadata.path?.split('/').slice(0, -1).join('/') || '',
-                          provider,
-                          item
-                        )
+                      processObsidianContent(
+                        transcriptionContent.split('---').length > 2 
+                          ? transcriptionContent.split('---').slice(2).join('---')
+                          : transcriptionContent,
+                        item.id.split('/').slice(0, -1).join('/') || '',
+                        provider,
+                        item
                       )
                     ) 
                   }}
                 />
               </div>
-            )}
-            {fileType === 'unknown' && (
-              <div className="flex flex-col items-center justify-center h-[200px] bg-muted rounded-md">
-                <ImageIcon className="h-10 w-10 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Vorschau nicht verfügbar für diesen Dateityp
-                </p>
-              </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
 
-          {(fileType === 'audio' || fileType === 'video') && (
-            <div className="mt-6 border-t pt-4">
-              <h2 className="text-xl font-semibold mb-2">Transkript</h2>
-              <p className="text-muted-foreground whitespace-pre-wrap">
-                {metadata.transcriptionStatus === 'completed' 
-                  ? metadata.transcription || "Transkript wird geladen..."
-                  : "Transkript wird erstellt..."}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </>
-    );
+    // Wenn kein Transkript verfügbar ist, zeige nur den Original-Content
+    return renderContentByType(fileType, content, item);
+  };
+
+  const renderContentByType = (fileType: string, content: string, item: StorageItem) => {
+    switch (fileType) {
+      case 'markdown':
+        return (
+          <div className="prose dark:prose-invert max-w-none">
+            <div 
+              className="p-4 w-full"
+              dangerouslySetInnerHTML={{ 
+                __html: md.render(
+                  processObsidianContent(
+                    content.split('---').length > 2 
+                      ? content.split('---').slice(2).join('---')
+                      : content,
+                    item.id.split('/').slice(0, -1).join('/') || '',
+                    provider,
+                    item
+                  )
+                ) 
+              }}
+            />
+          </div>
+        );
+      case 'audio':
+        return (
+          <audio controls className="w-full">
+            <source src={`/api/storage/filesystem?action=binary&fileId=${item.id}`} type={item.metadata.mimeType} />
+            Ihr Browser unterstützt das Audio-Element nicht.
+          </audio>
+        );
+      // ... andere Dateitypen ...
+      default:
+        return <pre className="whitespace-pre-wrap">{content}</pre>;
+    }
   };
 
   return (
-    <Card className={cn("w-full h-full overflow-auto", className)}>
+    <div className={cn("p-4", className)}>
       {renderFileContent()}
-    </Card>
+    </div>
   );
 } 

@@ -114,6 +114,9 @@ export interface FileListItem {
   
   /** MIME type for files (undefined for folders) */
   mimeType?: string;
+
+  /** Indicates if this file has a markdown transcription twin */
+  hasTranscript?: boolean;
 }
 
 /**

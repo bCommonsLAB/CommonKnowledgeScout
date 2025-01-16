@@ -16,14 +16,17 @@ const defaultLibraries: Library[] = [
 
 // Konvertiert Library in ClientLibrary (entfernt sensible Daten)
 function toClientLibrary(library: Library): ClientLibrary {
-  const { id, label, type, isEnabled, path, config } = library;
+  const { id, label, type, isEnabled, path, config, transcription } = library;
   return {
     id,
     label,
     type,
     isEnabled,
     path,
-    config: config as Record<string, unknown>
+    config: {
+      ...config as Record<string, unknown>,
+      transcription
+    }
   };
 }
 
