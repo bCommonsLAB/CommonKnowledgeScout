@@ -53,6 +53,9 @@ export interface StorageItem {
   
   /** Item metadata */
   metadata: StorageItemMetadata;
+
+  /** Optional children for folder caching */
+  children?: StorageItem[];
 }
 
 /**

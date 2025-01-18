@@ -19,6 +19,8 @@ interface TreeItemProps {
   onSelect: (item: StorageItem) => void;
   selectedId: string;
   level: number;
+  loadedChildren: Record<string, StorageItem[]>;
+  parentId?: string;
 }
 
 // TreeItem Komponente
@@ -28,19 +30,57 @@ function TreeItem({
   onExpand,
   onSelect,
   selectedId,
-  level
+  level,
+  loadedChildren,
+  parentId
 }: TreeItemProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   const handleClick = async () => {
     if (item.type === 'folder') {
       if (!isExpanded) {
+        // Expanding folder
         await onExpand(item.id);
+        setIsExpanded(true);
+        onSelect(item);
+      } else {
+        // Collapsing folder - select parent folder or root
+        setIsExpanded(false);
+        if (parentId) {
+          // If we have a parent, select it
+          const parentItem: StorageItem = {
+            id: parentId,
+            type: 'folder',
+            metadata: {
+              name: '',
+              size: 0,
+              modifiedAt: new Date(),
+              mimeType: 'folder'
+            },
+            parentId: ''
+          };
+          onSelect(parentItem);
+        } else {
+          // If no parent (root level), select root
+          const rootItem: StorageItem = {
+            id: 'root',
+            type: 'folder',
+            metadata: {
+              name: '',
+              size: 0,
+              modifiedAt: new Date(),
+              mimeType: 'folder'
+            },
+            parentId: ''
+          };
+          onSelect(rootItem);
+        }
       }
-      setIsExpanded(!isExpanded);
-      onSelect(item);
     }
   };
+
+  // Get children from loadedChildren if available
+  const currentChildren = loadedChildren[item.id] || children;
 
   return (
     <div>
@@ -63,27 +103,19 @@ function TreeItem({
         <Folder className="h-4 w-4 mr-2 flex-shrink-0" />
         <span className="truncate text-sm">{item.metadata.name}</span>
       </div>
-      {isExpanded && (
-        <div>
-          {children.length === 0 ? (
-            <div className="pl-9 py-1 text-sm text-muted-foreground">
-              Keine Unterordner
-            </div>
-          ) : (
-            children.map((child) => (
-              <TreeItem
-                key={child.id}
-                item={child}
-                children={[]} // Leeres Array, da Kinder erst beim Aufklappen geladen werden
-                onExpand={onExpand}
-                onSelect={onSelect}
-                selectedId={selectedId}
-                level={level + 1}
-              />
-            ))
-          )}
-        </div>
-      )}
+      {isExpanded && currentChildren.map((child) => (
+        <TreeItem
+          key={child.id}
+          item={child}
+          children={[]}
+          onExpand={onExpand}
+          onSelect={onSelect}
+          selectedId={selectedId}
+          level={level + 1}
+          loadedChildren={loadedChildren}
+          parentId={item.id}
+        />
+      ))}
     </div>
   );
 }
@@ -155,11 +187,12 @@ export function FileTree({
           <TreeItem
             key={item.id}
             item={item}
-            children={loadedChildren[item.id] || []}
+            children={[]}
             onExpand={handleExpand}
             onSelect={onSelect}
             selectedId={currentFolderId}
             level={0}
+            loadedChildren={loadedChildren}
           />
         ))
       )}

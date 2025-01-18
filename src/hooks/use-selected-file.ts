@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { StorageItem } from '@/lib/storage/types';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 // Hilfsfunktion für die Dateityp-Erkennung
 function getFileType(fileName: string): string {

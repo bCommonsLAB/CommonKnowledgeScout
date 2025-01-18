@@ -24,15 +24,68 @@ function getLibrary(libraryId: string): LibraryType | undefined {
 
 // Konvertiert eine ID zurück in einen Pfad
 function getPathFromId(library: LibraryType, fileId: string): string {
+  console.log('[getPathFromId] Input:', { fileId, libraryPath: library.path });
+  
   if (fileId === 'root') return library.path;
-  const relativePath = Buffer.from(fileId, 'base64').toString();
-  return pathLib.join(library.path, relativePath);
+  
+  try {
+    const decodedPath = Buffer.from(fileId, 'base64').toString();
+    console.log('[getPathFromId] Decoded path:', decodedPath);
+    
+    // Always treat decoded path as relative path and normalize it
+    const normalizedPath = decodedPath.replace(/\\/g, '/');
+    
+    // Check for path traversal attempts
+    if (normalizedPath.includes('..')) {
+      console.log('[getPathFromId] Path traversal detected, returning root');
+      return library.path;
+    }
+    
+    // Join with base path using pathLib.join to handle separators correctly
+    const result = pathLib.join(library.path, normalizedPath);
+    
+    // Double check the result is within the library path
+    const normalizedResult = pathLib.normalize(result).replace(/\\/g, '/');
+    const normalizedLibPath = pathLib.normalize(library.path).replace(/\\/g, '/');
+    if (!normalizedResult.startsWith(normalizedLibPath)) {
+      console.log('[getPathFromId] Path escape detected, returning root');
+      return library.path;
+    }
+    
+    console.log('[getPathFromId] Result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error decoding path:', error);
+    return library.path;
+  }
 }
 
 // Konvertiert einen Pfad in eine ID
 function getIdFromPath(library: LibraryType, absolutePath: string): string {
-  const relativePath = absolutePath.replace(library.path, '').replace(/^[/\\]+/, '');
-  return relativePath ? Buffer.from(relativePath).toString('base64') : 'root';
+  console.log('[getIdFromPath] Input:', { absolutePath, libraryPath: library.path });
+  
+  if (absolutePath === library.path) return 'root';
+  
+  // Normalize both paths to use forward slashes
+  const normalizedBasePath = pathLib.normalize(library.path).replace(/\\/g, '/');
+  const normalizedPath = pathLib.normalize(absolutePath).replace(/\\/g, '/');
+  
+  // Get relative path by removing base path
+  let relativePath = pathLib.relative(normalizedBasePath, normalizedPath)
+    .replace(/\\/g, '/') // Normalize to forward slashes
+    .replace(/^\/+|\/+$/g, ''); // Remove leading/trailing slashes
+  
+  // If path tries to go up, return root
+  if (relativePath.includes('..')) {
+    console.log('[getIdFromPath] Path traversal detected, returning root');
+    return 'root';
+  }
+    
+  console.log('[getIdFromPath] Relative path:', relativePath);
+  
+  const result = relativePath ? Buffer.from(relativePath).toString('base64') : 'root';
+  console.log('[getIdFromPath] Result:', result);
+  return result;
 }
 
 // Konvertiert Stats in ein StorageItem
@@ -48,8 +101,8 @@ async function statsToStorageItem(library: LibraryType, absolutePath: string, st
     metadata: {
       name: pathLib.basename(absolutePath),
       size: stats.size,
-      modifiedAt: stats.mtime,
-      mimeType: stats.isFile() ? mime.lookup(absolutePath) || 'application/octet-stream' : 'folder'
+      mimeType: stats.isFile() ? mime.lookup(absolutePath) || 'application/octet-stream' : 'folder',
+      modifiedAt: stats.mtime
     }
   };
 }

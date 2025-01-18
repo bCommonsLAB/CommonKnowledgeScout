@@ -1,18 +1,17 @@
 'use client';
 
-import { useState, useEffect } from "react";
-import { Remarkable } from 'remarkable';
-import hljs from 'highlight.js';
-import 'highlight.js/styles/vs2015.css';
+import * as React from 'react';
+import { useState, useEffect, useRef } from "react";
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Image as ImageIcon } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Image from "next/image";
+import { AlertCircle } from "lucide-react";
 import { AudioPlayer } from './audio-player';
-import './markdown-audio'; // Importiere die Client-Komponente
+import { MarkdownPreview } from './markdown-preview';
+import { MarkdownMetadata } from './markdown-metadata';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import './markdown-audio';
 
 interface FilePreviewProps {
   item: StorageItem | null;
@@ -20,16 +19,7 @@ interface FilePreviewProps {
   provider: StorageProvider | null;
 }
 
-interface FileMetadata {
-  content: {
-    title?: string;
-    description?: string;
-  };
-  transcriptionStatus?: 'pending' | 'completed' | 'failed';
-  transcription?: string;
-}
-
-// Hilfsfunktion für die Dateityp-Erkennung
+// Helper function for file type detection
 function getFileType(fileName: string): string {
   const extension = fileName.split('.').pop()?.toLowerCase();
   
@@ -64,499 +54,188 @@ function getFileType(fileName: string): string {
   }
 }
 
-// Initialisiere Remarkable mit Optionen
-const md = new Remarkable('full', {
-  html: true,        // Enable HTML tags in source
-  xhtmlOut: true,    // Use '/' to close single tags (<br />)
-  breaks: true,      // Convert '\n' in paragraphs into <br>
-  linkify: true,     // Autoconvert URL-like text to links
-  typographer: true, // Enable smartypants and other sweet transforms
-  highlight: function (str: string, lang: string) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(str, { language: lang }).value;
-      } catch (err) {}
-    }
-    try {
-      return hljs.highlightAuto(str).value;
-    } catch (err) {}
-    return '';
-  }
-});
-
-// Konfiguriere die Erkennung von horizontalen Linien
-md.block.ruler.disable(['hr']);
-md.block.ruler.at('hr', function (state, startLine, endLine, silent) {
-  const pos = state.bMarks[startLine] + state.tShift[startLine];
-  const max = state.eMarks[startLine];
-  const marker = state.src.charCodeAt(pos);
-
-  if (marker !== 0x2A /* * */ && marker !== 0x2D /* - */ && marker !== 0x5F /* _ */) {
-    return false;
-  }
-
-  let count = 1;
-  let ch = marker;
-  let pos2 = pos + 1;
-
-  while (pos2 < max) {
-    ch = state.src.charCodeAt(pos2);
-    if (ch !== marker) { break; }
-    count++;
-    pos2++;
-  }
-
-  if (count < 3) { return false; }
-
-  if (silent) { return true; }
-
-  state.line = startLine + 1;
-  const token = (state as any).push('hr', 'hr', 0);
-  token.map = [startLine, state.line];
-  token.markup = Array(count + 1).join(String.fromCharCode(marker));
-
-  return true;
-}, {});
-
-md.inline.ruler.enable(['emphasis']);
-
-// Anpassen der Renderer-Regeln für bessere Formatierung
-md.renderer.rules.heading_open = function(tokens, idx) {
-  const token = tokens[idx];
-  const level = token.hLevel;
-  const classes = {
-    1: 'text-4xl font-bold mt-8 mb-4',
-    2: 'text-3xl font-semibold mt-6 mb-3',
-    3: 'text-2xl font-semibold mt-4 mb-2',
-    4: 'text-xl font-medium mt-4 mb-2',
-    5: 'text-lg font-medium mt-3 mb-2',
-    6: 'text-base font-medium mt-3 mb-2'
-  }[level as 1|2|3|4|5|6] || '';
-  
-  return `<h${level} class="${classes}">`;
-};
-
-// Code-Blöcke mit Syntax-Highlighting
-md.renderer.rules.fence = function (tokens, idx) {
-  const token = tokens[idx];
-  const lang = token.params || '';
-  const content = token.content || '';
-  
-  let code = content;
-  if (lang && hljs.getLanguage(lang)) {
-    try {
-      code = hljs.highlight(content, { language: lang }).value;
-    } catch (e) {}
-  }
-  
-  return `
-    <div class="relative">
-      <div class="absolute right-2 top-2 text-xs text-muted-foreground">${lang}</div>
-      <pre class="hljs bg-muted p-4 rounded-lg overflow-x-auto">
-        <code class="language-${lang}">${code}</code>
-      </pre>
-    </div>`;
-};
-
-// Inline-Code
-md.renderer.rules.code = function (tokens, idx) {
-  const token = tokens[idx];
-  return `<code class="bg-muted px-1.5 py-0.5 rounded-sm text-sm">${token.content || ''}</code>`;
-};
-
-// Blockquotes
-md.renderer.rules.blockquote_open = function() {
-  return '<blockquote class="border-l-4 border-muted-foreground/20 pl-4 italic my-4">';
-};
-
-// Listen
-md.renderer.rules.list_item_open = function() {
-  return '<li class="ml-6 pl-2">';
-};
-
-md.renderer.rules.bullet_list_open = function() {
-  return '<ul class="list-disc list-outside space-y-1 my-4">';
-};
-
-// Horizontale Linien
-md.renderer.rules.hr = function() {
-  return '<div class="w-full px-0 my-8"><hr class="w-full border-0 border-b-[3px] border-muted-foreground/40" /></div>';
-};
-
-// Absätze und Zeilenumbrüche
-md.renderer.rules.paragraph_open = function() {
-  return '<p class="mb-4 whitespace-pre-wrap">';
-};
-
-md.renderer.rules.softbreak = function() {
-  return '\n';
-};
-
-md.renderer.rules.hardbreak = function() {
-  return '<br />';
-};
-
-md.renderer.rules.ordered_list_open = function() {
-  return '<ol class="list-decimal list-outside space-y-1 my-4">';
-};
-
-// Verschachtelte Listen
-md.renderer.rules.bullet_list_close = function() {
-  return '</ul>';
-};
-
-md.renderer.rules.ordered_list_close = function() {
-  return '</ol>';
-};
-
-// Links
-md.renderer.rules.link_open = function (tokens, idx) {
-  const href = tokens[idx].href || '';
-  if (href && href.startsWith('http')) {
-    return `<a href="${href}" class="text-primary hover:underline" target="_blank" rel="noopener noreferrer">`;
-  }
-  return `<a href="${href}" class="text-primary hover:underline">`;
-};
-
-// Tabellen
-md.renderer.rules.table_open = function() {
-  return '<div class="overflow-x-auto my-4"><table class="min-w-full divide-y divide-muted-foreground/20">';
-};
-
-md.renderer.rules.thead_open = function() {
-  return '<thead class="bg-muted">';
-};
-
-md.renderer.rules.th_open = function() {
-  return '<th class="px-4 py-2 text-left text-sm font-semibold">';
-};
-
-md.renderer.rules.td_open = function() {
-  return '<td class="px-4 py-2 text-sm border-t border-muted-foreground/10">';
-};
-
-// Hervorhebungen
-md.renderer.rules.em_open = function() {
-  return '<em class="italic">';
-};
-
-md.renderer.rules.strong_open = function() {
-  return '<strong class="font-bold">';
-};
-
-// Cache für aufgelöste FileIds
-const resolvedFileIds = new Map<string, string>();
-
-/**
- * Löst einen Dateinamen in eine FileId auf
- */
-async function resolveFileIdByName(
-  fileName: string, 
-  currentFolderId: string,
-  provider: StorageProvider
-): Promise<string | null> {
-  // Prüfe Cache
-  const cacheKey = `${currentFolderId}:${fileName}`;
-  if (resolvedFileIds.has(cacheKey)) {
-    return resolvedFileIds.get(cacheKey) || null;
-  }
-
-  try {
-    // Liste alle Dateien im aktuellen Ordner
-    const items = await provider.listItemsById(currentFolderId);
-    // Suche die Datei mit dem passenden Namen
-    const file = items.find(item => item.metadata.name === fileName);
-    
-    // Cache das Ergebnis
-    if (file?.id) {
-      resolvedFileIds.set(cacheKey, file.id);
-    }
-    
-    return file?.id || null;
-  } catch (error) {
-    console.error('Failed to resolve file:', error);
-    return null;
-  }
-}
-
-/**
- * Formatiert YAML-Frontmatter in eine lesbare Tabelle
- */
-function formatFrontmatter(content: string): string {
-  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!frontmatterMatch) return content;
-
-  const frontmatter = frontmatterMatch[1];
-  const restContent = content.slice(frontmatterMatch[0].length);
-
-  // Konvertiere YAML in HTML-Tabelle
-  const rows = frontmatter.split('\n')
-    .filter(line => line.trim())
-    .map(line => {
-      if (line.includes(':')) {
-        const [key, ...valueParts] = line.split(':');
-        let value = valueParts.join(':').trim();
-        
-        // Entferne umschließende Anführungszeichen
-        value = value.replace(/^["'](.*)["']$/, '$1');
-        
-        // Behandle Arrays (mit oder ohne eckige Klammern)
-        if (value.includes(',') || (value.startsWith('[') && value.endsWith(']'))) {
-          // Entferne eckige Klammern falls vorhanden
-          const cleanValue = value.replace(/^\[|\]$/g, '');
-          const items = cleanValue
-            .split(',')
-            .map(item => item.trim().replace(/^["'](.*)["']$/, '$1'))
-            .filter(Boolean);
-            
-          return `
-            <tr class="border-t border-muted">
-              <td class="py-2 pr-4 align-top text-xs text-muted-foreground font-medium whitespace-nowrap">${key.trim()}</td>
-              <td class="py-2 text-xs text-muted-foreground">
-                <div class="flex flex-wrap gap-1">
-                  ${items.map(item => `<span class="bg-muted/50 px-1.5 py-0.5 rounded">${item}</span>`).join('')}
-                </div>
-              </td>
-            </tr>`;
-        }
-        
-        // Leere Werte
-        if (!value) {
-          value = '—'; // Em dash für leere Werte
-        }
-
-        return `
-          <tr class="border-t border-muted">
-            <td class="py-2 pr-4 align-top text-xs text-muted-foreground font-medium whitespace-nowrap">${key.trim()}</td>
-            <td class="py-2 text-xs text-muted-foreground">
-              <span class="bg-muted/50 px-1.5 py-0.5 rounded">${value}</span>
-            </td>
-          </tr>`;
-      }
-      return '';
-    })
-    .join('');
-
-  return `
-<div class="bg-muted/30 rounded-lg overflow-hidden mb-8">
-  <div class="px-4 py-3 bg-muted/50 border-b border-muted">
-    <div class="text-xs font-medium text-muted-foreground">Frontmatter</div>
-  </div>
-  <div class="p-4">
-    <table class="w-full border-collapse">
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-${restContent}`;
-}
-
-/**
- * Konvertiert Obsidian-Bildpfade und bereitet den Markdown-Inhalt vor
- */
-function processObsidianContent(
-  content: string, 
-  currentFolderId: string = 'root',
-  provider: StorageProvider | null = null,
-  currentItem: StorageItem | null = null
-): string {
-  if (!provider) return content;
-
-  // Konvertiere Obsidian-Audio-Einbettungen zu Links
-  content = content.replace(/!\[\[(.*?\.(?:mp3|m4a|wav|ogg))\]\]/g, (match, audioFile) => {
-    // Zeige nur einen Link für Audio-Dateien
-    return `<div class="my-4">
-      <div class="text-xs text-muted-foreground">Audio: ${audioFile}</div>
-    </div>`;
-  });
-
-  // Konvertiere Obsidian-Bildpfade (![[image.png]] -> ![](image.png))
-  content = content.replace(/!\[\[(.*?\.(?:jpg|jpeg|png|gif|webp))\]\]/g, '![]($1)');
-  
-  // Formatiere zuerst die Frontmatter
-  content = formatFrontmatter(content);
-
-  // Konvertiere verschiedene YouTube-Link-Formate
-  content = content.replace(
-    /\[(.*?)\]\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s)]+)\)/g,
-    (match, title, url) => {
-      const videoId = getYouTubeId(url);
-      if (!videoId) return match;
-      
-      return `
-<div class="youtube-embed my-8">
-  <div class="relative w-full" style="padding-bottom: 56.25%;">
-    <iframe
-      src="https://www.youtube.com/embed/${videoId}"
-      title="${title || 'YouTube video player'}"
-      frameborder="0"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen
-      class="absolute top-0 left-0 w-full h-full rounded-lg shadow-lg"
-    ></iframe>
-  </div>
-</div>`;
-    }
-  );
-
-  // Konvertiere Obsidian YouTube-Callouts
-  content = content.replace(
-    />\s*\[!youtube\]\s*\n?\s*(https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s)]+)/g,
-    (match, url) => {
-      const videoId = getYouTubeId(url);
-      if (!videoId) return match;
-      
-      return `
-<div class="youtube-embed my-8">
-  <div class="relative w-full" style="padding-bottom: 56.25%;">
-    <iframe
-      src="https://www.youtube.com/embed/${videoId}"
-      title="YouTube video player"
-      frameborder="0"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen
-      class="absolute top-0 left-0 w-full h-full rounded-lg shadow-lg"
-    ></iframe>
-  </div>
-</div>`;
-    }
-  );
-
-  // Füge Basis-URL zu relativen Bildpfaden hinzu
-  if (currentFolderId) {
-    content = content.replace(
-      /!\[(.*?)\]\((?!http)(.*?)\)/g,
-      `![$1](${currentFolderId}/$2)`
+export const FilePreview = React.memo(function FilePreview({ 
+  item, 
+  provider,
+  className 
+}: FilePreviewProps) {
+  // Early return for empty state
+  if (!item) {
+    return (
+      <div className={cn("flex items-center justify-center h-full", className)}>
+        <p className="text-muted-foreground">Keine Datei ausgewählt</p>
+      </div>
     );
   }
 
-  // Konvertiere Obsidian-interne Links zu normalen Links
-  content = content.replace(/\[\[(.*?)\]\]/g, '[$1]($1)');
-
-  // Konvertiere Obsidian Callouts
-  content = content.replace(
-    /> \[(.*?)\](.*?)(\n|$)/g,
-    '<div class="callout $1">$2</div>'
-  );
-
-  return content;
-}
-
-function processMarkdownContent(content: string): string {
-  // Ersetze *** durch eine eindeutige horizontale Linie
-  return content.replace(/^\s*\*{3,}\s*$/gm, '\n---\n');
-}
-
-/**
- * Extrahiert die YouTube-ID aus verschiedenen URL-Formaten
- */
-function getYouTubeId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s]+)/,
-    /youtube\.com\/watch\?.*v=([^&\s]+)/
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) return match[1];
+  // Debug Logging for renders
+  if (process.env.NODE_ENV === 'development') {
+    console.log('FilePreview render:', {
+      itemId: item?.id,
+      name: item?.metadata.name,
+      renderReason: new Error().stack?.split('\n')[2],
+      isStrictMode: React.version.includes('18')
+    });
   }
-  return null;
-}
 
-export function FilePreview({ item, className, provider }: FilePreviewProps) {
-  const [content, setContent] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [transcriptionContent, setTranscriptionContent] = useState<string | null>(null);
+  // Use reducer instead of useState to batch updates
+  const [state, dispatch] = React.useReducer((state: any, action: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('FilePreview reducer:', {
+        type: action.type,
+        currentState: { ...state },
+        nextState: (() => {
+          switch (action.type) {
+            case 'START_LOADING':
+              return { ...state, isLoading: true, error: null };
+            case 'SET_CONTENT':
+              return { ...state, content: action.content, isLoading: false };
+            case 'SET_TRANSCRIPTION':
+              return { ...state, transcriptionContent: action.content };
+            case 'SET_ERROR':
+              return { ...state, error: action.error, isLoading: false };
+            default:
+              return state;
+          }
+        })()
+      });
+    }
 
-  // Debug: Log re-renders
-  console.log('FilePreview render:', {
-    itemId: item?.id,
-    name: item?.metadata.name
+    switch (action.type) {
+      case 'START_LOADING':
+        return { ...state, isLoading: true, error: null };
+      case 'SET_CONTENT':
+        return { ...state, content: action.content, isLoading: false };
+      case 'SET_TRANSCRIPTION':
+        return { ...state, transcriptionContent: action.content };
+      case 'SET_ERROR':
+        return { ...state, error: action.error, isLoading: false };
+      default:
+        return state;
+    }
+  }, {
+    content: '',
+    error: null as string | null,
+    isLoading: false,
+    transcriptionContent: null as string | null
   });
 
-  useEffect(() => {
-    const loadContent = async () => {
-      if (!item || !provider) return;
-      
-      // Skip content loading for audio files
-      if (getFileType(item.metadata.name) === 'audio') {
-        return;
+  const contentLoadingRef = React.useRef(false);
+  const strictModeRenderRef = React.useRef(0);
+  const loadingIdRef = React.useRef<string | null>(null);
+
+  // Stable content loading function
+  const loadContent = React.useCallback(async (itemId: string, itemProvider: StorageProvider) => {
+    if (loadingIdRef.current === itemId) return;
+    loadingIdRef.current = itemId;
+    
+    try {
+      // For non-audio files, load the content
+      if (item && getFileType(item.metadata.name) !== 'audio') {
+        console.log('Loading content for:', itemId);
+        const content = await itemProvider.getBinary(itemId).then(({ blob }) => blob.text());
+        dispatch({ type: 'SET_CONTENT', content });
       }
 
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        // Debug: Log content loading
-        console.log('Loading content for:', item.id);
-
-        const content = await provider.getBinary(item.id).then(({ blob }) => blob.text());
-        setContent(content);
-
-        // Check for transcription
-        if (item.metadata.transcriptionTwin) {
-          const transcriptItem = await provider.getItemById(item.metadata.transcriptionTwin.id);
-          const transcriptContent = await provider.getBinary(transcriptItem.id).then(({ blob }) => blob.text());
-          setTranscriptionContent(transcriptContent);
-        }
-      } catch (err) {
-        console.error('Failed to load file:', err);
-        setError('Fehler beim Laden der Datei');
-      } finally {
-        setIsLoading(false);
+      // Load transcript if available, regardless of file type
+      if (item?.metadata.transcriptionTwin) {
+        console.log('Loading transcript for:', itemId);
+        const transcriptItem = await itemProvider.getItemById(item.metadata.transcriptionTwin.id);
+        const transcriptContent = await itemProvider.getBinary(transcriptItem.id).then(({ blob }) => blob.text());
+        dispatch({ type: 'SET_TRANSCRIPTION', content: transcriptContent });
       }
+    } catch (err) {
+      console.error('Failed to load file:', err);
+      dispatch({ type: 'SET_ERROR', error: 'Fehler beim Laden der Datei' });
+    } finally {
+      if (loadingIdRef.current === itemId) {
+        loadingIdRef.current = null;
+      }
+    }
+  }, [item]);
+
+  React.useEffect(() => {
+    if (!item?.id || !provider) return;
+
+    dispatch({ type: 'START_LOADING' });
+    loadContent(item.id, provider);
+
+    return () => {
+      loadingIdRef.current = null;
     };
+  }, [item?.id, provider, loadContent]);
 
-    loadContent();
-  }, [item, provider]);
-
-  const renderFileContent = () => {
+  const renderedContent = React.useMemo(() => {
     if (!item) return null;
-    if (error) return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>;
-    if (isLoading) return <Skeleton className="w-full h-32" />;
+    if (state.error) return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{state.error}</AlertDescription></Alert>;
+    if (state.isLoading) return <Skeleton className="w-full h-32" />;
 
     const fileType = getFileType(item.metadata.name);
-    return renderContentByType(fileType, content, item);
-  };
-
-  const renderContentByType = (fileType: string, content: string, item: StorageItem) => {
+    
     switch (fileType) {
+      case 'audio':
+        return (
+          <>
+            <AudioPlayer item={item} />
+            {state.transcriptionContent && (
+              <MarkdownPreview 
+                content={state.transcriptionContent}
+                currentFolderId={item.parentId}
+                provider={provider}
+                currentItem={item}
+                className="mt-4"
+              />
+            )}
+          </>
+        );
       case 'markdown':
         return (
-          <div className="prose dark:prose-invert max-w-none">
-            <div 
-              className="p-4 w-full"
-              dangerouslySetInnerHTML={{ 
-                __html: md.render(
-                  processObsidianContent(
-                    content.split('---').length > 2 
-                      ? content.split('---').slice(2).join('---')
-                      : content,
-                    item.parentId || 'root',
-                    provider,
-                    item
-                  )
-                ) 
-              }}
-            />
-          </div>
+          <Tabs defaultValue="preview" className="w-full">
+            <TabsList>
+              <TabsTrigger value="preview">Vorschau</TabsTrigger>
+              <TabsTrigger value="metadata">Metadaten</TabsTrigger>
+            </TabsList>
+            <TabsContent value="preview">
+              <MarkdownPreview 
+                content={state.content}
+                currentFolderId={item.parentId}
+                provider={provider}
+                currentItem={item}
+              />
+            </TabsContent>
+            <TabsContent value="metadata">
+              <MarkdownMetadata content={state.content} />
+            </TabsContent>
+          </Tabs>
         );
-      case 'audio':
-        // Optimierter Audio-Player mit memo
-        return <AudioPlayer item={item} />;
-      // ... andere Dateitypen ...
       default:
-        return <pre className="whitespace-pre-wrap">{content}</pre>;
+        return <pre className="whitespace-pre-wrap">{state.content}</pre>;
     }
-  };
+  }, [item, state.error, state.isLoading, state.content, state.transcriptionContent, provider]);
+
+  const memoizedClassName = React.useMemo(() => cn("p-4", className), [className]);
 
   return (
-    <div className={cn("p-4", className)}>
-      {renderFileContent()}
+    <div className={memoizedClassName}>
+      {renderedContent}
     </div>
   );
-} 
+}, (prevProps, nextProps) => {
+  // Return true if we should NOT update
+  const noUpdate = 
+    prevProps.item?.id === nextProps.item?.id &&
+    prevProps.provider === nextProps.provider &&
+    prevProps.className === nextProps.className;
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('FilePreview memo comparison:', {
+      prevItemId: prevProps.item?.id,
+      nextItemId: nextProps.item?.id,
+      prevProvider: !!prevProps.provider,
+      nextProvider: !!nextProps.provider,
+      shouldUpdate: !noUpdate
+    });
+  }
+
+  return noUpdate;
+}); 
