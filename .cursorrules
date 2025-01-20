@@ -1,137 +1,132 @@
 You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI and Tailwind.
 
-Key Principles
-- Write concise, technical TypeScript code with accurate examples.
-- Use functional and declarative programming patterns; avoid classes.
-- Prefer iteration and modularization over code duplication.
-- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
-- Structure files: exported component, subcomponents, helpers, static content, types.
-- Implement proper error boundaries
-- Use typed error handling with custom error types
-- Include error logging strategy
+**Schlüsselprinzipien**  
+- Schreibe prägnanten, technischen TypeScript-Code mit präzisen Beispielen.  
+- Verwende funktionale und deklarative Programmiermuster; vermeide Klassen.  
+- Bevorzuge Iteration und Modularisierung anstelle von Code-Duplikation.  
+- Verwende beschreibende Variablennamen mit Hilfsverben (z. B. `isLoading`, `hasError`).  
+- Strukturiere Dateien: exportierte Komponente, Unterkomponenten, Hilfsfunktionen, statische Inhalte, Typen.  
+- Implementiere angemessene Error Boundaries.  
+- Verwende typisierte Fehlerbehandlung mit benutzerdefinierten Fehlertypen.  
+- Integriere eine Fehlerprotokollierungsstrategie.  
 
-Naming Conventions
-- Use lowercase with dashes for directories (e.g., components/auth-wizard).
-- Favor named exports for components.
+**Benennungskonventionen**  
+- Verwende Kleinbuchstaben mit Bindestrichen für Verzeichnisse (z. B. `components/auth-wizard`).  
+- Bevorzuge benannte Exporte für Komponenten.  
 
-Structure
-- Use the following structure for the project:
-  - src/
-    - components/
-      - library/
-        - file-tree.tsx
-        - file-list.tsx
-        - file-preview.tsx
-      - mail/
-        - data/
-      - ui/
-      - shared/
-    - types/
-    - utils/
-    - hooks/
-    - lib/
-    - styles/
-  - app/
-    - api/
-    - mail/
-    - tasks/
-    - library/
+**Struktur**  
+- Nutze folgende Projektstruktur:  
+  - `src/`  
+    - `components/`  
+      - `library/`  
+        - `file-tree.tsx`  
+        - `file-list.tsx`  
+        - `file-preview.tsx`  
+      - `mail/`  
+        - `data/`  
+      - `ui/`  
+      - `shared/`  
+    - `types/`  
+    - `utils/`  
+    - `hooks/`  
+    - `lib/`  
+    - `styles/`  
+  - `app/`  
+    - `api/`  
+    - `mail/`  
+    - `tasks/`  
+    - `library/`  
 
-TypeScript Usage
-- Use TypeScript for all code; prefer interfaces over types.
-- Avoid enums; use maps instead.
-- Use functional components with TypeScript interfaces.
-- Use strict TypeScript configuration (strict: true)
-- Leverage utility types (Pick, Omit, Partial, etc.)
-- Define proper return types for async functions
-- Use discriminated unions for complex state management
+**TypeScript-Nutzung**  
+- Verwende TypeScript für den gesamten Code; bevorzuge `interfaces` statt `types`.  
+- Vermeide `enums`; nutze stattdessen Maps.  
+- Verwende funktionale Komponenten mit TypeScript-Interfaces.  
+- Aktiviere strikte TypeScript-Konfiguration (`strict: true`).  
+- Nutze Utility-Typen (`Pick`, `Omit`, `Partial` usw.).  
+- Definiere korrekte Rückgabetypen für asynchrone Funktionen.  
+- Verwende diskriminierende Union-Typen für komplexes State-Management.  
 
-Syntax and Formatting
-- Use the "function" keyword for pure functions.
-- Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.
-- Use declarative JSX.
+**Syntax und Formatierung**  
+- Verwende das Schlüsselwort `function` für reine Funktionen.  
+- Vermeide unnötige geschweifte Klammern in Bedingungen; nutze eine prägnante Syntax für einfache Anweisungen.  
+- Schreibe deklaratives JSX.  
 
-UI and Styling
-- Use Shadcn UI, Radix, and Tailwind for components and styling.
-- Implement responsive design with Tailwind CSS; use a mobile-first approach.
+**UI und Styling**  
+- Nutze Shadcn UI, Radix UI und Tailwind CSS für Komponenten und Styling.  
+- Implementiere responsives Design mit Tailwind CSS; arbeite mobil-zuerst.  
 
-Performance Optimization
-- Minimize 'use client', 'useEffect', and 'setState'; favor React Server Components (RSC).
-- Wrap client components in Suspense with fallback.
-- Use dynamic loading for non-critical components.
-- Optimize images: use WebP format, include size data, implement lazy loading.
+**Performance-Optimierung**  
+- Minimiere die Nutzung von `use client`, `useEffect` und `setState`; bevorzuge React Server Components (RSC).  
+- Verpacke Client-Komponenten in `Suspense` mit Fallback.  
+- Nutze dynamisches Laden für nicht kritische Komponenten.  
+- Optimiere Bilder: Verwende WebP-Format, füge Größenangaben hinzu, implementiere Lazy Loading.  
 
-Key Conventions
-- Use 'nuqs' for URL search parameter state management.
-- Optimize Web Vitals (LCP, CLS, FID).
-- Limit 'use client':
-- Favor server components and Next.js SSR.
-- Use only for Web API access in small components.
-- Avoid for data fetching or state management.
-- use pnpm as package manager
+**Schlüsselkonventionen**  
+- Nutze `nuqs` für die Zustandsverwaltung von URL-Suchparametern.  
+- Optimiere Web Vitals (LCP, CLS, FID).  
+- Begrenze `use client`:  
+  - Bevorzuge Server-Komponenten und Next.js SSR.  
+  - Nutze es nur für Web-API-Zugriffe in kleinen Komponenten.  
+  - Vermeide es für Datenabruf oder Zustandsverwaltung.  
+- Verwende `pnpm` als Paketmanager.  
 
-Follow Next.js docs for Data Fetching, Rendering, and Routing.
+**Test-Richtlinien**  
+- Nutze Vitest für Unit- und Integrationstests.  
+- Implementiere Playwright für E2E-Tests.  
+- Folge den Best Practices der Testing Library.  
+- Halte Testabdeckungs-Schwellenwerte ein.  
+- Implementiere Komponententests mit Testing Library.  
+- Verwende Mock Service Worker für API-Tests.  
+- Implementiere Snapshot-Tests für UI-Komponenten.  
 
-Testing Guidelines
-- Use Vitest for unit and integration tests
-- Implement Playwright for E2E testing
-- Follow Testing Library best practices
-- Maintain test coverage thresholds
-- Implement Component Tests mit Testing Library
-- Verwende Mock Service Worker für API Tests
-- Implementiere Snapshot Tests für UI Komponenten
+**Sicherheitsrichtlinien**  
+- Implementiere angemessenen CSRF-Schutz.  
+- Nutze geeignete Content Security Policies.  
+- Bereinige Benutzereingaben.  
+- Stelle sicher, dass Authentifizierung und Autorisierung ordnungsgemäß gehandhabt werden.  
 
-Security Best Practices
-- Implement proper CSRF protection
-- Use proper content security policies
-- Sanitize user inputs
-- Handle authentication and authorization properly
+**API-Konventionen**  
+- Nutze konsistent tRPC oder Next.js API-Routen.  
+- Implementiere ordnungsgemäße API-Fehlerbehandlung.  
+- Definiere standardisierte API-Antwortformate.  
+- Nutze korrekte HTTP-Statuscodes.  
+- Implementiere typisierte Antwortschemata.  
+- Nutze API-Versionierung für Breaking Changes.  
+- Dokumentiere alle Endpunkte mit OpenAPI.  
 
-API Conventions
-- Use tRPC or Next.js API routes consistently
-- Implement proper API error handling
-- Define standard API response formats
-- Use proper HTTP status codes
-- Implementiere Typed Response Schemas
-- Nutze API Versioning für Breaking Changes
-- Dokumentiere alle Endpoints mit OpenAPI
+**State-Management**  
+- Nutze Jotai für atomare Zustandsverwaltung.  
+- Nutze TanStack Query für Server-Zustände.  
+- Verwende React Hook Form + Zod für Formularverwaltung.  
+- Definiere klare Zustandsgrenzen zwischen globalem und lokalem Zustand.  
 
-State Management
-- Use Jotai for atomic state management
-- Use TanStack Query for server state
-- Use React Hook Form + Zod for form handling
-- Define clear state boundaries between global and local
+**Authentifizierung und Sicherheit**  
+- Implementiere Clerk für Authentifizierung.  
+- Nutze Next.js Middleware für Routen-Schutz.  
+- Behandle Authentifizierungszustand konsistent in der gesamten App.  
 
-Authentication & Security
-- Implement Clerk for authentication
-- Use Next.js middleware for route protection
-- Handle auth state consistently across app
+**UI-Komponenten**  
+- Primär: Shadcn UI, Radix UI.  
+- Sekundär: Geist UI für spezifische Komponenten.  
+- Icons: Lucide React.  
+- Stelle konsistente APIs für Komponenten sicher.  
 
-UI Components
-- Primary: shadcn/ui, Radix UI
-- Secondary: Geist UI for specific components
-- Icons: Lucide React
-- Ensure consistent component APIs
+**Barrierefreiheit (a11y)**  
+- Folge den WCAG 2.1-Richtlinien.  
+- Implementiere geeignete ARIA-Labels.  
+- Stelle sicher, dass Tastaturnavigation funktioniert.  
+- Erhalte angemessenen Farbkontrast.  
 
-Accessibility (a11y)
-- Follow WCAG 2.1 guidelines
-- Implement proper ARIA labels
-- Ensure keyboard navigation
-- Maintain proper color contrast
+**Dokumentation**  
+- Nutze JSDoc für die Dokumentation von Funktionen und Komponenten.  
+- Dokumentiere alle öffentlichen APIs, Komponenten, Typen, Hooks, Utilities, Bibliotheken und Anbieter.  
+- Dokumentiere alle Seiten und Routen.  
+- Erstelle Mermaid-Diagramme für komplexe Abläufe.  
+- Füge Beispiele für alle APIs hinzu.  
+- Dokumentiere Strategien zur Fehlerbehandlung.  
+- Pflege ein Changelog.  
 
-Documentation
-- Use JSDoc for function and component documentation
-- Document all public APIs
-- Document all components and types
-- Document all hooks and utils
-- Document all libraries and providers
-- Document all pages and routes
-- Erstelle Mermaid Diagramme für komplexe Flows
-- Füge Beispiele für alle APIs hinzu
-- Dokumentiere Error Handling Strategien
-- Pflege ein Changelog
-
-Environment Setup
-- Define environment variable handling
-- Document required .env variables
-- Specify development tools (ESLint, Prettier, etc.)
+**Umgebungssetup**  
+- Definiere den Umgang mit Umgebungsvariablen.  
+- Dokumentiere erforderliche `.env`-Variablen.  
+- Gib Entwicklungstools an (ESLint, Prettier usw.).  

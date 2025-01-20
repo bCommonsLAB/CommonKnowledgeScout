@@ -64,6 +64,20 @@ Hier die Prompts
 > 
 > Speichern als: docs\05_features.md
 
+## Library Components
+> [!NOTE]
+> evtl. bestehende docs/06_library_components.md analysieren und ergänzen:
+> Dokumentiere die speziellen Features der Library-Komponenten unter src/components/library:
+> - FileList
+> - FileTree
+> - Library
+> - Breadcrumb
+> - FilePreview
+> - MarkdownPreview mit eingebettet Audio, youtube, Bilder
+> - MarkdownMetadata
+> 
+> Speichern als: docs\06_library_components.md
+
 ## Setup Guide
 > [!NOTE]
 > evtl. bestehende docs/06_setup.md analysieren und ergänzen:
