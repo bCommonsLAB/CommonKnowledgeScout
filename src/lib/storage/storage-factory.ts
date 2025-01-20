@@ -65,16 +65,26 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
+    console.log('Preparing upload:', {
+      parentId,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    });
+
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file, file.name);
 
     const response = await fetch(`/api/storage/filesystem?action=upload&fileId=${parentId}&libraryId=${this.library.id}`, {
       method: 'POST',
       body: formData,
     });
+
     if (!response.ok) {
-      throw new Error('Failed to upload file');
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || 'Failed to upload file');
     }
+
     return response.json();
   }
 
@@ -96,6 +106,14 @@ class LocalStorageProvider implements StorageProvider {
       blob,
       mimeType: response.headers.get('Content-Type') || 'application/octet-stream',
     };
+  }
+
+  async getPathById(itemId: string): Promise<string> {
+    const response = await fetch(`/api/storage/filesystem?action=path&fileId=${itemId}&libraryId=${this.library.id}`);
+    if (!response.ok) {
+      throw new Error('Failed to get path');
+    }
+    return response.text();
   }
 
   async validateConfiguration(): Promise<StorageValidationResult> {

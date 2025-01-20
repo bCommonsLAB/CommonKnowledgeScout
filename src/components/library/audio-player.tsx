@@ -148,7 +148,7 @@ export const AudioPlayer = memo(function AudioPlayer({ item }: AudioPlayerProps)
   const audioUrl = `/api/storage/filesystem?action=binary&fileId=${item.id}`;
 
   return (
-    <div className="my-4">
+    <div className="my-4 mx-4">
       <div className="text-xs text-muted-foreground mb-2">
         {item.metadata.name}
       </div>

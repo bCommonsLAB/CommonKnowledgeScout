@@ -294,4 +294,23 @@ export class FileSystemProvider implements StorageProvider {
       mimeType
     };
   }
+
+  async getPathById(itemId: string): Promise<string> {
+    if (itemId === 'root') return '/';
+    
+    try {
+      const absolutePath = await this.findPathById(itemId);
+      // Konvertiere absoluten Pfad zu relativem Pfad vom Basis-Verzeichnis
+      const relativePath = path.relative(this.basePath, absolutePath);
+      // Ersetze Backslashes durch Forward Slashes für konsistente Pfade
+      return relativePath ? `/${relativePath.replace(/\\/g, '/')}` : '/';
+    } catch (error) {
+      console.error('Fehler beim Auflösen des Pfads:', error);
+      throw new StorageError(
+        'Fehler beim Auflösen des Pfads',
+        'PATH_RESOLUTION_ERROR',
+        this.id
+      );
+    }
+  }
 } 

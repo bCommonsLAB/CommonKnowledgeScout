@@ -136,6 +136,13 @@ export interface StorageProvider {
    * @returns Binary content and MIME type
    */
   getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string; }>;
+
+  /**
+   * Retrieves the path of an item by its ID.
+   * @param itemId - ID of the item
+   * @returns The path of the item
+   */
+  getPathById(itemId: string): Promise<string>;
 }
 
 /**

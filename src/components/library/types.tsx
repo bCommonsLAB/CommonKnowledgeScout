@@ -57,3 +57,16 @@ export interface LibraryContextProps {
   activeLibraryId: string;
   onLibraryChange: (libraryId: string) => void;
 }
+
+export interface UploadAreaProps {
+  provider: StorageProvider | null
+  currentFolderId: string
+  onUploadComplete?: () => void
+}
+
+export interface UploadingFile extends File {
+  id: string
+  progress: number
+  status: 'pending' | 'uploading' | 'error' | 'complete'
+  error?: string
+}

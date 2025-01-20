@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, Profiler } from "react"
 import { flushSync } from 'react-dom';
 
 import { LibrarySwitcher } from "./library-switcher"
+import { LibraryHeader } from "./library-header"
 import { FilePreview } from "./file-preview"
 import { Input } from "@/components/ui/input"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
@@ -210,13 +211,26 @@ export function Library({
 
   // Optimierter Items Load mit Caching
   const loadItems = useCallback(async () => {
-    if (!providerInstance) return;
+    if (!providerInstance) {
+      console.log('Library: loadItems skipped - no provider instance');
+      return;
+    }
+
+    console.log('Library: Starting loadItems', {
+      currentFolderId,
+      hasCachedItems: !!folderCache.get(currentFolderId)?.children,
+      providerName: providerInstance.name
+    });
 
     setIsLoading(true);
     try {
       // Prüfe Cache
       const cachedItems = folderCache.get(currentFolderId)?.children;
       if (cachedItems) {
+        console.log('Library: Using cached items', {
+          itemCount: cachedItems.length,
+          folderId: currentFolderId
+        });
         // Resolve path even for cached items
         const path = await resolvePath(currentFolderId, folderCache);
         flushSync(() => {
@@ -226,7 +240,13 @@ export function Library({
         return;
       }
 
+      console.log('Library: Fetching items from provider');
       const items = await providerInstance.listItemsById(currentFolderId);
+      console.log('Library: Items fetched successfully', {
+        itemCount: items.length,
+        folderCount: items.filter(i => i.type === 'folder').length,
+        fileCount: items.filter(i => i.type === 'file').length
+      });
       
       // Update Cache und Items in einer Transaktion
       items.forEach(item => {
@@ -252,15 +272,17 @@ export function Library({
       // Resolve path and update breadcrumb along with items
       const path = await resolvePath(currentFolderId, folderCache);
       flushSync(() => {
+        console.log('Library: Updating UI with new items');
         setFolderItems(items);
         updateBreadcrumb(path, currentFolderId);
       });
     } catch (error) {
-      console.error('Failed to load items:', error);
+      console.error('Library: Failed to load items:', error);
       setFolderItems([]);
       updateBreadcrumb([], 'root');
     } finally {
       setIsLoading(false);
+      console.log('Library: loadItems completed');
     }
   }, [providerInstance, currentFolderId, folderCache, resolvePath, updateBreadcrumb]);
 
@@ -361,48 +383,36 @@ export function Library({
     selectFile(item);
   }, [selectFile]);
 
+  // Handler für Upload-Abschluss
+  const handleUploadComplete = useCallback(() => {
+    console.log('Library: Upload completed, invalidating cache and refreshing items');
+    // Cache für den aktuellen Ordner invalidieren
+    const currentFolder = folderCache.get(currentFolderId);
+    if (currentFolder) {
+      folderCache.set(currentFolderId, {
+        ...currentFolder,
+        children: undefined // Cache invalidieren
+      });
+    }
+    loadItems();
+  }, [loadItems, currentFolderId, folderCache]);
+
   return (
     <Profiler id="Library" onRender={onRenderCallback}>
       <div className="flex flex-col h-screen overflow-hidden">
-        {/* Header Panel */}
-        <div className="border-b bg-background flex-shrink-0">
-          <div className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="text-sm flex items-center gap-2 min-w-0 overflow-hidden">
-                <span className="text-muted-foreground flex-shrink-0">Pfad:</span>
-                <div className="flex items-center gap-1 overflow-hidden">
-                  <button
-                    onClick={() => {
-                      setCurrentFolderId('root');
-                      setFolderItems([]);
-                      updateBreadcrumb([], 'root');
-                    }}
-                    className={cn(
-                      "hover:text-foreground flex-shrink-0 font-medium",
-                      selected.breadcrumb.currentId === 'root' ? "text-foreground" : "text-muted-foreground"
-                    )}
-                  >
-                    {activeLibrary?.label || '/'}
-                  </button>
-                  {selected.breadcrumb.items.map((item) => (
-                    <React.Fragment key={item.id}>
-                      <span className="text-muted-foreground flex-shrink-0">/</span>
-                      <button
-                        onClick={() => handleFolderSelect(item)}
-                        className={cn(
-                          "hover:text-foreground truncate",
-                          selected.breadcrumb.currentId === item.id ? "text-foreground font-medium" : "text-muted-foreground"
-                        )}
-                      >
-                        {item.metadata.name}
-                      </button>
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <LibraryHeader 
+          activeLibrary={activeLibrary}
+          breadcrumbItems={selected.breadcrumb.items}
+          currentFolderId={selected.breadcrumb.currentId}
+          onFolderSelect={handleFolderSelect}
+          onRootClick={() => {
+            setCurrentFolderId('root');
+            setFolderItems([]);
+            updateBreadcrumb([], 'root');
+          }}
+          provider={providerInstance}
+          onUploadComplete={handleUploadComplete}
+        />
 
         {/* Main Content */}
         <div className="flex-1 min-h-0">

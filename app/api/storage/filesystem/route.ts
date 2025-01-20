@@ -182,6 +182,10 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      case 'path': {
+        return handleGetPath(library, fileId);
+      }
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
@@ -219,21 +223,48 @@ export async function POST(request: NextRequest) {
       }
 
       case 'upload': {
+        console.log('[API] Upload started');
         const formData = await request.formData();
-        const file = formData.get('file') as File;
-        if (!file) {
-          return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+        console.log('[API] FormData received');
+        
+        const file = formData.get('file');
+        console.log('[API] File from FormData:', {
+          exists: !!file,
+          type: file ? typeof file : 'undefined',
+          isFile: file instanceof File,
+          name: file instanceof File ? file.name : 'unknown'
+        });
+
+        if (!file || !(file instanceof File)) {
+          console.error('[API] Invalid file object received');
+          return NextResponse.json({ error: 'No valid file provided' }, { status: 400 });
         }
 
-        const parentPath = getPathFromId(library, fileId);
-        const filePath = pathLib.join(parentPath, file.name);
-        const buffer = Buffer.from(await file.arrayBuffer());
-        
-        await fs.writeFile(filePath, buffer);
-        const stats = await fs.stat(filePath);
-        const item = await statsToStorageItem(library, filePath, stats);
-        
-        return NextResponse.json(item);
+        try {
+          const parentPath = getPathFromId(library, fileId);
+          console.log('[API] Parent path resolved:', parentPath);
+          
+          const filePath = pathLib.join(parentPath, file.name);
+          console.log('[API] Target file path:', filePath);
+
+          const arrayBuffer = await file.arrayBuffer();
+          console.log('[API] File buffer created, size:', arrayBuffer.byteLength);
+          
+          const buffer = Buffer.from(arrayBuffer);
+          await fs.writeFile(filePath, buffer);
+          console.log('[API] File written to disk');
+
+          const stats = await fs.stat(filePath);
+          console.log('[API] File stats retrieved');
+          
+          const item = await statsToStorageItem(library, filePath, stats);
+          console.log('[API] StorageItem created');
+          
+          return NextResponse.json(item);
+        } catch (error) {
+          console.error('[API] Upload processing error:', error);
+          throw error; // Re-throw to be caught by the outer try-catch
+        }
       }
 
       default:
@@ -308,5 +339,25 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 });
+  }
+}
+
+async function handleGetPath(library: LibraryType, fileId: string): Promise<Response> {
+  try {
+    console.log('[API] GET path fileId=', fileId);
+    const absolutePath = getPathFromId(library, fileId);
+    
+    // Konvertiere absoluten Pfad zu relativem Pfad
+    const relativePath = pathLib.relative(library.path, absolutePath)
+      .replace(/\\/g, '/') // Normalisiere zu Forward Slashes
+      .replace(/^\/+|\/+$/g, ''); // Entferne führende/nachfolgende Slashes
+    
+    const displayPath = relativePath || '/';
+    console.log('[API] Path resolved:', displayPath);
+    
+    return new Response(displayPath);
+  } catch (error) {
+    console.error('[API] Error getting path:', error);
+    return new Response('Failed to get path', { status: 500 });
   }
 } 
