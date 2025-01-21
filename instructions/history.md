@@ -1,3 +1,13 @@
+21.01.2025 - Nachmittags Session
+docs\extendet-shadowTwin-feature.md
+
+## Konzeptentwicklung und Architektur
+Wir haben das Shadow-Twin Feature grundlegend erweitert, um Mediendateien mit ihren zugehörigen Transkriptionen und Zusammenfassungen zu verknüpfen. Die Kernstruktur basiert auf einer klaren Namenskonvention (z.B. video.mp4, video.md, video-transcript.md) und einem erweiterten Metadatenmodell. Die technischen Metadaten werden direkt aus den Mediendateien extrahiert, während inhaltliche Metadaten in YAML-Headern der Markdown-Dateien gespeichert werden. Die Implementierung erfolgt zunächst dateibasiert mit der Option zur späteren MongoDB-Migration.
+ ## Technische Implementation
+Die Hauptkomponenten umfassen den MetadataExtractor für die Extraktion von technischen und inhaltlichen Metadaten, den useExtendedTwins-Hook für die Twin-Erkennung und -Verwaltung, sowie UI-Komponenten für die Darstellung der Metadaten in Tabs (Vorschau, Metadaten, Transkript, Zusammenfassung). Die Dateistruktur wurde so konzipiert, dass sie später einfach in MongoDB migriert werden kann, wobei die Metadaten bereits in einer datenbankfreundlichen Struktur organisiert sind. Kritische Punkte sind die asynchrone Metadaten-Extraktion und die korrekte Behandlung von YAML-Headern.
+## Nächste Schritte und Herausforderungen
+Die unmittelbaren nächsten Schritte sind die Implementierung der Basis-Funktionalität mit Datei-basierter Metadatenverwaltung. Besondere Aufmerksamkeit erfordern die YAML-Header-Extraktion, die korrekte Verarbeitung verschiedener Medientypen und die Performance bei der Metadaten-Extraktion. Die MongoDB-Integration ist als Phase 2 geplant und wurde bereits im Konzept berücksichtigt. Wichtig ist, dass die initiale Implementation sauber und erweiterbar gestaltet wird, um die spätere Migration zu erleichtern. Die UI-Komponenten müssen besonders auf Accessibility und Performance optimiert werden.
+
 20.01.2025 - Nacht Session
 src\components\settings\*
 ## Einstellungen verwalten
