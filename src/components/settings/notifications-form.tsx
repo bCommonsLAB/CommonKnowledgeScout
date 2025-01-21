@@ -41,7 +41,7 @@ export function NotificationsForm() {
 
   function onSubmit(data: NotificationsFormValues) {
     toast({
-      title: "You submitted the following values:",
+      title: "Sie haben die folgenden Werte eingegeben:",
       description: (
         <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
           <code className="text-white">{JSON.stringify(data, null, 2)}</code>
@@ -65,9 +65,9 @@ export function NotificationsForm() {
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>Email Notifications</FormLabel>
+                <FormLabel>E-Mail Benachrichtigungen</FormLabel>
                 <FormDescription>
-                  Receive email notifications when important events occur.
+                  Erhalten Sie E-Mail Benachrichtigungen, wenn wichtige Ereignisse auftreten.
                 </FormDescription>
               </div>
             </FormItem>
@@ -85,9 +85,9 @@ export function NotificationsForm() {
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>Push Notifications</FormLabel>
+                <FormLabel>Push Benachrichtigungen</FormLabel>
                 <FormDescription>
-                  Receive push notifications on your devices.
+                  Erhalten Sie Push Benachrichtigungen auf Ihren Geräten.
                 </FormDescription>
               </div>
             </FormItem>
@@ -107,7 +107,7 @@ export function NotificationsForm() {
               <div className="space-y-1 leading-none">
                 <FormLabel>Marketing Emails</FormLabel>
                 <FormDescription>
-                  Receive emails about new features and updates.
+                  Erhalten Sie E-Mails über neue Funktionen und Updates.
                 </FormDescription>
               </div>
             </FormItem>
@@ -127,13 +127,13 @@ export function NotificationsForm() {
               <div className="space-y-1 leading-none">
                 <FormLabel>Security Alerts</FormLabel>
                 <FormDescription>
-                  Receive alerts about security incidents and updates.
+                  Erhalten Sie Alerts über Sicherheitsvorfälle und Updates.
                 </FormDescription>
               </div>
             </FormItem>
           )}
         />
-        <Button type="submit">Update notifications</Button>
+        <Button type="submit">Benachrichtigungen aktualisieren</Button>
       </form>
     </Form>
   )

@@ -1,13 +1,13 @@
 import { Separator } from "@/components/ui/separator"
-import { AppearanceForm } from "@/components/forms/appearance/appearance-form"
+import { AppearanceForm } from "@/components/settings/appearance-form"
 
 export default function AppearancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Appearance</h3>
+        <h3 className="text-lg font-medium">Erscheinungsbild</h3>
         <p className="text-sm text-muted-foreground">
-          Customize the appearance of the app. Choose between light and dark mode.
+          Passen Sie das Erscheinungsbild der App an. Wählen Sie zwischen hell und dunkel.
         </p>
       </div>
       <Separator />

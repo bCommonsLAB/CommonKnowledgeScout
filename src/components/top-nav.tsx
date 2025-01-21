@@ -30,6 +30,10 @@ const navItems = [
     name: "Playground",
     href: "/playground",
   },
+  {
+    name: "Einstellungen",
+    href: "/settings",
+  },
 ]
 
 export function TopNav() {

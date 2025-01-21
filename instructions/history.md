@@ -1,3 +1,8 @@
+20.01.2025 - Nacht Session
+src\components\settings\*
+## Einstellungen verwalten
+Die Knowledge Scout Anwendung bietet ein umfassendes Einstellungssystem mit fünf Hauptbereichen: Bibliothek (grundlegende Einstellungen, Icon-Upload), Storage (flexible Provider-Konfiguration für Filesystem, Cloud-Dienste), Besitzer (Profilverwaltung), Benachrichtigungen und Anzeige. Alle Formulare sind mit Shadcn UI implementiert, nutzen Zod für Validierung, sind vollständig auf Deutsch lokalisiert und folgen einem einheitlichen Design-System. Die Komponenten sind als React Server Components aufgebaut, verwenden TypeScript für Typsicherheit und bieten eine optimierte Benutzerführung mit kontextsensitiven Hilfestellungen und Validierungsmeldungen.
+
 
 20.01.2025 - Vormittag Session
 src\components\library\*

@@ -47,7 +47,7 @@ export function DisplayForm() {
 
   function onSubmit(data: DisplayFormValues) {
     toast({
-      title: "You submitted the following values:",
+      title: "Sie haben die folgenden Werte eingegeben:",
       description: (
         <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
           <code className="text-white">{JSON.stringify(data, null, 2)}</code>
@@ -72,13 +72,13 @@ export function DisplayForm() {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="compact">Compact</SelectItem>
-                  <SelectItem value="wide">Wide</SelectItem>
+                  <SelectItem value="default">Standard</SelectItem>
+                  <SelectItem value="compact">Kompakt</SelectItem>
+                  <SelectItem value="wide">Breit</SelectItem>
                 </SelectContent>
               </Select>
               <FormDescription>
-                Choose how you want your content to be displayed.
+                Wählen Sie, wie Ihre Inhalte angezeigt werden sollen.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -89,7 +89,7 @@ export function DisplayForm() {
           name="density"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Display Density</FormLabel>
+              <FormLabel>Anzeigedichte</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -97,19 +97,19 @@ export function DisplayForm() {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="comfortable">Comfortable</SelectItem>
-                  <SelectItem value="compact">Compact</SelectItem>
-                  <SelectItem value="spacious">Spacious</SelectItem>
+                  <SelectItem value="comfortable">Komfortabel</SelectItem>
+                  <SelectItem value="compact">Kompakt</SelectItem>
+                  <SelectItem value="spacious">Weit</SelectItem>
                 </SelectContent>
               </Select>
               <FormDescription>
-                Adjust the spacing between elements.
+                Passen Sie den Abstand zwischen Elementen an.
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit">Update display</Button>
+        <Button type="submit">Anzeige aktualisieren</Button>
       </form>
     </Form>
   )
