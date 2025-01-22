@@ -2,6 +2,9 @@
 
 import { memo, useEffect, useRef, useState } from 'react';
 import { StorageItem } from '@/lib/storage/types';
+import { AudioTransform } from './audio-transform';
+import { Button } from '@/components/ui/button';
+import { Wand2 } from 'lucide-react';
 
 interface AudioPlayerProps {
   item: StorageItem;
@@ -18,6 +21,7 @@ export const AudioPlayer = memo(function AudioPlayer({ item }: AudioPlayerProps)
   const audioRef = useRef<HTMLAudioElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showTransform, setShowTransform] = useState(false);
   const lastProgressRef = useRef<{
     currentTime: number;
     readyState: number;
@@ -149,8 +153,18 @@ export const AudioPlayer = memo(function AudioPlayer({ item }: AudioPlayerProps)
 
   return (
     <div className="my-4 mx-4">
-      <div className="text-xs text-muted-foreground mb-2">
-        {item.metadata.name}
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs text-muted-foreground">
+          {item.metadata.name}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowTransform(!showTransform)}
+        >
+          <Wand2 className="h-4 w-4 mr-2" />
+          Transformieren
+        </Button>
       </div>
       {error && (
         <div className="text-sm text-red-500 mb-2">
@@ -180,6 +194,19 @@ export const AudioPlayer = memo(function AudioPlayer({ item }: AudioPlayerProps)
         />
         Ihr Browser unterstützt das Audio-Element nicht.
       </audio>
+
+      {showTransform && (
+        <div className="mt-4 border rounded-lg">
+          <AudioTransform 
+            item={item}
+            onTransformComplete={(text) => {
+              // TODO: Hier können wir später die Shadow-Twin-Speicherung implementieren
+              console.log('Transformation completed:', text);
+              setShowTransform(false);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }, (prevProps, nextProps) => {
