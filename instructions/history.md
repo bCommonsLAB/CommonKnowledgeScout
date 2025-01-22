@@ -1,6 +1,18 @@
+22.05.2025 - Nacht Session
+docs\05-features-transformation-service.md
+**Aktueller Entwicklungsstand:**
+Wir haben gerade eine umfassende Dokumentation für die Integration verschiedener Transformationsdienste in Knowledge Scout erstellt. Die Dokumentation beschreibt die technische Implementierung eines webhook-basierten Systems zur Verarbeitung von Audio-, Bild-, PDF-, YouTube- und Text-Dateien. Der Kern der Implementierung ist ein einheitliches Interface für alle Transformationstypen mit gemeinsamer Template- und Sprachauswahl.
+
+**Technische Details und Implementierungsstand:**
+Die Architektur basiert auf einem Secretary Service (http://127.0.0.1:5001/api/), der verschiedene Verarbeitungs-Endpoints bereitstellt. Die Frontend-Integration wurde mit TypeScript und React konzipiert, einschließlich typisierter Interfaces für API-Kommunikation und UI-Komponenten. Besonders wichtig ist die Shadow-Twin-Speicherung für transformierte Inhalte und das asynchrone Webhook-System für Statusupdates. Die Dokumentation wurde in `docs/05-features-transformation-service.md` gespeichert.
+
+**Nächste Schritte und kritische Punkte:**
+Die tatsächliche Implementierung steht noch aus. Kritische Punkte sind die korrekte Webhook-URL-Generierung, sichere Token-Verwaltung und robuste Fehlerbehandlung. Besondere Aufmerksamkeit erfordert die Shadow-Twin-Speicherung und die Template-Verwaltung. Die UI-Komponenten müssen noch in das bestehende Preview-System integriert werden. Ein wichtiger Aspekt ist auch die Überprüfung der maximal erlaubten Dateigrößen und unterstützten Formate für jeden Transformationstyp.
+
+
+
 21.01.2025 - Nachmittags Session
 docs\extendet-shadowTwin-feature.md
-
 ## Konzeptentwicklung und Architektur
 Wir haben das Shadow-Twin Feature grundlegend erweitert, um Mediendateien mit ihren zugehörigen Transkriptionen und Zusammenfassungen zu verknüpfen. Die Kernstruktur basiert auf einer klaren Namenskonvention (z.B. video.mp4, video.md, video-transcript.md) und einem erweiterten Metadatenmodell. Die technischen Metadaten werden direkt aus den Mediendateien extrahiert, während inhaltliche Metadaten in YAML-Headern der Markdown-Dateien gespeichert werden. Die Implementierung erfolgt zunächst dateibasiert mit der Option zur späteren MongoDB-Migration.
  ## Technische Implementation
