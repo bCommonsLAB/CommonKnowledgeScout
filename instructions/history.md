@@ -7,6 +7,15 @@ Wir haben ein umfassendes Metadaten-Konzept entwickelt, das in docs/metadata-con
 Die technische Implementierung ist in docs/extendet-shadowTwin-feature.md skizziert, wurde aber noch nicht umgesetzt. Der Fokus liegt auf einem MetadataProcessor, der die Extraktion, Validierung und Anreicherung von Metadaten aus verschiedenen Quellen handhaben soll. Die größte identifizierte Herausforderung ist die zuverlässige Extraktion strukturierter Metadaten aus unstrukturierten Inhalten durch LLM-Integration. Die vorgeschlagene Architektur verwendet Interfaces für Modularität und klare Trennung der Verantwortlichkeiten.
 Die nächsten Schritte erfordern die Implementierung des MetadataProcessor und seine Integration in die bestehende Prozessor-Hierarchie. Kritische Punkte sind die korrekte Handhabung verschiedener Datenquellen, robuste Fehlerbehandlung bei der LLM-Integration und strikte Validierung gegen das definierte Schema. Die MongoDB-Integration ist für Phase 2 geplant, wobei die Metadatenstruktur bereits für eine einfache Migration ausgelegt ist. Vermieden werden sollten verschachtelte Strukturen in den Metadaten sowie harte Kopplungen zwischen Prozessor und Datenquellen.
 
+23.01.2025 - Nachmittags Session
+src\components\library\file-preview.tsx
+src\lib\secretary\client.ts
+## Implementierungsstand
+Wir haben eine Audio-Transkriptionsfunktion implementiert, die Audio-Dateien an einen Secretary Service sendet und die Transkription als Shadow-Twin-Datei speichert. Die Implementierung besteht aus einem Frontend-Teil (AudioPlayer und AudioTransform Komponenten) und einem Backend-Teil (Secretary Service Proxy und Storage Provider Integration). Die Namenskonvention für Shadow-Twins wurde auf ein einfaches Format festgelegt: {originalname}.{language}.md.
+## Technische Details
+Die Kommunikation mit dem Secretary Service läuft über eine Next.js API-Route (/api/secretary/process-audio), die CORS-Probleme vermeidet. Die Audio-Datei wird vom Storage Provider geladen, an den Secretary Service gesendet und das Ergebnis als Markdown-Datei im gleichen Verzeichnis wie die Originaldatei gespeichert. Der Code verwendet TypeScript mit strikter Typisierung und folgt dem React Server Components Pattern mit clientseitiger Interaktivität wo nötig.
+## Aktuelle Probleme/TODOs
+Es gibt noch einen Bug im client.ts, wo der template Parameter immer noch an den Secretary Service gesendet wird, obwohl wir diesen entfernt haben. Die UI wurde bereits angepasst, aber die API-Integration muss noch aktualisiert werden. Außerdem sollten wir den "Transformieren" Button im AudioPlayer in "Transkribieren" umbenennen, um konsistent mit der neuen Terminologie zu sein.
 
 22.05.2025 - Nacht Session
 docs\05-features-transformation-service.md
