@@ -1,3 +1,13 @@
+24.01.2025 - ToDo
+So, wenn wir im Secretary Service diese Metadatenprozessor implementiert haben, möchte ich gerne hier im Frontend diese Transkription einer Audio-Datei nochmal verbessern und diese Audio-Datei von der Response, eben die Transkriptions speichern und die Metadaten speichern und schon vorbereiten, wie man diese Metadaten auch in einem MongoDB speichern könnte.
+
+
+23.01.2025 - Abendsession
+Wir haben ein umfassendes Metadaten-Konzept entwickelt, das in docs/metadata-concept.md dokumentiert ist. Das Konzept definiert eine flache YAML-basierte Metadatenstruktur mit TypeScript-Interfaces für verschiedene Medientypen (Bücher, Videos, Artikel, Social Media, Events). Die Struktur wurde durch praktische Beispiele validiert, darunter ein wissenschaftliches Buch, ein Social Media Post, ein Konferenz-Vortrag, ein YouTube-Video und ein Online-Nachrichtenartikel. Die Beispiele zeigen die Flexibilität und Erweiterbarkeit des Systems für verschiedene Medientypen.
+Die technische Implementierung ist in docs/extendet-shadowTwin-feature.md skizziert, wurde aber noch nicht umgesetzt. Der Fokus liegt auf einem MetadataProcessor, der die Extraktion, Validierung und Anreicherung von Metadaten aus verschiedenen Quellen handhaben soll. Die größte identifizierte Herausforderung ist die zuverlässige Extraktion strukturierter Metadaten aus unstrukturierten Inhalten durch LLM-Integration. Die vorgeschlagene Architektur verwendet Interfaces für Modularität und klare Trennung der Verantwortlichkeiten.
+Die nächsten Schritte erfordern die Implementierung des MetadataProcessor und seine Integration in die bestehende Prozessor-Hierarchie. Kritische Punkte sind die korrekte Handhabung verschiedener Datenquellen, robuste Fehlerbehandlung bei der LLM-Integration und strikte Validierung gegen das definierte Schema. Die MongoDB-Integration ist für Phase 2 geplant, wobei die Metadatenstruktur bereits für eine einfache Migration ausgelegt ist. Vermieden werden sollten verschachtelte Strukturen in den Metadaten sowie harte Kopplungen zwischen Prozessor und Datenquellen.
+
+
 22.05.2025 - Nacht Session
 docs\05-features-transformation-service.md
 **Aktueller Entwicklungsstand:**

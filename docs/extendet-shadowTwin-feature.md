@@ -23,181 +23,222 @@ beispiel/
 
 ## Metadaten-Struktur
 
-### 1. Basis-Metadaten Interface
+Die Metadaten-Struktur ist hierarchisch aufgebaut und besteht aus verschiedenen spezialisierten Interfaces. Hier ist eine detaillierte Erklärung der verschiedenen Typen:
+
+### 1. BaseMetadata - Die Grundlage
+Die Basis-Schnittstelle, von der andere Metadaten-Typen erben. Sie enthält die grundlegendsten Informationen:
 ```typescript
 interface BaseMetadata {
-  type: string;
-  created: string;
-  modified: string;
+  type: string;    // Art der Metadaten
+  created: string; // Erstellungszeitpunkt
+  modified: string; // Letzter Änderungszeitpunkt
 }
+```
 
-// Technische Metadaten (aus der Datei)
+### 2. TechnicalMetadata - Technische Informationen
+Diese Metadaten werden automatisch aus der Datei selbst extrahiert und enthalten technische Details über das Medium:
+```typescript
 interface TechnicalMetadata extends BaseMetadata {
-  size: number;
-  mimeType: string;
-  extension: string;
-  mediaInfo?: {
-    duration?: number;
-    bitrate?: number;
-    codec?: string;
-    resolution?: string;
-    format?: string;
-    channels?: number;
-    sampleRate?: number;
-  };
-}
-
-// Inhaltliche Metadaten (aus YAML)
-interface ContentMetadata extends BaseMetadata {
-  title?: string;
-  description?: string;
-  language?: string;
-  tags?: string[];
-  persons?: string[];
-  date?: string;
-  location?: string;
-  topics?: string[];
-  keywords?: string[];
-  // Plattform-spezifische Metadaten
-  platform?: {
-    type?: 'youtube' | 'vimeo' | 'local' | string;
-    url?: string;
-    thumbnail?: string;
-    id?: string;
-    uploader?: string;
-    category?: string;
-  };
-}
-
-// Erweiterte Datei-Metadaten
-interface ExtendedFileMetadata {
-  // Bestehende Metadaten
-  name: string;
-  size: number;
-  modifiedAt: string;
+  file_size: number;           // Dateigröße in Bytes
+  file_mime: string;           // Dateityp (z.B. audio/mp3)
+  file_extension: string;      // Dateiendung
   
-  // Strukturierte Metadaten
-  metadata: {
+  // Medienspezifische Details
+  media_duration?: number;     // Länge des Mediums in Sekunden
+  media_bitrate?: number;      // Bitrate in kbps
+  media_codec?: string;        // Verwendeter Codec
+  media_resolution?: string;   // Auflösung (bei Video, z.B. "1920x1080")
+  media_format?: string;       // Medienformat (z.B. "MP3", "H.264")
+  media_channels?: number;     // Anzahl der Audiokanäle
+  media_samplerate?: number;   // Abtastrate in Hz
+  
+  // Bildspezifische Details (für Bilder und Videos)
+  image_width?: number;        // Bildbreite in Pixeln
+  image_height?: number;       // Bildhöhe in Pixeln
+  image_colorspace?: string;   // Farbraum (z.B. "RGB", "CMYK")
+  image_dpi?: number;         // Auflösung in DPI
+  
+  // Dokumentspezifische Details (für PDFs, etc.)
+  doc_pages?: number;         // Anzahl der Seiten
+  doc_wordcount?: number;     // Anzahl der Wörter
+  doc_software?: string;      // Erstellungssoftware
+  doc_encrypted?: boolean;    // Verschlüsselungsstatus
+}
+```
+
+Beispiel für die YAML-Darstellung der technischen Metadaten:
+```yaml
+# Technische Metadaten
+file_size: 15728640          # 15 MB
+file_mime: "audio/mp3"
+file_extension: "mp3"
+
+# Medienspezifische Details
+media_duration: 1800         # 30 Minuten
+media_bitrate: 320          # 320 kbps
+media_codec: "MP3"
+media_channels: 2
+media_samplerate: 44100     # 44.1 kHz
+```
+
+### 3. ContentMetadata - Inhaltliche Informationen
+Diese Metadaten werden als flache YAML-Struktur im Header von Markdown-Dateien gespeichert:
+```typescript
+interface ContentMetadata extends BaseMetadata {
+  // Bibliographische Grunddaten
+  title: string;                    // Haupttitel des Werks
+  subtitle?: string;                // Untertitel
+  authors: string[];                // Autor(en)
+  publisher?: string;               // Verlag
+  publicationDate?: string;         // Erscheinungsdatum
+  isbn?: string;                    // ISBN (bei Büchern)
+  doi?: string;                     // Digital Object Identifier
+  edition?: string;                 // Auflage
+  language: string;                 // Sprache (ISO 639-1)
+  
+  // Wissenschaftliche Klassifikation
+  subject_areas?: string[];         // Fachgebiete (z.B. "Biologie", "Ökologie")
+  keywords?: string[];              // Schlüsselwörter
+  abstract?: string;                // Kurzzusammenfassung
+  
+  // Räumliche und zeitliche Einordnung
+  temporal_start?: string;          // Beginn des behandelten Zeitraums
+  temporal_end?: string;            // Ende des behandelten Zeitraums
+  temporal_period?: string;         // Bezeichnung der Periode (z.B. "Holozän")
+  spatial_location?: string;        // Ortsname
+  spatial_latitude?: number;        // Geografische Breite
+  spatial_longitude?: number;       // Geografische Länge
+  spatial_habitat?: string;         // Lebensraum/Biotop
+  spatial_region?: string;          // Region/Gebiet
+  
+  // Rechte und Lizenzen
+  rights_holder?: string;           // Rechteinhaber
+  rights_license?: string;          // Lizenz (z.B. "CC BY-SA 4.0")
+  rights_access?: string;           // Zugriffsrechte
+  
+  // Medienspezifische Metadaten
+  resource_type: string;            // Art der Ressource (z.B. "Book", "Video", "Audio")
+  resource_format?: string;         // Physisches/digitales Format
+  resource_extent?: string;         // Umfang (z.B. "342 Seiten", "45 Minuten")
+  
+  // Quellenangaben
+  source_title?: string;            // Titel der Quelle
+  source_type?: string;            // Art der Quelle
+  source_identifier?: string;       // Eindeutige Kennung der Quelle
+  
+  // Digitale Plattform
+  platform_type?: string;           // Art der Plattform (z.B. "youtube", "vimeo")
+  platform_url?: string;            // URL zur Ressource
+  platform_id?: string;             // Plattform-spezifische ID
+  platform_uploader?: string;       // Uploader/Kanal
+  
+  // Wissenschaftliche Zusatzinformationen
+  citations?: string[];             // Zitierte Werke
+  methodology?: string;             // Verwendete Methodik
+  funding?: string;                 // Förderung/Finanzierung
+  
+  // Verwaltung
+  collection?: string;              // Zugehörige Sammlung
+  archival_number?: string;         // Archivnummer
+  status?: string;                  // Status (z.B. "verified", "draft")
+}
+```
+
+Beispiel für die YAML-Darstellung im Markdown:
+```yaml
+---
+# Bibliographische Grunddaten
+title: "Ökosysteme der Nordsee"
+subtitle: "Eine Bestandsaufnahme"
+authors: 
+  - "Dr. Maria Schmidt"
+  - "Prof. Hans Meyer"
+publisher: "Wissenschaftsverlag"
+publicationDate: "2023-05-15"
+isbn: "978-3-12345-678-9"
+language: "de"
+
+# Wissenschaftliche Klassifikation
+subject_areas: 
+  - "Meeresbiologie"
+  - "Ökologie"
+keywords:
+  - "Nordsee"
+  - "Wattenmeer"
+  - "Biodiversität"
+abstract: "Eine umfassende Analyse der Ökosysteme im Wattenmeer..."
+
+# Räumliche und zeitliche Einordnung
+temporal_start: "2020-01"
+temporal_end: "2022-12"
+spatial_location: "Sylt"
+spatial_latitude: 54.8985
+spatial_longitude: 8.3125
+spatial_habitat: "Wattenmeer"
+spatial_region: "Nordsee"
+
+# Rechte und Lizenzen
+rights_holder: "Wissenschaftsverlag GmbH"
+rights_license: "CC BY-SA 4.0"
+
+# Medienspezifische Metadaten
+resource_type: "Book"
+resource_format: "PDF"
+resource_extent: "342 Seiten"
+
+# Verwaltung
+collection: "Meeresökologie"
+status: "verified"
+---
+```
+
+Diese flache Struktur:
+1. Ist einfach als YAML zu speichern und zu lesen
+2. Behält die logische Gruppierung durch Präfixe bei
+3. Ist leicht erweiterbar
+4. Bleibt übersichtlich in Markdown-Editoren
+5. Lässt sich einfach validieren und parsen
+
+### 4. ExtendedFileMetadata - Vollständige Metadaten
+Dies ist die umfassendste Metadaten-Struktur, die alle anderen Typen zusammenführt und zusätzliche Informationen über verknüpfte Dateien (Twins) enthält:
+```typescript
+interface ExtendedFileMetadata {
+  name: string;        // Dateiname
+  size: number;        // Größe
+  modifiedAt: string;  // Änderungsdatum
+  
+  metadata: {          // Kombinierte Metadaten
     technical: TechnicalMetadata;
     content?: ContentMetadata;
   };
   
-  // Twin-Referenzen bleiben unverändert
-  twins?: {
-    transcript?: {
+  twins?: {            // Verweise auf zugehörige Dateien
+    transcript?: {     // Transkript
       id: string;
       path: string;
       content?: string;
     };
-    summary?: {
+    summary?: {        // Zusammenfassung
       id: string;
       path: string;
       content?: string;
     };
   };
   
-  // UI Flags
+  // Status-Flags für die UI
   hasTranscript: boolean;
   hasSummary: boolean;
   hasMetadata: boolean;
   isTranscript: boolean;
   isSummary: boolean;
 }
-
-// Metadaten-Extraktion
-class MetadataExtractor {
-  // Extrahiert technische Metadaten aus der Datei
-  async extractTechnicalMetadata(file: StorageItem): Promise<TechnicalMetadata> {
-    // Implementation
-    return {
-      type: 'technical',
-      created: new Date().toISOString(),
-      modified: new Date().toISOString(),
-      size: file.size,
-      mimeType: file.type,
-      extension: file.name.split('.').pop() || '',
-      // Medienspezifische Informationen werden bei Bedarf hinzugefügt
-    };
-  }
-
-  // Extrahiert YAML Metadaten aus der Summary-Datei
-  async extractContentMetadata(summaryFile: StorageItem): Promise<ContentMetadata | null> {
-    try {
-      const content = await readFile(summaryFile.path);
-      const yamlContent = content.split('---')[1];
-      const parsed = yaml.parse(yamlContent);
-      
-      return {
-        type: 'content',
-        created: new Date().toISOString(),
-        modified: new Date().toISOString(),
-        ...parsed
-      };
-    } catch (error) {
-      console.error('Failed to extract content metadata:', error);
-      return null;
-    }
-  }
-}
-
-// Beispiel für die Twin-Erkennung mit erweiterten Metadaten
-async function processTwins(items: StorageItem[]): Promise<ExtendedFileMetadata[]> {
-  const extractor = new MetadataExtractor();
-  const result: ExtendedFileMetadata[] = [];
-  
-  for (const item of items) {
-    const metadata: ExtendedFileMetadata = {
-      name: item.name,
-      size: item.size,
-      modifiedAt: item.modifiedAt,
-      metadata: {
-        technical: await extractor.extractTechnicalMetadata(item)
-      },
-      hasTranscript: false,
-      hasSummary: false,
-      hasMetadata: false,
-      isTranscript: false,
-      isSummary: false
-    };
-
-    // Finde zugehörige Twins
-    const baseName = getBaseName(item.name);
-    const summary = items.find(i => i.name === `${baseName}.md`);
-    const transcript = items.find(i => i.name === `${baseName}-transcript.md`);
-
-    if (summary || transcript) {
-      metadata.twins = {};
-      
-      if (summary) {
-        metadata.twins.summary = {
-          id: summary.id,
-          path: summary.path
-        };
-        metadata.hasSummary = true;
-        
-        // Extrahiere Content Metadaten aus Summary
-        const contentMetadata = await extractor.extractContentMetadata(summary);
-        if (contentMetadata) {
-          metadata.metadata.content = contentMetadata;
-          metadata.hasMetadata = true;
-        }
-      }
-
-      if (transcript) {
-        metadata.twins.transcript = {
-          id: transcript.id,
-          path: transcript.path
-        };
-        metadata.hasTranscript = true;
-      }
-    }
-
-    result.push(metadata);
-  }
-
-  return result;
-}
 ```
+
+Diese Struktur ermöglicht:
+1. Dateien technisch korrekt zu verarbeiten
+2. Inhalte sinnvoll zu kategorisieren und zu durchsuchen
+3. Zusammengehörige Dateien (Original, Transkript, Zusammenfassung) zu verwalten
+4. Die UI entsprechend zu steuern (z.B. welche Vorschau-Tabs angezeigt werden)
 
 ## Technische Implementation
 
@@ -770,3 +811,109 @@ const MetadataView: React.FC<{ item: StorageItem }> = ({ item }) => {
    - Zentrale Datenhaltung
    - Einfachere Updates
    - Besseres Monitoring 
+
+## Metadaten-Mapping Beispiele
+
+### YouTube-Video Mapping
+Hier ein Beispiel, wie YouTube-Metadaten auf unsere Struktur abgebildet werden:
+
+```yaml
+---
+# Bibliographische Grunddaten
+title: "{{title}}"                    # Titel des Videos
+authors: 
+  - "{{uploader}}"                    # YouTube Uploader als Autor
+publicationDate: "{{upload_date}}"    # Upload-Datum
+language: "de"                        # Sprache des Videos
+
+# Wissenschaftliche Klassifikation
+keywords: "{{tags}}"                  # YouTube Tags
+subject_areas: 
+  - "{{categories}}"                  # YouTube Kategorie
+
+# Räumliche Einordnung
+spatial_location: "{{ort}}"           # Erwähnter/gezeigter Ort
+
+# Personen
+persons: "{{personen}}"               # Erwähnte Personen
+
+# Digitale Plattform
+platform_type: "youtube"              # Plattform-Typ
+platform_url: "https://www.youtube.com/watch?v={{video_id}}"  # Video-URL
+platform_id: "{{video_id}}"           # YouTube Video-ID
+platform_uploader: "{{uploader}}"     # Kanal/Uploader
+platform_thumbnail: "https://img.youtube.com/vi/{{video_id}}/hqdefault.jpg"  # Thumbnail
+
+# Medienspezifische Metadaten
+resource_type: "Video"                # Art der Ressource
+resource_format: "YouTube Video"      # Format
+
+# Verwaltung
+status: "verified"                    # Status
+---
+```
+
+Beispiel mit echten Daten:
+```yaml
+---
+# Bibliographische Grunddaten
+title: "Klimawandel in der Nordsee"
+authors: 
+  - "WissenschaftsKanal"
+publicationDate: "2023-05-15"
+language: "de"
+
+# Wissenschaftliche Klassifikation
+keywords:
+  - "Klimawandel"
+  - "Nordsee"
+  - "Meeresbiologie"
+  - "Umweltschutz"
+subject_areas: 
+  - "Wissenschaft & Bildung"
+
+# Räumliche Einordnung
+spatial_location: "Nordsee"
+
+# Personen
+persons:
+  - "Dr. Maria Schmidt"
+  - "Prof. Hans Meyer"
+
+# Digitale Plattform
+platform_type: "youtube"
+platform_url: "https://www.youtube.com/watch?v=abc123xyz"
+platform_id: "abc123xyz"
+platform_uploader: "WissenschaftsKanal"
+platform_thumbnail: "https://img.youtube.com/vi/abc123xyz/hqdefault.jpg"
+
+# Medienspezifische Metadaten
+resource_type: "Video"
+resource_format: "YouTube Video"
+
+# Verwaltung
+status: "verified"
+---
+```
+
+Die technischen Metadaten würden automatisch extrahiert:
+```yaml
+# Technische Metadaten
+file_size: 256000000          # 256 MB
+file_mime: "video/mp4"
+file_extension: "mp4"
+
+# Medienspezifische Details
+media_duration: 1800          # 30 Minuten
+media_resolution: "1920x1080" # Full HD
+media_codec: "H.264"
+media_format: "MP4"
+```
+
+Diese Struktur:
+1. Behält alle wichtigen YouTube-Metadaten
+2. Ordnet sie logisch in unsere Kategorien ein
+3. Ergänzt sie um technische Details
+4. Ermöglicht einheitliche Verarbeitung mit anderen Medientypen
+
+// ... existing code ... 
