@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Search } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState, Profiler } from "react"
-import { flushSync } from 'react-dom';
+import { useAtom } from "jotai"
 
 import { LibrarySwitcher } from "./library-switcher"
 import { LibraryHeader } from "./library-header"
@@ -22,6 +22,8 @@ import { StorageProvider, StorageItem } from "@/lib/storage/types"
 import { useTranscriptionTwins } from "@/hooks/use-transcription-twins"
 import { useSelectedFile } from "@/hooks/use-selected-file"
 import { usePerformanceTracking } from "@/hooks/use-performance-tracking"
+import { libraryAtom, activeLibraryIdAtom, currentFolderIdAtom, breadcrumbItemsAtom, writeBreadcrumbItemsAtom } from "@/atoms/library-atom"
+import { useStorage } from "@/contexts/storage-context"
 
 export interface LibraryContextProps {
   libraries: ClientLibrary[];
@@ -75,15 +77,38 @@ export function Library({
   // UI States
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  // Folder States
-  const [currentFolderId, setCurrentFolderId] = useState('root');
+  // Folder States - alte lokale State entfernen und durch Atom ersetzen
   const [folderItems, setFolderItems] = useState<StorageItem[]>([]);
 
-  // Provider States
-  const [providerId, setProviderId] = useState(libraries[0]?.id || '');
-  const [providerInstance, setProviderInstance] = useState<StorageProvider | null>(null);
+  // Jotai State
+  const [libraryState, setLibraryState] = useAtom(libraryAtom);
+  const [globalActiveLibraryId, setGlobalActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const [currentFolderId, setCurrentFolderId] = useAtom(currentFolderIdAtom);
+  
+  // Den StorageContext nutzen statt eigenen Provider zu erstellen
+  const { 
+    provider: providerInstance, 
+    isLoading, 
+    error: storageError, 
+    listItems, 
+    refreshItems 
+  } = useStorage();
+
+  // Debug-Logging für Storage Context
+  useEffect(() => {
+    console.log('[Library] StorageContext Status:', {
+      providerVorhanden: !!providerInstance,
+      providerTyp: providerInstance ? providerInstance.name : 'keiner',
+      providerID: providerInstance?.id,
+      isLoading,
+      error: storageError
+    });
+  }, [providerInstance, isLoading, storageError]);
+
+  // Die aktive Bibliothek aus den übergebenen Libraries ermitteln
+  const currentLibrary = useMemo(() => libraries.find(lib => lib.id === globalActiveLibraryId) || undefined, [libraries, globalActiveLibraryId]);
 
   // File Selection Hook
   const {
@@ -98,20 +123,67 @@ export function Library({
   // Caches
   const folderCache = useMemo(() => new Map<string, StorageItem>(), []);
   const pathCache = useMemo(() => new Map<string, StorageItem[]>(), []);
+  
+  // Verwende globalen Breadcrumb-Zustand
+  const [, setBreadcrumbItems] = useAtom(breadcrumbItemsAtom);
+  const [, setWriteBreadcrumb] = useAtom(writeBreadcrumbItemsAtom);
+
+  // Initialisiere Jotai-Zustand bei Komponenteninitialisierung
+  useEffect(() => {
+    console.log('Library: Initialisiere Jotai-Zustand mit', libraries.length, 'Bibliotheken');
+    // Setze den Jotai-Zustand mit den übergebenen Bibliotheken
+    setLibraryState({
+      libraries,
+      activeLibraryId: globalActiveLibraryId || (libraries.length > 0 ? libraries[0].id : ''),
+      currentFolderId: 'root' // Initialisiere das Verzeichnis
+    });
+  }, [libraries, globalActiveLibraryId, setLibraryState]);
+
+  // Stelle sicher, dass der Breadcrumb nicht verloren geht
+  useEffect(() => {
+    // Cache für den letzten bekannten Breadcrumb-Zustand
+    let lastBreadcrumbHash = JSON.stringify(selected.breadcrumb.items.map(item => item.id));
+    
+    // Timer mit niedrigerer Frequenz, um Performance zu verbessern
+    const syncTimer = setInterval(() => {
+      const breadcrumbItems = selected.breadcrumb.items;
+      
+      // Nur aktualisieren, wenn:
+      // 1. Wir tatsächlich Items haben
+      // 2. Nicht im Root-Verzeichnis sind
+      // 3. Der aktuelle Breadcrumb anders ist als der letzte bekannte
+      if (breadcrumbItems.length > 0 && selected.breadcrumb.currentId !== 'root') {
+        // Erstelle einen Hash des aktuellen Zustands zur Vergleichbarkeit
+        const currentHash = JSON.stringify(breadcrumbItems.map(item => item.id));
+        
+        // Prüfe, ob sich der Zustand geändert hat
+        if (currentHash !== lastBreadcrumbHash) {
+          console.log('Library: AUTO-SYNC Breadcrumb (geändert)', {
+            items: breadcrumbItems.map(item => item.metadata.name).join('/'),
+            currentId: selected.breadcrumb.currentId
+          });
+          
+          // Aktualisiere den Zustand und den Cache
+          lastBreadcrumbHash = currentHash;
+          setWriteBreadcrumb(breadcrumbItems);
+        }
+      }
+    }, 3000); // Niedrigere Frequenz: alle 3 Sekunden
+
+    return () => clearInterval(syncTimer);
+  }, [selected.breadcrumb, setWriteBreadcrumb]);
 
   // Memoized values
-  const memoizedProviderInstance = useMemo(() => providerInstance, [providerId]);
-  
   const transcriptionEnabled = useMemo(() => {
-    const activeLib = libraries.find(lib => lib.id === providerId);
+    const activeLib = libraries.find(lib => lib.id === globalActiveLibraryId);
     return activeLib?.config?.transcription === 'shadowTwin';
-  }, [libraries, providerId]);
+  }, [libraries, globalActiveLibraryId]);
 
   const libraryConfig = useMemo(() => ({
-    activeLibraryId: providerId,
+    activeLibraryId: globalActiveLibraryId,
     transcriptionEnabled,
-    config: libraries.find(lib => lib.id === providerId)?.config
-  }), [providerId, transcriptionEnabled, libraries]);
+    config: libraries.find(lib => lib.id === globalActiveLibraryId)?.config
+  }), [globalActiveLibraryId, transcriptionEnabled, libraries]);
 
   const filteredItems = useMemo(() => {
     if (!searchQuery) return folderItems;
@@ -138,7 +210,7 @@ export function Library({
   );
 
   // Performance tracking
-  usePerformanceTracking('Library-Provider', [providerId]);
+  usePerformanceTracking('Library-Provider', [globalActiveLibraryId]);
   usePerformanceTracking('Library-Folder', [currentFolderId]);
   usePerformanceTracking('Library-UI', [isCollapsed, searchQuery]);
 
@@ -151,33 +223,43 @@ export function Library({
 
   // Handler für Library-Wechsel
   const handleLibraryChange = useCallback((newLibraryId: string) => {
-    setProviderId(newLibraryId);
-    setProviderInstance(null);
-    setCurrentFolderId('root');
-    setFolderItems([]);
-    clearSelection();
-  }, [clearSelection]);
-
-  // Library Context Events
-  useEffect(() => {
-    const event = new CustomEvent('libraryContextChange', {
-      detail: {
-        libraries,
-        activeLibraryId: providerId,
-        onLibraryChange: handleLibraryChange
+    console.log('Library: handleLibraryChange aufgerufen mit', newLibraryId);
+    
+    // Vorherige Bibliothek identifizieren
+    const previousLibrary = libraries.find(lib => lib.id === globalActiveLibraryId);
+    const newLibrary = libraries.find(lib => lib.id === newLibraryId);
+    
+    console.log('Library: Wechsel von', {
+      von: {
+        id: previousLibrary?.id || 'keine',
+        label: previousLibrary?.label || 'keine',
+        path: previousLibrary?.path || 'keine'
+      },
+      nach: {
+        id: newLibrary?.id || 'unbekannt',
+        label: newLibrary?.label || 'unbekannt',
+        path: newLibrary?.path || 'unbekannt'
       }
     });
-    window.dispatchEvent(event);
+    
+    // Ordner zurücksetzen
+    setCurrentFolderId('root');
+    setFolderItems([]);
+    
+    // Auswahl zurücksetzen
+    clearSelection();
+    
+    // Aktualisiere den Jotai-Zustand mit vollständigem State
+    setLibraryState({
+      libraries,
+      activeLibraryId: newLibraryId,
+      currentFolderId: 'root'
+    });
+    
+    console.log('Library: Bibliothek gewechselt zu', newLibraryId, '- Cache und Zustand zurückgesetzt');
+  }, [clearSelection, setLibraryState, libraries, globalActiveLibraryId]);
 
-    return () => {
-      window.dispatchEvent(new CustomEvent('libraryContextChange', { detail: null }));
-    };
-  }, [libraries, providerId, handleLibraryChange]);
-
-  // Current library reference
-  const activeLibrary = libraries.find(lib => lib.id === providerId);
-
-  // Optimierte Pfadauflösung
+  // Optimierte Pfadauflösung - Nutze jetzt den StorageContext
   const resolvePath = useCallback(async (
     itemId: string, 
     cache: Map<string, StorageItem>
@@ -209,7 +291,7 @@ export function Library({
     return path;
   }, [pathCache, providerInstance]);
 
-  // Optimierter Items Load mit Caching
+  // Optimierter Items Load mit Caching - jetzt mit StorageContext
   const loadItems = useCallback(async () => {
     if (!providerInstance) {
       console.log('Library: loadItems skipped - no provider instance');
@@ -219,10 +301,8 @@ export function Library({
     console.log('Library: Starting loadItems', {
       currentFolderId,
       hasCachedItems: !!folderCache.get(currentFolderId)?.children,
-      providerName: providerInstance.name
     });
 
-    setIsLoading(true);
     try {
       // Prüfe Cache
       const cachedItems = folderCache.get(currentFolderId)?.children;
@@ -233,15 +313,29 @@ export function Library({
         });
         // Resolve path even for cached items
         const path = await resolvePath(currentFolderId, folderCache);
-        flushSync(() => {
-          setFolderItems(cachedItems);
+        
+        // Kein flushSync mehr verwenden, sondern getrennte State-Updates
+        setFolderItems(cachedItems);
+        
+        // Breadcrumb nur aktualisieren, wenn es nicht Root ist oder wenn der aktuelle Breadcrumb leer ist
+        if (currentFolderId !== 'root' || selected.breadcrumb.items.length === 0) {
+          console.log('Library: Aktualisiere Breadcrumb für gecachte Items', { 
+            folderId: currentFolderId,
+            pathLength: path.length 
+          });
           updateBreadcrumb(path, currentFolderId);
-        });
+          // Aktualisiere auch das globale Atom
+          setBreadcrumbItems(path);
+        } else {
+          console.log('Library: Überspringe Breadcrumb-Update für Root bei vorhandenem Breadcrumb');
+        }
+        
         return;
       }
 
       console.log('Library: Fetching items from provider');
-      const items = await providerInstance.listItemsById(currentFolderId);
+      // Nutze den StorageContext für das Laden der Items
+      const items = await listItems(currentFolderId);
       console.log('Library: Items fetched successfully', {
         itemCount: items.length,
         folderCount: items.filter(i => i.type === 'folder').length,
@@ -271,67 +365,65 @@ export function Library({
       
       // Resolve path and update breadcrumb along with items
       const path = await resolvePath(currentFolderId, folderCache);
-      flushSync(() => {
-        console.log('Library: Updating UI with new items');
-        setFolderItems(items);
+      
+      // Kein flushSync mehr verwenden, sondern getrennte State-Updates
+      console.log('Library: Updating UI with new items');
+      setFolderItems(items);
+      
+      // Breadcrumb nur aktualisieren, wenn es nicht Root ist oder wenn der aktuelle Breadcrumb leer ist
+      if (currentFolderId !== 'root' || selected.breadcrumb.items.length === 0) {
+        console.log('Library: Aktualisiere Breadcrumb für neue Items', { 
+          folderId: currentFolderId,
+          pathLength: path.length 
+        });
         updateBreadcrumb(path, currentFolderId);
-      });
+        // Aktualisiere auch das globale Atom
+        setBreadcrumbItems(path);
+      } else {
+        console.log('Library: Überspringe Breadcrumb-Update für Root bei vorhandenem Breadcrumb');
+      }
+      
     } catch (error) {
       console.error('Library: Failed to load items:', error);
       setFolderItems([]);
-      updateBreadcrumb([], 'root');
-    } finally {
-      setIsLoading(false);
-      console.log('Library: loadItems completed');
+      
+      // Breadcrumb nur zurücksetzen, wenn wir wirklich im Root-Verzeichnis sind
+      if (currentFolderId === 'root') {
+        updateBreadcrumb([], 'root');
+        // Aktualisiere auch das globale Atom
+        setBreadcrumbItems([]);
+      } else {
+        console.warn('Library: Fehler beim Laden der Items, behalte aber den Breadcrumb für:', currentFolderId);
+      }
     }
-  }, [providerInstance, currentFolderId, folderCache, resolvePath, updateBreadcrumb]);
-
-  // Initialisiere StorageFactory - nur einmal
-  useEffect(() => {
-    StorageFactory.getInstance().setLibraries(libraries);
-  }, [libraries]);
-
-  // Optimierter Provider Load
-  const loadProvider = useCallback(async () => {
-    if (!providerId) return;
-    
-    setIsLoading(true);
-    try {
-      const factory = StorageFactory.getInstance();
-      const provider = await factory.getProvider(providerId);
-      setProviderInstance(provider);
-      setCurrentFolderId('root');
-      setFolderItems([]);
-      clearSelection();
-    } catch (error) {
-      console.error('Failed to load storage provider:', error);
-      setProviderInstance(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [providerId, clearSelection]);
-
-  // Load Provider wenn ID sich ändert
-  useEffect(() => {
-    loadProvider();
-  }, [loadProvider]);
+  }, [currentFolderId, listItems, folderCache, resolvePath, updateBreadcrumb, setBreadcrumbItems, selected.breadcrumb.items.length]);
 
   // Load Items wenn Provider oder Folder sich ändern
   useEffect(() => {
-    loadItems();
-  }, [loadItems]);
+    if (providerInstance) {
+      console.log('Library: Loading items for current folder due to provider or folder change');
+      loadItems().then(() => {
+        console.log('Library: Initial items loaded, ensuring breadcrumb is updated');
+        
+        // Stelle sicher, dass nach dem Laden der Breadcrumb nur aktualisiert wird, wenn nötig
+        if (selected.breadcrumb.items.length > 0 && currentFolderId !== 'root') {
+          console.log('Library: Stelle sicher, dass Breadcrumb für Nicht-Root-Ordner erhalten bleibt:', currentFolderId);
+          setBreadcrumbItems(selected.breadcrumb.items);
+        }
+      });
+    }
+  }, [loadItems, providerInstance, currentFolderId]);
 
   // Optimierter Folder Select Handler
   const handleFolderSelect = useCallback(async (item: StorageItem) => {
     if (item.type !== 'folder') return;
     
     console.time('folderSelect');
-    setIsLoading(true);
     try {
       console.time('parallelLoading');
       // Parallel fetch von Folder Contents und Path Resolution
       const [items, path] = await Promise.all([
-        providerInstance?.listItemsById(item.id),
+        listItems(item.id),
         resolvePath(item.id, folderCache)
       ]);
       console.timeEnd('parallelLoading');
@@ -359,23 +451,34 @@ export function Library({
         console.timeEnd('cacheUpdate');
         
         console.time('stateUpdates');
-        // Batch state updates using flushSync to ensure breadcrumb updates synchronously
-        flushSync(() => {
-          setCurrentFolderId(item.id);
-          setFolderItems(items);
-          // Update breadcrumb with the resolved path
-          updateBreadcrumb(path, item.id);
+        // Kein flushSync mehr verwenden, sondern getrennte State-Updates
+        setCurrentFolderId(item.id);
+        setFolderItems(items);
+        
+        // Update breadcrumb with the resolved path - wichtig für die Navigation
+        console.log('Library: Breadcrumb wird aktualisiert beim Ordnerwechsel zu', item.metadata.name);
+        updateBreadcrumb(path, item.id);
+        
+        // Aktualisiere auch das globale Atom
+        setBreadcrumbItems(path);
+        
+        // Lösche die Dateiauswahl nur, wenn wir aus einem anderen Ordner kommen
+        // oder wenn der Benutzer explizit auf einen anderen Ordner als den aktuellen klickt
+        if (currentFolderId !== item.id) {
+          console.log('Library: Lösche Dateiauswahl beim Wechsel zu anderem Ordner');
           clearSelection();
-        });
+        } else {
+          console.log('Library: Behalte Dateiauswahl beim Klick auf aktuellen Ordner');
+        }
+        
         console.timeEnd('stateUpdates');
       }
     } catch (error) {
       console.error('Failed to select folder:', error);
     } finally {
-      setIsLoading(false);
       console.timeEnd('folderSelect');
     }
-  }, [providerInstance, folderCache, resolvePath, updateBreadcrumb, clearSelection]);
+  }, [listItems, folderCache, resolvePath, updateBreadcrumb, clearSelection, setBreadcrumbItems, currentFolderId]);
 
   // Handler für Dateiauswahl
   const handleFileSelect = useCallback((item: StorageItem) => {
@@ -394,24 +497,36 @@ export function Library({
         children: undefined // Cache invalidieren
       });
     }
-    loadItems();
-  }, [loadItems, currentFolderId, folderCache]);
+    refreshItems(currentFolderId).then(items => {
+      setFolderItems(items);
+    });
+  }, [refreshItems, currentFolderId, folderCache]);
 
   return (
     <Profiler id="Library" onRender={onRenderCallback}>
       <div className="flex flex-col h-screen overflow-hidden">
         <LibraryHeader 
-          activeLibrary={activeLibrary}
-          breadcrumbItems={selected.breadcrumb.items}
-          currentFolderId={selected.breadcrumb.currentId}
+          activeLibrary={currentLibrary}
           onFolderSelect={handleFolderSelect}
           onRootClick={() => {
-            setCurrentFolderId('root');
-            setFolderItems([]);
-            updateBreadcrumb([], 'root');
+            // Prüfe, ob wir bereits im Root-Verzeichnis sind
+            if (currentFolderId !== 'root') {
+              console.log('Library: Wechsle zum Root-Verzeichnis');
+              setCurrentFolderId('root');
+              loadItems(); // Lade Items statt direkt zu leeren
+              
+              // Erst nach dem Laden der Items den Breadcrumb aktualisieren
+              // Dies passiert bereits in loadItems
+            } else {
+              console.log('Library: Bereits im Root-Verzeichnis, nur Breadcrumb leeren');
+              // Im Root-Verzeichnis bereits, setze nur den Breadcrumb zurück
+              updateBreadcrumb([], 'root');
+              setBreadcrumbItems([]);
+            }
           }}
           provider={providerInstance}
           onUploadComplete={handleUploadComplete}
+          error={storageError || localError}
         />
 
         {/* Main Content */}
@@ -451,12 +566,13 @@ export function Library({
               >
                 <div className={cn(panelStyles)}>
                   <div className={cn(treeStyles)}>
+                    
                     <FileTree 
                       provider={providerInstance}
                       onSelect={handleFolderSelect}
-                      currentFolderId={selected.breadcrumb.currentId}
-                      libraryName={activeLibrary?.label}
+                      libraryName={currentLibrary?.label}
                     />
+                    
                   </div>
                 </div>
               </ResizablePanel>
@@ -466,13 +582,14 @@ export function Library({
                   <h1 className="text-xl font-bold">Dateien</h1>
                 </div>
                 <Separator />
+                
                 <FileList 
                   items={finalItems}
                   selectedItem={selected.item}
                   onSelectAction={handleFileSelect}
                   searchTerm={searchQuery}
-                  currentFolderId={selected.breadcrumb.currentId}
                 />
+                
               </ResizablePanel>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={defaultLayout[2]} className="hidden lg:block">

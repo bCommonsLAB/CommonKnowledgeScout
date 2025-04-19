@@ -4,11 +4,12 @@ import * as React from 'react';
 import { ChevronDown, ChevronRight, Folder } from "lucide-react"
 import { StorageProvider, StorageItem } from '@/lib/storage/types';
 import { cn } from "@/lib/utils"
+import { useAtom } from 'jotai';
+import { currentFolderIdAtom } from '@/atoms/library-atom';
 
 interface FileTreeProps {
   provider: StorageProvider | null;
   onSelect: (item: StorageItem) => void;
-  currentFolderId: string;
   libraryName?: string;
 }
 
@@ -123,32 +124,114 @@ function TreeItem({
 export function FileTree({
   provider,
   onSelect,
-  currentFolderId,
   libraryName = "/"
 }: FileTreeProps) {
   const [rootItems, setRootItems] = React.useState<StorageItem[]>([]);
   const [loadedChildren, setLoadedChildren] = React.useState<Record<string, StorageItem[]>>({});
   const [isLoading, setIsLoading] = React.useState(false);
-
-  // Lade nur erste Ebene beim Start
+  
+  // Globales Atom für das aktuelle Verzeichnis verwenden
+  const [currentFolderId] = useAtom(currentFolderIdAtom);
+  
+  // Referenz für die letzte Provider-ID, um Änderungen zu verfolgen
+  const previousProviderIdRef = React.useRef<string | null>(null);
+  
+  // Referenz für die letzte Anfrage, um veraltete Antworten zu verwerfen
+  const lastRequestRef = React.useRef<number>(0);
+  
+  // Provider ID für Vergleiche extrahieren
+  const providerId = React.useMemo(() => provider?.id || null, [provider]);
+  
+  // Debug-Logging für Provider-Wechsel
   React.useEffect(() => {
-    const loadRoot = async () => {
-      if (!provider) return;
-      setIsLoading(true);
+    console.log('FileTree: Provider geändert', {
+      vorherigerId: previousProviderIdRef.current,
+      aktuellerId: providerId,
+      providerVorhanden: !!provider,
+      libraryName,
+      currentFolderId,
+      zeitpunkt: new Date().toISOString()
+    });
+    
+    // Prüfen, ob sich der Provider geändert hat
+    if (providerId !== previousProviderIdRef.current) {
+      console.log('FileTree: Provider-ID hat sich geändert, setze Zustand zurück');
+      // Zustand zurücksetzen
+      setRootItems([]);
+      setLoadedChildren({});
+      previousProviderIdRef.current = providerId;
+      
+      // Die Aktualisierungsreihenfolge ist wichtig - zuerst zurücksetzen, dann neu laden
+      requestAnimationFrame(() => {
+        console.log('FileTree: Triggerung forced reload after provider change');
+        if (provider) {
+          loadRootItems(provider);
+        }
+      });
+    }
+  }, [provider, providerId, libraryName, currentFolderId]);
+
+  // Funktion zum Laden der Root-Elemente, jetzt ausgelagert für expliziten Aufruf
+  const loadRootItems = React.useCallback(async (currentProvider: StorageProvider) => {
+    if (!currentProvider) return;
+    
+    // Für Anfragenverfolgung
+    const requestId = ++lastRequestRef.current;
+    console.log(`FileTree: Starting root load (request #${requestId}) for provider ${currentProvider.id}`);
+    
+    setIsLoading(true);
+    try {
+      // Den Pfad explizit erfragen, um zu sehen, wohin die Anfrage geht
       try {
-        const items = await provider.listItemsById('root');
-        setRootItems(items.filter(item => 
-          item.type === 'folder' && 
-          !item.metadata.name.startsWith('.')
-        ));
-      } catch (error) {
-        console.error('Failed to load root:', error);
-      } finally {
+        const rootPath = await currentProvider.getPathById('root');
+        console.log(`FileTree: Root path for provider ${currentProvider.id} is "${rootPath}", provider name: ${currentProvider.name}`);
+      } catch (e) {
+        console.warn('FileTree: Could not get root path:', e);
+      }
+      
+      const items = await currentProvider.listItemsById('root');
+      
+      // Prüfen, ob dies die aktuellste Anfrage ist
+      if (requestId !== lastRequestRef.current) {
+        console.log(`FileTree: Request #${requestId} obsolete, current is #${lastRequestRef.current}`);
+        return;
+      }
+      
+      console.log(`FileTree: Loaded ${items.length} root items for provider ${currentProvider.id}`, {
+        itemNames: items.map(i => i.metadata.name).join(', ')
+      });
+      
+      const filteredItems = items.filter(item => 
+        item.type === 'folder' && 
+        !item.metadata.name.startsWith('.')
+      ).sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
+      
+      console.log(`FileTree: After filtering, ${filteredItems.length} folders remain`);
+      setRootItems(filteredItems);
+    } catch (error) {
+      console.error('FileTree: Failed to load root items:', error);
+      setRootItems([]); // Stelle sicher, dass wir keine alten Daten anzeigen
+    } finally {
+      if (requestId === lastRequestRef.current) {
         setIsLoading(false);
       }
-    };
-    loadRoot();
-  }, [provider]);
+    }
+  }, []);
+
+  // Lade nur erste Ebene beim Start oder durch explizites Signal
+  React.useEffect(() => {
+    if (provider) {
+      console.log('FileTree: Initial root items load for provider', { 
+        providerId: provider.id, 
+        providerName: provider.name
+      });
+      loadRootItems(provider);
+    } else {
+      console.log('FileTree: No provider available, cannot load items');
+      setRootItems([]);
+      setLoadedChildren({});
+    }
+  }, [provider, loadRootItems]);
 
   // Handler für Expand-Click
   const handleExpand = async (folderId: string) => {

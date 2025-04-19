@@ -8,9 +8,9 @@ export class FileSystemClient implements StorageProvider {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 5000; // 5 Sekunden Cache
 
-  constructor(baseUrl: string = '/api/storage/filesystem', libraryId: string = 'local') {
+  constructor(baseUrl: string = '/api/storage/filesystem', libraryId?: string) {
     this.baseUrl = baseUrl;
-    this.libraryId = libraryId;
+    this.libraryId = libraryId || '';
   }
 
   private getCacheKey(action: string, id: string): string {
@@ -155,6 +155,21 @@ export class FileSystemClient implements StorageProvider {
       return { blob, mimeType };
     } catch (error) {
       console.error('[FileSystemClient] Fehler beim Abrufen der Binärdaten:', error);
+      throw error;
+    }
+  }
+
+  async getPathById(itemId: string): Promise<string> {
+    console.log('[FileSystemClient] getPathById aufgerufen mit itemId:', itemId);
+    const url = `${this.baseUrl}?action=path&fileId=${encodeURIComponent(itemId)}`;
+    
+    try {
+      const response = await this.fetchWithError(url);
+      const path = await response.text();
+      console.log('[FileSystemClient] Pfad erhalten:', path);
+      return path;
+    } catch (error) {
+      console.error('[FileSystemClient] Fehler beim Abrufen des Pfads:', error);
       throw error;
     }
   }

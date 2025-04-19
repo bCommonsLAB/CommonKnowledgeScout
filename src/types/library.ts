@@ -87,6 +87,9 @@ export interface ClientLibrary {
   
   /** Safe configuration data (excludes sensitive information) */
   config: Record<string, unknown>;
+  
+  /** Optional icon component for UI representation */
+  icon?: ReactNode;
 }
 
 /**

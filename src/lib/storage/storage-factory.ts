@@ -13,7 +13,7 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   get id() {
-    return 'local';
+    return this.library.id;
   }
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
@@ -136,31 +136,107 @@ export class StorageFactory {
   }
 
   setLibraries(libraries: ClientLibrary[]) {
+    console.log(`StorageFactory: setLibraries aufgerufen mit ${libraries.length} Bibliotheken`);
+    
+    if (libraries.length === 0) {
+      console.warn(`StorageFactory: Warnung - Leere Bibliotheksliste übergeben!`);
+      // Bibliotheksliste nicht leeren, wenn eine neue leere Liste übergeben wird
+      // Dies verhindert Probleme, wenn die Komponente mit einer leeren Liste initialisiert wird
+      return;
+    }
+    
+    // Bibliotheksdaten protokollieren
+    console.log(`StorageFactory: Bibliotheksdaten:`, libraries.map(lib => ({
+      id: lib.id,
+      label: lib.label,
+      path: lib.path || 'kein Pfad'
+    })));
+    
     this.libraries = libraries;
-    // Reset providers when libraries change
-    this.providers.clear();
+    
+    // Die Provider nur zurücksetzen, wenn sich die IDs der Bibliotheken geändert haben
+    // Dies verhindert unnötiges Neuladen bei redundanten setLibraries-Aufrufen
+    const currentProviderIds = Array.from(this.providers.keys());
+    const newLibraryIds = libraries.map(lib => lib.id);
+    
+    const hasChanges = currentProviderIds.some(id => !newLibraryIds.includes(id)) ||
+                       newLibraryIds.some(id => !currentProviderIds.includes(id));
+    
+    if (hasChanges) {
+      console.log(`StorageFactory: Bibliotheksliste hat sich geändert, setze Provider zurück`);
+      this.providers.clear();
+    } else {
+      console.log(`StorageFactory: Bibliotheksliste unverändert, behalte bestehende Provider`);
+    }
+  }
+
+  // Löscht einen bestimmten Provider aus dem Cache, um eine Neuinitialisierung zu erzwingen
+  async clearProvider(libraryId: string): Promise<void> {
+    console.log(`StorageFactory: Lösche Provider für Bibliothek ${libraryId} aus dem Cache`);
+    
+    // Zusätzliche Debugging-Informationen
+    const existingProvider = this.providers.get(libraryId);
+    const library = this.libraries.find(lib => lib.id === libraryId);
+    
+    if (existingProvider) {
+      console.log(`StorageFactory: Lösche Provider-Details:`, {
+        providerId: libraryId,
+        providerName: existingProvider.name,
+        cachedLibraryPath: (existingProvider as any)._libraryPath || 'nicht verfügbar',
+        aktuelleBibliothekPath: library?.path || 'nicht verfügbar',
+        zeitpunkt: new Date().toISOString()
+      });
+    } else {
+      console.log(`StorageFactory: Kein Provider im Cache für Bibliothek ${libraryId}`);
+    }
+    
+    this.providers.delete(libraryId);
+    console.log(`StorageFactory: Provider für ${libraryId} wurde aus dem Cache entfernt`);
   }
 
   async getProvider(libraryId: string): Promise<StorageProvider> {
+    console.log(`StorageFactory: getProvider aufgerufen für Bibliothek ${libraryId}`);
+    
     // Check if provider already exists
     if (this.providers.has(libraryId)) {
+      console.log(`StorageFactory: Verwende existierenden Provider für Bibliothek ${libraryId}`);
       return this.providers.get(libraryId)!;
     }
 
     // Find library
     const library = this.libraries.find(lib => lib.id === libraryId);
     if (!library) {
-      throw new Error(`Library ${libraryId} not found`);
+      console.error(`StorageFactory: Bibliothek ${libraryId} nicht gefunden!`);
+      console.log(`StorageFactory: Verfügbare Bibliotheken:`, this.libraries.map(lib => ({
+        id: lib.id,
+        label: lib.label
+      })));
+      
+      // Spezifischen Fehler werfen, den wir später abfangen können
+      const error = new Error(`Bibliothek ${libraryId} nicht gefunden`);
+      error.name = 'LibraryNotFoundError';
+      (error as any).errorCode = 'LIBRARY_NOT_FOUND';
+      (error as any).libraryId = libraryId;
+      throw error;
     }
+
+    console.log(`StorageFactory: Erstelle neuen Provider für Bibliothek:`, {
+      id: library.id,
+      label: library.label,
+      path: library.path,
+      type: library.type
+    });
 
     // Create provider based on library type
     let provider: StorageProvider;
     switch (library.type) {
       case 'local':
         provider = new LocalStorageProvider(library);
+        console.log(`StorageFactory: LocalStorageProvider erstellt für "${library.path}"`);
         break;
       // Add more provider types here
       default:
+        console.error(`StorageFactory: Nicht unterstützter Bibliothekstyp: ${library.type}`);
         throw new Error(`Unsupported library type: ${library.type}`);
     }
 

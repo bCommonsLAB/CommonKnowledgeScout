@@ -108,14 +108,48 @@ export function useSelectedFile(): UseSelectedFileReturn {
 
   // Breadcrumb aktualisieren
   const updateBreadcrumb = useCallback((items: StorageItem[], currentId: string) => {
-    setSelected(prev => ({
-      ...prev,
-      breadcrumb: {
-        items,
-        currentId
+    console.log('useSelectedFile: updateBreadcrumb', { 
+      itemsCount: items.length, 
+      items: items.map(item => item.metadata.name).join('/'),
+      currentId,
+      action: 'START'
+    });
+    
+    // Nicht aktualisieren, wenn leere Items übergeben werden und wir uns nicht im Root-Verzeichnis befinden
+    // Dies verhindert, dass der Breadcrumb unbeabsichtigt zurückgesetzt wird
+    if (items.length === 0 && currentId !== 'root' && selected.breadcrumb.items.length > 0) {
+      console.warn('useSelectedFile: Versuch, Breadcrumb mit leeren Items zu setzen wurde verhindert', {
+        currentId,
+        existingItems: selected.breadcrumb.items.length
+      });
+      return;
+    }
+    
+    setSelected(prev => {
+      // Wenn der Breadcrumb identisch ist, keine Aktualisierung durchführen
+      if (prev.breadcrumb.currentId === currentId && 
+          prev.breadcrumb.items.length === items.length && 
+          JSON.stringify(prev.breadcrumb.items.map(i => i.id)) === JSON.stringify(items.map(i => i.id))) {
+        console.log('useSelectedFile: Breadcrumb unverändert, keine Aktualisierung');
+        return prev;
       }
-    }));
-  }, []);
+      
+      console.log('useSelectedFile: Breadcrumb aktualisiert', {
+        prevItems: prev.breadcrumb.items.length,
+        newItems: items.length,
+        prevId: prev.breadcrumb.currentId,
+        newId: currentId
+      });
+      
+      return {
+        ...prev,
+        breadcrumb: {
+          items,
+          currentId
+        }
+      };
+    });
+  }, [selected.breadcrumb.items]);
 
   // Auswahl zurücksetzen
   const clearSelection = useCallback(() => {

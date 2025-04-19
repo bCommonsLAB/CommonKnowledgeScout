@@ -5,6 +5,8 @@ import { StorageItem } from '@/lib/storage/types';
 import { AudioTransform } from './audio-transform';
 import { Button } from '@/components/ui/button';
 import { Wand2 } from 'lucide-react';
+import { useAtomValue } from 'jotai';
+import { activeLibraryIdAtom } from '@/atoms/library-atom';
 
 interface AudioPlayerProps {
   item: StorageItem;
@@ -28,6 +30,9 @@ export const AudioPlayer = memo(function AudioPlayer({ item }: AudioPlayerProps)
     networkState: number;
     buffered: { start: number; end: number } | null;
   } | null>(null);
+  
+  // Hole die aktive Bibliotheks-ID aus dem globalen Zustand
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
 
   // Debug Logging
   useEffect(() => {
@@ -149,7 +154,7 @@ export const AudioPlayer = memo(function AudioPlayer({ item }: AudioPlayerProps)
     }
   };
 
-  const audioUrl = `/api/storage/filesystem?action=binary&fileId=${item.id}`;
+  const audioUrl = `/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`;
 
   return (
     <div className="my-4 mx-4">

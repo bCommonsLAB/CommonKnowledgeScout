@@ -11,13 +11,11 @@ export type FileType = 'folder' | 'audio' | 'video' | 'pdf' | 'text' | 'markdown
  * Props for the FileTree component which displays the folder hierarchy.
  * @property {StorageProvider | null} provider - The active storage provider for file operations
  * @property {Function} onSelect - Callback function when a folder is selected
- * @property {string} currentFolderId - ID of the currently selected folder
  * @property {string} [libraryName] - Optional name of the library to display at root level
  */
 export interface FileTreeProps {
   provider: StorageProvider | null;
   onSelect: (item: StorageItem) => void;
-  currentFolderId: string;
   libraryName?: string;
 }
 
@@ -25,23 +23,45 @@ export interface FileTreeProps {
  * Props for the FileList component which displays files in the current folder.
  * @property {StorageItem[]} items - Array of items to display in the list
  * @property {StorageItem | null} selectedItem - Currently selected item
- * @property {Function} onSelect - Callback function when an item is selected
- * @property {string} currentFolderId - ID of the current folder being displayed
+ * @property {Function} onSelectAction - Callback function when an item is selected
+ * @property {string} [searchTerm] - Optional search term to filter the items
  */
 export interface FileListProps {
   items: StorageItem[];
   selectedItem: StorageItem | null;
-  onSelect: (item: StorageItem) => void;
-  currentFolderId: string;
+  onSelectAction: (item: StorageItem) => void;
+  searchTerm?: string;
+}
+
+/**
+ * Props for the LibraryHeader component which displays the path and actions for the current folder.
+ * @property {ClientLibrary | undefined} activeLibrary - The currently active library
+ * @property {StorageItem[]} breadcrumbItems - Items to show in the breadcrumb path
+ * @property {Function} onFolderSelect - Callback when a folder in the breadcrumb is selected
+ * @property {Function} onRootClick - Callback when the root folder is selected
+ * @property {StorageProvider | null} provider - The active storage provider
+ * @property {Function} [onUploadComplete] - Optional callback when an upload completes
+ * @property {string | null} [error] - Optional error message to display
+ */
+export interface LibraryHeaderProps {
+  activeLibrary: ClientLibrary | undefined;
+  breadcrumbItems: StorageItem[];
+  onFolderSelect: (item: StorageItem) => void;
+  onRootClick: () => void;
+  provider: StorageProvider | null;
+  onUploadComplete?: () => void;
+  error?: string | null;
 }
 
 /**
  * Props for the FilePreview component which shows file previews.
  * @property {StorageItem | null} item - The item to preview
+ * @property {StorageProvider | null} provider - The storage provider to fetch content
  * @property {string} [className] - Optional CSS class name for styling
  */
 export interface FilePreviewProps {
   item: StorageItem | null;
+  provider: StorageProvider | null;
   className?: string;
 }
 

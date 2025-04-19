@@ -12,6 +12,8 @@ import { MarkdownPreview } from './markdown-preview';
 import { MarkdownMetadata, extractFrontmatter } from './markdown-metadata';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
+import { useAtomValue } from "jotai";
+import { activeLibraryIdAtom } from "@/atoms/library-atom";
 
 interface FilePreviewProps {
   item: StorageItem | null;
@@ -59,6 +61,9 @@ export const FilePreview = React.memo(function FilePreview({
   provider,
   className 
 }: FilePreviewProps) {
+  // Hole die aktive Bibliotheks-ID aus dem globalen Zustand
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+
   // Early return for empty state
   if (!item) {
     return (
@@ -211,7 +216,7 @@ export const FilePreview = React.memo(function FilePreview({
         case 'image':
           return (
             <img 
-              src={`/api/storage/filesystem?action=binary&fileId=${item.id}`}
+              src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
               alt={item.metadata.name}
               className="max-w-full h-auto"
             />
@@ -220,7 +225,7 @@ export const FilePreview = React.memo(function FilePreview({
           return (
             <video 
               controls
-              src={`/api/storage/filesystem?action=binary&fileId=${item.id}`}
+              src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
               className="max-w-full h-auto"
             />
           );
@@ -239,7 +244,7 @@ export const FilePreview = React.memo(function FilePreview({
         case 'presentation':
           return (
             <iframe 
-              src={`/api/storage/filesystem?action=binary&fileId=${item.id}`}
+              src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
               title={item.metadata.name}
               className="w-full h-screen"
             />
@@ -315,7 +320,7 @@ export const FilePreview = React.memo(function FilePreview({
         </TabsContent>
       </Tabs>
     );
-  }, [item, state, fileType, isAudioFile, isVideoFile, provider, audioPlayer]);
+  }, [item, state, fileType, isAudioFile, isVideoFile, provider, audioPlayer, activeLibraryId]);
 
   return (
     <div className={cn("h-full overflow-y-auto", className)}>

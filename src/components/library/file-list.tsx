@@ -7,13 +7,14 @@ import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { usePerformanceTracking } from "@/hooks/use-performance-tracking"
+import { useAtomValue } from "jotai"
+import { currentFolderIdAtom } from "@/atoms/library-atom"
 
 interface FileListProps {
   items: StorageItem[]
   selectedItem: StorageItem | null
   onSelectAction: (item: StorageItem) => void
   searchTerm?: string
-  currentFolderId: string
 }
 
 // Memoized file icon component
@@ -147,9 +148,11 @@ export const FileList = React.memo(function FileList({
   items,
   selectedItem,
   onSelectAction,
-  searchTerm = "",
-  currentFolderId
+  searchTerm = ""
 }: FileListProps) {
+  // Globalen State für aktuelles Verzeichnis verwenden - nur lesen mit useAtomValue
+  const currentFolderId = useAtomValue(currentFolderIdAtom);
+
   // Track performance with minimal dependencies
   usePerformanceTracking('FileList', [currentFolderId]);
 
@@ -181,23 +184,30 @@ export const FileList = React.memo(function FileList({
   }, []);
 
   // Filter files
-  const files = React.useMemo(() => 
-    items
+  const files = React.useMemo(() => {
+    console.log(`FileList: Filtering ${items.length} items with searchTerm '${searchTerm}'`);
+    
+    if (!items || items.length === 0) {
+      console.log(`FileList: No items to filter`);
+      return [];
+    }
+    
+    return items
       .filter(item => item.type === 'file')  // Only show files, not folders
       .filter(item => !item.metadata.name.startsWith('.'))  // Hide hidden files
       .filter(item => !item.metadata.isTwin)  // Hide twin files
       .filter(item => 
         searchTerm === "" || 
         item.metadata.name.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [items, searchTerm]  // Add dependencies
-  );
+      )
+      .sort((a, b) => a.metadata.name.localeCompare(b.metadata.name)); // Alphabetische Sortierung
+  }, [items, searchTerm]);
 
   return (
     <div className="h-full overflow-auto">
-      {files.length === 0 ? (
+      {!items || files.length === 0 ? (
         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          Keine Dateien gefunden
+          {!items ? 'Provider nicht verfügbar' : 'Keine Dateien gefunden'}
         </div>
       ) : (
         <div className="divide-y">
@@ -224,7 +234,6 @@ export const FileList = React.memo(function FileList({
   );
 }, (prevProps, nextProps) => {
   return (
-    prevProps.currentFolderId === nextProps.currentFolderId &&
     prevProps.selectedItem?.id === nextProps.selectedItem?.id &&
     prevProps.items === nextProps.items &&
     prevProps.searchTerm === nextProps.searchTerm

@@ -8,6 +8,8 @@ import { transformAudio } from '@/lib/secretary/client';
 import { saveShadowTwin } from '@/lib/storage/shadow-twin';
 import { StorageService } from '@/lib/storage/storage-service';
 import { toast } from 'sonner';
+import { useAtomValue } from 'jotai';
+import { activeLibraryIdAtom } from '@/atoms/library-atom';
 
 interface AudioTransformProps {
   item: StorageItem;
@@ -22,13 +24,16 @@ const LANGUAGES = [
 export function AudioTransform({ item, onTransformComplete }: AudioTransformProps) {
   const [isTransforming, setIsTransforming] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState('de');
+  
+  // Hole die aktive Bibliotheks-ID aus dem globalen Zustand
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
 
   const handleTransform = async () => {
     try {
       setIsTransforming(true);
 
-      // Datei vom Server laden
-      const response = await fetch(`/api/storage/filesystem?action=binary&fileId=${item.id}`);
+      // Datei vom Server laden mit Bibliotheks-ID
+      const response = await fetch(`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`);
       const blob = await response.blob();
       const file = new File([blob], item.metadata.name, { type: item.metadata.mimeType });
 
