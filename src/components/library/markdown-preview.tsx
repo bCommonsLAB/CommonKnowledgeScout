@@ -12,9 +12,14 @@ import 'highlight.js/styles/github-dark.css';
 import { z } from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { transformText } from "@/lib/secretary/client"; 
+import { transformText } from "@/lib/secretary/client";
 import { useAtomValue } from "jotai";
 import { activeLibraryAtom } from "@/atoms/library-atom";
+import { useStorage } from "@/contexts/storage-context";
+import { TransformService, TransformSaveOptions, TransformResult } from "@/lib/transform/transform-service";
+import { Label } from "@/components/ui/label";
+import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
+import { TransformResultHandler } from "@/components/library/transform-result-handler";
 
 interface MarkdownPreviewProps {
   content: string;
@@ -23,6 +28,7 @@ interface MarkdownPreviewProps {
   currentItem?: StorageItem | null;
   className?: string;
   onTransform?: () => void;
+  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
 /**
@@ -33,86 +39,100 @@ interface TextTransformProps {
   currentItem?: StorageItem | null;
   provider?: StorageProvider | null;
   onTransform: (transformedContent: string) => void;
+  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
 /**
  * TextTransform component for transforming markdown content
  */
-const TextTransform = ({ content, currentItem, provider, onTransform }: TextTransformProps) => {
+const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshFolder }: TextTransformProps) => {
   const [text, setText] = React.useState(content);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [targetLanguage, setTargetLanguage] = React.useState("de");
   const [template, setTemplate] = React.useState("Besprechung");
+  
+  // Hilfsfunktion für den Dateinamen
+  const getBaseFileName = React.useCallback((fileName: string): string => {
+    const lastDotIndex = fileName.lastIndexOf(".");
+    return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
+  }, []);
+  
+  // Initialisiere saveOptions mit korrektem Dateinamen
+  const [saveOptions, setSaveOptions] = React.useState<TransformSaveOptions>(() => {
+    return {
+      targetLanguage: "de",
+      fileName: currentItem?.metadata.name 
+        ? getBaseFileName(currentItem.metadata.name) 
+        : "transformation",
+      createShadowTwin: true,
+      fileExtension: "md"
+    };
+  });
+  
   const activeLibrary = useAtomValue(activeLibraryAtom);
+  const { refreshItems } = useStorage();
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
   };
-
+  
+  // Referenz für den TransformResultHandler
+  const transformResultHandlerRef = React.useRef<(result: TransformResult) => void>(() => {});
+  
   const handleTransformClick = async () => {
+    if (!provider || !currentItem) {
+      toast.error("Fehler", {
+        description: "Provider oder Datei nicht verfügbar",
+        duration: 7000
+      });
+      return;
+    }
+    
+    if (!activeLibrary?.config.secretaryService || 
+        !activeLibrary.config.secretaryService.apiUrl || 
+        !activeLibrary.config.secretaryService.apiKey) {
+      toast.error("Fehler", {
+        description: "Secretary Service API URL oder API Key nicht konfiguriert",
+        duration: 7000
+      });
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      // Prüfen, ob Secretary Service konfiguriert ist
-      if (!activeLibrary?.config.secretaryService || 
-          !activeLibrary.config.secretaryService.apiUrl || 
-          !activeLibrary.config.secretaryService.apiKey) {
-        throw new Error("Secretary Service API URL oder API Key nicht konfiguriert");
-      }
-
-      // Transformation mit dem Secretary Service
-      const transformedContent = await transformText(
+      // Transformation mit dem TransformService
+      const result = await TransformService.transformText(
         text, 
-        targetLanguage, 
+        currentItem,
+        saveOptions,
+        provider,
+        refreshItems,
         activeLibrary.id,
         activeLibrary.config.secretaryService.apiUrl, 
         activeLibrary.config.secretaryService.apiKey,
         template
       );
 
-      console.log(transformedContent);
-
-      /*
-      // Shadow-Twin speichern
-      const originalTwinItem = await saveShadowTwin(
-        item,
-        { output_text: transformedText },
-        targetLanguage,
-        provider
-      );
-
-      // Das Verzeichnis neu laden und die aktualisierten Items erhalten
-      const updatedItems = await refreshItems(item.parentId);
-      
-      // Den Namen des erwarteten Twin-Items ermitteln
-      const twinFileName = generateShadowTwinName(item.metadata.name, targetLanguage);
-      
-      // Das aktualisierte Twin-Item in der neuen Liste finden
-      const updatedTwinItem = updatedItems.find(updatedItem => 
-        updatedItem.metadata.name === twinFileName
-      );
-      
-      // Das aktualisierte Twin-Item auswählen, wenn vorhanden, sonst das ursprüngliche
-      const twinItemToSelect = updatedTwinItem || originalTwinItem;
-      
-      
-      // Den neuen Twin auswählen mit dem aktualisierten Objekt
-      selectFile(twinItemToSelect);
-
-      toast.success("Transkription erfolgreich", {
-        description: "Die Audio-Datei wurde erfolgreich transkribiert, bitte den Text kontrollieren und mit einer Transformation fortfahren.",
-        duration: 7000
+      console.log('Markdown Transformation abgeschlossen:', {
+        textLength: result.text.length,
+        savedItemId: result.savedItem?.id,
+        updatedItemsCount: result.updatedItems.length
       });
 
-      // Gib den Text, das neue Twin-Item UND die aktualisierten Items zurück
-      onTransformComplete(text, twinItemToSelect, updatedItems);
-
-
-      toast.success("Transformation erfolgreich", {
-        description: "Der Text wurde erfolgreich transformiert.",
-        duration: 7000
-      });
-      */
-      onTransform(transformedContent);
+      // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
+      if (onRefreshFolder && currentItem.parentId && result.updatedItems.length > 0) {
+        console.log('Informiere Library über aktualisierte Dateiliste', {
+          folderId: currentItem.parentId,
+          itemsCount: result.updatedItems.length,
+          savedItemId: result.savedItem?.id
+        });
+        onRefreshFolder(currentItem.parentId, result.updatedItems, result.savedItem || undefined);
+      } else {
+        // Wenn kein onRefreshFolder-Handler da ist, rufen wir selbst den handleTransformResult auf
+        transformResultHandlerRef.current(result);
+      }
+      
+      // Jetzt den allgemeinen onTransform-Callback aufrufen
+      onTransform(result.text);
     } catch (error) {
       console.error("Fehler bei der Transformation:", error);
       toast.error("Fehler", {
@@ -124,6 +144,10 @@ const TextTransform = ({ content, currentItem, provider, onTransform }: TextTran
     }
   };
 
+  const handleSaveOptionsChange = (options: TransformSaveOptions) => {
+    setSaveOptions(options);
+  };
+
   return (
     <div className="p-4 space-y-4">
       <div className="text-sm font-medium">Text transformieren</div>
@@ -133,54 +157,66 @@ const TextTransform = ({ content, currentItem, provider, onTransform }: TextTran
         className="min-h-[300px] font-mono text-sm"
         placeholder="Markdown-Text zur Transformation eingeben..."
       />
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
-          <Select
-            value={targetLanguage}
-            onValueChange={setTargetLanguage}
-            disabled={isLoading}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sprache auswählen" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="de">Deutsch</SelectItem>
-              <SelectItem value="en">Englisch</SelectItem>
-              <SelectItem value="fr">Französisch</SelectItem>
-              <SelectItem value="es">Spanisch</SelectItem>
-              <SelectItem value="it">Italienisch</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={template}
-            onValueChange={setTemplate}
-            disabled={isLoading}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Template auswählen" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Besprechung">Besprechung</SelectItem>
-              <SelectItem value="Gedanken">Gedanken</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex justify-end">
-          <Button 
-            onClick={handleTransformClick}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>Wird transformiert...</>
-            ) : (
-              <>
-                <Wand2 className="h-4 w-4 mr-2" />
-                Transformieren
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
+      
+      <TransformResultHandler 
+        onResultProcessed={() => {
+          console.log("Transformation vollständig abgeschlossen und Datei ausgewählt");
+          // Hier könnten zusätzliche Aktionen ausgeführt werden
+        }}
+      >
+        {(handleTransformResult, isProcessingResult) => {
+          // Speichere die handleTransformResult-Funktion in der Ref
+          transformResultHandlerRef.current = handleTransformResult;
+          
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SaveOptionsComponent 
+                originalFileName={currentItem?.metadata.name || "transformation"}
+                onOptionsChange={handleSaveOptionsChange}
+                className="p-4 border rounded-md"
+              />
+              
+              <div className="space-y-4 p-4 border rounded-md">
+                <div>
+                  <Label htmlFor="template">Vorlage</Label>
+                  <Select
+                    value={template}
+                    onValueChange={setTemplate}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="template">
+                      <SelectValue placeholder="Vorlage auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Besprechung">Besprechung</SelectItem>
+                      <SelectItem value="Gedanken">Gedanken</SelectItem>
+                      <SelectItem value="Interview">Interview</SelectItem>
+                      <SelectItem value="Zusammenfassung">Zusammenfassung</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex justify-end pt-4">
+                  <Button 
+                    onClick={handleTransformClick}
+                    disabled={isLoading || isProcessingResult}
+                    className="w-full"
+                  >
+                    {isLoading ? (
+                      <>Wird transformiert...</>
+                    ) : (
+                      <>
+                        <Wand2 className="h-4 w-4 mr-2" />
+                        Transformieren
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        }}
+      </TransformResultHandler>
     </div>
   );
 };
@@ -485,9 +521,15 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   provider = null,
   currentItem = null,
   className,
-  onTransform
+  onTransform,
+  onRefreshFolder
 }: MarkdownPreviewProps) {
   const [activeTab, setActiveTab] = React.useState<string>("preview");
+  
+  // Bei Änderung der Datei-ID auf Vorschau-Tab zurücksetzen
+  React.useEffect(() => {
+    setActiveTab("preview");
+  }, [currentItem?.id]);
   
   // Memoize the markdown renderer
   const renderedContent = React.useMemo(() => {
@@ -562,6 +604,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
             currentItem={currentItem}
             provider={provider}
             onTransform={handleTransformComplete}
+            onRefreshFolder={onRefreshFolder}
           />
         </TabsContent>
       </Tabs>
@@ -575,6 +618,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     prevProps.provider === nextProps.provider &&
     prevProps.currentItem?.id === nextProps.currentItem?.id &&
     prevProps.className === nextProps.className &&
-    prevProps.onTransform === nextProps.onTransform
+    prevProps.onTransform === nextProps.onTransform &&
+    prevProps.onRefreshFolder === nextProps.onRefreshFolder
   );
 }); 

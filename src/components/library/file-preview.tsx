@@ -195,6 +195,11 @@ function PreviewContent({
     case 'markdown':
       const [activeTab, setActiveTab] = React.useState<string>("preview");
       
+      // Bei Änderung der Datei-ID auf Vorschau-Tab zurücksetzen
+      React.useEffect(() => {
+        setActiveTab("preview");
+      }, [item.id]);
+      
       return (
         <Tabs defaultValue="preview" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mx-4 mt-2">
@@ -211,6 +216,7 @@ function PreviewContent({
                 // Hier zur Bearbeitungsansicht wechseln
                 setActiveTab("edit");
               }}
+              onRefreshFolder={onRefreshFolder}
             />
           </TabsContent>
           <TabsContent value="edit">

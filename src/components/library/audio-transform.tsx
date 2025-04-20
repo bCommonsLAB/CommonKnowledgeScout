@@ -1,30 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { transformAudio } from "@/lib/secretary/client";
-import { toast } from "sonner";
 import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
-import { saveShadowTwin, generateShadowTwinName } from "@/lib/storage/shadow-twin";
 import { useAtomValue } from "jotai";
 import { activeLibraryAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
-import { useSelectedFile } from "@/hooks/use-selected-file";
+import { toast } from "sonner";
+import { TransformService, TransformSaveOptions, TransformResult } from "@/lib/transform/transform-service";
+import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
+import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
+import { TransformResultHandler } from "@/components/library/transform-result-handler";
 
 interface AudioTransformProps {
   item: StorageItem;
-  onTransformComplete: (text: string, twinItem?: StorageItem, updatedItems?: StorageItem[]) => void;
+  onTransformComplete?: (text: string, twinItem?: StorageItem, updatedItems?: StorageItem[]) => void;
+  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-export function AudioTransform({ item, onTransformComplete }: AudioTransformProps) {
+export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: AudioTransformProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [targetLanguage, setTargetLanguage] = useState("de");
+  const [saveOptions, setSaveOptions] = useState<SaveOptionsType>({
+    targetLanguage: "de",
+    fileName: item.metadata.name,
+    createShadowTwin: true,
+    fileExtension: "md"
+  });
+  
+  // Referenz für den TransformResultHandler
+  const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});
+  
   const provider = useStorageProvider();
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const { refreshItems } = useStorage();
-  const { selectFile } = useSelectedFile();
   
   const handleTransform = async () => {
     if (!provider) {
@@ -34,6 +43,23 @@ export function AudioTransform({ item, onTransformComplete }: AudioTransformProp
       });
       return;
     }
+    
+    if (!activeLibrary) {
+      toast.error("Fehler", {
+        description: "Aktive Bibliothek nicht gefunden",
+        duration: 7000
+      });
+      return;
+    }
+    
+    if (!activeLibrary.config.secretaryService || !activeLibrary.config.secretaryService.apiUrl || !activeLibrary.config.secretaryService.apiKey) {
+      toast.error("Fehler", {
+        description: "Secretary Service API URL oder API Key nicht konfiguriert",
+        duration: 7000
+      });
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -43,51 +69,44 @@ export function AudioTransform({ item, onTransformComplete }: AudioTransformProp
         throw new Error("Datei konnte nicht geladen werden");
       }
 
-      if (!activeLibrary) {
-        throw new Error("Aktive Bibliothek nicht gefunden");
-      }
-      if (!activeLibrary.config.secretaryService || !activeLibrary.config.secretaryService.apiUrl || !activeLibrary.config.secretaryService.apiKey) {
-        throw new Error("Secretary Service API URL oder API Key nicht konfiguriert");
-      }
       // Konvertiere Blob zu File für die Verarbeitung
       const file = new File([blob], item.metadata.name, { type: item.metadata.mimeType });
 
-      // Audio transformieren - Die Secretary-Header werden automatisch gesetzt
-      const text = await transformAudio(file, targetLanguage, activeLibrary.id, activeLibrary.config.secretaryService.apiUrl, activeLibrary.config.secretaryService.apiKey);
-
-      // Shadow-Twin speichern
-      const originalTwinItem = await saveShadowTwin(
+      // Transformiere die Audio-Datei mit dem TransformService
+      const result = await TransformService.transformAudio(
+        file,
         item,
-        { output_text: text },
-        targetLanguage,
-        provider
+        saveOptions,
+        provider,
+        refreshItems,
+        activeLibrary.id,
+        activeLibrary.config.secretaryService.apiUrl,
+        activeLibrary.config.secretaryService.apiKey
       );
 
-      // Das Verzeichnis neu laden und die aktualisierten Items erhalten
-      const updatedItems = await refreshItems(item.parentId);
-      
-      // Den Namen des erwarteten Twin-Items ermitteln
-      const twinFileName = generateShadowTwinName(item.metadata.name, targetLanguage);
-      
-      // Das aktualisierte Twin-Item in der neuen Liste finden
-      const updatedTwinItem = updatedItems.find(updatedItem => 
-        updatedItem.metadata.name === twinFileName
-      );
-      
-      // Das aktualisierte Twin-Item auswählen, wenn vorhanden, sonst das ursprüngliche
-      const twinItemToSelect = updatedTwinItem || originalTwinItem;
-      
-      
-      // Den neuen Twin auswählen mit dem aktualisierten Objekt
-      selectFile(twinItemToSelect);
-
-      toast.success("Transkription erfolgreich", {
-        description: "Die Audio-Datei wurde erfolgreich transkribiert, bitte den Text kontrollieren und mit einer Transformation fortfahren.",
-        duration: 7000
+      console.log('Audio Transformation abgeschlossen:', {
+        textLength: result.text.length,
+        savedItemId: result.savedItem?.id,
+        updatedItemsCount: result.updatedItems.length
       });
 
-      // Gib den Text, das neue Twin-Item UND die aktualisierten Items zurück
-      onTransformComplete(text, twinItemToSelect, updatedItems);
+      // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
+      if (onRefreshFolder && item.parentId && result.updatedItems.length > 0) {
+        console.log('Informiere Library über aktualisierte Dateiliste', {
+          folderId: item.parentId,
+          itemsCount: result.updatedItems.length,
+          savedItemId: result.savedItem?.id
+        });
+        onRefreshFolder(item.parentId, result.updatedItems, result.savedItem || undefined);
+      } else {
+        // Wenn kein onRefreshFolder-Handler da ist, rufen wir selbst den handleTransformResult auf
+        transformResultHandlerRef.current(result);
+      }
+      
+      // Falls onTransformComplete-Callback existiert, auch für Abwärtskompatibilität aufrufen
+      if (onTransformComplete) {
+        onTransformComplete(result.text, result.savedItem || undefined, result.updatedItems);
+      }
     } catch (error) {
       console.error("Fehler bei der Audio-Transformation:", error);
       toast.error("Fehler", {
@@ -98,29 +117,40 @@ export function AudioTransform({ item, onTransformComplete }: AudioTransformProp
     }
   };
 
+  const handleSaveOptionsChange = (options: SaveOptionsType) => {
+    setSaveOptions(options);
+  };
+
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center gap-4">
-        <Select
-          value={targetLanguage}
-          onValueChange={setTargetLanguage}
-          disabled={isLoading}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Sprache auswählen" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="de">Deutsch</SelectItem>
-            <SelectItem value="en">Englisch</SelectItem>
-            <SelectItem value="fr">Französisch</SelectItem>
-            <SelectItem value="es">Spanisch</SelectItem>
-            <SelectItem value="it">Italienisch</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button onClick={handleTransform} disabled={isLoading}>
-          {isLoading ? "Wird transkribiert..." : "Transkribieren"}
-        </Button>
-      </div>
+      <TransformResultHandler
+        onResultProcessed={() => {
+          console.log("Audio-Transcription vollständig abgeschlossen und Datei ausgewählt");
+        }}
+      >
+        {(handleTransformResult, isProcessingResult) => {
+          // Speichere die handleTransformResult-Funktion in der Ref
+          transformResultHandlerRef.current = handleTransformResult;
+          
+          return (
+            <>
+              <SaveOptionsComponent 
+                originalFileName={item.metadata.name}
+                onOptionsChange={handleSaveOptionsChange}
+                className="mb-4"
+              />
+              
+              <Button 
+                onClick={handleTransform} 
+                disabled={isLoading || isProcessingResult}
+                className="w-full"
+              >
+                {isLoading ? "Wird transkribiert..." : "Transkribieren"}
+              </Button>
+            </>
+          );
+        }}
+      </TransformResultHandler>
     </div>
   );
 } 

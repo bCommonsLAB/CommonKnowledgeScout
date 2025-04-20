@@ -205,25 +205,19 @@ export const AudioPlayer = memo(function AudioPlayer({ item, onRefreshFolder }: 
         <div className="mt-4 border rounded-lg">
           <AudioTransform 
             item={item}
-            onTransformComplete={(text, twinItem, updatedItems) => {
-              console.log('Transformation completed:', {
-                textLength: text.length,
-                twinItemId: twinItem?.id,
-                updatedItemsCount: updatedItems?.length
+            onRefreshFolder={(folderId, updatedItems, twinItem) => {
+              console.log('Audio Transformation abgeschlossen', {
+                folderId,
+                itemsCount: updatedItems.length,
+                twinItemId: twinItem?.id
               });
               
               // UI schließen
               setShowTransform(false);
               
-              // Wenn updatedItems vorhanden sind und wir einen onRefreshFolder-Handler haben,
-              // informiere die übergeordnete Komponente über die Aktualisierung
-              if (updatedItems && onRefreshFolder) {
-                console.log('Informiere Library über aktualisierte Dateiliste', {
-                  folderId: item.parentId,
-                  itemsCount: updatedItems.length,
-                  twinItemId: twinItem?.id
-                });
-                onRefreshFolder(item.parentId, updatedItems, twinItem);
+              // Informiere die übergeordnete Komponente über die Aktualisierung
+              if (onRefreshFolder) {
+                onRefreshFolder(folderId, updatedItems, twinItem);
               }
             }}
           />
