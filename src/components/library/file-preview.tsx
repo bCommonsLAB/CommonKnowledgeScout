@@ -14,11 +14,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
 import { useAtomValue } from "jotai";
 import { activeLibraryIdAtom } from "@/atoms/library-atom";
+import { TextEditor } from './text-editor';
 
 interface FilePreviewProps {
   item: StorageItem | null;
   className?: string;
   provider: StorageProvider | null;
+  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
 // Helper function for file type detection
@@ -56,15 +58,298 @@ function getFileType(fileName: string): string {
   }
 }
 
-export const FilePreview = React.memo(function FilePreview({ 
+// Separate Komponente für den Content Loader
+function ContentLoader({ 
+  item, 
+  provider, 
+  fileType, 
+  isAudioFile, 
+  isVideoFile, 
+  contentCache,
+  onContentLoaded 
+}: {
+  item: StorageItem | null;
+  provider: StorageProvider | null;
+  fileType: string;
+  isAudioFile: boolean;
+  isVideoFile: boolean;
+  contentCache: React.MutableRefObject<Map<string, { content: string; hasMetadata: boolean }>>;
+  onContentLoaded: (content: string, hasMetadata: boolean) => void;
+}) {
+  const loadingIdRef = React.useRef<string | null>(null);
+
+  // Prüft ob eine Datei ein Template ist
+  const isTemplateFile = React.useCallback((name?: string): boolean => {
+    if (!name) return false;
+    return name.includes('{{') && name.includes('}}');
+  }, []);
+
+  const loadContent = React.useCallback(async () => {
+    if (!item?.id || !provider) return;
+    
+    // Prüfen ob Inhalt bereits im Cache
+    const cachedContent = contentCache.current.get(item.id);
+    if (cachedContent) {
+      onContentLoaded(cachedContent.content, cachedContent.hasMetadata);
+      return;
+    }
+
+    // Prüfen ob bereits ein Ladevorgang läuft
+    if (loadingIdRef.current === item.id) {
+      return;
+    }
+    
+    loadingIdRef.current = item.id;
+    
+    try {
+      // Wenn es eine Template-Datei ist, zeigen wir eine Warnung an
+      if (isTemplateFile(item.metadata.name)) {
+        const content = "---\nstatus: template\n---\n\n> **Hinweis**: Diese Datei enthält nicht aufgelöste Template-Variablen.\n> Bitte stellen Sie sicher, dass alle Variablen korrekt definiert sind.";
+        contentCache.current.set(item.id, { content, hasMetadata: true });
+        onContentLoaded(content, true);
+        return;
+      }
+
+      if (!isAudioFile && fileType !== 'image' && !isVideoFile) {
+        const content = await provider.getBinary(item.id).then(({ blob }) => blob.text());
+        const hasMetadata = !!extractFrontmatter(content);
+        contentCache.current.set(item.id, { content, hasMetadata });
+        onContentLoaded(content, hasMetadata);
+      } else {
+        contentCache.current.set(item.id, { content: '', hasMetadata: false });
+        onContentLoaded('', false);
+      }
+    } catch (err) {
+      console.error('[ContentLoader] Failed to load file:', err);
+      // Bei Fehler zeigen wir eine Fehlermeldung im Markdown-Format
+      const errorContent = "---\nstatus: error\n---\n\n> **Fehler**: Die Datei konnte nicht geladen werden.\n> Bitte überprüfen Sie die Konsole für weitere Details.";
+      contentCache.current.set(item.id, { content: errorContent, hasMetadata: true });
+      onContentLoaded(errorContent, true);
+    } finally {
+      loadingIdRef.current = null;
+    }
+  }, [item?.id, provider, fileType, isAudioFile, isVideoFile, onContentLoaded, isTemplateFile, contentCache]);
+
+  // Cleanup bei Unmount
+  React.useEffect(() => {
+    return () => {
+      loadingIdRef.current = null;
+    };
+  }, []);
+
+  // Nur laden wenn sich die ID ändert
+  React.useEffect(() => {
+    if (item?.id) {
+      loadContent();
+    }
+  }, [item?.id, loadContent]);
+
+  return null;
+}
+
+// Separate Komponente für die Vorschau
+function PreviewContent({ 
+  item, 
+  fileType, 
+  content, 
+  error, 
+  activeLibraryId,
+  provider,
+  contentCache,
+  onContentUpdated,
+  onRefreshFolder
+}: {
+  item: StorageItem;
+  fileType: string;
+  content: string;
+  error: string | null;
+  activeLibraryId: string;
+  provider: StorageProvider | null;
+  contentCache: React.MutableRefObject<Map<string, { content: string; hasMetadata: boolean }>>;
+  onContentUpdated: (content: string) => void;
+  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
+}) {
+  if (error) {
+    return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>;
+  }
+
+  switch (fileType) {
+    case 'audio':
+      return <AudioPlayer item={item} onRefreshFolder={onRefreshFolder} />;
+    case 'image':
+      return (
+        <img 
+          src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
+          alt={item.metadata.name}
+          className="max-w-full h-auto"
+        />
+      );
+    case 'video':
+      return (
+        <video 
+          controls
+          src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
+          className="max-w-full h-auto"
+        />
+      );
+    case 'markdown':
+      const [activeTab, setActiveTab] = React.useState<string>("preview");
+      
+      return (
+        <Tabs defaultValue="preview" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mx-4 mt-2">
+            <TabsTrigger value="preview">Vorschau</TabsTrigger>
+            <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
+          </TabsList>
+          <TabsContent value="preview">
+            <MarkdownPreview 
+              content={content}
+              currentFolderId={item.parentId}
+              provider={provider}
+              currentItem={item}
+              onTransform={() => {
+                // Hier zur Bearbeitungsansicht wechseln
+                setActiveTab("edit");
+              }}
+            />
+          </TabsContent>
+          <TabsContent value="edit">
+            <TextEditor 
+              content={content}
+              item={item}
+              provider={provider}
+              onSave={async (newContent) => {
+                // Speichern der bearbeiteten Datei
+                if (provider && onRefreshFolder) {
+                  try {
+                    // Sofort den Inhalt für die Vorschau aktualisieren
+                    onContentUpdated(newContent);
+                    
+                    // Nach dem Speichern zur Vorschau wechseln
+                    setActiveTab("preview");
+                    
+                    // Datei aktualisieren - wir laden eine neue Datei hoch, da die API keine direkte Update-Methode hat
+                    const blob = new Blob([newContent], { type: 'text/markdown' });
+                    const file = new File([blob], item.metadata.name, { type: 'text/markdown' });
+                    
+                    // Zuerst die alte Datei löschen
+                    await provider.deleteItem(item.id);
+                    
+                    // Dann die neue Datei hochladen
+                    const updatedItem = await provider.uploadFile(item.parentId, file);
+                    
+                    // Ordnerinhalt aktualisieren und neu laden
+                    const updatedItems = await provider.listItemsById(item.parentId);
+                    
+                    // Den Content Cache für diese Datei explizit leeren
+                    // Wir erzwingen damit, dass der ContentLoader die Datei neu lädt
+                    console.log('Cache für die neue Datei wird zurückgesetzt');
+                    contentCache.current.clear();
+                    
+                    // Die Callback-Funktion aufrufen, um die Benutzeroberfläche zu aktualisieren
+                    onRefreshFolder(item.parentId, updatedItems, updatedItem);
+                  } catch (error) {
+                    console.error("Fehler beim Aktualisieren der Datei:", error);
+                  }
+                }
+              }}
+            />
+          </TabsContent>
+        </Tabs>
+      );
+    case 'pdf':
+    case 'docx':
+    case 'pptx':
+    case 'presentation':
+      return (
+        <iframe 
+          src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
+          title={item.metadata.name}
+          className="w-full h-screen"
+        />
+      );
+    case 'website':
+      const urlContent = content.match(/URL=(.*)/)?.[1];
+      return urlContent ? (
+        <iframe 
+          src={urlContent}
+          title={item.metadata.name}
+          className="w-full h-screen"
+        />
+      ) : (
+        <div className="text-center text-muted-foreground">
+          Keine gültige URL gefunden.
+        </div>
+      );
+    default:
+      return (
+        <div className="text-center text-muted-foreground">
+          Keine Vorschau verfügbar für diesen Dateityp.
+        </div>
+      );
+  }
+}
+
+// Hauptkomponente
+export function FilePreview({ 
   item, 
   provider,
-  className 
+  className,
+  onRefreshFolder
 }: FilePreviewProps) {
-  // Hole die aktive Bibliotheks-ID aus dem globalen Zustand
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  
+  // Gemeinsamer Cache für den Inhalt von Dateien
+  const contentCache = React.useRef<Map<string, { content: string; hasMetadata: boolean }>>(new Map());
+  
+  // Memoize state reducer
+  const reducer = React.useCallback((state: any, action: any) => {
+    switch (action.type) {
+      case 'SET_CONTENT':
+        return { ...state, content: action.content, hasMetadata: action.hasMetadata };
+      case 'SET_ERROR':
+        return { ...state, error: action.error };
+      case 'UPDATE_CONTENT':
+        // Direkte Aktualisierung des Inhalts, ohne Neuladung der Datei
+        return { ...state, content: action.content };
+      default:
+        return state;
+    }
+  }, []);
 
-  // Early return for empty state
+  const [state, dispatch] = React.useReducer(reducer, {
+    content: '',
+    error: null as string | null,
+    hasMetadata: false
+  });
+
+  // Memoize computed values
+  const fileType = React.useMemo(() => 
+    item ? getFileType(item.metadata.name) : 'unknown', 
+    [item?.metadata?.name]
+  );
+  
+  const isAudioFile = React.useMemo(() => fileType === 'audio', [fileType]);
+  const isVideoFile = React.useMemo(() => fileType === 'video', [fileType]);
+
+  // Memoize content loader callback
+  const handleContentLoaded = React.useCallback((content: string, hasMetadata: boolean) => {
+    dispatch({ type: 'SET_CONTENT', content, hasMetadata });
+  }, []);
+  
+  // Callback für direkte Aktualisierung des Inhalts
+  const handleContentUpdated = React.useCallback((content: string) => {
+    dispatch({ type: 'UPDATE_CONTENT', content });
+  }, []);
+
+  // Cache leeren, wenn sich die Item-ID ändert
+  React.useEffect(() => {
+    if (item?.id) {
+      console.log('FilePreview: Neues Item geladen, Cache wird zurückgesetzt');
+      contentCache.current.clear();
+    }
+  }, [item?.id]);
+
   if (!item) {
     return (
       <div className={cn("flex items-start justify-center h-full", className)}>
@@ -73,258 +358,28 @@ export const FilePreview = React.memo(function FilePreview({
     );
   }
 
-  // Memoize file type check
-  const fileType = React.useMemo(() => getFileType(item.metadata.name), [item.metadata.name]);
-  const isAudioFile = React.useMemo(() => fileType === 'audio', [fileType]);
-  const isVideoFile = React.useMemo(() => fileType === 'video', [fileType]);
-
-  // Debug logging in useEffect
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[FilePreview] Render:', {
-        itemId: item?.id,
-        name: item?.metadata.name,
-        type: fileType,
-        hasProvider: !!provider
-      });
-    }
-  }, [item?.id, item?.metadata.name, fileType, provider]);
-
-  // State Management
-  const [state, dispatch] = React.useReducer((state: any, action: any) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[FilePreview] Action:', action.type);
-    }
-
-    switch (action.type) {
-      case 'START_LOADING':
-        return { ...state, isLoading: true, error: null };
-      case 'SET_CONTENT':
-        return { 
-          ...state, 
-          content: action.content, 
-          isLoading: false,
-          hasMetadata: action.hasMetadata 
-        };
-      case 'SET_TRANSCRIPTION':
-        return { 
-          ...state, 
-          transcriptionContent: action.content,
-          hasMetadata: action.hasMetadata 
-        };
-      case 'SET_ERROR':
-        return { ...state, error: action.error, isLoading: false };
-      default:
-        return state;
-    }
-  }, {
-    content: '',
-    error: null as string | null,
-    isLoading: false,
-    transcriptionContent: null as string | null,
-    hasMetadata: false
-  });
-
-  // Refs für Content Loading
-  const loadingIdRef = React.useRef<string | null>(null);
-
-  // Content Loading
-  const loadContent = React.useCallback(async (itemId: string, itemProvider: StorageProvider) => {
-    if (loadingIdRef.current === itemId) {
-      console.log('[FilePreview] Skip loading - already in progress');
-      return;
-    }
-    
-    console.log('[FilePreview] Start loading content');
-    
-    loadingIdRef.current = itemId;
-    
-    if (fileType === 'unknown') {
-      console.log('[FilePreview] Skip loading - unknown file type');
-      return;
-    }
-    
-    try {
-      // For non-audio, non-image, and non-video files, load the content
-      if (!isAudioFile && fileType !== 'image' && !isVideoFile) {
-        console.log('[FilePreview] Loading binary content');
-        const content = await itemProvider.getBinary(itemId).then(({ blob }) => blob.text());
-        console.log('[FilePreview] Content loaded');
-        const hasMetadata = !!extractFrontmatter(content);
-        dispatch({ type: 'SET_CONTENT', content, hasMetadata });
-      } else {
-        // For audio, image, and video files, immediately mark as loaded
-        dispatch({ type: 'SET_CONTENT', content: '', hasMetadata: false });
-      }
-
-      // Load transcript if available
-      if (item?.metadata.transcriptionTwin) {
-        console.log('[FilePreview] Loading transcript');
-        const transcriptItem = await itemProvider.getItemById(item.metadata.transcriptionTwin.id);
-        const transcriptContent = await itemProvider.getBinary(transcriptItem.id).then(({ blob }) => blob.text());
-        console.log('[FilePreview] Transcript loaded');
-        const hasMetadata = !!extractFrontmatter(transcriptContent);
-        dispatch({ type: 'SET_TRANSCRIPTION', content: transcriptContent, hasMetadata });
-      }
-    } catch (err) {
-      console.error('[FilePreview] Failed to load file:', err);
-      dispatch({ type: 'SET_ERROR', error: 'Fehler beim Laden der Datei' });
-    } finally {
-      if (loadingIdRef.current === itemId) {
-        loadingIdRef.current = null;
-      }
-    }
-  }, [item, fileType, isAudioFile, isVideoFile]);
-
-  // Load content when item changes
-  React.useEffect(() => {
-    if (!item || !provider || fileType === 'unknown') {
-      console.log('[FilePreview] Skip loading - missing item, provider, or unknown file type');
-      return;
-    }
-
-    console.log('[FilePreview] Item changed - loading new content');
-
-    if (!isAudioFile && fileType !== 'image' && !isVideoFile) {
-      dispatch({ type: 'START_LOADING' });
-    }
-    loadContent(item.id, provider);
-
-    return () => {
-      loadingIdRef.current = null;
-    };
-  }, [item, provider, loadContent, isAudioFile, fileType, isVideoFile]);
-
-  // Memoize audio player component
-  const audioPlayer = React.useMemo(() => {
-    if (!isAudioFile || !item) return null;
-    return <AudioPlayer item={item} />;
-  }, [isAudioFile, item]);
-
-  // Render content based on file type
-  const renderedContent = React.useMemo(() => {
-    if (!item) return null;
-    
-    console.log('[FilePreview] Rendering content');
-
-    if (state.error) return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{state.error}</AlertDescription></Alert>;
-    
-    const previewContent = () => {
-      switch (fileType) {
-        case 'audio':
-          return audioPlayer;
-        case 'image':
-          return (
-            <img 
-              src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
-              alt={item.metadata.name}
-              className="max-w-full h-auto"
-            />
-          );
-        case 'video':
-          return (
-            <video 
-              controls
-              src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
-              className="max-w-full h-auto"
-            />
-          );
-        case 'markdown':
-          return (
-            <MarkdownPreview 
-              content={state.content}
-              currentFolderId={item.parentId}
-              provider={provider}
-              currentItem={item}
-            />
-          );
-        case 'pdf':
-        case 'docx':
-        case 'pptx':
-        case 'presentation':
-          return (
-            <iframe 
-              src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
-              title={item.metadata.name}
-              className="w-full h-screen"
-            />
-          );
-        case 'website':
-          const urlContent = state.content.match(/URL=(.*)/)?.[1];
-          return urlContent ? (
-            <iframe 
-              src={urlContent}
-              title={item.metadata.name}
-              className="w-full h-screen"
-            />
-          ) : (
-            <div className="text-center text-muted-foreground">
-              Keine gültige URL gefunden.
-            </div>
-          );
-        default:
-          return (
-            <div className="text-center text-muted-foreground">
-              Keine Vorschau verfügbar für diesen Dateityp.
-            </div>
-          );
-      }
-    };
-
-    const hasPreview = fileType !== 'unknown';
-    const hasTranscript = !!state.transcriptionContent;
-    const hasSummary = false; // TODO: Implementierung der Zusammenfassung
-
-    return (
-      <Tabs defaultValue="preview" className="w-full">
-        <TabsList>
-          <TabsTrigger value="preview" disabled={!hasPreview}>
-            Vorschau
-          </TabsTrigger>
-          <TabsTrigger value="metadata" disabled={!state.hasMetadata}>
-            Metadaten
-          </TabsTrigger>
-          <TabsTrigger value="transcript" disabled={!hasTranscript}>
-            Transkript
-          </TabsTrigger>
-          <TabsTrigger value="summary" disabled={!hasSummary}>
-            Zusammenfassung
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="preview">
-          {state.isLoading && !isAudioFile && fileType !== 'image' && !isVideoFile ? (
-            <Skeleton className="w-full h-32" />
-          ) : (
-            previewContent()
-          )}
-        </TabsContent>
-        <TabsContent value="metadata">
-          <MarkdownMetadata 
-            content={state.transcriptionContent || state.content} 
-          />
-        </TabsContent>
-        <TabsContent value="transcript">
-          {state.transcriptionContent && (
-            <MarkdownPreview 
-              content={state.transcriptionContent}
-              currentFolderId={item.parentId}
-              provider={provider}
-              currentItem={item}
-            />
-          )}
-        </TabsContent>
-        <TabsContent value="summary">
-          <div className="text-center text-muted-foreground">
-            Zusammenfassung noch nicht verfügbar.
-          </div>
-        </TabsContent>
-      </Tabs>
-    );
-  }, [item, state, fileType, isAudioFile, isVideoFile, provider, audioPlayer, activeLibraryId]);
-
   return (
-    <div className={cn("h-full overflow-y-auto", className)}>
-      {renderedContent}
+    <div className={cn("h-full", className)}>
+      <ContentLoader
+        item={item}
+        provider={provider}
+        fileType={fileType}
+        isAudioFile={isAudioFile}
+        isVideoFile={isVideoFile}
+        contentCache={contentCache}
+        onContentLoaded={handleContentLoaded}
+      />
+      <PreviewContent
+        item={item}
+        fileType={fileType}
+        content={state.content}
+        error={state.error}
+        activeLibraryId={activeLibraryId}
+        provider={provider}
+        contentCache={contentCache}
+        onContentUpdated={handleContentUpdated}
+        onRefreshFolder={onRefreshFolder}
+      />
     </div>
   );
-});
+}

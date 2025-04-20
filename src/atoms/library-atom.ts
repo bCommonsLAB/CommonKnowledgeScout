@@ -29,8 +29,15 @@ export const activeLibraryIdAtom = atom(
   }
 )
 
+// Erweitere mit Setter für Bibliotheken
 export const librariesAtom = atom(
-  get => get(libraryAtom).libraries
+  get => get(libraryAtom).libraries,
+  (get, set, newLibraries: ClientLibrary[]) => {
+    set(libraryAtom, {
+      ...get(libraryAtom),
+      libraries: newLibraries
+    })
+  }
 )
 
 // Hilfsfunktion für aktive Library

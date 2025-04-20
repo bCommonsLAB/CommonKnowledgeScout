@@ -1,23 +1,24 @@
 import { Metadata } from "next"
 import { Separator } from "@/components/ui/separator"
 import { LibraryForm } from "@/components/settings/library-form"
+import { SettingsClient } from "./settings-client"
 
 export const metadata: Metadata = {
-  title: "Forms",
-  description: "Advanced form example with validation.",
+  title: "Bibliothek - Allgemeine Einstellungen",
+  description: "Verwalten Sie die allgemeinen Einstellungen Ihrer Bibliothek.",
 }
 
-export default function Page() {
+export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Bibliothek</h3>
+        <h3 className="text-lg font-medium">Allgemeine Einstellungen</h3>
         <p className="text-sm text-muted-foreground">
-          Verwalten Sie Ihre Bibliothek.
+          Verwalten Sie die grundlegenden Einstellungen Ihrer Bibliothek.
         </p>
       </div>
       <Separator />
-      <LibraryForm />
+      <SettingsClient />
     </div>
   )
 } 

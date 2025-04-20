@@ -17,12 +17,10 @@ import { cn } from "@/lib/utils"
 import { FileTree } from "./file-tree"
 import { FileList } from "./file-list"
 import { ClientLibrary } from "@/types/library"
-import { StorageFactory } from "@/lib/storage/storage-factory"
 import { StorageProvider, StorageItem } from "@/lib/storage/types"
 import { useTranscriptionTwins } from "@/hooks/use-transcription-twins"
 import { useSelectedFile } from "@/hooks/use-selected-file"
-import { usePerformanceTracking } from "@/hooks/use-performance-tracking"
-import { libraryAtom, activeLibraryIdAtom, currentFolderIdAtom, breadcrumbItemsAtom, writeBreadcrumbItemsAtom } from "@/atoms/library-atom"
+import { libraryAtom, activeLibraryIdAtom, currentFolderIdAtom, breadcrumbItemsAtom, writeBreadcrumbItemsAtom, librariesAtom } from "@/atoms/library-atom"
 import { useStorage } from "@/contexts/storage-context"
 
 export interface LibraryContextProps {
@@ -32,7 +30,6 @@ export interface LibraryContextProps {
 }
 
 interface LibraryProps {
-  libraries: ClientLibrary[]
   defaultLayout: number[]
   defaultCollapsed?: boolean
   navCollapsedSize: number
@@ -69,14 +66,14 @@ const onRenderCallback: React.ProfilerOnRenderCallback = (
 };
 
 export function Library({
-  libraries,
   defaultLayout = [20, 32, 48],
   defaultCollapsed = false,
   navCollapsedSize,
 }: LibraryProps) {
-  // UI States
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed)
+  const [isMobile, setIsMobile] = useState(false)
+  const [contentLayout, setContentLayout] = useState(defaultLayout)
+  const [searchQuery, setSearchQuery] = useState("")
   const [localError, setLocalError] = useState<string | null>(null);
 
   // Folder States - alte lokale State entfernen und durch Atom ersetzen
@@ -86,6 +83,7 @@ export function Library({
   const [libraryState, setLibraryState] = useAtom(libraryAtom);
   const [globalActiveLibraryId, setGlobalActiveLibraryId] = useAtom(activeLibraryIdAtom);
   const [currentFolderId, setCurrentFolderId] = useAtom(currentFolderIdAtom);
+  const [libraries] = useAtom(librariesAtom); // Verwende den globalen Libraries-Zustand
   
   // Den StorageContext nutzen statt eigenen Provider zu erstellen
   const { 
@@ -107,7 +105,7 @@ export function Library({
     });
   }, [providerInstance, isLoading, storageError]);
 
-  // Die aktive Bibliothek aus den übergebenen Libraries ermitteln
+  // Die aktive Bibliothek aus den globalen Libraries ermitteln
   const currentLibrary = useMemo(() => libraries.find(lib => lib.id === globalActiveLibraryId) || undefined, [libraries, globalActiveLibraryId]);
 
   // File Selection Hook
@@ -131,7 +129,7 @@ export function Library({
   // Initialisiere Jotai-Zustand bei Komponenteninitialisierung
   useEffect(() => {
     console.log('Library: Initialisiere Jotai-Zustand mit', libraries.length, 'Bibliotheken');
-    // Setze den Jotai-Zustand mit den übergebenen Bibliotheken
+    // Setze den Jotai-Zustand mit den globalen Bibliotheken
     setLibraryState({
       libraries,
       activeLibraryId: globalActiveLibraryId || (libraries.length > 0 ? libraries[0].id : ''),
@@ -209,10 +207,6 @@ export function Library({
     [transcriptionEnabled, transcriptionItems, processedItems]
   );
 
-  // Performance tracking
-  usePerformanceTracking('Library-Provider', [globalActiveLibraryId]);
-  usePerformanceTracking('Library-Folder', [currentFolderId]);
-  usePerformanceTracking('Library-UI', [isCollapsed, searchQuery]);
 
   // Debug logging
   useEffect(() => {
@@ -588,6 +582,13 @@ export function Library({
                   selectedItem={selected.item}
                   onSelectAction={handleFileSelect}
                   searchTerm={searchQuery}
+                  onRefresh={(folderId, refreshedItems) => {
+                    console.log('Library: Manuelles Aktualisieren der Dateien', {
+                      folderId,
+                      itemsCount: refreshedItems.length
+                    });
+                    setFolderItems(refreshedItems);
+                  }}
                 />
                 
               </ResizablePanel>
@@ -599,6 +600,25 @@ export function Library({
                       item={selected.item} 
                       provider={providerInstance}
                       className="h-full"
+                      onRefreshFolder={(folderId, refreshedItems, selectFileAfterRefresh) => {
+                        console.log('Library: Ordnerinhalt nach Transkription aktualisiert', {
+                          folderId,
+                          itemsCount: refreshedItems.length,
+                          selectFileId: selectFileAfterRefresh?.id
+                        });
+                        
+                        // Dateiliste aktualisieren
+                        setFolderItems(refreshedItems);
+                        
+                        // Nach der Aktualisierung die gewünschte Datei auswählen
+                        if (selectFileAfterRefresh) {
+                          // Einen Moment warten, damit die Liste aktualisiert werden kann
+                          setTimeout(() => {
+                            console.log('Library: Wähle neue Datei nach Aktualisierung aus', selectFileAfterRefresh.id);
+                            selectFile(selectFileAfterRefresh);
+                          }, 100);
+                        }
+                      }}
                     />
                   </div>
                 </div>

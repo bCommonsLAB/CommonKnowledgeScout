@@ -3,9 +3,13 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { useState } from "react"
-
+import { useState, useEffect } from "react"
+import { useAtom } from "jotai"
+import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useRouter } from "next/navigation"
+import { Cloud, Database, FolderOpen } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -24,310 +28,323 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "@/components/ui/use-toast"
-import { Card, CardContent } from "@/components/ui/card"
-
-// Provider-spezifische Schemas
-const filesystemConfigSchema = z.object({
-  basePath: z.string().min(1, "Bitte geben Sie einen Basispfad an."),
-})
-
-const oneDriveConfigSchema = z.object({
-  clientId: z.string().min(1, "Client ID ist erforderlich"),
-  clientSecret: z.string().min(1, "Client Secret ist erforderlich"),
-  redirectUri: z.string().url("Bitte geben Sie eine gültige URL ein"),
-})
-
-const googleDriveConfigSchema = z.object({
-  clientId: z.string().min(1, "Client ID ist erforderlich"),
-  clientSecret: z.string().min(1, "Client Secret ist erforderlich"),
-  redirectUri: z.string().url("Bitte geben Sie eine gültige URL ein"),
-})
-
-const nextCloudConfigSchema = z.object({
-  serverUrl: z.string().url("Bitte geben Sie eine gültige NextCloud-URL ein"),
-  username: z.string().min(1, "Benutzername ist erforderlich"),
-  password: z.string().min(1, "Passwort ist erforderlich"),
-})
+import { StorageProviderType } from "@/types/library"
 
 // Hauptschema für das Formular
 const storageFormSchema = z.object({
-  provider: z.enum(["filesystem", "onedrive", "googledrive", "nextcloud"], {
-    required_error: "Bitte wählen Sie einen Storage-Provider aus.",
+  type: z.enum(["local", "onedrive", "gdrive"], {
+    required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
-  config: z.union([
-    filesystemConfigSchema,
-    oneDriveConfigSchema,
-    googleDriveConfigSchema,
-    nextCloudConfigSchema,
-  ]),
-})
+  path: z.string({
+    required_error: "Bitte geben Sie einen Speicherpfad ein.",
+  }),
+  // Zusätzliche Storage-Konfiguration
+  clientId: z.string().optional(),
+  clientSecret: z.string().optional(),
+  redirectUri: z.string().optional(),
+});
 
 type StorageFormValues = z.infer<typeof storageFormSchema>
 
-const defaultValues: Partial<StorageFormValues> = {
-  provider: "filesystem",
-  config: {
-    basePath: "/data/storage",
-  },
-}
-
 export function StorageForm() {
-  const [selectedProvider, setSelectedProvider] = useState<string>("filesystem")
-
+  const router = useRouter();
+  const [libraries, setLibraries] = useAtom(librariesAtom);
+  const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Aktuelle Bibliothek aus dem globalen Zustand
+  const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
+  
+  const defaultValues: StorageFormValues = {
+    type: "local",
+    path: "",
+    clientId: "",
+    clientSecret: "",
+    redirectUri: "",
+  };
+  
   const form = useForm<StorageFormValues>({
     resolver: zodResolver(storageFormSchema),
     defaultValues,
-  })
-
-  function onSubmit(data: StorageFormValues) {
-    toast({
-      title: "Storage-Einstellungen gespeichert",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-    })
-  }
-
-  // Provider-spezifische Konfigurationsfelder
-  const ConfigFields = () => {
-    switch (selectedProvider) {
-      case "filesystem":
-        return (
-          <FormField
-            control={form.control}
-            name="config.basePath"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Basispfad</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="/data/storage" />
-                </FormControl>
-                <FormDescription>
-                  Der Basispfad für die Dateispeicherung auf dem lokalen System.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )
-
-      case "onedrive":
-        return (
-          <>
-            <FormField
-              control={form.control}
-              name="config.clientId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client ID</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Die Client ID Ihrer OneDrive-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="config.clientSecret"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client Secret</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Das Client Secret Ihrer OneDrive-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="config.redirectUri"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Redirect URI</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="https://ihre-domain.de/auth/callback" />
-                  </FormControl>
-                  <FormDescription>
-                    Die Redirect URI für die OAuth2-Authentifizierung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        )
-
-      case "googledrive":
-        return (
-          <>
-            <FormField
-              control={form.control}
-              name="config.clientId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client ID</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Die Client ID Ihrer Google Drive-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="config.clientSecret"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client Secret</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Das Client Secret Ihrer Google Drive-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="config.redirectUri"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Redirect URI</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="https://ihre-domain.de/auth/callback" />
-                  </FormControl>
-                  <FormDescription>
-                    Die Redirect URI für die OAuth2-Authentifizierung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        )
-
-      case "nextcloud":
-        return (
-          <>
-            <FormField
-              control={form.control}
-              name="config.serverUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Server URL</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="https://nextcloud.ihre-domain.de" />
-                  </FormControl>
-                  <FormDescription>
-                    Die URL Ihres NextCloud-Servers.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="config.username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Benutzername</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Ihr NextCloud-Benutzername.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="config.password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Passwort</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Ihr NextCloud-Passwort.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        )
-
-      default:
-        return null
+  });
+  
+  // Aktueller Storage-Typ
+  const currentType = form.watch("type");
+  
+  // Form mit aktiver Bibliothek befüllen
+  useEffect(() => {
+    if (activeLibrary) {
+      form.reset({
+        type: activeLibrary.type as StorageProviderType,
+        path: activeLibrary.path || "",
+        clientId: activeLibrary.config?.clientId as string || "",
+        clientSecret: activeLibrary.config?.clientSecret as string || "",
+        redirectUri: activeLibrary.config?.redirectUri as string || "",
+      });
+    }
+  }, [activeLibrary, form]);
+  
+  async function onSubmit(data: StorageFormValues) {
+    setIsLoading(true);
+    
+    try {
+      if (!activeLibrary) {
+        throw new Error("Keine Bibliothek ausgewählt");
+      }
+      
+      // Extrahiere die spezifischen Storage-Konfigurationen basierend auf dem Typ
+      let storageConfig = {};
+      
+      switch(data.type) {
+        case "local":
+          storageConfig = {};
+          break;
+        case "onedrive":
+        case "gdrive":
+          storageConfig = {
+            clientId: data.clientId,
+            clientSecret: data.clientSecret,
+            redirectUri: data.redirectUri,
+          };
+          break;
+      }
+      
+      // Bibliotheksobjekt aktualisieren
+      const updatedLibrary = {
+        ...activeLibrary,
+        type: data.type,
+        path: data.path,
+        config: {
+          ...activeLibrary.config,
+          ...storageConfig,
+        }
+      };
+      
+      // API-Anfrage zum Speichern der Bibliothek
+      const response = await fetch('/api/libraries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedLibrary),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Fehler beim Speichern: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      // Lokalen Zustand aktualisieren
+      const updatedLibraries = libraries.map(lib => 
+        lib.id === activeLibrary.id ? {
+          ...lib,
+          type: data.type,
+          path: data.path,
+          config: {
+            ...lib.config,
+            ...storageConfig,
+          }
+        } : lib
+      );
+      
+      setLibraries(updatedLibraries);
+      
+      toast({
+        title: "Storage-Einstellungen aktualisiert",
+        description: `Die Storage-Einstellungen für "${activeLibrary.label}" wurden erfolgreich aktualisiert.`,
+      });
+      
+    } catch (error) {
+      console.error('Fehler beim Speichern der Storage-Einstellungen:', error);
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Speichern",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   }
-
+  
+  // Storage-Typ-Icons
+  const StorageTypeIcon = () => {
+    switch (currentType) {
+      case "local":
+        return <FolderOpen className="h-4 w-4 mr-2" />;
+      case "onedrive":
+      case "gdrive":
+        return <Cloud className="h-4 w-4 mr-2" />;
+      default:
+        return <Database className="h-4 w-4 mr-2" />;
+    }
+  }
+  
+  // Provider-spezifische Konfigurationsfelder
+  const StorageConfigFields = () => {
+    switch (currentType) {
+      case "onedrive":
+      case "gdrive":
+        return (
+          <>
+            <FormField
+              control={form.control}
+              name="clientId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Client ID</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormDescription>
+                    Die Client ID Ihrer {currentType === "onedrive" ? "OneDrive" : "Google Drive"}-Anwendung.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="clientSecret"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Client Secret</FormLabel>
+                  <FormControl>
+                    <Input type="password" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormDescription>
+                    Das Client Secret Ihrer {currentType === "onedrive" ? "OneDrive" : "Google Drive"}-Anwendung.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="redirectUri"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Redirect URI</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ""} placeholder="https://ihre-domain.de/auth/callback" />
+                  </FormControl>
+                  <FormDescription>
+                    Die Redirect URI für die OAuth2-Authentifizierung.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+  
+  if (!activeLibrary) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p>Keine Bibliothek ausgewählt. Bitte wählen Sie eine Bibliothek aus.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+  
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <FormField
-          control={form.control}
-          name="provider"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Storage Provider</FormLabel>
-              <Select
-                onValueChange={(value) => {
-                  field.onChange(value)
-                  setSelectedProvider(value)
-                  // Reset form when provider changes
-                  form.reset({
-                    provider: value as "filesystem" | "onedrive" | "googledrive" | "nextcloud",
-                    config: defaultValues.config,
-                  })
-                }}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Wählen Sie einen Storage Provider" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="filesystem">Lokales Dateisystem</SelectItem>
-                  <SelectItem value="onedrive">OneDrive</SelectItem>
-                  <SelectItem value="googledrive">Google Drive</SelectItem>
-                  <SelectItem value="nextcloud">NextCloud</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Wählen Sie den Storage Provider für Ihre Bibliothek.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         <Card>
-          <CardContent className="pt-6 space-y-4">
-            <ConfigFields />
+          <CardHeader>
+            <div className="flex items-center">
+              <StorageTypeIcon />
+              <CardTitle>Storage-Einstellungen für {activeLibrary.label}</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Speichertyp</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Speichertyp auswählen" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="local">Lokales Dateisystem</SelectItem>
+                      <SelectItem value="onedrive">OneDrive</SelectItem>
+                      <SelectItem value="gdrive">Google Drive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Der Typ des Speichers, in dem die Bibliotheksdateien gespeichert werden.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="path"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Speicherpfad</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Der Pfad, unter dem die Bibliotheksdateien gespeichert werden.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Spezifische Storage-Konfiguration basierend auf dem Typ */}
+            {currentType !== "local" && (
+              <div className="pt-2 space-y-4">
+                <StorageConfigFields />
+              </div>
+            )}
           </CardContent>
         </Card>
-
-        <Button type="submit">Einstellungen speichern</Button>
+        
+        <div className="flex justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (activeLibrary) {
+                form.reset({
+                  type: activeLibrary.type as StorageProviderType,
+                  path: activeLibrary.path || "",
+                  clientId: activeLibrary.config?.clientId as string || "",
+                  clientSecret: activeLibrary.config?.clientSecret as string || "",
+                  redirectUri: activeLibrary.config?.redirectUri as string || "",
+                });
+              }
+            }}
+            disabled={isLoading}
+          >
+            Zurücksetzen
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={isLoading || !form.formState.isDirty}
+          >
+            {isLoading ? "Wird gespeichert..." : "Einstellungen speichern"}
+          </Button>
+        </div>
       </form>
     </Form>
   )

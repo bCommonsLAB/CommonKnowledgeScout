@@ -30,6 +30,15 @@ export interface StorageConfig {
   
   /** Required OAuth permission scopes */
   scope?: string[];
+
+  /** Secretary Service Konfiguration */
+  secretaryService?: {
+    /** API-URL des Secretary Service */
+    apiUrl: string;
+    
+    /** API-Key für die Authentifizierung */
+    apiKey: string;
+  };
 }
 
 /**
@@ -85,8 +94,18 @@ export interface ClientLibrary {
   /** Whether the library is currently active */
   isEnabled: boolean;
   
-  /** Safe configuration data (excludes sensitive information) */
-  config: Record<string, unknown>;
+  /** Safe configuration data */
+  config: {
+    /** Secretary Service Konfiguration */
+    secretaryService?: {
+      /** API-URL des Secretary Service */
+      apiUrl: string;
+      
+      /** API-Key für die Authentifizierung */
+      apiKey: string;
+    };
+    [key: string]: unknown;
+  };
   
   /** Optional icon component for UI representation */
   icon?: ReactNode;

@@ -6,6 +6,7 @@ import { StorageFactory } from "@/lib/storage/storage-factory";
 import { useAtom } from "jotai";
 import { libraryAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
 import { ClientLibrary } from "@/types/library";
+import { useStorageProvider } from "@/hooks/use-storage-provider";
 
 // Definition für den Cache-Store
 interface CacheStore {
@@ -69,6 +70,8 @@ const pathCache = new Map<string, string>();
  */
 export const StorageContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [libraries, setLibraries] = useState<ClientLibrary[]>([]);
+  // Verwende den useStorageProvider Hook anstatt den Provider selbst zu initialisieren
+  const providerFromHook = useStorageProvider();
   const [provider, setProvider] = useState<StorageProvider | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +90,16 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   // Atom-Wert für die aktive Bibliothek
   const [activeLibraryId, setActiveLibraryAtom] = useAtom(activeLibraryIdAtom);
 
-  // Provider initialisieren oder aktualisieren, wenn sich die aktive Bibliothek ändert
+  // Provider aus dem Hook verwenden, wenn er verfügbar ist
+  useEffect(() => {
+    if (providerFromHook) {
+      console.log(`[StorageContext] Provider aus Hook übernommen: ${providerFromHook.name}`);
+      setProvider(providerFromHook);
+      setIsLoading(false);
+    }
+  }, [providerFromHook]);
+
+  // Aktuelle Bibliothek aktualisieren, wenn sich die aktive Bibliothek ändert
   useEffect(() => {
     if (!activeLibraryId || libraries.length === 0) {
       console.log('[StorageContext] Keine aktive Bibliothek oder keine verfügbaren Bibliotheken');
@@ -103,25 +115,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       return;
     }
 
-    // Provider initialisieren
-    setIsLoading(true);
-    const factory = StorageFactory.getInstance();
-    
-    console.log(`[StorageContext] Initialisiere Provider für Bibliothek: ${selectedLibrary.label}`);
-    
-    factory.getProvider(activeLibraryId)
-      .then(newProvider => {
-        console.log(`[StorageContext] Provider initialisiert: ${newProvider.name}`);
-        setProvider(newProvider);
-        setCurrentLibrary(selectedLibrary);
-        setIsLoading(false);
-      })
-      .catch(err => {
-        console.error(`[StorageContext] Fehler beim Initialisieren des Providers:`, err);
-        setError(`Fehler beim Initialisieren des Providers: ${err.message}`);
-        setProvider(null);
-        setIsLoading(false);
-      });
+    setCurrentLibrary(selectedLibrary);
   }, [activeLibraryId, libraries]);
 
   // Bibliotheken aus der API laden
@@ -159,46 +153,17 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             if (validStoredId) {
               console.log(`[StorageContext] Gespeicherte Bibliothek wird verwendet: ${storedLibraryId}`);
               setActiveLibraryAtom(storedLibraryId);
-              
-              // Provider für diese Bibliothek initialisieren
-              const selectedLibrary = data.find(lib => lib.id === storedLibraryId);
-              if (selectedLibrary) {
-                const factory = StorageFactory.getInstance();
-                factory.getProvider(selectedLibrary.id)
-                  .then(provider => {
-                    console.log(`[StorageContext] Provider für ${selectedLibrary.label} initialisiert:`, provider.name);
-                    setProvider(provider);
-                  })
-                  .catch(err => {
-                    console.error(`[StorageContext] Fehler beim Initialisieren des Providers für ${selectedLibrary.label}:`, err);
-                  });
-              }
             } else {
               // Verwende die erste verfügbare Bibliothek, wenn keine gültige gespeichert ist
               const firstLibId = data[0].id;
               console.log(`[StorageContext] Setze erste Bibliothek als aktiv: ${firstLibId}`);
               setActiveLibraryAtom(firstLibId);
               localStorage.setItem('activeLibraryId', firstLibId);
-              
-              // Provider für diese Bibliothek initialisieren
-              const selectedLibrary = data[0];
-              if (selectedLibrary) {
-                const factory = StorageFactory.getInstance();
-                factory.getProvider(selectedLibrary.id)
-                  .then(provider => {
-                    console.log(`[StorageContext] Provider für ${selectedLibrary.label} initialisiert:`, provider.name);
-                    setProvider(provider);
-                  })
-                  .catch(err => {
-                    console.error(`[StorageContext] Fehler beim Initialisieren des Providers für ${selectedLibrary.label}:`, err);
-                  });
-              }
             }
           } else {
             console.warn('[StorageContext] Keine Bibliotheken verfügbar');
             setActiveLibraryAtom("");
             localStorage.removeItem('activeLibraryId');
-            setProvider(null);
           }
         } else {
           console.error('[StorageContext] Ungültiges Format der Bibliotheksdaten:', data);
@@ -261,15 +226,32 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     }
     
     try {
-      console.log(`[StorageContext] Aktualisiere Items für Ordner: ${folderId}`);
+      console.log(`[StorageContext] Aktualisiere Items für Ordner: ${folderId} und leere Cache`);
       setIsLoading(true);
+      
+      // Cache für den Ordner explizit löschen, bevor neue Daten geladen werden
+      const cacheKey = `${activeLibraryId}:${folderId}`;
+      itemsCache.delete(cacheKey);
+      
+      // Auch alle item-Cache-Einträge für diesen Ordner löschen
+      // (wir wissen nicht, welche Items entfernt wurden)
+      const keysToDelete: string[] = [];
+      itemCache.forEach((_, key) => {
+        if (key.startsWith(`${activeLibraryId}:`)) {
+          keysToDelete.push(key);
+        }
+      });
+      keysToDelete.forEach(key => itemCache.delete(key));
+      
+      // Jetzt frische Daten holen - direkt vom Provider
       const items = await provider.listItemsById(folderId);
       
-      // Cache aktualisieren
-      const cacheKey = `${activeLibraryId}:${folderId}`;
+      console.log(`[StorageContext] Ordnerinhalt aktualisiert: ${items.length} Items gefunden`);
+      
+      // Cache mit neuen Daten aktualisieren
       itemsCache.set(cacheKey, items);
       
-      // Einzelne Items auch aktualisieren
+      // Einzelne Items auch neu cachen
       items.forEach(item => {
         itemCache.set(`${activeLibraryId}:${item.id}`, item);
       });

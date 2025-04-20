@@ -204,7 +204,8 @@ export class LibraryService {
       isEnabled: lib.isEnabled,
       config: {
         // Nur sichere Konfigurationsdaten übernehmen
-        transcription: lib.transcription
+        transcription: lib.transcription,
+        secretaryService: lib.config?.secretaryService
       }
     }));
   }

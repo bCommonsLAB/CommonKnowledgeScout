@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Next.js: Debug Server-Side",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/next",
+        "runtimeArgs": ["dev"],
+        "skipFiles": ["<node_internals>/**"],
+        "console": "integratedTerminal",
+        "sourceMaps": true
+      },
+      {
+        "name": "Next.js: Chrome",
+        "type": "chrome",
+        "request": "launch",
+        "url": "http://localhost:3000",
+        "webRoot": "${workspaceFolder}"
+      }
+    ]
+  }

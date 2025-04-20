@@ -10,6 +10,7 @@ import { activeLibraryIdAtom } from '@/atoms/library-atom';
 
 interface AudioPlayerProps {
   item: StorageItem;
+  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
 // Formatiert Sekunden in MM:SS Format
@@ -19,7 +20,7 @@ function formatTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
-export const AudioPlayer = memo(function AudioPlayer({ item }: AudioPlayerProps) {
+export const AudioPlayer = memo(function AudioPlayer({ item, onRefreshFolder }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -168,7 +169,7 @@ export const AudioPlayer = memo(function AudioPlayer({ item }: AudioPlayerProps)
           onClick={() => setShowTransform(!showTransform)}
         >
           <Wand2 className="h-4 w-4 mr-2" />
-          Transformieren
+          Transkribieren
         </Button>
       </div>
       {error && (
@@ -204,10 +205,26 @@ export const AudioPlayer = memo(function AudioPlayer({ item }: AudioPlayerProps)
         <div className="mt-4 border rounded-lg">
           <AudioTransform 
             item={item}
-            onTransformComplete={(text) => {
-              // TODO: Hier können wir später die Shadow-Twin-Speicherung implementieren
-              console.log('Transformation completed:', text);
+            onTransformComplete={(text, twinItem, updatedItems) => {
+              console.log('Transformation completed:', {
+                textLength: text.length,
+                twinItemId: twinItem?.id,
+                updatedItemsCount: updatedItems?.length
+              });
+              
+              // UI schließen
               setShowTransform(false);
+              
+              // Wenn updatedItems vorhanden sind und wir einen onRefreshFolder-Handler haben,
+              // informiere die übergeordnete Komponente über die Aktualisierung
+              if (updatedItems && onRefreshFolder) {
+                console.log('Informiere Library über aktualisierte Dateiliste', {
+                  folderId: item.parentId,
+                  itemsCount: updatedItems.length,
+                  twinItemId: twinItem?.id
+                });
+                onRefreshFolder(item.parentId, updatedItems, twinItem);
+              }
             }}
           />
         </div>
