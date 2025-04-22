@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useCallback } from "react"
-import { File, FileText, FileVideo, FileAudio, CheckCircle2, Plus, RefreshCw } from "lucide-react"
+import { File, FileText, FileVideo, FileAudio, CheckCircle2, Plus, RefreshCw, ChevronUp, ChevronDown } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -16,6 +16,10 @@ interface FileListProps {
   searchTerm?: string
   onRefresh?: (folderId: string, items: StorageItem[]) => void
 }
+
+// Typen für Sortieroptionen
+type SortField = 'type' | 'name' | 'size' | 'date';
+type SortOrder = 'asc' | 'desc';
 
 // Memoized file icon component
 const FileIconComponent = React.memo(function FileIconComponent({ item }: { item: StorageItem }) {
@@ -48,6 +52,21 @@ const formatFileSize = (size?: number): string => {
   return `${value.toFixed(1)} ${units[unitIndex]}`;
 };
 
+// Funktion zum Formatieren des Datums
+const formatDate = (date?: Date): string => {
+  if (!date) return '-';
+  
+  const options: Intl.DateTimeFormatOptions = { 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  };
+  
+  return new Date(date).toLocaleDateString('de-DE', options);
+};
+
 // Memoized file row component
 const FileRow = React.memo(function FileRow({ 
   item, 
@@ -65,7 +84,8 @@ const FileRow = React.memo(function FileRow({
     name: item.metadata?.name || 'Unbekannte Datei',
     size: typeof item.metadata?.size === 'number' ? item.metadata.size : 0,
     mimeType: item.metadata?.mimeType || '',
-    hasTranscript: !!item.metadata?.hasTranscript
+    hasTranscript: !!item.metadata?.hasTranscript,
+    modifiedAt: item.metadata?.modifiedAt
   }), [item.metadata]);
 
   const isTranscribable = React.useMemo(() => {
@@ -99,7 +119,7 @@ const FileRow = React.memo(function FileRow({
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       className={cn(
-        "w-full px-4 py-2 text-sm hover:bg-muted/50 grid grid-cols-[auto_1fr_100px_120px_50px] gap-4 items-center",
+        "w-full px-4 py-2 text-sm hover:bg-muted/50 grid grid-cols-[auto_1fr_100px_120px_120px_50px] gap-4 items-center",
         isSelected && "bg-muted"
       )}
     >
@@ -107,6 +127,9 @@ const FileRow = React.memo(function FileRow({
       <span className="text-left truncate">{metadata.name}</span>
       <span className="text-muted-foreground">
         {formatFileSize(metadata.size)}
+      </span>
+      <span className="text-muted-foreground">
+        {formatDate(metadata.modifiedAt)}
       </span>
       <div className="flex items-center justify-start gap-2">
         {metadata.hasTranscript ? (
@@ -148,8 +171,39 @@ const FileRow = React.memo(function FileRow({
           </TooltipProvider>
         ) : null}
       </div>
-      <div></div> {/* Leere Zelle für die fünfte Spalte */}
+      <div></div> {/* Leere Zelle für die sechste Spalte */}
     </div>
+  );
+});
+
+// Sortierbare Kopfzelle Komponente
+const SortableHeaderCell = React.memo(function SortableHeaderCell({
+  label,
+  field,
+  currentSortField,
+  currentSortOrder,
+  onSort
+}: {
+  label: string,
+  field: SortField,
+  currentSortField: SortField,
+  currentSortOrder: SortOrder,
+  onSort: (field: SortField) => void
+}) {
+  const isActive = currentSortField === field;
+  
+  return (
+    <button 
+      onClick={() => onSort(field)}
+      className="flex items-center gap-1 hover:text-foreground"
+    >
+      <span>{label}</span>
+      {isActive && (
+        currentSortOrder === 'asc' 
+          ? <ChevronUp className="h-3 w-3" /> 
+          : <ChevronDown className="h-3 w-3" />
+      )}
+    </button>
   );
 });
 
@@ -162,6 +216,8 @@ export const FileList = React.memo(function FileList({
 }: FileListProps) {
   const { refreshItems } = useStorage();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [sortField, setSortField] = React.useState<SortField>('name');
+  const [sortOrder, setSortOrder] = React.useState<SortOrder>('asc');
   
   // Prüft ob eine Datei ein unaufgelöstes Template enthält
   const hasUnresolvedTemplate = React.useCallback((item: StorageItem): boolean => {
@@ -194,6 +250,18 @@ export const FileList = React.memo(function FileList({
     }
   }, [items, refreshItems, onRefresh]);
 
+  // Sortierungslogik
+  const handleSort = React.useCallback((field: SortField) => {
+    // Wenn auf das gleiche Feld geklickt wird, ändere die Richtung
+    if (field === sortField) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Bei neuem Feld setze Sortierrichtung auf aufsteigend
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  }, [sortField, sortOrder]);
+
   // Debug Logging - measure actual render time
   const renderStartRef = React.useRef<number>(0);
   
@@ -221,23 +289,49 @@ export const FileList = React.memo(function FileList({
     // TODO: Implement transcript creation
   }, []);
 
-  // Filter files
+  // Filter and sort files
   const files = React.useMemo(() => {
     if (!items || items.length === 0) {
       console.log(`FileList: Keine Dateien zum Filtern`);
       return [];
     }
     
-    return items
+    const filtered = items
       .filter(item => item.type === 'file')
       .filter(item => !item.metadata.name.startsWith('.'))
       .filter(item => !item.metadata.isTwin)
       .filter(item => 
         searchTerm === "" || 
         item.metadata.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
-  }, [items, searchTerm]);
+      );
+    
+    // Sortieren nach ausgewähltem Feld und Richtung
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'type':
+          comparison = (a.metadata.mimeType || '').localeCompare(b.metadata.mimeType || '');
+          break;
+        case 'name':
+          comparison = a.metadata.name.localeCompare(b.metadata.name);
+          break;
+        case 'size':
+          comparison = (a.metadata.size || 0) - (b.metadata.size || 0);
+          break;
+        case 'date':
+          const dateA = a.metadata.modifiedAt ? new Date(a.metadata.modifiedAt).getTime() : 0;
+          const dateB = b.metadata.modifiedAt ? new Date(b.metadata.modifiedAt).getTime() : 0;
+          comparison = dateA - dateB;
+          break;
+      }
+      
+      // Umkehren der Sortierreihenfolge bei absteigender Sortierung
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    return sorted;
+  }, [items, searchTerm, sortField, sortOrder]);
 
   // Modifizierter Select-Handler mit Template-Warnung
   const handleSelect = React.useCallback((item: StorageItem) => {
@@ -256,10 +350,35 @@ export const FileList = React.memo(function FileList({
       ) : (
         <div className="divide-y">
           {/* Header */}
-          <div className="px-4 py-2 text-sm font-medium text-muted-foreground grid grid-cols-[auto_1fr_100px_120px_50px] gap-4 items-center">
-            <span>Typ</span>
-            <span>Name</span>
-            <span>Größe</span>
+          <div className="px-4 py-2 text-sm font-medium text-muted-foreground grid grid-cols-[auto_1fr_100px_120px_120px_50px] gap-4 items-center">
+            <SortableHeaderCell 
+              label="Typ" 
+              field="type" 
+              currentSortField={sortField} 
+              currentSortOrder={sortOrder} 
+              onSort={handleSort} 
+            />
+            <SortableHeaderCell 
+              label="Name" 
+              field="name" 
+              currentSortField={sortField} 
+              currentSortOrder={sortOrder} 
+              onSort={handleSort} 
+            />
+            <SortableHeaderCell 
+              label="Größe" 
+              field="size" 
+              currentSortField={sortField} 
+              currentSortOrder={sortOrder} 
+              onSort={handleSort} 
+            />
+            <SortableHeaderCell 
+              label="Datum" 
+              field="date" 
+              currentSortField={sortField} 
+              currentSortOrder={sortOrder} 
+              onSort={handleSort} 
+            />
             <span>Transkript</span>
             <TooltipProvider>
               <Tooltip>

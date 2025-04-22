@@ -29,7 +29,10 @@ const protectedNavItems = [
     name: "Bibliothek",
     href: "/library",
   },
-  // Einstellungen-Menüpunkt entfernt
+  {
+    name: "Event-Monitor",
+    href: "/event-monitor",
+  },
 ];
 
 export function TopNav() {
