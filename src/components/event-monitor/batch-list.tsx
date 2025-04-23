@@ -113,7 +113,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
         [batchId]: true
       });
       
-      const response = await fetch(`/api/event-job/batches/${batchId}/jobs`);
+      const response = await fetch(`/api/event-job/batches/${batchId}/jobs?limit=1000`);
       const data = await response.json();
       
       if (data.status === 'success') {

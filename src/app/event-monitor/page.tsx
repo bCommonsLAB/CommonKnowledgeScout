@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Plus, AlertTriangle, Clock } from 'lucide-react';
+import { Loader2, RefreshCw, Plus, AlertTriangle, Clock, FileCheck, FileX, Files } from 'lucide-react';
 import BatchList from '@/components/event-monitor/batch-list';
 import { Batch } from '@/types/event-job';
 import JobDetailsPanel from '@/components/event-monitor/job-details-panel';
@@ -31,6 +31,11 @@ export default function EventMonitorPage() {
   // Job-Details Panel Zustand
   const [jobDetailsOpen, setJobDetailsOpen] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  
+  // Statistiken
+  const [statsTotal, setStatsTotal] = useState(0);
+  const [statsCompleted, setStatsCompleted] = useState(0);
+  const [statsFailed, setStatsFailed] = useState(0);
   
   // Sprachauswahl-Dialog
   const [languageDialogOpen, setLanguageDialogOpen] = useState(false);
@@ -70,6 +75,24 @@ export default function EventMonitorPage() {
       }
     };
   }, [autoRefresh, activeTab]);
+  
+  // Statistiken berechnen
+  useEffect(() => {
+    // Berechnung der Statistiken aus den aktuellen Batches
+    let total = 0;
+    let completed = 0;
+    let failed = 0;
+    
+    currentBatches.forEach(batch => {
+      total += batch.total_jobs || 0;
+      completed += batch.completed_jobs || 0;
+      failed += batch.failed_jobs || 0;
+    });
+    
+    setStatsTotal(total);
+    setStatsCompleted(completed);
+    setStatsFailed(failed);
+  }, [currentBatches]);
   
   async function loadCurrentBatches(showLoader = true) {
     try {
@@ -267,6 +290,39 @@ export default function EventMonitorPage() {
             >
               {(loading || archiveLoading) ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             </Button>
+          </div>
+        </div>
+      </div>
+      
+      {/* Statistiken */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center space-x-4 border border-gray-200 dark:border-gray-700">
+          <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+            <Files className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Gesamt</div>
+            <div className="text-2xl font-bold">{statsTotal}</div>
+          </div>
+        </div>
+        
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center space-x-4 border border-gray-200 dark:border-gray-700">
+          <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+            <FileCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Erfolgreich</div>
+            <div className="text-2xl font-bold">{statsCompleted}</div>
+          </div>
+        </div>
+        
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center space-x-4 border border-gray-200 dark:border-gray-700">
+          <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+            <FileX className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Fehlerhaft</div>
+            <div className="text-2xl font-bold">{statsFailed}</div>
           </div>
         </div>
       </div>

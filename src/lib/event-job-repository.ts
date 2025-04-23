@@ -644,7 +644,7 @@ export class EventJobRepository {
     try {
       const jobCollection = await this.getJobCollection();
       
-      const { limit = 100, skip = 0, status } = options;
+      const { limit = 2000, skip = 0, status } = options;
       
       const query: Record<string, any> = { batch_id: batchId };
       
