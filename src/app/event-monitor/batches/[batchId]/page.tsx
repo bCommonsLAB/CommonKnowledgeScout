@@ -115,7 +115,6 @@ const CollapsibleContent = ({ job, onRestartJob, onDeleteJob }: CollapsibleConte
                 onRestartJob(job.job_id);
               }
             }}
-            disabled={job.status === JobStatus.PROCESSING || job.status === JobStatus.PENDING}
             className="text-blue-600 border-blue-300 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-700 dark:hover:bg-blue-900/30"
           >
             <RefreshCw className="h-3.5 w-3.5 mr-1" />

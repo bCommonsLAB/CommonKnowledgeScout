@@ -51,15 +51,6 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
       });
       return;
     }
-    
-    if (!activeLibrary.config.secretaryService || !activeLibrary.config.secretaryService.apiUrl || !activeLibrary.config.secretaryService.apiKey) {
-      toast.error("Fehler", {
-        description: "Secretary Service API URL oder API Key nicht konfiguriert",
-        duration: 7000
-      });
-      return;
-    }
-    
     setIsLoading(true);
 
     try {
@@ -79,9 +70,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
         saveOptions,
         provider,
         refreshItems,
-        activeLibrary.id,
-        activeLibrary.config.secretaryService.apiUrl,
-        activeLibrary.config.secretaryService.apiKey
+        activeLibrary.id
       );
 
       console.log('Audio Transformation abgeschlossen:', {

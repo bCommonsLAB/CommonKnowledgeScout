@@ -14,15 +14,13 @@ export class SecretaryServiceError extends Error {
  * 
  * @param file Die zu transformierende Audio-Datei 
  * @param targetLanguage Die Zielsprache für die Transkription
- * @param options Optionale Konfiguration mit apiUrl und apiKey
+ * @param libraryId ID der aktiven Bibliothek
  * @returns Den transformierten Text
  */
 export async function transformAudio(
   file: File, 
   targetLanguage: string,
-  libraryId: string,
-  apiUrl: string,
-  apiKey: string
+  libraryId: string
 ): Promise<string> {
   try {
     console.log('[secretary/client] transformAudio aufgerufen mit Sprache:', targetLanguage);
@@ -35,8 +33,7 @@ export async function transformAudio(
     // Angepasste Header bei expliziten Optionen
     const customHeaders: HeadersInit = {};
     customHeaders['X-Library-Id'] = libraryId;
-    customHeaders['X-Secretary-Service-Url'] = apiUrl;
-    customHeaders['X-Secretary-Service-Api-Key'] = apiKey;
+    
     console.log('[secretary/client] Sende Anfrage an Secretary Service API');
     const response = await fetch('/api/secretary/process-audio', {
       method: 'POST',
@@ -67,8 +64,6 @@ export async function transformAudio(
  * @param textContent Der zu transformierende Text
  * @param targetLanguage Die Zielsprache für die Transformation
  * @param libraryId ID der aktiven Bibliothek
- * @param apiUrl URL des Secretary Services
- * @param apiKey API-Key für den Secretary Service
  * @param template Optionales Template für die Transformation (Standard: "Besprechung")
  * @returns Den transformierten Text
  */
@@ -76,8 +71,6 @@ export async function transformText(
   textContent: string,
   targetLanguage: string,
   libraryId: string,
-  apiUrl: string,
-  apiKey: string,
   template: string = "Besprechung"
 ): Promise<string> {
   try {
@@ -91,8 +84,6 @@ export async function transformText(
     // Angepasste Header für den Secretary Service
     const customHeaders: HeadersInit = {};
     customHeaders['X-Library-Id'] = libraryId;
-    customHeaders['X-Secretary-Service-Url'] = apiUrl;
-    customHeaders['X-Secretary-Service-Api-Key'] = apiKey;
     
     console.log('[secretary/client] Sende Anfrage an Secretary Service API');
     const response = await fetch('/api/secretary/process-text', {
@@ -115,5 +106,130 @@ export async function transformText(
       throw error;
     }
     throw new SecretaryServiceError('Fehler bei der Verarbeitung des Textes');
+  }
+}
+
+/**
+ * Erstellt eine Zusammenfassung für einen einzelnen Track
+ * 
+ * @param trackName Name des Tracks
+ * @param targetLanguage Zielsprache für die Zusammenfassung
+ * @param libraryId ID der aktiven Bibliothek
+ * @param template Template für die Zusammenfassung (Standard: "track_eco_social")
+ * @param useCache Cache verwenden (Standard: false)
+ * @returns Die API-Antwort mit der Zusammenfassung
+ */
+export async function createTrackSummary(
+  trackName: string,
+  targetLanguage: string,
+  libraryId: string,
+  template: string = "track_eco_social",
+  useCache: boolean = false
+): Promise<any> {
+  try {
+    console.log('[secretary/client] createTrackSummary aufgerufen für Track:', trackName, 'und Bibliothek:', libraryId);
+    console.log('[secretary/client] Template:', template, 'Sprache:', targetLanguage);
+    
+    if (!trackName) {
+      throw new SecretaryServiceError('Kein Track-Name angegeben');
+    }
+    
+    if (!libraryId) {
+      console.warn('[secretary/client] WARNUNG: Keine Bibliotheks-ID angegeben!');
+    }
+    
+    // Angepasste Header für den Secretary Service
+    const customHeaders: HeadersInit = {
+      'Content-Type': 'application/json',
+      'X-Library-Id': libraryId
+    };
+    
+    const requestBody = {
+      template,
+      target_language: targetLanguage,
+      useCache
+    };
+    
+    console.log('[secretary/client] Sende Anfrage an Secretary Track Processor API:', JSON.stringify(requestBody));
+    const response = await fetch(`/api/secretary/tracks/${encodeURIComponent(trackName)}/summary`, {
+      method: 'POST',
+      headers: customHeaders,
+      body: JSON.stringify(requestBody)
+    });
+
+    console.log('[secretary/client] Antwort erhalten, Status:', response.status, response.statusText);
+    
+    const data = await response.json();
+    console.log('[secretary/client] Antwort-Daten:', JSON.stringify(data).substring(0, 500) + '...');
+    
+    if (!response.ok) {
+      // Detaillierte Fehlermeldung konstruieren
+      let errorMsg = `Fehler bei der Verbindung zum Secretary Service: ${response.statusText}`;
+      if (data && data.error) {
+        errorMsg += ` - ${data.error.code || ''}: ${data.error.message || 'Unbekannter Fehler'}`;
+      }
+      throw new SecretaryServiceError(errorMsg);
+    }
+
+    console.log('[secretary/client] Zusammenfassung erfolgreich erstellt');
+    return data;
+  } catch (error) {
+    console.error('[secretary/client] Fehler bei der Erstellung der Track-Zusammenfassung:', error);
+    if (error instanceof SecretaryServiceError) {
+      throw error;
+    }
+    throw new SecretaryServiceError('Fehler bei der Erstellung der Track-Zusammenfassung');
+  }
+}
+
+/**
+ * Erstellt Zusammenfassungen für alle oder gefilterte Tracks
+ * 
+ * @param targetLanguage Zielsprache für die Zusammenfassungen
+ * @param libraryId ID der aktiven Bibliothek
+ * @param template Template für die Zusammenfassungen (Standard: "track_eco_social") 
+ * @param useCache Cache verwenden (Standard: false)
+ * @returns Die API-Antwort mit allen Zusammenfassungen
+ */
+export async function createAllTrackSummaries(
+  targetLanguage: string,
+  libraryId: string,
+  template: string = "track_eco_social",
+  useCache: boolean = false
+): Promise<any> {
+  try {
+    console.log('[secretary/client] createAllTrackSummaries aufgerufen');
+    
+    // Angepasste Header für den Secretary Service
+    const customHeaders: HeadersInit = {
+      'Content-Type': 'application/json',
+      'X-Library-Id': libraryId
+    };
+    
+    console.log('[secretary/client] Sende Anfrage an Secretary Track Processor API');
+    const response = await fetch('/api/secretary/tracks/*/summarize_all', {
+      method: 'POST',
+      headers: customHeaders,
+      body: JSON.stringify({
+        template,
+        target_language: targetLanguage,
+        useCache
+      })
+    });
+
+    console.log('[secretary/client] Antwort erhalten, Status:', response.status);
+    if (!response.ok) {
+      throw new SecretaryServiceError(`Fehler bei der Verbindung zum Secretary Service: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('[secretary/client] Alle Zusammenfassungen erfolgreich erstellt');
+    return data;
+  } catch (error) {
+    console.error('[secretary/client] Fehler bei der Erstellung aller Track-Zusammenfassungen:', error);
+    if (error instanceof SecretaryServiceError) {
+      throw error;
+    }
+    throw new SecretaryServiceError('Fehler bei der Erstellung aller Track-Zusammenfassungen');
   }
 } 

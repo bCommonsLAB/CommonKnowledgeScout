@@ -96,7 +96,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
       });
       return;
     }
-    
+
     setIsLoading(true);
     try {
       // Transformation mit dem TransformService
@@ -107,8 +107,6 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         provider,
         refreshItems,
         activeLibrary.id,
-        activeLibrary.config.secretaryService.apiUrl, 
-        activeLibrary.config.secretaryService.apiKey,
         template
       );
 

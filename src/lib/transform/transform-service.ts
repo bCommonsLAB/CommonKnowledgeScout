@@ -35,18 +35,14 @@ export class TransformService {
     options: TransformSaveOptions,
     provider: StorageProvider,
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
-    libraryId: string,
-    apiUrl: string,
-    apiKey: string
+    libraryId: string
   ): Promise<TransformResult> {
     try {
       // 1. Audio transformieren
       const text = await transformAudio(
         file,
         options.targetLanguage,
-        libraryId,
-        apiUrl,
-        apiKey
+        libraryId
       );
 
       // 2. Ergebnis speichern und Liste aktualisieren
@@ -76,8 +72,6 @@ export class TransformService {
     provider: StorageProvider,
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
     libraryId: string,
-    apiUrl: string,
-    apiKey: string,
     template: string = "Besprechung"
   ): Promise<TransformResult> {
     try {
@@ -86,8 +80,6 @@ export class TransformService {
         text,
         options.targetLanguage,
         libraryId,
-        apiUrl,
-        apiKey,
         template
       );
 

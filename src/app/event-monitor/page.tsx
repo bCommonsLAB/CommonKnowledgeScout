@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Plus, AlertTriangle, Clock, FileCheck, FileX, Files } from 'lucide-react';
+import { Loader2, RefreshCw, Plus, AlertTriangle, Clock, FileCheck, FileX, Files, BookOpenText } from 'lucide-react';
 import BatchList from '@/components/event-monitor/batch-list';
 import { Batch } from '@/types/event-job';
 import JobDetailsPanel from '@/components/event-monitor/job-details-panel';
@@ -18,10 +18,14 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { createAllTrackSummaries, SecretaryServiceError } from '@/lib/secretary/client';
+import { useAtom } from 'jotai';
+import { activeLibraryIdAtom } from '@/atoms/library-atom';
+import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
 
 export default function EventMonitorPage() {
-  const [currentBatches, setCurrentBatches] = useState<Batch[]>([]);
-  const [archiveBatches, setArchiveBatches] = useState<Batch[]>([]);
+  const [currentTracks, setCurrentTracks] = useState<Batch[]>([]);
+  const [archiveTracks, setArchiveTracks] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -40,21 +44,24 @@ export default function EventMonitorPage() {
   // Sprachauswahl-Dialog
   const [languageDialogOpen, setLanguageDialogOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("de");
-  const language_map = {
-    "de": "Deutsch",
-    "en": "Englisch",
-    "es": "Spanisch",
-    "fr": "Französisch",
-    "it": "Italienisch",
-    "nl": "Niederländisch",
-    "zh": "Chinesisch",
-  };
+  // Template-Dialog für Zusammenfassungen
+  const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("track_eco_social");
+  const [summarizing, setSummarizing] = useState(false);
+  
+  // Verwende useAtom statt useAtomValue für activeLibraryIdAtom
+  const [activeLibraryId] = useAtom(activeLibraryIdAtom);
+  
+  // Debug-Logging für die aktive Bibliothek
+  useEffect(() => {
+    console.log('EventMonitor: Aktive Bibliothek:', activeLibraryId || 'keine');
+  }, [activeLibraryId]);
   
   const router = useRouter();
   
-  // Laufende Batches laden
+  // Laufende Tracks laden
   useEffect(() => {
-    loadCurrentBatches();
+    loadCurrentTracks();
     
     // Auto-Refresh Timer einrichten
     let intervalId: NodeJS.Timeout | undefined = undefined;
@@ -62,9 +69,9 @@ export default function EventMonitorPage() {
     if (autoRefresh) {
       intervalId = setInterval(() => {
         if (activeTab === 'current') {
-          loadCurrentBatches(false);
+          loadCurrentTracks(false);
         } else if (activeTab === 'archive') {
-          loadArchiveBatches(false);
+          loadArchiveTracks(false);
         }
       }, 10000);
     }
@@ -78,23 +85,23 @@ export default function EventMonitorPage() {
   
   // Statistiken berechnen
   useEffect(() => {
-    // Berechnung der Statistiken aus den aktuellen Batches
+    // Berechnung der Statistiken aus den aktuellen Tracks
     let total = 0;
     let completed = 0;
     let failed = 0;
     
-    currentBatches.forEach(batch => {
-      total += batch.total_jobs || 0;
-      completed += batch.completed_jobs || 0;
-      failed += batch.failed_jobs || 0;
+    currentTracks.forEach(track => {
+      total += track.total_jobs || 0;
+      completed += track.completed_jobs || 0;
+      failed += track.failed_jobs || 0;
     });
     
     setStatsTotal(total);
     setStatsCompleted(completed);
     setStatsFailed(failed);
-  }, [currentBatches]);
+  }, [currentTracks]);
   
-  async function loadCurrentBatches(showLoader = true) {
+  async function loadCurrentTracks(showLoader = true) {
     try {
       if (showLoader) {
         setLoading(true);
@@ -104,15 +111,15 @@ export default function EventMonitorPage() {
       const data = await response.json();
       
       if (data.status === 'success') {
-        setCurrentBatches(data.data.batches);
+        setCurrentTracks(data.data.batches);
         setError(null);
       } else {
-        console.error('Fehler beim Laden der Batches:', data.message);
-        setError(data.message || 'Fehler beim Laden der Batches');
+        console.error('Fehler beim Laden der Tracks:', data.message);
+        setError(data.message || 'Fehler beim Laden der Tracks');
       }
     } catch (error) {
-      console.error('Fehler beim Laden der Batches:', error);
-      setError('Fehler beim Laden der Batches');
+      console.error('Fehler beim Laden der Tracks:', error);
+      setError('Fehler beim Laden der Tracks');
     } finally {
       if (showLoader) {
         setLoading(false);
@@ -120,7 +127,7 @@ export default function EventMonitorPage() {
     }
   }
   
-  async function loadArchiveBatches(showLoader = true) {
+  async function loadArchiveTracks(showLoader = true) {
     try {
       if (showLoader) {
         setArchiveLoading(true);
@@ -130,15 +137,15 @@ export default function EventMonitorPage() {
       const data = await response.json();
       
       if (data.status === 'success') {
-        setArchiveBatches(data.data.batches);
+        setArchiveTracks(data.data.batches);
         setError(null);
       } else {
-        console.error('Fehler beim Laden der archivierten Batches:', data.message);
-        setError(data.message || 'Fehler beim Laden der archivierten Batches');
+        console.error('Fehler beim Laden der archivierten Tracks:', data.message);
+        setError(data.message || 'Fehler beim Laden der archivierten Tracks');
       }
     } catch (error) {
-      console.error('Fehler beim Laden der archivierten Batches:', error);
-      setError('Fehler beim Laden der archivierten Batches');
+      console.error('Fehler beim Laden der archivierten Tracks:', error);
+      setError('Fehler beim Laden der archivierten Tracks');
     } finally {
       if (showLoader) {
         setArchiveLoading(false);
@@ -149,13 +156,13 @@ export default function EventMonitorPage() {
   async function handleTabChange(value: string) {
     setActiveTab(value);
     
-    if (value === 'archive' && archiveBatches.length === 0) {
-      loadArchiveBatches();
+    if (value === 'archive' && archiveTracks.length === 0) {
+      loadArchiveTracks();
     }
   }
   
   async function handleFailAllBatches() {
-    if (!window.confirm('Sind Sie sicher, dass Sie alle aktuellen Batches auf "failed" setzen möchten? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+    if (!window.confirm('Sind Sie sicher, dass Sie alle aktuellen Tracks auf "failed" setzen möchten? Diese Aktion kann nicht rückgängig gemacht werden.')) {
       return;
     }
     
@@ -175,12 +182,12 @@ export default function EventMonitorPage() {
       if (data.status === 'success') {
         alert(data.message);
         // Neu laden um Änderungen zu sehen
-        loadCurrentBatches();
+        loadCurrentTracks();
       } else {
         alert(`Fehler: ${data.message}`);
       }
     } catch (error) {
-      console.error('Fehler beim Setzen aller Batches auf Failed:', error);
+      console.error('Fehler beim Setzen aller Tracks auf Failed:', error);
       alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
     } finally {
       setLoading(false);
@@ -212,15 +219,61 @@ export default function EventMonitorPage() {
       
       if (data.status === 'success') {
         alert(data.message);
-        loadCurrentBatches();
+        loadCurrentTracks();
       } else {
         alert(`Fehler: ${data.message}`);
       }
     } catch (error) {
-      console.error('Fehler beim Setzen aller Batches auf Pending:', error);
+      console.error('Fehler beim Setzen aller Tracks auf Pending:', error);
       alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
     } finally {
       setLoading(false);
+    }
+  }
+  
+  async function handleSummarizeAllBatches() {
+    // Template-Auswahl-Dialog öffnen
+    setSummaryDialogOpen(true);
+  }
+  
+  async function confirmSummarizeAll() {
+    try {
+      // Prüfe ob eine Bibliotheks-ID vorhanden ist
+      if (!activeLibraryId) {
+        alert('Keine aktive Bibliothek ausgewählt. Bitte wählen Sie zuerst eine Bibliothek aus.');
+        setSummaryDialogOpen(false);
+        return;
+      }
+      
+      setSummarizing(true);
+      setSummaryDialogOpen(false);
+      
+      console.log('Erstelle Zusammenfassungen für alle Tracks...');
+      console.log('Hinweis: Die API verwendet die Track-Namen (nicht die vollständigen Batch-Namen)');
+      
+      // Verwende die aktive Bibliotheks-ID aus dem Atom-State
+      const data = await createAllTrackSummaries(
+        selectedLanguage,
+        activeLibraryId,
+        selectedTemplate,
+        false // useCache
+      );
+      
+      if (data.status === 'success') {
+        alert(`Erfolgreich: ${data.summary.successful_tracks} Tracks zusammengefasst, ${data.summary.failed_tracks} fehlgeschlagen.`);
+        loadCurrentTracks();
+      } else {
+        alert(`Fehler: ${data.error?.message || 'Unbekannter Fehler bei der Erstellung der Zusammenfassungen'}`);
+      }
+    } catch (error) {
+      console.error('Fehler bei der Erstellung der Zusammenfassungen:', error);
+      if (error instanceof SecretaryServiceError) {
+        alert(`Secretary Service Fehler: ${error.message}`);
+      } else {
+        alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+      }
+    } finally {
+      setSummarizing(false);
     }
   }
   
@@ -242,14 +295,14 @@ export default function EventMonitorPage() {
   return (
     <div className="container py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Event-Verarbeitungs-Monitor</h1>
+        <h1 className="text-3xl font-bold">Event-Track-Monitor</h1>
         
         <div className="flex items-center gap-3">
           <Button 
             onClick={() => router.push('/event-monitor/create-batch')} 
             className="bg-green-600 hover:bg-green-700 text-white"
           >
-            <Plus className="w-4 h-4 mr-2" /> Batch erstellen
+            <Plus className="w-4 h-4 mr-2" /> Track erstellen
           </Button>
           
           <Button 
@@ -271,6 +324,17 @@ export default function EventMonitorPage() {
             <Clock className="w-4 h-4 mr-2" /> Alle auf Pending
           </Button>
           
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-blue-500 text-blue-600 hover:bg-blue-50"
+            onClick={handleSummarizeAllBatches}
+            disabled={loading || summarizing || !activeLibraryId}
+            title={!activeLibraryId ? "Bitte wählen Sie zuerst eine Bibliothek aus" : "Zusammenfassung für alle Tracks erstellen"}
+          >
+            {summarizing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <BookOpenText className="w-4 h-4 mr-2" />} Alle zusammenfassen
+          </Button>
+          
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -283,7 +347,7 @@ export default function EventMonitorPage() {
             </label>
             
             <Button 
-              onClick={() => activeTab === 'current' ? loadCurrentBatches() : loadArchiveBatches()} 
+              onClick={() => activeTab === 'current' ? loadCurrentTracks() : loadArchiveTracks()} 
               variant="outline" 
               size="sm" 
               disabled={loading || archiveLoading}
@@ -339,16 +403,16 @@ export default function EventMonitorPage() {
       >
         <TabsList className="mb-4">
           <TabsTrigger value="current">
-            Aktuelle Batches 
+            Aktuelle Tracks 
             <span className="ml-2 bg-blue-600 text-white text-xs font-medium px-2 py-0.5 rounded-full">
-              {currentBatches.length}
+              {currentTracks.length}
             </span>
           </TabsTrigger>
           <TabsTrigger value="archive">
             Archiv
-            {archiveBatches.length > 0 && (
+            {archiveTracks.length > 0 && (
               <span className="ml-2 bg-gray-500 text-white text-xs font-medium px-2 py-0.5 rounded-full">
-                {archiveBatches.length}
+                {archiveTracks.length}
               </span>
             )}
           </TabsTrigger>
@@ -359,20 +423,20 @@ export default function EventMonitorPage() {
             <div className="flex justify-center py-8">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             </div>
-          ) : currentBatches.length > 0 ? (
+          ) : currentTracks.length > 0 ? (
             <BatchList 
-              batches={currentBatches} 
-              onRefresh={loadCurrentBatches} 
+              batches={currentTracks} 
+              onRefresh={loadCurrentTracks} 
             />
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <p className="text-gray-500">Keine aktuellen Batches gefunden.</p>
+              <p className="text-gray-500">Keine aktuellen Tracks gefunden.</p>
               <Button 
                 onClick={() => router.push('/event-monitor/create-batch')} 
                 variant="outline" 
                 className="mt-4"
               >
-                <Plus className="w-4 h-4 mr-2" /> Ersten Batch erstellen
+                <Plus className="w-4 h-4 mr-2" /> Ersten Track erstellen
               </Button>
             </div>
           )}
@@ -383,15 +447,15 @@ export default function EventMonitorPage() {
             <div className="flex justify-center py-8">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             </div>
-          ) : archiveBatches.length > 0 ? (
+          ) : archiveTracks.length > 0 ? (
             <BatchList 
-              batches={archiveBatches} 
-              onRefresh={loadArchiveBatches} 
+              batches={archiveTracks} 
+              onRefresh={loadArchiveTracks} 
               isArchive={true}
             />
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <p className="text-gray-500">Keine archivierten Batches gefunden.</p>
+              <p className="text-gray-500">Keine archivierten Tracks gefunden.</p>
             </div>
           )}
         </TabsContent>
@@ -402,7 +466,7 @@ export default function EventMonitorPage() {
         isOpen={jobDetailsOpen} 
         onOpenChange={handleJobDetailsPanelChange} 
         jobId={selectedJobId}
-        onRefresh={() => activeTab === 'current' ? loadCurrentBatches() : loadArchiveBatches()}
+        onRefresh={() => activeTab === 'current' ? loadCurrentTracks() : loadArchiveTracks()}
       />
       
       {/* Sprachauswahl-Dialog */}
@@ -427,7 +491,7 @@ export default function EventMonitorPage() {
                 <SelectValue placeholder="Sprache wählen" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(language_map).map(([code, name]) => (
+                {Object.entries(LANGUAGE_MAP).map(([code, name]) => (
                   <SelectItem key={code} value={code}>{name}</SelectItem>
                 ))}
               </SelectContent>
@@ -448,6 +512,70 @@ export default function EventMonitorPage() {
             >
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Bestätigen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Template-Auswahl-Dialog für Zusammenfassungen */}
+      <Dialog 
+        open={summaryDialogOpen} 
+        onOpenChange={(open) => {
+          if (!summarizing) setSummaryDialogOpen(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Zusammenfassungs-Template wählen</DialogTitle>
+            <DialogDescription>
+              Wählen Sie den Template-Typ und die Zielsprache für die Zusammenfassungen aller Tracks.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div>
+              <Label htmlFor="template-select" className="mb-2 block">Template</Label>
+              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                <SelectTrigger id="template-select">
+                  <SelectValue placeholder="Template wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TEMPLATE_MAP).map(([code, name]) => (
+                    <SelectItem key={code} value={code}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="language-select-summary" className="mb-2 block">Sprache</Label>
+              <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                <SelectTrigger id="language-select-summary">
+                  <SelectValue placeholder="Sprache wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(LANGUAGE_MAP).map(([code, name]) => (
+                    <SelectItem key={code} value={code}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setSummaryDialogOpen(false)}
+              disabled={summarizing}
+            >
+              Abbrechen
+            </Button>
+            <Button 
+              onClick={confirmSummarizeAll} 
+              disabled={summarizing}
+            >
+              {summarizing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Zusammenfassen starten
             </Button>
           </DialogFooter>
         </DialogContent>

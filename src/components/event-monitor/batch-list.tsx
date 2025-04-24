@@ -33,12 +33,27 @@ import {
   ChevronDown,
   ChevronRight,
   RotateCw,
-  Loader2
+  Loader2,
+  BookOpenText
 } from 'lucide-react';
 import { Batch, BatchStatus, Job, JobStatus } from '@/types/event-job';
 import { formatDateTime } from '@/lib/utils';
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { createTrackSummary, SecretaryServiceError } from '@/lib/secretary/client';
+import { useAtom } from 'jotai';
+import { activeLibraryIdAtom } from '@/atoms/library-atom';
+import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
 
 interface BatchListProps {
   batches: Batch[];
@@ -54,6 +69,21 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   const [jobsByBatch, setJobsByBatch] = useState<Record<string, Job[]>>({});
   const [loadingJobs, setLoadingJobs] = useState<Record<string, boolean>>({});
   const [processingJob, setProcessingJob] = useState<string | null>(null);
+  
+  // Zustände für den Zusammenfassungs-Dialog
+  const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("track_eco_social");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("de");
+  const [creatingSummary, setCreatingSummary] = useState(false);
+  
+  // Aktive Bibliotheks-ID aus dem Atom-State mit useAtom
+  const [activeLibraryId] = useAtom(activeLibraryIdAtom);
+  
+  // Debug-Logging für die aktive Bibliothek
+  useEffect(() => {
+    console.log('BatchList: Aktive Bibliothek:', activeLibraryId || 'keine');
+  }, [activeLibraryId]);
   
   // Status-Badge darstellen
   function getBatchStatusBadge(status: BatchStatus) {
@@ -287,24 +317,90 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
     }
   };
   
+  // Zusammenfassung für einen Batch erstellen Dialog öffnen
+  const openSummaryDialog = (batchId: string) => {
+    setSelectedBatchId(batchId);
+    setSummaryDialogOpen(true);
+  };
+  
+  // Zusammenfassung für einen Batch erstellen
+  async function createSummaryForBatch(batchId: string, template: string, targetLanguage: string) {
+    try {
+      // Prüfe ob eine Bibliotheks-ID vorhanden ist
+      if (!activeLibraryId) {
+        alert('Keine aktive Bibliothek ausgewählt. Bitte wählen Sie zuerst eine Bibliothek aus.');
+        return;
+      }
+      
+      setCreatingSummary(true);
+      setSummaryDialogOpen(false);
+      
+      // Finde den Batch Namen (track_name) aus der batches-Liste
+      const batch = batches.find(b => b.batch_id === batchId);
+      if (!batch) {
+        throw new Error('Batch nicht gefunden');
+      }
+      
+      // Extrahiere den tatsächlichen Track-Namen aus dem Batch-Namen
+      // Format: "EVENT - TRACK (X Jobs)" -> "TRACK"
+      let trackName = batch.batch_name || "";
+      const dashIndex = trackName.indexOf(' - ');
+      if (dashIndex > 0) {
+        const parenthesisIndex = trackName.lastIndexOf(' (');
+        if (parenthesisIndex > dashIndex) {
+          trackName = trackName.substring(dashIndex + 3, parenthesisIndex);
+        } else {
+          trackName = trackName.substring(dashIndex + 3);
+        }
+      }
+      
+      console.log(`Erstelle Zusammenfassung für Track: "${trackName}"`);
+      
+      // Verwende die aktive Bibliotheks-ID aus dem Atom-State
+      const data = await createTrackSummary(
+        trackName,
+        targetLanguage,
+        activeLibraryId,
+        template,
+        false // useCache
+      );
+      
+      if (data.status === 'success') {
+        alert(`Erfolgreich: Zusammenfassung für Track "${trackName}" erstellt.`);
+      } else {
+        alert(`Fehler: ${data.error?.message || 'Unbekannter Fehler bei der Erstellung der Zusammenfassung'}`);
+      }
+    } catch (error) {
+      console.error('Fehler bei der Erstellung der Zusammenfassung:', error);
+      if (error instanceof SecretaryServiceError) {
+        alert(`Secretary Service Fehler: ${error.message}`);
+      } else {
+        alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+      }
+    } finally {
+      setCreatingSummary(false);
+      setSelectedBatchId(null);
+    }
+  }
+  
   return (
-    <Card className="overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[300px]">Batch-Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Erstellungsdatum</TableHead>
-            <TableHead>Letzte Aktualisierung</TableHead>
-            <TableHead>Jobs Total</TableHead>
-            <TableHead>Jobs Erfolgreich</TableHead>
-            <TableHead>Jobs Fehlgeschlagen</TableHead>
-            <TableHead className="text-right">Aktionen</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {batches.map((batch) => (
-            <React.Fragment key={batch.batch_id}>
+    <div className="space-y-4">
+      {batches.map((batch) => (
+        <Card key={batch.batch_id} className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[300px]">Batch-Name</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Erstellungsdatum</TableHead>
+                <TableHead>Letzte Aktualisierung</TableHead>
+                <TableHead>Jobs Total</TableHead>
+                <TableHead>Jobs Erfolgreich</TableHead>
+                <TableHead>Jobs Fehlgeschlagen</TableHead>
+                <TableHead className="text-right">Aktionen</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               <TableRow 
                 className={`${batch.isActive && !isArchive ? 'bg-blue-50 dark:bg-blue-900/20' : ''} ${processingBatch === batch.batch_id ? 'opacity-50' : ''}`}
               >
@@ -331,8 +427,16 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" disabled={processingBatch === batch.batch_id}>
-                        <MoreHorizontal className="h-4 w-4" />
+                      <Button 
+                        variant="ghost" 
+                        className="h-8 w-8 p-0" 
+                        disabled={processingBatch === batch.batch_id}
+                      >
+                        {processingBatch === batch.batch_id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MoreHorizontal className="h-4 w-4" />
+                        )}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -369,6 +473,18 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                         className="text-red-600 focus:text-red-700"
                       >
                         <Trash2 className="mr-2 h-4 w-4" /> Löschen
+                      </DropdownMenuItem>
+                      
+                      {/* Zusammenfassung erstellen Option */}
+                      <DropdownMenuItem 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openSummaryDialog(batch.batch_id);
+                        }}
+                        disabled={processingBatch === batch.batch_id || creatingSummary}
+                      >
+                        <BookOpenText className="w-4 h-4 mr-2" />
+                        Zusammenfassung erstellen
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -423,7 +539,6 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                                           onClick={() => restartJob(job.job_id, batch.batch_id)}
                                           variant="outline"
                                           size="sm"
-                                          disabled={processingJob === job.job_id || job.status === JobStatus.PROCESSING}
                                           className="text-blue-600 dark:text-blue-400"
                                         >
                                           <RotateCw className="w-4 h-4" />
@@ -458,18 +573,74 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                   </TableCell>
                 </TableRow>
               )}
-            </React.Fragment>
-          ))}
+            </TableBody>
+          </Table>
+        </Card>
+      ))}
+      
+      {/* Zusammenfassungs-Dialog */}
+      <Dialog 
+        open={summaryDialogOpen} 
+        onOpenChange={(open) => {
+          if (!creatingSummary) setSummaryDialogOpen(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Zusammenfassungs-Template wählen</DialogTitle>
+            <DialogDescription>
+              Wählen Sie den Template-Typ und die Zielsprache für die Zusammenfassung dieses Tracks.
+            </DialogDescription>
+          </DialogHeader>
           
-          {batches.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={8} className="text-center py-6 text-gray-500 dark:text-gray-400">
-                Keine Batches gefunden.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </Card>
+          <div className="py-4 space-y-4">
+            <div>
+              <Label htmlFor="template-select-batch" className="mb-2 block">Template</Label>
+              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                <SelectTrigger id="template-select-batch">
+                  <SelectValue placeholder="Template wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TEMPLATE_MAP).map(([code, name]) => (
+                    <SelectItem key={code} value={code}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="language-select-batch" className="mb-2 block">Sprache</Label>
+              <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                <SelectTrigger id="language-select-batch">
+                  <SelectValue placeholder="Sprache wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(LANGUAGE_MAP).map(([code, name]) => (
+                    <SelectItem key={code} value={code}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setSummaryDialogOpen(false)}
+              disabled={creatingSummary}
+            >
+              Abbrechen
+            </Button>
+            <Button 
+              onClick={() => selectedBatchId && createSummaryForBatch(selectedBatchId, selectedTemplate, selectedLanguage)} 
+              disabled={creatingSummary || !selectedBatchId}
+            >
+              {creatingSummary ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Zusammenfassung erstellen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 } 

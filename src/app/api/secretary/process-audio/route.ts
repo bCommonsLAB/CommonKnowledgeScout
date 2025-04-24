@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
+import { env } from 'process';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,36 +32,9 @@ export async function POST(request: NextRequest) {
     });
     console.log('[process-audio] FormData erhalten mit Feldern:', formDataKeys);
     
-    // Header aus dem Request loggen
-    console.log('[process-audio] Secretary Headers:', {
-      libraryId: request.headers.get('x-library-id'),
-      secretaryUrl: request.headers.get('x-secretary-service-url'),
-      hasApiKey: !!request.headers.get('x-secretary-service-api-key'),
-      apiKeyValue: request.headers.get('x-secretary-service-api-key')?.substring(0, 3) + '...'
-    });
 
     // Secretary Service URL und API-Key aus den Headers holen
-    const secretaryServiceUrl = request.headers.get('x-secretary-service-url');
-    const apiKey = request.headers.get('x-secretary-service-api-key');
-    const libraryId = request.headers.get('x-library-id');
-
-    // Prüfen, ob Secretary Service URL vorhanden ist
-    if (!secretaryServiceUrl) {
-      console.error('[process-audio] Secretary Service URL fehlt im Header');
-      return NextResponse.json(
-        { error: 'Secretary Service URL nicht konfiguriert' },
-        { status: 400 }
-      );
-    }
-    
-    // Prüfen, ob API-Key vorhanden ist
-    if (!apiKey) {
-      console.error('[process-audio] Secretary Service API-Key fehlt im Header');
-      return NextResponse.json(
-        { error: 'Secretary Service API-Key nicht konfiguriert' },
-        { status: 400 }
-      );
-    }
+    const secretaryServiceUrl = env.SECRETARY_SERVICE_URL;
     
     console.log('[process-audio] Sende Anfrage an Secretary Service:', secretaryServiceUrl);
     
@@ -84,7 +58,6 @@ export async function POST(request: NextRequest) {
       body: serviceFormData,
       headers: {
         'Accept': 'application/json',
-        'X-Api-Key': apiKey
       },
     });
 
