@@ -387,20 +387,20 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
     <div className="space-y-4">
       {batches.map((batch) => (
         <Card key={batch.batch_id} className="overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[300px]">Batch-Name</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Erstellungsdatum</TableHead>
-                <TableHead>Letzte Aktualisierung</TableHead>
-                <TableHead>Jobs Total</TableHead>
-                <TableHead>Jobs Erfolgreich</TableHead>
-                <TableHead>Jobs Fehlgeschlagen</TableHead>
-                <TableHead className="text-right">Aktionen</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[300px]">Batch-Name</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Erstellungsdatum</TableHead>
+            <TableHead>Letzte Aktualisierung</TableHead>
+            <TableHead>Jobs Total</TableHead>
+            <TableHead>Jobs Erfolgreich</TableHead>
+            <TableHead>Jobs Fehlgeschlagen</TableHead>
+            <TableHead className="text-right">Aktionen</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
               <TableRow 
                 className={`${batch.isActive && !isArchive ? 'bg-blue-50 dark:bg-blue-900/20' : ''} ${processingBatch === batch.batch_id ? 'opacity-50' : ''}`}
               >
@@ -435,7 +435,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                         {processingBatch === batch.batch_id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <MoreHorizontal className="h-4 w-4" />
+                        <MoreHorizontal className="h-4 w-4" />
                         )}
                       </Button>
                     </DropdownMenuTrigger>
@@ -570,12 +570,12 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                         </div>
                       )}
                     </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </Card>
       ))}
       
       {/* Zusammenfassungs-Dialog */}
