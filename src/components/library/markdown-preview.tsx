@@ -113,11 +113,11 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
       console.log('Markdown Transformation abgeschlossen:', {
         textLength: result.text.length,
         savedItemId: result.savedItem?.id,
-        updatedItemsCount: result.updatedItems.length
+        updatedItemsCount: result.updatedItems?.length || 0
       });
 
       // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
-      if (onRefreshFolder && currentItem.parentId && result.updatedItems.length > 0) {
+      if (onRefreshFolder && currentItem.parentId && result.updatedItems && result.updatedItems.length > 0) {
         console.log('Informiere Library über aktualisierte Dateiliste', {
           folderId: currentItem.parentId,
           itemsCount: result.updatedItems.length,

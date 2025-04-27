@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { AudioPlayer } from './audio-player';
+import { VideoPlayer } from './video-player';
 import { MarkdownPreview } from './markdown-preview';
 import { MarkdownMetadata, extractFrontmatter } from './markdown-metadata';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -185,13 +186,7 @@ function PreviewContent({
         />
       );
     case 'video':
-      return (
-        <video 
-          controls
-          src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
-          className="max-w-full h-auto"
-        />
-      );
+      return <VideoPlayer item={item} onRefreshFolder={onRefreshFolder} />;
     case 'markdown':
       const [activeTab, setActiveTab] = React.useState<string>("preview");
       

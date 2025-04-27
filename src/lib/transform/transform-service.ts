@@ -1,5 +1,5 @@
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
-import { transformAudio, transformText } from "@/lib/secretary/client";
+import { transformAudio, transformText, transformVideo } from "@/lib/secretary/client";
 import { saveShadowTwin, generateShadowTwinName } from "@/lib/storage/shadow-twin";
 import { toast } from "sonner";
 
@@ -12,8 +12,20 @@ export interface TransformSaveOptions {
 
 export interface TransformResult {
   text: string;
-  savedItem: StorageItem | null;
+  savedItem?: StorageItem;
   updatedItems: StorageItem[];
+}
+
+export interface VideoTransformOptions extends TransformSaveOptions {
+  extractAudio: boolean;
+  extractFrames: boolean;
+  frameInterval: number;
+  sourceLanguage?: string;
+  template?: string;
+}
+
+export interface VideoTransformResult extends TransformResult {
+  frames?: { url: string; timestamp: number }[];
 }
 
 /**
@@ -27,7 +39,14 @@ export interface TransformResult {
  */
 export class TransformService {
   /**
-   * Transformiert eine Audio-Datei in Text und speichert das Ergebnis
+   * Transformiert eine Audio-Datei in Text
+   * @param file Die zu transformierende Audio-Datei
+   * @param originalItem Das ursprüngliche StorageItem
+   * @param options Speicheroptionen
+   * @param provider Der Storage-Provider
+   * @param refreshItems Callback zum Aktualisieren der Dateiliste
+   * @param libraryId ID der aktiven Bibliothek
+   * @returns Das Transformationsergebnis
    */
   static async transformAudio(
     file: File,
@@ -37,36 +56,99 @@ export class TransformService {
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
     libraryId: string
   ): Promise<TransformResult> {
-    try {
-      // 1. Audio transformieren
-      const text = await transformAudio(
-        file,
-        options.targetLanguage,
-        libraryId
-      );
-
-      // 2. Ergebnis speichern und Liste aktualisieren
-      return await this.saveTransformationResult(
-        text,
+    // Audio-Datei wird transformiert
+    const transformedText = await transformAudio(file, options.targetLanguage, libraryId);
+    
+    // Ergebnis wird gespeichert, wenn gewünscht
+    if (options.createShadowTwin) {
+      const result = await TransformService.saveTwinFile(
+        transformedText,
         originalItem,
-        options,
+        options.fileName,
+        options.fileExtension,
         provider,
         refreshItems
       );
-    } catch (error) {
-      console.error("Fehler bei der Audio-Transformation:", error);
-      toast.error("Fehler", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler bei der Transkription"
-      });
-      throw error;
+      
+      return {
+        text: transformedText,
+        savedItem: result.savedItem,
+        updatedItems: result.updatedItems
+      };
     }
+    
+    return {
+      text: transformedText,
+      updatedItems: []
+    };
   }
 
   /**
-   * Transformiert einen Text und speichert das Ergebnis
+   * Transformiert eine Video-Datei
+   * @param file Die zu transformierende Video-Datei
+   * @param originalItem Das ursprüngliche StorageItem
+   * @param options Optionen für Video-Transformation und Speicherung
+   * @param provider Der Storage-Provider
+   * @param refreshItems Callback zum Aktualisieren der Dateiliste
+   * @param libraryId ID der aktiven Bibliothek
+   * @returns Das Transformationsergebnis inklusive Video-spezifischer Daten
+   */
+  static async transformVideo(
+    file: File,
+    originalItem: StorageItem,
+    options: VideoTransformOptions,
+    provider: StorageProvider,
+    refreshItems: (folderId: string) => Promise<StorageItem[]>,
+    libraryId: string
+  ): Promise<VideoTransformResult> {
+    // Video-Datei wird transformiert
+    const videoTransformResult = await transformVideo(
+      file, 
+      {
+        extractAudio: options.extractAudio,
+        extractFrames: options.extractFrames,
+        frameInterval: options.frameInterval,
+        targetLanguage: options.targetLanguage,
+        sourceLanguage: options.sourceLanguage || 'auto',
+        template: options.template
+      }, 
+      libraryId
+    );
+    
+    // Text aus der Transkription extrahieren (falls vorhanden)
+    const transformedText = videoTransformResult.transcription?.text || '';
+    
+    // Ergebnis wird gespeichert, wenn gewünscht
+    if (options.createShadowTwin && transformedText) {
+      const result = await TransformService.saveTwinFile(
+        transformedText,
+        originalItem,
+        options.fileName,
+        options.fileExtension,
+        provider,
+        refreshItems
+      );
+      
+      return {
+        text: transformedText,
+        savedItem: result.savedItem,
+        updatedItems: result.updatedItems,
+        frames: videoTransformResult.frames
+      };
+    }
+    
+    return {
+      text: transformedText,
+      updatedItems: [],
+      frames: videoTransformResult.frames
+    };
+  }
+
+  /**
+   * Transformiert einen Text mithilfe des Secretary Services
    */
   static async transformText(
-    text: string,
+    textContent: string,
     originalItem: StorageItem,
     options: TransformSaveOptions,
     provider: StorageProvider,
@@ -74,79 +156,64 @@ export class TransformService {
     libraryId: string,
     template: string = "Besprechung"
   ): Promise<TransformResult> {
-    try {
-      // 1. Text transformieren
-      const transformedText = await transformText(
-        text,
-        options.targetLanguage,
-        libraryId,
-        template
-      );
-
-      // 2. Ergebnis speichern und Liste aktualisieren
-      return await this.saveTransformationResult(
+    // Text wird transformiert
+    const transformedText = await transformText(
+      textContent,
+      options.targetLanguage,
+      libraryId,
+      template
+    );
+    
+    // Ergebnis wird gespeichert, wenn gewünscht
+    if (options.createShadowTwin) {
+      const result = await TransformService.saveTwinFile(
         transformedText,
         originalItem,
-        options,
+        options.fileName,
+        options.fileExtension,
         provider,
         refreshItems
       );
-    } catch (error) {
-      console.error("Fehler bei der Text-Transformation:", error);
-      toast.error("Fehler", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler bei der Transformation"
-      });
-      throw error;
+      
+      return {
+        text: transformedText,
+        savedItem: result.savedItem,
+        updatedItems: result.updatedItems
+      };
     }
+    
+    return {
+      text: transformedText,
+      updatedItems: []
+    };
   }
-
-  /**
-   * Speichert das Transformationsergebnis und aktualisiert die Dateiliste
-   */
-  private static async saveTransformationResult(
-    text: string,
+  
+  // Hilfsmethode zum Speichern der transformierten Datei
+  private static async saveTwinFile(
+    content: string,
     originalItem: StorageItem,
-    options: TransformSaveOptions,
+    fileName: string,
+    fileExtension: string,
     provider: StorageProvider,
     refreshItems: (folderId: string) => Promise<StorageItem[]>
-  ): Promise<TransformResult> {
-    let savedItem: StorageItem | null = null;
-
-    // 1. Ergebnis speichern (als Shadow-Twin oder normale Datei)
-    if (options.createShadowTwin) {
-      // Als Shadow-Twin speichern
-      savedItem = await saveShadowTwin(
-        originalItem,
-        { output_text: text },
-        options.targetLanguage,
-        provider
-      );
-    } else {
-      // Als normale Datei mit angegebenem Namen speichern
-      const fileName = `${options.fileName}.${options.fileExtension}`;
-      const blob = new Blob([text], { type: 'text/plain' });
-      const file = new File([blob], fileName, { 
-        type: options.fileExtension === 'md' ? 'text/markdown' : 'text/plain' 
-      });
-      
-      savedItem = await provider.uploadFile(originalItem.parentId, file);
-    }
-
-    // 2. Dateien im Verzeichnis aktualisieren
+  ): Promise<{ savedItem?: StorageItem; updatedItems: StorageItem[] }> {
+    // Dateiname ohne Erweiterung extrahieren
+    const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
+    
+    // Neuen Dateinamen erstellen
+    const newFileName = `${nameWithoutExtension}.${fileExtension}`;
+    
+    // Markdown-Datei erstellen und speichern
+    const fileBlob = new Blob([content], { type: "text/markdown" });
+    const file = new File([fileBlob], newFileName, { type: "text/markdown" });
+    
+    // In dasselbe Verzeichnis wie die Originaldatei hochladen
+    const savedItem = await provider.uploadFile(originalItem.parentId, file);
+    
+    // Aktualisierte Dateiliste holen
     const updatedItems = await refreshItems(originalItem.parentId);
-
-    // 3. Erfolgsmeldung anzeigen
-    toast.success("Transformation erfolgreich", {
-      description: "Die Datei wurde erfolgreich transformiert und gespeichert.",
-      duration: 5000
-    });
-
-    // 4. Transformationsergebnis zurückgeben
-    return {
-      text,
-      savedItem,
-      updatedItems
-    };
+    
+    return { savedItem, updatedItems };
   }
 
   /**
@@ -166,5 +233,40 @@ export class TransformService {
       provider,
       refreshItems
     );
+  }
+
+  /**
+   * Speichert das Transformationsergebnis als Datei
+   */
+  static async saveTransformationResult(
+    text: string,
+    originalItem: StorageItem,
+    options: TransformSaveOptions,
+    provider: StorageProvider,
+    refreshItems: (folderId: string) => Promise<StorageItem[]>
+  ): Promise<TransformResult> {
+    // Als Shadow-Twin oder als normale Datei mit angegebenem Namen speichern
+    if (options.createShadowTwin) {
+      const result = await TransformService.saveTwinFile(
+        text,
+        originalItem,
+        options.fileName,
+        options.fileExtension,
+        provider,
+        refreshItems
+      );
+      
+      return {
+        text,
+        savedItem: result.savedItem,
+        updatedItems: result.updatedItems
+      };
+    } else {
+      // Einfach das Transformationsergebnis zurückgeben ohne Datei zu speichern
+      return {
+        text,
+        updatedItems: []
+      };
+    }
   }
 } 

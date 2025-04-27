@@ -232,4 +232,88 @@ export async function createAllTrackSummaries(
     }
     throw new SecretaryServiceError('Fehler bei der Erstellung aller Track-Zusammenfassungen');
   }
+}
+
+/**
+ * Transformiert eine Video-Datei mithilfe des Secretary Services
+ * 
+ * @param file Die zu transformierende Video-Datei 
+ * @param options Optionen für die Video-Transformation
+ * @param libraryId ID der aktiven Bibliothek
+ * @returns Die Transformationsergebnisse
+ */
+export async function transformVideo(
+  file: File, 
+  options: {
+    extractAudio?: boolean;
+    extractFrames?: boolean;
+    frameInterval?: number;
+    targetLanguage?: string;
+    sourceLanguage?: string;
+    template?: string;
+  },
+  libraryId: string
+): Promise<{
+  transcription?: { text: string };
+  frames?: { url: string; timestamp: number }[];
+}> {
+  try {
+    console.log('[secretary/client] transformVideo aufgerufen mit Optionen:', options);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Sprachoptionen
+    if (options.targetLanguage) {
+      formData.append('targetLanguage', options.targetLanguage);
+    }
+    
+    if (options.sourceLanguage) {
+      formData.append('sourceLanguage', options.sourceLanguage);
+    }
+    
+    // Template-Option
+    if (options.template) {
+      formData.append('template', options.template);
+    }
+    
+    // Video-spezifische Optionen
+    if (options.extractAudio !== undefined) {
+      formData.append('extractAudio', options.extractAudio.toString());
+    }
+    
+    if (options.extractFrames !== undefined) {
+      formData.append('extractFrames', options.extractFrames.toString());
+    }
+    
+    if (options.frameInterval !== undefined) {
+      formData.append('frameInterval', options.frameInterval.toString());
+    }
+    
+    // Angepasste Header bei expliziten Optionen
+    const customHeaders: HeadersInit = {};
+    customHeaders['X-Library-Id'] = libraryId;
+    
+    console.log('[secretary/client] Sende Anfrage an Secretary Service API');
+    const response = await fetch('/api/secretary/process-video', {
+      method: 'POST',
+      body: formData,
+      headers: customHeaders
+    });
+
+    console.log('[secretary/client] Antwort erhalten, Status:', response.status);
+    if (!response.ok) {
+      throw new SecretaryServiceError(`Fehler bei der Verbindung zum Secretary Service: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('[secretary/client] Video-Daten erfolgreich empfangen');
+    return data;
+  } catch (error) {
+    console.error('[secretary/client] Fehler bei der Video-Transformation:', error);
+    if (error instanceof SecretaryServiceError) {
+      throw error;
+    }
+    throw new SecretaryServiceError('Fehler bei der Verarbeitung der Video-Datei');
+  }
 } 

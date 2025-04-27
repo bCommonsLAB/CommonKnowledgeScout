@@ -36,7 +36,7 @@ export function TransformResultHandler({
       try {
         console.log("TransformResultHandler: Verarbeite Ergebnis", {
           hasItem: !!result.savedItem,
-          itemsUpdated: result.updatedItems.length
+          itemsUpdated: result.updatedItems?.length || 0
         });
         
         // Die neue Datei auswählen, wenn verfügbar
