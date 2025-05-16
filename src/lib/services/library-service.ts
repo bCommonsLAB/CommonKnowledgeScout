@@ -196,17 +196,61 @@ export class LibraryService {
    * Sichere Client-Bibliotheken aus vollständigen Bibliotheken erstellen
    */
   toClientLibraries(libraries: Library[]): ClientLibrary[] {
-    return libraries.map(lib => ({
-      id: lib.id,
-      label: lib.label,
-      type: lib.type,
-      path: lib.path || '',
-      isEnabled: lib.isEnabled,
-      config: {
-        // Nur sichere Konfigurationsdaten übernehmen
+    return libraries.map(lib => {
+      // Basis-Konfiguration für alle Bibliothekstypen
+      const baseConfig = {
         transcription: lib.transcription,
         secretaryService: lib.config?.secretaryService
+      };
+      
+      // Zusätzliche Konfiguration basierend auf dem Bibliothekstyp
+      let config: Record<string, unknown> = { ...baseConfig };
+      
+      // Für OneDrive-Bibliotheken die OAuth-Parameter hinzufügen
+      if (lib.type === 'onedrive') {
+        // Wir verwenden den config-Wert als Record<string, unknown>, 
+        // um auf dynamische Eigenschaften zuzugreifen
+        const configAsRecord = lib.config as Record<string, unknown>;
+        
+        config = {
+          ...config,
+          tenantId: lib.config?.tenantId,
+          clientId: lib.config?.clientId,
+          clientSecret: lib.config?.clientSecret,
+          redirectUri: lib.config?.redirectUri,
+          // Vorhandene Token ebenfalls übernehmen, falls vorhanden
+          accessToken: configAsRecord?.['accessToken'],
+          refreshToken: configAsRecord?.['refreshToken'],
+          tokenExpiry: configAsRecord?.['tokenExpiry']
+        };
       }
-    }));
+      
+      // Gleiches für andere OAuth-Provider wie Google Drive
+      if (lib.type === 'gdrive') {
+        // Wir verwenden den config-Wert als Record<string, unknown>,
+        // um auf dynamische Eigenschaften zuzugreifen
+        const configAsRecord = lib.config as Record<string, unknown>;
+        
+        config = {
+          ...config,
+          clientId: lib.config?.clientId,
+          clientSecret: lib.config?.clientSecret,
+          redirectUri: lib.config?.redirectUri,
+          // Vorhandene Token ebenfalls übernehmen, falls vorhanden
+          accessToken: configAsRecord?.['accessToken'],
+          refreshToken: configAsRecord?.['refreshToken'],
+          tokenExpiry: configAsRecord?.['tokenExpiry']
+        };
+      }
+      
+      return {
+        id: lib.id,
+        label: lib.label,
+        type: lib.type,
+        path: lib.path || '',
+        isEnabled: lib.isEnabled,
+        config
+      };
+    });
   }
 } 
