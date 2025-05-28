@@ -1,0 +1,78 @@
+name: ci-main
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+
+permissions:
+  contents: write
+  packages: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: prod
+    name: CI Prod
+    outputs:
+      version: ${{ steps.read_version.outputs.VERSION }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: read version file
+        id: read_version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: bump version
+        id: bump
+        uses: cbrgm/semver-bump-action@main
+        with:
+          current-version: ${{steps.read_version.outputs.VERSION}}
+          bump-level: patch
+
+      - name: write version file
+        run: echo "${{ steps.bump.outputs.new_version }}" > VERSION
+
+      - name: replace version in HTML
+        run: sed -i -E 's/(>Secretary Services v)([0-9]+\.[0-9]+\.[0-9]+)(<\/a>)/>Secretary Services v${{ steps.bump.outputs.new_version }}<\/a>/g' src/dashboard/templates/base.html
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/bcommonslab/commonsec:latest,ghcr.io/bcommonslab/commonsec:${{ steps.bump.outputs.new_version }}
+
+      - name: Push version and tag
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          git add VERSION
+          git add src/dashboard/templates/base.html
+          git commit -m "Bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
+          git tag -a -m "${{ steps.bump.outputs.new_version }}" v${{ steps.bump.outputs.new_version }}
+          git push --follow-tags
+          
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: false
+          generate_release_notes: true
+          tag_name: v${{ steps.bump.outputs.new_version }}
+      # This currently does not work, because dokploy will not pull the latest image, manually change the tag in dokploy. 
+      - name: Trigger deployment
+        run: curl -X GET https://dokploy.bcommonslab.org/api/deploy/compose/2ZEdY9hQq09Ubur6ne0iS
