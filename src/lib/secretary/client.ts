@@ -1,7 +1,3 @@
-interface TransformationError {
-  error: string;
-}
-
 export class SecretaryServiceError extends Error {
   constructor(message: string) {
     super(message);
@@ -125,7 +121,7 @@ export async function createTrackSummary(
   libraryId: string,
   template: string = "track_eco_social",
   useCache: boolean = false
-): Promise<any> {
+): Promise<unknown> {
   try {
     console.log('[secretary/client] createTrackSummary aufgerufen für Track:', trackName, 'und Bibliothek:', libraryId);
     console.log('[secretary/client] Template:', template, 'Sprache:', targetLanguage);
@@ -196,7 +192,7 @@ export async function createAllTrackSummaries(
   libraryId: string,
   template: string = "track_eco_social",
   useCache: boolean = false
-): Promise<any> {
+): Promise<unknown> {
   try {
     console.log('[secretary/client] createAllTrackSummaries aufgerufen');
     

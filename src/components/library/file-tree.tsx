@@ -9,15 +9,15 @@ import { currentFolderIdAtom } from '@/atoms/library-atom';
 
 interface FileTreeProps {
   provider: StorageProvider | null;
-  onSelect: (item: StorageItem) => void;
+  onSelectAction: (item: StorageItem) => void;
   libraryName?: string;
 }
 
 interface TreeItemProps {
   item: StorageItem;
-  children: StorageItem[];
+  children?: StorageItem[];
   onExpand: (folderId: string) => Promise<void>;
-  onSelect: (item: StorageItem) => void;
+  onSelectAction: (item: StorageItem) => void;
   selectedId: string;
   level: number;
   loadedChildren: Record<string, StorageItem[]>;
@@ -29,7 +29,7 @@ function TreeItem({
   item,
   children,
   onExpand,
-  onSelect,
+  onSelectAction,
   selectedId,
   level,
   loadedChildren,
@@ -43,7 +43,7 @@ function TreeItem({
         // Expanding folder
         await onExpand(item.id);
         setIsExpanded(true);
-        onSelect(item);
+        onSelectAction(item);
       } else {
         // Collapsing folder - select parent folder or root
         setIsExpanded(false);
@@ -60,7 +60,7 @@ function TreeItem({
             },
             parentId: ''
           };
-          onSelect(parentItem);
+          onSelectAction(parentItem);
         } else {
           // If no parent (root level), select root
           const rootItem: StorageItem = {
@@ -74,7 +74,7 @@ function TreeItem({
             },
             parentId: ''
           };
-          onSelect(rootItem);
+          onSelectAction(rootItem);
         }
       }
     }
@@ -108,9 +108,8 @@ function TreeItem({
         <TreeItem
           key={child.id}
           item={child}
-          children={[]}
           onExpand={onExpand}
-          onSelect={onSelect}
+          onSelectAction={onSelectAction}
           selectedId={selectedId}
           level={level + 1}
           loadedChildren={loadedChildren}
@@ -123,7 +122,7 @@ function TreeItem({
 
 export function FileTree({
   provider,
-  onSelect,
+  onSelectAction,
   libraryName = "/"
 }: FileTreeProps) {
   const [rootItems, setRootItems] = React.useState<StorageItem[]>([]);
@@ -142,35 +141,6 @@ export function FileTree({
   // Provider ID für Vergleiche extrahieren
   const providerId = React.useMemo(() => provider?.id || null, [provider]);
   
-  // Debug-Logging für Provider-Wechsel
-  React.useEffect(() => {
-    console.log('FileTree: Provider geändert', {
-      vorherigerId: previousProviderIdRef.current,
-      aktuellerId: providerId,
-      providerVorhanden: !!provider,
-      libraryName,
-      currentFolderId,
-      zeitpunkt: new Date().toISOString()
-    });
-    
-    // Prüfen, ob sich der Provider geändert hat
-    if (providerId !== previousProviderIdRef.current) {
-      console.log('FileTree: Provider-ID hat sich geändert, setze Zustand zurück');
-      // Zustand zurücksetzen
-      setRootItems([]);
-      setLoadedChildren({});
-      previousProviderIdRef.current = providerId;
-      
-      // Die Aktualisierungsreihenfolge ist wichtig - zuerst zurücksetzen, dann neu laden
-      requestAnimationFrame(() => {
-        console.log('FileTree: Triggerung forced reload after provider change');
-        if (provider) {
-          loadRootItems(provider);
-        }
-      });
-    }
-  }, [provider, providerId, libraryName, currentFolderId]);
-
   // Funktion zum Laden der Root-Elemente, jetzt ausgelagert für expliziten Aufruf
   const loadRootItems = React.useCallback(async (currentProvider: StorageProvider) => {
     if (!currentProvider) return;
@@ -217,6 +187,35 @@ export function FileTree({
       }
     }
   }, []);
+
+  // Debug-Logging für Provider-Wechsel
+  React.useEffect(() => {
+    console.log('FileTree: Provider geändert', {
+      vorherigerId: previousProviderIdRef.current,
+      aktuellerId: providerId,
+      providerVorhanden: !!provider,
+      libraryName,
+      currentFolderId,
+      zeitpunkt: new Date().toISOString()
+    });
+    
+    // Prüfen, ob sich der Provider geändert hat
+    if (providerId !== previousProviderIdRef.current) {
+      console.log('FileTree: Provider-ID hat sich geändert, setze Zustand zurück');
+      // Zustand zurücksetzen
+      setRootItems([]);
+      setLoadedChildren({});
+      previousProviderIdRef.current = providerId;
+      
+      // Die Aktualisierungsreihenfolge ist wichtig - zuerst zurücksetzen, dann neu laden
+      requestAnimationFrame(() => {
+        console.log('FileTree: Triggerung forced reload after provider change');
+        if (provider) {
+          loadRootItems(provider);
+        }
+      });
+    }
+  }, [provider, providerId, libraryName, currentFolderId, loadRootItems]);
 
   // Lade nur erste Ebene beim Start oder durch explizites Signal
   React.useEffect(() => {
@@ -270,9 +269,8 @@ export function FileTree({
           <TreeItem
             key={item.id}
             item={item}
-            children={[]}
             onExpand={handleExpand}
-            onSelect={onSelect}
+            onSelectAction={onSelectAction}
             selectedId={currentFolderId}
             level={0}
             loadedChildren={loadedChildren}

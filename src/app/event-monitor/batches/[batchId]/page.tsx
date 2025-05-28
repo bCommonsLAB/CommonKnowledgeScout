@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,18 +15,14 @@ import {
   XCircle,
   Clock,
   PauseCircle,
-  Eye,
   RotateCw,
   Trash2,
   AlertTriangle,
-  ChevronUp,
-  ChevronDown,
-  PencilIcon
+  ChevronDown
 } from 'lucide-react';
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -40,19 +36,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from '@/components/ui/alert-dialog';
-import { Label } from '@/components/ui/label';
-import { useRef } from 'react';
 
 interface CollapsibleContentProps {
   job: Job;
@@ -109,7 +92,7 @@ const CollapsibleContent = ({ job, onRestartJob, onDeleteJob }: CollapsibleConte
           <Button
             variant="outline"
             size="sm"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.stopPropagation();
               if (onRestartJob) {
                 onRestartJob(job.job_id);
@@ -123,7 +106,7 @@ const CollapsibleContent = ({ job, onRestartJob, onDeleteJob }: CollapsibleConte
           <Button
             variant="outline"
             size="sm"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.stopPropagation();
               if (onDeleteJob) {
                 onDeleteJob(job.job_id);
@@ -142,12 +125,11 @@ const CollapsibleContent = ({ job, onRestartJob, onDeleteJob }: CollapsibleConte
 
 interface JobItemProps {
   job: Job;
-  isLast?: boolean;
   onRestartJob?: (jobId: string) => void;
   onDeleteJob?: (jobId: string) => void;
 }
 
-const JobItem = ({ job, isLast = false, onRestartJob, onDeleteJob }: JobItemProps) => {
+const JobItem = ({ job, onRestartJob, onDeleteJob }: JobItemProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const getStatusColor = () => {
@@ -158,7 +140,7 @@ const JobItem = ({ job, isLast = false, onRestartJob, onDeleteJob }: JobItemProp
         return "bg-blue-500 dark:bg-blue-600";
       case JobStatus.PENDING:
         return "bg-yellow-500 dark:bg-yellow-600";
-      case "WAITING" as any: // Fallback für eventuell nicht definierte Status
+      case "WAITING" as JobStatus:
         return "bg-purple-500 dark:bg-purple-600";
       case JobStatus.FAILED:
         return "bg-red-500 dark:bg-red-600";
@@ -177,7 +159,7 @@ const JobItem = ({ job, isLast = false, onRestartJob, onDeleteJob }: JobItemProp
         return "In Bearbeitung";
       case JobStatus.PENDING:
         return "Ausstehend";
-      case "WAITING" as any: // Fallback für eventuell nicht definierte Status
+      case "WAITING" as JobStatus:
         return "Wartend";
       case JobStatus.FAILED:
         return "Fehlgeschlagen";
@@ -229,27 +211,27 @@ const JobItem = ({ job, isLast = false, onRestartJob, onDeleteJob }: JobItemProp
   );
 };
 
-export default function BatchDetailsPage({ params }: { params: { batchId: string } }) {
+export default function BatchDetailsPage({ params }: { params: Promise<{ batchId: string }> }) {
   const [batch, setBatch] = useState<Batch | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedJob] = useState<Job | null>(null);
   const [showJobDetails, setShowJobDetails] = useState(false);
-  const [processingJob, setProcessingJob] = useState<string | null>(null);
-  const [isExpandedId, setIsExpandedId] = useState<string | null>(null);
+  const [batchId, setBatchId] = useState<string>('');
   
   const router = useRouter();
-  const { batchId } = params;
+
+  // Params als Promise behandeln
+  useEffect(() => {
+    params.then(({ batchId: id }) => {
+      setBatchId(id);
+    });
+  }, [params]);
 
   // Batch laden
-  useEffect(() => {
-    loadBatch();
-    loadJobs();
-  }, [batchId]);
-
-  async function loadBatch() {
+  const loadBatch = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -269,9 +251,9 @@ export default function BatchDetailsPage({ params }: { params: { batchId: string
     } finally {
       setLoading(false);
     }
-  }
+  }, [batchId]);
 
-  async function loadJobs() {
+  const loadJobs = useCallback(async () => {
     try {
       setJobsLoading(true);
       
@@ -297,17 +279,18 @@ export default function BatchDetailsPage({ params }: { params: { batchId: string
     } finally {
       setJobsLoading(false);
     }
-  }
+  }, [batchId]);
+
+  useEffect(() => {
+    if (batchId) {
+      loadBatch();
+      loadJobs();
+    }
+  }, [batchId, loadBatch, loadJobs]);
 
   function refreshData() {
     loadBatch();
     loadJobs();
-  }
-
-  // Job-Details anzeigen
-  function viewJobDetails(job: Job) {
-    setSelectedJob(job);
-    setShowJobDetails(true);
   }
 
   // Job neu starten
@@ -317,8 +300,6 @@ export default function BatchDetailsPage({ params }: { params: { batchId: string
     }
     
     try {
-      setProcessingJob(jobId);
-      
       // Die API-Route müsste noch implementiert werden
       const response = await fetch(`/api/event-job/jobs/${jobId}/restart`, {
         method: 'POST',
@@ -335,8 +316,6 @@ export default function BatchDetailsPage({ params }: { params: { batchId: string
     } catch (error) {
       console.error('Fehler beim Neustarten des Jobs:', error);
       alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
-    } finally {
-      setProcessingJob(null);
     }
   }
 
@@ -347,8 +326,6 @@ export default function BatchDetailsPage({ params }: { params: { batchId: string
     }
     
     try {
-      setProcessingJob(jobId);
-      
       // Die API-Route müsste noch implementiert werden
       const response = await fetch(`/api/event-job/jobs/${jobId}`, {
         method: 'DELETE',
@@ -365,8 +342,6 @@ export default function BatchDetailsPage({ params }: { params: { batchId: string
     } catch (error) {
       console.error('Fehler beim Löschen des Jobs:', error);
       alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
-    } finally {
-      setProcessingJob(null);
     }
   }
 
@@ -538,11 +513,10 @@ export default function BatchDetailsPage({ params }: { params: { batchId: string
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {jobs.map((job, index) => (
+                {jobs.map((job) => (
                   <JobItem 
                     key={job.job_id} 
                     job={job} 
-                    isLast={index === jobs.length - 1} 
                     onRestartJob={restartJob} 
                     onDeleteJob={deleteJob} 
                   />

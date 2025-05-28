@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { v4 as uuidv4 } from "uuid"
 import { useAtom } from "jotai"
 import { useUser } from "@clerk/nextjs"
@@ -29,10 +29,9 @@ import {
 } from "@/components/ui/select"
 import { toast } from "@/components/ui/use-toast"
 import { Textarea } from "../ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import { AlertCircle, Trash2, FolderOpen, Database, Cloud } from "lucide-react"
+import { AlertCircle, Trash2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -42,26 +41,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { LibrarySwitcher } from "@/components/library/library-switcher"
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
 import { StorageProviderType } from "@/types/library"
-
-// Provider-spezifische Schemas für die Storage-Konfiguration
-const filesystemConfigSchema = z.object({
-  basePath: z.string().min(1, "Bitte geben Sie einen Basispfad an."),
-})
-
-const onedriveConfigSchema = z.object({
-  clientId: z.string().min(1, "Client ID ist erforderlich"),
-  clientSecret: z.string().min(1, "Client Secret ist erforderlich"),
-  redirectUri: z.string().url("Bitte geben Sie eine gültige URL ein"),
-})
-
-const googledriveConfigSchema = z.object({
-  clientId: z.string().min(1, "Client ID ist erforderlich"),
-  clientSecret: z.string().min(1, "Client Secret ist erforderlich"),
-  redirectUri: z.string().url("Bitte geben Sie eine gültige URL ein"),
-})
 
 // Hauptschema für das Formular mit erweiterter Konfiguration
 const libraryFormSchema = z.object({
@@ -109,38 +90,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
   // Aktuelle Bibliothek aus dem globalen Zustand
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
   
-  // Neue Bibliothek erstellen wenn createNew true ist
-  useEffect(() => {
-    if (createNew) {
-      handleCreateNew();
-    } else if (activeLibrary && isNew) {
-      // Wenn createNew false wird und wir im "Neue Bibliothek"-Modus waren,
-      // setzen wir auf die aktive Bibliothek zurück
-      setIsNew(false);
-      
-      // Formular mit den Daten der aktiven Bibliothek füllen
-      if (activeLibrary) {
-        const storageConfig = {
-          basePath: activeLibrary.path,
-          clientId: activeLibrary.config?.clientId as string || "",
-          clientSecret: activeLibrary.config?.clientSecret as string || "",
-          redirectUri: activeLibrary.config?.redirectUri as string || "",
-        };
-
-        form.reset({
-          label: activeLibrary.label,
-          path: activeLibrary.path,
-          type: activeLibrary.type,
-          description: activeLibrary.config?.description as string || "",
-          isEnabled: activeLibrary.isEnabled,
-          transcription: activeLibrary.config?.transcription as "shadowTwin" | "db" || "shadowTwin",
-          storageConfig,
-        });
-      }
-    }
-  }, [createNew, activeLibrary]);
-  
-  const defaultValues: LibraryFormValues = {
+  const defaultValues = useMemo<LibraryFormValues>(() => ({
     label: "",
     path: "",
     type: "local",
@@ -153,15 +103,47 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
       clientSecret: "",
       redirectUri: "",
     }
-  };
+  }), []);
 
   const form = useForm<LibraryFormValues>({
     resolver: zodResolver(libraryFormSchema),
     defaultValues,
   });
 
-  // Aktueller Storage-Typ
-  const currentType = form.watch("type");
+  const handleCreateNew = useCallback(() => {
+    setIsNew(true);
+    form.reset(defaultValues);
+  }, [form, defaultValues]);
+
+  // Neue Bibliothek erstellen wenn createNew true ist
+  useEffect(() => {
+    if (createNew) {
+      handleCreateNew();
+    } else if (activeLibrary && isNew) {
+      // Wenn createNew false wird und wir im "Neue Bibliothek"-Modus waren,
+      // setzen wir auf die aktive Bibliothek zurück
+      setIsNew(false);
+      // Formular mit den Daten der aktiven Bibliothek füllen
+      if (activeLibrary) {
+        const storageConfig = {
+          basePath: activeLibrary.path,
+          clientId: activeLibrary.config?.clientId as string || "",
+          clientSecret: activeLibrary.config?.clientSecret as string || "",
+          redirectUri: activeLibrary.config?.redirectUri as string || "",
+        };
+        form.reset({
+          label: activeLibrary.label,
+          path: activeLibrary.path,
+          type: activeLibrary.type,
+          description: activeLibrary.config?.description as string || "",
+          isEnabled: activeLibrary.isEnabled,
+          transcription: activeLibrary.config?.transcription as "shadowTwin" | "db" || "shadowTwin",
+          storageConfig,
+        });
+      }
+    }
+  }, [createNew, activeLibrary, form, handleCreateNew, isNew]);
+
 
   // Form mit aktiver Bibliothek befüllen
   useEffect(() => {
@@ -185,12 +167,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
       });
     }
   }, [activeLibrary, isNew, form]);
-
-  // Neue Bibliothek erstellen
-  const handleCreateNew = () => {
-    setIsNew(true);
-    form.reset(defaultValues);
-  };
 
   // Bibliothek speichern (neu erstellen oder aktualisieren)
   async function onSubmit(data: LibraryFormValues) {
@@ -252,8 +228,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
       if (!response.ok) {
         throw new Error(`Fehler beim Speichern: ${response.statusText}`);
       }
-      
-      const result = await response.json();
       
       // Lokalen Zustand aktualisieren
       if (isNew) {
@@ -328,7 +302,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
         throw new Error(`Fehler beim Löschen: ${response.statusText}`);
       }
       
-      const result = await response.json();
       
       // Lokalen Zustand aktualisieren
       const updatedLibraries = libraries.filter(lib => lib.id !== activeLibraryId);
@@ -362,101 +335,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     }
   };
 
-  // Provider-spezifische Konfigurationsfelder
-  const StorageConfigFields = () => {
-    switch (currentType) {
-      case "local":
-        return (
-          <FormField
-            control={form.control}
-            name="storageConfig.basePath"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Basispfad</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="/data/storage" />
-                </FormControl>
-                <FormDescription>
-                  Der Basispfad für die Dateispeicherung auf dem lokalen System.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        );
-
-      case "onedrive":
-      case "gdrive":
-        return (
-          <>
-            <FormField
-              control={form.control}
-              name="storageConfig.clientId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client ID</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Die Client ID Ihrer {currentType === "onedrive" ? "OneDrive" : "Google Drive"}-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="storageConfig.clientSecret"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client Secret</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Das Client Secret Ihrer {currentType === "onedrive" ? "OneDrive" : "Google Drive"}-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="storageConfig.redirectUri"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Redirect URI</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="https://ihre-domain.de/auth/callback" />
-                  </FormControl>
-                  <FormDescription>
-                    Die Redirect URI für die OAuth2-Authentifizierung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  // Icon für den Storage-Typ
-  const StorageTypeIcon = () => {
-    switch (currentType) {
-      case "local":
-        return <FolderOpen className="h-4 w-4 mr-2" />;
-      case "onedrive":
-      case "gdrive":
-        return <Cloud className="h-4 w-4 mr-2" />;
-      default:
-        return <Database className="h-4 w-4 mr-2" />;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -623,7 +501,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
             <CardContent className="pt-6">
               <div className="space-y-4">
                 <div className="flex flex-col gap-2">
-                  <h4 className="font-medium">Bibliothek "{activeLibrary.label}" löschen</h4>
+                  <h4 className="font-medium">Bibliothek &quot;{activeLibrary.label}&quot; löschen</h4>
                   <p className="text-sm text-muted-foreground">
                     Das Löschen einer Bibliothek ist permanent und kann nicht rückgängig gemacht werden.
                     Alle Einstellungen und Verweise auf diese Bibliothek gehen verloren.
@@ -634,14 +512,14 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                   <DialogTrigger asChild>
                     <Button variant="destructive" className="w-full">
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Bibliothek "{activeLibrary.label}" löschen
+                      Bibliothek &quot;{activeLibrary.label}&quot; löschen
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Bibliothek löschen</DialogTitle>
                       <DialogDescription>
-                        Sind Sie sicher, dass Sie die Bibliothek "{activeLibrary.label}" löschen möchten? 
+                        Sind Sie sicher, dass Sie die Bibliothek &quot;{activeLibrary.label}&quot; löschen möchten? 
                         Diese Aktion kann nicht rückgängig gemacht werden.
                       </DialogDescription>
                     </DialogHeader>

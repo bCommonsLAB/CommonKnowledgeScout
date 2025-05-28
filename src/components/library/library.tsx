@@ -1,23 +1,19 @@
 "use client"
 
 import * as React from "react"
-import { Search } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState, Profiler } from "react"
 import { useAtom } from "jotai"
 
-import { LibrarySwitcher } from "./library-switcher"
 import { LibraryHeader } from "./library-header"
 import { FilePreview } from "./file-preview"
-import { Input } from "@/components/ui/input"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { FileTree } from "./file-tree"
 import { FileList } from "./file-list"
 import { ClientLibrary } from "@/types/library"
-import { StorageProvider, StorageItem } from "@/lib/storage/types"
+import { StorageItem } from "@/lib/storage/types"
 import { useTranscriptionTwins } from "@/hooks/use-transcription-twins"
 import { useSelectedFile } from "@/hooks/use-selected-file"
 import { libraryAtom, activeLibraryIdAtom, currentFolderIdAtom, breadcrumbItemsAtom, writeBreadcrumbItemsAtom, librariesAtom } from "@/atoms/library-atom"
@@ -38,7 +34,6 @@ interface LibraryProps {
 // Styles für die verschiedenen Panel-Typen
 const panelStyles = "h-full flex flex-col min-h-0";
 const treeStyles = "h-full overflow-auto";
-const fileListStyles = "h-full overflow-auto";
 const previewStyles = "h-full overflow-auto";
 
 if (process.env.NODE_ENV === 'development') {
@@ -71,17 +66,15 @@ export function Library({
   navCollapsedSize,
 }: LibraryProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed)
-  const [isMobile, setIsMobile] = useState(false)
-  const [contentLayout, setContentLayout] = useState(defaultLayout)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [searchQuery, ] = useState("")
+  const [localError, ] = useState<string | null>(null);
 
   // Folder States - alte lokale State entfernen und durch Atom ersetzen
   const [folderItems, setFolderItems] = useState<StorageItem[]>([]);
 
   // Jotai State
-  const [libraryState, setLibraryState] = useAtom(libraryAtom);
-  const [globalActiveLibraryId, setGlobalActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const [, setLibraryState] = useAtom(libraryAtom);
+  const [globalActiveLibraryId, ] = useAtom(activeLibraryIdAtom);
   const [currentFolderId, setCurrentFolderId] = useAtom(currentFolderIdAtom);
   const [libraries] = useAtom(librariesAtom); // Verwende den globalen Libraries-Zustand
   
@@ -113,9 +106,7 @@ export function Library({
     selected,
     selectFile,
     updateBreadcrumb,
-    clearSelection,
-    isSelected,
-    parentId
+    clearSelection
   } = useSelectedFile();
 
   // Caches
@@ -214,44 +205,6 @@ export function Library({
       console.log('Library Config:', libraryConfig);
     }
   }, [libraryConfig]);
-
-  // Handler für Library-Wechsel
-  const handleLibraryChange = useCallback((newLibraryId: string) => {
-    console.log('Library: handleLibraryChange aufgerufen mit', newLibraryId);
-    
-    // Vorherige Bibliothek identifizieren
-    const previousLibrary = libraries.find(lib => lib.id === globalActiveLibraryId);
-    const newLibrary = libraries.find(lib => lib.id === newLibraryId);
-    
-    console.log('Library: Wechsel von', {
-      von: {
-        id: previousLibrary?.id || 'keine',
-        label: previousLibrary?.label || 'keine',
-        path: previousLibrary?.path || 'keine'
-      },
-      nach: {
-        id: newLibrary?.id || 'unbekannt',
-        label: newLibrary?.label || 'unbekannt',
-        path: newLibrary?.path || 'unbekannt'
-      }
-    });
-    
-    // Ordner zurücksetzen
-    setCurrentFolderId('root');
-    setFolderItems([]);
-    
-    // Auswahl zurücksetzen
-    clearSelection();
-    
-    // Aktualisiere den Jotai-Zustand mit vollständigem State
-    setLibraryState({
-      libraries,
-      activeLibraryId: newLibraryId,
-      currentFolderId: 'root'
-    });
-    
-    console.log('Library: Bibliothek gewechselt zu', newLibraryId, '- Cache und Zustand zurückgesetzt');
-  }, [clearSelection, setLibraryState, libraries, globalActiveLibraryId]);
 
   // Optimierte Pfadauflösung - Nutze jetzt den StorageContext
   const resolvePath = useCallback(async (
@@ -390,7 +343,7 @@ export function Library({
         console.warn('Library: Fehler beim Laden der Items, behalte aber den Breadcrumb für:', currentFolderId);
       }
     }
-  }, [currentFolderId, listItems, folderCache, resolvePath, updateBreadcrumb, setBreadcrumbItems, selected.breadcrumb.items.length]);
+  }, [currentFolderId, listItems, folderCache, resolvePath, updateBreadcrumb, setBreadcrumbItems, selected.breadcrumb.items.length, providerInstance]);
 
   // Load Items wenn Provider oder Folder sich ändern
   useEffect(() => {
@@ -406,7 +359,7 @@ export function Library({
         }
       });
     }
-  }, [loadItems, providerInstance, currentFolderId]);
+  }, [loadItems, providerInstance, currentFolderId, selected.breadcrumb.items, setBreadcrumbItems]);
 
   // Optimierter Folder Select Handler
   const handleFolderSelect = useCallback(async (item: StorageItem) => {
@@ -472,7 +425,7 @@ export function Library({
     } finally {
       console.timeEnd('folderSelect');
     }
-  }, [listItems, folderCache, resolvePath, updateBreadcrumb, clearSelection, setBreadcrumbItems, currentFolderId]);
+  }, [listItems, folderCache, resolvePath, updateBreadcrumb, clearSelection, setBreadcrumbItems, currentFolderId, setCurrentFolderId]);
 
   // Handler für Dateiauswahl
   const handleFileSelect = useCallback((item: StorageItem) => {
@@ -563,7 +516,7 @@ export function Library({
                     
                     <FileTree 
                       provider={providerInstance}
-                      onSelect={handleFolderSelect}
+                      onSelectAction={handleFolderSelect}
                       libraryName={currentLibrary?.label}
                     />
                     

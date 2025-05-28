@@ -160,7 +160,7 @@ export class OneDriveServerProvider {
       }
       
       // Erstelle eine neue Config mit den Token-Werten als dynamische Properties
-      const updatedConfig: Record<string, any> = {
+      const updatedConfig: Record<string, unknown> = {
         ...(existingLibrary.config || {})
       };
       

@@ -42,12 +42,14 @@ export const VideoPlayer = memo(function VideoPlayer({ item, onRefreshFolder }: 
     setError(null);
     setIsLoading(true);
 
+    const videoElement = videoRef.current;
+
     // Cleanup function
     return () => {
-      if (videoRef.current) {
-        videoRef.current.pause();
-        videoRef.current.removeAttribute('src');
-        videoRef.current.load();
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.removeAttribute('src');
+        videoElement.load();
       }
     };
   }, [item]);

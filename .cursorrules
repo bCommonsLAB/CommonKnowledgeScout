@@ -130,3 +130,38 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 - Definiere den Umgang mit Umgebungsvariablen.  
 - Dokumentiere erforderliche `.env`-Variablen.  
 - Gib Entwicklungstools an (ESLint, Prettier usw.).  
+
+# Cursor/TypeScript Linter-Regeln
+
+## 1. unknown/any in JSX
+- Niemals `unknown` oder `any` direkt als JSX-Child verwenden.
+- Immer vorher in einen String umwandeln:
+  ```tsx
+  <pre>{value !== undefined && value !== null ? String(value) : ''}</pre>
+  ```
+  oder
+  ```tsx
+  <pre>{typeof value === 'string' ? value : JSON.stringify(value)}</pre>
+  ```
+
+## 2. Unbenutzte Variablen/Importe
+- Keine unbenutzten Variablen, Importe oder Funktionsparameter im Code lassen.
+- Nach Refactoring immer aufräumen.
+
+## 3. Kein any
+- `any` ist verboten. Immer `unknown` oder einen spezifischen Typ verwenden.
+
+## 4. Type Assertion/Type Guard
+- Bei Zugriff auf Properties von `unknown` immer ein Interface und Type Assertion/Type Guard nutzen:
+  ```ts
+  interface MyType { foo: string }
+  const val = obj as MyType;
+  ```
+
+## 5. Fehlerobjekte im catch-Block
+- Wenn das Fehlerobjekt nicht verwendet wird: `catch { ... }` statt `catch (error) { ... }`.
+
+---
+
+**Automatisierung:**  
+- Nutze ESLint-Regeln wie `@typescript-eslint/no-explicit-any`, `@typescript-eslint/no-unused-vars` etc. für automatische Durchsetzung.

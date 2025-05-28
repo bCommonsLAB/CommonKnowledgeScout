@@ -4,11 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useState, useEffect, useCallback } from "react"
-import { useAtom } from "jotai"
+import { useAtom, useAtomValue } from "jotai"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useRouter } from "next/navigation"
 import { Cloud, Database, FolderOpen, PlayCircle, CheckCircle, XCircle, Info, MoreHorizontal, ChevronDown } from "lucide-react"
 import {
   Form,
@@ -78,18 +77,16 @@ interface TestLogEntry {
     request?: {
       url?: string;
       method?: string;
-      params?: Record<string, any>;
+      params?: Record<string, unknown>;
     };
-    response?: any;
-    data?: any;
-    error?: any;
+    response?: unknown;
+    data?: unknown;
+    error?: unknown;
   };
 }
 
 export function StorageForm() {
-  const router = useRouter();
   const [libraries, setLibraries] = useAtom(librariesAtom);
-  const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
@@ -106,9 +103,8 @@ export function StorageForm() {
     clientSecret: "",
     redirectUri: "",
   });
-  const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
   
-  // Aktuelle Bibliothek aus dem globalen Zustand
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
   
   const defaultValues: StorageFormValues = {
@@ -131,7 +127,6 @@ export function StorageForm() {
   // Lade OAuth-Standardwerte über die API
   useEffect(() => {
     async function loadOAuthDefaults() {
-      setIsLoadingDefaults(true);
       try {
         console.log('[StorageForm] Lade OAuth-Standardwerte...');
         const response = await fetch('/api/settings/oauth-defaults');
@@ -162,8 +157,6 @@ export function StorageForm() {
         }
       } catch (error) {
         console.error('[StorageForm] Fehler beim Laden der OAuth-Standardwerte:', error);
-      } finally {
-        setIsLoadingDefaults(false);
       }
     }
     
@@ -221,23 +214,19 @@ export function StorageForm() {
     }
   }, []);
   
-  async function onSubmit(data: StorageFormValues) {
+  const onSubmit = useCallback(async (data: StorageFormValues) => {
     setIsLoading(true);
-    
     try {
       if (!activeLibrary) {
         throw new Error("Keine Bibliothek ausgewählt");
       }
-      
       // Extrahiere die spezifischen Storage-Konfigurationen basierend auf dem Typ
       let storageConfig = {};
-      
       switch(data.type) {
         case "local":
           storageConfig = {};
           break;
         case "onedrive":
-          // Direkt die Werte aus dem Formular verwenden
           storageConfig = {
             tenantId: data.tenantId,
             clientId: data.clientId,
@@ -246,7 +235,6 @@ export function StorageForm() {
           };
           break;
         case "gdrive":
-          // Direkt die Werte aus dem Formular verwenden
           storageConfig = {
             clientId: data.clientId,
             clientSecret: data.clientSecret,
@@ -254,7 +242,6 @@ export function StorageForm() {
           };
           break;
       }
-      
       // Bibliotheksobjekt aktualisieren
       const updatedLibrary = {
         ...activeLibrary,
@@ -265,7 +252,6 @@ export function StorageForm() {
           ...storageConfig,
         }
       };
-      
       // API-Anfrage zum Speichern der Bibliothek
       const response = await fetch('/api/libraries', {
         method: 'POST',
@@ -274,13 +260,9 @@ export function StorageForm() {
         },
         body: JSON.stringify(updatedLibrary),
       });
-      
       if (!response.ok) {
         throw new Error(`Fehler beim Speichern: ${response.statusText}`);
       }
-      
-      const result = await response.json();
-      
       // Lokalen Zustand aktualisieren
       const updatedLibraries = libraries.map(lib => 
         lib.id === activeLibrary.id ? {
@@ -293,14 +275,11 @@ export function StorageForm() {
           }
         } : lib
       );
-      
       setLibraries(updatedLibraries);
-      
       toast({
         title: "Storage-Einstellungen aktualisiert",
         description: `Die Storage-Einstellungen für "${activeLibrary.label}" wurden erfolgreich aktualisiert.`,
       });
-      
     } catch (error) {
       console.error('Fehler beim Speichern der Storage-Einstellungen:', error);
       toast({
@@ -311,7 +290,7 @@ export function StorageForm() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [activeLibrary, libraries, setLibraries]);
 
   // Funktion zum Testen des Storage-Providers
   async function handleTestStorage() {
@@ -399,7 +378,7 @@ export function StorageForm() {
             } else {
               responseData = `[${contentType} Daten, ${Math.round((await clonedResponse.blob()).size / 1024)} KB]`;
             }
-          } catch (error) {
+          } catch { // error wird nicht verwendet
             responseData = '[Konnte Antwortdaten nicht verarbeiten]';
           }
           
@@ -563,10 +542,8 @@ export function StorageForm() {
             });
           }
         } catch (error) {
-          logStep("Binärdaten", "error", `Fehler beim Abrufen der Binärdaten: ${error instanceof Error ? error.message : String(error)}`, {
-            error: error instanceof Error ? 
-              { message: error.message, stack: error.stack } : 
-              String(error)
+          logStep("Binärdaten", "error", `Fehler beim Abrufen der Binärdaten: ${String(error)}`, {
+            error: String(error)
           });
         }
 
@@ -581,10 +558,8 @@ export function StorageForm() {
             }
           });
         } catch (error) {
-          logStep("Dateipfad", "error", `Fehler beim Abrufen des Pfads: ${error instanceof Error ? error.message : String(error)}`, {
-            error: error instanceof Error ? 
-              { message: error.message, stack: error.stack } : 
-              String(error)
+          logStep("Dateipfad", "error", `Fehler beim Abrufen des Pfads: ${String(error)}`, {
+            error: String(error)
           });
         }
 
@@ -599,10 +574,8 @@ export function StorageForm() {
             }
           });
         } catch (error) {
-          logStep("Datei löschen", "error", `Fehler beim Löschen der Datei: ${error instanceof Error ? error.message : String(error)}`, {
-            error: error instanceof Error ? 
-              { message: error.message, stack: error.stack } : 
-              String(error)
+          logStep("Datei löschen", "error", `Fehler beim Löschen der Datei: ${String(error)}`, {
+            error: String(error)
           });
         }
 
@@ -621,10 +594,8 @@ export function StorageForm() {
             }
           });
         } catch (error) {
-          logStep("Verzeichnis prüfen", "error", `Fehler beim Auflisten des Verzeichnisinhalts: ${error instanceof Error ? error.message : String(error)}`, {
-            error: error instanceof Error ? 
-              { message: error.message, stack: error.stack } : 
-              String(error)
+          logStep("Verzeichnis prüfen", "error", `Fehler beim Auflisten des Verzeichnisinhalts: ${String(error)}`, {
+            error: String(error)
           });
         }
 
@@ -639,10 +610,8 @@ export function StorageForm() {
             }
           });
         } catch (error) {
-          logStep("Aufräumen", "error", `Fehler beim Löschen des Testverzeichnisses: ${error instanceof Error ? error.message : String(error)}`, {
-            error: error instanceof Error ? 
-              { message: error.message, stack: error.stack } : 
-              String(error)
+          logStep("Aufräumen", "error", `Fehler beim Löschen des Testverzeichnisses: ${String(error)}`, {
+            error: String(error)
           });
         }
 
@@ -651,10 +620,8 @@ export function StorageForm() {
         
       } catch (error) {
         console.error('Fehler beim Testen des Storage-Providers:', error);
-        logStep("Fehler", "error", `Unbehandelte Ausnahme: ${error instanceof Error ? error.message : String(error)}`, {
-          error: error instanceof Error ? 
-            { message: error.message, stack: error.stack } : 
-            String(error)
+        logStep("Fehler", "error", `Unbehandelte Ausnahme: ${String(error)}`, {
+          error: String(error)
         });
       } finally {
         // Ursprüngliches fetch wiederherstellen
@@ -670,9 +637,7 @@ export function StorageForm() {
         message: error instanceof Error ? error.message : "Unbekannter Fehler beim Testen",
         timestamp: new Date().toISOString(),
         details: {
-          error: error instanceof Error ? 
-            { message: error.message, stack: error.stack } : 
-            String(error)
+          error: String(error)
         }
       }]);
       
@@ -772,7 +737,7 @@ export function StorageForm() {
         variant: "destructive",
       });
     }
-  }, [activeLibrary, toast, form, onSubmit]);
+  }, [activeLibrary, form, onSubmit]);
   
   // Storage-Typ-Icons
   const StorageTypeIcon = () => {
@@ -1091,33 +1056,29 @@ export function StorageForm() {
       
       return (
         <div className="space-y-3 text-xs">
-          {result.details.data && (
+          {result.details.data !== undefined && result.details.data !== null && (
             <div>
               <div className="font-medium text-muted-foreground mb-1">Daten:</div>
               <div className="bg-muted p-2 rounded overflow-x-auto max-h-[150px]">
-                <pre>{JSON.stringify(result.details.data, null, 2)}</pre>
+                <pre>{JSON.stringify(result.details.data)}</pre>
               </div>
             </div>
           )}
           
-          {result.details.response && (
+          {result.details.response !== undefined && result.details.response !== null && (
             <div>
               <div className="font-medium text-muted-foreground mb-1">Antwort:</div>
               <div className="bg-muted p-2 rounded overflow-x-auto max-h-[150px]">
-                <pre>{typeof result.details.response === 'string' 
-                    ? result.details.response 
-                    : JSON.stringify(result.details.response, null, 2)}</pre>
+                <pre>{JSON.stringify(result.details.response)}</pre>
               </div>
             </div>
           )}
           
-          {result.details.error && (
+          {result.details.error !== undefined && result.details.error !== null && (
             <div>
               <div className="font-medium text-muted-foreground mb-1">Fehler:</div>
               <div className="bg-muted p-2 rounded overflow-x-auto text-red-500 max-h-[150px]">
-                <pre>{typeof result.details.error === 'string' 
-                    ? result.details.error 
-                    : JSON.stringify(result.details.error, null, 2)}</pre>
+                <pre>{JSON.stringify(result.details.error)}</pre>
               </div>
             </div>
           )}
@@ -1178,20 +1139,20 @@ export function StorageForm() {
                     </div>
                   )}
                   
-                  {call.details?.response && (
+                  {call.details?.response !== undefined && call.details?.response !== null && (
                     <div className="mt-2">
                       <div className="font-medium text-muted-foreground mb-1">Antwort:</div>
                       <div className="bg-muted p-2 rounded overflow-x-auto max-h-[120px]">
-                        <pre>{JSON.stringify(call.details.response, null, 2)}</pre>
+                        <pre>{JSON.stringify(call.details.response)}</pre>
                       </div>
                     </div>
                   )}
                   
-                  {call.details?.error && (
+                  {call.details?.error !== undefined && call.details?.error !== null && (
                     <div className="mt-2">
                       <div className="font-medium text-muted-foreground mb-1">Fehler:</div>
                       <div className="bg-muted p-2 rounded overflow-x-auto text-red-500">
-                        <pre>{JSON.stringify(call.details.error, null, 2)}</pre>
+                        <pre>{JSON.stringify(call.details.error)}</pre>
                       </div>
                     </div>
                   )}
@@ -1319,7 +1280,7 @@ export function StorageForm() {
                 <DialogHeader>
                   <DialogTitle>Storage-Provider Test</DialogTitle>
                   <DialogDescription>
-                    Test des Storage-Providers für die Bibliothek "{activeLibrary.label}"
+                    Test des Storage-Providers für die Bibliothek &quot;{activeLibrary.label}&quot;
                   </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">

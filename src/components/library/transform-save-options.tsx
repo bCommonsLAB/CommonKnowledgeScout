@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +16,7 @@ export interface TransformSaveOptions {
 
 interface TransformSaveOptionsProps {
   originalFileName: string;
-  onOptionsChange: (options: TransformSaveOptions) => void;
+  onOptionsChangeAction: (options: TransformSaveOptions) => void;
   defaultLanguage?: string;
   supportedLanguages?: Array<{ value: string; label: string }>;
   defaultExtension?: string;
@@ -26,7 +25,7 @@ interface TransformSaveOptionsProps {
 
 export function TransformSaveOptions({
   originalFileName,
-  onOptionsChange,
+  onOptionsChangeAction,
   defaultLanguage = "de",
   supportedLanguages = [
     { value: "de", label: "Deutsch" },
@@ -55,10 +54,10 @@ export function TransformSaveOptions({
   const updateOptions = React.useCallback((newOptions: Partial<TransformSaveOptions>) => {
     setOptions(prev => {
       const updated = { ...prev, ...newOptions };
-      onOptionsChange(updated);
+      onOptionsChangeAction(updated);
       return updated;
     });
-  }, [onOptionsChange]);
+  }, [onOptionsChangeAction]);
 
   // Effekt, um die Optionen bei Änderung des Originalnamens zu aktualisieren
   React.useEffect(() => {

@@ -1,13 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { StorageItem } from "@/lib/storage/types";
 import { useSelectedFile } from "@/hooks/use-selected-file";
 import { TransformResult } from "@/lib/transform/transform-service";
 
 interface TransformResultHandlerProps {
   onResultProcessed?: () => void;
-  children: (
+  childrenAction: (
     handleTransformResult: (result: TransformResult) => void,
     isProcessing: boolean
   ) => React.ReactNode;
@@ -24,7 +23,7 @@ interface TransformResultHandlerProps {
  */
 export function TransformResultHandler({
   onResultProcessed,
-  children
+  childrenAction
 }: TransformResultHandlerProps) {
   const [isProcessing, setIsProcessing] = React.useState(false);
   const { selectFile } = useSelectedFile();
@@ -58,5 +57,5 @@ export function TransformResultHandler({
     [selectFile, onResultProcessed]
   );
 
-  return <>{children(handleTransformResult, isProcessing)}</>;
+  return <>{childrenAction(handleTransformResult, isProcessing)}</>;
 } 

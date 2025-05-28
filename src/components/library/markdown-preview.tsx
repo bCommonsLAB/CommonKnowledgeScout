@@ -3,16 +3,13 @@ import { Remarkable } from 'remarkable';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css';
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
-import { MarkdownMetadata } from './markdown-metadata';
 import { Button } from '@/components/ui/button';
 import { Wand2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import 'highlight.js/styles/github-dark.css';
-import { z } from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { transformText } from "@/lib/secretary/client";
 import { useAtomValue } from "jotai";
 import { activeLibraryAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
@@ -156,24 +153,21 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         placeholder="Markdown-Text zur Transformation eingeben..."
       />
       
-      <TransformResultHandler 
+      <TransformResultHandler
         onResultProcessed={() => {
           console.log("Transformation vollständig abgeschlossen und Datei ausgewählt");
           // Hier könnten zusätzliche Aktionen ausgeführt werden
         }}
-      >
-        {(handleTransformResult, isProcessingResult) => {
+        childrenAction={(handleTransformResult, isProcessingResult) => {
           // Speichere die handleTransformResult-Funktion in der Ref
           transformResultHandlerRef.current = handleTransformResult;
-          
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <SaveOptionsComponent 
                 originalFileName={currentItem?.metadata.name || "transformation"}
-                onOptionsChange={handleSaveOptionsChange}
+                onOptionsChangeAction={handleSaveOptionsChange}
                 className="p-4 border rounded-md"
               />
-              
               <div className="space-y-4 p-4 border rounded-md">
                 <div>
                   <Label htmlFor="template">Vorlage</Label>
@@ -193,7 +187,6 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
                     </SelectContent>
                   </Select>
                 </div>
-                
                 <div className="flex justify-end pt-4">
                   <Button 
                     onClick={handleTransformClick}
@@ -214,7 +207,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
             </div>
           );
         }}
-      </TransformResultHandler>
+      />
     </div>
   );
 };
@@ -230,11 +223,11 @@ const md = new Remarkable('full', {
     if (lang && hljs.getLanguage(lang)) {
       try {
         return hljs.highlight(str, { language: lang }).value;
-      } catch (err) {}
+      } catch {}
     }
     try {
       return hljs.highlightAuto(str).value;
-    } catch (err) {}
+    } catch {}
     return '';
   }
 });
@@ -266,7 +259,8 @@ md.block.ruler.at('hr', function (state, startLine, endLine, silent) {
   if (silent) { return true; }
 
   state.line = startLine + 1;
-  const token = (state as any).push('hr', 'hr', 0);
+  interface PushableState { push: (type: string, tag: string, nesting: number) => unknown; }
+  const token = (state as unknown as PushableState).push('hr', 'hr', 0) as Record<string, unknown>;
   token.map = [startLine, state.line];
   token.markup = Array(count + 1).join(String.fromCharCode(marker));
 
@@ -301,7 +295,7 @@ md.renderer.rules.fence = function (tokens, idx) {
   if (lang && hljs.getLanguage(lang)) {
     try {
       code = hljs.highlight(content, { language: lang }).value;
-    } catch (e) {}
+    } catch {}
   }
   
   return `
@@ -421,8 +415,7 @@ function getYouTubeId(url: string): string | null {
 function processObsidianContent(
   content: string, 
   currentFolderId: string = 'root',
-  provider: StorageProvider | null = null,
-  currentItem: StorageItem | null = null
+  provider: StorageProvider | null = null
 ): string {
   if (!provider) return content;
 
@@ -503,14 +496,6 @@ function processObsidianContent(
 }
 
 /**
- * Process markdown content for rendering
- */
-function processMarkdownContent(content: string): string {
-  // Replace *** with a unique horizontal line
-  return content.replace(/^\s*\*{3,}\s*$/gm, '\n---\n');
-}
-
-/**
  * MarkdownPreview component for rendering markdown content with advanced formatting
  */
 export const MarkdownPreview = React.memo(function MarkdownPreview({
@@ -542,18 +527,17 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     const processedContent = processObsidianContent(
       mainContent,
       currentFolderId,
-      provider,
-      currentItem
+      provider
     );
 
     return md.render(processedContent);
-  }, [content, currentFolderId, provider, currentItem]);
+  }, [content, currentFolderId, provider]);
 
   const handleTransformButtonClick = () => {
     setActiveTab("transform");
   };
 
-  const handleTransformComplete = (transformedContent: string) => {
+  const handleTransformComplete = () => {
     // Hier könnten wir den transformierten Inhalt verarbeiten
     // Zum Beispiel könnten wir ihn an die übergeordnete Komponente weitergeben
     if (onTransform) {

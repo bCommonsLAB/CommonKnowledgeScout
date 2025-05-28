@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useAuth } from '@clerk/nextjs';
 import { RefreshCw } from 'lucide-react';
+import Image from 'next/image';
 
 interface UserInfo {
   isSignedIn: boolean;
@@ -48,8 +49,7 @@ export default function DebugPage() {
   });
   
   // Clerk Auth
-  const { isLoaded, isSignedIn } = useAuth();
-  const { user } = useUser();
+  const { isLoaded } = useAuth();
 
   // Benutzerinformationen laden
   const loadUserInfo = async () => {
@@ -165,10 +165,12 @@ export default function DebugPage() {
                         {userInfo.imageUrl && (
                           <>
                             <h3 className="text-lg font-medium mt-4">Profilbild</h3>
-                            <img 
+                            <Image 
                               src={userInfo.imageUrl} 
                               alt={userInfo.fullName || 'Profilbild'} 
                               className="w-16 h-16 rounded-full" 
+                              width={64}
+                              height={64}
                             />
                           </>
                         )}

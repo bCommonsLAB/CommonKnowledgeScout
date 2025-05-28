@@ -12,7 +12,14 @@ export default function AddTestLibraryPage() {
   const [libraryName, setLibraryName] = useState('');
   const [libraryPath, setLibraryPath] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<{
+    message: string;
+    library?: {
+      id: string;
+      name: string;
+      path: string;
+    };
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,7 +75,7 @@ export default function AddTestLibraryPage() {
                 id="email" 
                 type="email" 
                 value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} 
                 placeholder="benutzer@example.com" 
                 required 
               />
@@ -79,7 +86,7 @@ export default function AddTestLibraryPage() {
               <Input 
                 id="libraryName" 
                 value={libraryName} 
-                onChange={(e) => setLibraryName(e.target.value)} 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLibraryName(e.target.value)} 
                 placeholder="Meine Bibliothek" 
                 required 
               />
@@ -90,7 +97,7 @@ export default function AddTestLibraryPage() {
               <Input 
                 id="libraryPath" 
                 value={libraryPath} 
-                onChange={(e) => setLibraryPath(e.target.value)} 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLibraryPath(e.target.value)} 
                 placeholder="/pfad/zur/bibliothek" 
               />
               <p className="text-xs text-muted-foreground">

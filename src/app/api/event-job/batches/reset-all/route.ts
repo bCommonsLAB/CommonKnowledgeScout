@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { EventJobRepository } from '@/lib/event-job-repository';
-import { JobStatus } from '@/types/event-job';
 
 const repository = new EventJobRepository();
 
@@ -8,7 +7,7 @@ const repository = new EventJobRepository();
  * POST /api/event-job/batches/reset-all
  * Setzt alle Jobs in allen aktiven Batches auf "pending" zurück
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Nur aktive, nicht archivierte Batches abrufen
     const batches = await repository.getBatches({ 

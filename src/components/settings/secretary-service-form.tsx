@@ -90,8 +90,6 @@ export function SecretaryServiceForm() {
         throw new Error(`Fehler beim Speichern: ${response.statusText}`)
       }
       
-      const result = await response.json()
-      
       // Lokalen Zustand aktualisieren
       const updatedLibraries = libraries.map(lib => 
         lib.id === activeLibrary.id ? {

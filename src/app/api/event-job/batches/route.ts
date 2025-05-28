@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EventJobRepository } from '@/lib/event-job-repository';
-import { CreateBatchRequest, AccessVisibility, JobStatus, BatchStatus } from '@/types/event-job';
+import { CreateBatchRequest, AccessVisibility, BatchStatus } from '@/types/event-job';
 
 const repository = new EventJobRepository();
 

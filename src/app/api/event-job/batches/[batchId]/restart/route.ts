@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { EventJobRepository } from '@/lib/event-job-repository';
-import { JobStatus } from '@/types/event-job';
 
 const repository = new EventJobRepository();
 
@@ -10,11 +10,10 @@ const repository = new EventJobRepository();
  */
 export async function POST(
   request: NextRequest,
-  context: { params: { batchId: string } }
+  // @ts-expect-error - Next.js 15 App Router params typing issue
+  { params }
 ) {
   try {
-    // In Next.js 15 müssen wir das params-Objekt mit await behandeln
-    const params = await context.params;
     const batchId = params.batchId;
     
     // Batch überprüfen

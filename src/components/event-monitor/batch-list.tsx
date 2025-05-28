@@ -227,7 +227,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   }
   
   // Batch aktivieren/deaktivieren
-  async function toggleBatchActive(batchId: string, isCurrentlyActive: boolean) {
+  async function toggleBatchActive(batchId: string) {
     try {
       setProcessingBatch(batchId);
       const response = await fetch(`/api/event-job/batches/${batchId}/toggle-active`, {
@@ -364,11 +364,11 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
         template,
         false // useCache
       );
-      
-      if (data.status === 'success') {
+      const result = data as { status: string; error?: { message?: string } };
+      if (result.status === 'success') {
         alert(`Erfolgreich: Zusammenfassung für Track "${trackName}" erstellt.`);
       } else {
-        alert(`Fehler: ${data.error?.message || 'Unbekannter Fehler bei der Erstellung der Zusammenfassung'}`);
+        alert(`Fehler: ${result.error?.message || 'Unbekannter Fehler bei der Erstellung der Zusammenfassung'}`);
       }
     } catch (error) {
       console.error('Fehler bei der Erstellung der Zusammenfassung:', error);
@@ -446,7 +446,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                       
                       {!isArchive && (
                         <>
-                          <DropdownMenuItem onClick={() => toggleBatchActive(batch.batch_id, batch.isActive)}>
+                          <DropdownMenuItem onClick={() => toggleBatchActive(batch.batch_id)}>
                             {batch.isActive ? (
                               <>
                                 <PauseCircle className="mr-2 h-4 w-4" /> Deaktivieren

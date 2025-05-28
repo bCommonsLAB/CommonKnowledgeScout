@@ -5,7 +5,7 @@ export class FileSystemClient implements StorageProvider {
   id = 'filesystem';
   private baseUrl: string;
   private libraryId: string;
-  private cache: Map<string, { data: any; timestamp: number }> = new Map();
+  private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 5000; // 5 Sekunden Cache
 
   constructor(baseUrl: string = '/api/storage/filesystem', libraryId?: string) {
@@ -31,7 +31,7 @@ export class FileSystemClient implements StorageProvider {
     return cached.data as T;
   }
 
-  private setCache(key: string, data: any): void {
+  private setCache(key: string, data: unknown): void {
     console.log('[FileSystemClient] Cache Set:', key);
     this.cache.set(key, { data, timestamp: Date.now() });
   }

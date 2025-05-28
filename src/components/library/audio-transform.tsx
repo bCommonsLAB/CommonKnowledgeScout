@@ -8,7 +8,7 @@ import { useAtomValue } from "jotai";
 import { activeLibraryAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
-import { TransformService, TransformSaveOptions, TransformResult } from "@/lib/transform/transform-service";
+import { TransformService, TransformResult } from "@/lib/transform/transform-service";
 import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
@@ -116,8 +116,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
         onResultProcessed={() => {
           console.log("Audio-Transcription vollständig abgeschlossen und Datei ausgewählt");
         }}
-      >
-        {(handleTransformResult, isProcessingResult) => {
+        childrenAction={(handleTransformResult: (result: TransformResult) => void, isProcessingResult: boolean) => {
           // Speichere die handleTransformResult-Funktion in der Ref
           transformResultHandlerRef.current = handleTransformResult;
           
@@ -125,7 +124,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
             <>
               <SaveOptionsComponent 
                 originalFileName={item.metadata.name}
-                onOptionsChange={handleSaveOptionsChange}
+                onOptionsChangeAction={handleSaveOptionsChange}
                 className="mb-4"
               />
               
@@ -139,7 +138,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
             </>
           );
         }}
-      </TransformResultHandler>
+      />
     </div>
   );
 } 

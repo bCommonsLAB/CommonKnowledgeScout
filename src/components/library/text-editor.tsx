@@ -3,17 +3,16 @@
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { StorageItem, StorageProvider } from '@/lib/storage/types';
+import { StorageProvider } from '@/lib/storage/types';
 import { toast } from 'sonner';
 
 interface TextEditorProps {
   content: string;
-  item: StorageItem;
   provider: StorageProvider | null;
-  onSave: (content: string) => Promise<void>;
+  onSaveAction: (content: string) => Promise<void>;
 }
 
-export function TextEditor({ content, item, provider, onSave }: TextEditorProps) {
+export function TextEditor({ content, provider, onSaveAction }: TextEditorProps) {
   const [value, setValue] = useState(content);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -28,7 +27,7 @@ export function TextEditor({ content, item, provider, onSave }: TextEditorProps)
     
     setIsLoading(true);
     try {
-      await onSave(value);
+      await onSaveAction(value);
       toast.success("Gespeichert", { 
         description: "Die Datei wurde erfolgreich gespeichert",
         duration: 7000
@@ -42,7 +41,7 @@ export function TextEditor({ content, item, provider, onSave }: TextEditorProps)
     } finally {
       setIsLoading(false);
     }
-  }, [value, provider, onSave]);
+  }, [value, provider, onSaveAction]);
   
   return (
     <div className="flex flex-col gap-4 p-4">

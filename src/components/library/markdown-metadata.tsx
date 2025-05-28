@@ -9,7 +9,7 @@ interface MarkdownMetadataProps {
 /**
  * Extracts and formats YAML frontmatter from markdown content
  */
-export function extractFrontmatter(content: string): Record<string, any> | null {
+export function extractFrontmatter(content: string): Record<string, unknown> | null {
   // Match frontmatter with or without newlines after the dashes
   const frontmatterMatch = content.match(/^---\s*([\s\S]*?)\s*---/);
   if (!frontmatterMatch) {
@@ -17,7 +17,7 @@ export function extractFrontmatter(content: string): Record<string, any> | null 
     return null;
   }
 
-  const frontmatter: Record<string, any> = {};
+  const frontmatter: Record<string, unknown> = {};
   const lines = frontmatterMatch[1].split('\n');
 
   lines.forEach(line => {
@@ -136,7 +136,7 @@ export const MarkdownMetadata = React.memo(function MarkdownMetadata({
                   </td>
                   <td className="py-2 text-xs text-muted-foreground">
                     <span className="bg-muted/50 px-1.5 py-0.5 rounded">
-                      {value || '—'}
+                      {typeof value === 'string' || typeof value === 'number' ? value : JSON.stringify(value) || '—'}
                     </span>
                   </td>
                 </tr>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,6 @@ import {
   Trash2,
   AlertTriangle
 } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function JobDetailsPage() {
   const [job, setJob] = useState<Job | null>(null);
@@ -33,20 +32,12 @@ export default function JobDetailsPage() {
   const jobId = params.jobId as string;
 
   // Job laden
-  useEffect(() => {
-    if (jobId) {
-      loadJob();
-    }
-  }, [jobId]);
-
-  async function loadJob() {
+  const loadJob = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
       const response = await fetch(`/api/event-job/jobs/${jobId}`);
       const data = await response.json();
-      
       if (data.status === 'success') {
         setJob(data.data.job);
       } else {
@@ -59,7 +50,13 @@ export default function JobDetailsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [jobId]);
+
+  useEffect(() => {
+    if (jobId) {
+      loadJob();
+    }
+  }, [jobId, loadJob]);
 
   // Job neu starten
   async function restartJob() {
@@ -312,7 +309,7 @@ export default function JobDetailsPage() {
             
             {job.error && (
               <div className="col-span-full space-y-1">
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-red-600 dark:text-red-400">Fehler</p>
+                <p className="text-sm text-red-600 dark:text-red-400">Fehler</p>
                 <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800/50">
                   <pre className="text-xs text-red-800 dark:text-red-300 whitespace-pre-wrap">
                     {typeof job.error === 'object'

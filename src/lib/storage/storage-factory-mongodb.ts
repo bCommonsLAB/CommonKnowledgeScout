@@ -172,7 +172,7 @@ export class MongoDBStorageFactory {
   /**
    * Für die Kompatibilität mit der bestehenden Library-Komponente
    */
-  setLibraries(libraries: ClientLibrary[]) {
+  setLibraries(): void {
     // Diese Methode leert nur den Cache, lädt aber keine Libraries
     this.providers.clear();
   }
@@ -206,11 +206,7 @@ export class MongoDBStorageFactory {
     }
 
     // Provider basierend auf Bibliothekstyp erstellen
-    let provider: StorageProvider;
-    
-    // Momentan nur lokalen Provider implementieren
-    // Später können weitere Provider-Typen hinzugefügt werden
-    provider = new LocalStorageProvider(library);
+    const provider: StorageProvider = new LocalStorageProvider(library);
 
     // Provider im Cache speichern
     this.providers.set(cacheKey, provider);

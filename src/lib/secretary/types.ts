@@ -12,7 +12,7 @@ export interface AudioTransformationResponse {
   llm_model: string;
   translation_model: string;
   token_count: number;
-  segments: any[];
+  segments: unknown[];
   process_id: string;
   process_dir: string;
   args: Record<string, unknown>;

@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from "react"
-import { useCallback } from "react"
 import { File, FileText, FileVideo, FileAudio, CheckCircle2, Plus, RefreshCw, ChevronUp, ChevronDown } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
@@ -157,7 +156,7 @@ const FileRow = React.memo(function FileRow({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.stopPropagation();
-                      onCreateTranscript(e as any);
+                      onCreateTranscript(e as unknown as React.MouseEvent<HTMLDivElement>);
                     }
                   }}
                 >

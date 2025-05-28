@@ -4,12 +4,10 @@ import * as React from "react"
 import { useAtom } from "jotai"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { ClientLibrary } from "@/types/library"
 import { activeLibraryAtom, activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { createLibraryAtom } from "@/atoms/create-library-atom"
-import { v4 as uuidv4 } from "uuid"
 
 interface LibrarySwitcherProps {
   isCollapsed?: boolean;

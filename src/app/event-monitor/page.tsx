@@ -257,10 +257,10 @@ export default function EventMonitorPage() {
         activeLibraryId,
         selectedTemplate,
         false // useCache
-      );
+      ) as { status: string; summary?: { successful_tracks: number; failed_tracks: number }; error?: { message: string } };
       
       if (data.status === 'success') {
-        alert(`Erfolgreich: ${data.summary.successful_tracks} Tracks zusammengefasst, ${data.summary.failed_tracks} fehlgeschlagen.`);
+        alert(`Erfolgreich: ${data.summary?.successful_tracks ?? 0} Tracks zusammengefasst, ${data.summary?.failed_tracks ?? 0} fehlgeschlagen.`);
         loadCurrentTracks();
       } else {
         alert(`Fehler: ${data.error?.message || 'Unbekannter Fehler bei der Erstellung der Zusammenfassungen'}`);
@@ -277,12 +277,6 @@ export default function EventMonitorPage() {
     }
   }
   
-  // Funktion zum Öffnen des Job-Detail Panels
-  const openJobDetails = (jobId: string) => {
-    setSelectedJobId(jobId);
-    setJobDetailsOpen(true);
-  };
-
   // Job-Details Panel schließen
   const handleJobDetailsPanelChange = (open: boolean) => {
     setJobDetailsOpen(open);

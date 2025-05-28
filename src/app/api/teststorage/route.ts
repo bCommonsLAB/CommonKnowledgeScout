@@ -1,10 +1,9 @@
 import { StorageFactory } from '@/lib/storage/storage-factory';
-import { StorageProvider, StorageItem } from '@/lib/storage/types';
+import { StorageProvider } from '@/lib/storage/types';
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { LibraryService } from '@/lib/services/library-service';
 import { auth, currentUser } from '@clerk/nextjs/server';
-import { headers } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 

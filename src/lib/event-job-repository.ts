@@ -1,4 +1,4 @@
-import { Collection } from 'mongodb';
+import { Collection, UpdateFilter } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   Batch, 
@@ -12,6 +12,16 @@ import {
   BatchStatus
 } from '@/types/event-job';
 import { getCollection } from './mongodb-service';
+
+/**
+ * Hilfs-Interface für dynamische $set-Updates
+ */
+interface JobSetUpdate {
+  status: JobStatus;
+  updated_at: Date;
+  'parameters.target_language'?: string;
+  [key: string]: unknown;
+}
 
 /**
  * Repository für Event-Jobs und Batches
@@ -45,7 +55,7 @@ export class EventJobRepository {
       const job_id = `job-${uuidv4()}`;
       
       // Standardwerte setzen, falls nicht vorhanden
-      let job: Job = {
+      const job: Job = {
         ...jobData,
         job_id,
         status: JobStatus.PENDING,
@@ -260,7 +270,7 @@ export class EventJobRepository {
         isActive
       } = options;
       
-      const query: Record<string, any> = {};
+      const query: Record<string, unknown> = {};
       
       if (archived !== undefined) {
         query.archived = archived;
@@ -299,7 +309,7 @@ export class EventJobRepository {
       
       const { archived, status, isActive } = options;
       
-      const query: Record<string, any> = {};
+      const query: Record<string, unknown> = {};
       
       if (archived !== undefined) {
         query.archived = archived;
@@ -539,11 +549,15 @@ export class EventJobRepository {
       );
       
       // Update-Operation für Jobs vorbereiten
-      const updateOperation: any = {
-        $set: { 
-          status: JobStatus.PENDING,
-          updated_at: now
-        },
+      const setUpdate: JobSetUpdate = {
+        status: JobStatus.PENDING,
+        updated_at: now
+      };
+      if (targetLanguage) {
+        setUpdate['parameters.target_language'] = targetLanguage;
+      }
+      const updateOperation: UpdateFilter<Job> = {
+        $set: setUpdate,
         $unset: {
           processing_started_at: "",
           completed_at: "",
@@ -552,11 +566,6 @@ export class EventJobRepository {
           results: ""
         }
       };
-      
-      // Wenn eine Zielsprache angegeben wurde, setze diese für alle Jobs
-      if (targetLanguage) {
-        updateOperation.$set['parameters.target_language'] = targetLanguage;
-      }
       
       // Alle nicht archivierten Jobs auf Pending setzen (und ggf. Zielsprache aktualisieren)
       const jobResult = await jobCollection.updateMany(
@@ -602,7 +611,7 @@ export class EventJobRepository {
       
       const { status, archived, limit = 100, skip = 0 } = options;
       
-      const query: Record<string, any> = {
+      const query: Record<string, unknown> = {
         $or: [
           { user_id: userId },
           { 'access_control.read_access': userId },
@@ -646,7 +655,7 @@ export class EventJobRepository {
       
       const { limit = 2000, skip = 0, status } = options;
       
-      const query: Record<string, any> = { batch_id: batchId };
+      const query: Record<string, unknown> = { batch_id: batchId };
       
       if (status !== undefined) {
         query.status = status;

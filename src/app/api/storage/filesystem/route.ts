@@ -3,7 +3,7 @@ import * as fs from 'fs/promises';
 import { Stats } from 'fs';
 import * as pathLib from 'path';
 import mime from 'mime-types';
-import { StorageProvider, StorageItem } from '@/lib/storage/types';
+import { StorageItem } from '@/lib/storage/types';
 import { Library as LibraryType } from '@/types/library';
 import { LibraryService } from '@/lib/services/library-service';
 import { auth, currentUser } from '@clerk/nextjs/server';
@@ -131,7 +131,7 @@ function getIdFromPath(library: LibraryType, absolutePath: string): string {
   const normalizedPath = pathLib.normalize(absolutePath).replace(/\\/g, '/');
   
   // Get relative path by removing base path
-  let relativePath = pathLib.relative(normalizedBasePath, normalizedPath)
+  const relativePath = pathLib.relative(normalizedBasePath, normalizedPath)
     .replace(/\\/g, '/') // Normalize to forward slashes
     .replace(/^\/+|\/+$/g, ''); // Remove leading/trailing slashes
   

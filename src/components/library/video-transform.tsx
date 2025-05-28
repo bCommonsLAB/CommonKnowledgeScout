@@ -142,8 +142,7 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
         onResultProcessed={() => {
           console.log("Video-Transformation vollständig abgeschlossen und Datei ausgewählt");
         }}
-      >
-        {(handleTransformResult, isProcessingResult) => {
+        childrenAction={(handleTransformResult, isProcessingResult) => {
           // Speichere die handleTransformResult-Funktion in der Ref
           transformResultHandlerRef.current = handleTransformResult;
           
@@ -151,7 +150,7 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
             <>
               <SaveOptionsComponent 
                 originalFileName={item.metadata.name}
-                onOptionsChange={handleSaveOptionsChange}
+                onOptionsChangeAction={handleSaveOptionsChange}
                 className="mb-4"
               />
               
@@ -243,7 +242,7 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
             </>
           );
         }}
-      </TransformResultHandler>
+      />
     </div>
   );
 } 

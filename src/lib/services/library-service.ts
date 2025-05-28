@@ -1,5 +1,5 @@
 import { getCollection } from '@/lib/mongodb-service';
-import { Library, ClientLibrary, StorageProviderType } from '@/types/library';
+import { Library, ClientLibrary } from '@/types/library';
 
 export interface UserLibraries {
   email: string;  // Statt userId eine E-Mail-Adresse verwenden

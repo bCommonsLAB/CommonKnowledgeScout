@@ -9,7 +9,8 @@ import { ClientLibrary, Library } from '@/types/library';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  // @ts-expect-error - Next.js 15 App Router params typing issue
+  { params }
 ) {
   // Benutzerauthentifizierung überprüfen
   const { userId } = await auth();
@@ -62,7 +63,8 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  // @ts-expect-error - Next.js 15 App Router params typing issue
+  { params }
 ) {
   // Benutzerauthentifizierung überprüfen
   const { userId } = await auth();

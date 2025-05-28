@@ -1,6 +1,5 @@
 import { Metadata } from "next"
 import { Separator } from "@/components/ui/separator"
-import { LibraryForm } from "@/components/settings/library-form"
 import { SettingsClient } from "./settings-client"
 
 export const metadata: Metadata = {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase, getCollection } from '@/lib/mongodb-service';
+import { connectToDatabase } from '@/lib/mongodb-service';
 
 /**
  * GET /api/db-test

@@ -474,7 +474,6 @@ export class OneDriveProvider implements StorageProvider {
       }
 
       // Prüfe, ob die nötigen Konfigurationswerte vorhanden sind
-      const tenantId = this.getConfigValue('tenantId');
       const clientId = this.getConfigValue('clientId');
       const clientSecret = this.getConfigValue('clientSecret');
       const redirectUri = this.getConfigValue('redirectUri');
@@ -731,8 +730,6 @@ export class OneDriveProvider implements StorageProvider {
           this.id
         );
       }
-
-      const item = await itemResponse.json() as OneDriveFile;
 
       // Verschieben des Items
       const url = `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`;

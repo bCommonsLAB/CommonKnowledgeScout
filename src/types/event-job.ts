@@ -54,14 +54,14 @@ export interface JobResults {
   web_text?: string;
   video_transcript?: string;
   attachments_text?: string | null;
-  context?: Record<string, any> | null;
+  context?: Record<string, unknown> | null;
   attachments_url?: string | null;
 }
 
 export interface JobError {
   code: string;
   message: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 export interface Job {
@@ -112,7 +112,7 @@ export interface Batch {
   archived: boolean;
   archivedAt?: Date;
   description?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // API-Anfrage- und Antworttypen
@@ -172,8 +172,8 @@ export interface EventJob {
   lastErrorMessage?: string;
   retryCount: number;
   maxRetries: number;
-  payload: Record<string, any>;
-  result?: Record<string, any>;
+  payload: Record<string, unknown>;
+  result?: Record<string, unknown>;
   priority: number;
 }
 
@@ -181,12 +181,12 @@ export interface BatchCreatePayload {
   name: string;
   description?: string;
   isActive?: boolean;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface JobCreatePayload {
   batchId: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   priority?: number;
   maxRetries?: number;
 }
@@ -200,7 +200,7 @@ export interface BatchStats {
   cancelledJobs: number;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   status: 'success' | 'error';
   data?: T;
   message?: string;

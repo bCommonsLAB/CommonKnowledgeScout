@@ -13,12 +13,6 @@ interface AudioPlayerProps {
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-// Formatiert Sekunden in MM:SS Format
-function formatTime(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
 
 export const AudioPlayer = memo(function AudioPlayer({ item, onRefreshFolder }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -50,11 +44,12 @@ export const AudioPlayer = memo(function AudioPlayer({ item, onRefreshFolder }: 
     setIsLoading(true);
 
     // Cleanup function
+    const audioElement = audioRef.current;
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.removeAttribute('src');
-        audioRef.current.load();
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.removeAttribute('src');
+        audioElement.load();
       }
     };
   }, [item]);

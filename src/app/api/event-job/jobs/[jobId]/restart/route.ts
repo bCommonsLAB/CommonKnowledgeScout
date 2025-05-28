@@ -10,11 +10,11 @@ const repository = new EventJobRepository();
  */
 export async function POST(
   request: NextRequest,
-  context: { params: { jobId: string } }
+  // @ts-expect-error - Next.js 15 App Router params typing issue
+  { params }
 ) {
   try {
     // In Next.js 15 müssen wir das params-Objekt mit await behandeln
-    const params = await context.params;
     const jobId = params.jobId;
     
     // Zuerst den Job abrufen

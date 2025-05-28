@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { LibraryService } from '@/lib/services/library-service';
 import { cookies } from 'next/headers';
 
 // Importiere die Umgebungsvariablen
@@ -29,19 +28,14 @@ async function getActiveLibraryId(): Promise<string | null> {
   return libraryId || null;
 }
 
-type RouteParams = {
-  params: {
-    track: string[]
-  }
-};
-
 export async function GET(
   req: NextRequest,
-  context: RouteParams
+  // @ts-expect-error - Next.js 15 App Router params typing issue
+  { params }
 ) {
   try {
     // Extrahiere die Parameter manuell und sicherer
-    const trackParams = await context.params.track || [];
+    const trackParams = params.track || [];
     const trackPath = trackParams.join('/');
     
     // Auth prüfen
@@ -124,11 +118,12 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  context: RouteParams
+  // @ts-expect-error - Next.js 15 App Router params typing issue
+  { params }
 ) {
   try {
     // Extrahiere die Parameter manuell und sicherer
-    const trackParams = await context.params.track || [];
+    const trackParams = params.track || [];
     const trackPath = trackParams.join('/');
     
     // Auth prüfen

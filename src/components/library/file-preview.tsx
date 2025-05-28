@@ -1,21 +1,20 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useRef } from "react";
-import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { AudioPlayer } from './audio-player';
 import { VideoPlayer } from './video-player';
 import { MarkdownPreview } from './markdown-preview';
-import { MarkdownMetadata, extractFrontmatter } from './markdown-metadata';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
 import { useAtomValue } from "jotai";
 import { activeLibraryIdAtom } from "@/atoms/library-atom";
 import { TextEditor } from './text-editor';
+import { StorageItem, StorageProvider } from "@/lib/storage/types";
+import { extractFrontmatter } from './markdown-metadata';
+import Image from "next/image";
 
 interface FilePreviewProps {
   item: StorageItem | null;
@@ -129,7 +128,7 @@ function ContentLoader({
     } finally {
       loadingIdRef.current = null;
     }
-  }, [item?.id, provider, fileType, isAudioFile, isVideoFile, onContentLoaded, isTemplateFile, contentCache]);
+  }, [item?.id, item?.metadata?.name, provider, fileType, isAudioFile, isVideoFile, onContentLoaded, isTemplateFile, contentCache]);
 
   // Cleanup bei Unmount
   React.useEffect(() => {
@@ -170,6 +169,11 @@ function PreviewContent({
   onContentUpdated: (content: string) => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }) {
+  const [activeTab, setActiveTab] = React.useState<string>("preview");
+  React.useEffect(() => {
+    setActiveTab("preview");
+  }, [item.id]);
+
   if (error) {
     return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>;
   }
@@ -179,22 +183,18 @@ function PreviewContent({
       return <AudioPlayer item={item} onRefreshFolder={onRefreshFolder} />;
     case 'image':
       return (
-        <img 
+        <Image
           src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
           alt={item.metadata.name}
+          width={800}
+          height={600}
           className="max-w-full h-auto"
+          style={{ objectFit: "contain" }}
         />
       );
     case 'video':
       return <VideoPlayer item={item} onRefreshFolder={onRefreshFolder} />;
     case 'markdown':
-      const [activeTab, setActiveTab] = React.useState<string>("preview");
-      
-      // Bei Änderung der Datei-ID auf Vorschau-Tab zurücksetzen
-      React.useEffect(() => {
-        setActiveTab("preview");
-      }, [item.id]);
-      
       return (
         <Tabs defaultValue="preview" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mx-4 mt-2">
@@ -207,47 +207,25 @@ function PreviewContent({
               currentFolderId={item.parentId}
               provider={provider}
               currentItem={item}
-              onTransform={() => {
-                // Hier zur Bearbeitungsansicht wechseln
-                setActiveTab("edit");
-              }}
+              onTransform={() => setActiveTab("edit")}
               onRefreshFolder={onRefreshFolder}
             />
           </TabsContent>
           <TabsContent value="edit">
             <TextEditor 
               content={content}
-              item={item}
               provider={provider}
-              onSave={async (newContent) => {
-                // Speichern der bearbeiteten Datei
+              onSaveAction={async (newContent: string) => {
                 if (provider && onRefreshFolder) {
                   try {
-                    // Sofort den Inhalt für die Vorschau aktualisieren
                     onContentUpdated(newContent);
-                    
-                    // Nach dem Speichern zur Vorschau wechseln
                     setActiveTab("preview");
-                    
-                    // Datei aktualisieren - wir laden eine neue Datei hoch, da die API keine direkte Update-Methode hat
                     const blob = new Blob([newContent], { type: 'text/markdown' });
                     const file = new File([blob], item.metadata.name, { type: 'text/markdown' });
-                    
-                    // Zuerst die alte Datei löschen
                     await provider.deleteItem(item.id);
-                    
-                    // Dann die neue Datei hochladen
                     const updatedItem = await provider.uploadFile(item.parentId, file);
-                    
-                    // Ordnerinhalt aktualisieren und neu laden
                     const updatedItems = await provider.listItemsById(item.parentId);
-                    
-                    // Den Content Cache für diese Datei explizit leeren
-                    // Wir erzwingen damit, dass der ContentLoader die Datei neu lädt
-                    console.log('Cache für die neue Datei wird zurückgesetzt');
                     contentCache.current.clear();
-                    
-                    // Die Callback-Funktion aufrufen, um die Benutzeroberfläche zu aktualisieren
                     onRefreshFolder(item.parentId, updatedItems, updatedItem);
                   } catch (error) {
                     console.error("Fehler beim Aktualisieren der Datei:", error);
@@ -291,6 +269,13 @@ function PreviewContent({
   }
 }
 
+// Definiere einen Typ für den State
+interface FilePreviewState {
+  content: string;
+  error: string | null;
+  hasMetadata: boolean;
+}
+
 // Hauptkomponente
 export function FilePreview({ 
   item, 
@@ -303,16 +288,15 @@ export function FilePreview({
   // Gemeinsamer Cache für den Inhalt von Dateien
   const contentCache = React.useRef<Map<string, { content: string; hasMetadata: boolean }>>(new Map());
   
-  // Memoize state reducer
-  const reducer = React.useCallback((state: any, action: any) => {
+  // Passe den Reducer an
+  const reducer = React.useCallback((state: FilePreviewState, action: { type: string; content?: string; hasMetadata?: boolean; error?: string }) => {
     switch (action.type) {
       case 'SET_CONTENT':
-        return { ...state, content: action.content, hasMetadata: action.hasMetadata };
+        return { ...state, content: action.content ?? '', hasMetadata: action.hasMetadata ?? false };
       case 'SET_ERROR':
-        return { ...state, error: action.error };
+        return { ...state, error: action.error ?? null };
       case 'UPDATE_CONTENT':
-        // Direkte Aktualisierung des Inhalts, ohne Neuladung der Datei
-        return { ...state, content: action.content };
+        return { ...state, content: action.content ?? '' };
       default:
         return state;
     }
@@ -320,14 +304,14 @@ export function FilePreview({
 
   const [state, dispatch] = React.useReducer(reducer, {
     content: '',
-    error: null as string | null,
+    error: null,
     hasMetadata: false
   });
 
   // Memoize computed values
   const fileType = React.useMemo(() => 
     item ? getFileType(item.metadata.name) : 'unknown', 
-    [item?.metadata?.name]
+    [item]
   );
   
   const isAudioFile = React.useMemo(() => fileType === 'audio', [fileType]);

@@ -1,16 +1,16 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { StorageProvider, StorageItem } from "@/lib/storage/types";
 import { StorageFactory } from "@/lib/storage/storage-factory";
 import { useAtom } from "jotai";
-import { libraryAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
+import { activeLibraryIdAtom } from "@/atoms/library-atom";
 import { ClientLibrary } from "@/types/library";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
 
 // Definition für den Cache-Store
 interface CacheStore {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Der Storage Context enthält alles, was Komponenten über Dateispeicher wissen müssen
@@ -51,11 +51,6 @@ const defaultContext: StorageContextType = {
 // Context-Erstellung
 const StorageContext = createContext<StorageContextType>(defaultContext);
 
-// Typen für die Props des Providers
-interface StorageProviderProps {
-  children: ReactNode;
-}
-
 // Cache für Items, um doppelte Anfragen zu vermeiden
 const itemsCache = new Map<string, StorageItem[]>();
 const itemCache = new Map<string, StorageItem>();
@@ -76,7 +71,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentLibrary, setCurrentLibrary] = useState<ClientLibrary | null>(null);
-  const [rootPath, setRootPath] = useState<string>('/');
+  const [rootPath] = useState<string>('/');
 
   // Cache für API-Aufrufe
   const cache = useRef<CacheStore>({});
@@ -180,7 +175,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         setActiveLibraryAtom("");
         localStorage.removeItem('activeLibraryId');
       });
-  }, []);
+  }, [setActiveLibraryAtom]);
 
   // Verzeichnisinhalte laden mit Caching
   const listItems = useCallback(async (folderId: string): Promise<StorageItem[]> => {

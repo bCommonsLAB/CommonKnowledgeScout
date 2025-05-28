@@ -2,6 +2,10 @@ import { StorageProvider, StorageItem, StorageValidationResult } from './types';
 import { ClientLibrary } from '@/types/library';
 import { OneDriveProvider } from './onedrive-provider';
 
+interface LibraryPathProvider {
+  _libraryPath?: string;
+}
+
 class LocalStorageProvider implements StorageProvider {
   private library: ClientLibrary;
   private baseUrl: string;
@@ -206,7 +210,7 @@ export class StorageFactory {
       console.log(`StorageFactory: Lösche Provider-Details:`, {
         providerId: libraryId,
         providerName: existingProvider.name,
-        cachedLibraryPath: (existingProvider as any)._libraryPath || 'nicht verfügbar',
+        cachedLibraryPath: (existingProvider as LibraryPathProvider)._libraryPath || 'nicht verfügbar',
         aktuelleBibliothekPath: library?.path || 'nicht verfügbar',
         zeitpunkt: new Date().toISOString()
       });
@@ -239,9 +243,14 @@ export class StorageFactory {
       // Spezifischen Fehler werfen, den wir später abfangen können
       const error = new Error(`Bibliothek ${libraryId} nicht gefunden`);
       error.name = 'LibraryNotFoundError';
-      (error as any).errorCode = 'LIBRARY_NOT_FOUND';
-      (error as any).libraryId = libraryId;
-      throw error;
+      interface LibraryNotFoundError extends Error {
+        errorCode: string;
+        libraryId: string;
+      }
+      const typedError = error as LibraryNotFoundError;
+      typedError.errorCode = 'LIBRARY_NOT_FOUND';
+      typedError.libraryId = libraryId;
+      throw typedError;
     }
 
     console.log(`StorageFactory: Erstelle neuen Provider für Bibliothek:`, {

@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Sheet, 
   SheetContent, 
   SheetHeader, 
   SheetTitle, 
-  SheetDescription,
-  SheetFooter,
   SheetClose
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -41,22 +39,13 @@ export default function JobDetailsPanel({ isOpen, onOpenChange, jobId, onRefresh
   const [processing, setProcessing] = useState(false);
 
   // Job laden
-  useEffect(() => {
-    if (isOpen && jobId) {
-      loadJob();
-    }
-  }, [isOpen, jobId]);
-
-  async function loadJob() {
+  const loadJob = useCallback(async () => {
     if (!jobId) return;
-    
     try {
       setLoading(true);
       setError(null);
-      
       const response = await fetch(`/api/event-job/jobs/${jobId}`);
       const data = await response.json();
-      
       if (data.status === 'success') {
         setJob(data.data.job);
       } else {
@@ -69,7 +58,13 @@ export default function JobDetailsPanel({ isOpen, onOpenChange, jobId, onRefresh
     } finally {
       setLoading(false);
     }
-  }
+  }, [jobId]);
+
+  useEffect(() => {
+    if (isOpen && jobId) {
+      loadJob();
+    }
+  }, [isOpen, jobId, loadJob]);
 
   // Job neu starten
   async function restartJob() {
@@ -302,7 +297,7 @@ export default function JobDetailsPanel({ isOpen, onOpenChange, jobId, onRefresh
                   
                   {job.error && (
                     <div className="col-span-full space-y-1">
-                      <p className="text-sm text-gray-500 dark:text-gray-400 text-red-600 dark:text-red-400">Fehler</p>
+                      <p className="text-sm text-red-600 dark:text-red-400">Fehler</p>
                       <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800/50">
                         <pre className="text-xs text-red-800 dark:text-red-300 whitespace-pre-wrap">
                           {typeof job.error === 'object'
