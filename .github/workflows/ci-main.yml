@@ -57,7 +57,9 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/bcommonslab/commonkno:latest,ghcr.io/bcommonslab/commonkno:${{ steps.bump.outputs.new_version }}
-
+          build-args: |
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            
       - name: Push version and tag
         run: |
           git config user.name github-actions[bot]
