@@ -24,6 +24,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: read version file
         id: read_version
         run: |
