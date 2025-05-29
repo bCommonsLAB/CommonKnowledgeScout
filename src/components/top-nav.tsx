@@ -39,9 +39,6 @@ export function TopNav() {
   const pathname = usePathname()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const isLibraryPage = pathname.startsWith('/library')
-  const isSettingsPage = pathname.startsWith('/settings')
-  const showLibrarySwitcher = isLibraryPage || isSettingsPage
   const { user } = useUser();
   
   // Statt Events verwenden wir Jotai
@@ -99,36 +96,39 @@ export function TopNav() {
           <ScrollBar orientation="horizontal" className="invisible" />
         </ScrollArea>
         <div className="ml-auto flex items-center space-x-4">
-          {showLibrarySwitcher && libraries.length > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="w-[200px]">
-                <LibrarySwitcher />
+          {/* Library Switcher - für angemeldete Benutzer mit Bibliotheken */}
+          <SignedIn>
+            {libraries.length > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-[200px]">
+                  <LibrarySwitcher />
+                </div>
+                
+                {/* Zahnrad-Symbol für Einstellungen */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => router.push('/settings')}
+                        className={cn(
+                          "rounded-full",
+                          pathname.startsWith('/settings') && "bg-muted"
+                        )}
+                      >
+                        <Settings className="h-[1.2rem] w-[1.2rem]" />
+                        <span className="sr-only">Bibliothekseinstellungen</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Bibliothekseinstellungen</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
-              
-              {/* Zahnrad-Symbol für Einstellungen */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => router.push('/settings')}
-                      className={cn(
-                        "rounded-full",
-                        pathname.startsWith('/settings') && "bg-muted"
-                      )}
-                    >
-                      <Settings className="h-[1.2rem] w-[1.2rem]" />
-                      <span className="sr-only">Bibliothekseinstellungen</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Bibliothekseinstellungen</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          )}
+            )}
+          </SignedIn>
           
           <Button
             variant="ghost"

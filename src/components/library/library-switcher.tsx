@@ -47,6 +47,10 @@ export function LibrarySwitcher({
     
     setActiveLibraryId(value)
     
+    // Speichere die neue Library-ID im localStorage
+    console.log('LibrarySwitcher: Speichere activeLibraryId im localStorage:', value)
+    localStorage.setItem('activeLibraryId', value)
+    
     console.log('LibrarySwitcher: Bibliothek geändert zu', value)
   }
 

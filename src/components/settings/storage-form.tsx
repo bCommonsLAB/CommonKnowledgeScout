@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useState, useEffect, useCallback } from "react"
 import { useAtom, useAtomValue } from "jotai"
+import { useSearchParams } from "next/navigation"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { StorageProviderType } from "@/types/library"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -86,12 +87,15 @@ interface TestLogEntry {
 }
 
 export function StorageForm() {
+  const searchParams = useSearchParams();
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
   const [testResults, setTestResults] = useState<TestLogEntry[]>([]);
   const [authStatus, setAuthStatus] = useState<{ success?: boolean; error?: string; errorDescription?: string; libraryId?: string } | null>(null);
+  const [processedAuthParams, setProcessedAuthParams] = useState(false);
+  const [authSuccessMessage, setAuthSuccessMessage] = useState<string | null>(null);
   const [oauthDefaults, setOauthDefaults] = useState<{
     tenantId: string;
     clientId: string;
@@ -123,6 +127,18 @@ export function StorageForm() {
   
   // Aktueller Storage-Typ
   const currentType = form.watch("type");
+  
+  // Logging für Mount und wichtige State-Änderungen
+  useEffect(() => {
+    console.log('[StorageForm] Komponente gemountet/aktualisiert:', {
+      pathname: window.location.pathname,
+      search: window.location.search,
+      activeLibraryId,
+      activeLibraryLabel: activeLibrary?.label,
+      librariesCount: libraries.length,
+      formValues: form.getValues()
+    });
+  }, [activeLibraryId, activeLibrary, libraries.length, form]);
   
   // Lade OAuth-Standardwerte über die API
   useEffect(() => {
@@ -166,8 +182,16 @@ export function StorageForm() {
   // Form mit aktiver Bibliothek befüllen
   useEffect(() => {
     if (activeLibrary) {
+      console.log('[StorageForm] Befülle Form mit Library-Daten:', {
+        libraryId: activeLibrary.id,
+        libraryLabel: activeLibrary.label,
+        type: activeLibrary.type,
+        path: activeLibrary.path,
+        config: activeLibrary.config
+      });
+      
       // Wenn Bibliothek gewechselt wird, Formular mit den Werten befüllen
-      form.reset({
+      const formData = {
         type: activeLibrary.type as StorageProviderType,
         path: activeLibrary.path || "",
         // Alle Werte direkt aus der Bibliothek oder aus den Defaults verwenden, keine Maskierung
@@ -175,44 +199,170 @@ export function StorageForm() {
         clientId: activeLibrary.config?.clientId as string || oauthDefaults.clientId,
         clientSecret: activeLibrary.config?.clientSecret as string || oauthDefaults.clientSecret,
         redirectUri: activeLibrary.config?.redirectUri as string || oauthDefaults.redirectUri,
-      });
+      };
+      
+      console.log('[StorageForm] Form-Daten zum Befüllen:', formData);
+      form.reset(formData);
+    } else {
+      console.log('[StorageForm] Keine aktive Library zum Befüllen der Form');
     }
   }, [activeLibrary, form, oauthDefaults]);
   
-  // Abfragen von URL-Parametern für Auth-Status
+  // OAuth Erfolgs-/Fehlermeldungen aus URL-Parametern verarbeiten
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      const authSuccess = url.searchParams.get('authSuccess');
-      const authError = url.searchParams.get('authError');
-      const errorDescription = url.searchParams.get('errorDescription');
-      const libraryId = url.searchParams.get('libraryId');
+    // Nur verarbeiten wenn:
+    // 1. Libraries geladen sind (sonst können wir die Library nicht finden)
+    // 2. Wir die Parameter noch nicht verarbeitet haben
+    // 3. Es überhaupt Auth-Parameter gibt
+    const hasAuthSuccess = searchParams.get('authSuccess') === 'true';
+    const hasAuthError = searchParams.get('authError');
+    
+    if (!processedAuthParams && libraries.length > 0 && (hasAuthSuccess || hasAuthError)) {
+      console.log('[StorageForm] useEffect für Query-Parameter ausgeführt', {
+        pathname: window.location.pathname,
+        search: window.location.search,
+        authSuccess: searchParams.get('authSuccess'),
+        authError: searchParams.get('authError'),
+        libraryId: searchParams.get('libraryId'),
+        activeLibraryId,
+        librariesLoaded: libraries.length
+      });
       
-      if (authSuccess || authError) {
-        setAuthStatus({
-          success: authSuccess === 'true',
-          error: authError || undefined,
-          errorDescription: errorDescription || undefined,
-          libraryId: libraryId || undefined
+      // Erfolgreiche Authentifizierung
+      if (hasAuthSuccess) {
+        const authenticatedLibraryId = searchParams.get('libraryId');
+        console.log('[StorageForm] OAuth erfolgreich für Library:', authenticatedLibraryId);
+        
+        if (authenticatedLibraryId) {
+          // Storage-Status explizit aktualisieren
+          const library = libraries.find(lib => lib.id === authenticatedLibraryId);
+          console.log('[StorageForm] Suche Library für Status-Update:', {
+            authenticatedLibraryId,
+            foundLibrary: library?.label,
+            allLibraries: libraries.map(l => ({ id: l.id, label: l.label }))
+          });
+          
+          if (library) {
+            // Erfolgsmeldung anzeigen
+            console.log('[StorageForm] Toast wird aufgerufen für Library:', library.label);
+            try {
+              toast.success("Authentifizierung erfolgreich", {
+                description: `Die Verbindung zu OneDrive für "${library.label}" wurde erfolgreich hergestellt.`,
+              });
+              console.log('[StorageForm] Toast aufgerufen');
+              
+              // Setze auch die Success-Nachricht als Backup
+              setAuthSuccessMessage(`Die Verbindung zu OneDrive für "${library.label}" wurde erfolgreich hergestellt.`);
+              
+              // Library-Daten neu laden, um die aktualisierten Tokens zu erhalten
+              console.log('[StorageForm] Lade Library-Daten neu nach erfolgreicher OAuth...');
+              
+              // Async-Funktion zum Laden der Library - diese Funktion ist async!
+              const loadUpdatedLibrary = async () => {
+                try {
+                  const response = await fetch(`/api/libraries/${authenticatedLibraryId}`);
+                  if (response.ok) {
+                    const updatedLibrary = await response.json();
+                    console.log('[StorageForm] Aktualisierte Library erhalten:', {
+                      id: updatedLibrary.id,
+                      label: updatedLibrary.label,
+                      hasTokens: !!updatedLibrary.config?.tokens
+                    });
+                    
+                    // Libraries im State aktualisieren
+                    const updatedLibraries = libraries.map(lib => 
+                      lib.id === authenticatedLibraryId ? updatedLibrary : lib
+                    );
+                    setLibraries(updatedLibraries);
+                    console.log('[StorageForm] Libraries-State aktualisiert');
+                  } else {
+                    console.error('[StorageForm] Fehler beim Laden der aktualisierten Library:', response.statusText);
+                  }
+                } catch (error) {
+                  console.error('[StorageForm] Fehler beim Laden der Library-Daten:', error);
+                }
+              };
+              
+              // Async-Funktion aufrufen
+              loadUpdatedLibrary();
+            } catch (error) {
+              console.error('[StorageForm] Fehler beim Anzeigen der Toast-Nachricht:', error);
+              // Falls Toast fehlschlägt, setze trotzdem die Success-Nachricht
+              setAuthSuccessMessage(`Die Verbindung zu OneDrive für "${library.label}" wurde erfolgreich hergestellt.`);
+            }
+          } else {
+            console.warn('[StorageForm] Library nicht gefunden für Status-Update');
+            console.log('[StorageForm] Toast für Warnung wird aufgerufen');
+            try {
+              toast.warning("Warnung", {
+                description: "Die authentifizierte Bibliothek konnte nicht gefunden werden.",
+              });
+              console.log('[StorageForm] Warnung-Toast aufgerufen');
+            } catch (error) {
+              console.error('[StorageForm] Fehler beim Anzeigen der Warnung-Toast:', error);
+            }
+          }
+        }
+        
+        // URL bereinigen - mit Verzögerung, damit Toast-Nachricht sichtbar bleibt
+        setTimeout(() => {
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('authSuccess');
+          newUrl.searchParams.delete('libraryId');
+          console.log('[StorageForm] Bereinige URL nach 2 Sekunden Verzögerung, navigiere zu:', newUrl.pathname);
+          window.history.replaceState({}, '', newUrl.pathname + newUrl.search);
+        }, 2000);
+      }
+      
+      // Authentifizierungsfehler
+      if (hasAuthError) {
+        const error = searchParams.get('authError');
+        const errorDescription = searchParams.get('errorDescription');
+        const errorLibraryId = searchParams.get('libraryId');
+        
+        console.error('[StorageForm] OAuth-Fehler:', {
+          error,
+          errorDescription,
+          libraryId: errorLibraryId
         });
         
-        // Parameter aus URL entfernen
-        url.searchParams.delete('authSuccess');
-        url.searchParams.delete('authError');
-        url.searchParams.delete('errorDescription');
-        url.searchParams.delete('libraryId');
-        window.history.replaceState({}, '', url.toString());
-        
-        // Automatisch Provider-Cache leeren, wenn Authentifizierung erfolgreich war
-        if (authSuccess === 'true' && libraryId) {
-          const factory = StorageFactory.getInstance();
-          factory.clearProvider(libraryId).catch(error => {
-            console.error(`[StorageForm] Fehler beim Leeren des Provider-Caches:`, error);
-          });
+        let errorMessage = "Authentifizierung fehlgeschlagen";
+        if (error === 'no_email') {
+          errorMessage = "Keine E-Mail-Adresse gefunden";
+        } else if (error === 'no_code') {
+          errorMessage = "Kein Authentifizierungscode erhalten";
+        } else if (error === 'no_library_id') {
+          errorMessage = "Keine Bibliotheks-ID erhalten";
+        } else if (error === 'library_not_found') {
+          errorMessage = `Bibliothek nicht gefunden`;
+        } else if (error === 'invalid_library_type') {
+          errorMessage = `Ungültiger Bibliothekstyp`;
+        } else if (error === 'auth_failed') {
+          errorMessage = "Authentifizierung fehlgeschlagen";
+        } else if (errorDescription) {
+          errorMessage = errorDescription;
         }
+        
+        toast.error("Fehler bei der Authentifizierung", {
+          description: errorMessage,
+        });
+        
+        // URL bereinigen - mit Verzögerung, damit Toast-Nachricht sichtbar bleibt
+        setTimeout(() => {
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('authError');
+          newUrl.searchParams.delete('errorDescription');
+          newUrl.searchParams.delete('libraryId');
+          newUrl.searchParams.delete('libraryType');
+          console.log('[StorageForm] Bereinige URL nach Fehler nach 2 Sekunden Verzögerung, navigiere zu:', newUrl.pathname);
+          window.history.replaceState({}, '', newUrl.pathname + newUrl.search);
+        }, 2000);
       }
+      
+      // Markiere als verarbeitet
+      setProcessedAuthParams(true);
     }
-  }, []);
+  }, [searchParams, libraries, activeLibraryId, processedAuthParams]);
   
   const onSubmit = useCallback(async (data: StorageFormValues) => {
     setIsLoading(true);
@@ -276,16 +426,13 @@ export function StorageForm() {
         } : lib
       );
       setLibraries(updatedLibraries);
-      toast({
-        title: "Storage-Einstellungen aktualisiert",
+      toast.success("Storage-Einstellungen aktualisiert", {
         description: `Die Storage-Einstellungen für "${activeLibrary.label}" wurden erfolgreich aktualisiert.`,
       });
     } catch (error) {
       console.error('Fehler beim Speichern der Storage-Einstellungen:', error);
-      toast({
-        title: "Fehler",
+      toast.error("Fehler", {
         description: error instanceof Error ? error.message : "Unbekannter Fehler beim Speichern",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -295,10 +442,8 @@ export function StorageForm() {
   // Funktion zum Testen des Storage-Providers
   async function handleTestStorage() {
     if (!activeLibrary) {
-      toast({
-        title: "Fehler",
+      toast.error("Fehler", {
         description: "Keine Bibliothek ausgewählt.",
-        variant: "destructive",
       });
       return;
     }
@@ -641,10 +786,8 @@ export function StorageForm() {
         }
       }]);
       
-      toast({
-        title: "Test fehlgeschlagen",
+      toast.error("Test fehlgeschlagen", {
         description: error instanceof Error ? error.message : "Unbekannter Fehler beim Testen",
-        variant: "destructive",
       });
     } finally {
       setIsTesting(false);
@@ -654,10 +797,8 @@ export function StorageForm() {
   // Funktion zum Starten der OneDrive-Authentifizierung
   const handleOneDriveAuth = useCallback(async () => {
     if (!activeLibrary) {
-      toast({
-        title: "Fehler",
+      toast.error("Fehler", {
         description: "Keine Bibliothek ausgewählt.",
-        variant: "destructive",
       });
       return;
     }
@@ -666,8 +807,7 @@ export function StorageForm() {
       // Prüfen, ob es ungespeicherte Änderungen gibt und diese speichern
       if (form.formState.isDirty) {
         // Zuerst die aktuellen Formularwerte speichern
-        toast({
-          title: "Speichere Änderungen",
+        toast.info("Speichere Änderungen", {
           description: "Die aktuellen Konfigurationseinstellungen werden gespeichert...",
         });
         
@@ -700,10 +840,8 @@ export function StorageForm() {
           !updatedLibrary.config?.redirectUri ? 'Redirect URI' : ''
         ].filter(Boolean).join(', ');
         
-        toast({
-          title: "Unvollständige Konfiguration",
+        toast.error("Unvollständige Konfiguration", {
           description: `Bitte füllen Sie alle erforderlichen Felder aus und speichern Sie die Änderungen: ${missingParams}`,
-          variant: "destructive",
         });
         return;
       }
@@ -731,10 +869,8 @@ export function StorageForm() {
       window.location.href = urlWithState.toString();
     } catch (error) {
       console.error('[StorageForm] Fehler beim Starten der OneDrive-Authentifizierung:', error);
-      toast({
-        title: "Fehler",
+      toast.error("Fehler", {
         description: error instanceof Error ? error.message : "Unbekannter Fehler bei der Authentifizierung",
-        variant: "destructive",
       });
     }
   }, [activeLibrary, form, onSubmit]);
@@ -1023,7 +1159,7 @@ export function StorageForm() {
     );
     
     // Hilfsfunktion: Prüft, ob es API-Aufrufe für einen bestimmten Schritt gibt
-    function hasApiCalls(step: string, resultIndex: number): boolean {
+    const hasApiCalls = (step: string, resultIndex: number): boolean => {
       // Hole den aktuellen Result direkt (ohne Umkehrung, da wir bereits sortiert haben)
       const nonApiResults = testResults.filter(r => r.step !== "API-Aufruf");
       const currentResult = nonApiResults[resultIndex];
@@ -1051,7 +1187,7 @@ export function StorageForm() {
     }
     
     // Hilfsfunktion: Rendert die Details eines Testergebnisses
-    function renderDetails(result: TestLogEntry) {
+    const renderDetails = (result: TestLogEntry) => {
       if (!result.details) return null;
       
       return (
@@ -1087,7 +1223,7 @@ export function StorageForm() {
     }
     
     // Hilfsfunktion: Rendert die zugehörigen API-Aufrufe für einen Schritt
-    function renderApiCalls(step: string, resultIndex: number) {
+    const renderApiCalls = (step: string, resultIndex: number) => {
       // Hole den aktuellen Result direkt (ohne Umkehrung, da wir bereits sortiert haben)
       const nonApiResults = testResults.filter(r => r.step !== "API-Aufruf");
       const currentResult = nonApiResults[resultIndex];
@@ -1178,6 +1314,25 @@ export function StorageForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        {/* Success-Nachricht anzeigen, falls vorhanden */}
+        {authSuccessMessage && (
+          <Alert className="mb-4">
+            <CheckCircle className="h-4 w-4" />
+            <AlertTitle>Erfolg</AlertTitle>
+            <AlertDescription>
+              {authSuccessMessage}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-2"
+                onClick={() => setAuthSuccessMessage(null)}
+              >
+                Schließen
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <Card>
           <CardHeader>
             <div className="flex items-center">

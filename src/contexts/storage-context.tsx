@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { StorageProvider, StorageItem } from "@/lib/storage/types";
 import { StorageFactory } from "@/lib/storage/storage-factory";
 import { useAtom } from "jotai";
-import { activeLibraryIdAtom } from "@/atoms/library-atom";
+import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom";
 import { ClientLibrary } from "@/types/library";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
 
@@ -84,6 +84,15 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
 
   // Atom-Wert für die aktive Bibliothek
   const [activeLibraryId, setActiveLibraryAtom] = useAtom(activeLibraryIdAtom);
+  const [, setLibrariesAtom] = useAtom(librariesAtom);
+
+  // Speichere die activeLibraryId im localStorage, wenn sie sich ändert
+  useEffect(() => {
+    if (activeLibraryId) {
+      console.log(`[StorageContext] Speichere activeLibraryId im localStorage: ${activeLibraryId}`);
+      localStorage.setItem('activeLibraryId', activeLibraryId);
+    }
+  }, [activeLibraryId]);
 
   // Provider aus dem Hook verwenden, wenn er verfügbar ist
   useEffect(() => {
@@ -134,6 +143,9 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
           console.log('[StorageContext] Bibliotheken geladen:', data.length);
           setLibraries(data);
           
+          // Setze Libraries auch im globalen Atom
+          setLibrariesAtom(data);
+          
           // Setze StorageFactory Libraries
           const factory = StorageFactory.getInstance();
           factory.setLibraries(data);
@@ -142,13 +154,25 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
           if (data.length > 0) {
             const storedLibraryId = localStorage.getItem('activeLibraryId');
             
-            // Prüfen, ob die gespeicherte ID existiert
-            const validStoredId = storedLibraryId && data.some(lib => lib.id === storedLibraryId);
+            // Zusätzliche Validierung: Prüfe, ob die ID ein gültiges UUID-Format hat
+            // oder zumindest kein einfacher numerischer Wert ist
+            const isValidUUID = storedLibraryId && 
+              storedLibraryId.length > 10 && // UUIDs sind länger als 10 Zeichen
+              isNaN(Number(storedLibraryId)); // Keine reine Zahl
+            
+            // Prüfen, ob die gespeicherte ID existiert und gültig ist
+            const validStoredId = isValidUUID && data.some(lib => lib.id === storedLibraryId);
             
             if (validStoredId) {
               console.log(`[StorageContext] Gespeicherte Bibliothek wird verwendet: ${storedLibraryId}`);
               setActiveLibraryAtom(storedLibraryId);
             } else {
+              // Log wenn ungültige ID gefunden wurde
+              if (storedLibraryId && !isValidUUID) {
+                console.warn(`[StorageContext] Ungültige Library-ID im localStorage gefunden: "${storedLibraryId}" - wird bereinigt`);
+                localStorage.removeItem('activeLibraryId');
+              }
+              
               // Verwende die erste verfügbare Bibliothek, wenn keine gültige gespeichert ist
               const firstLibId = data[0].id;
               console.log(`[StorageContext] Setze erste Bibliothek als aktiv: ${firstLibId}`);
@@ -159,10 +183,14 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             console.warn('[StorageContext] Keine Bibliotheken verfügbar');
             setActiveLibraryAtom("");
             localStorage.removeItem('activeLibraryId');
+            // Leeres Array im globalen Atom setzen
+            setLibrariesAtom([]);
           }
         } else {
           console.error('[StorageContext] Ungültiges Format der Bibliotheksdaten:', data);
           setError('Fehler beim Laden der Bibliotheken: Ungültiges Format');
+          // Leeres Array im globalen Atom setzen
+          setLibrariesAtom([]);
         }
         setIsLoading(false);
       })
@@ -174,8 +202,10 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         // Bei API-Fehlern die Anwendung in einen sicheren Zustand versetzen
         setActiveLibraryAtom("");
         localStorage.removeItem('activeLibraryId');
+        // Leeres Array im globalen Atom setzen
+        setLibrariesAtom([]);
       });
-  }, [setActiveLibraryAtom]);
+  }, [setActiveLibraryAtom, setLibrariesAtom]);
 
   // Verzeichnisinhalte laden mit Caching
   const listItems = useCallback(async (folderId: string): Promise<StorageItem[]> => {

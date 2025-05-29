@@ -34,25 +34,25 @@ export async function GET(request: NextRequest) {
   const user = await currentUser();
   if (!user?.emailAddresses?.length) {
     console.error('[OneDrive Auth Callback] Keine E-Mail-Adresse gefunden');
-    return NextResponse.redirect(new URL('/settings?authError=no_email', request.url));
+    return NextResponse.redirect(new URL('/settings/storage?authError=no_email', request.url));
   }
   const userEmail = user.emailAddresses[0].emailAddress;
 
   // Fehlerbehandlung
   if (error) {
     console.error(`[OneDrive Auth Callback] Fehler: ${error}, Beschreibung: ${errorDescription}`);
-    return NextResponse.redirect(new URL(`/settings?authError=${error}&errorDescription=${encodeURIComponent(errorDescription || '')}`, request.url));
+    return NextResponse.redirect(new URL(`/settings/storage?authError=${error}&errorDescription=${encodeURIComponent(errorDescription || '')}`, request.url));
   }
 
   // Validierung der Parameter
   if (!code) {
     console.error('[OneDrive Auth Callback] Kein Code erhalten');
-    return NextResponse.redirect(new URL('/settings?authError=no_code', request.url));
+    return NextResponse.redirect(new URL('/settings/storage?authError=no_code', request.url));
   }
 
   if (!libraryId) {
     console.error('[OneDrive Auth Callback] Keine Library-ID erhalten');
-    return NextResponse.redirect(new URL('/settings?authError=no_library_id', request.url));
+    return NextResponse.redirect(new URL('/settings/storage?authError=no_library_id', request.url));
   }
 
   try {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
         id: lib.id,
         label: lib.label
       })));
-      return NextResponse.redirect(new URL(`/settings?authError=library_not_found&libraryId=${libraryId}`, request.url));
+      return NextResponse.redirect(new URL(`/settings/storage?authError=library_not_found&libraryId=${libraryId}`, request.url));
     }
     
     // Bibliothek in ClientLibrary konvertieren
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     // Prüfen, ob es sich um eine OneDrive-Bibliothek handelt
     if (library.type !== 'onedrive') {
       console.error(`[OneDrive Auth Callback] Bibliothek ${libraryId} ist keine OneDrive-Bibliothek (Typ: ${library.type})`);
-      return NextResponse.redirect(new URL(`/settings?authError=invalid_library_type&libraryId=${libraryId}&libraryType=${library.type}`, request.url));
+      return NextResponse.redirect(new URL(`/settings/storage?authError=invalid_library_type&libraryId=${libraryId}&libraryType=${library.type}`, request.url));
     }
     
     try {
@@ -101,19 +101,19 @@ export async function GET(request: NextRequest) {
         // StorageFactory Provider-Cache für diese ID löschen
         const factory = StorageFactory.getInstance();
         await factory.clearProvider(libraryId);
-        return NextResponse.redirect(new URL(`/settings?authSuccess=true&libraryId=${libraryId}`, request.url));
+        return NextResponse.redirect(new URL(`/settings/storage?authSuccess=true&libraryId=${libraryId}`, request.url));
       } else {
         console.error('[OneDrive Auth Callback] Authentifizierung fehlgeschlagen');
-        return NextResponse.redirect(new URL(`/settings?authError=auth_failed&libraryId=${libraryId}`, request.url));
+        return NextResponse.redirect(new URL(`/settings/storage?authError=auth_failed&libraryId=${libraryId}`, request.url));
       }
     } catch (providerError) {
       console.error('[OneDrive Auth Callback] Fehler beim Initialisieren des Providers:', providerError);
       const errorMessage = providerError instanceof Error ? encodeURIComponent(providerError.message) : 'provider_error';
-      return NextResponse.redirect(new URL(`/settings?authError=${errorMessage}&libraryId=${libraryId}`, request.url));
+      return NextResponse.redirect(new URL(`/settings/storage?authError=${errorMessage}&libraryId=${libraryId}`, request.url));
     }
   } catch (error) {
     console.error('[OneDrive Auth Callback] Fehler bei der Authentifizierung:', error);
     const errorMessage = error instanceof Error ? encodeURIComponent(error.message) : 'unknown_error';
-    return NextResponse.redirect(new URL(`/settings?authError=${errorMessage}&libraryId=${libraryId}`, request.url));
+    return NextResponse.redirect(new URL(`/settings/storage?authError=${errorMessage}&libraryId=${libraryId}`, request.url));
   }
 } 
