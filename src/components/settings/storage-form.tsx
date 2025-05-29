@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, Suspense } from "react"
 import { useAtom, useAtomValue } from "jotai"
 import { useSearchParams } from "next/navigation"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
@@ -86,14 +86,19 @@ interface TestLogEntry {
   };
 }
 
-export function StorageForm() {
+// Wrapper-Komponente für useSearchParams
+function StorageFormWithSearchParams() {
   const searchParams = useSearchParams();
+  return <StorageFormContent searchParams={searchParams} />;
+}
+
+// Hauptkomponente ohne useSearchParams
+function StorageFormContent({ searchParams }: { searchParams: URLSearchParams }) {
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
   const [testResults, setTestResults] = useState<TestLogEntry[]>([]);
-  const [authStatus, setAuthStatus] = useState<{ success?: boolean; error?: string; errorDescription?: string; libraryId?: string } | null>(null);
   const [processedAuthParams, setProcessedAuthParams] = useState(false);
   const [authSuccessMessage, setAuthSuccessMessage] = useState<string | null>(null);
   const [oauthDefaults, setOauthDefaults] = useState<{
@@ -206,7 +211,7 @@ export function StorageForm() {
     } else {
       console.log('[StorageForm] Keine aktive Library zum Befüllen der Form');
     }
-  }, [activeLibrary, form, oauthDefaults]);
+  }, [activeLibrary, form, oauthDefaults, setLibraries]);
   
   // OAuth Erfolgs-/Fehlermeldungen aus URL-Parametern verarbeiten
   useEffect(() => {
@@ -894,30 +899,6 @@ export function StorageForm() {
       case "onedrive":
         return (
           <>
-            {/* Auth-Status-Meldung zeigen, wenn Statusänderung erkannt wurde */}
-            {authStatus && authStatus.libraryId === activeLibrary?.id && (
-              <Alert variant={authStatus.success ? "default" : "destructive"} className="mb-4">
-                {authStatus.success ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    <AlertTitle>Erfolg</AlertTitle>
-                    <AlertDescription>Die Authentifizierung bei OneDrive war erfolgreich.</AlertDescription>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-4 w-4 mr-2" />
-                    <AlertTitle>Fehler</AlertTitle>
-                    <AlertDescription>
-                      {authStatus.error === 'access_denied' ? 
-                        'Der Zugriff wurde verweigert. Bitte erteilen Sie die erforderlichen Berechtigungen.' : 
-                        `Fehler bei der Authentifizierung: ${authStatus.error || 'Unbekannter Fehler'}`}
-                      {authStatus.errorDescription && ` (${authStatus.errorDescription})`}
-                    </AlertDescription>
-                  </>
-                )}
-              </Alert>
-            )}
-          
             <FormField
               control={form.control}
               name="tenantId"
@@ -1463,4 +1444,13 @@ export function StorageForm() {
       </form>
     </Form>
   )
+}
+
+// Exportierte Komponente mit Suspense
+export function StorageForm() {
+  return (
+    <Suspense fallback={<div>Lade Storage-Einstellungen...</div>}>
+      <StorageFormWithSearchParams />
+    </Suspense>
+  );
 } 
