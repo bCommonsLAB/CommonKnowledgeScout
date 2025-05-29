@@ -244,11 +244,16 @@ export class OneDriveProvider implements StorageProvider {
     // Fallback für tenantId
     if (key === 'tenantId') return 'common';
     
-    // Fallback für redirectUri
+    // Fallback für redirectUri - immer aus der Umgebung verwenden
     if (key === 'redirectUri') {
-      if (typeof window !== 'undefined') {
-        return `${window.location.origin}/auth/microsoft/callback`;
+      if (this.oauthDefaults?.redirectUri) {
+        return this.oauthDefaults.redirectUri;
       }
+      throw new StorageError(
+        "Fehlende Redirect URI in der Umgebungskonfiguration",
+        "CONFIG_ERROR",
+        this.id
+      );
     }
     
     return '';

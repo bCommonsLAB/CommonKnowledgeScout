@@ -33,37 +33,36 @@ export class OneDriveServerProvider {
    */
   private getRequiredConfigValues() {
     // Die Konfigurationswerte direkt aus der Bibliothek extrahieren
-    let tenantId = this.library.config?.tenantId || '';
-    let clientId = this.library.config?.clientId || '';
-    let clientSecret = this.library.config?.clientSecret || '';
-    let redirectUri = this.library.config?.redirectUri || '';
-    
+    const tenantId = this.library.config?.tenantId || '';
+    const clientId = this.library.config?.clientId || '';
+    const clientSecret = this.library.config?.clientSecret || '';
+    const redirectUri = process.env.MS_REDIRECT_URI || '';
+
     // Prüfen, ob clientSecret maskiert ist (mit Sternchen beginnt)
-    const clientSecretStr = clientSecret as string;
-    const isMaskedSecret = clientSecretStr && clientSecretStr.startsWith('*');
-    
-    // Umgebungsvariablen für fehlende oder maskierte Werte verwenden
-    if (!tenantId) tenantId = process.env.MS_TENANT_ID || 'common';
-    if (!clientId) clientId = process.env.MS_CLIENT_ID || '';
-    if (!clientSecret || isMaskedSecret) clientSecret = process.env.MS_CLIENT_SECRET || '';
-    if (!redirectUri) redirectUri = process.env.MS_REDIRECT_URI || '';
-    
+    const isMaskedSecret = typeof clientSecret === 'string' && clientSecret.startsWith('*');
+
     // Liste der fehlenden Werte zusammenstellen
     const missingValues = [
+      !tenantId ? 'Tenant ID' : '',
       !clientId ? 'Client ID' : '',
-      !clientSecret ? 'Client Secret' : '',
+      !clientSecret || isMaskedSecret ? 'Client Secret' : '',
       !redirectUri ? 'Redirect URI' : ''
     ].filter(Boolean).join(', ');
-    
+
+    // Fehler werfen, wenn Werte fehlen
+    if (!tenantId || !clientId || !clientSecret || isMaskedSecret || !redirectUri) {
+      throw new StorageError(
+        `Fehlende Konfigurationsparameter für OneDrive-Authentifizierung: ${missingValues}`,
+        "CONFIG_ERROR",
+        this.id
+      );
+    }
+
     return {
-      tenantId: tenantId || 'common', // Für tenantId ist 'common' ein gültiger Default
+      tenantId,
       clientId,
       clientSecret,
-      redirectUri,
-      // Prüfen, ob alle erforderlichen Werte vorhanden sind
-      hasAllRequired: !!clientId && !!clientSecret && !!redirectUri,
-      // Bei fehlenden Werten eine Fehlermeldung erzeugen
-      missingValues
+      redirectUri
     };
   }
   
@@ -76,24 +75,14 @@ export class OneDriveServerProvider {
     try {
       // Konfigurationswerte aus der Bibliothek laden
       const config = this.getRequiredConfigValues();
-      const { tenantId, clientId, clientSecret, redirectUri, hasAllRequired, missingValues } = config;
+      const { tenantId, clientId, clientSecret, redirectUri } = config;
       
       console.log(`[OneDriveServerProvider] Authentifizierung mit gespeicherten Konfigurationswerten`, {
-        tenantId: tenantId || 'common',
+        tenantId,
         clientId: clientId ? 'vorhanden' : 'nicht vorhanden',
         clientSecret: clientSecret ? 'vorhanden' : 'nicht vorhanden',
-        redirectUri: redirectUri || 'nicht vorhanden',
-        hasAllRequired
+        redirectUri: redirectUri || 'nicht vorhanden'
       });
-
-      // Prüfen, ob alle erforderlichen Werte vorhanden sind
-      if (!hasAllRequired) {
-        throw new StorageError(
-          `Fehlende Konfigurationsparameter für OneDrive-Authentifizierung: ${missingValues}`,
-          "CONFIG_ERROR",
-          this.id
-        );
-      }
 
       const tokenEndpoint = `https://login.microsoftonline.com/${tenantId || 'common'}/oauth2/v2.0/token`;
 

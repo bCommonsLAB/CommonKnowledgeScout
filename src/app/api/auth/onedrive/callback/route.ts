@@ -15,14 +15,6 @@ export async function GET(request: NextRequest) {
   console.log(`[OneDrive Auth Callback] Received: code=${!!code}, libraryId=${libraryId}, error=${error}, sessionState=${!!sessionState}`);
   console.log(`[OneDrive Auth Callback] URL: ${request.url}`);
 
-  // Debug-Ausgabe der Umgebungsvariablen
-  console.log(`[OneDrive Auth Callback] Umgebungsvariablen:`, {
-    MS_TENANT_ID: process.env.MS_TENANT_ID ? 'vorhanden' : 'nicht vorhanden',
-    MS_CLIENT_ID: process.env.MS_CLIENT_ID ? 'vorhanden' : 'nicht vorhanden',
-    MS_CLIENT_SECRET: process.env.MS_CLIENT_SECRET ? 'vorhanden' : 'nicht vorhanden',
-    MS_REDIRECT_URI: process.env.MS_REDIRECT_URI ? 'vorhanden' : 'nicht vorhanden'
-  });
-
   // Authentifizierung prüfen
   const { userId } = await auth();
   if (!userId) {
@@ -86,6 +78,14 @@ export async function GET(request: NextRequest) {
       console.error(`[OneDrive Auth Callback] Bibliothek ${libraryId} ist keine OneDrive-Bibliothek (Typ: ${library.type})`);
       return NextResponse.redirect(new URL(`/settings/storage?authError=invalid_library_type&libraryId=${libraryId}&libraryType=${library.type}`, request.url));
     }
+    
+    // Debug-Ausgabe der Konfiguration
+    console.log(`[OneDrive Auth Callback] Konfiguration:`, {
+      tenantId: library.config?.tenantId ? 'vorhanden' : 'nicht vorhanden',
+      clientId: library.config?.clientId ? 'vorhanden' : 'nicht vorhanden',
+      clientSecret: library.config?.clientSecret ? 'vorhanden' : 'nicht vorhanden',
+      redirectUri: process.env.MS_REDIRECT_URI ? 'vorhanden' : 'nicht vorhanden'
+    });
     
     try {
       // Server-seitigen OneDrive-Provider initialisieren

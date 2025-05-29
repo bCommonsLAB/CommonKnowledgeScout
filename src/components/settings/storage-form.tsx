@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { StorageProviderType } from "@/types/library"
+import { StorageProviderType, ClientLibrary } from "@/types/library"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Dialog,
@@ -50,6 +50,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { OneDriveProvider } from "@/lib/storage/onedrive-provider"
+import { Badge } from "@/components/ui/badge"
 
 // Hauptschema für das Formular
 const storageFormSchema = z.object({
@@ -63,7 +64,6 @@ const storageFormSchema = z.object({
   tenantId: z.string().optional(),
   clientId: z.string().optional(),
   clientSecret: z.string().optional(),
-  redirectUri: z.string().optional(),
 });
 
 type StorageFormValues = z.infer<typeof storageFormSchema>
@@ -105,12 +105,10 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     tenantId: string;
     clientId: string;
     clientSecret: string;
-    redirectUri: string;
   }>({
     tenantId: "",
     clientId: "",
     clientSecret: "",
-    redirectUri: "",
   });
   
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
@@ -122,7 +120,6 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     tenantId: "",
     clientId: "",
     clientSecret: "",
-    redirectUri: "",
   };
   
   const form = useForm<StorageFormValues>({
@@ -162,7 +159,6 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
           tenantId: data.defaults?.tenantId ? 'vorhanden' : 'nicht vorhanden',
           clientId: data.defaults?.clientId ? 'vorhanden' : 'nicht vorhanden',
           clientSecret: data.defaults?.clientSecret ? 'vorhanden' : 'nicht vorhanden',
-          redirectUri: data.defaults?.redirectUri ? 'vorhanden' : 'nicht vorhanden',
         });
         
         if (data.hasDefaults) {
@@ -170,7 +166,6 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
             tenantId: data.defaults.tenantId,
             clientId: data.defaults.clientId,
             clientSecret: data.defaults.clientSecret,
-            redirectUri: data.defaults.redirectUri,
           });
           console.log('[StorageForm] OAuth-Standardwerte gesetzt');
         } else {
@@ -188,7 +183,6 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
   useEffect(() => {
     if (activeLibrary) {
       console.log('[StorageForm] Befülle Form mit Library-Daten:', {
-        libraryId: activeLibrary.id,
         libraryLabel: activeLibrary.label,
         type: activeLibrary.type,
         path: activeLibrary.path,
@@ -203,7 +197,6 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         tenantId: activeLibrary.config?.tenantId as string || oauthDefaults.tenantId,
         clientId: activeLibrary.config?.clientId as string || oauthDefaults.clientId,
         clientSecret: activeLibrary.config?.clientSecret as string || oauthDefaults.clientSecret,
-        redirectUri: activeLibrary.config?.redirectUri as string || oauthDefaults.redirectUri,
       };
       
       console.log('[StorageForm] Form-Daten zum Befüllen:', formData);
@@ -238,566 +231,110 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         const authenticatedLibraryId = searchParams.get('libraryId');
         console.log('[StorageForm] OAuth erfolgreich für Library:', authenticatedLibraryId);
         
+        // Erfolgsmeldung setzen
+        setAuthSuccessMessage("Die Authentifizierung bei OneDrive war erfolgreich.");
+        
+        // Library-Daten neu laden
         if (authenticatedLibraryId) {
-          // Storage-Status explizit aktualisieren
-          const library = libraries.find(lib => lib.id === authenticatedLibraryId);
-          console.log('[StorageForm] Suche Library für Status-Update:', {
-            authenticatedLibraryId,
-            foundLibrary: library?.label,
-            allLibraries: libraries.map(l => ({ id: l.id, label: l.label }))
-          });
-          
-          if (library) {
-            // Erfolgsmeldung anzeigen
-            console.log('[StorageForm] Toast wird aufgerufen für Library:', library.label);
-            try {
-              toast.success("Authentifizierung erfolgreich", {
-                description: `Die Verbindung zu OneDrive für "${library.label}" wurde erfolgreich hergestellt.`,
+          fetch(`/api/libraries/${authenticatedLibraryId}`)
+            .then(response => response.json())
+            .then(updatedLibrary => {
+              console.log('[StorageForm] Library nach OAuth aktualisiert:', {
+                id: updatedLibrary.id,
+                label: updatedLibrary.label,
+                type: updatedLibrary.type
               });
-              console.log('[StorageForm] Toast aufgerufen');
               
-              // Setze auch die Success-Nachricht als Backup
-              setAuthSuccessMessage(`Die Verbindung zu OneDrive für "${library.label}" wurde erfolgreich hergestellt.`);
-              
-              // Library-Daten neu laden, um die aktualisierten Tokens zu erhalten
-              console.log('[StorageForm] Lade Library-Daten neu nach erfolgreicher OAuth...');
-              
-              // Async-Funktion zum Laden der Library - diese Funktion ist async!
-              const loadUpdatedLibrary = async () => {
-                try {
-                  const response = await fetch(`/api/libraries/${authenticatedLibraryId}`);
-                  if (response.ok) {
-                    const updatedLibrary = await response.json();
-                    console.log('[StorageForm] Aktualisierte Library erhalten:', {
-                      id: updatedLibrary.id,
-                      label: updatedLibrary.label,
-                      hasTokens: !!updatedLibrary.config?.tokens
-                    });
-                    
-                    // Libraries im State aktualisieren
-                    const updatedLibraries = libraries.map(lib => 
-                      lib.id === authenticatedLibraryId ? updatedLibrary : lib
-                    );
-                    setLibraries(updatedLibraries);
-                    console.log('[StorageForm] Libraries-State aktualisiert');
-                  } else {
-                    console.error('[StorageForm] Fehler beim Laden der aktualisierten Library:', response.statusText);
-                  }
-                } catch (error) {
-                  console.error('[StorageForm] Fehler beim Laden der Library-Daten:', error);
-                }
-              };
-              
-              // Async-Funktion aufrufen
-              loadUpdatedLibrary();
-            } catch (error) {
-              console.error('[StorageForm] Fehler beim Anzeigen der Toast-Nachricht:', error);
-              // Falls Toast fehlschlägt, setze trotzdem die Success-Nachricht
-              setAuthSuccessMessage(`Die Verbindung zu OneDrive für "${library.label}" wurde erfolgreich hergestellt.`);
-            }
-          } else {
-            console.warn('[StorageForm] Library nicht gefunden für Status-Update');
-            console.log('[StorageForm] Toast für Warnung wird aufgerufen');
-            try {
-              toast.warning("Warnung", {
-                description: "Die authentifizierte Bibliothek konnte nicht gefunden werden.",
-              });
-              console.log('[StorageForm] Warnung-Toast aufgerufen');
-            } catch (error) {
-              console.error('[StorageForm] Fehler beim Anzeigen der Warnung-Toast:', error);
-            }
-          }
+              // Library in der Liste aktualisieren
+              setLibraries(libraries.map(lib => lib.id === updatedLibrary.id ? updatedLibrary : lib));
+            })
+            .catch(error => {
+              console.error('[StorageForm] Fehler beim Laden der aktualisierten Library:', error);
+            });
         }
-        
-        // URL bereinigen - mit Verzögerung, damit Toast-Nachricht sichtbar bleibt
-        setTimeout(() => {
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.delete('authSuccess');
-          newUrl.searchParams.delete('libraryId');
-          console.log('[StorageForm] Bereinige URL nach 2 Sekunden Verzögerung, navigiere zu:', newUrl.pathname);
-          window.history.replaceState({}, '', newUrl.pathname + newUrl.search);
-        }, 2000);
       }
       
-      // Authentifizierungsfehler
+      // Fehler bei der Authentifizierung
       if (hasAuthError) {
-        const error = searchParams.get('authError');
-        const errorDescription = searchParams.get('errorDescription');
-        const errorLibraryId = searchParams.get('libraryId');
-        
-        console.error('[StorageForm] OAuth-Fehler:', {
-          error,
-          errorDescription,
-          libraryId: errorLibraryId
-        });
-        
-        let errorMessage = "Authentifizierung fehlgeschlagen";
-        if (error === 'no_email') {
-          errorMessage = "Keine E-Mail-Adresse gefunden";
-        } else if (error === 'no_code') {
-          errorMessage = "Kein Authentifizierungscode erhalten";
-        } else if (error === 'no_library_id') {
-          errorMessage = "Keine Bibliotheks-ID erhalten";
-        } else if (error === 'library_not_found') {
-          errorMessage = `Bibliothek nicht gefunden`;
-        } else if (error === 'invalid_library_type') {
-          errorMessage = `Ungültiger Bibliothekstyp`;
-        } else if (error === 'auth_failed') {
-          errorMessage = "Authentifizierung fehlgeschlagen";
-        } else if (errorDescription) {
-          errorMessage = errorDescription;
-        }
-        
+        const errorMessage = searchParams.get('authError');
+        console.error('[StorageForm] OAuth-Fehler:', errorMessage);
         toast.error("Fehler bei der Authentifizierung", {
-          description: errorMessage,
+          description: errorMessage || "Unbekannter Fehler bei der Authentifizierung",
         });
-        
-        // URL bereinigen - mit Verzögerung, damit Toast-Nachricht sichtbar bleibt
-        setTimeout(() => {
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.delete('authError');
-          newUrl.searchParams.delete('errorDescription');
-          newUrl.searchParams.delete('libraryId');
-          newUrl.searchParams.delete('libraryType');
-          console.log('[StorageForm] Bereinige URL nach Fehler nach 2 Sekunden Verzögerung, navigiere zu:', newUrl.pathname);
-          window.history.replaceState({}, '', newUrl.pathname + newUrl.search);
-        }, 2000);
       }
       
-      // Markiere als verarbeitet
+      // Parameter als verarbeitet markieren
       setProcessedAuthParams(true);
     }
-  }, [searchParams, libraries, activeLibraryId, processedAuthParams]);
+  }, [searchParams, libraries, activeLibraryId, processedAuthParams, setLibraries]);
   
-  const onSubmit = useCallback(async (data: StorageFormValues) => {
-    setIsLoading(true);
-    try {
-      if (!activeLibrary) {
-        throw new Error("Keine Bibliothek ausgewählt");
-      }
-      // Extrahiere die spezifischen Storage-Konfigurationen basierend auf dem Typ
-      let storageConfig = {};
-      switch(data.type) {
-        case "local":
-          storageConfig = {};
-          break;
-        case "onedrive":
-          storageConfig = {
-            tenantId: data.tenantId,
-            clientId: data.clientId,
-            clientSecret: data.clientSecret,
-            redirectUri: data.redirectUri,
-          };
-          break;
-        case "gdrive":
-          storageConfig = {
-            clientId: data.clientId,
-            clientSecret: data.clientSecret,
-            redirectUri: data.redirectUri,
-          };
-          break;
-      }
-      // Bibliotheksobjekt aktualisieren
-      const updatedLibrary = {
-        ...activeLibrary,
-        type: data.type,
-        path: data.path,
-        config: {
-          ...activeLibrary.config,
-          ...storageConfig,
-        }
-      };
-      // API-Anfrage zum Speichern der Bibliothek
-      const response = await fetch('/api/libraries', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedLibrary),
-      });
-      if (!response.ok) {
-        throw new Error(`Fehler beim Speichern: ${response.statusText}`);
-      }
-      // Lokalen Zustand aktualisieren
-      const updatedLibraries = libraries.map(lib => 
-        lib.id === activeLibrary.id ? {
-          ...lib,
-          type: data.type,
-          path: data.path,
-          config: {
-            ...lib.config,
-            ...storageConfig,
-          }
-        } : lib
-      );
-      setLibraries(updatedLibraries);
-      toast.success("Storage-Einstellungen aktualisiert", {
-        description: `Die Storage-Einstellungen für "${activeLibrary.label}" wurden erfolgreich aktualisiert.`,
-      });
-    } catch (error) {
-      console.error('Fehler beim Speichern der Storage-Einstellungen:', error);
-      toast.error("Fehler", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Speichern",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeLibrary, libraries, setLibraries]);
-
-  // Funktion zum Testen des Storage-Providers
-  async function handleTestStorage() {
+  // Formular absenden
+  const onSubmit = async (data: StorageFormValues) => {
     if (!activeLibrary) {
       toast.error("Fehler", {
         description: "Keine Bibliothek ausgewählt.",
       });
       return;
     }
-
-    setIsTesting(true);
-    setTestResults([]); // Leere die Ergebnisse zu Beginn
-    setTestDialogOpen(true);
-
-    // Warte einen Moment, damit die Testdialog geöffnet und Ergebnisse geleert werden können
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Testergebnisse für einen Schritt protokollieren
-    const logStep = (step: string, status: 'success' | 'error' | 'info', message: string, details?: TestLogEntry['details']) => {
-      const logEntry: TestLogEntry = {
-        step,
-        status,
-        message,
-        timestamp: new Date().toISOString(),
-        details
-      };
-      // Neuen Eintrag am Anfang hinzufügen, damit neueste Einträge zuerst kommen
-      setTestResults(prev => [logEntry, ...prev]);
-      return logEntry;
-    };
-
-    // Erste Log-Nachricht
-    logStep("Initialisierung", "info", "Storage-Provider Test wird initialisiert...");
-
+    
+    setIsLoading(true);
+    
     try {
-      // Storage Factory direkt verwenden
-      const storageFactory = StorageFactory.getInstance();
+      console.log('[StorageForm] Speichere Formular-Daten:', {
+        libraryId: activeLibrary.id,
+        libraryLabel: activeLibrary.label,
+        formData: data
+      });
       
-      // Wir überschreiben fetch temporär, um die API-Aufrufe zu protokollieren
-      const originalFetch = window.fetch;
-      window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = typeof input === 'string' 
-          ? input 
-          : input instanceof URL 
-            ? input.toString() 
-            : input.url;
-        const method = init?.method || 'GET';
-        
-        // Anfrage protokollieren
-        const stepName = "API-Aufruf";
-        logStep(stepName, "info", `Sende ${method}-Anfrage an ${url}`, {
-          request: {
-            url,
-            method,
-            params: init?.body ? 
-              (typeof init.body === 'string' ? 
-                JSON.parse(init.body) : 
-                init.body instanceof FormData ? 
-                  '[FormData]' : 
-                  init.body) 
-              : undefined
-          }
-        });
-        
-        // Originalen Fetch ausführen
-        const startTime = performance.now();
-        try {
-          const response = await originalFetch(input, init);
-          const endTime = performance.now();
-          const duration = Math.round(endTime - startTime);
-          
-          // Klonen und Text-Daten für die Anzeige vorbereiten
-          const clonedResponse = response.clone();
-          let responseData;
-          
-          try {
-            // Verschiedene Antworttypen verarbeiten
-            const contentType = response.headers.get('content-type');
-            if (contentType?.includes('application/json')) {
-              responseData = await clonedResponse.json();
-            } else if (contentType?.includes('text/')) {
-              responseData = await clonedResponse.text();
-            } else {
-              responseData = `[${contentType} Daten, ${Math.round((await clonedResponse.blob()).size / 1024)} KB]`;
-            }
-          } catch { // error wird nicht verwendet
-            responseData = '[Konnte Antwortdaten nicht verarbeiten]';
-          }
-          
-          // Erfolgreiche Antwort protokollieren
-          logStep(stepName, "success", `${method}-Anfrage erfolgreich (${duration}ms): ${response.status} ${response.statusText}`, {
-            request: { url, method },
-            response: responseData
-          });
-          
-          return response;
-        } catch (error) {
-          const endTime = performance.now();
-          const duration = Math.round(endTime - startTime);
-          
-          // Fehler protokollieren
-          logStep(stepName, "error", `${method}-Anfrage fehlgeschlagen (${duration}ms)`, {
-            request: { url, method },
-            error: error instanceof Error ? error.message : String(error)
-          });
-          
-          throw error;
-        }
-      };
-
-      try {
-        // Provider holen
-        logStep("Provider", "info", "Hole Storage-Provider für die Bibliothek...");
-        const provider = await storageFactory.getProvider(activeLibrary.id);
-        logStep("Provider", "success", `Provider "${provider.name}" erfolgreich initialisiert.`, {
-          data: {
-            providerId: provider.id,
-            providerName: provider.name,
-            libraryId: activeLibrary.id,
-            libraryPath: activeLibrary.path
-          }
-        });
-
-        // 1. Konfiguration validieren
-        logStep("Validierung", "info", "Validiere Storage-Provider Konfiguration...");
-        const validationResult = await provider.validateConfiguration();
-        
-        if (!validationResult.isValid) {
-          logStep("Validierung", "error", `Storage-Provider Konfiguration ungültig: ${validationResult.error}`, {
-            response: validationResult
-          });
-          throw new Error(`Konfiguration ungültig: ${validationResult.error}`);
-        }
-        
-        logStep("Validierung", "success", "Storage-Provider Konfiguration ist gültig.", {
-          response: validationResult
-        });
-
-        // 2. Root-Verzeichnis auflisten
-        logStep("Root-Verzeichnis", "info", "Liste Root-Verzeichnis auf...");
-        const rootItems = await provider.listItemsById('root');
-        logStep("Root-Verzeichnis", "success", `Root-Verzeichnis erfolgreich aufgelistet. ${rootItems.length} Elemente gefunden.`, {
-          data: {
-            count: rootItems.length,
-            items: rootItems.map(item => ({
-              id: item.id,
-              name: item.metadata.name,
-              type: item.type,
-              size: item.metadata.size
-            }))
-          }
-        });
-
-        // 3. Testverzeichnis erstellen
-        const testFolderName = `test-folder-${Date.now()}`;
-        logStep("Testverzeichnis", "info", `Erstelle Testverzeichnis "${testFolderName}"...`);
-        const testFolder = await provider.createFolder('root', testFolderName);
-        logStep("Testverzeichnis", "success", `Testverzeichnis "${testFolderName}" erfolgreich erstellt.`, {
-          data: {
-            id: testFolder.id,
-            name: testFolder.metadata.name,
-            parentId: testFolder.parentId
-          }
-        });
-
-        // 4. Testdatei erstellen
-        logStep("Testdatei", "info", "Erstelle Testdatei...");
-        const testFileContent = "Dies ist eine Testdatei, erstellt von Knowledge Scout Storage Tester.";
-        const testFileName = `test-file-${Date.now()}.txt`;
-        
-        // Blob aus String erstellen
-        const blob = new Blob([testFileContent], { type: 'text/plain' });
-        // File-Objekt erstellen
-        const testFile = new File([blob], testFileName, { type: 'text/plain' });
-        
-        logStep("Testdatei", "info", `Datei vorbereitet: ${testFileName} (${blob.size} Bytes)`, {
-          data: {
-            name: testFileName,
-            size: blob.size,
-            content: testFileContent
-          }
-        });
-        
-        const createdFile = await provider.uploadFile(testFolder.id, testFile);
-        logStep("Testdatei", "success", `Testdatei "${testFileName}" erfolgreich erstellt.`, {
-          data: {
-            id: createdFile.id,
-            name: createdFile.metadata.name,
-            size: createdFile.metadata.size,
-            parentId: createdFile.parentId
-          }
-        });
-
-        // 5. Verzeichnis auflisten
-        logStep("Verzeichnisinhalt", "info", `Liste Inhalt des Testverzeichnisses auf...`);
-        const folderItems = await provider.listItemsById(testFolder.id);
-        logStep("Verzeichnisinhalt", "success", `Verzeichnisinhalt erfolgreich aufgelistet. ${folderItems.length} Element(e) gefunden.`, {
-          data: {
-            count: folderItems.length,
-            items: folderItems.map(item => ({
-              id: item.id,
-              name: item.metadata.name,
-              type: item.type,
-              size: item.metadata.size
-            }))
-          }
-        });
-
-        // 6. Datei abrufen
-        logStep("Datei abrufen", "info", "Rufe Testdatei ab...");
-        const retrievedFile = await provider.getItemById(createdFile.id);
-        logStep("Datei abrufen", "success", `Testdatei erfolgreich abgerufen: "${retrievedFile.metadata.name}" (${retrievedFile.metadata.size} Bytes)`, {
-          data: {
-            id: retrievedFile.id,
-            name: retrievedFile.metadata.name,
-            size: retrievedFile.metadata.size,
-            mimeType: retrievedFile.metadata.mimeType,
-            modifiedAt: retrievedFile.metadata.modifiedAt
-          }
-        });
-
-        // 7. Binärdaten abrufen
-        logStep("Binärdaten", "info", "Rufe Binärdaten der Testdatei ab...");
-        try {
-          const binaryData = await provider.getBinary(createdFile.id);
-          const blobText = await binaryData.blob.text();
-          const verificationResult = blobText === testFileContent;
-          
-          if (verificationResult) {
-            logStep("Binärdaten", "success", `Binärdaten erfolgreich abgerufen. MIME-Typ: ${binaryData.mimeType}. Der Inhalt stimmt mit dem Original überein.`, {
-              data: {
-                mimeType: binaryData.mimeType,
-                size: binaryData.blob.size,
-                contentMatch: true,
-                content: blobText.length > 100 ? blobText.substring(0, 100) + '...' : blobText
-              }
-            });
-          } else {
-            logStep("Binärdaten", "error", `Binärdaten abgerufen, aber der Inhalt stimmt nicht überein!`, {
-              data: {
-                mimeType: binaryData.mimeType,
-                size: binaryData.blob.size,
-                contentMatch: false,
-                expected: testFileContent,
-                actual: blobText.length > 100 ? blobText.substring(0, 100) + '...' : blobText
-              }
-            });
-          }
-        } catch (error) {
-          logStep("Binärdaten", "error", `Fehler beim Abrufen der Binärdaten: ${String(error)}`, {
-            error: String(error)
-          });
-        }
-
-        // 8. Pfad abrufen
-        logStep("Dateipfad", "info", "Rufe Pfad der Testdatei ab...");
-        try {
-          const filePath = await provider.getPathById(createdFile.id);
-          logStep("Dateipfad", "success", `Pfad erfolgreich abgerufen: ${filePath}`, {
-            data: {
-              path: filePath,
-              fileId: createdFile.id
-            }
-          });
-        } catch (error) {
-          logStep("Dateipfad", "error", `Fehler beim Abrufen des Pfads: ${String(error)}`, {
-            error: String(error)
-          });
-        }
-
-        // 9. Datei löschen
-        logStep("Datei löschen", "info", "Lösche Testdatei...");
-        try {
-          await provider.deleteItem(createdFile.id);
-          logStep("Datei löschen", "success", "Testdatei erfolgreich gelöscht.", {
-            data: {
-              fileId: createdFile.id,
-              fileName: createdFile.metadata.name
-            }
-          });
-        } catch (error) {
-          logStep("Datei löschen", "error", `Fehler beim Löschen der Datei: ${String(error)}`, {
-            error: String(error)
-          });
-        }
-
-        // 10. Verzeichnis nach Löschung auflisten
-        logStep("Verzeichnis prüfen", "info", "Prüfe Verzeichnisinhalt nach Löschung...");
-        try {
-          const folderItemsAfterDelete = await provider.listItemsById(testFolder.id);
-          logStep("Verzeichnis prüfen", "success", `Verzeichnisinhalt erfolgreich geprüft. ${folderItemsAfterDelete.length} Element(e) gefunden.`, {
-            data: {
-              count: folderItemsAfterDelete.length,
-              isEmpty: folderItemsAfterDelete.length === 0,
-              items: folderItemsAfterDelete.map(item => ({
-                id: item.id,
-                name: item.metadata.name
-              }))
-            }
-          });
-        } catch (error) {
-          logStep("Verzeichnis prüfen", "error", `Fehler beim Auflisten des Verzeichnisinhalts: ${String(error)}`, {
-            error: String(error)
-          });
-        }
-
-        // 11. Testverzeichnis löschen
-        logStep("Aufräumen", "info", "Lösche Testverzeichnis...");
-        try {
-          await provider.deleteItem(testFolder.id);
-          logStep("Aufräumen", "success", "Testverzeichnis erfolgreich gelöscht.", {
-            data: {
-              folderId: testFolder.id,
-              folderName: testFolder.metadata.name
-            }
-          });
-        } catch (error) {
-          logStep("Aufräumen", "error", `Fehler beim Löschen des Testverzeichnisses: ${String(error)}`, {
-            error: String(error)
-          });
-        }
-
-        // Abschluss
-        logStep("Zusammenfassung", "success", "Alle Tests wurden durchgeführt. Prüfen Sie die Ergebnisse auf mögliche Fehler.");
-        
-      } catch (error) {
-        console.error('Fehler beim Testen des Storage-Providers:', error);
-        logStep("Fehler", "error", `Unbehandelte Ausnahme: ${String(error)}`, {
-          error: String(error)
-        });
-      } finally {
-        // Ursprüngliches fetch wiederherstellen
-        window.fetch = originalFetch;
+      // Konfiguration für die API vorbereiten
+      const config: Record<string, string> = {};
+      
+      // Nur die für den ausgewählten Typ relevanten Felder hinzufügen
+      if (data.type === 'onedrive' || data.type === 'gdrive') {
+        if (data.tenantId) config.tenantId = data.tenantId;
+        if (data.clientId) config.clientId = data.clientId;
+        if (data.clientSecret) config.clientSecret = data.clientSecret;
       }
+      
+      // API-Aufruf
+      const response = await fetch(`/api/libraries/${activeLibrary.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: data.type,
+          path: data.path,
+          config
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Fehler beim Speichern: ${response.statusText}`);
+      }
+      
+      const updatedLibrary = await response.json();
+      console.log('[StorageForm] Library aktualisiert:', {
+        id: updatedLibrary.id,
+        label: updatedLibrary.label,
+        type: updatedLibrary.type
+      });
+      
+      // Library in der Liste aktualisieren
+      setLibraries(libraries.map(lib => lib.id === updatedLibrary.id ? updatedLibrary : lib));
+      
+      toast.success("Erfolg", {
+        description: "Die Einstellungen wurden gespeichert.",
+      });
     } catch (error) {
-      console.error('Fehler beim Initialisieren der Tests:', error);
-      
-      // Fehler zu den Testergebnissen hinzufügen
-      setTestResults(prev => [...prev, {
-        step: "Kritischer Fehler",
-        status: "error",
-        message: error instanceof Error ? error.message : "Unbekannter Fehler beim Testen",
-        timestamp: new Date().toISOString(),
-        details: {
-          error: String(error)
-        }
-      }]);
-      
-      toast.error("Test fehlgeschlagen", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Testen",
+      console.error('[StorageForm] Fehler beim Speichern:', error);
+      toast.error("Fehler", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Speichern",
       });
     } finally {
-      setIsTesting(false);
+      setIsLoading(false);
     }
-  }
+  };
   
   // Funktion zum Starten der OneDrive-Authentifizierung
   const handleOneDriveAuth = useCallback(async () => {
@@ -833,16 +370,14 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       console.log('[StorageForm] Verwende gespeicherte Bibliothekskonfiguration:', {
         id: updatedLibrary.id,
         clientId: updatedLibrary.config?.clientId ? 'vorhanden' : 'nicht vorhanden',
-        clientSecret: updatedLibrary.config?.clientSecret ? 'vorhanden' : 'nicht vorhanden',
-        redirectUri: updatedLibrary.config?.redirectUri
+        clientSecret: updatedLibrary.config?.clientSecret ? 'vorhanden' : 'nicht vorhanden'
       });
       
       // Überprüfen, ob die erforderlichen Konfigurationswerte vorhanden sind
-      if (!updatedLibrary.config?.clientId || !updatedLibrary.config?.clientSecret || !updatedLibrary.config?.redirectUri) {
+      if (!updatedLibrary.config?.clientId || !updatedLibrary.config?.clientSecret) {
         const missingParams = [
           !updatedLibrary.config?.clientId ? 'Client ID' : '',
-          !updatedLibrary.config?.clientSecret ? 'Client Secret' : '',
-          !updatedLibrary.config?.redirectUri ? 'Redirect URI' : ''
+          !updatedLibrary.config?.clientSecret ? 'Client Secret' : ''
         ].filter(Boolean).join(', ');
         
         toast.error("Unvollständige Konfiguration", {
@@ -880,21 +415,66 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     }
   }, [activeLibrary, form, onSubmit]);
   
-  // Storage-Typ-Icons
-  const StorageTypeIcon = () => {
-    switch (currentType) {
-      case "local":
-        return <FolderOpen className="h-4 w-4 mr-2" />;
-      case "onedrive":
-      case "gdrive":
-        return <Cloud className="h-4 w-4 mr-2" />;
-      default:
-        return <Database className="h-4 w-4 mr-2" />;
+  // Funktion zum Testen des Storage-Providers
+  const handleTest = async () => {
+    if (!activeLibrary) {
+      toast.error("Fehler", {
+        description: "Keine Bibliothek ausgewählt.",
+      });
+      return;
     }
-  }
+    
+    setIsTesting(true);
+    setTestResults([]);
+    setTestDialogOpen(true);
+    
+    try {
+      // Test-Logs
+      const logs: TestLogEntry[] = [];
+      
+      // API-Aufruf loggen
+      logs.push({
+        timestamp: new Date().toISOString(),
+        step: "API-Aufruf",
+        message: `Teste Storage-Provider für Bibliothek "${activeLibrary.label}"`,
+        status: "info"
+      });
+      
+      // API-Aufruf
+      const response = await fetch(`/api/teststorage?libraryId=${activeLibrary.id}`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Fehler beim Testen: ${response.statusText}`);
+      }
+      
+      const testResults = await response.json();
+      
+      // Testergebnisse in Logs umwandeln
+      testResults.forEach((result: any) => {
+        logs.push({
+          timestamp: result.timestamp,
+          step: result.step,
+          message: result.message || "",
+          status: result.status,
+          details: result.details
+        });
+      });
+      
+      setTestResults(logs);
+    } catch (error) {
+      console.error('[StorageForm] Fehler beim Testen:', error);
+      toast.error("Fehler", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Testen",
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
   
-  // Provider-spezifische Konfigurationsfelder
-  const StorageConfigFields = () => {
+  // Rendern der spezifischen Felder je nach Storage-Typ
+  const renderStorageTypeFields = () => {
     switch (currentType) {
       case "onedrive":
         return (
@@ -909,7 +489,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
                     <Input {...field} value={field.value || ""} />
                   </FormControl>
                   <FormDescription>
-                    Die Tenant ID Ihrer Microsoft Azure AD-Anwendung.
+                    Die Tenant ID Ihres Microsoft Azure AD-Verzeichnisses. Lassen Sie dieses Feld leer für persönliche Microsoft-Konten.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -938,26 +518,10 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
                 <FormItem>
                   <FormLabel>Client Secret</FormLabel>
                   <FormControl>
-                    <Input type="password" {...field} value={field.value || ""} />
+                    <Input {...field} type="password" value={field.value || ""} />
                   </FormControl>
                   <FormDescription>
                     Das Client Secret Ihrer Microsoft Azure AD-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="redirectUri"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Redirect URI</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value || ""} placeholder="https://ihre-domain.de/api/auth/onedrive/callback" />
-                  </FormControl>
-                  <FormDescription>
-                    Die Redirect URI für die OAuth2-Authentifizierung bei Microsoft.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -1006,26 +570,10 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
                 <FormItem>
                   <FormLabel>Client Secret</FormLabel>
                   <FormControl>
-                    <Input type="password" {...field} value={field.value || ""} />
+                    <Input {...field} type="password" value={field.value || ""} />
                   </FormControl>
                   <FormDescription>
                     Das Client Secret Ihrer Google Drive-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="redirectUri"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Redirect URI</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value || ""} placeholder="https://ihre-domain.de/auth/callback" />
-                  </FormControl>
-                  <FormDescription>
-                    Die Redirect URI für die OAuth2-Authentifizierung bei Google.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -1037,7 +585,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         return null;
     }
   };
-
+  
   // Testresultate rendern
   const renderTestResults = () => {
     if (testResults.length === 0) {
@@ -1081,55 +629,34 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
                     result.status === 'success' ? 'bg-green-50 dark:bg-green-900/20' : ''
                   }`}
                 >
-                  <td className="p-2 align-top text-xs font-mono">
-                    {new Date(result.timestamp).toLocaleTimeString()}
+                  <td className="p-2">{result.timestamp && !isNaN(Date.parse(result.timestamp)) ? new Date(result.timestamp).toLocaleTimeString() : ''}</td>
+                  <td className="p-2">{result.step}</td>
+                  <td className="p-2">{result.message}</td>
+                  <td className="p-2">
+                    <Badge 
+                      variant={
+                        result.status === 'error' ? 'destructive' :
+                        result.status === 'success' ? 'default' :
+                        'secondary'
+                      }
+                    >
+                      {result.status}
+                    </Badge>
                   </td>
-                  <td className="p-2 align-top font-medium">
-                    {result.step}
-                  </td>
-                  <td className="p-2 align-top">
-                    {result.message}
-                  </td>
-                  <td className="p-2 align-top">
-                    {result.status === 'success' && (
-                      <div className="flex items-center text-green-600">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        <span>Erfolg</span>
-                      </div>
-                    )}
-                    {result.status === 'error' && (
-                      <div className="flex items-center text-red-600">
-                        <XCircle className="h-4 w-4 mr-1" />
-                        <span>Fehler</span>
-                      </div>
-                    )}
-                    {result.status === 'info' && (
-                      <div className="flex items-center text-blue-600">
-                        <Info className="h-4 w-4 mr-1" />
-                        <span>Info</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-2 align-top">
-                    {(result.details || hasApiCalls(result.step, index)) && (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-7 rounded-full">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[400px] p-0" side="left">
-                          <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
-                            <h4 className="text-sm font-medium mb-2">Details: {result.step}</h4>
-                            
-                            {/* Zeige Details an, wenn vorhanden */}
-                            {renderDetails(result)}
-                            
-                            {/* Zeige zugehörige API-Aufrufe */}
-                            {renderApiCalls(result.step, index)}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+                  <td className="p-2">
+                    {result.details && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2"
+                        onClick={() => {
+                          toast.info("Details", {
+                            description: typeof result.details === 'string' ? result.details : JSON.stringify(result.details),
+                          });
+                        }}
+                      >
+                        <Info className="h-4 w-4" />
+                      </Button>
                     )}
                   </td>
                 </tr>
@@ -1138,148 +665,6 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         </table>
       </div>
     );
-    
-    // Hilfsfunktion: Prüft, ob es API-Aufrufe für einen bestimmten Schritt gibt
-    const hasApiCalls = (step: string, resultIndex: number): boolean => {
-      // Hole den aktuellen Result direkt (ohne Umkehrung, da wir bereits sortiert haben)
-      const nonApiResults = testResults.filter(r => r.step !== "API-Aufruf");
-      const currentResult = nonApiResults[resultIndex];
-      
-      // Suche nach API-Aufrufen für diesen Schritt
-      const currentIndex = testResults.findIndex(r => r === currentResult);
-      if (currentIndex === -1) return false;
-      
-      // Finde den nächsten Nicht-API-Schritt nach dem aktuellen
-      let nextStepIndex = -1;
-      for (let i = currentIndex + 1; i < testResults.length; i++) {
-        if (testResults[i].step !== "API-Aufruf" && testResults[i].step !== step) {
-          nextStepIndex = i;
-          break;
-        }
-      }
-      
-      // Prüfe, ob es API-Aufrufe zwischen dem aktuellen Schritt und dem nächsten Schritt gibt
-      const startIndex = currentIndex + 1;
-      const endIndex = nextStepIndex > -1 ? nextStepIndex : testResults.length;
-      
-      return testResults
-        .slice(startIndex, endIndex)
-        .some(r => r.step === "API-Aufruf");
-    }
-    
-    // Hilfsfunktion: Rendert die Details eines Testergebnisses
-    const renderDetails = (result: TestLogEntry) => {
-      if (!result.details) return null;
-      
-      return (
-        <div className="space-y-3 text-xs">
-          {result.details.data !== undefined && result.details.data !== null && (
-            <div>
-              <div className="font-medium text-muted-foreground mb-1">Daten:</div>
-              <div className="bg-muted p-2 rounded overflow-x-auto max-h-[150px]">
-                <pre>{JSON.stringify(result.details.data)}</pre>
-              </div>
-            </div>
-          )}
-          
-          {result.details.response !== undefined && result.details.response !== null && (
-            <div>
-              <div className="font-medium text-muted-foreground mb-1">Antwort:</div>
-              <div className="bg-muted p-2 rounded overflow-x-auto max-h-[150px]">
-                <pre>{JSON.stringify(result.details.response)}</pre>
-              </div>
-            </div>
-          )}
-          
-          {result.details.error !== undefined && result.details.error !== null && (
-            <div>
-              <div className="font-medium text-muted-foreground mb-1">Fehler:</div>
-              <div className="bg-muted p-2 rounded overflow-x-auto text-red-500 max-h-[150px]">
-                <pre>{JSON.stringify(result.details.error)}</pre>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
-    
-    // Hilfsfunktion: Rendert die zugehörigen API-Aufrufe für einen Schritt
-    const renderApiCalls = (step: string, resultIndex: number) => {
-      // Hole den aktuellen Result direkt (ohne Umkehrung, da wir bereits sortiert haben)
-      const nonApiResults = testResults.filter(r => r.step !== "API-Aufruf");
-      const currentResult = nonApiResults[resultIndex];
-      
-      // Suche nach API-Aufrufen für diesen Schritt
-      const currentIndex = testResults.findIndex(r => r === currentResult);
-      if (currentIndex === -1) return null;
-      
-      // Finde den nächsten Nicht-API-Schritt nach dem aktuellen
-      let nextStepIndex = -1;
-      for (let i = currentIndex + 1; i < testResults.length; i++) {
-        if (testResults[i].step !== "API-Aufruf" && testResults[i].step !== step) {
-          nextStepIndex = i;
-          break;
-        }
-      }
-      
-      // Sammle API-Aufrufe zwischen dem aktuellen Schritt und dem nächsten Schritt
-      const startIndex = currentIndex + 1;
-      const endIndex = nextStepIndex > -1 ? nextStepIndex : testResults.length;
-      
-      const apiCalls = testResults
-        .slice(startIndex, endIndex)
-        .filter(r => r.step === "API-Aufruf");
-      
-      if (apiCalls.length === 0) return null;
-      
-      return (
-        <div className="mt-4">
-          <div className="font-medium text-muted-foreground mb-2">API-Aufrufe:</div>
-          <div className="space-y-2">
-            {apiCalls.map((call, idx) => (
-              <Collapsible key={idx} className="border rounded-md">
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-left hover:bg-muted/50">
-                  <div className="flex items-center">
-                    {call.status === 'success' && <CheckCircle className="h-3 w-3 mr-2 text-green-500" />}
-                    {call.status === 'error' && <XCircle className="h-3 w-3 mr-2 text-red-500" />}
-                    <span className="text-xs">{call.message}</span>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="p-2 pt-0 text-xs border-t">
-                  {call.details?.request && (
-                    <div className="mt-2">
-                      <div className="font-medium text-muted-foreground mb-1">Anfrage:</div>
-                      <div className="bg-muted p-2 rounded overflow-x-auto">
-                        <div>{call.details.request.method} {call.details.request.url}</div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {call.details?.response !== undefined && call.details?.response !== null && (
-                    <div className="mt-2">
-                      <div className="font-medium text-muted-foreground mb-1">Antwort:</div>
-                      <div className="bg-muted p-2 rounded overflow-x-auto max-h-[120px]">
-                        <pre>{JSON.stringify(call.details.response)}</pre>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {call.details?.error !== undefined && call.details?.error !== null && (
-                    <div className="mt-2">
-                      <div className="font-medium text-muted-foreground mb-1">Fehler:</div>
-                      <div className="bg-muted p-2 rounded overflow-x-auto text-red-500">
-                        <pre>{JSON.stringify(call.details.error)}</pre>
-                      </div>
-                    </div>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
-          </div>
-        </div>
-      );
-    }
   };
   
   if (!activeLibrary) {
@@ -1295,124 +680,77 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {/* Success-Nachricht anzeigen, falls vorhanden */}
-        {authSuccessMessage && (
-          <Alert className="mb-4">
-            <CheckCircle className="h-4 w-4" />
-            <AlertTitle>Erfolg</AlertTitle>
-            <AlertDescription>
-              {authSuccessMessage}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-2"
-                onClick={() => setAuthSuccessMessage(null)}
-              >
-                Schließen
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        <Card>
-          <CardHeader>
-            <div className="flex items-center">
-              <StorageTypeIcon />
-              <CardTitle>Storage-Einstellungen für {activeLibrary.label}</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <FormField
-              control={form.control}
-              name="type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Speichertyp</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Speichertyp auswählen" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="local">Lokales Dateisystem</SelectItem>
-                      <SelectItem value="onedrive">OneDrive</SelectItem>
-                      <SelectItem value="gdrive">Google Drive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Der Typ des Speichers, in dem die Bibliotheksdateien gespeichert werden.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="path"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Speicherpfad</FormLabel>
+        <div className="space-y-4">
+          <FormField
+            control={form.control}
+            name="type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Speichertyp</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
-                    <Input {...field} />
+                    <SelectTrigger>
+                      <SelectValue placeholder="Wählen Sie einen Speichertyp" />
+                    </SelectTrigger>
                   </FormControl>
-                  <FormDescription>
-                    Der Pfad, unter dem die Bibliotheksdateien gespeichert werden.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {/* Spezifische Storage-Konfiguration basierend auf dem Typ */}
-            {currentType !== "local" && (
-              <div className="pt-2 space-y-4">
-                <StorageConfigFields />
-              </div>
+                  <SelectContent>
+                    <SelectItem value="local">Lokales Dateisystem</SelectItem>
+                    <SelectItem value="onedrive">Microsoft OneDrive</SelectItem>
+                    <SelectItem value="gdrive">Google Drive</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Wählen Sie den Typ des Speichers, den Sie verwenden möchten.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
             )}
-          </CardContent>
-        </Card>
-        
-        <div className="flex justify-between">
-          <div className="flex gap-2">
-            <Button
-              type="button"
+          />
+          
+          <FormField
+            control={form.control}
+            name="path"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Speicherpfad</FormLabel>
+                <FormControl>
+                  <Input {...field} value={field.value || ""} />
+                </FormControl>
+                <FormDescription>
+                  Der Pfad, unter dem die Dateien gespeichert werden sollen.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          {renderStorageTypeFields()}
+          
+          {authSuccessMessage && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertTitle>Erfolg</AlertTitle>
+              <AlertDescription>
+                {authSuccessMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="flex items-center justify-between">
+            <Button 
+              type="button" 
               variant="outline"
-              onClick={() => {
-                if (activeLibrary) {
-                  form.reset({
-                    type: activeLibrary.type as StorageProviderType,
-                    path: activeLibrary.path || "",
-                    tenantId: activeLibrary.config?.tenantId as string || oauthDefaults.tenantId,
-                    clientId: activeLibrary.config?.clientId as string || oauthDefaults.clientId,
-                    clientSecret: activeLibrary.config?.clientSecret as string || oauthDefaults.clientSecret,
-                    redirectUri: activeLibrary.config?.redirectUri as string || oauthDefaults.redirectUri,
-                  });
-                }
-              }}
-              disabled={isLoading}
+              onClick={handleTest}
+              disabled={isTesting || !activeLibrary}
             >
-              Zurücksetzen
+              {isTesting ? "Teste..." : "Storage testen"}
             </Button>
             
             <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  type="button" 
-                  variant="secondary"
-                  onClick={handleTestStorage}
-                  disabled={isLoading || isTesting}
-                >
-                  <PlayCircle className="h-4 w-4 mr-2" />
-                  {isTesting ? "Test läuft..." : "Storage testen"}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[80vw] max-h-[80vh]">
+              <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Storage-Provider Test</DialogTitle>
                   <DialogDescription>
