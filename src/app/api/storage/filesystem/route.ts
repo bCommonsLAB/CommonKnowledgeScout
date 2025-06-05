@@ -8,6 +8,13 @@ import { Library as LibraryType } from '@/types/library';
 import { LibraryService } from '@/lib/services/library-service';
 import { auth, currentUser } from '@clerk/nextjs/server';
 
+// Force dynamic rendering - verhindert Caching
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+// Debug-Zeitstempel für jeden Request
+const REQUEST_ID = () => `REQ_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
 /**
  * Hilfsfunktion zum Abrufen der Benutzer-E-Mail-Adresse
  * Verwendet den Test-E-Mail-Parameter, falls vorhanden, sonst die authentifizierte E-Mail
@@ -16,48 +23,88 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
   const searchParams = request.nextUrl.searchParams;
   const emailParam = searchParams.get('email');
   
+  console.log('[API][getUserEmail] Suche nach E-Mail:', {
+    hasEmailParam: !!emailParam,
+    emailParam,
+    url: request.url
+  });
+  
   // Wenn ein Email-Parameter übergeben wurde, diesen verwenden (für Tests)
   if (emailParam) {
-    console.log(`[API] Verwende Test-E-Mail: ${emailParam}`);
+    console.log(`[API][getUserEmail] Verwende Test-E-Mail: ${emailParam}`);
     return emailParam;
   }
   
   // Versuche, authentifizierten Benutzer zu erhalten
   try {
     const { userId } = await auth();
+    console.log('[API][getUserEmail] Auth Ergebnis:', { userId });
+    
     if (userId) {
       const user = await currentUser();
-      if (user && user.emailAddresses && user.emailAddresses.length > 0) {
-        const email = user.emailAddresses[0].emailAddress;
-        console.log(`[API] Verwende authentifizierte E-Mail: ${email}`);
+      const emailAddresses = user?.emailAddresses || [];
+      console.log('[API][getUserEmail] User gefunden:', {
+        hasUser: !!user,
+        hasEmailAddresses: emailAddresses.length > 0,
+        emailCount: emailAddresses.length
+      });
+      
+      if (user && emailAddresses.length > 0) {
+        const email = emailAddresses[0].emailAddress;
+        console.log(`[API][getUserEmail] Verwende authentifizierte E-Mail: ${email}`);
         return email;
       }
     }
   } catch (error) {
-    console.warn('[API] Authentifizierungsdaten konnten nicht abgerufen werden:', error);
+    console.warn('[API][getUserEmail] Authentifizierungsdaten konnten nicht abgerufen werden:', error);
   }
   
-  console.log('[API] Keine E-Mail-Adresse gefunden');
+  console.log('[API][getUserEmail] Keine E-Mail-Adresse gefunden');
   return undefined;
 }
 
 async function getLibrary(libraryId: string, email: string): Promise<LibraryType | undefined> {
-  console.log(`[API] Suche nach Bibliothek mit ID: ${libraryId}`);
+  console.log(`[API][getLibrary] Suche nach Bibliothek:`, {
+    libraryId,
+    email,
+    timestamp: new Date().toISOString()
+  });
   
   // Bibliothek aus MongoDB abrufen
   const libraryService = LibraryService.getInstance();
   const libraries = await libraryService.getUserLibraries(email);
+  
+  console.log(`[API][getLibrary] Gefundene Bibliotheken:`, {
+    count: libraries.length,
+    libraries: libraries.map(lib => ({
+      id: lib.id,
+      label: lib.label,
+      isEnabled: lib.isEnabled
+    }))
+  });
+  
   if (libraries.length === 0) {
-    console.log(`[API] Keine Bibliotheken gefunden für ${email}`);
+    console.log(`[API][getLibrary] Keine Bibliotheken gefunden für ${email}`);
     return undefined;
   }
+  
   const match = libraries.find(lib => lib.id === libraryId && lib.isEnabled);
   if (match) {
-    console.log(`[API] Bibliothek gefunden für ${email}, Pfad: "${match.path}", Typ: ${match.type}`);
+    console.log(`[API][getLibrary] Bibliothek gefunden:`, {
+      id: match.id,
+      label: match.label,
+      path: match.path,
+      type: match.type,
+      isEnabled: match.isEnabled
+    });
     return match;
   }
   
-  console.log(`[API] Bibliothek mit ID: ${libraryId} nicht gefunden.`);
+  console.log(`[API][getLibrary] Bibliothek nicht gefunden:`, {
+    libraryId,
+    email,
+    availableIds: libraries.map(lib => lib.id)
+  });
   return undefined;
 }
 
@@ -211,33 +258,108 @@ async function handleLibraryNotFound(libraryId: string, userEmail?: string): Pro
 }
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const action = searchParams.get('action');
-  const fileId = searchParams.get('fileId') || 'root';
-  const libraryId = searchParams.get('libraryId') || '';
+  // TEST: Sofortige Response um zu sehen ob die Route überhaupt erreicht wird
+  const testParam = request.nextUrl.searchParams.get('test');
+  if (testParam === 'ping') {
+    return new NextResponse('PONG - Route is reachable!', {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain',
+        'X-Test-Response': 'true',
+        'X-Timestamp': new Date().toISOString()
+      }
+    });
+  }
+  
+  // GANZ WICHTIG: Als allererstes loggen - MUSS angezeigt werden!
+  process.stdout.write(`\n💥💥💥 FILESYSTEM ROUTE CALLED 💥💥💥\n`);
+  
+  const requestId = REQUEST_ID();
+  
+  // Sofort loggen, um zu sehen ob die Route überhaupt aufgerufen wird
+  console.error(`[FILESYSTEM-API] ${requestId} - Route wurde aufgerufen!`);
+  console.warn(`[FILESYSTEM-API] ${requestId} - Route wurde aufgerufen!`);
+  console.log(`[FILESYSTEM-API] ${requestId} - Route wurde aufgerufen!`);
+  
+  // Auch in die Response schreiben
+  const debugHeaders = new Headers();
+  debugHeaders.set('X-Debug-Request-Id', requestId);
+  debugHeaders.set('X-Debug-Timestamp', new Date().toISOString());
+  
+  const url = new URL(request.url);
+  const action = url.searchParams.get('action');
+  const fileId = url.searchParams.get('fileId');
+  const libraryId = url.searchParams.get('libraryId');
+  
+  // WARN: Wichtig für Debugging - wird garantiert angezeigt
+  console.warn(`[API][filesystem] ⚠️ NEUE ANFRAGE ${requestId}:`, {
+    url: request.url,
+    method: request.method,
+    action,
+    fileId,
+    libraryId,
+    headers: Object.fromEntries(request.headers.entries())
+  });
 
-  console.log(`[API] GET ${action} fileId=${fileId}, libraryId=${libraryId}`);
+  // Validiere erforderliche Parameter
+  if (!libraryId) {
+    console.warn(`[API][filesystem] ❌ Fehlender libraryId Parameter`);
+    return NextResponse.json({ error: 'libraryId is required' }, { status: 400 });
+  }
+
+  if (!fileId) {
+    console.warn(`[API][filesystem] ❌ Fehlender fileId Parameter`);
+    return NextResponse.json({ error: 'fileId is required' }, { status: 400 });
+  }
 
   // E-Mail aus Authentifizierung oder Parameter ermitteln
   const userEmail = await getUserEmail(request);
+  console.warn(`[API][filesystem] 👤 Authentifizierung:`, {
+    userEmail,
+    hasEmail: !!userEmail
+  });
 
   if (!userEmail) {
+    console.warn(`[API][filesystem] ❌ Keine E-Mail gefunden`);
     return NextResponse.json({ error: 'No user email found' }, { status: 400 });
   }
 
   const library = await getLibrary(libraryId, userEmail);
+  console.warn(`[API][filesystem] 📚 Bibliothekssuche:`, {
+    libraryId,
+    userEmail,
+    found: !!library,
+    library: library ? {
+      id: library.id,
+      label: library.label,
+      path: library.path,
+      type: library.type
+    } : null
+  });
+
   if (!library) {
+    console.warn(`[API][filesystem] ❌ Bibliothek nicht gefunden`);
     return handleLibraryNotFound(libraryId, userEmail);
   }
 
   try {
     switch (action) {
       case 'list': {
+        console.warn(`[API][filesystem] 📋 Liste Items:`, {
+          libraryId,
+          fileId,
+          userEmail
+        });
         const items = await listItems(library, fileId);
         return NextResponse.json(items);
       }
 
       case 'get': {
+        console.log('[API][filesystem] Hole Item:', {
+          libraryId,
+          fileId,
+          userEmail
+        });
         const absolutePath = getPathFromId(library, fileId);
         const stats = await fs.stat(absolutePath);
         const item = await statsToStorageItem(library, absolutePath, stats);
@@ -245,7 +367,17 @@ export async function GET(request: NextRequest) {
       }
 
       case 'binary': {
+        console.log('[API][filesystem] Hole Binärdaten:', {
+          libraryId,
+          fileId,
+          userEmail
+        });
         if (!fileId || fileId === 'root') {
+          console.error('[API][filesystem] Ungültige Datei-ID für binary:', {
+            fileId,
+            libraryId,
+            userEmail
+          });
           return NextResponse.json({ error: 'Invalid file ID' }, { status: 400 });
         }
 
@@ -253,6 +385,12 @@ export async function GET(request: NextRequest) {
         const stats = await fs.stat(absolutePath);
         
         if (!stats.isFile()) {
+          console.error('[API][filesystem] Keine Datei:', {
+            path: absolutePath,
+            libraryId,
+            fileId,
+            userEmail
+          });
           return NextResponse.json({ error: 'Not a file' }, { status: 400 });
         }
 
@@ -269,16 +407,37 @@ export async function GET(request: NextRequest) {
       }
 
       case 'path': {
+        console.log('[API][filesystem] Hole Pfad:', {
+          libraryId,
+          fileId,
+          userEmail
+        });
         return handleGetPath(library, fileId);
       }
 
       default:
+        console.error('[API][filesystem] Ungültige Aktion:', {
+          action,
+          libraryId,
+          fileId,
+          userEmail
+        });
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
   } catch (error) {
-    console.error('[API] Error:', error);
+    console.warn(`[API][filesystem] 💥 FEHLER:`, {
+      error: error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      } : error,
+      action,
+      libraryId,
+      fileId,
+      userEmail
+    });
     return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      error: error instanceof Error ? error.message : String(error) 
     }, { status: 500 });
   }
 }

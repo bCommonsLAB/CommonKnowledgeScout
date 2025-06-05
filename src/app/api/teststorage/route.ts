@@ -187,23 +187,36 @@ export async function POST(request: NextRequest): Promise<Response> {
     storageFactory.setLibraries(clientLibraries);
     
     // Provider für die angegebene Bibliothek holen
+    console.log(`[TESTSTORAGE] Hole Provider für Bibliothek ${libraryId}...`);
     const provider = await storageFactory.getProvider(libraryId);
+    console.log(`[TESTSTORAGE] Provider erhalten:`, provider.name);
     
     // Streaming-Response erstellen
     const stream = new ReadableStream({
       async start(controller) {
+        const encoder = new TextEncoder();
         try {
-          const encoder = new TextEncoder();
-          
+          console.log(`[TESTSTORAGE] Starte Tests für Provider ${provider.name}...`);
           // Führe Tests durch und streame Ergebnisse
           for await (const logEntry of generateTestSteps(provider)) {
+            console.log(`[TESTSTORAGE] Test-Log:`, logEntry);
             controller.enqueue(encoder.encode(JSON.stringify(logEntry) + '\n'));
           }
-          
           controller.close();
         } catch (error) {
-          console.error('Fehler beim Ausführen der Tests:', error);
-          // Fehler wird bereits in generateTestSteps behandelt
+          console.error('[TESTSTORAGE] Fehler beim Ausführen der Tests:', error);
+          // Fehlerobjekt als JSON senden
+          const errorObj = {
+            step: 'Fehler',
+            status: 'error',
+            message: error instanceof Error ? error.message : String(error),
+            timestamp: new Date().toISOString(),
+            details: {
+              stack: error instanceof Error ? error.stack : undefined,
+              errorMessage: error instanceof Error ? error.message : String(error)
+            }
+          };
+          controller.enqueue(encoder.encode(JSON.stringify(errorObj) + '\n'));
           controller.close();
         }
       }

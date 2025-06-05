@@ -29,16 +29,32 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
-    const url = this.getApiUrl(`/api/storage/filesystem?action=list&fileId=${folderId}&libraryId=${this.library.id}`);
+    // Für Tests: E-Mail aus localStorage oder verwende Standard-E-Mail
+    const userEmail = typeof window !== 'undefined' 
+      ? localStorage.getItem('userEmail') || 'peter.aichner@crystal-design.com'
+      : 'peter.aichner@crystal-design.com';
+      
+    const url = this.getApiUrl(`/api/storage/filesystem?action=list&fileId=${folderId}&libraryId=${this.library.id}&email=${encodeURIComponent(userEmail)}`);
+    console.log(`[LocalStorageProvider] Calling API:`, url);
+    
     const response = await fetch(url);
     if (!response.ok) {
+      console.error(`[LocalStorageProvider] API call failed:`, {
+        status: response.status,
+        statusText: response.statusText,
+        url
+      });
       throw new Error('Failed to list items');
     }
     return response.json();
   }
 
   async getItemById(fileId: string): Promise<StorageItem> {
-    const url = this.getApiUrl(`/api/storage/filesystem?action=get&fileId=${fileId}&libraryId=${this.library.id}`);
+    const userEmail = typeof window !== 'undefined' 
+      ? localStorage.getItem('userEmail') || 'peter.aichner@crystal-design.com'
+      : 'peter.aichner@crystal-design.com';
+      
+    const url = this.getApiUrl(`/api/storage/filesystem?action=get&fileId=${fileId}&libraryId=${this.library.id}&email=${encodeURIComponent(userEmail)}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to get item');
@@ -47,7 +63,11 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async createFolder(parentId: string, name: string): Promise<StorageItem> {
-    const url = this.getApiUrl(`/api/storage/filesystem?action=createFolder&fileId=${parentId}&libraryId=${this.library.id}`);
+    const userEmail = typeof window !== 'undefined' 
+      ? localStorage.getItem('userEmail') || 'peter.aichner@crystal-design.com'
+      : 'peter.aichner@crystal-design.com';
+      
+    const url = this.getApiUrl(`/api/storage/filesystem?action=createFolder&fileId=${parentId}&libraryId=${this.library.id}&email=${encodeURIComponent(userEmail)}`);
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -62,7 +82,11 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async deleteItem(fileId: string): Promise<void> {
-    const url = this.getApiUrl(`/api/storage/filesystem?action=delete&fileId=${fileId}&libraryId=${this.library.id}`);
+    const userEmail = typeof window !== 'undefined' 
+      ? localStorage.getItem('userEmail') || 'peter.aichner@crystal-design.com'
+      : 'peter.aichner@crystal-design.com';
+      
+    const url = this.getApiUrl(`/api/storage/filesystem?action=delete&fileId=${fileId}&libraryId=${this.library.id}&email=${encodeURIComponent(userEmail)}`);
     const response = await fetch(url, {
       method: 'DELETE',
     });
@@ -72,7 +96,11 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async moveItem(fileId: string, newParentId: string): Promise<void> {
-    const url = this.getApiUrl(`/api/storage/filesystem?action=move&fileId=${fileId}&newParentId=${newParentId}&libraryId=${this.library.id}`);
+    const userEmail = typeof window !== 'undefined' 
+      ? localStorage.getItem('userEmail') || 'peter.aichner@crystal-design.com'
+      : 'peter.aichner@crystal-design.com';
+      
+    const url = this.getApiUrl(`/api/storage/filesystem?action=move&fileId=${fileId}&newParentId=${newParentId}&libraryId=${this.library.id}&email=${encodeURIComponent(userEmail)}`);
     const response = await fetch(url, {
       method: 'PATCH',
     });
@@ -82,17 +110,22 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
+    const userEmail = typeof window !== 'undefined' 
+      ? localStorage.getItem('userEmail') || 'peter.aichner@crystal-design.com'
+      : 'peter.aichner@crystal-design.com';
+      
     console.log('Preparing upload:', {
       parentId,
       fileName: file.name,
       fileSize: file.size,
-      fileType: file.type
+      fileType: file.type,
+      userEmail
     });
 
     const formData = new FormData();
     formData.append('file', file, file.name);
 
-    const url = this.getApiUrl(`/api/storage/filesystem?action=upload&fileId=${parentId}&libraryId=${this.library.id}`);
+    const url = this.getApiUrl(`/api/storage/filesystem?action=upload&fileId=${parentId}&libraryId=${this.library.id}&email=${encodeURIComponent(userEmail)}`);
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
@@ -107,7 +140,11 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async downloadFile(fileId: string): Promise<Blob> {
-    const url = this.getApiUrl(`/api/storage/filesystem?action=download&fileId=${fileId}&libraryId=${this.library.id}`);
+    const userEmail = typeof window !== 'undefined' 
+      ? localStorage.getItem('userEmail') || 'peter.aichner@crystal-design.com'
+      : 'peter.aichner@crystal-design.com';
+      
+    const url = this.getApiUrl(`/api/storage/filesystem?action=download&fileId=${fileId}&libraryId=${this.library.id}&email=${encodeURIComponent(userEmail)}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to download file');
@@ -116,7 +153,11 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string }> {
-    const url = this.getApiUrl(`/api/storage/filesystem?action=binary&fileId=${fileId}&libraryId=${this.library.id}`);
+    const userEmail = typeof window !== 'undefined' 
+      ? localStorage.getItem('userEmail') || 'peter.aichner@crystal-design.com'
+      : 'peter.aichner@crystal-design.com';
+      
+    const url = this.getApiUrl(`/api/storage/filesystem?action=binary&fileId=${fileId}&libraryId=${this.library.id}&email=${encodeURIComponent(userEmail)}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to get binary');
@@ -129,7 +170,11 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async getPathById(itemId: string): Promise<string> {
-    const url = this.getApiUrl(`/api/storage/filesystem?action=path&fileId=${itemId}&libraryId=${this.library.id}`);
+    const userEmail = typeof window !== 'undefined' 
+      ? localStorage.getItem('userEmail') || 'peter.aichner@crystal-design.com'
+      : 'peter.aichner@crystal-design.com';
+      
+    const url = this.getApiUrl(`/api/storage/filesystem?action=path&fileId=${itemId}&libraryId=${this.library.id}&email=${encodeURIComponent(userEmail)}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to get path');

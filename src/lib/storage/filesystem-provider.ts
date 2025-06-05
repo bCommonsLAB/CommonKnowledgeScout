@@ -120,7 +120,10 @@ export class FileSystemProvider implements StorageProvider {
    * @throws StorageError wenn die Datei nicht gefunden wird
    */
   private async findPathById(fileId: string): Promise<string> {
-    if (fileId === 'root') return this.basePath;
+    if (fileId === 'root') {
+      console.log(`[FileSystemProvider] findPathById: fileId=root, basePath=${this.basePath}`);
+      return this.basePath;
+    }
     
     // Prüfe zuerst den Cache
     const cachedPath = this.pathCache.get(fileId);
@@ -150,6 +153,7 @@ export class FileSystemProvider implements StorageProvider {
 
     const foundPath = await findInDir(this.basePath);
     if (!foundPath) {
+      console.error(`[FileSystemProvider] findPathById: Datei nicht gefunden für fileId=${fileId}`);
       throw new StorageError('Datei nicht gefunden', 'FILE_NOT_FOUND', this.id);
     }
 
@@ -209,7 +213,9 @@ export class FileSystemProvider implements StorageProvider {
   }
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
+    console.log(`[FileSystemProvider] listItemsById: folderId=${folderId}`);
     const absolutePath = await this.findPathById(folderId);
+    console.log(`[FileSystemProvider] Absoluter Pfad für folderId=${folderId}: ${absolutePath}`);
     const items = await fs.readdir(absolutePath);
     
     const itemPromises = items.map(async (item) => {

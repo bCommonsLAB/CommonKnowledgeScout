@@ -423,45 +423,56 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       });
       return;
     }
-    
     setIsTesting(true);
     setTestResults([]);
     setTestDialogOpen(true);
-    
     try {
-      // Test-Logs
       const logs: TestLogEntry[] = [];
-      
-      // API-Aufruf loggen
       logs.push({
         timestamp: new Date().toISOString(),
         step: "API-Aufruf",
         message: `Teste Storage-Provider für Bibliothek "${activeLibrary.label}"`,
         status: "info"
       });
-      
-      // API-Aufruf
       const response = await fetch(`/api/teststorage?libraryId=${activeLibrary.id}`, {
         method: 'POST',
       });
-      
       if (!response.ok) {
         throw new Error(`Fehler beim Testen: ${response.statusText}`);
       }
-      
-      const testResults = await response.json();
-      
-      // Testergebnisse in Logs umwandeln
-      testResults.forEach((result: any) => {
-        logs.push({
-          timestamp: result.timestamp,
-          step: result.step,
-          message: result.message || "",
-          status: result.status,
-          details: result.details
-        });
-      });
-      
+      // JSONL-Stream verarbeiten
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      if (reader) {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const entry = JSON.parse(line);
+              logs.push(entry);
+            } catch (err) {
+              console.error('[StorageForm] Fehler beim Parsen einer Log-Zeile:', line, err);
+              toast.error('Fehler beim Parsen einer Log-Zeile', { description: line });
+            }
+          }
+        }
+        // Restpuffer verarbeiten
+        if (buffer.trim()) {
+          try {
+            const entry = JSON.parse(buffer);
+            logs.push(entry);
+          } catch (err) {
+            console.error('[StorageForm] Fehler beim Parsen des Restpuffers:', buffer, err);
+            toast.error('Fehler beim Parsen des Restpuffers', { description: buffer });
+          }
+        }
+      }
       setTestResults(logs);
     } catch (error) {
       console.error('[StorageForm] Fehler beim Testen:', error);

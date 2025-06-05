@@ -1,7 +1,6 @@
-"use client"
-
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata } from './types';
 import { ClientLibrary } from '@/types/library';
+import * as process from 'process';
 
 interface OneDriveFile {
   id: string;
@@ -106,7 +105,7 @@ export class OneDriveProvider implements StorageProvider {
     this.tokenExpiry = expiry;
     this.authenticated = true;
 
-    // Tokens im localStorage speichern
+    // Tokens im localStorage speichern (nur im Client-Kontext)
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(`onedrive_tokens_${this.library.id}`, JSON.stringify({
@@ -121,39 +120,42 @@ export class OneDriveProvider implements StorageProvider {
       }
     }
     
-    // Tokens auch in der Datenbank speichern
-    try {
-      // Bibliothekskonfiguration aktualisieren
-      const updatedConfig = {
-        ...(this.library.config || {}),
-        accessToken,
-        refreshToken,
-        tokenExpiry: expiry.toString()
-      };
-      
-      console.log('[OneDriveProvider] Speichere Tokens in der Datenbank...');
-      
-      // API aufrufen, um die Bibliothek zu aktualisieren
-      const response = await fetch(`/api/libraries/${this.library.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ...this.library,
-          config: updatedConfig
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`HTTP-Fehler: ${response.status} - ${errorData.error || response.statusText}`);
+    // Tokens in der Datenbank speichern (nur im Client-Kontext)
+    // Im Server-Kontext werden die Tokens bereits in der Datenbank gespeichert
+    if (typeof window !== 'undefined') {
+      try {
+        // Bibliothekskonfiguration aktualisieren
+        const updatedConfig = {
+          ...(this.library.config || {}),
+          accessToken,
+          refreshToken,
+          tokenExpiry: expiry.toString()
+        };
+        
+        console.log('[OneDriveProvider] Speichere Tokens in der Datenbank...');
+        
+        // API aufrufen, um die Bibliothek zu aktualisieren
+        const response = await fetch(`/api/libraries/${this.library.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...this.library,
+            config: updatedConfig
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`HTTP-Fehler: ${response.status} - ${errorData.error || response.statusText}`);
+        }
+        
+        console.log('[OneDriveProvider] Tokens erfolgreich in der Datenbank gespeichert');
+      } catch (error) {
+        console.error('[OneDriveProvider] Fehler beim Speichern der Tokens in der Datenbank:', error);
+        // Trotz des Fehlers beim Speichern in der Datenbank bleiben die Tokens im Speicher und localStorage verfügbar
       }
-      
-      console.log('[OneDriveProvider] Tokens erfolgreich in der Datenbank gespeichert');
-    } catch (error) {
-      console.error('[OneDriveProvider] Fehler beim Speichern der Tokens in der Datenbank:', error);
-      // Trotz des Fehlers beim Speichern in der Datenbank bleiben die Tokens im Speicher und localStorage verfügbar
     }
   }
 
@@ -213,6 +215,22 @@ export class OneDriveProvider implements StorageProvider {
 
   private async loadOAuthDefaults() {
     try {
+      // Im Server-Kontext (kein window-Objekt) die Umgebungsvariable direkt lesen
+      if (typeof window === 'undefined') {
+        const redirectUri = process.env.MS_REDIRECT_URI || '';
+        if (redirectUri) {
+          this.oauthDefaults = {
+            tenantId: '',
+            clientId: '',
+            clientSecret: '',
+            redirectUri
+          };
+          console.log('[OneDriveProvider] OAuth-Defaults aus Umgebungsvariablen geladen (Server-Kontext)');
+        }
+        return;
+      }
+      
+      // Im Client-Kontext den API-Call machen
       const response = await fetch('/api/settings/oauth-defaults');
       if (response.ok) {
         const data = await response.json();
@@ -244,11 +262,18 @@ export class OneDriveProvider implements StorageProvider {
     // Fallback für tenantId
     if (key === 'tenantId') return 'common';
     
-    // Fallback für redirectUri - immer aus der Umgebung verwenden
+    // Fallback für redirectUri
     if (key === 'redirectUri') {
+      // Im Server-Kontext direkt aus der Umgebungsvariable lesen
+      if (typeof window === 'undefined' && process.env.MS_REDIRECT_URI) {
+        return process.env.MS_REDIRECT_URI;
+      }
+      
+      // Im Client-Kontext aus OAuth-Defaults
       if (this.oauthDefaults?.redirectUri) {
         return this.oauthDefaults.redirectUri;
       }
+      
       throw new StorageError(
         "Fehlende Redirect URI in der Umgebungskonfiguration",
         "CONFIG_ERROR",

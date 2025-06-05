@@ -9,9 +9,10 @@ import { ClientLibrary, Library } from '@/types/library';
  */
 export async function GET(
   request: NextRequest,
-  // @ts-expect-error - Next.js 15 App Router params typing issue
-  { params }
+  context: { params: { id: string } }
 ) {
+  const params = await context.params;
+  const libraryId = params.id;
   // Benutzerauthentifizierung überprüfen
   const { userId } = await auth();
   if (!userId) {
@@ -25,8 +26,6 @@ export async function GET(
   }
   const userEmail = user.emailAddresses[0].emailAddress;
 
-  // Bibliotheks-ID aus Parametern
-  const libraryId = params.id;
   if (!libraryId) {
     return NextResponse.json({ error: 'Keine Bibliotheks-ID angegeben' }, { status: 400 });
   }
@@ -63,9 +62,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  // @ts-expect-error - Next.js 15 App Router params typing issue
-  { params }
+  context: { params: { id: string } }
 ) {
+  const params = await context.params;
+  const libraryId = params.id;
   // Benutzerauthentifizierung überprüfen
   const { userId } = await auth();
   if (!userId) {
@@ -79,8 +79,6 @@ export async function PUT(
   }
   const userEmail = user.emailAddresses[0].emailAddress;
 
-  // Bibliotheks-ID aus Parametern
-  const libraryId = params.id;
   if (!libraryId) {
     return NextResponse.json({ error: 'Keine Bibliotheks-ID angegeben' }, { status: 400 });
   }
