@@ -7,13 +7,24 @@ import { OneDriveServerProvider } from '@/lib/storage/onedrive-provider-server';
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
-  const libraryId = searchParams.get('state'); // Wir verwenden den state-Parameter, um die Library-ID zu übergeben
+  let libraryId: string | undefined = undefined;
+  let redirectUrl: string | undefined = undefined;
+  const stateRaw = searchParams.get('state');
+  if (stateRaw) {
+    try {
+      const stateObj = JSON.parse(stateRaw);
+      libraryId = stateObj.libraryId;
+      redirectUrl = stateObj.redirect;
+    } catch {
+      // Fallback: state ist nur die ID
+      libraryId = stateRaw;
+    }
+  }
   const error = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
   const sessionState = searchParams.get('session_state');
 
   console.log(`[OneDrive Auth Callback] Received: code=${!!code}, libraryId=${libraryId}, error=${error}, sessionState=${!!sessionState}`);
-  console.log(`[OneDrive Auth Callback] URL: ${request.url}`);
 
   // Authentifizierung prüfen
   const { userId } = await auth();
@@ -48,7 +59,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log(`[OneDrive Auth Callback] Lade Bibliotheksinformationen für ${libraryId}`);
     
     // Bibliotheksinformationen direkt über den LibraryService laden
     const libraryService = LibraryService.getInstance();
@@ -57,21 +67,12 @@ export async function GET(request: NextRequest) {
     
     if (!library) {
       console.error(`[OneDrive Auth Callback] Bibliothek ${libraryId} nicht gefunden`);
-      console.log(`[OneDrive Auth Callback] Verfügbare Bibliotheken:`, libraries.map(lib => ({
-        id: lib.id,
-        label: lib.label
-      })));
       return NextResponse.redirect(new URL(`/settings/storage?authError=library_not_found&libraryId=${libraryId}`, request.url));
     }
     
     // Bibliothek in ClientLibrary konvertieren
     const clientLibrary = libraryService.toClientLibraries([library])[0];
     
-    console.log(`[OneDrive Auth Callback] Bibliothek gefunden:`, {
-      id: library.id,
-      label: library.label,
-      type: library.type
-    });
     
     // Prüfen, ob es sich um eine OneDrive-Bibliothek handelt
     if (library.type !== 'onedrive') {
@@ -79,21 +80,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(`/settings/storage?authError=invalid_library_type&libraryId=${libraryId}&libraryType=${library.type}`, request.url));
     }
     
-    // Debug-Ausgabe der Konfiguration
-    console.log(`[OneDrive Auth Callback] Konfiguration:`, {
-      tenantId: library.config?.tenantId ? 'vorhanden' : 'nicht vorhanden',
-      clientId: library.config?.clientId ? 'vorhanden' : 'nicht vorhanden',
-      clientSecret: library.config?.clientSecret ? 'vorhanden' : 'nicht vorhanden',
-      redirectUri: process.env.MS_REDIRECT_URI ? 'vorhanden' : 'nicht vorhanden'
-    });
     
     try {
       // Server-seitigen OneDrive-Provider initialisieren
       const provider = new OneDriveServerProvider(clientLibrary, userEmail);
-      console.log(`[OneDrive Auth Callback] OneDriveServerProvider initialisiert`);
 
       // Authentifizierung mit dem erhaltenen Code durchführen
-      console.log(`[OneDrive Auth Callback] Starte Authentifizierung mit Code`);
       const success = await provider.authenticate(code);
 
       if (success) {
@@ -101,6 +93,15 @@ export async function GET(request: NextRequest) {
         // StorageFactory Provider-Cache für diese ID löschen
         const factory = StorageFactory.getInstance();
         await factory.clearProvider(libraryId);
+        
+        // Nach erfolgreicher Authentifizierung zum ursprünglichen Ziel weiterleiten (oder Fallback)
+        if (redirectUrl) {
+          // Füge die libraryId als Query-Parameter zur Redirect-URL hinzu
+          const url = new URL(redirectUrl);
+          url.searchParams.set('activeLibraryId', libraryId);
+          console.log('[OneDrive Auth Callback] Redirect mit Library-ID:', url.toString());
+          return NextResponse.redirect(url);
+        }
         return NextResponse.redirect(new URL(`/settings/storage?authSuccess=true&libraryId=${libraryId}`, request.url));
       } else {
         console.error('[OneDrive Auth Callback] Authentifizierung fehlgeschlagen');

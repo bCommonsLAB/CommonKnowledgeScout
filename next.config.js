@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');     // eslint-disable-line @typescript-eslint/no-require-imports
+
 const nextConfig = {
-  reactStrictMode: true,
+  // Deaktiviere Strict Mode in der Entwicklung, um Mounting-Logs zu reduzieren
+  reactStrictMode: process.env.NODE_ENV === 'production',
   images: {
     remotePatterns: [
       {
@@ -21,6 +24,19 @@ const nextConfig = {
       },
     ],
   },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      jotai: path.resolve(process.cwd(), 'node_modules/jotai'),
+    };
+    return config;
+  },
+  // Reduziere Logging in der Entwicklung
+  logging: {
+    fetches: {
+      fullUrl: false
+    }
+  }
 }
 
 module.exports = nextConfig

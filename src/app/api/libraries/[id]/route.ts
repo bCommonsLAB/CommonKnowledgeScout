@@ -31,8 +31,6 @@ export async function GET(
   }
 
   try {
-    console.log(`[API] GET /libraries/${libraryId} für Benutzer ${userEmail}`);
-    
     // Bibliotheken des Benutzers laden
     const libraryService = LibraryService.getInstance();
     const libraries = await libraryService.getUserLibraries(userEmail);

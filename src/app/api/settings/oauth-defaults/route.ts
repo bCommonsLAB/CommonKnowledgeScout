@@ -1,11 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import * as process from 'process';
+
+declare const process: {
+  env: {
+    MS_REDIRECT_URI?: string;
+  };
+};
 
 /**
  * API-Route, die die OAuth-Standardwerte aus der .env zurückgibt
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const { userId } = await auth();
     
@@ -18,7 +23,7 @@ export async function GET(request: NextRequest) {
     
     // Logge die Anwesenheit der redirectUri
     console.log('[OAuthDefaults] Umgebungsvariable:', {
-      hasRedirectUri: !!redirectUri
+      redirectUri: redirectUri
     });
     
     // Prüfe, ob redirectUri vorhanden ist

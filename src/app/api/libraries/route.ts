@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { LibraryService } from '@/lib/services/library-service';
-import { Library } from '@/types/library';
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { Library } from '@/types/library';
 
 /**
  * Hilfsfunktion zum Abrufen der Benutzer-E-Mail-Adresse
@@ -13,7 +13,6 @@ async function getUserEmail(request: NextRequest): Promise<{ email: string | nul
   const testEmail = searchParams.get('email');
   
   if (testEmail) {
-    console.log(`[API] Verwende Test-E-Mail: ${testEmail}`);
     return { email: testEmail, isAuthenticated: true };
   }
   
@@ -56,7 +55,6 @@ export async function GET(request: NextRequest) {
   }
   
   try {
-    console.log(`[API] GET /libraries für Benutzer ${email}`);
     const libraryService = LibraryService.getInstance();
     const libraries = await libraryService.getUserLibraries(email);
     const clientLibraries = libraryService.toClientLibraries(libraries);

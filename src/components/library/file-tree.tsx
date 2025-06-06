@@ -2,10 +2,13 @@
 
 import * as React from 'react';
 import { ChevronDown, ChevronRight, Folder } from "lucide-react"
-import { StorageProvider, StorageItem } from '@/lib/storage/types';
+import { StorageProvider, StorageItem, StorageError } from '@/lib/storage/types';
 import { cn } from "@/lib/utils"
 import { useAtom } from 'jotai';
-import { currentFolderIdAtom } from '@/atoms/library-atom';
+import { currentFolderIdAtom, activeLibraryIdAtom } from '@/atoms/library-atom';
+import { StorageAuthButton } from "../shared/storage-auth-button";
+import { useStorage } from '@/contexts/storage-context';
+import { useAtomValue } from 'jotai';
 
 interface FileTreeProps {
   provider: StorageProvider | null;
@@ -125,9 +128,12 @@ export function FileTree({
   onSelectAction,
   libraryName = "/"
 }: FileTreeProps) {
+  const { currentLibrary } = useStorage();
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [rootItems, setRootItems] = React.useState<StorageItem[]>([]);
   const [loadedChildren, setLoadedChildren] = React.useState<Record<string, StorageItem[]>>({});
   const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   
   // Globales Atom für das aktuelle Verzeichnis verwenden
   const [currentFolderId] = useAtom(currentFolderIdAtom);
@@ -156,7 +162,12 @@ export function FileTree({
         const rootPath = await currentProvider.getPathById('root');
         console.log(`FileTree: Root path for provider ${currentProvider.id} is "${rootPath}", provider name: ${currentProvider.name}`);
       } catch (e) {
-        console.warn('FileTree: Could not get root path:', e);
+        // Fehlerbehandlung für Authentifizierungsfehler
+        if (e instanceof StorageError && e.code === 'AUTH_REQUIRED') {
+          // Auth-Fehler: Kein Logging, da zentral behandelt
+        } else {
+          console.warn('FileTree: Could not get root path:', e);
+        }
       }
       
       const items = await currentProvider.listItemsById('root');
@@ -178,8 +189,8 @@ export function FileTree({
       
       console.log(`FileTree: After filtering, ${filteredItems.length} folders remain`);
       setRootItems(filteredItems);
-    } catch (error) {
-      console.error('FileTree: Failed to load root items:', error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
       setRootItems([]); // Stelle sicher, dass wir keine alten Daten anzeigen
     } finally {
       if (requestId === lastRequestRef.current) {
@@ -253,6 +264,28 @@ export function FileTree({
       console.error('Failed to load children:', error);
     }
   };
+
+  // Fehlerbehandlung für OneDrive Auth
+  const isOneDriveAuthError = provider?.name === 'OneDrive' && (error?.toLowerCase().includes('nicht authentifiziert') || error?.toLowerCase().includes('unauthorized'));
+
+  React.useEffect(() => {
+    // Logging der Library-IDs
+    // eslint-disable-next-line no-console
+    console.log('[FileTree] Render:', {
+      propProvider: provider?.id,
+      contextLibraryId: currentLibrary?.id,
+      activeLibraryIdAtom: activeLibraryId
+    });
+  }, [provider, currentLibrary, activeLibraryId]);
+
+  if (isOneDriveAuthError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <p className="mb-4 text-sm text-muted-foreground">Sie sind nicht bei OneDrive angemeldet.</p>
+        <StorageAuthButton provider="onedrive" />
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-auto p-2">

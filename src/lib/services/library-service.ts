@@ -32,7 +32,6 @@ export class LibraryService {
    */
   async getUserLibraries(email: string): Promise<Library[]> {
     try {
-      console.log(`Bibliotheken für Benutzer ${email} werden abgerufen...`);
       const collection = await getCollection<UserLibraries>(this.collectionName);
       
       // Alle Einträge mit der angegebenen E-Mail-Adresse finden
@@ -51,8 +50,6 @@ export class LibraryService {
         }
       });
       
-      console.log(`Insgesamt ${allLibraries.length} Bibliotheken für Benutzer ${email} gefunden in ${userEntries.length} Einträgen`);
-      
       // Deduplizierung basierend auf ID (nur die erste gefundene Instanz jeder ID behalten)
       const uniqueLibraries: Library[] = [];
       const seenIds = new Set<string>();
@@ -65,8 +62,6 @@ export class LibraryService {
           console.log(`Duplikat gefunden und übersprungen: Bibliothek mit ID ${lib.id} (${lib.label})`);
         }
       }
-      
-      console.log(`Nach Deduplizierung: ${uniqueLibraries.length} einzigartige Bibliotheken`);
       
       return uniqueLibraries;
     } catch (error) {
@@ -98,7 +93,6 @@ export class LibraryService {
    */
   async updateUserLibraries(email: string, libraries: Library[], userName?: string): Promise<boolean> {
     try {
-      console.log(`Bibliotheken für Benutzer ${email} werden aktualisiert...`);
       const collection = await getCollection<UserLibraries>(this.collectionName);
       
       // Prüfen, ob bereits ein Eintrag existiert
@@ -117,7 +111,6 @@ export class LibraryService {
           }
         );
         
-        console.log(`Bibliotheken für Benutzer ${email} wurden aktualisiert: ${result.acknowledged}`);
         return result.acknowledged;
       } else {
         // Neuen Eintrag erstellen
@@ -128,7 +121,6 @@ export class LibraryService {
           lastUpdated: new Date()
         });
         
-        console.log(`Neuer Eintrag für Benutzer ${email} wurde erstellt: ${result.acknowledged}`);
         return result.acknowledged;
       }
     } catch (error) {

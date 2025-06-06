@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const newLibrary: Library = {
       id: `local-${Date.now()}`,
       label: libraryName,
-      path: libraryPath || process.env.STORAGE_BASE_PATH || '/data/default',
+      path: libraryPath,
       type: 'local',
       isEnabled: true,
       transcription: 'shadowTwin'

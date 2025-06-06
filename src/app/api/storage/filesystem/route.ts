@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as fs from 'fs/promises';
+import { promises as fs } from 'fs';
 import { Stats } from 'fs';
 import * as pathLib from 'path';
 import mime from 'mime-types';
@@ -31,35 +31,25 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
   
   // Wenn ein Email-Parameter übergeben wurde, diesen verwenden (für Tests)
   if (emailParam) {
-    console.log(`[API][getUserEmail] Verwende Test-E-Mail: ${emailParam}`);
     return emailParam;
   }
   
   // Versuche, authentifizierten Benutzer zu erhalten
   try {
     const { userId } = await auth();
-    console.log('[API][getUserEmail] Auth Ergebnis:', { userId });
     
     if (userId) {
       const user = await currentUser();
       const emailAddresses = user?.emailAddresses || [];
-      console.log('[API][getUserEmail] User gefunden:', {
-        hasUser: !!user,
-        hasEmailAddresses: emailAddresses.length > 0,
-        emailCount: emailAddresses.length
-      });
       
       if (user && emailAddresses.length > 0) {
         const email = emailAddresses[0].emailAddress;
-        console.log(`[API][getUserEmail] Verwende authentifizierte E-Mail: ${email}`);
         return email;
       }
     }
   } catch (error) {
     console.warn('[API][getUserEmail] Authentifizierungsdaten konnten nicht abgerufen werden:', error);
   }
-  
-  console.log('[API][getUserEmail] Keine E-Mail-Adresse gefunden');
   return undefined;
 }
 
@@ -74,61 +64,18 @@ async function getLibrary(libraryId: string, email: string): Promise<LibraryType
   const libraryService = LibraryService.getInstance();
   const libraries = await libraryService.getUserLibraries(email);
   
-  console.log(`[API][getLibrary] Gefundene Bibliotheken:`, {
-    count: libraries.length,
-    libraries: libraries.map(lib => ({
-      id: lib.id,
-      label: lib.label,
-      isEnabled: lib.isEnabled
-    }))
-  });
   
   if (libraries.length === 0) {
-    console.log(`[API][getLibrary] Keine Bibliotheken gefunden für ${email}`);
     return undefined;
   }
   
   const match = libraries.find(lib => lib.id === libraryId && lib.isEnabled);
   if (match) {
-    console.log(`[API][getLibrary] Bibliothek gefunden:`, {
-      id: match.id,
-      label: match.label,
-      path: match.path,
-      type: match.type,
-      isEnabled: match.isEnabled
-    });
     return match;
   }
-  
-  console.log(`[API][getLibrary] Bibliothek nicht gefunden:`, {
-    libraryId,
-    email,
-    availableIds: libraries.map(lib => lib.id)
-  });
   return undefined;
 }
 
-/**
- * Gibt verfügbare Bibliotheken als Fehlertext zurück, wenn eine Bibliothek nicht gefunden wurde
- */
-async function getAvailableLibrariesInfo(email?: string): Promise<string> {
-  const libraryService = LibraryService.getInstance();
-  const emailsToCheck = email ? [email] : [
-    'peter.aichner@crystal-design.com',
-    'default@example.com'
-  ];
-  
-  let availableLibraries = '';
-  for (const currentEmail of emailsToCheck) {
-    const libraries = await libraryService.getUserLibraries(currentEmail);
-    const libraryIds = libraries.filter(lib => lib.isEnabled).map(lib => lib.id).join(', ');
-    if (libraryIds) {
-      availableLibraries += `${currentEmail}: ${libraryIds}; `;
-    }
-  }
-  
-  return availableLibraries || 'keine';
-}
 
 // Konvertiert eine ID zurück in einen Pfad
 function getPathFromId(library: LibraryType, fileId: string): string {
@@ -220,7 +167,6 @@ async function listItems(library: LibraryType, fileId: string): Promise<StorageI
   
   try {
     const items = await fs.readdir(absolutePath);
-    console.log(`[API] Verzeichnis erfolgreich gelesen, ${items.length} Elemente gefunden`);
     
     const itemPromises = items.map(async (item) => {
       const itemPath = pathLib.join(absolutePath, item);
@@ -235,7 +181,6 @@ async function listItems(library: LibraryType, fileId: string): Promise<StorageI
     const results = await Promise.all(itemPromises);
     const validResults = results.filter((item): item is StorageItem => item !== null);
     
-    console.log(`[API] Response: ${validResults.length} gültige Items zurückgegeben`);
     return validResults;
   } catch (error) {
     console.error(`[API] Fehler beim Lesen des Verzeichnisses "${absolutePath}":`, error);
@@ -247,13 +192,12 @@ async function listItems(library: LibraryType, fileId: string): Promise<StorageI
  * Verarbeitet Anfragen, wenn eine Bibliothek nicht gefunden wurde
  */
 async function handleLibraryNotFound(libraryId: string, userEmail?: string): Promise<NextResponse> {
-  const availableLibraries = await getAvailableLibrariesInfo(userEmail);
-  console.error(`[API] Bibliothek mit ID: ${libraryId} nicht gefunden. Verfügbare Bibliotheken: ${availableLibraries}`);
   
   return NextResponse.json({ 
     error: `Bibliothek mit ID: ${libraryId} nicht gefunden`,
     errorCode: 'LIBRARY_NOT_FOUND',
-    libraryId: libraryId
+    libraryId: libraryId,
+    userEmail: userEmail
   }, { status: 404 });
 }
 
@@ -271,15 +215,8 @@ export async function GET(request: NextRequest) {
     });
   }
   
-  // GANZ WICHTIG: Als allererstes loggen - MUSS angezeigt werden!
-  process.stdout.write(`\n💥💥💥 FILESYSTEM ROUTE CALLED 💥💥💥\n`);
   
   const requestId = REQUEST_ID();
-  
-  // Sofort loggen, um zu sehen ob die Route überhaupt aufgerufen wird
-  console.error(`[FILESYSTEM-API] ${requestId} - Route wurde aufgerufen!`);
-  console.warn(`[FILESYSTEM-API] ${requestId} - Route wurde aufgerufen!`);
-  console.log(`[FILESYSTEM-API] ${requestId} - Route wurde aufgerufen!`);
   
   // Auch in die Response schreiben
   const debugHeaders = new Headers();
@@ -291,16 +228,6 @@ export async function GET(request: NextRequest) {
   const fileId = url.searchParams.get('fileId');
   const libraryId = url.searchParams.get('libraryId');
   
-  // WARN: Wichtig für Debugging - wird garantiert angezeigt
-  console.warn(`[API][filesystem] ⚠️ NEUE ANFRAGE ${requestId}:`, {
-    url: request.url,
-    method: request.method,
-    action,
-    fileId,
-    libraryId,
-    headers: Object.fromEntries(request.headers.entries())
-  });
-
   // Validiere erforderliche Parameter
   if (!libraryId) {
     console.warn(`[API][filesystem] ❌ Fehlender libraryId Parameter`);
@@ -314,28 +241,12 @@ export async function GET(request: NextRequest) {
 
   // E-Mail aus Authentifizierung oder Parameter ermitteln
   const userEmail = await getUserEmail(request);
-  console.warn(`[API][filesystem] 👤 Authentifizierung:`, {
-    userEmail,
-    hasEmail: !!userEmail
-  });
-
   if (!userEmail) {
     console.warn(`[API][filesystem] ❌ Keine E-Mail gefunden`);
     return NextResponse.json({ error: 'No user email found' }, { status: 400 });
   }
 
   const library = await getLibrary(libraryId, userEmail);
-  console.warn(`[API][filesystem] 📚 Bibliothekssuche:`, {
-    libraryId,
-    userEmail,
-    found: !!library,
-    library: library ? {
-      id: library.id,
-      label: library.label,
-      path: library.path,
-      type: library.type
-    } : null
-  });
 
   if (!library) {
     console.warn(`[API][filesystem] ❌ Bibliothek nicht gefunden`);
@@ -345,21 +256,11 @@ export async function GET(request: NextRequest) {
   try {
     switch (action) {
       case 'list': {
-        console.warn(`[API][filesystem] 📋 Liste Items:`, {
-          libraryId,
-          fileId,
-          userEmail
-        });
         const items = await listItems(library, fileId);
         return NextResponse.json(items);
       }
 
       case 'get': {
-        console.log('[API][filesystem] Hole Item:', {
-          libraryId,
-          fileId,
-          userEmail
-        });
         const absolutePath = getPathFromId(library, fileId);
         const stats = await fs.stat(absolutePath);
         const item = await statsToStorageItem(library, absolutePath, stats);
@@ -367,11 +268,6 @@ export async function GET(request: NextRequest) {
       }
 
       case 'binary': {
-        console.log('[API][filesystem] Hole Binärdaten:', {
-          libraryId,
-          fileId,
-          userEmail
-        });
         if (!fileId || fileId === 'root') {
           console.error('[API][filesystem] Ungültige Datei-ID für binary:', {
             fileId,
@@ -407,11 +303,6 @@ export async function GET(request: NextRequest) {
       }
 
       case 'path': {
-        console.log('[API][filesystem] Hole Pfad:', {
-          libraryId,
-          fileId,
-          userEmail
-        });
         return handleGetPath(library, fileId);
       }
 
@@ -477,18 +368,10 @@ export async function POST(request: NextRequest) {
       }
 
       case 'upload': {
-        console.log('[API] Upload started');
         const formData = await request.formData();
-        console.log('[API] FormData received');
         
         const file = formData.get('file');
-        console.log('[API] File from FormData:', {
-          exists: !!file,
-          type: file ? typeof file : 'undefined',
-          isFile: file instanceof File,
-          name: file instanceof File ? file.name : 'unknown'
-        });
-
+  
         if (!file || !(file instanceof File)) {
           console.error('[API] Invalid file object received');
           return NextResponse.json({ error: 'No valid file provided' }, { status: 400 });
@@ -496,23 +379,17 @@ export async function POST(request: NextRequest) {
 
         try {
           const parentPath = getPathFromId(library, fileId);
-          console.log('[API] Parent path resolved:', parentPath);
           
           const filePath = pathLib.join(parentPath, file.name);
-          console.log('[API] Target file path:', filePath);
-
+  
           const arrayBuffer = await file.arrayBuffer();
-          console.log('[API] File buffer created, size:', arrayBuffer.byteLength);
           
           const buffer = Buffer.from(arrayBuffer);
           await fs.writeFile(filePath, buffer);
-          console.log('[API] File written to disk');
-
+  
           const stats = await fs.stat(filePath);
-          console.log('[API] File stats retrieved');
           
           const item = await statsToStorageItem(library, filePath, stats);
-          console.log('[API] StorageItem created');
           
           return NextResponse.json(item);
         } catch (error) {
@@ -625,7 +502,6 @@ async function handleGetPath(library: LibraryType, fileId: string): Promise<Resp
       .replace(/^\/+|\/+$/g, ''); // Entferne führende/nachfolgende Slashes
     
     const displayPath = relativePath || '/';
-    console.log('[API] Path resolved:', displayPath);
     
     return new Response(displayPath);
   } catch (error) {

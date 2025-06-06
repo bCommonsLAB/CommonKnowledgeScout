@@ -437,35 +437,36 @@ export class OneDriveProvider implements StorageProvider {
         );
       }
 
-      const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
-
-      const params = new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: this.refreshToken!,
-        redirect_uri: redirectUri,
-        grant_type: 'refresh_token',
-      });
-
-      const response = await fetch(tokenEndpoint, {
+      // Server-seitige Token-Refresh API verwenden
+      console.log('[OneDriveProvider] Verwende server-seitigen Token-Refresh');
+      
+      const response = await fetch('/api/auth/onedrive/refresh', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/json'
         },
-        body: params.toString()
+        body: JSON.stringify({
+          refreshToken: this.refreshToken,
+          libraryId: this.id,
+          tenantId,
+          clientId,
+          clientSecret,
+          redirectUri
+        })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new StorageError(
-          `Token-Aktualisierung fehlgeschlagen: ${errorData.error_description || response.statusText}`,
+          `Token-Aktualisierung fehlgeschlagen: ${errorData.details || errorData.error || response.statusText}`,
           "AUTH_ERROR",
           this.id
         );
       }
 
-      const data = await response.json() as TokenResponse;
+      const data = await response.json();
       await this.saveTokens(data.access_token, data.refresh_token, data.expires_in);
+      console.log('[OneDriveProvider] Token erfolgreich über Server erneuert');
     } catch (error) {
       console.error('[OneDriveProvider] Fehler bei Token-Aktualisierung:', error);
       await this.clearTokens();

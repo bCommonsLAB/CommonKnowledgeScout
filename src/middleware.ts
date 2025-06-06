@@ -11,26 +11,6 @@ const isPublicRoute = createRouteMatcher([
 
 // Verwende die offizielle Clerk-Middleware
 export default clerkMiddleware(async (auth, req) => {
-  // Logge alle Requests an /api/storage/filesystem
-  if (req.nextUrl.pathname.startsWith('/api/storage/filesystem')) {
-    console.log('🔥🔥🔥 MIDDLEWARE: Storage Filesystem Request:', {
-      url: req.url,
-      method: req.method,
-      pathname: req.nextUrl.pathname,
-      searchParams: Object.fromEntries(req.nextUrl.searchParams.entries()),
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  // Logge Test-Route Requests
-  if (req.nextUrl.pathname.startsWith('/api/test-route')) {
-    console.log('🚀 MIDDLEWARE: Test Route Request:', {
-      url: req.url,
-      method: req.method,
-      pathname: req.nextUrl.pathname,
-      timestamp: new Date().toISOString()
-    });
-  }
   
   // Wenn die Route öffentlich ist, erlaube den Zugriff
   if (isPublicRoute(req)) {

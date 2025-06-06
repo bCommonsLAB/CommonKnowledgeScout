@@ -44,7 +44,6 @@ export async function connectToDatabase(): Promise<Db> {
     });
 
     await client.connect();
-    console.log('MongoDB-Verbindung erfolgreich hergestellt');
     
     const dbName = process.env.MONGODB_DATABASE_NAME;
     if (!dbName) {
@@ -72,7 +71,6 @@ export async function connectToDatabase(): Promise<Db> {
  */
 export async function getCollection<T extends Document = Document>(collectionName: string): Promise<Collection<T>> {
   try {
-    console.log(`Versuche Collection "${collectionName}" zu erhalten...`);
     const db = await connectToDatabase();
     return db.collection<T>(collectionName);
   } catch (error) {

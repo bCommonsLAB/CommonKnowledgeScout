@@ -1,23 +1,19 @@
 "use client"
 
 import * as React from "react"
-import { useCallback, useEffect, useMemo, useState, Profiler } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useAtom } from "jotai"
 
 import { LibraryHeader } from "./library-header"
-import { FilePreview } from "./file-preview"
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { Separator } from "@/components/ui/separator"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
 import { FileTree } from "./file-tree"
 import { FileList } from "./file-list"
 import { ClientLibrary } from "@/types/library"
 import { StorageItem } from "@/lib/storage/types"
-import { useTranscriptionTwins } from "@/hooks/use-transcription-twins"
 import { useSelectedFile } from "@/hooks/use-selected-file"
 import { libraryAtom, activeLibraryIdAtom, currentFolderIdAtom, breadcrumbItemsAtom, writeBreadcrumbItemsAtom, librariesAtom } from "@/atoms/library-atom"
-import { useStorage } from "@/contexts/storage-context"
+import { useStorage, isStorageError } from "@/contexts/storage-context"
+import { DebugPanel } from "../debug/debug-panel"
+import { StorageAuthButton } from "../shared/storage-auth-button"
 
 export interface LibraryContextProps {
   libraries: ClientLibrary[];
@@ -25,49 +21,8 @@ export interface LibraryContextProps {
   onLibraryChange: (libraryId: string) => void;
 }
 
-interface LibraryProps {
-  defaultLayout: number[]
-  defaultCollapsed?: boolean
-  navCollapsedSize: number
-}
-
-// Styles für die verschiedenen Panel-Typen
-const panelStyles = "h-full flex flex-col min-h-0";
-const treeStyles = "h-full overflow-auto";
-const previewStyles = "h-full overflow-auto";
-
-if (process.env.NODE_ENV === 'development') {
-  Library.whyDidYouRender = {
-    customName: 'Library',
-    logOwnerReasons: true,
-    trackAllPureComponents: true,
-  };
-}
-
-// Performance monitoring
-const onRenderCallback: React.ProfilerOnRenderCallback = (
-  id,
-  phase,
-  actualDuration,
-  baseDuration,
-  startTime,
-  commitTime
-) => {
-  if (process.env.NODE_ENV === 'development' && actualDuration > 100) {
-    console.log(`[Render Profiler] ${id} took ${actualDuration.toFixed(2)}ms (${phase})`);
-    console.log(`Base duration: ${baseDuration.toFixed(2)}ms`);
-    console.log(`Commit time: ${commitTime.toFixed(2)}ms`);
-  }
-};
-
-export function Library({
-  defaultLayout = [20, 32, 48],
-  defaultCollapsed = false,
-  navCollapsedSize,
-}: LibraryProps) {
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed)
+export function Library() {
   const [searchQuery, ] = useState("")
-  const [localError, ] = useState<string | null>(null);
 
   // Folder States - alte lokale State entfernen und durch Atom ersetzen
   const [folderItems, setFolderItems] = useState<StorageItem[]>([]);
@@ -83,8 +38,9 @@ export function Library({
     provider: providerInstance, 
     isLoading, 
     error: storageError, 
-    listItems, 
-    refreshItems 
+    listItems,
+    libraryStatus,
+    authProvider
   } = useStorage();
 
   // Debug-Logging für Storage Context
@@ -127,6 +83,13 @@ export function Library({
       currentFolderId: 'root' // Initialisiere das Verzeichnis
     });
   }, [libraries, globalActiveLibraryId, setLibraryState]);
+
+  // Reset currentFolderId when active library changes
+  useEffect(() => {
+    console.log('Library: Aktive Bibliothek geändert, setze currentFolderId zurück');
+    setCurrentFolderId('root');
+    setFolderItems([]); // Leere auch die Dateiliste
+  }, [globalActiveLibraryId, setCurrentFolderId]);
 
   // Stelle sicher, dass der Breadcrumb nicht verloren geht
   useEffect(() => {
@@ -173,31 +136,6 @@ export function Library({
     transcriptionEnabled,
     config: libraries.find(lib => lib.id === globalActiveLibraryId)?.config
   }), [globalActiveLibraryId, transcriptionEnabled, libraries]);
-
-  const filteredItems = useMemo(() => {
-    if (!searchQuery) return folderItems;
-    
-    const query = searchQuery.toLowerCase();
-    return folderItems.filter(item => 
-      item.metadata.name.toLowerCase().includes(query)
-    );
-  }, [folderItems, searchQuery]);
-
-  const processedItems = useMemo(() => {
-    console.time('processItems');
-    // Filter out folders before passing to FileList
-    const result = filteredItems.filter(item => item.type === 'file');
-    console.timeEnd('processItems');
-    return result;
-  }, [filteredItems]);
-
-  // Apply transcription processing at the top level
-  const transcriptionItems = useTranscriptionTwins(processedItems, transcriptionEnabled);
-  const finalItems = useMemo(() => 
-    transcriptionEnabled ? transcriptionItems : processedItems,
-    [transcriptionEnabled, transcriptionItems, processedItems]
-  );
-
 
   // Debug logging
   useEffect(() => {
@@ -331,13 +269,15 @@ export function Library({
       }
       
     } catch (error) {
-      console.error('Library: Failed to load items:', error);
+      if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
+        // Kein Logging für AUTH_REQUIRED
+      } else {
+        console.error('Library: Failed to load items:', error);
+      }
       setFolderItems([]);
-      
       // Breadcrumb nur zurücksetzen, wenn wir wirklich im Root-Verzeichnis sind
       if (currentFolderId === 'root') {
         updateBreadcrumb([], 'root');
-        // Aktualisiere auch das globale Atom
         setBreadcrumbItems([]);
       } else {
         console.warn('Library: Fehler beim Laden der Items, behalte aber den Breadcrumb für:', currentFolderId);
@@ -427,159 +367,62 @@ export function Library({
     }
   }, [listItems, folderCache, resolvePath, updateBreadcrumb, clearSelection, setBreadcrumbItems, currentFolderId, setCurrentFolderId]);
 
-  // Handler für Dateiauswahl
-  const handleFileSelect = useCallback((item: StorageItem) => {
-    if (item.type !== 'file') return;
-    selectFile(item);
-  }, [selectFile]);
-
-  // Handler für Upload-Abschluss
-  const handleUploadComplete = useCallback(() => {
-    console.log('Library: Upload completed, invalidating cache and refreshing items');
-    // Cache für den aktuellen Ordner invalidieren
-    const currentFolder = folderCache.get(currentFolderId);
-    if (currentFolder) {
-      folderCache.set(currentFolderId, {
-        ...currentFolder,
-        children: undefined // Cache invalidieren
-      });
-    }
-    refreshItems(currentFolderId).then(items => {
-      setFolderItems(items);
-    });
-  }, [refreshItems, currentFolderId, folderCache]);
-
-  return (
-    <Profiler id="Library" onRender={onRenderCallback}>
-      <div className="flex flex-col h-screen overflow-hidden">
-        <LibraryHeader 
-          activeLibrary={currentLibrary}
-          onFolderSelect={handleFolderSelect}
-          onRootClick={() => {
-            // Prüfe, ob wir bereits im Root-Verzeichnis sind
-            if (currentFolderId !== 'root') {
-              console.log('Library: Wechsle zum Root-Verzeichnis');
-              setCurrentFolderId('root');
-              loadItems(); // Lade Items statt direkt zu leeren
-              
-              // Erst nach dem Laden der Items den Breadcrumb aktualisieren
-              // Dies passiert bereits in loadItems
-            } else {
-              console.log('Library: Bereits im Root-Verzeichnis, nur Breadcrumb leeren');
-              // Im Root-Verzeichnis bereits, setze nur den Breadcrumb zurück
-              updateBreadcrumb([], 'root');
-              setBreadcrumbItems([]);
-            }
-          }}
-          provider={providerInstance}
-          onUploadComplete={handleUploadComplete}
-          error={storageError || localError}
-        />
-
-        {/* Main Content */}
-        <div className="flex-1 min-h-0">
-          <TooltipProvider delayDuration={0}>
-            <ResizablePanelGroup
-              direction="horizontal"
-              onLayout={(sizes: number[]) => {
-                document.cookie = `react-resizable-panels:layout:library=${JSON.stringify(
-                  sizes
-                )}`
-              }}
-              className="h-full"
-            >
-              <ResizablePanel
-                defaultSize={defaultLayout[0]}
-                collapsedSize={navCollapsedSize}
-                collapsible={true}
-                minSize={15}
-                maxSize={20}
-                onCollapse={() => {
-                  setIsCollapsed(true);
-                  document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
-                    true
-                  )}`
-                }}
-                onExpand={() => {
-                  setIsCollapsed(false);
-                  document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
-                    false
-                  )}`
-                }}
-                className={cn(
-                  "border-r",
-                  isCollapsed && "min-w-[50px] transition-all duration-300 ease-in-out"
-                )}
-              >
-                <div className={cn(panelStyles)}>
-                  <div className={cn(treeStyles)}>
-                    
-                    <FileTree 
-                      provider={providerInstance}
-                      onSelectAction={handleFolderSelect}
-                      libraryName={currentLibrary?.label}
-                    />
-                    
-                  </div>
-                </div>
-              </ResizablePanel>
-              <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={defaultLayout[1]} minSize={30} className="border-r">
-                <div className="flex items-center px-4 py-2">
-                  <h1 className="text-xl font-bold">Dateien</h1>
-                </div>
-                <Separator />
-                
-                <FileList 
-                  items={finalItems}
-                  selectedItem={selected.item}
-                  onSelectAction={handleFileSelect}
-                  searchTerm={searchQuery}
-                  onRefresh={(folderId, refreshedItems) => {
-                    console.log('Library: Manuelles Aktualisieren der Dateien', {
-                      folderId,
-                      itemsCount: refreshedItems.length
-                    });
-                    setFolderItems(refreshedItems);
-                  }}
-                />
-                
-              </ResizablePanel>
-              <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={defaultLayout[2]} className="hidden lg:block">
-                <div className={cn(panelStyles)}>
-                  <div className={cn(previewStyles)}>
-                    <FilePreview 
-                      item={selected.item} 
-                      provider={providerInstance}
-                      className="h-full"
-                      onRefreshFolder={(folderId, refreshedItems, selectFileAfterRefresh) => {
-                        console.log('Library: Ordnerinhalt nach Transkription aktualisiert', {
-                          folderId,
-                          itemsCount: refreshedItems.length,
-                          selectFileId: selectFileAfterRefresh?.id
-                        });
-                        
-                        // Dateiliste aktualisieren
-                        setFolderItems(refreshedItems);
-                        
-                        // Nach der Aktualisierung die gewünschte Datei auswählen
-                        if (selectFileAfterRefresh) {
-                          // Einen Moment warten, damit die Liste aktualisiert werden kann
-                          setTimeout(() => {
-                            console.log('Library: Wähle neue Datei nach Aktualisierung aus', selectFileAfterRefresh.id);
-                            selectFile(selectFileAfterRefresh);
-                          }, 100);
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </TooltipProvider>
+  // Komponenten nur rendern, wenn Storage bereit oder Daten werden geladen
+  if (libraryStatus === "waitingForAuth") {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+        <span>Bitte authentifizieren Sie sich beim Storage-Provider.</span>
+        {authProvider && (
+          <div className="mt-4">
+            <StorageAuthButton provider={authProvider} />
+          </div>
+        )}
+        <div className="absolute bottom-4 right-4">
+          <DebugPanel />
         </div>
       </div>
-    </Profiler>
+    );
+  }
+  if (libraryStatus !== "ready" && libraryStatus !== "loadingData") {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+        <span>Lade Storage...</span>
+        <div className="absolute bottom-4 right-4">
+          <DebugPanel />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-screen overflow-hidden">
+      <LibraryHeader 
+        activeLibrary={currentLibrary}
+        onFolderSelect={handleFolderSelect}
+        onRootClick={() => {
+          if (currentFolderId !== "root") {
+            setCurrentFolderId("root");
+          }
+        }}
+        provider={providerInstance}
+        error={storageError}
+      />
+      <div className="flex flex-1 overflow-hidden">
+        <FileTree
+          provider={providerInstance}
+          onSelectAction={handleFolderSelect}
+          libraryName={currentLibrary?.label}
+        />
+        <FileList
+          items={folderItems}
+          selectedItem={selected.item}
+          onSelectAction={selectFile}
+          searchTerm={searchQuery}
+        />
+      </div>
+      <div className="absolute bottom-4 right-4">
+        <DebugPanel />
+      </div>
+    </div>
   );
 }

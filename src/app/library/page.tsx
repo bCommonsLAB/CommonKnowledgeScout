@@ -10,16 +10,35 @@ import { ClientLibrary, StorageProviderType } from "@/types/library";
 import { AlertCircle } from "lucide-react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useAtom } from "jotai";
-import { librariesAtom } from "@/atoms/library-atom";
+import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
+import { useSearchParams } from "next/navigation";
 
 export default function LibraryPage() {
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const { user, isLoaded: isUserLoaded } = useUser();
+  const searchParams = useSearchParams();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setLibraries] = useAtom(librariesAtom);
+  const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
   const { toast } = useToast();
+
+  // Überprüfe URL-Parameter für activeLibraryId nach OneDrive-Redirect
+  useEffect(() => {
+    const urlLibraryId = searchParams.get('activeLibraryId');
+    if (urlLibraryId) {
+      console.log('[LibraryPage] Setze aktive Bibliothek aus URL-Parameter:', urlLibraryId);
+      setActiveLibraryId(urlLibraryId);
+      // Speichere auch im localStorage für zukünftige Seitenaufrufe
+      localStorage.setItem('activeLibraryId', urlLibraryId);
+      
+      // Entferne den Parameter aus der URL, um eine saubere URL zu haben
+      const url = new URL(window.location.href);
+      url.searchParams.delete('activeLibraryId');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams, setActiveLibraryId]);
 
   useEffect(() => {
     async function loadLibraries() {
@@ -106,10 +125,7 @@ export default function LibraryPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
       <div className="flex-1">
-        <Library 
-          defaultLayout={[20, 40, 40]}
-          navCollapsedSize={4}
-        />
+        <Library />
       </div>
     </div>
   );

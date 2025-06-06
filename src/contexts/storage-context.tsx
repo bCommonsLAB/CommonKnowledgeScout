@@ -1,150 +1,201 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-import { StorageProvider, StorageItem } from "@/lib/storage/types";
-import { StorageFactory } from "@/lib/storage/storage-factory";
-import { useAtom } from "jotai";
-import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom";
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useAtom } from 'jotai';
+import { librariesAtom, activeLibraryIdAtom } from '@/atoms/library-atom';
+import { StorageFactory } from '@/lib/storage/storage-factory';
 import { ClientLibrary } from "@/types/library";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
+import { useAuth, useUser } from '@clerk/nextjs';
+import { StorageProvider, StorageItem, StorageError } from '@/lib/storage/types';
 
-// Definition für den Cache-Store
-interface CacheStore {
-  [key: string]: unknown;
+// Erweitere den StorageProvider um getAuthInfo
+interface ExtendedStorageProvider extends StorageProvider {
+  getAuthInfo?: () => string;
+  disconnect?: () => Promise<void>;
 }
 
-// Der Storage Context enthält alles, was Komponenten über Dateispeicher wissen müssen
+// Typ für den Lade-/Statuszustand der Bibliothek
+export type LibraryStatus =
+  | 'initializing'
+  | 'providerLoading'
+  | 'waitingForAuth'
+  | 'loadingData'
+  | 'ready';
+
+// Context-Typen
 interface StorageContextType {
-  // Provider und Library-Informationen
-  provider: StorageProvider | null;
-  library: ClientLibrary | null;
-  rootPath: string;
+  libraries: ClientLibrary[];
+  currentLibrary: ClientLibrary | null;
   isLoading: boolean;
   error: string | null;
-  
-  // Häufig benötigte Aktionen
+  provider: ExtendedStorageProvider | null;
+  refreshCurrentLibrary: () => Promise<void>;
+  refreshLibraries: () => Promise<void>;
   listItems: (folderId: string) => Promise<StorageItem[]>;
-  getItem: (itemId: string) => Promise<StorageItem | null>;
-  getPath: (itemId: string) => Promise<string>;
   refreshItems: (folderId: string) => Promise<StorageItem[]>;
-  
-  // Cache-Management
-  invalidateCache: () => void;
+  isAuthRequired: boolean;
+  authProvider: string | null;
+  libraryStatus: LibraryStatus;
+  lastRequestedLibraryId: string | null;
 }
 
-// Standardwerte für den Context
-const defaultContext: StorageContextType = {
-  provider: null,
-  library: null,
-  rootPath: '/',
-  isLoading: false,
-  error: null,
-  
-  listItems: async () => [],
-  getItem: async () => null,
-  getPath: async () => '/',
-  refreshItems: async () => [],
-  
-  invalidateCache: () => {}
+// Erstelle den Context
+const StorageContext = createContext<StorageContextType | undefined>(undefined);
+
+// Hook für den Zugriff auf den Context
+export const useStorage = () => {
+  const context = useContext(StorageContext);
+  if (!context) {
+    throw new Error('useStorage muss innerhalb eines StorageContextProvider verwendet werden');
+  }
+  return context;
 };
 
-// Context-Erstellung
-const StorageContext = createContext<StorageContextType>(defaultContext);
-
-// Cache für Items, um doppelte Anfragen zu vermeiden
-const itemsCache = new Map<string, StorageItem[]>();
-const itemCache = new Map<string, StorageItem>();
-const pathCache = new Map<string, string>();
+// Type Guard für StorageError
+export function isStorageError(error: unknown): error is StorageError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof (error as { code: unknown }).code === 'string'
+  );
+}
 
 /**
- * Der Storage-Provider kümmert sich um:
- * - Initialisierung des StorageProviders
- * - Caching von häufigen Abfragen
- * - Fehlerbehandlung
- * - Bereitstellung von Hilfsmethoden für Komponenten
+ * Provider-Komponente für den Storage-Context
+ * Verwaltet den Zustand der Bibliotheken und des aktiven Providers
  */
 export const StorageContextProvider = ({ children }: { children: React.ReactNode }) => {
-  const [libraries, setLibraries] = useState<ClientLibrary[]>([]);
-  // Verwende den useStorageProvider Hook anstatt den Provider selbst zu initialisieren
-  const providerFromHook = useStorageProvider();
-  const [provider, setProvider] = useState<StorageProvider | null>(null);
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const { user, isLoaded: isUserLoaded } = useUser();
+  
+  const [libraries, setLibraries] = useAtom(librariesAtom);
+  const [currentLibrary, setCurrentLibrary] = useState<ClientLibrary | null>(null);
+  const [provider, setProvider] = useState<ExtendedStorageProvider | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentLibrary, setCurrentLibrary] = useState<ClientLibrary | null>(null);
-  const [rootPath] = useState<string>('/');
+  const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const providerFromHook = useStorageProvider();
+  const [isProviderLoading, setIsProviderLoading] = useState(false);
+  const previousProviderRef = React.useRef<ExtendedStorageProvider | null>(null);
+  const [isAuthRequired, setIsAuthRequired] = useState(false);
+  const [authProvider, setAuthProvider] = useState<string | null>(null);
+  const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>('initializing');
+  const [lastRequestedLibraryId, setLastRequestedLibraryId] = useState<string | null>(null);
 
-  // Cache für API-Aufrufe
-  const cache = useRef<CacheStore>({});
-  
-  // Funktion zum Zurücksetzen des Caches
-  const invalidateCache = useCallback(() => {
-    console.log('[StorageContext] Cache zurückgesetzt');
-    cache.current = {};
-  }, []);
-
-  // Atom-Wert für die aktive Bibliothek
-  const [activeLibraryId, setActiveLibraryAtom] = useAtom(activeLibraryIdAtom);
-  const [, setLibrariesAtom] = useAtom(librariesAtom);
-
-  // Speichere die activeLibraryId im localStorage, wenn sie sich ändert
+  // Provider-Wechsel-Logik
   useEffect(() => {
-    if (activeLibraryId) {
-      console.log(`[StorageContext] Speichere activeLibraryId im localStorage: ${activeLibraryId}`);
-      localStorage.setItem('activeLibraryId', activeLibraryId);
-    }
-  }, [activeLibraryId]);
-
-  // Provider aus dem Hook verwenden, wenn er verfügbar ist
-  useEffect(() => {
+    setLibraryStatus('initializing');
     if (providerFromHook) {
-      console.log(`[StorageContext] Provider aus Hook übernommen: ${providerFromHook.name}`);
+      console.log(`[StorageContext] Provider-Wechsel: ${previousProviderRef.current?.name || 'Kein Provider'} -> ${providerFromHook.name}`);
+      
+      // Cleanup des alten Providers
+      if (previousProviderRef.current) {
+        try {
+          previousProviderRef.current.disconnect?.();
+          console.log(`[StorageContext] Alten Provider ${previousProviderRef.current.name} aufgeräumt`);
+        } catch (error) {
+          console.error('[StorageContext] Fehler beim Aufräumen des alten Providers:', error);
+        }
+      }
+
+      // Validierung des neuen Providers
+      try {
+        validateProvider(providerFromHook);
+        console.log(`[StorageContext] Provider ${providerFromHook.name} validiert`);
+      } catch (error) {
+        console.error('[StorageContext] Provider-Validierung fehlgeschlagen:', error);
+        setError(error instanceof Error ? error.message : 'Provider-Validierung fehlgeschlagen');
+        return;
+      }
+
+      // Provider aktualisieren
+      setIsProviderLoading(true);
       setProvider(providerFromHook);
-      setIsLoading(false);
+      previousProviderRef.current = providerFromHook;
+      setIsProviderLoading(false);
+      setLibraryStatus('ready');
     }
   }, [providerFromHook]);
 
-  // Aktuelle Bibliothek aktualisieren, wenn sich die aktive Bibliothek ändert
+  // Zusätzlicher Effect: Provider-Cache leeren bei Library-Wechsel
   useEffect(() => {
+    if (activeLibraryId && previousProviderRef.current && previousProviderRef.current.id !== activeLibraryId) {
+      console.log('[StorageContext] Aktive Bibliothek geändert, lösche alten Provider aus Cache', {
+        alteBibliothek: previousProviderRef.current.id,
+        neueBibliothek: activeLibraryId
+      });
+      
+      // Lösche den alten Provider aus dem Factory-Cache
+      const factory = StorageFactory.getInstance();
+      factory.clearProvider(previousProviderRef.current.id);
+    }
+  }, [activeLibraryId]);
+
+  // Provider-Validierung
+  const validateProvider = (provider: ExtendedStorageProvider) => {
+    if (!provider.listItemsById) {
+      throw new Error('Provider unterstützt keine Ordnerauflistung');
+    }
+    // Weitere Validierungen hier...
+  };
+
+  // Aktuelle Bibliothek aktualisieren, wenn sich die aktive Bibliothek oder die Bibliotheksliste ändert
+  useEffect(() => {
+    setLibraryStatus('loadingData');
     if (!activeLibraryId || libraries.length === 0) {
-      console.log('[StorageContext] Keine aktive Bibliothek oder keine verfügbaren Bibliotheken');
+      setCurrentLibrary(null);
+      setLibraryStatus('initializing');
       return;
     }
-
-    console.log(`[StorageContext] Aktive Bibliothek geändert: ${activeLibraryId}`);
-    
-    // Bibliothek finden
-    const selectedLibrary = libraries.find(lib => lib.id === activeLibraryId);
-    if (!selectedLibrary) {
-      console.error(`[StorageContext] Bibliothek mit ID ${activeLibraryId} nicht gefunden`);
-      return;
-    }
-
-    setCurrentLibrary(selectedLibrary);
+    const found = libraries.find(lib => lib.id === activeLibraryId) || null;
+    setCurrentLibrary(found);
+    setLibraryStatus('ready');
   }, [activeLibraryId, libraries]);
 
   // Bibliotheken aus der API laden
   useEffect(() => {
+    if (!isAuthLoaded || !isUserLoaded) return;
+    if (!isSignedIn) {
+      setError("Sie müssen angemeldet sein, um auf die Bibliothek zugreifen zu können.");
+      setIsLoading(false);
+      return;
+    }
+
+    const userEmail = user?.primaryEmailAddress?.emailAddress;
+    if (!userEmail) {
+      setError("Keine Benutzer-Email verfügbar");
+      setIsLoading(false);
+      return;
+    }
+
     console.log('[StorageContext] Lade Bibliotheken...');
     setIsLoading(true);
     
-    fetch('/api/libraries')
-      .then(res => {
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 Sekunde
+
+    const fetchLibraries = async () => {
+      try {
+        const res = await fetch(`/api/libraries?email=${encodeURIComponent(userEmail)}`);
         if (!res.ok) {
-          // Explizite Prüfung auf Fehler-Statuscodes
-          if (res.status === 404) {
-            throw new Error(`API-Endpunkt nicht gefunden (404). Bitte prüfen, ob '/api/libraries' existiert.`);
+          if (res.status === 404 && retryCount < maxRetries) {
+            console.log(`[StorageContext] API nicht verfügbar, versuche erneut (${retryCount + 1}/${maxRetries})...`);
+            retryCount++;
+            setTimeout(fetchLibraries, retryDelay);
+            return;
           }
-          throw new Error(`HTTP-Fehler: ${res.status}`);
+          throw new Error(res.status === 404 
+            ? `API-Endpunkt nicht gefunden (404). Bitte prüfen, ob '/api/libraries' existiert.`
+            : `HTTP-Fehler: ${res.status}`);
         }
-        return res.json();
-      })
-      .then(data => {
+
+        const data = await res.json();
         if (data && Array.isArray(data)) {
           console.log('[StorageContext] Bibliotheken geladen:', data.length);
           setLibraries(data);
-          
-          // Setze Libraries auch im globalen Atom
-          setLibrariesAtom(data);
           
           // Setze StorageFactory Libraries
           const factory = StorageFactory.getInstance();
@@ -155,233 +206,271 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             const storedLibraryId = localStorage.getItem('activeLibraryId');
             
             // Zusätzliche Validierung: Prüfe, ob die ID ein gültiges UUID-Format hat
-            // oder zumindest kein einfacher numerischer Wert ist
             const isValidUUID = storedLibraryId && 
-              storedLibraryId.length > 10 && // UUIDs sind länger als 10 Zeichen
-              isNaN(Number(storedLibraryId)); // Keine reine Zahl
+              storedLibraryId.length > 10 && 
+              isNaN(Number(storedLibraryId));
             
             // Prüfen, ob die gespeicherte ID existiert und gültig ist
             const validStoredId = isValidUUID && data.some(lib => lib.id === storedLibraryId);
             
             if (validStoredId) {
               console.log(`[StorageContext] Gespeicherte Bibliothek wird verwendet: ${storedLibraryId}`);
-              setActiveLibraryAtom(storedLibraryId);
+              setActiveLibraryId(storedLibraryId);
             } else {
-              // Log wenn ungültige ID gefunden wurde
               if (storedLibraryId && !isValidUUID) {
                 console.warn(`[StorageContext] Ungültige Library-ID im localStorage gefunden: "${storedLibraryId}" - wird bereinigt`);
                 localStorage.removeItem('activeLibraryId');
               }
               
-              // Verwende die erste verfügbare Bibliothek, wenn keine gültige gespeichert ist
               const firstLibId = data[0].id;
               console.log(`[StorageContext] Setze erste Bibliothek als aktiv: ${firstLibId}`);
-              setActiveLibraryAtom(firstLibId);
+              setActiveLibraryId(firstLibId);
               localStorage.setItem('activeLibraryId', firstLibId);
             }
           } else {
             console.warn('[StorageContext] Keine Bibliotheken verfügbar');
-            setActiveLibraryAtom("");
+            setActiveLibraryId("");
             localStorage.removeItem('activeLibraryId');
-            // Leeres Array im globalen Atom setzen
-            setLibrariesAtom([]);
+            setLibraries([]);
           }
         } else {
           console.error('[StorageContext] Ungültiges Format der Bibliotheksdaten:', data);
           setError('Fehler beim Laden der Bibliotheken: Ungültiges Format');
-          // Leeres Array im globalen Atom setzen
-          setLibrariesAtom([]);
+          setLibraries([]);
         }
-        setIsLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('[StorageContext] Fehler beim Laden der Bibliotheken:', err);
-        setError(`Fehler beim Laden der Bibliotheken: ${err.message}`);
-        setIsLoading(false);
-        
-        // Bei API-Fehlern die Anwendung in einen sicheren Zustand versetzen
-        setActiveLibraryAtom("");
-        localStorage.removeItem('activeLibraryId');
-        // Leeres Array im globalen Atom setzen
-        setLibrariesAtom([]);
-      });
-  }, [setActiveLibraryAtom, setLibrariesAtom]);
-
-  // Verzeichnisinhalte laden mit Caching
-  const listItems = useCallback(async (folderId: string): Promise<StorageItem[]> => {
-    // Aus Cache laden, wenn verfügbar
-    const cacheKey = `${activeLibraryId}:${folderId}`;
-    if (itemsCache.has(cacheKey)) {
-      console.log(`[StorageContext] Cache-Treffer für Ordner: ${folderId}`);
-      return itemsCache.get(cacheKey) || [];
-    }
-    
-    if (!provider) {
-      console.warn('[StorageContext] listItems: Provider nicht verfügbar');
-      return [];
-    }
-    
-    try {
-      console.log(`[StorageContext] Lade Items für Ordner: ${folderId}`);
-      setIsLoading(true);
-      const items = await provider.listItemsById(folderId);
-      
-      // Ergebnisse cachen
-      itemsCache.set(cacheKey, items);
-      
-      // Einzelne Items auch cachen
-      items.forEach(item => {
-        itemCache.set(`${activeLibraryId}:${item.id}`, item);
-      });
-      
-      return items;
-    } catch (error) {
-      console.error("[StorageContext] Fehler beim Auflisten:", error);
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  }, [provider, activeLibraryId]);
-  
-  // Items neu laden, Cache ignorieren
-  const refreshItems = useCallback(async (folderId: string): Promise<StorageItem[]> => {
-    if (!provider) {
-      console.warn('[StorageContext] refreshItems: Provider nicht verfügbar');
-      return [];
-    }
-    
-    try {
-      console.log(`[StorageContext] Aktualisiere Items für Ordner: ${folderId} und leere Cache`);
-      setIsLoading(true);
-      
-      // Cache für den Ordner explizit löschen, bevor neue Daten geladen werden
-      const cacheKey = `${activeLibraryId}:${folderId}`;
-      itemsCache.delete(cacheKey);
-      
-      // Auch alle item-Cache-Einträge für diesen Ordner löschen
-      // (wir wissen nicht, welche Items entfernt wurden)
-      const keysToDelete: string[] = [];
-      itemCache.forEach((_, key) => {
-        if (key.startsWith(`${activeLibraryId}:`)) {
-          keysToDelete.push(key);
+        if (retryCount < maxRetries) {
+          console.log(`[StorageContext] Fehler, versuche erneut (${retryCount + 1}/${maxRetries})...`);
+          retryCount++;
+          setTimeout(fetchLibraries, retryDelay);
+          return;
         }
-      });
-      keysToDelete.forEach(key => itemCache.delete(key));
-      
-      // Jetzt frische Daten holen - direkt vom Provider
-      const items = await provider.listItemsById(folderId);
-      
-      console.log(`[StorageContext] Ordnerinhalt aktualisiert: ${items.length} Items gefunden`);
-      
-      // Cache mit neuen Daten aktualisieren
-      itemsCache.set(cacheKey, items);
-      
-      // Einzelne Items auch neu cachen
-      items.forEach(item => {
-        itemCache.set(`${activeLibraryId}:${item.id}`, item);
-      });
-      
-      return items;
-    } catch (error) {
-      console.error("[StorageContext] Fehler beim Aktualisieren:", error);
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  }, [provider, activeLibraryId]);
-  
-  // Einzelnes Item abrufen mit Caching
-  const getItem = useCallback(async (itemId: string): Promise<StorageItem | null> => {
-    if (!provider) {
-      console.warn('[StorageContext] getItem: Provider nicht verfügbar');
-      return null;
-    }
-    
-    // Aus Cache laden, wenn verfügbar
-    const cacheKey = `${activeLibraryId}:${itemId}`;
-    if (itemCache.has(cacheKey)) {
-      console.log(`[StorageContext] Cache-Treffer für Item: ${itemId}`);
-      return itemCache.get(cacheKey) || null;
-    }
+        const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
+        setError(`Fehler beim Laden der Bibliotheken: ${errorMessage}`);
+      } finally {
+        if (retryCount >= maxRetries) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchLibraries();
+  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId]);
+
+  // Aktuelle Bibliothek aktualisieren
+  const refreshCurrentLibrary = async () => {
+    if (!currentLibrary || !provider) return;
     
     try {
-      console.log(`[StorageContext] Lade Item: ${itemId}`);
-      setIsLoading(true);
-      const item = await provider.getItemById(itemId);
-      
-      // Item cachen
-      itemCache.set(cacheKey, item);
-      
-      return item;
+      // Aktualisiere die Bibliothek durch Neuladen der Bibliotheken
+      await refreshLibraries();
     } catch (error) {
-      console.error("[StorageContext] Fehler beim Laden des Items:", error);
-      return null;
-    } finally {
-      setIsLoading(false);
+      console.error('[StorageContext] Fehler beim Aktualisieren der Bibliothek:', error);
     }
-  }, [provider, activeLibraryId]);
-  
-  // Pfad eines Items abrufen mit Caching
-  const getPath = useCallback(async (itemId: string): Promise<string> => {
-    if (!provider) {
-      console.warn('[StorageContext] getPath: Provider nicht verfügbar');
-      return '/';
-    }
-    
-    // Aus Cache laden, wenn verfügbar
-    const cacheKey = `${activeLibraryId}:path:${itemId}`;
-    if (pathCache.has(cacheKey)) {
-      console.log(`[StorageContext] Cache-Treffer für Pfad: ${itemId}`);
-      return pathCache.get(cacheKey) || '/';
-    }
-    
-    try {
-      console.log(`[StorageContext] Lade Pfad für: ${itemId}`);
-      const path = await provider.getPathById(itemId);
-      
-      // Pfad cachen
-      pathCache.set(cacheKey, path);
-      
-      return path;
-    } catch (error) {
-      console.error("[StorageContext] Fehler bei Pfadauflösung:", error);
-      return '/';
-    }
-  }, [provider, activeLibraryId]);
-  
-  // Context-Wert erstellen
-  const contextValue: StorageContextType = {
-    provider,
-    library: currentLibrary,
-    rootPath,
-    isLoading,
-    error,
-    
-    listItems,
-    getItem,
-    getPath,
-    refreshItems,
-    
-    invalidateCache
   };
-  
+
+  // Alle Bibliotheken aktualisieren
+  const refreshLibraries = async () => {
+    if (!user?.primaryEmailAddress?.emailAddress) return;
+    
+    try {
+      const res = await fetch(`/api/libraries?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`);
+      if (!res.ok) throw new Error(`HTTP-Fehler: ${res.status}`);
+      
+      const data = await res.json();
+      if (data && Array.isArray(data)) {
+        setLibraries(data);
+      }
+    } catch (error) {
+      console.error('[StorageContext] Fehler beim Aktualisieren der Bibliotheken:', error);
+    }
+  };
+
+  // Implementiere listItems und refreshItems
+  const listItems = async (folderId: string): Promise<StorageItem[]> => {
+    // Überprüfe, ob der Provider zur aktuellen Bibliothek passt
+    if (!provider || !currentLibrary) {
+      console.error('[StorageContext] Kein Provider oder keine aktuelle Bibliothek verfügbar für listItems');
+      return [];
+    }
+    
+    // Wichtig: Stelle sicher, dass der Provider zur aktuellen Bibliothek gehört
+    if (provider.id !== currentLibrary.id) {
+      console.warn('[StorageContext][listItems] Provider-ID stimmt nicht mit aktueller Bibliothek überein!', {
+        providerId: provider.id,
+        currentLibraryId: currentLibrary.id,
+        activeLibraryId
+      });
+      
+      // Versuche den korrekten Provider zu laden
+      try {
+        const factory = StorageFactory.getInstance();
+        const correctProvider = await factory.getProvider(currentLibrary.id);
+        console.log('[StorageContext][listItems] Korrekter Provider geladen:', correctProvider.name);
+        
+        // Verwende den korrekten Provider für diesen Aufruf
+        return await correctProvider.listItemsById(folderId);
+      } catch (error) {
+        console.error('[StorageContext][listItems] Fehler beim Laden des korrekten Providers:', error);
+        throw error;
+      }
+    }
+    
+    // Logging: Library-IDs vergleichen
+    setLastRequestedLibraryId(currentLibrary?.id || null);
+    console.log('[StorageContext][listItems] Aufruf:', {
+      requestedLibraryId: currentLibrary?.id,
+      activeLibraryId,
+      currentLibrary,
+      providerId: provider.id,
+      providerName: provider.name
+    });
+    try {
+      return await provider.listItemsById(folderId);
+    } catch (error) {
+      if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
+        setIsAuthRequired(true);
+        setAuthProvider(provider.name);
+        // Kein Logging für AUTH_REQUIRED
+      } else {
+        setIsAuthRequired(false);
+        setAuthProvider(null);
+        console.error('[StorageContext] Fehler beim Auflisten der Items:', error);
+      }
+      throw error;
+    }
+  };
+
+  const refreshItems = async (folderId: string): Promise<StorageItem[]> => {
+    // Überprüfe, ob der Provider zur aktuellen Bibliothek passt
+    if (!provider || !currentLibrary) {
+      console.error('[StorageContext] Kein Provider oder keine aktuelle Bibliothek verfügbar für refreshItems');
+      return [];
+    }
+    
+    // Wichtig: Stelle sicher, dass der Provider zur aktuellen Bibliothek gehört
+    if (provider.id !== currentLibrary.id) {
+      console.warn('[StorageContext][refreshItems] Provider-ID stimmt nicht mit aktueller Bibliothek überein!', {
+        providerId: provider.id,
+        currentLibraryId: currentLibrary.id,
+        activeLibraryId
+      });
+      
+      // Versuche den korrekten Provider zu laden
+      try {
+        const factory = StorageFactory.getInstance();
+        const correctProvider = await factory.getProvider(currentLibrary.id);
+        console.log('[StorageContext][refreshItems] Korrekter Provider geladen:', correctProvider.name);
+        
+        // Verwende den korrekten Provider für diesen Aufruf
+        return await correctProvider.listItemsById(folderId);
+      } catch (error) {
+        console.error('[StorageContext][refreshItems] Fehler beim Laden des korrekten Providers:', error);
+        throw error;
+      }
+    }
+    
+    setLastRequestedLibraryId(currentLibrary?.id || null);
+    console.log('[StorageContext][refreshItems] Aufruf:', {
+      requestedLibraryId: currentLibrary?.id,
+      activeLibraryId,
+      currentLibrary,
+      providerId: provider.id,
+      providerName: provider.name
+    });
+    try {
+      return await provider.listItemsById(folderId);
+    } catch (error) {
+      if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
+        setIsAuthRequired(true);
+        setAuthProvider(provider.name);
+      } else {
+        setIsAuthRequired(false);
+        setAuthProvider(null);
+        console.error('[StorageContext] Fehler beim Aktualisieren der Items:', error);
+      }
+      throw error;
+    }
+  };
+
+  // Context-Wert
+  const value = {
+    libraries,
+    currentLibrary,
+    isLoading: isLoading || isProviderLoading,
+    error,
+    provider,
+    refreshCurrentLibrary,
+    refreshLibraries,
+    listItems,
+    refreshItems,
+    isAuthRequired,
+    authProvider,
+    libraryStatus,
+    lastRequestedLibraryId
+  };
+
+  React.useEffect(() => {
+    // TEMP: Logging für Bibliotheks-Reload nach Redirect
+    // eslint-disable-next-line no-console
+    console.log('[StorageContext] useEffect: currentLibrary', currentLibrary);
+    if (currentLibrary) {
+      // TEMP: Logging für Token in Konfiguration
+      // eslint-disable-next-line no-console
+      console.log('[StorageContext] Bibliothek geladen. Token vorhanden:', !!currentLibrary.config?.accessToken, 'Config:', currentLibrary.config);
+      // TEMP: Logging für Provider-Status
+      if (provider) {
+        // eslint-disable-next-line no-console
+        console.log('[StorageContext] Provider geladen:', provider.name, 'AuthInfo:', provider.getAuthInfo?.());
+      }
+      
+      // Status-Logik: Nur OAuth-basierte Provider benötigen Authentifizierung
+      // Lokale Dateisystem-Bibliotheken sind immer "ready"
+      if (currentLibrary.type === 'local') {
+        setLibraryStatus('ready');
+        // eslint-disable-next-line no-console
+        console.log('[StorageContext] Lokale Bibliothek - Status auf "ready" gesetzt.');
+      } else if (currentLibrary.type === 'onedrive' || currentLibrary.type === 'gdrive') {
+        // OAuth-basierte Provider: Token vorhanden -> ready, sonst waitingForAuth
+        const hasToken = !!currentLibrary.config?.accessToken || !!currentLibrary.config?.refreshToken;
+        if (hasToken) {
+          setLibraryStatus('ready');
+          // eslint-disable-next-line no-console
+          console.log('[StorageContext] OAuth-Provider: Status auf "ready" gesetzt, Token vorhanden.');
+        } else {
+          setLibraryStatus('waitingForAuth');
+          // eslint-disable-next-line no-console
+          console.log('[StorageContext] OAuth-Provider: Status auf "waitingForAuth" gesetzt, kein Token.');
+        }
+      } else {
+        // Unbekannter Provider-Typ - sicherheitshalber auf ready setzen
+        setLibraryStatus('ready');
+        // eslint-disable-next-line no-console
+        console.log('[StorageContext] Unbekannter Provider-Typ, Status auf "ready" gesetzt.');
+      }
+    }
+  }, [currentLibrary, provider]);
+
+  // TEMP: Logging für API-Calls
+  React.useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('[StorageContext] API-Call ausgelöst. Aktueller Status:', libraryStatus);
+  }, [libraryStatus]);
+
+  useEffect(() => {
+    // Logging der Library-IDs im StorageContext
+    // eslint-disable-next-line no-console
+    console.log('[StorageContextProvider] Render:', {
+      activeLibraryId,
+      currentLibraryId: currentLibrary?.id,
+      providerId: provider?.id
+    });
+  }, [activeLibraryId, currentLibrary, provider]);
+
   return (
-    <StorageContext.Provider value={contextValue}>
+    <StorageContext.Provider value={value}>
       {children}
     </StorageContext.Provider>
   );
-}
-
-/**
- * Hook für den Zugriff auf den StorageContext.
- * Ermöglicht einfachen Zugriff in Komponenten.
- */
-export function useStorage() {
-  const context = useContext(StorageContext);
-  
-  if (context === undefined) {
-    throw new Error('useStorage muss innerhalb eines StorageContextProviders verwendet werden');
-  }
-  
-  return context;
-} 
+}; 

@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
+import { useAtomValue } from 'jotai';
+import { activeLibraryIdAtom } from '@/atoms/library-atom';
 
 interface FileListProps {
   items: StorageItem[]
@@ -213,7 +215,8 @@ export const FileList = React.memo(function FileList({
   searchTerm = "",
   onRefresh
 }: FileListProps) {
-  const { refreshItems } = useStorage();
+  const { refreshItems, currentLibrary } = useStorage();
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [sortField, setSortField] = React.useState<SortField>('name');
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('asc');
@@ -339,6 +342,15 @@ export const FileList = React.memo(function FileList({
     }
     onSelectAction(item);
   }, [onSelectAction, hasUnresolvedTemplate]);
+
+  React.useEffect(() => {
+    // Logging der Library-IDs
+    // eslint-disable-next-line no-console
+    console.log('[FileList] Render:', {
+      currentLibraryId: currentLibrary?.id,
+      activeLibraryIdAtom: activeLibraryId
+    });
+  }, [currentLibrary, activeLibraryId]);
 
   return (
     <div className="h-full overflow-auto">
