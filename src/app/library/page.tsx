@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { Library } from "@/components/library/library";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,18 +13,11 @@ import { useAtom } from "jotai";
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
 import { useSearchParams } from "next/navigation";
 
-export default function LibraryPage() {
-  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
-  const { user, isLoaded: isUserLoaded } = useUser();
+// Separate Client-Komponente für die URL-Parameter-Logik
+function LibraryUrlHandler() {
   const searchParams = useSearchParams();
-  
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [, setLibraries] = useAtom(librariesAtom);
   const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
-  const { toast } = useToast();
 
-  // Überprüfe URL-Parameter für activeLibraryId nach OneDrive-Redirect
   useEffect(() => {
     const urlLibraryId = searchParams.get('activeLibraryId');
     if (urlLibraryId) {
@@ -39,6 +32,18 @@ export default function LibraryPage() {
       window.history.replaceState({}, '', url.toString());
     }
   }, [searchParams, setActiveLibraryId]);
+
+  return null;
+}
+
+export default function LibraryPage() {
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const { user, isLoaded: isUserLoaded } = useUser();
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [, setLibraries] = useAtom(librariesAtom);
+  const { toast } = useToast();
 
   useEffect(() => {
     async function loadLibraries() {
@@ -124,6 +129,9 @@ export default function LibraryPage() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
+      <Suspense fallback={null}>
+        <LibraryUrlHandler />
+      </Suspense>
       <div className="flex-1">
         <Library />
       </div>
