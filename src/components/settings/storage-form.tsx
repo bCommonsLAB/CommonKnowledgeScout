@@ -8,8 +8,8 @@ import { useAtom, useAtomValue } from "jotai"
 import { useSearchParams } from "next/navigation"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Cloud, Database, FolderOpen, PlayCircle, CheckCircle, XCircle, Info, MoreHorizontal, ChevronDown } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Cloud, CheckCircle, Info } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { StorageProviderType, ClientLibrary } from "@/types/library"
+import { StorageProviderType } from "@/types/library"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Dialog,
@@ -36,19 +36,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
-import { StorageFactory } from "@/lib/storage/storage-factory"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+
 import { OneDriveProvider } from "@/lib/storage/onedrive-provider"
 import { Badge } from "@/components/ui/badge"
 
@@ -269,7 +258,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
   }, [searchParams, libraries, activeLibraryId, processedAuthParams, setLibraries]);
   
   // Formular absenden
-  const onSubmit = async (data: StorageFormValues) => {
+  const onSubmit = useCallback(async (data: StorageFormValues) => {
     if (!activeLibrary) {
       toast.error("Fehler", {
         description: "Keine Bibliothek ausgewählt.",
@@ -334,7 +323,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeLibrary, libraries, setLibraries]);
   
   // Funktion zum Starten der OneDrive-Authentifizierung
   const handleOneDriveAuth = useCallback(async () => {
@@ -449,7 +438,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
           const { value, done } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
-          let lines = buffer.split('\n');
+          const lines = buffer.split('\n');
           buffer = lines.pop() || '';
           for (const line of lines) {
             if (!line.trim()) continue;
