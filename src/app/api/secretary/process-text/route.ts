@@ -27,36 +27,55 @@ export async function POST(request: NextRequest) {
     // FormData aus dem Request holen
     const formData = await request.formData();
     const formDataKeys: string[] = [];
+    const formDataValues: Record<string, string> = {};
     formData.forEach((value, key) => {
       formDataKeys.push(key);
+      formDataValues[key] = typeof value === 'string' ? value.substring(0, 100) : String(value);
     });
     console.log('[process-text] FormData erhalten mit Feldern:', formDataKeys);
+    console.log('[process-text] FormData Werte:', formDataValues);
 
-    // JSON-Objekt für die Anfrage erstellen
-    const requestData: {
-      text: string;
-      target_language: string;
-      useCache: boolean;
-      template: string;
-      source_language?: string;
-    } = {
-      text: formData.get('text') as string,
-      target_language: formData.get('targetLanguage') as string,
-      useCache: false,
-      template: formData.get('template') as string
-    };
-
-    if (formData.has('sourceLanguage')) {
-      requestData.source_language = formData.get('sourceLanguage') as string;
+    // Text-Parameter validieren
+    const text = formData.get('text') as string;
+    if (!text || text.trim().length === 0) {
+      console.error('[process-text] Kein Text-Parameter gefunden oder Text ist leer');
+      return NextResponse.json(
+        { error: 'Text-Parameter fehlt oder ist leer' },
+        { status: 400 }
+      );
     }
+
+    const targetLanguage = formData.get('targetLanguage') as string || 'de';
+    const template = formData.get('template') as string || 'Besprechung';
+    const sourceLanguage = formData.get('sourceLanguage') as string;
+
+    console.log('[process-text] Request-Daten für Secretary Service:', {
+      textLength: text.length,
+      target_language: targetLanguage,
+      template: template,
+      source_language: sourceLanguage || 'nicht angegeben'
+    });
+
     const secretaryServiceUrl = env.SECRETARY_SERVICE_URL;
+    
+    // FormData für Secretary Service erstellen
+    const secretaryFormData = new FormData();
+    secretaryFormData.append('text', text);
+    secretaryFormData.append('target_language', targetLanguage);
+    secretaryFormData.append('template', template);
+    secretaryFormData.append('use_cache', 'false');
+    
+    if (sourceLanguage) {
+      secretaryFormData.append('source_language', sourceLanguage);
+    }
+    
     // Anfrage an den Secretary Service senden
     const response = await fetch(`${secretaryServiceUrl}/transformer/template`, {
       method: 'POST',
-      body: JSON.stringify(requestData),
+      body: secretaryFormData,
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+        'Accept': 'application/json'
+        // Content-Type wird automatisch gesetzt für FormData
       },
     });
 

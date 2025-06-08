@@ -37,41 +37,66 @@ export function TransformSaveOptions({
   defaultExtension = "md",
   className
 }: TransformSaveOptionsProps) {
-  const [options, setOptions] = React.useState<TransformSaveOptions>({
-    targetLanguage: defaultLanguage,
-    fileName: getBaseFileName(originalFileName),
-    createShadowTwin: true,
-    fileExtension: defaultExtension
-  });
-
   // Hilfsfunktion zum Extrahieren des Basisnamens ohne Erweiterung
   function getBaseFileName(fileName: string): string {
     const lastDotIndex = fileName.lastIndexOf(".");
     return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
   }
 
+  // Generiere Shadow-Twin Dateinamen nach Konvention: {originalname}.{targetLanguage}.md
+  function generateShadowTwinName(baseName: string, targetLanguage: string): string {
+    return `${baseName}.${targetLanguage}`;
+  }
+
+  const [options, setOptions] = React.useState<TransformSaveOptions>(() => {
+    const baseName = getBaseFileName(originalFileName);
+    return {
+      targetLanguage: defaultLanguage,
+      fileName: generateShadowTwinName(baseName, defaultLanguage),
+      createShadowTwin: true,
+      fileExtension: defaultExtension
+    };
+  });
+
   // Aktualisiert die Optionen und informiert den übergeordneten Component
   const updateOptions = React.useCallback((newOptions: Partial<TransformSaveOptions>) => {
     setOptions(prev => {
       const updated = { ...prev, ...newOptions };
+      
+      // Wenn sich die Zielsprache ändert und Shadow-Twin aktiviert ist, 
+      // aktualisiere den Dateinamen entsprechend
+      if (newOptions.targetLanguage && updated.createShadowTwin) {
+        const baseName = getBaseFileName(originalFileName);
+        updated.fileName = generateShadowTwinName(baseName, newOptions.targetLanguage);
+      }
+      
+      // Wenn Shadow-Twin aktiviert wird, generiere den korrekten Namen
+      if (newOptions.createShadowTwin === true) {
+        const baseName = getBaseFileName(originalFileName);
+        updated.fileName = generateShadowTwinName(baseName, updated.targetLanguage);
+      }
+      
       onOptionsChangeAction(updated);
       return updated;
     });
-  }, [onOptionsChangeAction]);
+  }, [onOptionsChangeAction, originalFileName]);
 
   // Effekt, um die Optionen bei Änderung des Originalnamens zu aktualisieren
   React.useEffect(() => {
-    // Verwenden wir eine Referenz, um zu prüfen, ob dies das erste Rendern ist
-    const fileName = getBaseFileName(originalFileName);
-    if (fileName !== options.fileName) {
+    const baseName = getBaseFileName(originalFileName);
+    const expectedFileName = options.createShadowTwin 
+      ? generateShadowTwinName(baseName, options.targetLanguage)
+      : baseName;
+      
+    if (expectedFileName !== options.fileName) {
       // Verzögere das Update auf den nächsten Tick, um den Rendering-Zyklus zu verlassen
       const timer = setTimeout(() => {
-        updateOptions({ fileName });
+        updateOptions({ fileName: expectedFileName });
       }, 0);
       
       return () => clearTimeout(timer);
     }
-  }, [originalFileName, updateOptions, options.fileName]);
+  }, [originalFileName, options.targetLanguage, options.createShadowTwin, updateOptions, options.fileName]);
 
   return (
     <Card className={className}>
@@ -102,6 +127,7 @@ export function TransformSaveOptions({
               <Select
                 value={options.fileExtension}
                 onValueChange={(value) => updateOptions({ fileExtension: value })}
+                disabled={options.createShadowTwin} // Deaktiviert wenn Shadow-Twin
               >
                 <SelectTrigger id="file-extension">
                   <SelectValue placeholder="Erweiterung wählen" />
@@ -121,7 +147,14 @@ export function TransformSaveOptions({
               id="file-name"
               value={options.fileName}
               onChange={(e) => updateOptions({ fileName: e.target.value })}
+              disabled={options.createShadowTwin} // Deaktiviert wenn Shadow-Twin
+              placeholder={options.createShadowTwin ? "Automatisch generiert" : "Dateiname eingeben"}
             />
+            {options.createShadowTwin && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Shadow-Twin Format: {getBaseFileName(originalFileName)}.{options.targetLanguage}.md
+              </p>
+            )}
           </div>
 
           <div className="flex items-center space-x-2">

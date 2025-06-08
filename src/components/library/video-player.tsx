@@ -1,23 +1,25 @@
 'use client';
 
 import { memo, useEffect, useRef, useState } from 'react';
-import { StorageItem } from '@/lib/storage/types';
+import { StorageItem, StorageProvider } from '@/lib/storage/types';
 import { VideoTransform } from './video-transform';
 import { Button } from '@/components/ui/button';
-import { Wand2 } from 'lucide-react';
-import { useAtomValue } from 'jotai';
-import { activeLibraryIdAtom } from '@/atoms/library-atom';
+import { Wand2, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface VideoPlayerProps {
   item: StorageItem;
+  provider: StorageProvider | null;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-export const VideoPlayer = memo(function VideoPlayer({ item, onRefreshFolder }: VideoPlayerProps) {
+export const VideoPlayer = memo(function VideoPlayer({ item, provider, onRefreshFolder }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showTransform, setShowTransform] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const lastProgressRef = useRef<{
     currentTime: number;
     readyState: number;
@@ -25,8 +27,51 @@ export const VideoPlayer = memo(function VideoPlayer({ item, onRefreshFolder }: 
     buffered: { start: number; end: number } | null;
   } | null>(null);
   
-  // Hole die aktive Bibliotheks-ID aus dem globalen Zustand
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  // Video-URL über Provider laden
+  useEffect(() => {
+    let objectUrl: string | null = null;
+
+    const loadVideo = async () => {
+      if (!provider) {
+        setError('Kein Storage Provider verfügbar');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Verwende die getBinary Methode des Providers
+        const { blob } = await provider.getBinary(item.id);
+        
+        // Erstelle eine Object URL für das Video
+        objectUrl = URL.createObjectURL(blob);
+        setVideoUrl(objectUrl);
+      } catch (err) {
+        console.error('[VideoPlayer] Fehler beim Laden der Video-Datei:', err);
+        setError(err instanceof Error ? err.message : 'Fehler beim Laden der Video-Datei');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadVideo();
+
+    // Cleanup: Object URL freigeben
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+      // Reset video element
+      const videoElement = videoRef.current;
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.removeAttribute('src');
+        videoElement.load();
+      }
+    };
+  }, [item.id, provider]);
 
   // Debug Logging
   useEffect(() => {
@@ -37,21 +82,6 @@ export const VideoPlayer = memo(function VideoPlayer({ item, onRefreshFolder }: 
         mimeType: item.metadata.mimeType
       });
     }
-
-    // Reset states when item changes
-    setError(null);
-    setIsLoading(true);
-
-    const videoElement = videoRef.current;
-
-    // Cleanup function
-    return () => {
-      if (videoElement) {
-        videoElement.pause();
-        videoElement.removeAttribute('src');
-        videoElement.load();
-      }
-    };
   }, [item]);
 
   const handleProgress = (e: React.SyntheticEvent<HTMLVideoElement>) => {
@@ -83,7 +113,6 @@ export const VideoPlayer = memo(function VideoPlayer({ item, onRefreshFolder }: 
 
   const handleLoadStart = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
-    setIsLoading(true);
     if (process.env.NODE_ENV === 'development') {
       console.log('[VideoPlayer] Load started:', {
         currentTime: video.currentTime,
@@ -105,7 +134,6 @@ export const VideoPlayer = memo(function VideoPlayer({ item, onRefreshFolder }: 
 
   const handleCanPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
-    setIsLoading(false);
     if (process.env.NODE_ENV === 'development') {
       console.log('[VideoPlayer] Can play:', {
         duration: video.duration,
@@ -136,7 +164,6 @@ export const VideoPlayer = memo(function VideoPlayer({ item, onRefreshFolder }: 
     }
 
     setError(errorMessage);
-    setIsLoading(false);
     
     if (process.env.NODE_ENV === 'development') {
       console.error('[VideoPlayer] Error:', {
@@ -150,7 +177,32 @@ export const VideoPlayer = memo(function VideoPlayer({ item, onRefreshFolder }: 
     }
   };
 
-  const videoUrl = `/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`;
+  if (error) {
+    return (
+      <div className="my-4 mx-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="my-4 mx-4 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!videoUrl) {
+    return (
+      <div className="my-4 mx-4 text-center text-muted-foreground">
+        Video konnte nicht geladen werden
+      </div>
+    );
+  }
 
   return (
     <div className="my-4 mx-4">
@@ -167,20 +219,10 @@ export const VideoPlayer = memo(function VideoPlayer({ item, onRefreshFolder }: 
           Verarbeiten
         </Button>
       </div>
-      {error && (
-        <div className="text-sm text-red-500 mb-2">
-          Fehler beim Laden der Video-Datei: {error}
-        </div>
-      )}
-      {isLoading && !error && (
-        <div className="text-sm text-muted-foreground mb-2">
-          Video-Datei wird geladen...
-        </div>
-      )}
       <video 
         ref={videoRef}
         controls 
-        className={`w-full ${isLoading ? 'opacity-50' : ''}`}
+        className="w-full"
         preload="metadata"
         onLoadStart={handleLoadStart}
         onLoadedMetadata={handleLoadedMetadata}
@@ -221,11 +263,12 @@ export const VideoPlayer = memo(function VideoPlayer({ item, onRefreshFolder }: 
     </div>
   );
 }, (prevProps, nextProps) => {
-  const shouldUpdate = prevProps.item.id !== nextProps.item.id;
+  const shouldUpdate = prevProps.item.id !== nextProps.item.id || prevProps.provider !== nextProps.provider;
   if (process.env.NODE_ENV === 'development') {
     console.log('[VideoPlayer] Memo comparison:', {
       prevId: prevProps.item.id,
       nextId: nextProps.item.id,
+      providerChanged: prevProps.provider !== nextProps.provider,
       shouldUpdate
     });
   }

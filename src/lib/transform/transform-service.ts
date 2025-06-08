@@ -154,6 +154,12 @@ export class TransformService {
     libraryId: string,
     template: string = "Besprechung"
   ): Promise<TransformResult> {
+    console.log('[TransformService] transformText aufgerufen mit:', {
+      originalItemName: originalItem.metadata.name,
+      options: options,
+      template: template
+    });
+    
     // Text wird transformiert
     const transformedText = await transformText(
       textContent,
@@ -195,15 +201,58 @@ export class TransformService {
     provider: StorageProvider,
     refreshItems: (folderId: string) => Promise<StorageItem[]>
   ): Promise<{ savedItem?: StorageItem; updatedItems: StorageItem[] }> {
+    console.log('[TransformService] saveTwinFile aufgerufen mit:', {
+      originalItemName: originalItem.metadata.name,
+      fileName: fileName,
+      fileExtension: fileExtension
+    });
+    
     // Dateiname ohne Erweiterung extrahieren
     const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
     
-    // Neuen Dateinamen erstellen
-    const newFileName = `${nameWithoutExtension}.${fileExtension}`;
+    // Hole aktuelle Dateien im Verzeichnis
+    const currentItems = await refreshItems(originalItem.parentId);
+    
+    // Funktion zum Generieren eines eindeutigen Dateinamens
+    const generateUniqueFileName = (baseName: string, extension: string): string => {
+      let counter = 0;
+      let candidateName = `${baseName}.${extension}`;
+      
+      // Prüfe ob der Name bereits existiert
+      while (currentItems.some(item => 
+        item.type === 'file' && 
+        item.metadata.name.toLowerCase() === candidateName.toLowerCase()
+      )) {
+        counter++;
+        // Füge Nummer in Klammern vor der letzten Erweiterung ein
+        // z.B. "analyzer todo.de.md" -> "analyzer todo(1).de.md"
+        const parts = baseName.split('.');
+        if (parts.length > 1) {
+          // Wenn es eine Spracherweiterung gibt (z.B. ".de")
+          const mainName = parts.slice(0, -1).join('.');
+          const langExtension = parts[parts.length - 1];
+          candidateName = `${mainName}(${counter}).${langExtension}.${extension}`;
+        } else {
+          // Normaler Fall ohne Spracherweiterung
+          candidateName = `${baseName}(${counter}).${extension}`;
+        }
+      }
+      
+      return candidateName;
+    };
+    
+    // Generiere eindeutigen Dateinamen
+    const uniqueFileName = generateUniqueFileName(nameWithoutExtension, fileExtension);
+    
+    console.log('[TransformService] Eindeutiger Dateiname generiert:', {
+      nameWithoutExtension: nameWithoutExtension,
+      uniqueFileName: uniqueFileName,
+      existingFiles: currentItems.filter(item => item.type === 'file').map(item => item.metadata.name)
+    });
     
     // Markdown-Datei erstellen und speichern
     const fileBlob = new Blob([content], { type: "text/markdown" });
-    const file = new File([fileBlob], newFileName, { type: "text/markdown" });
+    const file = new File([fileBlob], uniqueFileName, { type: "text/markdown" });
     
     // In dasselbe Verzeichnis wie die Originaldatei hochladen
     const savedItem = await provider.uploadFile(originalItem.parentId, file);

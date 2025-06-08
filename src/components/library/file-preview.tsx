@@ -14,7 +14,8 @@ import { activeLibraryIdAtom } from "@/atoms/library-atom";
 import { TextEditor } from './text-editor';
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { extractFrontmatter } from './markdown-metadata';
-import Image from "next/image";
+import { ImagePreview } from './image-preview';
+import { DocumentPreview } from './document-preview';
 
 interface FilePreviewProps {
   item: StorageItem | null;
@@ -180,20 +181,17 @@ function PreviewContent({
 
   switch (fileType) {
     case 'audio':
-      return <AudioPlayer item={item} onRefreshFolder={onRefreshFolder} />;
+      return <AudioPlayer item={item} provider={provider} onRefreshFolder={onRefreshFolder} />;
     case 'image':
       return (
-        <Image
-          src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
-          alt={item.metadata.name}
-          width={800}
-          height={600}
-          className="max-w-full h-auto"
-          style={{ objectFit: "contain" }}
+        <ImagePreview
+          item={item}
+          provider={provider}
+          activeLibraryId={activeLibraryId}
         />
       );
     case 'video':
-      return <VideoPlayer item={item} onRefreshFolder={onRefreshFolder} />;
+      return <VideoPlayer item={item} provider={provider} onRefreshFolder={onRefreshFolder} />;
     case 'markdown':
       return (
         <Tabs defaultValue="preview" value={activeTab} onValueChange={setActiveTab}>
@@ -241,10 +239,10 @@ function PreviewContent({
     case 'pptx':
     case 'presentation':
       return (
-        <iframe 
-          src={`/api/storage/filesystem?action=binary&fileId=${item.id}&libraryId=${activeLibraryId}`}
-          title={item.metadata.name}
-          className="w-full h-screen"
+        <DocumentPreview
+          item={item}
+          provider={provider}
+          activeLibraryId={activeLibraryId}
         />
       );
     case 'website':

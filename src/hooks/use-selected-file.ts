@@ -1,5 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
+import { useAtom } from 'jotai';
 import { StorageItem } from '@/lib/storage/types';
+import { 
+  selectedFileAtom, 
+  selectedFileBreadcrumbAtom, 
+  selectedFileMetadataAtom 
+} from '@/atoms/library-atom';
 
 // Hilfsfunktion für die Dateityp-Erkennung
 function getFileType(fileName: string): string {
@@ -36,17 +42,13 @@ function getFileType(fileName: string): string {
   }
 }
 
+// Re-export für Kompatibilität
 export interface SelectedFileState {
-  // Aktuelle Datei
   item: StorageItem | null;
-  
-  // Pfad zur Datei
   breadcrumb: {
     items: StorageItem[];
     currentId: string;
   };
-  
-  // Metadaten
   metadata: {
     name: string;
     size: number;
@@ -72,38 +74,45 @@ export interface UseSelectedFileReturn {
   fileName: string | null;
 }
 
-const initialState: SelectedFileState = {
-  item: null,
-  breadcrumb: {
-    items: [],
-    currentId: 'root'
-  },
-  metadata: null
-};
-
 export function useSelectedFile(): UseSelectedFileReturn {
-  const [selected, setSelected] = useState<SelectedFileState>(initialState);
+  // Verwende die globalen Atoms aus library-atom.ts
+  const [selectedItem, setSelectedItem] = useAtom(selectedFileAtom);
+  const [breadcrumb, setBreadcrumb] = useAtom(selectedFileBreadcrumbAtom);
+  const [metadata, setMetadata] = useAtom(selectedFileMetadataAtom);
+
+  // Kombiniere die States für die Rückgabe
+  const selected: SelectedFileState = {
+    item: selectedItem,
+    breadcrumb,
+    metadata
+  };
 
   // Datei auswählen
   const selectFile = useCallback((item: StorageItem | null) => {
+    console.log('[useSelectedFile] selectFile aufgerufen mit:', item ? item.metadata.name : 'null');
+    
     if (!item) {
-      setSelected(initialState);
+      setSelectedItem(null);
+      setMetadata(null);
       return;
     }
 
-    setSelected(prev => ({
-      ...prev,
-      item,
-      metadata: {
-        name: item.metadata.name,
-        size: item.metadata.size,
-        type: getFileType(item.metadata.name),
-        modified: new Date(item.metadata.modifiedAt),
-        created: new Date(item.metadata.modifiedAt),
-        transcriptionEnabled: item.metadata.transcriptionTwin !== undefined
-      }
-    }));
-  }, []);
+    setSelectedItem(item);
+    setMetadata({
+      name: item.metadata.name,
+      size: item.metadata.size,
+      type: getFileType(item.metadata.name),
+      modified: new Date(item.metadata.modifiedAt),
+      created: new Date(item.metadata.modifiedAt),
+      transcriptionEnabled: item.metadata.transcriptionTwin !== undefined
+    });
+    
+    console.log('[useSelectedFile] Datei ausgewählt:', {
+      name: item.metadata.name,
+      id: item.id,
+      type: item.type
+    });
+  }, [setSelectedItem, setMetadata]);
 
   // Breadcrumb aktualisieren
   const updateBreadcrumb = useCallback((items: StorageItem[], currentId: string) => {
@@ -115,50 +124,49 @@ export function useSelectedFile(): UseSelectedFileReturn {
     });
     
     // Nicht aktualisieren, wenn leere Items übergeben werden und wir uns nicht im Root-Verzeichnis befinden
-    // Dies verhindert, dass der Breadcrumb unbeabsichtigt zurückgesetzt wird
-    if (items.length === 0 && currentId !== 'root' && selected.breadcrumb.items.length > 0) {
+    if (items.length === 0 && currentId !== 'root' && breadcrumb.items.length > 0) {
       console.warn('useSelectedFile: Versuch, Breadcrumb mit leeren Items zu setzen wurde verhindert', {
         currentId,
-        existingItems: selected.breadcrumb.items.length
+        existingItems: breadcrumb.items.length
       });
       return;
     }
     
-    setSelected(prev => {
-      // Wenn der Breadcrumb identisch ist, keine Aktualisierung durchführen
-      if (prev.breadcrumb.currentId === currentId && 
-          prev.breadcrumb.items.length === items.length && 
-          JSON.stringify(prev.breadcrumb.items.map(i => i.id)) === JSON.stringify(items.map(i => i.id))) {
-        console.log('useSelectedFile: Breadcrumb unverändert, keine Aktualisierung');
-        return prev;
-      }
-      
-      console.log('useSelectedFile: Breadcrumb aktualisiert', {
-        prevItems: prev.breadcrumb.items.length,
-        newItems: items.length,
-        prevId: prev.breadcrumb.currentId,
-        newId: currentId
-      });
-      
-      return {
-        ...prev,
-        breadcrumb: {
-          items,
-          currentId
-        }
-      };
+    // Wenn der Breadcrumb identisch ist, keine Aktualisierung durchführen
+    if (breadcrumb.currentId === currentId && 
+        breadcrumb.items.length === items.length && 
+        JSON.stringify(breadcrumb.items.map(i => i.id)) === JSON.stringify(items.map(i => i.id))) {
+      console.log('useSelectedFile: Breadcrumb unverändert, keine Aktualisierung');
+      return;
+    }
+    
+    console.log('useSelectedFile: Breadcrumb aktualisiert', {
+      prevItems: breadcrumb.items.length,
+      newItems: items.length,
+      prevId: breadcrumb.currentId,
+      newId: currentId
     });
-  }, [selected.breadcrumb.items]);
+    
+    setBreadcrumb({
+      items,
+      currentId
+    });
+  }, [breadcrumb, setBreadcrumb]);
 
   // Auswahl zurücksetzen
   const clearSelection = useCallback(() => {
-    setSelected(initialState);
-  }, []);
+    setSelectedItem(null);
+    setMetadata(null);
+    setBreadcrumb({
+      items: [],
+      currentId: 'root'
+    });
+  }, [setSelectedItem, setMetadata, setBreadcrumb]);
 
   // Computed values
-  const isSelected = selected.item !== null;
-  const parentId = selected.item?.parentId || null;
-  const fileName = selected.item?.metadata.name || null;
+  const isSelected = selectedItem !== null;
+  const parentId = selectedItem?.parentId || null;
+  const fileName = selectedItem?.metadata.name || null;
 
   return {
     // State

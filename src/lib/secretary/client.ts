@@ -71,11 +71,24 @@ export async function transformText(
 ): Promise<string> {
   try {
     console.log('[secretary/client] transformText aufgerufen mit Sprache:', targetLanguage, 'und Template:', template);
+    console.log('[secretary/client] Text-Länge:', textContent?.length || 0);
+    console.log('[secretary/client] Text-Vorschau:', textContent?.substring(0, 100) || 'KEIN TEXT');
+    
+    if (!textContent || textContent.trim().length === 0) {
+      throw new SecretaryServiceError('Kein Text zum Transformieren vorhanden');
+    }
     
     const formData = new FormData();
     formData.append('text', textContent);
     formData.append('targetLanguage', targetLanguage);
     formData.append('template', template);
+    
+    // Debug: FormData-Inhalt prüfen
+    console.log('[secretary/client] FormData erstellt mit:', {
+      text: formData.get('text') ? 'vorhanden' : 'fehlt',
+      targetLanguage: formData.get('targetLanguage'),
+      template: formData.get('template')
+    });
     
     // Angepasste Header für den Secretary Service
     const customHeaders: HeadersInit = {};

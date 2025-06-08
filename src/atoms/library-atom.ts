@@ -62,6 +62,28 @@ export const currentFolderIdAtom = atom(
 // Atom für Breadcrumb-Pfad-Informationen
 export const breadcrumbItemsAtom = atom<StorageItem[]>([])
 
+// Atom für die ausgewählte Datei
+export const selectedFileAtom = atom<StorageItem | null>(null)
+
+// Kombiniertes Atom für Breadcrumb der ausgewählten Datei
+export const selectedFileBreadcrumbAtom = atom<{
+  items: StorageItem[];
+  currentId: string;
+}>({
+  items: [],
+  currentId: 'root'
+})
+
+// Metadaten der ausgewählten Datei
+export const selectedFileMetadataAtom = atom<{
+  name: string;
+  size: number;
+  type: string;
+  modified: Date;
+  created: Date;
+  transcriptionEnabled?: boolean;
+} | null>(null)
+
 // Schreibgeschütztes Atom für Breadcrumb-Items
 export const readBreadcrumbItemsAtom = atom(
   get => get(breadcrumbItemsAtom)

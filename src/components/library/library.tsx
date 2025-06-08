@@ -7,6 +7,8 @@ import { useAtom } from "jotai"
 import { LibraryHeader } from "./library-header"
 import { FileTree } from "./file-tree"
 import { FileList } from "./file-list"
+import { FilePreview } from "./file-preview"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ClientLibrary } from "@/types/library"
 import { StorageItem } from "@/lib/storage/types"
 import { useSelectedFile } from "@/hooks/use-selected-file"
@@ -395,7 +397,7 @@ export function Library() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden" data-active-library-id={globalActiveLibraryId}>
       <LibraryHeader 
         activeLibrary={currentLibrary}
         onFolderSelect={handleFolderSelect}
@@ -413,12 +415,55 @@ export function Library() {
           onSelectAction={handleFolderSelect}
           libraryName={currentLibrary?.label}
         />
-        <FileList
-          items={folderItems}
-          selectedItem={selected.item}
-          onSelectAction={selectFile}
-          searchTerm={searchQuery}
-        />
+        <ResizablePanelGroup direction="horizontal">
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <FileList
+              items={folderItems}
+              selectedItem={selected.item}
+              onSelectAction={selectFile}
+              searchTerm={searchQuery}
+              onRefresh={(folderId, items) => {
+                // Aktualisiere die Dateiliste nach einem Refresh
+                setFolderItems(items);
+                // Optional: Cache aktualisieren
+                if (folderCache.has(folderId)) {
+                  const cachedFolder = folderCache.get(folderId);
+                  if (cachedFolder) {
+                    folderCache.set(folderId, {
+                      ...cachedFolder,
+                      children: items
+                    });
+                  }
+                }
+              }}
+            />
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <FilePreview
+              item={selected.item}
+              provider={providerInstance}
+              onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
+                // Aktualisiere die Dateiliste nach einer Bearbeitung
+                setFolderItems(items);
+                // Aktualisiere den Cache
+                if (folderCache.has(folderId)) {
+                  const cachedFolder = folderCache.get(folderId);
+                  if (cachedFolder) {
+                    folderCache.set(folderId, {
+                      ...cachedFolder,
+                      children: items
+                    });
+                  }
+                }
+                // Wähle die Datei nach dem Refresh aus, falls angegeben
+                if (selectFileAfterRefresh) {
+                  selectFile(selectFileAfterRefresh);
+                }
+              }}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
       <div className="absolute bottom-4 right-4">
         <DebugPanel />

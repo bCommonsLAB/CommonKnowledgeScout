@@ -47,26 +47,86 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   const [isLoading, setIsLoading] = React.useState(false);
   const [template, setTemplate] = React.useState("Besprechung");
   
+  // Debug-Logging für Text
+  React.useEffect(() => {
+    console.log('[TextTransform] Component mounted/updated:', {
+      contentLength: content?.length || 0,
+      textLength: text?.length || 0,
+      contentPreview: content?.substring(0, 50) || 'KEIN CONTENT',
+      textPreview: text?.substring(0, 50) || 'KEIN TEXT'
+    });
+  }, [content, text]);
+  
   // Hilfsfunktion für den Dateinamen
   const getBaseFileName = React.useCallback((fileName: string): string => {
     const lastDotIndex = fileName.lastIndexOf(".");
     return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
   }, []);
   
-  // Initialisiere saveOptions mit korrektem Dateinamen
+  // Generiere Shadow-Twin Dateinamen nach Konvention
+  const generateShadowTwinName = React.useCallback((baseName: string, targetLanguage: string): string => {
+    return `${baseName}.${targetLanguage}`;
+  }, []);
+  
+  // Initialisiere saveOptions mit korrektem Shadow-Twin Namen
   const [saveOptions, setSaveOptions] = React.useState<TransformSaveOptions>(() => {
+    const baseName = currentItem?.metadata.name 
+      ? getBaseFileName(currentItem.metadata.name) 
+      : "transformation";
+    const targetLang = "de";
+    
     return {
-      targetLanguage: "de",
-      fileName: currentItem?.metadata.name 
-        ? getBaseFileName(currentItem.metadata.name) 
-        : "transformation",
+      targetLanguage: targetLang,
+      fileName: generateShadowTwinName(baseName, targetLang),
       createShadowTwin: true,
       fileExtension: "md"
     };
   });
   
+  // Debug-Logging für saveOptions
+  React.useEffect(() => {
+    console.log('[TextTransform] saveOptions:', {
+      targetLanguage: saveOptions.targetLanguage,
+      fileName: saveOptions.fileName,
+      createShadowTwin: saveOptions.createShadowTwin,
+      fileExtension: saveOptions.fileExtension,
+      originalFileName: currentItem?.metadata.name
+    });
+  }, [saveOptions, currentItem]);
+  
+  // Aktualisiere saveOptions wenn sich currentItem ändert
+  React.useEffect(() => {
+    if (currentItem?.metadata.name) {
+      const baseName = getBaseFileName(currentItem.metadata.name);
+      const newFileName = generateShadowTwinName(baseName, saveOptions.targetLanguage);
+      
+      if (newFileName !== saveOptions.fileName && saveOptions.createShadowTwin) {
+        console.log('[TextTransform] Aktualisiere fileName wegen currentItem Änderung:', {
+          alt: saveOptions.fileName,
+          neu: newFileName
+        });
+        
+        setSaveOptions(prev => ({
+          ...prev,
+          fileName: newFileName
+        }));
+      }
+    }
+  }, [currentItem, saveOptions.targetLanguage, saveOptions.createShadowTwin, getBaseFileName, generateShadowTwinName]);
+  
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const { refreshItems } = useStorage();
+
+  // Debug-Logging für activeLibrary
+  React.useEffect(() => {
+    console.log('[TextTransform] activeLibrary:', {
+      exists: !!activeLibrary,
+      id: activeLibrary?.id,
+      hasConfig: !!activeLibrary?.config,
+      hasSecretaryService: !!activeLibrary?.config?.secretaryService,
+      secretaryServiceConfig: activeLibrary?.config?.secretaryService
+    });
+  }, [activeLibrary]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
@@ -76,6 +136,16 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   const transformResultHandlerRef = React.useRef<(result: TransformResult) => void>(() => {});
   
   const handleTransformClick = async () => {
+    console.log('[TextTransform] handleTransformClick aufgerufen, Text-Länge:', text?.length || 0);
+    
+    if (!text || text.trim().length === 0) {
+      toast.error("Fehler", {
+        description: "Bitte geben Sie einen Text zum Transformieren ein",
+        duration: 7000
+      });
+      return;
+    }
+    
     if (!provider || !currentItem) {
       toast.error("Fehler", {
         description: "Provider oder Datei nicht verfügbar",
@@ -84,15 +154,17 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
       return;
     }
     
-    if (!activeLibrary?.config.secretaryService || 
-        !activeLibrary.config.secretaryService.apiUrl || 
-        !activeLibrary.config.secretaryService.apiKey) {
+    if (!activeLibrary) {
       toast.error("Fehler", {
-        description: "Secretary Service API URL oder API Key nicht konfiguriert",
+        description: "Keine aktive Bibliothek gefunden",
         duration: 7000
       });
       return;
     }
+
+    // Für Text-Transformation brauchen wir keine Secretary Service Konfiguration zu prüfen,
+    // da die API Route die Konfiguration aus der Datenbank lädt
+    console.log('[TextTransform] Starte Text-Transformation für Bibliothek:', activeLibrary.id);
 
     setIsLoading(true);
     try {
@@ -140,6 +212,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   };
 
   const handleSaveOptionsChange = (options: TransformSaveOptions) => {
+    console.log('[TextTransform] handleSaveOptionsChange aufgerufen mit:', options);
     setSaveOptions(options);
   };
 
