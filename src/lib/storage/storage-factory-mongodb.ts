@@ -69,6 +69,20 @@ class LocalStorageProvider implements StorageProvider {
     }
   }
 
+  async renameItem(itemId: string, newName: string): Promise<StorageItem> {
+    const response = await fetch(`/api/storage/filesystem?action=rename&fileId=${itemId}&libraryId=${this.library.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: newName }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to rename item');
+    }
+    return response.json();
+  }
+
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
     console.log('Preparing upload:', {
       parentId,

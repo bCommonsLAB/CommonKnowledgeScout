@@ -123,6 +123,14 @@ export interface StorageProvider {
   moveItem(itemId: string, newParentId: string): Promise<void>;
   
   /**
+   * Renames an item.
+   * @param itemId - ID of the item to rename
+   * @param newName - New name for the item
+   * @returns The updated storage item
+   */
+  renameItem(itemId: string, newName: string): Promise<StorageItem>;
+  
+  /**
    * Uploads a file to a folder.
    * @param parentId - ID of the parent folder
    * @param file - File to upload

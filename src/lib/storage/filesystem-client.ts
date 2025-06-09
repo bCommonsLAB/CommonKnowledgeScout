@@ -125,6 +125,17 @@ export class FileSystemClient implements StorageProvider {
     await this.fetchWithError(url, { method: 'PATCH' });
   }
 
+  async renameItem(itemId: string, newName: string): Promise<StorageItem> {
+    this.invalidateCache();
+    const url = `${this.baseUrl}?action=rename&fileId=${encodeURIComponent(itemId)}`;
+    const response = await this.fetchWithError(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    });
+    return response.json();
+  }
+
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
     this.invalidateCache();
     const url = `${this.baseUrl}?action=upload&fileId=${encodeURIComponent(parentId)}`;

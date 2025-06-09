@@ -275,6 +275,38 @@ export class FileSystemProvider implements StorageProvider {
     await fs.rename(sourcePath, targetPath);
   }
 
+  async renameItem(itemId: string, newName: string): Promise<StorageItem> {
+    const sourcePath = await this.findPathById(itemId);
+    const parentPath = path.dirname(sourcePath);
+    const targetPath = path.join(parentPath, newName);
+    
+    // Prüfe ob Zieldatei bereits existiert
+    try {
+      await fs.access(targetPath);
+      throw new StorageError(
+        `Eine Datei mit dem Namen "${newName}" existiert bereits`,
+        'FILE_EXISTS',
+        this.id
+      );
+    } catch (error) {
+      // Wenn die Datei nicht existiert, ist das gut - wir können fortfahren
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+    
+    // Entferne alte Einträge aus dem Cache
+    this.idCache.delete(sourcePath);
+    this.pathCache.delete(itemId);
+    
+    // Führe die Umbenennung durch
+    await fs.rename(sourcePath, targetPath);
+    
+    // Hole die neuen Stats und generiere das aktualisierte StorageItem
+    const stats = await fs.stat(targetPath);
+    return this.statsToStorageItem(targetPath, stats);
+  }
+
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
     const parentPath = await this.findPathById(parentId);
     const filePath = path.join(parentPath, file.name);

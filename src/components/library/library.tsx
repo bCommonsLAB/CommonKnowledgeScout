@@ -179,7 +179,7 @@ export function Library() {
   }, [pathCache, providerInstance]);
 
   // Optimierter Items Load mit Caching - jetzt mit StorageContext
-  const loadItems = useCallback(async () => {
+  const loadItems = useCallback(async (forceRefresh = false) => {
     if (!providerInstance) {
       console.log('Library: loadItems skipped - no provider instance');
       return;
@@ -188,11 +188,12 @@ export function Library() {
     console.log('Library: Starting loadItems', {
       currentFolderId,
       hasCachedItems: !!folderCache.get(currentFolderId)?.children,
+      forceRefresh
     });
 
     try {
-      // Prüfe Cache
-      const cachedItems = folderCache.get(currentFolderId)?.children;
+      // Prüfe Cache nur wenn kein forceRefresh
+      const cachedItems = !forceRefresh ? folderCache.get(currentFolderId)?.children : null;
       if (cachedItems) {
         console.log('Library: Using cached items', {
           itemCount: cachedItems.length,
@@ -248,6 +249,20 @@ export function Library() {
             children: items
           });
         }
+      } else {
+        // Bei Root auch den Cache aktualisieren
+        folderCache.set('root', {
+          id: 'root',
+          type: 'folder',
+          metadata: {
+            name: 'Root',
+            size: 0,
+            modifiedAt: new Date(),
+            mimeType: 'folder'
+          },
+          parentId: '',
+          children: items
+        });
       }
       
       // Resolve path and update breadcrumb along with items
@@ -397,7 +412,7 @@ export function Library() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden" data-active-library-id={globalActiveLibraryId}>
+    <div className="flex flex-col h-full" data-active-library-id={globalActiveLibraryId}>
       <LibraryHeader 
         activeLibrary={currentLibrary}
         onFolderSelect={handleFolderSelect}
@@ -409,14 +424,19 @@ export function Library() {
         provider={providerInstance}
         error={storageError}
       />
-      <div className="flex flex-1 overflow-hidden">
-        <FileTree
-          provider={providerInstance}
-          onSelectAction={handleFolderSelect}
-          libraryName={currentLibrary?.label}
-        />
-        <ResizablePanelGroup direction="horizontal">
-          <ResizablePanel defaultSize={50} minSize={30}>
+      <div className="flex flex-1 min-h-0">
+        <div className="w-64 border-r flex flex-col">
+          <div className="flex-1 relative">
+            <FileTree
+              provider={providerInstance}
+              onSelectAction={handleFolderSelect}
+              libraryName={currentLibrary?.label}
+              onRefreshItems={() => loadItems(true)}
+            />
+          </div>
+        </div>
+        <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+          <ResizablePanel defaultSize={50} minSize={30} className="relative">
             <FileList
               items={folderItems}
               selectedItem={selected.item}
@@ -439,10 +459,11 @@ export function Library() {
             />
           </ResizablePanel>
           <ResizableHandle />
-          <ResizablePanel defaultSize={50} minSize={30}>
+          <ResizablePanel defaultSize={50} minSize={30} className="relative">
             <FilePreview
               item={selected.item}
               provider={providerInstance}
+              className="h-full"
               onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
                 // Aktualisiere die Dateiliste nach einer Bearbeitung
                 setFolderItems(items);
@@ -464,6 +485,19 @@ export function Library() {
             />
           </ResizablePanel>
         </ResizablePanelGroup>
+      </div>
+      {/* Footer zur besseren Visualisierung der Layout-Struktur */}
+      <div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <span>Bibliothek: {currentLibrary?.label || 'Keine ausgewählt'}</span>
+          <span>•</span>
+          <span>Dateien: {folderItems.filter(item => item.type === 'file').length}</span>
+          <span>•</span>
+          <span>Ordner: {folderItems.filter(item => item.type === 'folder').length}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span>Aktueller Pfad: {currentFolderId === 'root' ? '/' : selected.breadcrumb.items.map(item => item.metadata.name).join('/')}</span>
+        </div>
       </div>
       <div className="absolute bottom-4 right-4">
         <DebugPanel />

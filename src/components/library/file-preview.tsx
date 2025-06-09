@@ -17,6 +17,10 @@ import { extractFrontmatter } from './markdown-metadata';
 import { ImagePreview } from './image-preview';
 import { DocumentPreview } from './document-preview';
 
+// Explizite React-Komponenten-Deklarationen für den Linter
+const ImagePreviewComponent = ImagePreview;
+const DocumentPreviewComponent = DocumentPreview;
+
 interface FilePreviewProps {
   item: StorageItem | null;
   className?: string;
@@ -184,7 +188,7 @@ function PreviewContent({
       return <AudioPlayer item={item} provider={provider} onRefreshFolder={onRefreshFolder} />;
     case 'image':
       return (
-        <ImagePreview
+        <ImagePreviewComponent
           item={item}
           provider={provider}
           activeLibraryId={activeLibraryId}
@@ -194,22 +198,23 @@ function PreviewContent({
       return <VideoPlayer item={item} provider={provider} onRefreshFolder={onRefreshFolder} />;
     case 'markdown':
       return (
-        <Tabs defaultValue="preview" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mx-4 mt-2">
+        <Tabs defaultValue="preview" value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+          <TabsList className="mx-4 mt-2 flex-shrink-0">
             <TabsTrigger value="preview">Vorschau</TabsTrigger>
             <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
           </TabsList>
-          <TabsContent value="preview">
+          <TabsContent value="preview" className="flex-1 overflow-hidden">
             <MarkdownPreview 
               content={content}
               currentFolderId={item.parentId}
               provider={provider}
               currentItem={item}
+              className="h-full"
               onTransform={() => setActiveTab("edit")}
               onRefreshFolder={onRefreshFolder}
             />
           </TabsContent>
-          <TabsContent value="edit">
+          <TabsContent value="edit" className="flex-1 overflow-hidden">
             <TextEditor 
               content={content}
               provider={provider}
@@ -239,7 +244,7 @@ function PreviewContent({
     case 'pptx':
     case 'presentation':
       return (
-        <DocumentPreview
+        <DocumentPreviewComponent
           item={item}
           provider={provider}
           activeLibraryId={activeLibraryId}
@@ -335,14 +340,14 @@ export function FilePreview({
 
   if (!item) {
     return (
-      <div className={cn("flex items-start justify-center h-full", className)}>
+      <div className={cn("absolute inset-0 flex items-center justify-center", className)}>
         <p className="text-muted-foreground">Keine Datei ausgewählt</p>
       </div>
     );
   }
 
   return (
-    <div className={cn("h-full", className)}>
+    <div className={cn("absolute inset-0", className)}>
       <ContentLoader
         item={item}
         provider={provider}

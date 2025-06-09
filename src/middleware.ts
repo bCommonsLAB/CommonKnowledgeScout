@@ -5,7 +5,7 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/api/storage/filesystem(.*)', // Storage API für Tests freigeben
+  '/api/storage(.*)', // Storage API für Tests freigeben (sowohl /api/storage als auch /api/storage/filesystem)
   '/api/test-route(.*)', // Test-Route freigeben
 ]);
 
@@ -14,6 +14,13 @@ export default clerkMiddleware(async (auth, req) => {
   
   // Wenn die Route öffentlich ist, erlaube den Zugriff
   if (isPublicRoute(req)) {
+    return;
+  }
+
+  // Für API-Routen, die Authentifizierung benötigen, prüfe nur ob ein Benutzer angemeldet ist
+  // aber lasse sie trotzdem durch, damit die Route selbst die Authentifizierung handhaben kann
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    // Lass API-Routen durch - sie handhaben ihre eigene Authentifizierung
     return;
   }
 

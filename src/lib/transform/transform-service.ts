@@ -1,5 +1,5 @@
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
-import { transformAudio, transformText, transformVideo } from "@/lib/secretary/client";
+import { transformAudio, transformText, transformVideo, SecretaryAudioResponse } from "@/lib/secretary/client";
 
 export interface TransformSaveOptions {
   targetLanguage: string;
@@ -24,6 +24,42 @@ export interface VideoTransformOptions extends TransformSaveOptions {
 
 export interface VideoTransformResult extends TransformResult {
   frames?: { url: string; timestamp: number }[];
+}
+
+/**
+ * Typ für die Metadaten, die im Frontmatter gespeichert werden
+ */
+interface TransformMetadata {
+  // Quelldatei-Informationen
+  source_file?: string;
+  source_file_id?: string;
+  source_file_size?: number;
+  source_file_type?: string;
+  
+  // Transformations-Informationen
+  source_language?: string;
+  target_language?: string;
+  
+  // Audio-Metadaten
+  audio_duration?: number;
+  audio_format?: string;
+  audio_channels?: number;
+  audio_sample_rate?: number;
+  audio_bit_rate?: number;
+  
+  // Prozess-Informationen
+  process_id?: string;
+  processor?: string;
+  processing_duration_ms?: number;
+  model_used?: string;
+  tokens_used?: number;
+  
+  // Secretary Service Informationen
+  cache_used?: boolean;
+  cache_key?: string;
+  
+  // Weitere Felder können hinzugefügt werden
+  [key: string]: string | number | boolean | undefined;
 }
 
 /**
@@ -54,13 +90,67 @@ export class TransformService {
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
     libraryId: string
   ): Promise<TransformResult> {
-    // Audio-Datei wird transformiert
-    const transformedText = await transformAudio(file, options.targetLanguage, libraryId);
+    // Audio-Datei wird transformiert - hole die vollständige Response
+    const response = await transformAudio(file, options.targetLanguage, libraryId);
+    
+    // Extrahiere den Text aus der Response
+    let transformedText = '';
+    let metadata: TransformMetadata = {};
+    
+    if (typeof response === 'string') {
+      // Falls die Response nur ein String ist (alte API)
+      transformedText = response;
+    } else if (response && 'data' in response && response.data && response.data.transcription) {
+      // Neue API mit vollständigen Metadaten
+      const audioResponse = response as SecretaryAudioResponse;
+      transformedText = audioResponse.data.transcription.text;
+      
+      // Sammle relevante Metadaten
+      metadata = {
+        // Quelldatei-Informationen
+        source_file: originalItem.metadata.name,
+        source_file_id: originalItem.id,
+        source_file_size: originalItem.metadata.size,
+        source_file_type: originalItem.metadata.mimeType,
+        
+        // Transformations-Informationen
+        source_language: audioResponse.data.transcription.source_language || options.targetLanguage,
+        target_language: options.targetLanguage,
+        
+        // Audio-Metadaten (falls vorhanden)
+        audio_duration: audioResponse.data.metadata?.duration,
+        audio_format: audioResponse.data.metadata?.format,
+        audio_channels: audioResponse.data.metadata?.channels,
+        audio_sample_rate: audioResponse.data.metadata?.sample_rate,
+        audio_bit_rate: audioResponse.data.metadata?.bit_rate,
+        
+        // Prozess-Informationen
+        process_id: audioResponse.process?.id,
+        processor: audioResponse.process?.main_processor,
+        processing_duration_ms: audioResponse.process?.llm_info?.total_duration,
+        model_used: audioResponse.process?.llm_info?.requests?.[0]?.model,
+        tokens_used: audioResponse.process?.llm_info?.total_tokens,
+        
+        // Secretary Service Informationen
+        cache_used: audioResponse.process?.is_from_cache || false,
+        cache_key: audioResponse.process?.cache_key
+      };
+      
+      // Entferne undefined-Werte
+      Object.keys(metadata).forEach(key => {
+        if (metadata[key] === undefined || metadata[key] === null) {
+          delete metadata[key];
+        }
+      });
+    }
+    
+    // Erstelle Markdown-Inhalt mit Frontmatter
+    const markdownContent = TransformService.createMarkdownWithFrontmatter(transformedText, metadata);
     
     // Ergebnis wird gespeichert, wenn gewünscht
     if (options.createShadowTwin) {
       const result = await TransformService.saveTwinFile(
-        transformedText,
+        markdownContent,
         originalItem,
         options.fileName,
         options.fileExtension,
@@ -69,7 +159,7 @@ export class TransformService {
       );
       
       return {
-        text: transformedText,
+        text: transformedText, // Gebe nur den Text zurück, nicht das Markdown mit Frontmatter
         savedItem: result.savedItem,
         updatedItems: result.updatedItems
       };
@@ -207,8 +297,9 @@ export class TransformService {
       fileExtension: fileExtension
     });
     
-    // Dateiname ohne Erweiterung extrahieren
-    const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
+    // fileName enthält bereits das Sprachkürzel (z.B. "interview.de")
+    // Wir verwenden es direkt als Basis für den Dateinamen
+    const baseNameWithLanguage = fileName;
     
     // Hole aktuelle Dateien im Verzeichnis
     const currentItems = await refreshItems(originalItem.parentId);
@@ -225,15 +316,15 @@ export class TransformService {
       )) {
         counter++;
         // Füge Nummer in Klammern vor der letzten Erweiterung ein
-        // z.B. "analyzer todo.de.md" -> "analyzer todo(1).de.md"
-        const parts = baseName.split('.');
-        if (parts.length > 1) {
-          // Wenn es eine Spracherweiterung gibt (z.B. ".de")
-          const mainName = parts.slice(0, -1).join('.');
-          const langExtension = parts[parts.length - 1];
-          candidateName = `${mainName}(${counter}).${langExtension}.${extension}`;
+        // z.B. "interview.de" -> "interview(1).de"
+        const lastDotIndex = baseName.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+          // Teile am letzten Punkt (vor dem Sprachkürzel)
+          const mainPart = baseName.substring(0, lastDotIndex);
+          const langPart = baseName.substring(lastDotIndex);
+          candidateName = `${mainPart}(${counter})${langPart}.${extension}`;
         } else {
-          // Normaler Fall ohne Spracherweiterung
+          // Falls kein Punkt vorhanden (sollte nicht passieren bei Shadow-Twins)
           candidateName = `${baseName}(${counter}).${extension}`;
         }
       }
@@ -242,10 +333,10 @@ export class TransformService {
     };
     
     // Generiere eindeutigen Dateinamen
-    const uniqueFileName = generateUniqueFileName(nameWithoutExtension, fileExtension);
+    const uniqueFileName = generateUniqueFileName(baseNameWithLanguage, fileExtension);
     
     console.log('[TransformService] Eindeutiger Dateiname generiert:', {
-      nameWithoutExtension: nameWithoutExtension,
+      baseNameWithLanguage: baseNameWithLanguage,
       uniqueFileName: uniqueFileName,
       existingFiles: currentItems.filter(item => item.type === 'file').map(item => item.metadata.name)
     });
@@ -315,5 +406,65 @@ export class TransformService {
         updatedItems: []
       };
     }
+  }
+
+  /**
+   * Erstellt Markdown-Inhalt mit YAML-Frontmatter
+   */
+  private static createMarkdownWithFrontmatter(content: string, metadata: TransformMetadata): string {
+    // Wenn keine Metadaten vorhanden sind, gebe nur den Inhalt zurück
+    if (!metadata || Object.keys(metadata).length === 0) {
+      return content;
+    }
+    
+    // Erstelle YAML-Frontmatter
+    let frontmatter = '---\n';
+    
+    // Sortiere die Metadaten für bessere Lesbarkeit
+    const sortedKeys = Object.keys(metadata).sort((a, b) => {
+      // Gruppiere nach Kategorien
+      const categoryOrder = ['source_', 'transformation_', 'audio_', 'process', 'secretary_', 'cache_'];
+      const getCategoryIndex = (key: string) => {
+        for (let i = 0; i < categoryOrder.length; i++) {
+          if (key.startsWith(categoryOrder[i])) return i;
+        }
+        return categoryOrder.length;
+      };
+      
+      const categoryA = getCategoryIndex(a);
+      const categoryB = getCategoryIndex(b);
+      
+      if (categoryA !== categoryB) {
+        return categoryA - categoryB;
+      }
+      return a.localeCompare(b);
+    });
+    
+    // Füge Metadaten zum Frontmatter hinzu
+    for (const key of sortedKeys) {
+      const value = metadata[key];
+      
+      // Überspringe undefined-Werte
+      if (value === undefined) {
+        continue;
+      }
+      
+      // Formatiere den Wert je nach Typ
+      if (typeof value === 'string') {
+        // Escape Anführungszeichen in Strings
+        const escapedValue = value.replace(/"/g, '\\"');
+        frontmatter += `${key}: "${escapedValue}"\n`;
+      } else if (typeof value === 'number' || typeof value === 'boolean') {
+        frontmatter += `${key}: ${value}\n`;
+      } else {
+        // Für komplexe Objekte verwende JSON (sollte nicht vorkommen)
+        frontmatter += `${key}: ${JSON.stringify(value)}\n`;
+      }
+    }
+    
+    frontmatter += '---\n\n';
+    
+    // Kombiniere Frontmatter mit Inhalt
+    return frontmatter + content;
   }
 } 

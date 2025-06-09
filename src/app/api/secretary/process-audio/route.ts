@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data.data);
+    // Gebe die vollständige Response zurück, nicht nur data.data
+    return NextResponse.json(data);
   } catch (error) {
     console.error('[process-audio] Secretary Service Error:', error);
     return NextResponse.json(

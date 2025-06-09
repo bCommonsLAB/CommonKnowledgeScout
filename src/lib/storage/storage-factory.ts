@@ -9,11 +9,18 @@ interface LibraryPathProvider {
 class LocalStorageProvider implements StorageProvider {
   private library: ClientLibrary;
   private baseUrl: string;
+  private userEmail: string | null = null;
 
   constructor(library: ClientLibrary, baseUrl?: string) {
     this.library = library;
     // Im Server-Kontext kann baseUrl übergeben werden, sonst relative URL verwenden
     this.baseUrl = baseUrl || '';
+  }
+
+  // Setzt die Benutzer-E-Mail für Server-zu-Server API-Calls
+  setUserEmail(email: string) {
+    this.userEmail = email;
+    console.log(`[LocalStorageProvider] User E-Mail gesetzt: ${email}`);
   }
 
   get name() {
@@ -25,11 +32,17 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   private getApiUrl(path: string): string {
-    return `${this.baseUrl}${path}`;
+    const url = `${this.baseUrl}${path}`;
+    // E-Mail als Parameter anhängen, wenn im Server-Kontext
+    if (this.userEmail) {
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}email=${encodeURIComponent(this.userEmail)}`;
+    }
+    return url;
   }
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
-    const url = this.getApiUrl(`/api/storage?action=list&fileId=${folderId}&libraryId=${this.library.id}`);
+    const url = this.getApiUrl(`/api/storage/filesystem?action=list&fileId=${folderId}&libraryId=${this.library.id}`);
     console.log(`[LocalStorageProvider] Calling API:`, url);
     
     const response = await fetch(url);
@@ -45,7 +58,7 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async getItemById(fileId: string): Promise<StorageItem> {
-    const url = this.getApiUrl(`/api/storage?action=get&fileId=${fileId}&libraryId=${this.library.id}`);
+    const url = this.getApiUrl(`/api/storage/filesystem?action=get&fileId=${fileId}&libraryId=${this.library.id}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to get item');
@@ -54,7 +67,7 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async createFolder(parentId: string, name: string): Promise<StorageItem> {
-    const url = this.getApiUrl(`/api/storage?action=createFolder&fileId=${parentId}&libraryId=${this.library.id}`);
+    const url = this.getApiUrl(`/api/storage/filesystem?action=createFolder&fileId=${parentId}&libraryId=${this.library.id}`);
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -69,7 +82,7 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async deleteItem(fileId: string): Promise<void> {
-    const url = this.getApiUrl(`/api/storage?action=delete&fileId=${fileId}&libraryId=${this.library.id}`);
+    const url = this.getApiUrl(`/api/storage/filesystem?fileId=${fileId}&libraryId=${this.library.id}`);
     const response = await fetch(url, {
       method: 'DELETE',
     });
@@ -79,13 +92,28 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async moveItem(fileId: string, newParentId: string): Promise<void> {
-    const url = this.getApiUrl(`/api/storage?action=move&fileId=${fileId}&newParentId=${newParentId}&libraryId=${this.library.id}`);
+    const url = this.getApiUrl(`/api/storage/filesystem?fileId=${fileId}&newParentId=${newParentId}&libraryId=${this.library.id}`);
     const response = await fetch(url, {
       method: 'PATCH',
     });
     if (!response.ok) {
       throw new Error('Failed to move item');
     }
+  }
+
+  async renameItem(itemId: string, newName: string): Promise<StorageItem> {
+    const url = this.getApiUrl(`/api/storage/filesystem?action=rename&fileId=${itemId}&libraryId=${this.library.id}`);
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: newName }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to rename item');
+    }
+    return response.json();
   }
 
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
@@ -99,7 +127,7 @@ class LocalStorageProvider implements StorageProvider {
     const formData = new FormData();
     formData.append('file', file, file.name);
 
-    const url = this.getApiUrl(`/api/storage?action=upload&fileId=${parentId}&libraryId=${this.library.id}`);
+    const url = this.getApiUrl(`/api/storage/filesystem?action=upload&fileId=${parentId}&libraryId=${this.library.id}`);
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
@@ -114,7 +142,7 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async downloadFile(fileId: string): Promise<Blob> {
-    const url = this.getApiUrl(`/api/storage?action=download&fileId=${fileId}&libraryId=${this.library.id}`);
+    const url = this.getApiUrl(`/api/storage/filesystem?action=download&fileId=${fileId}&libraryId=${this.library.id}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to download file');
@@ -123,7 +151,7 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string }> {
-    const url = this.getApiUrl(`/api/storage?action=binary&fileId=${fileId}&libraryId=${this.library.id}`);
+    const url = this.getApiUrl(`/api/storage/filesystem?action=binary&fileId=${fileId}&libraryId=${this.library.id}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to get binary');
@@ -136,7 +164,7 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async getPathById(itemId: string): Promise<string> {
-    const url = this.getApiUrl(`/api/storage?action=path&fileId=${itemId}&libraryId=${this.library.id}`);
+    const url = this.getApiUrl(`/api/storage/filesystem?action=path&fileId=${itemId}&libraryId=${this.library.id}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to get path');
@@ -275,7 +303,7 @@ export class StorageFactory {
         console.log(`StorageFactory: LocalStorageProvider erstellt für "${library.path}"`);
         break;
       case 'onedrive':
-        provider = new OneDriveProvider(library);
+        provider = new OneDriveProvider(library, this.apiBaseUrl || undefined);
         console.log(`StorageFactory: OneDriveProvider erstellt`);
         break;
       // Add more provider types here

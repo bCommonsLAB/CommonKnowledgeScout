@@ -191,6 +191,14 @@ export async function POST(request: NextRequest): Promise<Response> {
     const provider = await storageFactory.getProvider(libraryId);
     console.log(`[TESTSTORAGE] Provider erhalten:`, provider.name);
     
+    // Bei LocalStorageProvider die E-Mail für Server-zu-Server API-Calls setzen
+    if (provider.name === 'Local Filesystem' && 'setUserEmail' in provider) {
+      interface LocalStorageProviderWithEmail {
+        setUserEmail(email: string): void;
+      }
+      (provider as LocalStorageProviderWithEmail).setUserEmail(email);
+    }
+    
     // Streaming-Response erstellen
     const stream = new ReadableStream({
       async start(controller) {

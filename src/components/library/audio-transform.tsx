@@ -21,9 +21,24 @@ interface AudioTransformProps {
 
 export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: AudioTransformProps) {
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Hilfsfunktion für den Basis-Dateinamen
+  const getBaseFileName = (fileName: string): string => {
+    const lastDotIndex = fileName.lastIndexOf(".");
+    return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
+  };
+  
+  // Generiere Shadow-Twin Dateinamen nach Konvention
+  const generateShadowTwinName = (baseName: string, targetLanguage: string): string => {
+    return `${baseName}.${targetLanguage}`;
+  };
+  
+  const baseName = getBaseFileName(item.metadata.name);
+  const defaultLanguage = "de";
+  
   const [saveOptions, setSaveOptions] = useState<SaveOptionsType>({
-    targetLanguage: "de",
-    fileName: item.metadata.name,
+    targetLanguage: defaultLanguage,
+    fileName: generateShadowTwinName(baseName, defaultLanguage),
     createShadowTwin: true,
     fileExtension: "md"
   });
@@ -36,6 +51,8 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
   const { refreshItems } = useStorage();
   
   const handleTransform = async () => {
+    console.log('[AudioTransform] handleTransform aufgerufen mit saveOptions:', saveOptions);
+    
     if (!provider) {
       toast.error("Fehler", {
         description: "Kein Storage Provider verfügbar",
@@ -107,6 +124,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
   };
 
   const handleSaveOptionsChange = (options: SaveOptionsType) => {
+    console.log('[AudioTransform] handleSaveOptionsChange aufgerufen mit:', options);
     setSaveOptions(options);
   };
 

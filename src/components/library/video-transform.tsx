@@ -29,9 +29,24 @@ interface VideoTransformProps {
 
 export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: VideoTransformProps) {
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Hilfsfunktion für den Basis-Dateinamen
+  const getBaseFileName = (fileName: string): string => {
+    const lastDotIndex = fileName.lastIndexOf(".");
+    return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
+  };
+  
+  // Generiere Shadow-Twin Dateinamen nach Konvention
+  const generateShadowTwinName = (baseName: string, targetLanguage: string): string => {
+    return `${baseName}.${targetLanguage}`;
+  };
+  
+  const baseName = getBaseFileName(item.metadata.name);
+  const defaultLanguage = "de";
+  
   const [saveOptions, setSaveOptions] = useState<SaveOptionsType>({
-    targetLanguage: "de",
-    fileName: item.metadata.name,
+    targetLanguage: defaultLanguage,
+    fileName: generateShadowTwinName(baseName, defaultLanguage),
     createShadowTwin: true,
     fileExtension: "md"
   });
@@ -51,6 +66,8 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
   const { refreshItems } = useStorage();
   
   const handleTransform = async () => {
+    console.log('[VideoTransform] handleTransform aufgerufen mit saveOptions:', saveOptions);
+    
     if (!provider) {
       toast.error("Fehler", {
         description: "Kein Storage Provider verfügbar",
@@ -133,6 +150,7 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
   };
 
   const handleSaveOptionsChange = (options: SaveOptionsType) => {
+    console.log('[VideoTransform] handleSaveOptionsChange aufgerufen mit:', options);
     setSaveOptions(options);
   };
 

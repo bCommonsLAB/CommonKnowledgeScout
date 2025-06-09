@@ -189,11 +189,22 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       };
       
       console.log('[StorageForm] Form-Daten zum Befüllen:', formData);
+      console.log('[StorageForm] Aktueller Form-Zustand vor Reset:', form.getValues());
+      
+      // Explizit die Werte setzen und dann resetten
       form.reset(formData);
+      
+      // Zusätzlich: Nach Reset den aktuellen Zustand prüfen
+      setTimeout(() => {
+        console.log('[StorageForm] Form-Zustand nach Reset:', form.getValues());
+      }, 0);
+      
     } else {
       console.log('[StorageForm] Keine aktive Library zum Befüllen der Form');
+      // Bei keiner aktiven Library, Formular auf Defaults zurücksetzen
+      form.reset(defaultValues);
     }
-  }, [activeLibrary, form, oauthDefaults, setLibraries]);
+  }, [activeLibrary, form, oauthDefaults]); // setLibraries entfernt, da es unnötige Rerenders verursacht
   
   // OAuth Erfolgs-/Fehlermeldungen aus URL-Parametern verarbeiten
   useEffect(() => {
@@ -689,7 +700,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
                 <FormLabel>Speichertyp</FormLabel>
                 <Select
                   onValueChange={field.onChange}
-                  defaultValue={field.value}
+                  value={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>

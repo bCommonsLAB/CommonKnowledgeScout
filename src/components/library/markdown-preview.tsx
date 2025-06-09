@@ -15,8 +15,11 @@ import { activeLibraryAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { TransformService, TransformSaveOptions, TransformResult } from "@/lib/transform/transform-service";
 import { Label } from "@/components/ui/label";
-import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface MarkdownPreviewProps {
   content: string;
@@ -43,9 +46,22 @@ interface TextTransformProps {
  * TextTransform component for transforming markdown content
  */
 const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshFolder }: TextTransformProps) => {
-  const [text, setText] = React.useState(content);
   const [isLoading, setIsLoading] = React.useState(false);
   const [template, setTemplate] = React.useState("Besprechung");
+  
+  // Text State mit entferntem Frontmatter initialisieren
+  const [text, setText] = React.useState(() => {
+    // Frontmatter entfernen
+    const frontmatterRegex = /^---\n([\s\S]*?)\n---\n?/;
+    return (content || '').replace(frontmatterRegex, '');
+  });
+  
+  // Text aktualisieren, wenn sich der content ändert
+  React.useEffect(() => {
+    const frontmatterRegex = /^---\n([\s\S]*?)\n---\n?/;
+    const contentWithoutFrontmatter = (content || '').replace(frontmatterRegex, '');
+    setText(contentWithoutFrontmatter);
+  }, [content]);
   
   // Debug-Logging für Text
   React.useEffect(() => {
@@ -57,27 +73,91 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     });
   }, [content, text]);
   
+  // Funktion zum Extrahieren der Frontmatter-Metadaten
+  const extractFrontmatter = React.useCallback((markdownContent: string): Record<string, string> => {
+    const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+    const match = markdownContent.match(frontmatterRegex);
+    
+    if (!match) return {};
+    
+    const frontmatterText = match[1];
+    const metadata: Record<string, string> = {};
+    
+    // Parse YAML-like frontmatter (simple implementation)
+    const lines = frontmatterText.split('\n');
+    for (const line of lines) {
+      const colonIndex = line.indexOf(':');
+      if (colonIndex > 0) {
+        const key = line.substring(0, colonIndex).trim();
+        let value = line.substring(colonIndex + 1).trim();
+        
+        // Remove quotes if present
+        if ((value.startsWith('"') && value.endsWith('"')) || 
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        
+        metadata[key] = value;
+      }
+    }
+    
+    return metadata;
+  }, []);
+
+
+  
   // Hilfsfunktion für den Dateinamen
   const getBaseFileName = React.useCallback((fileName: string): string => {
     const lastDotIndex = fileName.lastIndexOf(".");
     return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
   }, []);
   
-  // Generiere Shadow-Twin Dateinamen nach Konvention
-  const generateShadowTwinName = React.useCallback((baseName: string, targetLanguage: string): string => {
-    return `${baseName}.${targetLanguage}`;
-  }, []);
+  // Generiere Shadow-Twin Dateinamen basierend auf source_file aus Frontmatter
+  const generateTransformationFileName = React.useCallback((
+    content: string, 
+    template: string, 
+    targetLanguage: string,
+    currentFileName?: string
+  ): string => {
+    // Extrahiere Frontmatter
+    const metadata = extractFrontmatter(content);
+    
+    // Verwende source_file aus Frontmatter, falls vorhanden
+    let baseName: string;
+    if (metadata.source_file) {
+      baseName = getBaseFileName(metadata.source_file);
+      console.log('[TextTransform] Verwende source_file aus Frontmatter:', metadata.source_file);
+    } else if (currentFileName) {
+      // Fallback: Verwende aktuellen Dateinamen ohne Sprach-Suffix
+      baseName = currentFileName;
+      // Entferne existierende Sprach-Suffixe (z.B. ".de" aus "Sprache 133.de.md")
+      const langPattern = /\.(de|en|fr|es|it)$/i;
+      if (langPattern.test(baseName)) {
+        baseName = baseName.replace(langPattern, '');
+      }
+      console.log('[TextTransform] Kein source_file in Frontmatter, verwende aktuellen Dateinamen:', baseName);
+    } else {
+      baseName = "transformation";
+    }
+    
+    // Generiere neuen Dateinamen: <source_file>.<template>.<targetlanguage>
+    return `${baseName}.${template}.${targetLanguage}`;
+  }, [extractFrontmatter, getBaseFileName]);
   
-  // Initialisiere saveOptions mit korrektem Shadow-Twin Namen
+  // Initialisiere saveOptions mit korrektem Dateinamen
   const [saveOptions, setSaveOptions] = React.useState<TransformSaveOptions>(() => {
-    const baseName = currentItem?.metadata.name 
-      ? getBaseFileName(currentItem.metadata.name) 
-      : "transformation";
     const targetLang = "de";
+    
+    const fileName = generateTransformationFileName(
+      content,
+      template,
+      targetLang,
+      currentItem?.metadata.name
+    );
     
     return {
       targetLanguage: targetLang,
-      fileName: generateShadowTwinName(baseName, targetLang),
+      fileName: fileName,
       createShadowTwin: true,
       fileExtension: "md"
     };
@@ -94,14 +174,18 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     });
   }, [saveOptions, currentItem]);
   
-  // Aktualisiere saveOptions wenn sich currentItem ändert
+  // Aktualisiere saveOptions wenn sich relevante Parameter ändern
   React.useEffect(() => {
-    if (currentItem?.metadata.name) {
-      const baseName = getBaseFileName(currentItem.metadata.name);
-      const newFileName = generateShadowTwinName(baseName, saveOptions.targetLanguage);
+    if (saveOptions.createShadowTwin) {
+      const newFileName = generateTransformationFileName(
+        content,
+        template,
+        saveOptions.targetLanguage,
+        currentItem?.metadata.name
+      );
       
-      if (newFileName !== saveOptions.fileName && saveOptions.createShadowTwin) {
-        console.log('[TextTransform] Aktualisiere fileName wegen currentItem Änderung:', {
+      if (newFileName !== saveOptions.fileName) {
+        console.log('[TextTransform] Aktualisiere fileName:', {
           alt: saveOptions.fileName,
           neu: newFileName
         });
@@ -112,10 +196,35 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         }));
       }
     }
-  }, [currentItem, saveOptions.targetLanguage, saveOptions.createShadowTwin, getBaseFileName, generateShadowTwinName]);
+  }, [content, template, saveOptions.targetLanguage, saveOptions.createShadowTwin, currentItem, generateTransformationFileName]);
   
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const { refreshItems } = useStorage();
+
+  // Aktualisiere den Dateinamen, wenn das Template geändert wird
+  React.useEffect(() => {
+    if (saveOptions.createShadowTwin) {
+      const newFileName = generateTransformationFileName(
+        content,
+        template,
+        saveOptions.targetLanguage,
+        currentItem?.metadata.name
+      );
+      
+      if (newFileName !== saveOptions.fileName) {
+        console.log('[TextTransform] Template geändert, aktualisiere fileName:', {
+          template,
+          alt: saveOptions.fileName,
+          neu: newFileName
+        });
+        
+        setSaveOptions(prev => ({
+          ...prev,
+          fileName: newFileName
+        }));
+      }
+    }
+  }, [template]); // Nur bei Template-Änderung ausführen
 
   // Debug-Logging für activeLibrary
   React.useEffect(() => {
@@ -211,11 +320,6 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     }
   };
 
-  const handleSaveOptionsChange = (options: TransformSaveOptions) => {
-    console.log('[TextTransform] handleSaveOptionsChange aufgerufen mit:', options);
-    setSaveOptions(options);
-  };
-
   return (
     <div className="p-4 space-y-4">
       <div className="text-sm font-medium">Text transformieren</div>
@@ -236,11 +340,107 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
           transformResultHandlerRef.current = handleTransformResult;
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SaveOptionsComponent 
-                originalFileName={currentItem?.metadata.name || "transformation"}
-                onOptionsChangeAction={handleSaveOptionsChange}
-                className="p-4 border rounded-md"
-              />
+              {/* Custom SaveOptions für Text-Transformation */}
+              <Card className="p-4 border rounded-md">
+                <CardContent className="p-0">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="target-language">Zielsprache</Label>
+                        <Select
+                          value={saveOptions.targetLanguage}
+                          onValueChange={(value) => {
+                            const newFileName = generateTransformationFileName(
+                              content,
+                              template,
+                              value,
+                              currentItem?.metadata.name
+                            );
+                            
+                            setSaveOptions(prev => ({
+                              ...prev,
+                              targetLanguage: value,
+                              fileName: newFileName
+                            }));
+                          }}
+                        >
+                          <SelectTrigger id="target-language">
+                            <SelectValue placeholder="Sprache auswählen" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="de">Deutsch</SelectItem>
+                            <SelectItem value="en">Englisch</SelectItem>
+                            <SelectItem value="fr">Französisch</SelectItem>
+                            <SelectItem value="es">Spanisch</SelectItem>
+                            <SelectItem value="it">Italienisch</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="file-extension">Dateierweiterung</Label>
+                        <Select
+                          value={saveOptions.fileExtension}
+                          onValueChange={(value) => setSaveOptions(prev => ({ ...prev, fileExtension: value }))}
+                          disabled={saveOptions.createShadowTwin}
+                        >
+                          <SelectTrigger id="file-extension">
+                            <SelectValue placeholder="Erweiterung wählen" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="md">Markdown (.md)</SelectItem>
+                            <SelectItem value="txt">Text (.txt)</SelectItem>
+                            <SelectItem value="json">JSON (.json)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="file-name">Dateiname</Label>
+                      <Input
+                        id="file-name"
+                        value={saveOptions.fileName}
+                        onChange={(e) => setSaveOptions(prev => ({ ...prev, fileName: e.target.value }))}
+                        disabled={saveOptions.createShadowTwin}
+                        placeholder={saveOptions.createShadowTwin ? "Automatisch generiert" : "Dateiname eingeben"}
+                      />
+                      {saveOptions.createShadowTwin && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Format: {saveOptions.fileName}.{saveOptions.fileExtension}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="create-shadow-twin"
+                        checked={saveOptions.createShadowTwin}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            const newFileName = generateTransformationFileName(
+                              content,
+                              template,
+                              saveOptions.targetLanguage,
+                              currentItem?.metadata.name
+                            );
+                            
+                            setSaveOptions(prev => ({
+                              ...prev,
+                              createShadowTwin: true,
+                              fileName: newFileName
+                            }));
+                          } else {
+                            setSaveOptions(prev => ({ ...prev, createShadowTwin: false }));
+                          }
+                        }}
+                      />
+                      <Label htmlFor="create-shadow-twin">Als Shadow-Twin speichern</Label>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
               <div className="space-y-4 p-4 border rounded-md">
                 <div>
                   <Label htmlFor="template">Vorlage</Label>
@@ -621,9 +821,9 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   };
 
   return (
-    <div className={className}>
+    <div className={cn("flex flex-col", className)}>
       {currentItem && (
-        <div className="flex items-center justify-between mx-4 mt-4 mb-2">
+        <div className="flex items-center justify-between mx-4 mt-4 mb-2 flex-shrink-0">
           <div className="text-xs text-muted-foreground">
             {currentItem.metadata.name}
           </div>
@@ -640,20 +840,20 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
         </div>
       )}
       
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 overflow-hidden">
         <TabsList className="hidden">
           <TabsTrigger value="preview">Vorschau</TabsTrigger>
           <TabsTrigger value="transform">Transformieren</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="preview">
+        <TabsContent value="preview" className="flex-1 overflow-auto">
           <div 
             className="prose dark:prose-invert max-w-none p-4 w-full"
             dangerouslySetInnerHTML={{ __html: renderedContent }}
           />
         </TabsContent>
         
-        <TabsContent value="transform">
+        <TabsContent value="transform" className="flex-1 overflow-auto">
           <TextTransform 
             content={content}
             currentItem={currentItem}

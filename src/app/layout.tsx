@@ -29,7 +29,7 @@ export default function RootLayout({
           >
             <StorageContextProvider>
               <TooltipProvider>
-                <div className="min-h-screen">
+                <div className="h-screen overflow-hidden">
                   <TopNav />
                   {children}
                 </div>

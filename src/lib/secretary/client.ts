@@ -6,18 +6,86 @@ export class SecretaryServiceError extends Error {
 }
 
 /**
+ * Typ für die Secretary Service Audio Response
+ */
+export interface SecretaryAudioResponse {
+  status: string;
+  request?: {
+    processor: string;
+    timestamp: string;
+    parameters: {
+      audio_source: string;
+      source_info: {
+        original_filename: string;
+        file_size: number;
+        file_type: string;
+        file_ext: string;
+      };
+      source_language: string;
+      target_language: string;
+      template: string;
+      use_cache: boolean;
+    };
+  };
+  process?: {
+    id: string;
+    main_processor: string;
+    started: string;
+    sub_processors: string[];
+    completed: string | null;
+    duration: number | null;
+    is_from_cache: boolean;
+    cache_key: string;
+    llm_info?: {
+      requests: Array<{
+        model: string;
+        purpose: string;
+        tokens: number;
+        duration: number;
+        processor: string;
+        timestamp: string;
+      }>;
+      requests_count: number;
+      total_tokens: number;
+      total_duration: number;
+    };
+  };
+  error: unknown | null;
+  data: {
+    transcription: {
+      text: string;
+      source_language: string;
+      segments: unknown[];
+    };
+    metadata?: {
+      title: string;
+      duration: number;
+      format: string;
+      channels: number;
+      sample_rate: number;
+      bit_rate: number;
+      process_dir: string;
+      chapters: unknown[];
+    };
+    process_id: string;
+    transformation_result: unknown | null;
+    status: string;
+  };
+}
+
+/**
  * Transformiert eine Audio-Datei mithilfe des Secretary Services in Text
  * 
  * @param file Die zu transformierende Audio-Datei 
  * @param targetLanguage Die Zielsprache für die Transkription
  * @param libraryId ID der aktiven Bibliothek
- * @returns Den transformierten Text
+ * @returns Die vollständige Response vom Secretary Service oder nur den Text (für Abwärtskompatibilität)
  */
 export async function transformAudio(
   file: File, 
   targetLanguage: string,
   libraryId: string
-): Promise<string> {
+): Promise<SecretaryAudioResponse | string> {
   try {
     console.log('[secretary/client] transformAudio aufgerufen mit Sprache:', targetLanguage);
     
@@ -44,7 +112,10 @@ export async function transformAudio(
 
     const data = await response.json();
     console.log('[secretary/client] Daten erfolgreich empfangen');
-    return data.transcription.text;
+    
+    // Gebe die vollständige Response zurück
+    // Die API Route sollte bereits die vollständige Response vom Secretary Service durchreichen
+    return data;
   } catch (error) {
     console.error('[secretary/client] Fehler:', error);
     if (error instanceof SecretaryServiceError) {
