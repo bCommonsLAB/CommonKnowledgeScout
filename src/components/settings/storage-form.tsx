@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { useState, useEffect, useCallback, Suspense } from "react"
+import { useState, useEffect, useCallback, Suspense, useMemo } from "react"
 import { useAtom, useAtomValue } from "jotai"
 import { useSearchParams } from "next/navigation"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
@@ -42,6 +42,7 @@ import { OneDriveProvider } from "@/lib/storage/onedrive-provider"
 import { Badge } from "@/components/ui/badge"
 import { useStorage } from "@/contexts/storage-context"
 import { StorageFactory } from "@/lib/storage/storage-factory"
+import React from 'react'
 
 // Hauptschema für das Formular
 const storageFormSchema = z.object({
@@ -114,13 +115,14 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
   const { refreshLibraries, refreshAuthStatus } = useStorage();
   
-  const defaultValues: StorageFormValues = {
-    type: "local",
-    path: "",
-    tenantId: "",
-    clientId: "",
-    clientSecret: "",
-  };
+  // Default-Werte in useMemo verpacken
+  const defaultValues = useMemo(() => ({
+    type: 'local' as StorageProviderType,
+    path: '',
+    tenantId: '',
+    clientId: '',
+    clientSecret: ''
+  }), []); // Leere Dependency-Liste, da die Werte konstant sind
   
   const form = useForm<StorageFormValues>({
     resolver: zodResolver(storageFormSchema),
@@ -218,7 +220,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       // Bei keiner aktiven Library, Formular auf Defaults zurücksetzen
       form.reset(defaultValues);
     }
-  }, [activeLibrary, form, oauthDefaults]); // setLibraries entfernt, da es unnötige Rerenders verursacht
+  }, [activeLibrary, form, oauthDefaults, defaultValues]);
   
   // Token-Status laden, wenn sich die aktive Library ändert
   useEffect(() => {
@@ -483,7 +485,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     } finally {
       setIsLoading(false);
     }
-  }, [activeLibrary, libraries, setLibraries, refreshAuthStatus]);
+  }, [activeLibrary, libraries, setLibraries, form, oauthDefaults]);
   
   // Funktion zum Starten der OneDrive-Authentifizierung
   const handleOneDriveAuth = useCallback(async () => {

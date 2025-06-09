@@ -17,6 +17,15 @@ class LocalStorageProvider implements StorageProvider {
     this.baseUrl = baseUrl || '';
   }
 
+  /**
+   * Prüft, ob der Provider authentifiziert ist.
+   * Für das lokale Dateisystem ist dies immer true, da keine Authentifizierung erforderlich ist.
+   * @returns Immer true für das lokale Dateisystem
+   */
+  isAuthenticated(): boolean {
+    return true;
+  }
+
   // Setzt die Benutzer-E-Mail für Server-zu-Server API-Calls
   setUserEmail(email: string) {
     this.userEmail = email;

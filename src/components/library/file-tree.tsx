@@ -399,7 +399,7 @@ export function FileTree({
         setIsLoading(false);
       }
     }
-  }, [libraryStatus]);
+  }, [libraryStatus, onRefreshItems]);
 
   // Debug-Logging für Provider-Wechsel
   React.useEffect(() => {

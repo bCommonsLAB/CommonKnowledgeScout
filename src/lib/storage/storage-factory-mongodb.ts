@@ -138,6 +138,15 @@ class LocalStorageProvider implements StorageProvider {
   async validateConfiguration(): Promise<StorageValidationResult> {
     return { isValid: true };
   }
+
+  /**
+   * Prüft, ob der Provider authentifiziert ist.
+   * Für das lokale Dateisystem ist dies immer true, da keine Authentifizierung erforderlich ist.
+   * @returns Immer true für das lokale Dateisystem
+   */
+  isAuthenticated(): boolean {
+    return true;
+  }
 }
 
 /**

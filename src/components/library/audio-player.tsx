@@ -31,6 +31,7 @@ export const AudioPlayer = memo(function AudioPlayer({ item, provider, onRefresh
   // Audio-URL über Provider laden
   useEffect(() => {
     let objectUrl: string | null = null;
+    const audioElement = audioRef.current;
 
     const loadAudio = async () => {
       if (!provider) {
@@ -65,7 +66,6 @@ export const AudioPlayer = memo(function AudioPlayer({ item, provider, onRefresh
         URL.revokeObjectURL(objectUrl);
       }
       // Reset audio element
-      const audioElement = audioRef.current;
       if (audioElement) {
         audioElement.pause();
         audioElement.removeAttribute('src');

@@ -224,7 +224,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         }));
       }
     }
-  }, [template]); // Nur bei Template-Änderung ausführen
+  }, [template, content, saveOptions.targetLanguage, saveOptions.createShadowTwin, currentItem?.metadata.name, saveOptions.fileName, generateTransformationFileName]);
 
   // Debug-Logging für activeLibrary
   React.useEffect(() => {

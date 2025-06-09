@@ -30,6 +30,7 @@ export const VideoPlayer = memo(function VideoPlayer({ item, provider, onRefresh
   // Video-URL über Provider laden
   useEffect(() => {
     let objectUrl: string | null = null;
+    const videoElement = videoRef.current;
 
     const loadVideo = async () => {
       if (!provider) {
@@ -64,7 +65,6 @@ export const VideoPlayer = memo(function VideoPlayer({ item, provider, onRefresh
         URL.revokeObjectURL(objectUrl);
       }
       // Reset video element
-      const videoElement = videoRef.current;
       if (videoElement) {
         videoElement.pause();
         videoElement.removeAttribute('src');
