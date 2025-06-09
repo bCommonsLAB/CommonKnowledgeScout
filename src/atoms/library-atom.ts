@@ -17,6 +17,7 @@ const initialState: LibraryContextData = {
 
 // Hauptatom für Library-Kontext
 export const libraryAtom = atom<LibraryContextData>(initialState)
+libraryAtom.debugLabel = "libraryAtom"
 
 // Derivierte Atome für spezifische Eigenschaften
 export const activeLibraryIdAtom = atom(
@@ -28,6 +29,7 @@ export const activeLibraryIdAtom = atom(
     })
   }
 )
+activeLibraryIdAtom.debugLabel = "activeLibraryIdAtom"
 
 // Erweitere mit Setter für Bibliotheken
 export const librariesAtom = atom(
@@ -39,6 +41,7 @@ export const librariesAtom = atom(
     })
   }
 )
+librariesAtom.debugLabel = "librariesAtom"
 
 // Hilfsfunktion für aktive Library
 export const activeLibraryAtom = atom(
@@ -47,6 +50,7 @@ export const activeLibraryAtom = atom(
     return state.libraries.find(lib => lib.id === state.activeLibraryId)
   }
 )
+activeLibraryAtom.debugLabel = "activeLibraryAtom"
 
 // Atom für aktuelles Verzeichnis
 export const currentFolderIdAtom = atom(
@@ -58,12 +62,15 @@ export const currentFolderIdAtom = atom(
     })
   }
 )
+currentFolderIdAtom.debugLabel = "currentFolderIdAtom"
 
 // Atom für Breadcrumb-Pfad-Informationen
 export const breadcrumbItemsAtom = atom<StorageItem[]>([])
+breadcrumbItemsAtom.debugLabel = "breadcrumbItemsAtom"
 
 // Atom für die ausgewählte Datei
 export const selectedFileAtom = atom<StorageItem | null>(null)
+selectedFileAtom.debugLabel = "selectedFileAtom"
 
 // Kombiniertes Atom für Breadcrumb der ausgewählten Datei
 export const selectedFileBreadcrumbAtom = atom<{
@@ -73,6 +80,7 @@ export const selectedFileBreadcrumbAtom = atom<{
   items: [],
   currentId: 'root'
 })
+selectedFileBreadcrumbAtom.debugLabel = "selectedFileBreadcrumbAtom"
 
 // Metadaten der ausgewählten Datei
 export const selectedFileMetadataAtom = atom<{
@@ -83,11 +91,13 @@ export const selectedFileMetadataAtom = atom<{
   created: Date;
   transcriptionEnabled?: boolean;
 } | null>(null)
+selectedFileMetadataAtom.debugLabel = "selectedFileMetadataAtom"
 
 // Schreibgeschütztes Atom für Breadcrumb-Items
 export const readBreadcrumbItemsAtom = atom(
   get => get(breadcrumbItemsAtom)
 )
+readBreadcrumbItemsAtom.debugLabel = "readBreadcrumbItemsAtom"
 
 // Nur-Schreiben Atom für Breadcrumb-Items mit Validierung
 export const writeBreadcrumbItemsAtom = atom(
@@ -125,4 +135,5 @@ export const writeBreadcrumbItemsAtom = atom(
       console.log('[breadcrumbItemsAtom] Ignoriere identische Breadcrumb-Items');
     }
   }
-) 
+)
+writeBreadcrumbItemsAtom.debugLabel = "writeBreadcrumbItemsAtom" 

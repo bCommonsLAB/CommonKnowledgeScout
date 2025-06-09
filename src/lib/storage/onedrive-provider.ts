@@ -92,7 +92,8 @@ export class OneDriveProvider implements StorageProvider {
   }
 
   private async saveTokens(accessToken: string, refreshToken: string, expiresIn: number) {
-    const expiry = Math.floor(Date.now() / 1000) + expiresIn;
+    // Konvertiere expiresIn (Sekunden) in Millisekunden und addiere aktuelle Zeit
+    const expiry = Date.now() + (expiresIn * 1000);
     this.accessToken = accessToken;
     this.refreshToken = refreshToken;
     this.tokenExpiry = expiry;
@@ -107,7 +108,11 @@ export class OneDriveProvider implements StorageProvider {
           expiry
         }));
         
-        console.log('[OneDriveProvider] Tokens im localStorage gespeichert');
+        console.log('[OneDriveProvider] Tokens im localStorage gespeichert', {
+          libraryId: this.library.id,
+          expiresIn: `${expiresIn} Sekunden`,
+          expiryTime: new Date(expiry).toISOString()
+        });
       } catch (error) {
         console.error('[OneDriveProvider] Fehler beim Speichern der Tokens im localStorage:', error);
       }
@@ -325,8 +330,20 @@ export class OneDriveProvider implements StorageProvider {
       );
     }
 
-    // Wenn Token abgelaufen ist, versuche Refresh
-    if (this.tokenExpiry <= Date.now() && this.refreshToken) {
+    // Wenn Token in weniger als 5 Minuten abläuft, versuche Refresh
+    const FIVE_MINUTES = 5 * 60 * 1000; // 5 Minuten in Millisekunden
+    if (this.tokenExpiry - Date.now() <= FIVE_MINUTES && this.refreshToken) {
+      const now = Date.now();
+      const timeUntilExpiry = this.tokenExpiry - now;
+      console.log('[OneDriveProvider] Token-Status:', {
+        libraryId: this.library.id,
+        tokenExpiry: new Date(this.tokenExpiry).toISOString(),
+        currentTime: new Date(now).toISOString(),
+        timeUntilExpiry: `${Math.floor(timeUntilExpiry / 1000)} Sekunden`,
+        hasRefreshToken: !!this.refreshToken,
+        isExpired: this.tokenExpiry <= now,
+        refreshBuffer: `${FIVE_MINUTES / 1000} Sekunden`
+      });
       await this.refreshAccessToken();
     }
 

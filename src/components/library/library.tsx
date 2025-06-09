@@ -40,23 +40,8 @@ export function Library() {
     isLoading, 
     error: storageError, 
     listItems,
-    libraryStatus,
-    refreshAuthStatus
+    libraryStatus
   } = useStorage();
-
-  // Beim Laden der Library den Authentifizierungsstatus prüfen
-  useEffect(() => {
-    console.log('[Library] Komponente geladen, prüfe Authentifizierungsstatus...');
-    refreshAuthStatus();
-  }, [refreshAuthStatus]);
-
-  // Bei Änderung der aktiven Library den Auth-Status prüfen
-  useEffect(() => {
-    if (globalActiveLibraryId) {
-      console.log('[Library] Aktive Library geändert zu:', globalActiveLibraryId, '- prüfe Authentifizierungsstatus...');
-      refreshAuthStatus();
-    }
-  }, [globalActiveLibraryId, refreshAuthStatus]);
 
   // Debug-Logging für Storage Context
   useEffect(() => {
@@ -334,45 +319,138 @@ export function Library() {
 
   // Load Items wenn Provider oder Folder sich ändern
   useEffect(() => {
-    if (providerInstance && libraryStatus === 'ready') {
-      console.log('Library: Loading items for current folder due to provider or folder change');
-      loadItems().then(() => {
-        console.log('Library: Initial items loaded, ensuring breadcrumb is updated');
-        
-        // Stelle sicher, dass nach dem Laden der Breadcrumb nur aktualisiert wird, wenn nötig
-        if (selected.breadcrumb.items.length > 0 && currentFolderId !== 'root') {
-          console.log('Library: Stelle sicher, dass Breadcrumb für Nicht-Root-Ordner erhalten bleibt:', currentFolderId);
-          setBreadcrumbItems(selected.breadcrumb.items);
+    let isMounted = true;
+    let loadTimeout: NodeJS.Timeout;
+    let lastLoadTime = 0;
+    const MIN_LOAD_INTERVAL = 1000; // Erhöhtes Mindestintervall zwischen Ladevorgängen
+    let isCurrentlyLoading = false;
+
+    const loadItemsWithDebounce = async () => {
+      if (!providerInstance || libraryStatus !== 'ready') {
+        console.log('Library: Überspringe Laden - Library nicht bereit', { 
+          status: libraryStatus,
+          hasProvider: !!providerInstance 
+        });
+        setFolderItems([]);
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastLoadTime < MIN_LOAD_INTERVAL) {
+        console.log('Library: Überspringe Laden - Zu früh nach letztem Ladevorgang');
+        return;
+      }
+
+      if (isCurrentlyLoading) {
+        console.log('Library: Überspringe Laden - Ladevorgang läuft bereits');
+        return;
+      }
+
+      // Clear previous timeout
+      if (loadTimeout) {
+        clearTimeout(loadTimeout);
+      }
+
+      // Set new timeout
+      loadTimeout = setTimeout(async () => {
+        if (!isMounted) return;
+
+        try {
+          isCurrentlyLoading = true;
+          lastLoadTime = Date.now();
+          
+          console.log('Library: Loading items for current folder due to provider or folder change');
+          await loadItems();
+          
+          if (!isMounted) return;
+          
+          // Stelle sicher, dass nach dem Laden der Breadcrumb nur aktualisiert wird, wenn nötig
+          if (selected.breadcrumb.items.length > 0 && currentFolderId !== 'root') {
+            console.log('Library: Stelle sicher, dass Breadcrumb für Nicht-Root-Ordner erhalten bleibt:', currentFolderId);
+            setBreadcrumbItems(selected.breadcrumb.items);
+          }
+        } catch (error) {
+          if (!isMounted) return;
+          
+          // AUTH_REQUIRED Fehler werden bereits in loadItems behandelt
+          if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
+            console.error('[Library] Fehler beim initialen Laden der Items:', error);
+          }
+        } finally {
+          isCurrentlyLoading = false;
         }
-      }).catch(error => {
-        // AUTH_REQUIRED Fehler werden bereits in loadItems behandelt
-        if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
-          console.error('[Library] Fehler beim initialen Laden der Items:', error);
-        }
-      });
-    } else {
-      console.log('Library: Überspringe Laden - Library nicht bereit', { 
-        status: libraryStatus,
-        hasProvider: !!providerInstance 
-      });
-      setFolderItems([]);
-    }
+      }, 500); // Erhöhtes Debouncing auf 500ms
+    };
+
+    loadItemsWithDebounce();
+
+    return () => {
+      isMounted = false;
+      if (loadTimeout) {
+        clearTimeout(loadTimeout);
+      }
+    };
   }, [loadItems, providerInstance, currentFolderId, selected.breadcrumb.items, setBreadcrumbItems, libraryStatus]);
 
   // Reagiere auf Änderungen des Library-Status
   useEffect(() => {
-    // Wenn der Status von "waitingForAuth" zu "ready" wechselt, lade Items neu
-    if (libraryStatus === 'ready' && providerInstance) {
-      console.log('[Library] Library-Status ist "ready", lade Items neu');
-      // Fehler abfangen, da loadItems bereits intern AUTH_REQUIRED behandelt
-      loadItems(true).catch(error => {
-        // AUTH_REQUIRED Fehler werden bereits in loadItems behandelt und die UI zeigt den korrekten Status
-        // Wir müssen hier nichts weiter tun
-        if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
-          console.error('[Library] Unerwarteter Fehler beim Laden der Items:', error);
+    let isMounted = true;
+    let statusTimeout: NodeJS.Timeout;
+    let lastStatusChange = 0;
+    const MIN_STATUS_INTERVAL = 1000; // Erhöhtes Mindestintervall zwischen Status-Änderungen
+    let isCurrentlyProcessing = false;
+
+    const handleStatusChange = async () => {
+      const now = Date.now();
+      if (now - lastStatusChange < MIN_STATUS_INTERVAL) {
+        console.log('[Library] Überspringe Status-Änderung - Zu früh nach letzter Änderung');
+        return;
+      }
+
+      if (isCurrentlyProcessing) {
+        console.log('[Library] Überspringe Status-Änderung - Verarbeitung läuft bereits');
+        return;
+      }
+
+      // Wenn der Status von "waitingForAuth" zu "ready" wechselt, lade Items neu
+      if (libraryStatus === 'ready' && providerInstance) {
+        // Clear previous timeout
+        if (statusTimeout) {
+          clearTimeout(statusTimeout);
         }
-      });
-    }
+
+        // Set new timeout
+        statusTimeout = setTimeout(async () => {
+          if (!isMounted) return;
+
+          try {
+            isCurrentlyProcessing = true;
+            lastStatusChange = Date.now();
+            
+            console.log('[Library] Library-Status ist "ready", lade Items neu');
+            await loadItems(true);
+          } catch (error) {
+            if (!isMounted) return;
+            
+            // AUTH_REQUIRED Fehler werden bereits in loadItems behandelt
+            if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
+              console.error('[Library] Unerwarteter Fehler beim Laden der Items:', error);
+            }
+          } finally {
+            isCurrentlyProcessing = false;
+          }
+        }, 500); // Erhöhtes Debouncing auf 500ms
+      }
+    };
+
+    handleStatusChange();
+
+    return () => {
+      isMounted = false;
+      if (statusTimeout) {
+        clearTimeout(statusTimeout);
+      }
+    };
   }, [libraryStatus, providerInstance, loadItems]);
 
   // Optimierter Folder Select Handler
