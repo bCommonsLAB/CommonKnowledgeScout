@@ -40,6 +40,8 @@ import {
 
 import { OneDriveProvider } from "@/lib/storage/onedrive-provider"
 import { Badge } from "@/components/ui/badge"
+import { useStorage } from "@/contexts/storage-context"
+import { StorageFactory } from "@/lib/storage/storage-factory"
 
 // Hauptschema für das Formular
 const storageFormSchema = z.object({
@@ -89,7 +91,15 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
   const [testDialogOpen, setTestDialogOpen] = useState(false);
   const [testResults, setTestResults] = useState<TestLogEntry[]>([]);
   const [processedAuthParams, setProcessedAuthParams] = useState(false);
-  const [authSuccessMessage, setAuthSuccessMessage] = useState<string | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<{
+    isAuthenticated: boolean;
+    isExpired: boolean;
+    loading: boolean;
+  }>({
+    isAuthenticated: false,
+    isExpired: false,
+    loading: false
+  });
   const [oauthDefaults, setOauthDefaults] = useState<{
     tenantId: string;
     clientId: string;
@@ -102,6 +112,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
   
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
+  const { refreshLibraries, refreshAuthStatus } = useStorage();
   
   const defaultValues: StorageFormValues = {
     type: "local",
@@ -182,10 +193,13 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       const formData = {
         type: activeLibrary.type as StorageProviderType,
         path: activeLibrary.path || "",
-        // Alle Werte direkt aus der Bibliothek oder aus den Defaults verwenden, keine Maskierung
+        // Alle Werte direkt aus der Bibliothek oder aus den Defaults verwenden
         tenantId: activeLibrary.config?.tenantId as string || oauthDefaults.tenantId,
         clientId: activeLibrary.config?.clientId as string || oauthDefaults.clientId,
-        clientSecret: activeLibrary.config?.clientSecret as string || oauthDefaults.clientSecret,
+        // Für clientSecret: Wenn es maskiert ist (********), leer lassen
+        clientSecret: (activeLibrary.config?.clientSecret as string === '********') 
+          ? '' 
+          : activeLibrary.config?.clientSecret as string || oauthDefaults.clientSecret,
       };
       
       console.log('[StorageForm] Form-Daten zum Befüllen:', formData);
@@ -205,6 +219,61 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       form.reset(defaultValues);
     }
   }, [activeLibrary, form, oauthDefaults]); // setLibraries entfernt, da es unnötige Rerenders verursacht
+  
+  // Token-Status laden, wenn sich die aktive Library ändert
+  useEffect(() => {
+    async function loadTokenStatus() {
+      if (!activeLibrary || (activeLibrary.type !== 'onedrive' && activeLibrary.type !== 'gdrive')) {
+        setTokenStatus({
+          isAuthenticated: false,
+          isExpired: false,
+          loading: false
+        });
+        return;
+      }
+      
+      setTokenStatus(prev => ({ ...prev, loading: true }));
+      
+      try {
+        // Token-Status direkt aus localStorage prüfen
+        const localStorageKey = `onedrive_tokens_${activeLibrary.id}`;
+        const tokensJson = localStorage.getItem(localStorageKey);
+        
+        if (tokensJson) {
+          const tokens = JSON.parse(tokensJson);
+          const isExpired = tokens.expiry ? tokens.expiry <= Math.floor(Date.now() / 1000) : false;
+          
+          setTokenStatus({
+            isAuthenticated: true,
+            isExpired,
+            loading: false
+          });
+          
+          console.log('[StorageForm] Token-Status aus localStorage:', {
+            hasTokens: true,
+            isExpired
+          });
+        } else {
+          setTokenStatus({
+            isAuthenticated: false,
+            isExpired: false,
+            loading: false
+          });
+          
+          console.log('[StorageForm] Keine Tokens im localStorage gefunden');
+        }
+      } catch (error) {
+        console.error('[StorageForm] Fehler beim Laden des Token-Status aus localStorage:', error);
+        setTokenStatus({
+          isAuthenticated: false,
+          isExpired: false,
+          loading: false
+        });
+      }
+    }
+    
+    loadTokenStatus();
+  }, [activeLibrary]);
   
   // OAuth Erfolgs-/Fehlermeldungen aus URL-Parametern verarbeiten
   useEffect(() => {
@@ -232,10 +301,60 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         console.log('[StorageForm] OAuth erfolgreich für Library:', authenticatedLibraryId);
         
         // Erfolgsmeldung setzen
-        setAuthSuccessMessage("Die Authentifizierung bei OneDrive war erfolgreich.");
+        toast.success("Authentifizierung erfolgreich", {
+          description: "Sie wurden erfolgreich bei OneDrive angemeldet."
+        });
         
-        // Library-Daten neu laden
+        // Temporäre Tokens vom Server abrufen und im localStorage speichern
         if (authenticatedLibraryId) {
+          (async () => {
+            try {
+              console.log('[StorageForm] Rufe temporäre Tokens ab...');
+              const tokenResponse = await fetch(`/api/libraries/${authenticatedLibraryId}/tokens`, {
+                method: 'POST'
+              });
+              
+              if (tokenResponse.ok) {
+                const tokenData = await tokenResponse.json();
+                if (tokenData.success && tokenData.tokens) {
+                  // Tokens im localStorage speichern
+                  const localStorageKey = `onedrive_tokens_${authenticatedLibraryId}`;
+                  localStorage.setItem(localStorageKey, JSON.stringify({
+                    accessToken: tokenData.tokens.accessToken,
+                    refreshToken: tokenData.tokens.refreshToken,
+                    expiry: parseInt(tokenData.tokens.tokenExpiry, 10)
+                  }));
+                  
+                  console.log('[StorageForm] Tokens erfolgreich im localStorage gespeichert');
+                  
+                  // Token-Status aktualisieren
+                  setTokenStatus({
+                    isAuthenticated: true,
+                    isExpired: false,
+                    loading: false
+                  });
+                  
+                  // Provider-Cache leeren, damit ein neuer Provider mit den Tokens erstellt wird
+                  try {
+                    const factory = StorageFactory.getInstance();
+                    await factory.clearProvider(authenticatedLibraryId);
+                    console.log('[StorageForm] Provider-Cache nach Token-Speicherung geleert');
+                  } catch (error) {
+                    console.error('[StorageForm] Fehler beim Leeren des Provider-Cache:', error);
+                  }
+                  
+                  // StorageContext über neue Tokens informieren
+                  await refreshAuthStatus();
+                }
+              } else {
+                console.error('[StorageForm] Fehler beim Abrufen der temporären Tokens:', tokenResponse.statusText);
+              }
+            } catch (error) {
+              console.error('[StorageForm] Fehler beim Verarbeiten der temporären Tokens:', error);
+            }
+          })();
+          
+          // Library-Daten neu laden
           fetch(`/api/libraries/${authenticatedLibraryId}`)
             .then(response => response.json())
             .then(updatedLibrary => {
@@ -265,8 +384,20 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       
       // Parameter als verarbeitet markieren
       setProcessedAuthParams(true);
+      
+      // URL bereinigen nach der Verarbeitung
+      // Entferne die Auth-Parameter aus der URL ohne die Seite neu zu laden
+      if (typeof window !== 'undefined' && (hasAuthSuccess || hasAuthError)) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('authSuccess');
+        url.searchParams.delete('authError');
+        url.searchParams.delete('libraryId');
+        url.searchParams.delete('errorDescription');
+        window.history.replaceState({}, '', url.toString());
+        console.log('[StorageForm] URL bereinigt nach Auth-Verarbeitung');
+      }
     }
-  }, [searchParams, libraries, activeLibraryId, processedAuthParams, setLibraries]);
+  }, [searchParams, libraries, activeLibraryId, processedAuthParams, setLibraries, refreshAuthStatus]);
   
   // Formular absenden
   const onSubmit = useCallback(async (data: StorageFormValues) => {
@@ -280,10 +411,14 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     setIsLoading(true);
     
     try {
-      console.log('[StorageForm] Speichere Formular-Daten:', {
-        libraryId: activeLibrary.id,
-        libraryLabel: activeLibrary.label,
-        formData: data
+      console.log('[StorageForm] === SUBMIT START ===');
+      console.log('[StorageForm] Formular-Rohdaten:', data);
+      console.log('[StorageForm] ClientSecret Wert:', {
+        value: data.clientSecret,
+        length: data.clientSecret?.length,
+        isMasked: data.clientSecret === '********',
+        isEmpty: data.clientSecret === '',
+        isUndefined: data.clientSecret === undefined
       });
       
       // Konfiguration für die API vorbereiten
@@ -293,8 +428,25 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       if (data.type === 'onedrive' || data.type === 'gdrive') {
         if (data.tenantId) config.tenantId = data.tenantId;
         if (data.clientId) config.clientId = data.clientId;
-        if (data.clientSecret) config.clientSecret = data.clientSecret;
+        // clientSecret nur senden, wenn es kein maskierter Wert ist und nicht leer
+        if (data.clientSecret && data.clientSecret !== '' && data.clientSecret !== '********') {
+          console.log('[StorageForm] ClientSecret wird gesendet (nicht maskiert, nicht leer)');
+          config.clientSecret = data.clientSecret;
+        } else {
+          console.log('[StorageForm] ClientSecret wird NICHT gesendet:', {
+            reason: data.clientSecret === '********' ? 'maskiert' : 
+                    data.clientSecret === '' ? 'leer' : 'undefined/null'
+          });
+        }
       }
+      
+      const requestBody = {
+        type: data.type,
+        path: data.path,
+        config
+      };
+      
+      console.log('[StorageForm] Request Body:', JSON.stringify(requestBody, null, 2));
       
       // API-Aufruf
       const response = await fetch(`/api/libraries/${activeLibrary.id}`, {
@@ -302,11 +454,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          type: data.type,
-          path: data.path,
-          config
-        }),
+        body: JSON.stringify(requestBody),
       });
       
       if (!response.ok) {
@@ -314,11 +462,12 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       }
       
       const updatedLibrary = await response.json();
-      console.log('[StorageForm] Library aktualisiert:', {
+      console.log('[StorageForm] Response erhalten:', {
         id: updatedLibrary.id,
-        label: updatedLibrary.label,
-        type: updatedLibrary.type
+        hasClientSecret: !!updatedLibrary.config?.clientSecret,
+        clientSecretValue: updatedLibrary.config?.clientSecret
       });
+      console.log('[StorageForm] === SUBMIT END ===');
       
       // Library in der Liste aktualisieren
       setLibraries(libraries.map(lib => lib.id === updatedLibrary.id ? updatedLibrary : lib));
@@ -334,7 +483,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     } finally {
       setIsLoading(false);
     }
-  }, [activeLibrary, libraries, setLibraries]);
+  }, [activeLibrary, libraries, setLibraries, refreshAuthStatus]);
   
   // Funktion zum Starten der OneDrive-Authentifizierung
   const handleOneDriveAuth = useCallback(async () => {
@@ -373,15 +522,20 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         clientSecret: updatedLibrary.config?.clientSecret ? 'vorhanden' : 'nicht vorhanden'
       });
       
-      // Überprüfen, ob die erforderlichen Konfigurationswerte vorhanden sind
-      if (!updatedLibrary.config?.clientId || !updatedLibrary.config?.clientSecret) {
-        const missingParams = [
-          !updatedLibrary.config?.clientId ? 'Client ID' : '',
-          !updatedLibrary.config?.clientSecret ? 'Client Secret' : ''
-        ].filter(Boolean).join(', ');
-        
+      // Client-seitige Validierung nur für clientId (clientSecret wird server-seitig geprüft)
+      if (!updatedLibrary.config?.clientId) {
         toast.error("Unvollständige Konfiguration", {
-          description: `Bitte füllen Sie alle erforderlichen Felder aus und speichern Sie die Änderungen: ${missingParams}`,
+          description: "Bitte geben Sie eine Client ID ein und speichern Sie die Änderungen.",
+        });
+        return;
+      }
+      
+      // Prüfe ob clientSecret vorhanden ist (maskiert oder echter Wert)
+      const hasClientSecret = updatedLibrary.config?.clientSecret && updatedLibrary.config.clientSecret !== '';
+      
+      if (!hasClientSecret) {
+        toast.error("Unvollständige Konfiguration", {
+          description: "Bitte geben Sie ein Client Secret ein und speichern Sie die Änderungen.",
         });
         return;
       }
@@ -398,9 +552,14 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       // Die getAuthUrl Methode ist jetzt asynchron
       const authUrlString = await provider.getAuthUrl();
       
-      // Library-ID als state-Parameter übergeben
+      // State-Objekt mit Library-ID und aktueller URL erstellen (einheitliches Format)
+      const currentUrl = window.location.href;
+      const stateObj = { 
+        libraryId: updatedLibrary.id,
+        redirect: currentUrl  // Zurück zu den Settings nach der Authentifizierung
+      };
       const urlWithState = new URL(authUrlString);
-      urlWithState.searchParams.set('state', updatedLibrary.id);
+      urlWithState.searchParams.set('state', JSON.stringify(stateObj));
       
       // Finale URL loggen
       console.log('[StorageForm] Weiterleitung zu:', urlWithState.toString());
@@ -414,6 +573,69 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       });
     }
   }, [activeLibrary, form, onSubmit]);
+  
+  // Funktion zum Abmelden von OneDrive
+  const handleOneDriveLogout = useCallback(async () => {
+    if (!activeLibrary) {
+      toast.error("Fehler", {
+        description: "Keine Bibliothek ausgewählt.",
+      });
+      return;
+    }
+    
+    try {
+      console.log('[StorageForm] Starte OneDrive-Abmeldung für Bibliothek:', activeLibrary.id);
+      
+      const response = await fetch(`/api/libraries/${activeLibrary.id}/tokens`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Fehler beim Abmelden');
+      }
+      
+      console.log('[StorageForm] OneDrive-Abmeldung erfolgreich');
+      
+      // Tokens aus localStorage entfernen
+      try {
+        const localStorageKey = `onedrive_tokens_${activeLibrary.id}`;
+        localStorage.removeItem(localStorageKey);
+        console.log(`[StorageForm] Tokens aus localStorage entfernt: ${localStorageKey}`);
+      } catch (error) {
+        console.error('[StorageForm] Fehler beim Entfernen der Tokens aus localStorage:', error);
+      }
+      
+      // Token-Status aktualisieren
+      setTokenStatus({
+        loading: false,
+        isAuthenticated: false,
+        isExpired: false
+      });
+      
+      // Bibliotheken neu laden
+      await refreshLibraries();
+      
+      // Provider-Cache leeren
+      try {
+        const factory = StorageFactory.getInstance();
+        await factory.clearProvider(activeLibrary.id);
+        console.log('[StorageForm] Provider-Cache geleert');
+      } catch (error) {
+        console.error('[StorageForm] Fehler beim Leeren des Provider-Cache:', error);
+      }
+      
+      toast.success("Erfolgreich abgemeldet", {
+        description: "Sie wurden erfolgreich von OneDrive abgemeldet.",
+      });
+      
+    } catch (error) {
+      console.error('[StorageForm] Fehler beim Abmelden von OneDrive:', error);
+      toast.error("Fehler", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Abmelden",
+      });
+    }
+  }, [activeLibrary, refreshLibraries]);
   
   // Funktion zum Testen des Storage-Providers
   const handleTest = async () => {
@@ -529,10 +751,24 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
                 <FormItem>
                   <FormLabel>Client Secret</FormLabel>
                   <FormControl>
-                    <Input {...field} type="password" value={field.value || ""} />
+                    <Input 
+                      {...field} 
+                      type="password" 
+                      value={field.value || ""} 
+                      placeholder={
+                        activeLibrary?.config?.clientSecret === '********' 
+                          ? "Client Secret ist gespeichert (zum Ändern neuen Wert eingeben)" 
+                          : "Client Secret eingeben"
+                      }
+                    />
                   </FormControl>
                   <FormDescription>
                     Das Client Secret Ihrer Microsoft Azure AD-Anwendung.
+                    {activeLibrary?.config?.clientSecret === '********' && (
+                      <span className="block mt-1 text-green-600 dark:text-green-400">
+                        ✓ Ein Client Secret ist bereits gespeichert. Lassen Sie das Feld leer, um es beizubehalten.
+                      </span>
+                    )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -542,16 +778,47 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
             <div className="mt-4">
               <Button
                 type="button"
-                variant="secondary"
-                onClick={handleOneDriveAuth}
+                variant={tokenStatus.isAuthenticated ? "destructive" : "secondary"}
+                onClick={tokenStatus.isAuthenticated ? handleOneDriveLogout : handleOneDriveAuth}
                 className="w-full"
               >
                 <Cloud className="h-4 w-4 mr-2" />
-                Bei OneDrive anmelden
+                {tokenStatus.isAuthenticated ? "Von OneDrive abmelden" : "Bei OneDrive anmelden"}
               </Button>
               <p className="text-xs text-muted-foreground mt-2">
-                Klicken Sie auf den Button, um sich bei OneDrive anzumelden und Zugriff auf Ihre Dateien zu erteilen.
+                {tokenStatus.isAuthenticated 
+                  ? "Klicken Sie auf den Button, um sich von OneDrive abzumelden und den Zugriff zu widerrufen."
+                  : "Klicken Sie auf den Button, um sich bei OneDrive anzumelden und Zugriff auf Ihre Dateien zu erteilen."
+                }
               </p>
+              
+              {/* Token-Status anzeigen */}
+              {tokenStatus.loading ? (
+                <div className="mt-3 text-sm text-muted-foreground">
+                  Lade Authentifizierungsstatus...
+                </div>
+              ) : tokenStatus.isAuthenticated ? (
+                <Alert className="mt-3">
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertTitle>Authentifiziert</AlertTitle>
+                  <AlertDescription>
+                    Sie sind bei OneDrive angemeldet.
+                    {tokenStatus.isExpired && (
+                      <span className="text-yellow-600 dark:text-yellow-400 block mt-1">
+                        ⚠️ Die Authentifizierung ist abgelaufen. Bitte melden Sie sich erneut an.
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert className="mt-3" variant="default">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Nicht authentifiziert</AlertTitle>
+                  <AlertDescription>
+                    Sie müssen sich bei OneDrive anmelden, um auf Ihre Dateien zugreifen zu können.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           </>
         );
@@ -739,16 +1006,6 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
           />
           
           {renderStorageTypeFields()}
-          
-          {authSuccessMessage && (
-            <Alert>
-              <CheckCircle className="h-4 w-4" />
-              <AlertTitle>Erfolg</AlertTitle>
-              <AlertDescription>
-                {authSuccessMessage}
-              </AlertDescription>
-            </Alert>
-          )}
           
           <div className="flex items-center justify-between">
             <Button 

@@ -1,115 +1,65 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense } from "react";
 import { Library } from "@/components/library/library";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@clerk/nextjs";
+import { useAtom } from "jotai";
+import { activeLibraryIdAtom } from "@/atoms/library-atom";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
-import { useToast } from "@/components/ui/use-toast";
-import { ClientLibrary, StorageProviderType } from "@/types/library";
-import { AlertCircle } from "lucide-react";
-import { useAuth, useUser } from "@clerk/nextjs";
-import { useAtom } from "jotai";
-import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
-import { useSearchParams } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useStorage } from "@/contexts/storage-context";
 
 // Separate Client-Komponente für die URL-Parameter-Logik
 function LibraryUrlHandler() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const { refreshAuthStatus } = useStorage();
 
   useEffect(() => {
     const urlLibraryId = searchParams.get('activeLibraryId');
+    
+    // Nur die activeLibraryId aus der URL verarbeiten
     if (urlLibraryId) {
       console.log('[LibraryPage] Setze aktive Bibliothek aus URL-Parameter:', urlLibraryId);
       setActiveLibraryId(urlLibraryId);
       // Speichere auch im localStorage für zukünftige Seitenaufrufe
       localStorage.setItem('activeLibraryId', urlLibraryId);
       
-      // Entferne den Parameter aus der URL, um eine saubere URL zu haben
-      const url = new URL(window.location.href);
-      url.searchParams.delete('activeLibraryId');
-      window.history.replaceState({}, '', url.toString());
+      // Auth-Status aktualisieren für die neue Library
+      refreshAuthStatus();
+      
+      // Entferne den Parameter aus der URL
+      router.replace('/library');
     }
-  }, [searchParams, setActiveLibraryId]);
+  }, [searchParams, setActiveLibraryId, router, refreshAuthStatus]);
 
   return null;
 }
 
 export default function LibraryPage() {
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
-  const { user, isLoaded: isUserLoaded } = useUser();
-  
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [, setLibraries] = useAtom(librariesAtom);
-  const { toast } = useToast();
+  const { isLoading, error } = useStorage();
 
-  useEffect(() => {
-    async function loadLibraries() {
-      try {
-        setLoading(true);
-        setError(null);
-        const userEmail = user?.primaryEmailAddress?.emailAddress;
-        if (!userEmail) {
-          throw new Error("Keine Benutzer-Email verfügbar");
-        }
-        console.log('Loading libraries for user:', userEmail);
-        const response = await fetch(`/api/libraries?email=${encodeURIComponent(userEmail)}`);
-        if (!response.ok) {
-          throw new Error(`API-Fehler: ${response.status}`);
-        }
-        const userLibraries = await response.json();
-        if (!userLibraries || userLibraries.length === 0) {
-          console.log('No libraries found for user');
-          setError("Keine Bibliotheken gefunden. Bitte erstellen Sie eine Bibliothek in den Einstellungen.");
-          setLoading(false);
-          return;
-        }
-        const clientLibraries: ClientLibrary[] = userLibraries.map((lib: unknown) => {
-          if (typeof lib !== 'object' || lib === null) throw new Error('Ungültige Bibliotheksdaten');
-          const l = lib as Record<string, unknown>;
-          return {
-            id: l.id as string,
-            label: (l.label as string) || "Unbenannt",
-            path: l.path as string,
-            icon: <AlertCircle className="h-4 w-4" />,
-            type: (l.type as StorageProviderType) || 'local',
-            isEnabled: l.isEnabled !== false,
-            config: {
-              transcription: l.transcription || 'disabled',
-              ...(l.config as object)
-            }
-          };
-        });
-        console.log('Loaded libraries:', clientLibraries);
-        setLibraries(clientLibraries);
-        setLoading(false);
-      } catch (err: unknown) {
-        console.error('Error loading libraries:', err);
-        let message = 'Unbekannter Fehler';
-        if (err instanceof Error) message = err.message;
-        setError(`Fehler beim Laden der Bibliotheken: ${message}`);
-        setLoading(false);
-        toast({
-          title: "Fehler",
-          description: `Bibliotheken konnten nicht geladen werden: ${message}`,
-          variant: "destructive"
-        });
-      }
-    }
-    if (!isAuthLoaded || !isUserLoaded) return;
-    if (!isSignedIn) {
-      setError("Sie müssen angemeldet sein, um auf die Bibliothek zugreifen zu können.");
-      setLoading(false);
-      return;
-    }
-    loadLibraries();
-  }, [isAuthLoaded, isUserLoaded, isSignedIn, setLibraries, toast, user]);
-
-  if (loading) {
+  // Nutze den StorageContext statt eigenes Loading
+  if (!isAuthLoaded || isLoading) {
     return <div className="p-8">
       <Skeleton className="h-[500px] w-full" />
+    </div>;
+  }
+
+  if (!isSignedIn) {
+    return <div className="p-8">
+      <Alert variant="destructive">
+        <ExclamationTriangleIcon className="h-4 w-4" />
+        <AlertTitle>Fehler</AlertTitle>
+        <AlertDescription>
+          Sie müssen angemeldet sein, um auf die Bibliothek zugreifen zu können.
+        </AlertDescription>
+      </Alert>
     </div>;
   }
 

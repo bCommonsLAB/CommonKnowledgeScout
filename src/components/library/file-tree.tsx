@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { useAtom } from 'jotai';
 import { currentFolderIdAtom, activeLibraryIdAtom } from '@/atoms/library-atom';
 import { StorageAuthButton } from "../shared/storage-auth-button";
-import { useStorage } from '@/contexts/storage-context';
+import { useStorage, isStorageError } from '@/contexts/storage-context';
 import { useAtomValue } from 'jotai';
 import { toast } from 'sonner';
 
@@ -317,7 +317,7 @@ export function FileTree({
   libraryName = "/",
   onRefreshItems
 }: FileTreeProps) {
-  const { currentLibrary } = useStorage();
+  const { currentLibrary, libraryStatus } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [rootItems, setRootItems] = React.useState<StorageItem[]>([]);
   const [loadedChildren, setLoadedChildren] = React.useState<Record<string, StorageItem[]>>({});
@@ -330,6 +330,9 @@ export function FileTree({
   // Referenz für die letzte Provider-ID, um Änderungen zu verfolgen
   const previousProviderIdRef = React.useRef<string | null>(null);
   
+  // Referenz für den letzten Library-Status
+  const previousLibraryStatusRef = React.useRef<string | null>(null);
+  
   // Referenz für die letzte Anfrage, um veraltete Antworten zu verwerfen
   const lastRequestRef = React.useRef<number>(0);
   
@@ -339,6 +342,13 @@ export function FileTree({
   // Funktion zum Laden der Root-Elemente, jetzt ausgelagert für expliziten Aufruf
   const loadRootItems = React.useCallback(async (currentProvider: StorageProvider) => {
     if (!currentProvider) return;
+    
+    // Prüfe zuerst den Library-Status
+    if (libraryStatus !== 'ready') {
+      console.log('FileTree: Überspringe Laden - Library ist nicht bereit', { status: libraryStatus });
+      setRootItems([]);
+      return;
+    }
     
     // Für Anfragenverfolgung
     const requestId = ++lastRequestRef.current;
@@ -379,14 +389,17 @@ export function FileTree({
       console.log(`FileTree: After filtering, ${filteredItems.length} folders remain`);
       setRootItems(filteredItems);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // AUTH_REQUIRED Fehler nicht als Error setzen, da sie bereits in der UI behandelt werden
+      if (!isStorageError(err) || err.code !== 'AUTH_REQUIRED') {
+        setError(err instanceof Error ? err.message : String(err));
+      }
       setRootItems([]); // Stelle sicher, dass wir keine alten Daten anzeigen
     } finally {
       if (requestId === lastRequestRef.current) {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [libraryStatus]);
 
   // Debug-Logging für Provider-Wechsel
   React.useEffect(() => {
@@ -419,22 +432,49 @@ export function FileTree({
 
   // Lade nur erste Ebene beim Start oder durch explizites Signal
   React.useEffect(() => {
-    if (provider) {
+    if (provider && libraryStatus === 'ready') {
       console.log('FileTree: Initial root items load for provider', { 
         providerId: provider.id, 
-        providerName: provider.name
+        providerName: provider.name,
+        libraryStatus
       });
       loadRootItems(provider);
     } else {
-      console.log('FileTree: No provider available, cannot load items');
+      console.log('FileTree: Überspringe Initial-Load - Library nicht bereit', { 
+        status: libraryStatus,
+        hasProvider: !!provider 
+      });
       setRootItems([]);
       setLoadedChildren({});
     }
-  }, [provider, loadRootItems]);
+  }, [provider, loadRootItems, libraryStatus]);
+
+  // Reagiere auf Änderungen des Library-Status
+  React.useEffect(() => {
+    console.log('FileTree: Library-Status geändert', {
+      vorheriger: previousLibraryStatusRef.current,
+      aktueller: libraryStatus,
+      providerVorhanden: !!provider
+    });
+    
+    // Wenn der Status von "waitingForAuth" zu "ready" wechselt, lade neu
+    if (previousLibraryStatusRef.current !== 'ready' && libraryStatus === 'ready' && provider) {
+      console.log('FileTree: Library wurde bereit, lade Root-Items neu');
+      loadRootItems(provider);
+    }
+    
+    previousLibraryStatusRef.current = libraryStatus;
+  }, [libraryStatus, provider, loadRootItems]);
 
   // Handler für Expand-Click
   const handleExpand = async (folderId: string) => {
     if (loadedChildren[folderId]) return; // Bereits geladen
+    
+    // Prüfe Library-Status
+    if (libraryStatus !== 'ready') {
+      console.log('FileTree: Überspringe Expand - Library ist nicht bereit', { status: libraryStatus });
+      return;
+    }
     
     try {
       const children = await provider?.listItemsById(folderId);
@@ -450,7 +490,10 @@ export function FileTree({
         }));
       }
     } catch (error) {
-      console.error('Failed to load children:', error);
+      // AUTH_REQUIRED Fehler nicht loggen, da sie bereits in der UI behandelt werden
+      if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
+        console.error('Failed to load children:', error);
+      }
     }
   };
 

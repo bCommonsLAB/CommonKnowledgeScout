@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, useRef } from "react"
 import { useAtom } from "jotai"
 
 import { LibraryHeader } from "./library-header"
@@ -15,7 +15,6 @@ import { useSelectedFile } from "@/hooks/use-selected-file"
 import { libraryAtom, activeLibraryIdAtom, currentFolderIdAtom, breadcrumbItemsAtom, writeBreadcrumbItemsAtom, librariesAtom } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
 import { DebugPanel } from "../debug/debug-panel"
-import { StorageAuthButton } from "../shared/storage-auth-button"
 
 export interface LibraryContextProps {
   libraries: ClientLibrary[];
@@ -42,8 +41,22 @@ export function Library() {
     error: storageError, 
     listItems,
     libraryStatus,
-    authProvider
+    refreshAuthStatus
   } = useStorage();
+
+  // Beim Laden der Library den Authentifizierungsstatus prüfen
+  useEffect(() => {
+    console.log('[Library] Komponente geladen, prüfe Authentifizierungsstatus...');
+    refreshAuthStatus();
+  }, [refreshAuthStatus]);
+
+  // Bei Änderung der aktiven Library den Auth-Status prüfen
+  useEffect(() => {
+    if (globalActiveLibraryId) {
+      console.log('[Library] Aktive Library geändert zu:', globalActiveLibraryId, '- prüfe Authentifizierungsstatus...');
+      refreshAuthStatus();
+    }
+  }, [globalActiveLibraryId, refreshAuthStatus]);
 
   // Debug-Logging für Storage Context
   useEffect(() => {
@@ -74,6 +87,9 @@ export function Library() {
   // Verwende globalen Breadcrumb-Zustand
   const [, setBreadcrumbItems] = useAtom(breadcrumbItemsAtom);
   const [, setWriteBreadcrumb] = useAtom(writeBreadcrumbItemsAtom);
+
+  // Debounce-Referenz für loadItems
+  const loadItemsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialisiere Jotai-Zustand bei Komponenteninitialisierung
   useEffect(() => {
@@ -180,131 +196,145 @@ export function Library() {
 
   // Optimierter Items Load mit Caching - jetzt mit StorageContext
   const loadItems = useCallback(async (forceRefresh = false) => {
-    if (!providerInstance) {
-      console.log('Library: loadItems skipped - no provider instance');
-      return;
+    // Lösche vorherige Timeouts
+    if (loadItemsTimeoutRef.current) {
+      clearTimeout(loadItemsTimeoutRef.current);
     }
+    
+    // Debounce für 100ms um mehrfache Aufrufe zu verhindern
+    return new Promise<void>((resolve) => {
+      loadItemsTimeoutRef.current = setTimeout(async () => {
+        if (!providerInstance) {
+          console.log('Library: loadItems skipped - no provider instance');
+          resolve();
+          return;
+        }
 
-    console.log('Library: Starting loadItems', {
-      currentFolderId,
-      hasCachedItems: !!folderCache.get(currentFolderId)?.children,
-      forceRefresh
+        console.log('Library: Starting loadItems', {
+          currentFolderId,
+          hasCachedItems: !!folderCache.get(currentFolderId)?.children,
+          forceRefresh
+        });
+
+        try {
+          // Prüfe Cache nur wenn kein forceRefresh
+          const cachedItems = !forceRefresh ? folderCache.get(currentFolderId)?.children : null;
+          if (cachedItems) {
+            console.log('Library: Using cached items', {
+              itemCount: cachedItems.length,
+              folderId: currentFolderId
+            });
+            // Resolve path even for cached items
+            const path = await resolvePath(currentFolderId, folderCache);
+            
+            // Kein flushSync mehr verwenden, sondern getrennte State-Updates
+            setFolderItems(cachedItems);
+            
+            // Breadcrumb nur aktualisieren, wenn es nicht Root ist oder wenn der aktuelle Breadcrumb leer ist
+            if (currentFolderId !== 'root' || selected.breadcrumb.items.length === 0) {
+              console.log('Library: Aktualisiere Breadcrumb für gecachte Items', { 
+                folderId: currentFolderId,
+                pathLength: path.length 
+              });
+              updateBreadcrumb(path, currentFolderId);
+              // Aktualisiere auch das globale Atom
+              setBreadcrumbItems(path);
+            } else {
+              console.log('Library: Überspringe Breadcrumb-Update für Root bei vorhandenem Breadcrumb');
+            }
+            
+            resolve();
+            return;
+          }
+
+          console.log('Library: Fetching items from provider');
+          // Nutze den StorageContext für das Laden der Items
+          const items = await listItems(currentFolderId);
+          console.log('Library: Items fetched successfully', {
+            itemCount: items.length,
+            folderCount: items.filter(i => i.type === 'folder').length,
+            fileCount: items.filter(i => i.type === 'file').length
+          });
+          
+          // Update Cache und Items in einer Transaktion
+          items.forEach(item => {
+            if (item.type === 'folder') {
+              folderCache.set(item.id, {
+                ...item,
+                children: []
+              });
+            }
+          });
+          
+          // Cache die Items unter dem Parent
+          if (currentFolderId !== 'root') {
+            const parent = folderCache.get(currentFolderId);
+            if (parent) {
+              folderCache.set(currentFolderId, {
+                ...parent,
+                children: items
+              });
+            }
+          } else {
+            // Bei Root auch den Cache aktualisieren
+            folderCache.set('root', {
+              id: 'root',
+              type: 'folder',
+              metadata: {
+                name: 'Root',
+                size: 0,
+                modifiedAt: new Date(),
+                mimeType: 'folder'
+              },
+              parentId: '',
+              children: items
+            });
+          }
+          
+          // Resolve path and update breadcrumb along with items
+          const path = await resolvePath(currentFolderId, folderCache);
+          
+          // Kein flushSync mehr verwenden, sondern getrennte State-Updates
+          console.log('Library: Updating UI with new items');
+          setFolderItems(items);
+          
+          // Breadcrumb nur aktualisieren, wenn es nicht Root ist oder wenn der aktuelle Breadcrumb leer ist
+          if (currentFolderId !== 'root' || selected.breadcrumb.items.length === 0) {
+            console.log('Library: Aktualisiere Breadcrumb für neue Items', { 
+              folderId: currentFolderId,
+              pathLength: path.length 
+            });
+            updateBreadcrumb(path, currentFolderId);
+            // Aktualisiere auch das globale Atom
+            setBreadcrumbItems(path);
+          } else {
+            console.log('Library: Überspringe Breadcrumb-Update für Root bei vorhandenem Breadcrumb');
+          }
+          
+        } catch (error) {
+          if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
+            // Kein Logging für AUTH_REQUIRED
+          } else {
+            console.error('Library: Failed to load items:', error);
+          }
+          setFolderItems([]);
+          // Breadcrumb nur zurücksetzen, wenn wir wirklich im Root-Verzeichnis sind
+          if (currentFolderId === 'root') {
+            updateBreadcrumb([], 'root');
+            setBreadcrumbItems([]);
+          } else {
+            console.warn('Library: Fehler beim Laden der Items, behalte aber den Breadcrumb für:', currentFolderId);
+          }
+        }
+        
+        resolve();
+      }, 100); // 100ms Debounce
     });
-
-    try {
-      // Prüfe Cache nur wenn kein forceRefresh
-      const cachedItems = !forceRefresh ? folderCache.get(currentFolderId)?.children : null;
-      if (cachedItems) {
-        console.log('Library: Using cached items', {
-          itemCount: cachedItems.length,
-          folderId: currentFolderId
-        });
-        // Resolve path even for cached items
-        const path = await resolvePath(currentFolderId, folderCache);
-        
-        // Kein flushSync mehr verwenden, sondern getrennte State-Updates
-        setFolderItems(cachedItems);
-        
-        // Breadcrumb nur aktualisieren, wenn es nicht Root ist oder wenn der aktuelle Breadcrumb leer ist
-        if (currentFolderId !== 'root' || selected.breadcrumb.items.length === 0) {
-          console.log('Library: Aktualisiere Breadcrumb für gecachte Items', { 
-            folderId: currentFolderId,
-            pathLength: path.length 
-          });
-          updateBreadcrumb(path, currentFolderId);
-          // Aktualisiere auch das globale Atom
-          setBreadcrumbItems(path);
-        } else {
-          console.log('Library: Überspringe Breadcrumb-Update für Root bei vorhandenem Breadcrumb');
-        }
-        
-        return;
-      }
-
-      console.log('Library: Fetching items from provider');
-      // Nutze den StorageContext für das Laden der Items
-      const items = await listItems(currentFolderId);
-      console.log('Library: Items fetched successfully', {
-        itemCount: items.length,
-        folderCount: items.filter(i => i.type === 'folder').length,
-        fileCount: items.filter(i => i.type === 'file').length
-      });
-      
-      // Update Cache und Items in einer Transaktion
-      items.forEach(item => {
-        if (item.type === 'folder') {
-          folderCache.set(item.id, {
-            ...item,
-            children: []
-          });
-        }
-      });
-      
-      // Cache die Items unter dem Parent
-      if (currentFolderId !== 'root') {
-        const parent = folderCache.get(currentFolderId);
-        if (parent) {
-          folderCache.set(currentFolderId, {
-            ...parent,
-            children: items
-          });
-        }
-      } else {
-        // Bei Root auch den Cache aktualisieren
-        folderCache.set('root', {
-          id: 'root',
-          type: 'folder',
-          metadata: {
-            name: 'Root',
-            size: 0,
-            modifiedAt: new Date(),
-            mimeType: 'folder'
-          },
-          parentId: '',
-          children: items
-        });
-      }
-      
-      // Resolve path and update breadcrumb along with items
-      const path = await resolvePath(currentFolderId, folderCache);
-      
-      // Kein flushSync mehr verwenden, sondern getrennte State-Updates
-      console.log('Library: Updating UI with new items');
-      setFolderItems(items);
-      
-      // Breadcrumb nur aktualisieren, wenn es nicht Root ist oder wenn der aktuelle Breadcrumb leer ist
-      if (currentFolderId !== 'root' || selected.breadcrumb.items.length === 0) {
-        console.log('Library: Aktualisiere Breadcrumb für neue Items', { 
-          folderId: currentFolderId,
-          pathLength: path.length 
-        });
-        updateBreadcrumb(path, currentFolderId);
-        // Aktualisiere auch das globale Atom
-        setBreadcrumbItems(path);
-      } else {
-        console.log('Library: Überspringe Breadcrumb-Update für Root bei vorhandenem Breadcrumb');
-      }
-      
-    } catch (error) {
-      if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
-        // Kein Logging für AUTH_REQUIRED
-      } else {
-        console.error('Library: Failed to load items:', error);
-      }
-      setFolderItems([]);
-      // Breadcrumb nur zurücksetzen, wenn wir wirklich im Root-Verzeichnis sind
-      if (currentFolderId === 'root') {
-        updateBreadcrumb([], 'root');
-        setBreadcrumbItems([]);
-      } else {
-        console.warn('Library: Fehler beim Laden der Items, behalte aber den Breadcrumb für:', currentFolderId);
-      }
-    }
   }, [currentFolderId, listItems, folderCache, resolvePath, updateBreadcrumb, setBreadcrumbItems, selected.breadcrumb.items.length, providerInstance]);
 
   // Load Items wenn Provider oder Folder sich ändern
   useEffect(() => {
-    if (providerInstance) {
+    if (providerInstance && libraryStatus === 'ready') {
       console.log('Library: Loading items for current folder due to provider or folder change');
       loadItems().then(() => {
         console.log('Library: Initial items loaded, ensuring breadcrumb is updated');
@@ -314,9 +344,36 @@ export function Library() {
           console.log('Library: Stelle sicher, dass Breadcrumb für Nicht-Root-Ordner erhalten bleibt:', currentFolderId);
           setBreadcrumbItems(selected.breadcrumb.items);
         }
+      }).catch(error => {
+        // AUTH_REQUIRED Fehler werden bereits in loadItems behandelt
+        if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
+          console.error('[Library] Fehler beim initialen Laden der Items:', error);
+        }
+      });
+    } else {
+      console.log('Library: Überspringe Laden - Library nicht bereit', { 
+        status: libraryStatus,
+        hasProvider: !!providerInstance 
+      });
+      setFolderItems([]);
+    }
+  }, [loadItems, providerInstance, currentFolderId, selected.breadcrumb.items, setBreadcrumbItems, libraryStatus]);
+
+  // Reagiere auf Änderungen des Library-Status
+  useEffect(() => {
+    // Wenn der Status von "waitingForAuth" zu "ready" wechselt, lade Items neu
+    if (libraryStatus === 'ready' && providerInstance) {
+      console.log('[Library] Library-Status ist "ready", lade Items neu');
+      // Fehler abfangen, da loadItems bereits intern AUTH_REQUIRED behandelt
+      loadItems(true).catch(error => {
+        // AUTH_REQUIRED Fehler werden bereits in loadItems behandelt und die UI zeigt den korrekten Status
+        // Wir müssen hier nichts weiter tun
+        if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
+          console.error('[Library] Unerwarteter Fehler beim Laden der Items:', error);
+        }
       });
     }
-  }, [loadItems, providerInstance, currentFolderId, selected.breadcrumb.items, setBreadcrumbItems]);
+  }, [libraryStatus, providerInstance, loadItems]);
 
   // Optimierter Folder Select Handler
   const handleFolderSelect = useCallback(async (item: StorageItem) => {
@@ -378,29 +435,37 @@ export function Library() {
         console.timeEnd('stateUpdates');
       }
     } catch (error) {
-      console.error('Failed to select folder:', error);
+      // AUTH_REQUIRED Fehler nicht loggen, da sie bereits in der UI behandelt werden
+      if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
+        console.error('Failed to select folder:', error);
+      }
     } finally {
       console.timeEnd('folderSelect');
     }
   }, [listItems, folderCache, resolvePath, updateBreadcrumb, clearSelection, setBreadcrumbItems, currentFolderId, setCurrentFolderId]);
 
+  // Cleanup bei Unmount
+  useEffect(() => {
+    return () => {
+      if (loadItemsTimeoutRef.current) {
+        clearTimeout(loadItemsTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Komponenten nur rendern, wenn Storage bereit oder Daten werden geladen
   if (libraryStatus === "waitingForAuth") {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-        <span>Bitte authentifizieren Sie sich beim Storage-Provider.</span>
-        {authProvider && (
-          <div className="mt-4">
-            <StorageAuthButton provider={authProvider} />
-          </div>
-        )}
+        <span>Diese Bibliothek benötigt eine Authentifizierung.</span>
+        <span className="text-sm mt-2">Bitte konfigurieren Sie die Bibliothek in den Einstellungen.</span>
         <div className="absolute bottom-4 right-4">
           <DebugPanel />
         </div>
       </div>
     );
   }
-  if (libraryStatus !== "ready" && libraryStatus !== "loadingData") {
+  if (libraryStatus !== "ready") {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
         <span>Lade Storage...</span>
@@ -431,7 +496,14 @@ export function Library() {
               provider={providerInstance}
               onSelectAction={handleFolderSelect}
               libraryName={currentLibrary?.label}
-              onRefreshItems={() => loadItems(true)}
+              onRefreshItems={() => {
+                loadItems(true).catch(error => {
+                  // AUTH_REQUIRED Fehler werden bereits behandelt
+                  if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
+                    console.error('[Library] Fehler beim Refresh der Items:', error);
+                  }
+                });
+              }}
             />
           </div>
         </div>

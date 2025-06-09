@@ -136,6 +136,14 @@ export class LibraryService {
    */
   async updateLibrary(email: string, updatedLibrary: Library): Promise<boolean> {
     try {
+      console.log('[LibraryService] === UPDATE LIBRARY START ===');
+      console.log('[LibraryService] Aktualisiere Library:', updatedLibrary.id);
+      console.log('[LibraryService] Config vor Update:', {
+        hasClientSecret: !!updatedLibrary.config?.clientSecret,
+        clientSecretValue: updatedLibrary.config?.clientSecret,
+        configKeys: updatedLibrary.config ? Object.keys(updatedLibrary.config) : []
+      });
+      
       const libraries = await this.getUserLibraries(email);
       const index = libraries.findIndex(lib => lib.id === updatedLibrary.id);
       
@@ -147,7 +155,12 @@ export class LibraryService {
         libraries[index] = updatedLibrary;
       }
       
-      return this.updateUserLibraries(email, libraries);
+      console.log('[LibraryService] Rufe updateUserLibraries auf...');
+      const result = await this.updateUserLibraries(email, libraries);
+      console.log('[LibraryService] Update-Ergebnis:', result);
+      console.log('[LibraryService] === UPDATE LIBRARY END ===');
+      
+      return result;
     } catch (error) {
       console.error('Fehler beim Aktualisieren der Bibliothek:', error);
       return false;
@@ -188,6 +201,8 @@ export class LibraryService {
    * Sichere Client-Bibliotheken aus vollständigen Bibliotheken erstellen
    */
   toClientLibraries(libraries: Library[]): ClientLibrary[] {
+    console.log('[LibraryService] === TO CLIENT LIBRARIES START ===');
+    
     return libraries.map(lib => {
       // Basis-Konfiguration für alle Bibliothekstypen
       const baseConfig = {
@@ -200,42 +215,42 @@ export class LibraryService {
       
       // Für OneDrive-Bibliotheken die OAuth-Parameter hinzufügen
       if (lib.type === 'onedrive') {
-        // Wir verwenden den config-Wert als Record<string, unknown>, 
-        // um auf dynamische Eigenschaften zuzugreifen
-        const configAsRecord = lib.config as Record<string, unknown>;
+        console.log(`[LibraryService] Verarbeite OneDrive Library ${lib.id}:`, {
+          hasClientSecret: !!lib.config?.clientSecret,
+          clientSecretValue: lib.config?.clientSecret,
+          willMask: !!lib.config?.clientSecret
+        });
         
         config = {
           ...config,
           tenantId: lib.config?.tenantId,
           clientId: lib.config?.clientId,
-          clientSecret: lib.config?.clientSecret,
+          // Client Secret maskiert senden, wenn vorhanden
+          clientSecret: lib.config?.clientSecret ? '********' : undefined,
           redirectUri: lib.config?.redirectUri,
-          // Vorhandene Token ebenfalls übernehmen, falls vorhanden
-          accessToken: configAsRecord?.['accessToken'],
-          refreshToken: configAsRecord?.['refreshToken'],
-          tokenExpiry: configAsRecord?.['tokenExpiry']
+          // Tokens werden NICHT mehr in der Datenbank gespeichert
+          // Der Client muss den Token-Status aus localStorage prüfen
         };
+        
+        console.log(`[LibraryService] OneDrive Config nach Maskierung:`, {
+          clientSecretValue: config.clientSecret
+        });
       }
       
       // Gleiches für andere OAuth-Provider wie Google Drive
       if (lib.type === 'gdrive') {
-        // Wir verwenden den config-Wert als Record<string, unknown>,
-        // um auf dynamische Eigenschaften zuzugreifen
-        const configAsRecord = lib.config as Record<string, unknown>;
-        
         config = {
           ...config,
           clientId: lib.config?.clientId,
-          clientSecret: lib.config?.clientSecret,
+          // Client Secret maskiert senden, wenn vorhanden
+          clientSecret: lib.config?.clientSecret ? '********' : undefined,
           redirectUri: lib.config?.redirectUri,
-          // Vorhandene Token ebenfalls übernehmen, falls vorhanden
-          accessToken: configAsRecord?.['accessToken'],
-          refreshToken: configAsRecord?.['refreshToken'],
-          tokenExpiry: configAsRecord?.['tokenExpiry']
+          // Tokens werden NICHT mehr in der Datenbank gespeichert
+          // Der Client muss den Token-Status aus localStorage prüfen
         };
       }
       
-      return {
+      const result = {
         id: lib.id,
         label: lib.label,
         type: lib.type,
@@ -243,6 +258,10 @@ export class LibraryService {
         isEnabled: lib.isEnabled,
         config
       };
+      
+      console.log('[LibraryService] === TO CLIENT LIBRARIES END ===');
+      
+      return result;
     });
   }
 } 

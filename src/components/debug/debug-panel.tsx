@@ -17,7 +17,23 @@ export function DebugPanel() {
   const { provider, currentLibrary, libraryStatus, lastRequestedLibraryId } = useStorage();
   const { selected } = useSelectedFile();
 
-  const tokenPresent = !!currentLibrary?.config?.accessToken || !!currentLibrary?.config?.refreshToken;
+  // Token-Status aus localStorage prüfen
+  const [tokenPresent, setTokenPresent] = React.useState(false);
+  
+  React.useEffect(() => {
+    if (currentLibrary && (currentLibrary.type === 'onedrive' || currentLibrary.type === 'gdrive')) {
+      try {
+        const localStorageKey = `onedrive_tokens_${currentLibrary.id}`;
+        const tokensJson = localStorage.getItem(localStorageKey);
+        setTokenPresent(!!tokensJson);
+      } catch (error) {
+        console.error('[DebugPanel] Fehler beim Prüfen der Tokens:', error);
+        setTokenPresent(false);
+      }
+    } else {
+      setTokenPresent(false);
+    }
+  }, [currentLibrary]);
 
   // Debug-Ausgabe für die Auswahl
   React.useEffect(() => {

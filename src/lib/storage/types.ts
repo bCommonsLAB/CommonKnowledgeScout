@@ -82,6 +82,13 @@ export interface StorageProvider {
   id: string;
   
   /**
+   * Checks if the provider is authenticated.
+   * For OAuth providers, checks if valid tokens exist.
+   * @returns Whether the provider is authenticated
+   */
+  isAuthenticated(): boolean;
+  
+  /**
    * Validates the provider configuration.
    * Checks if the provider is properly configured and accessible.
    */

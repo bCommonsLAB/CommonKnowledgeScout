@@ -165,3 +165,56 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
 
 **Automatisierung:**  
 - Nutze ESLint-Regeln wie `@typescript-eslint/no-explicit-any`, `@typescript-eslint/no-unused-vars` etc. für automatische Durchsetzung.
+
+# Next.js 13+ App Router Regeln
+
+## Route Handler Parameter
+In Next.js 13+ App Router müssen dynamische Route-Parameter IMMER awaited werden:
+
+```typescript
+// ❌ FALSCH
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const id = params.id; // FEHLER!
+}
+
+// ✅ RICHTIG
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params; // Params müssen awaited werden!
+}
+```
+
+## API Route Pattern
+Alle API Routes sollten diesem Pattern folgen:
+1. Params als Promise typisieren: `{ params: Promise<{ paramName: string }> }`
+2. Params awaiten: `const { paramName } = await params;`
+3. Authentifizierung prüfen
+4. Request-Body parsen (wenn nötig)
+5. Business-Logik ausführen
+6. Response zurückgeben
+
+## Sicherheitsregeln
+1. NIEMALS sensible Daten (Tokens, Secrets) an den Client senden
+2. Client Secrets immer maskieren: `clientSecret: secret ? '********' : undefined`
+3. Token-Status statt Token-Werte zurückgeben
+
+## TypeScript Strict Mode
+- Keine `any` Types verwenden
+- Immer explizite Return-Types definieren
+- Null/Undefined Checks durchführen
+
+## Error Handling
+- Immer try-catch in Route Handlers verwenden
+- Aussagekräftige Fehlermeldungen mit korrekten HTTP-Status-Codes
+- Fehler loggen für Debugging
+
+## Projekt-spezifische Regeln
+- LibraryService.getInstance() für Datenbankzugriffe verwenden
+- Clerk für Authentifizierung (auth() und currentUser())
+- MongoDB für Datenpersistierung
+- Immer User-Email statt User-ID verwenden

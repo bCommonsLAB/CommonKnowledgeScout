@@ -13,6 +13,11 @@ export class FileSystemClient implements StorageProvider {
     this.libraryId = libraryId || '';
   }
 
+  isAuthenticated(): boolean {
+    // Lokale Dateisysteme benötigen keine Authentifizierung
+    return true;
+  }
+
   private getCacheKey(action: string, id: string): string {
     return `${action}:${id}:${this.libraryId}`;
   }

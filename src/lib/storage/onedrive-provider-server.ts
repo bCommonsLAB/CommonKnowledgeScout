@@ -114,10 +114,16 @@ export class OneDriveServerProvider {
       }
 
       const data = await response.json() as TokenResponse;
-      console.log('[OneDriveServerProvider] Token erfolgreich erhalten');
+      console.log('[OneDriveServerProvider] Token erfolgreich erhalten', {
+        hasAccessToken: !!data.access_token,
+        hasRefreshToken: !!data.refresh_token,
+        expiresIn: data.expires_in
+      });
       
-      // Tokens in der Bibliothekskonfiguration speichern
-      await this.saveTokens(data.access_token, data.refresh_token, data.expires_in);
+      // TEMPORÄR: Tokens werden einmalig in der Datenbank gespeichert,
+      // damit der Client sie abrufen und im localStorage speichern kann.
+      // Der Client löscht sie dann sofort aus der Datenbank.
+      await this.saveTokensTemporarily(data.access_token, data.refresh_token, data.expires_in);
       
       return true;
     } catch (error) {
@@ -127,20 +133,16 @@ export class OneDriveServerProvider {
   }
   
   /**
-   * Speichert die Tokens in der Datenbank
-   * Diese Methode speichert die Tokens direkt über den LibraryService
+   * Speichert die Tokens TEMPORÄR in der Datenbank
+   * Diese werden vom Client einmalig abgerufen und dann gelöscht
    */
-  private async saveTokens(accessToken: string, refreshToken: string, expiresIn: number): Promise<void> {
+  private async saveTokensTemporarily(accessToken: string, refreshToken: string, expiresIn: number): Promise<void> {
     try {
-      // Aktuelle Zeit in Sekunden + Ablaufzeit
       const expiryTime = Math.floor(Date.now() / 1000) + expiresIn;
       
-      console.log('[OneDriveServerProvider] Speichere Tokens in der Bibliothekskonfiguration...');
+      console.log('[OneDriveServerProvider] Speichere Tokens TEMPORÄR für Client-Transfer...');
       
-      // LibraryService holen
       const libraryService = LibraryService.getInstance();
-      
-      // Zuerst die vollständigen Bibliotheksdaten abrufen
       const libraries = await libraryService.getUserLibraries(this.userEmail);
       const existingLibrary = libraries.find(lib => lib.id === this.library.id);
       
@@ -148,33 +150,31 @@ export class OneDriveServerProvider {
         throw new Error(`Bibliothek mit ID ${this.library.id} nicht gefunden`);
       }
       
-      // Erstelle eine neue Config mit den Token-Werten als dynamische Properties
       const updatedConfig: Record<string, unknown> = {
         ...(existingLibrary.config || {})
       };
       
-      // Token als dynamische Properties setzen
-      updatedConfig['accessToken'] = accessToken;
-      updatedConfig['refreshToken'] = refreshToken;
-      updatedConfig['tokenExpiry'] = expiryTime.toString();
+      // Tokens temporär speichern
+      updatedConfig['tempAccessToken'] = accessToken;
+      updatedConfig['tempRefreshToken'] = refreshToken;
+      updatedConfig['tempTokenExpiry'] = expiryTime.toString();
+      updatedConfig['tempTokensAvailable'] = true;
       
-      // Die existierende Library mit den neuen Token aktualisieren
       const updatedLibrary: Library = {
         ...existingLibrary,
         config: updatedConfig as StorageConfig,
-        // Erzwinge den korrekten Typ
         type: 'onedrive'
       };
       
       const success = await libraryService.updateLibrary(this.userEmail, updatedLibrary);
       
       if (!success) {
-        throw new Error('Bibliotheksupdate fehlgeschlagen (kein Erfolg zurückgegeben)');
+        throw new Error('Bibliotheksupdate fehlgeschlagen');
       }
       
-      console.log('[OneDriveServerProvider] Tokens erfolgreich gespeichert');
+      console.log('[OneDriveServerProvider] Tokens temporär gespeichert für Client-Abruf');
     } catch (error) {
-      console.error('[OneDriveServerProvider] Fehler beim Speichern der Tokens:', error);
+      console.error('[OneDriveServerProvider] Fehler beim temporären Speichern der Tokens:', error);
       throw error;
     }
   }
