@@ -21,24 +21,21 @@ export interface VideoTransformSettings extends AudioTransformSettings {
 }
 
 // Medientyp für Batch-Items
-export type MediaType = 'audio' | 'video' | 'image' | 'document';
+export type MediaType = 'audio' | 'video';
 
 // Interface für Batch-Items
-export interface BatchItem {
+export interface BatchTranscriptionItem {
   item: StorageItem;
   type: MediaType;
 }
 
 // Hilfsfunktion zum Bestimmen des Medientyps
-export function getMediaType(item: StorageItem): MediaType {
-  if (item.type !== 'file') return 'document';
-  
-  const { mimeType } = item.metadata;
+export const getMediaType = (item: StorageItem): MediaType => {
+  const mimeType = item.metadata.mimeType.toLowerCase();
   if (mimeType.startsWith('audio/')) return 'audio';
   if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType.startsWith('image/')) return 'image';
-  return 'document';
-}
+  throw new Error(`Unsupported media type: ${mimeType}`);
+};
 
 // Atom für die Basis-Transformationsoptionen
 export const baseTransformOptionsAtom = atom<BaseTransformOptions>({
@@ -49,12 +46,12 @@ export const baseTransformOptionsAtom = atom<BaseTransformOptions>({
 baseTransformOptionsAtom.debugLabel = 'baseTransformOptionsAtom';
 
 // Atom für ausgewählte Batch-Items
-export const selectedBatchItemsAtom = atom<BatchItem[]>([]);
+export const selectedBatchItemsAtom = atom<BatchTranscriptionItem[]>([]);
 selectedBatchItemsAtom.debugLabel = 'selectedBatchItemsAtom';
 
 // Atom für den Dialog-Status
-export const transformDialogOpenAtom = atom<boolean>(false);
-transformDialogOpenAtom.debugLabel = 'transformDialogOpenAtom';
+export const transcriptionDialogOpenAtom = atom<boolean>(false);
+transcriptionDialogOpenAtom.debugLabel = 'transcriptionDialogOpenAtom';
 
 // Atom für den Verarbeitungsstatus
 export const transformProcessingAtom = atom<boolean>(false);

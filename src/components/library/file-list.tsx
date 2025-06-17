@@ -23,9 +23,9 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input"
 import {
   selectedBatchItemsAtom,
-  transformDialogOpenAtom,
+  transcriptionDialogOpenAtom,
   getMediaType
-} from '@/atoms/transform-options';
+} from '@/atoms/transcription-options';
 import { Checkbox } from "@/components/ui/checkbox"
 
 interface FileListProps {
@@ -621,7 +621,7 @@ export const FileList = React.memo(function FileList({
   const [itemToDelete, setItemToDelete] = React.useState<StorageItem | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
-  const [, setTransformDialogOpen] = useAtom(transformDialogOpenAtom);
+  const [, setTranscriptionDialogOpen] = useAtom(transcriptionDialogOpenAtom);
   
   // Prüft ob eine Datei ein unaufgelöstes Template enthält
   const hasUnresolvedTemplate = React.useCallback((item: StorageItem): boolean => {
@@ -677,9 +677,6 @@ export const FileList = React.memo(function FileList({
       // Measure time after render is complete
       const measureRenderTime = () => {
         const renderTime = performance.now() - renderStartRef.current;
-        if (renderTime > 1) {
-          console.log(`FileList render time: ${renderTime.toFixed(2)}ms`);
-        }
       };
       
       // Schedule measurement for after paint
@@ -742,23 +739,17 @@ export const FileList = React.memo(function FileList({
     const groups = new Map<string, FileGroup>();
     const processedIds = new Set<string>();
     
-    console.log('=== Gruppierung startet ===');
-    console.log('Anzahl Dateien:', files.length);
-    
     // Erste Iteration: Sammle alle Dateien und gruppiere sie
     for (const file of files) {
       const baseName = getBaseName(file.metadata.name);
-      console.log(`Datei: ${file.metadata.name} -> Basis: ${baseName}`);
       
       if (isTranscriptFile(file.metadata.name)) {
-        console.log(`  -> ist Transkript`);
         // Dies ist eine Transkript-Datei
         const group = groups.get(baseName) || { baseItem: file };
         group.transcript = file;
         groups.set(baseName, group);
         processedIds.add(file.id);
       } else if (isTransformedFile(file.metadata.name)) {
-        console.log(`  -> ist transformierte Datei`);
         // Dies ist eine transformierte Datei
         const group = groups.get(baseName) || { baseItem: file };
         group.transformed = file;
@@ -776,20 +767,16 @@ export const FileList = React.memo(function FileList({
           // Es gibt bereits eine Gruppe für diesen Basisnamen
           const group = groups.get(baseName)!;
           if (!isTranscriptFile(file.metadata.name) && !isTransformedFile(file.metadata.name)) {
-            console.log(`  -> ist Basis-Datei für Gruppe ${baseName}`);
             // Dies ist die Basis-Datei
             group.baseItem = file;
           }
         } else {
           // Neue Gruppe für alleinstehende Datei
-          console.log(`  -> neue Gruppe für ${file.metadata.name}`);
           groups.set(baseName, { baseItem: file });
         }
       }
     }
     
-    console.log('Anzahl Gruppen:', groups.size);
-    console.log('=== Gruppierung beendet ===');
     
     // Konvertiere Map zu Array und sortiere nach dem aktuellen Sortierfeld
     const groupArray = Array.from(groups.values());
@@ -962,9 +949,9 @@ export const FileList = React.memo(function FileList({
     }
   }, [itemToDelete, handleRefresh, selectedItem, onSelectAction, provider]);
 
-  const handleBatchTransform = () => {
+  const handleBatchTranscription = () => {
     if (selectedBatchItems.length > 0) {
-      setTransformDialogOpen(true);
+      setTranscriptionDialogOpen(true);
     }
   };
 
@@ -1017,9 +1004,9 @@ export const FileList = React.memo(function FileList({
             {selectedBatchItems.length > 0 && (
               <Button
                 size="sm"
-                onClick={handleBatchTransform}
+                onClick={handleBatchTranscription}
               >
-                {selectedBatchItems.length} Datei(en) transformieren
+                {selectedBatchItems.length} Datei(en) transkribieren
               </Button>
             )}
           </div>

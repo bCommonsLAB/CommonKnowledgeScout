@@ -46,14 +46,7 @@ export function TopNav() {
   const [activeLibraryId] = useAtom(activeLibraryIdAtom)
   const { libraries } = libraryContext
   
-  // Debug-Logging hinzufügen
-  React.useEffect(() => {
-    console.log('TopNav: Jotai-Zustand aktualisiert', {
-      libraries: libraries.length > 0 ? libraries.map(l => l.label).join(', ') : 'keine',
-      activeLibraryId
-    });
-  }, [libraries, activeLibraryId]);
-
+ 
   return (
     <div className="border-b">
       <div className="flex h-16 items-center px-4">

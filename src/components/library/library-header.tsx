@@ -1,5 +1,5 @@
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn, NavigationLogger } from "@/lib/utils"
 import { StorageItem } from "@/lib/storage/types"
 import { ClientLibrary } from "@/types/library"
 import { Button } from "@/components/ui/button"
@@ -44,32 +44,36 @@ export function LibraryHeader({
     }
   }, [breadcrumbItems]);
 
-  // Debug Logging für Header-Zustand
+  // Breadcrumb-Status Logging
   React.useEffect(() => {
-    console.log('LibraryHeader: State updated', {
-      isUploadOpen,
-      hasProvider: !!provider,
+    NavigationLogger.log('LibraryHeader', 'Breadcrumb updated', {
       currentFolderId,
-      activeLibrary: activeLibrary?.label,
-      breadcrumbItems: breadcrumbItems.length,
-      breadcrumbNames: breadcrumbItems.map(item => item.metadata.name).join('/')
+      breadcrumbLength: breadcrumbItems.length,
+      path: breadcrumbItems.map(item => item.metadata.name).join('/')
     });
-    
-    // Warnung loggen, wenn Breadcrumb leer ist aber ein nicht-root Ordner ausgewählt ist
-    if (breadcrumbItems.length === 0 && currentFolderId !== 'root') {
-      console.warn('LibraryHeader: Breadcrumb ist leer, obwohl ein Ordner ausgewählt ist:', currentFolderId);
-    }
-  }, [isUploadOpen, provider, currentFolderId, activeLibrary, breadcrumbItems]);
+  }, [currentFolderId, breadcrumbItems]);
+
+  const handleFolderSelect = useCallback((item: StorageItem) => {
+    NavigationLogger.log('LibraryHeader', 'Breadcrumb folder clicked', {
+      folderId: item.id,
+      folderName: item.metadata.name
+    });
+    onFolderSelect(item);
+  }, [onFolderSelect]);
+
+  const handleRootClick = useCallback(() => {
+    NavigationLogger.log('LibraryHeader', 'Root folder clicked');
+    onRootClick();
+  }, [onRootClick]);
 
   const handleUploadComplete = useCallback(() => {
-    console.log('LibraryHeader: Upload completed callback triggered');
+    NavigationLogger.log('LibraryHeader', 'Upload completed');
     onUploadComplete?.();
-    console.log('LibraryHeader: Closing upload dialog');
     setIsUploadOpen(false);
   }, [onUploadComplete]);
 
   const handleUploadClick = useCallback(() => {
-    console.log('LibraryHeader: Upload button clicked');
+    NavigationLogger.log('LibraryHeader', 'Upload button clicked');
     setIsUploadOpen(true);
   }, []);
 
@@ -91,7 +95,7 @@ export function LibraryHeader({
               style={{ maxWidth: '60vw' }}
             >
               <button
-                onClick={onRootClick}
+                onClick={handleRootClick}
                 className={cn(
                   "hover:text-foreground flex-shrink-0 font-medium",
                   currentFolderId === 'root' ? "text-foreground" : "text-muted-foreground"
@@ -105,7 +109,7 @@ export function LibraryHeader({
                     <React.Fragment key={item.id}>
                       <span className="text-muted-foreground flex-shrink-0">/</span>
                       <button
-                        onClick={() => onFolderSelect(item)}
+                        onClick={() => handleFolderSelect(item)}
                         className={cn(
                           "hover:text-foreground truncate max-w-[150px]",
                           currentFolderId === item.id ? "text-foreground font-medium" : "text-muted-foreground"
@@ -136,7 +140,7 @@ export function LibraryHeader({
       <UploadDialog
         open={isUploadOpen}
         onOpenChange={(open) => {
-          console.log('LibraryHeader: Upload dialog state change requested', { open });
+          NavigationLogger.log('LibraryHeader', 'Upload dialog state change', { open });
           setIsUploadOpen(open);
         }}
         provider={provider}

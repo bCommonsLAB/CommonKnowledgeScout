@@ -44,12 +44,13 @@ export const AudioPlayer = memo(function AudioPlayer({ item, provider, onRefresh
         setIsLoading(true);
         setError(null);
         
-        // Verwende die getBinary Methode des Providers
-        const { blob } = await provider.getBinary(item.id);
+        // Streaming-URL vom Provider holen
+        const url = await provider.getStreamingUrl(item.id);
+        if (!url) {
+          throw new Error('Keine Streaming-URL verfügbar');
+        }
         
-        // Erstelle eine Object URL für das Audio
-        objectUrl = URL.createObjectURL(blob);
-        setAudioUrl(objectUrl);
+        setAudioUrl(url);
       } catch (err) {
         console.error('[AudioPlayer] Fehler beim Laden der Audio-Datei:', err);
         setError(err instanceof Error ? err.message : 'Fehler beim Laden der Audio-Datei');
@@ -107,40 +108,7 @@ export const AudioPlayer = memo(function AudioPlayer({ item, provider, onRefresh
       JSON.stringify(lastProgressRef.current.buffered) !== JSON.stringify(currentProgress.buffered);
 
     if (hasSignificantChange && process.env.NODE_ENV === 'development') {
-      console.log('[AudioPlayer] Progress:', currentProgress);
       lastProgressRef.current = currentProgress;
-    }
-  };
-
-  const handleLoadStart = (e: React.SyntheticEvent<HTMLAudioElement>) => {
-    const audio = e.currentTarget;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[AudioPlayer] Load started:', {
-        currentTime: audio.currentTime,
-        readyState: audio.readyState,
-        networkState: audio.networkState
-      });
-    }
-  };
-
-  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLAudioElement>) => {
-    const audio = e.currentTarget;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[AudioPlayer] Metadata loaded:', {
-        duration: audio.duration,
-        readyState: audio.readyState
-      });
-    }
-  };
-
-  const handleCanPlay = (e: React.SyntheticEvent<HTMLAudioElement>) => {
-    const audio = e.currentTarget;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[AudioPlayer] Can play:', {
-        duration: audio.duration,
-        readyState: audio.readyState,
-        networkState: audio.networkState
-      });
     }
   };
 

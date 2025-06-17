@@ -360,4 +360,9 @@ export class FileSystemProvider implements StorageProvider {
       );
     }
   }
+
+  async getStreamingUrl(itemId: string): Promise<string> {
+    // Für lokale Dateien verwenden wir eine API-Route
+    return `/api/storage/filesystem?fileId=${encodeURIComponent(itemId)}`;
+  }
 } 

@@ -112,11 +112,6 @@ export const writeBreadcrumbItemsAtom = atom(
     
     // Unterschiedliche Längen? Definitiv Update nötig
     if (newItems.length !== currentItems.length) {
-      console.log('[breadcrumbItemsAtom] Aktualisiere Breadcrumb-Items (Längenänderung):', {
-        vorher: currentItems.length,
-        nachher: newItems.length,
-        items: newItems.map(item => item.metadata.name).join('/')
-      });
       set(breadcrumbItemsAtom, newItems);
       return;
     }
@@ -127,12 +122,7 @@ export const writeBreadcrumbItemsAtom = atom(
     );
     
     if (isDifferent) {
-      console.log('[breadcrumbItemsAtom] Aktualisiere Breadcrumb-Items (Inhaltsänderung):', {
-        items: newItems.map(item => item.metadata.name).join('/')
-      });
       set(breadcrumbItemsAtom, newItems);
-    } else {
-      console.log('[breadcrumbItemsAtom] Ignoriere identische Breadcrumb-Items');
     }
   }
 )

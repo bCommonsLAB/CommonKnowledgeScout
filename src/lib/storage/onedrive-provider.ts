@@ -953,4 +953,64 @@ export class OneDriveProvider implements StorageProvider {
       );
     }
   }
+
+  async getDownloadUrl(itemId: string): Promise<string> {
+    try {
+      const accessToken = await this.ensureAccessToken();
+      
+      const response = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}?select=@microsoft.graph.downloadUrl`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data['@microsoft.graph.downloadUrl']) {
+        throw new Error('Keine Download-URL in der API-Antwort');
+      }
+
+      return data['@microsoft.graph.downloadUrl'];
+    } catch (error) {
+      console.error('[OneDriveProvider] getDownloadUrl Fehler:', error);
+      throw new StorageError('Fehler beim Abrufen der Download-URL: ' + (error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  async getStreamingUrl(itemId: string): Promise<string> {
+    try {
+      const accessToken = await this.ensureAccessToken();
+      
+      const response = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}?select=@microsoft.graph.downloadUrl`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data['@microsoft.graph.downloadUrl']) {
+        throw new Error('Keine Streaming-URL in der API-Antwort');
+      }
+
+      return data['@microsoft.graph.downloadUrl'];
+    } catch (error) {
+      console.error('[OneDriveProvider] getStreamingUrl Fehler:', error);
+      throw new StorageError('Fehler beim Abrufen der Streaming-URL: ' + (error instanceof Error ? error.message : String(error)));
+    }
+  }
 } 

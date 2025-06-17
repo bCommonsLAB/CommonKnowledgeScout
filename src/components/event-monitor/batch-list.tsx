@@ -80,11 +80,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   // Aktive Bibliotheks-ID aus dem Atom-State mit useAtom
   const [activeLibraryId] = useAtom(activeLibraryIdAtom);
   
-  // Debug-Logging für die aktive Bibliothek
-  useEffect(() => {
-    console.log('BatchList: Aktive Bibliothek:', activeLibraryId || 'keine');
-  }, [activeLibraryId]);
-  
+ 
   // Status-Badge darstellen
   function getBatchStatusBadge(status: BatchStatus) {
     switch (status) {

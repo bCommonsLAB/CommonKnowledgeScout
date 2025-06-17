@@ -189,9 +189,22 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             setTimeout(fetchLibraries, retryDelay);
             return;
           }
+          
+          // Versuche die Fehlermeldung aus dem Response-Body zu lesen
+          let errorMessage = `HTTP-Fehler: ${res.status}`;
+          try {
+            const errorData = await res.json();
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            }
+          } catch (jsonError) {
+            // Falls JSON-Parsing fehlschlägt, verwende die Standard-Nachricht
+            console.warn('[StorageContext] Konnte Fehlermeldung nicht aus Response lesen:', jsonError);
+          }
+          
           throw new Error(res.status === 404 
             ? `API-Endpunkt nicht gefunden (404). Bitte prüfen, ob '/api/libraries' existiert.`
-            : `HTTP-Fehler: ${res.status}`);
+            : errorMessage);
         }
 
         const data = await res.json();
@@ -253,8 +266,9 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
           setTimeout(fetchLibraries, retryDelay);
           return;
         }
+        // Die Fehlermeldung ist jetzt bereits benutzerfreundlich vom Backend
         const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
-        setError(`Fehler beim Laden der Bibliotheken: ${errorMessage}`);
+        setError(errorMessage);
       } finally {
         if (retryCount >= maxRetries || !isCancelled) {
           setIsLoading(false);
@@ -288,7 +302,19 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     
     try {
       const res = await fetch(`/api/libraries?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`);
-      if (!res.ok) throw new Error(`HTTP-Fehler: ${res.status}`);
+      if (!res.ok) {
+        // Versuche die Fehlermeldung aus dem Response-Body zu lesen
+        let errorMessage = `HTTP-Fehler: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // Falls JSON-Parsing fehlschlägt, verwende die Standard-Nachricht
+        }
+        throw new Error(errorMessage);
+      }
       
       const data = await res.json();
       if (data && Array.isArray(data)) {

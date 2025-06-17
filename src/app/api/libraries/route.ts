@@ -62,8 +62,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(clientLibraries);
   } catch (error) {
     console.error('[API] Fehler beim Abrufen der Bibliotheken:', error);
+    
+    // Benutzerfreundliche Fehlermeldungen
+    let userMessage = 'Ein unerwarteter Fehler ist aufgetreten';
+    
+    if (error instanceof Error) {
+      // Spezielle Behandlung für Datenbankfehler
+      if (error.message.includes('authentication failed') || error.message.includes('bad auth')) {
+        userMessage = 'Die Verbindung zur Datenbank konnte nicht hergestellt werden. Bitte wenden Sie sich an den Administrator.';
+      } else if (error.message.includes('MONGODB_URI') || error.message.includes('MONGODB_DATABASE_NAME')) {
+        userMessage = 'Die Datenbankkonfiguration ist unvollständig. Bitte prüfen Sie die Umgebungsvariablen.';
+      } else if (error.message.includes('Datenbankverbindung fehlgeschlagen')) {
+        userMessage = 'Die Datenbank ist momentan nicht erreichbar. Bitte versuchen Sie es später erneut.';
+      } else {
+        // Für andere Fehler verwende eine generische Nachricht
+        userMessage = `Es ist ein Fehler aufgetreten: ${error.message}`;
+      }
+    }
+    
     return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Unbekannter Fehler' 
+      error: userMessage,
+      // Füge technische Details nur in der Entwicklungsumgebung hinzu
+      ...(process.env.NODE_ENV === 'development' && { 
+        details: error instanceof Error ? error.message : 'Unbekannter Fehler' 
+      })
     }, { status: 500 });
   }
 }
@@ -99,8 +121,30 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('[API] Fehler beim Speichern der Bibliothek:', error);
+    
+    // Benutzerfreundliche Fehlermeldungen
+    let userMessage = 'Ein unerwarteter Fehler ist aufgetreten';
+    
+    if (error instanceof Error) {
+      // Spezielle Behandlung für Datenbankfehler
+      if (error.message.includes('authentication failed') || error.message.includes('bad auth')) {
+        userMessage = 'Die Verbindung zur Datenbank konnte nicht hergestellt werden. Bitte wenden Sie sich an den Administrator.';
+      } else if (error.message.includes('MONGODB_URI') || error.message.includes('MONGODB_DATABASE_NAME')) {
+        userMessage = 'Die Datenbankkonfiguration ist unvollständig. Bitte prüfen Sie die Umgebungsvariablen.';
+      } else if (error.message.includes('Datenbankverbindung fehlgeschlagen')) {
+        userMessage = 'Die Datenbank ist momentan nicht erreichbar. Bitte versuchen Sie es später erneut.';
+      } else {
+        // Für andere Fehler verwende eine generische Nachricht
+        userMessage = `Es ist ein Fehler aufgetreten: ${error.message}`;
+      }
+    }
+    
     return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Unbekannter Fehler' 
+      error: userMessage,
+      // Füge technische Details nur in der Entwicklungsumgebung hinzu
+      ...(process.env.NODE_ENV === 'development' && { 
+        details: error instanceof Error ? error.message : 'Unbekannter Fehler' 
+      })
     }, { status: 500 });
   }
 }
@@ -143,8 +187,30 @@ export async function DELETE(request: NextRequest) {
     }
   } catch (error) {
     console.error('[API] Fehler beim Löschen der Bibliothek:', error);
+    
+    // Benutzerfreundliche Fehlermeldungen
+    let userMessage = 'Ein unerwarteter Fehler ist aufgetreten';
+    
+    if (error instanceof Error) {
+      // Spezielle Behandlung für Datenbankfehler
+      if (error.message.includes('authentication failed') || error.message.includes('bad auth')) {
+        userMessage = 'Die Verbindung zur Datenbank konnte nicht hergestellt werden. Bitte wenden Sie sich an den Administrator.';
+      } else if (error.message.includes('MONGODB_URI') || error.message.includes('MONGODB_DATABASE_NAME')) {
+        userMessage = 'Die Datenbankkonfiguration ist unvollständig. Bitte prüfen Sie die Umgebungsvariablen.';
+      } else if (error.message.includes('Datenbankverbindung fehlgeschlagen')) {
+        userMessage = 'Die Datenbank ist momentan nicht erreichbar. Bitte versuchen Sie es später erneut.';
+      } else {
+        // Für andere Fehler verwende eine generische Nachricht
+        userMessage = `Es ist ein Fehler aufgetreten: ${error.message}`;
+      }
+    }
+    
     return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Unbekannter Fehler' 
+      error: userMessage,
+      // Füge technische Details nur in der Entwicklungsumgebung hinzu
+      ...(process.env.NODE_ENV === 'development' && { 
+        details: error instanceof Error ? error.message : 'Unbekannter Fehler' 
+      })
     }, { status: 500 });
   }
 } 
