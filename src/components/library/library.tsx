@@ -15,6 +15,7 @@ import { useSelectedFile } from "@/hooks/use-selected-file"
 import { libraryAtom, activeLibraryIdAtom, currentFolderIdAtom, breadcrumbItemsAtom, writeBreadcrumbItemsAtom, librariesAtom } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
 import { DebugPanel } from "../debug/debug-panel"
+import { TransformDialog } from "./transform-dialog"
 
 export interface LibraryContextProps {
   libraries: ClientLibrary[];
@@ -649,6 +650,7 @@ export function Library() {
           <span>Aktueller Pfad: {currentFolderId === 'root' ? '/' : selected.breadcrumb.items.map(item => item.metadata.name).join('/')}</span>
         </div>
       </div>
+      <TransformDialog />
       <div className="absolute bottom-4 right-4">
         <DebugPanel />
       </div>

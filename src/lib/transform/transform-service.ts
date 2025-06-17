@@ -73,6 +73,18 @@ interface TransformMetadata {
  */
 export class TransformService {
   /**
+   * Generiert einen standardisierten Namen für einen Shadow-Twin
+   * @param originalName Der ursprüngliche Dateiname
+   * @param targetLanguage Die Zielsprache
+   * @returns Der generierte Shadow-Twin-Name ohne Dateiendung
+   */
+  static generateShadowTwinName(originalName: string, targetLanguage: string): string {
+    // Entferne alle Dateiendungen aus dem Namen
+    const nameWithoutExtension = originalName.split('.').slice(0, -1).join('.');
+    return `${nameWithoutExtension}.${targetLanguage}`;
+  }
+
+  /**
    * Transformiert eine Audio-Datei in Text
    * @param file Die zu transformierende Audio-Datei
    * @param originalItem Das ursprüngliche StorageItem
@@ -149,10 +161,11 @@ export class TransformService {
     
     // Ergebnis wird gespeichert, wenn gewünscht
     if (options.createShadowTwin) {
+      const shadowTwinName = TransformService.generateShadowTwinName(originalItem.metadata.name, options.targetLanguage);
       const result = await TransformService.saveTwinFile(
         markdownContent,
         originalItem,
-        options.fileName,
+        shadowTwinName,
         options.fileExtension,
         provider,
         refreshItems
@@ -297,10 +310,6 @@ export class TransformService {
       fileExtension: fileExtension
     });
     
-    // fileName enthält bereits das Sprachkürzel (z.B. "interview.de")
-    // Wir verwenden es direkt als Basis für den Dateinamen
-    const baseNameWithLanguage = fileName;
-    
     // Hole aktuelle Dateien im Verzeichnis
     const currentItems = await refreshItems(originalItem.parentId);
     
@@ -315,28 +324,17 @@ export class TransformService {
         item.metadata.name.toLowerCase() === candidateName.toLowerCase()
       )) {
         counter++;
-        // Füge Nummer in Klammern vor der letzten Erweiterung ein
-        // z.B. "interview.de" -> "interview(1).de"
-        const lastDotIndex = baseName.lastIndexOf('.');
-        if (lastDotIndex > 0) {
-          // Teile am letzten Punkt (vor dem Sprachkürzel)
-          const mainPart = baseName.substring(0, lastDotIndex);
-          const langPart = baseName.substring(lastDotIndex);
-          candidateName = `${mainPart}(${counter})${langPart}.${extension}`;
-        } else {
-          // Falls kein Punkt vorhanden (sollte nicht passieren bei Shadow-Twins)
-          candidateName = `${baseName}(${counter}).${extension}`;
-        }
+        candidateName = `${baseName}(${counter}).${extension}`;
       }
       
       return candidateName;
     };
     
     // Generiere eindeutigen Dateinamen
-    const uniqueFileName = generateUniqueFileName(baseNameWithLanguage, fileExtension);
+    const uniqueFileName = generateUniqueFileName(fileName, fileExtension);
     
     console.log('[TransformService] Eindeutiger Dateiname generiert:', {
-      baseNameWithLanguage: baseNameWithLanguage,
+      baseNameWithLanguage: fileName,
       uniqueFileName: uniqueFileName,
       existingFiles: currentItems.filter(item => item.type === 'file').map(item => item.metadata.name)
     });

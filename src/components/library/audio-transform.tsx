@@ -12,6 +12,7 @@ import { TransformService, TransformResult } from "@/lib/transform/transform-ser
 import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
+import { getUserFriendlyAudioErrorMessage } from "@/lib/utils";
 
 interface AudioTransformProps {
   item: StorageItem;
@@ -116,7 +117,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
     } catch (error) {
       console.error("Fehler bei der Audio-Transformation:", error);
       toast.error("Fehler", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler bei der Transkription"
+        description: getUserFriendlyAudioErrorMessage(error)
       });
     } finally {
       setIsLoading(false);

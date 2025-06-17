@@ -30,3 +30,23 @@ export function formatDateTime(date: Date | string): string {
     minute: '2-digit'
   });
 }
+
+/**
+ * Gibt eine benutzerfreundliche Fehlermeldung für bekannte Fehlerfälle bei Audio-Transformationen zurück.
+ * @param error - Das Fehlerobjekt (meist Error oder unknown)
+ * @returns Eine für den Nutzer verständliche Fehlermeldung (deutsch)
+ */
+export function getUserFriendlyAudioErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.message.includes("ECONNREFUSED"))
+      return "Der Audio-Service ist nicht erreichbar. Bitte prüfen Sie die Verbindung oder starten Sie den Service neu.";
+    if (error.message.includes("fetch failed"))
+      return "Die Verbindung zum Audio-Service ist fehlgeschlagen. Bitte prüfen Sie Ihre Netzwerkverbindung.";
+    if (error.message.includes("Failed to fetch"))
+      return "Die Verbindung zum Server konnte nicht hergestellt werden. Bitte versuchen Sie es später erneut.";
+    if (error.message.includes("Datei konnte nicht geladen werden"))
+      return "Die Audiodatei konnte nicht geladen werden. Bitte prüfen Sie die Datei und versuchen Sie es erneut.";
+    return error.message;
+  }
+  return "Unbekannter Fehler bei der Transkription. Bitte versuchen Sie es später erneut.";
+}

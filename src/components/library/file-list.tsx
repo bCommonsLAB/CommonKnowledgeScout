@@ -1,13 +1,13 @@
 'use client';
 
 import * as React from "react"
-import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText } from "lucide-react"
+import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText, Folder, Image } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
-import { useAtomValue } from 'jotai';
+import { useAtomValue, useAtom } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
 import {
   AlertDialog,
@@ -21,6 +21,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input"
+import {
+  selectedBatchItemsAtom,
+  transformDialogOpenAtom,
+  getMediaType
+} from '@/atoms/transform-options';
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface FileListProps {
   items: StorageItem[]
@@ -444,6 +450,9 @@ const FileRow = React.memo(function FileRow({
     }
   }, []);
 
+  const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
+  const isInBatch = selectedBatchItems.some(batchItem => batchItem.item.id === item.id);
+
   return (
     <div
       role="button"
@@ -457,10 +466,26 @@ const FileRow = React.memo(function FileRow({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       className={cn(
-        "w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_minmax(0,1fr)_60px_100px_100px_50px] gap-4 items-center cursor-move",
+        "w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)_60px_100px_100px_50px] gap-4 items-center cursor-move",
         isSelected && "bg-muted"
       )}
     >
+      <div className="w-6 flex items-center justify-center">
+        <Checkbox
+          checked={isInBatch}
+          onCheckedChange={(checked) => {
+            if (checked) {
+              setSelectedBatchItems([...selectedBatchItems, {
+                item,
+                type: getMediaType(item)
+              }]);
+            } else {
+              setSelectedBatchItems(selectedBatchItems.filter(i => i.item.id !== item.id));
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
       <FileIconComponent item={item} />
       {isEditing ? (
         <Input
@@ -595,6 +620,8 @@ export const FileList = React.memo(function FileList({
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [itemToDelete, setItemToDelete] = React.useState<StorageItem | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
+  const [, setTransformDialogOpen] = useAtom(transformDialogOpenAtom);
   
   // Prüft ob eine Datei ein unaufgelöstes Template enthält
   const hasUnresolvedTemplate = React.useCallback((item: StorageItem): boolean => {
@@ -935,6 +962,12 @@ export const FileList = React.memo(function FileList({
     }
   }, [itemToDelete, handleRefresh, selectedItem, onSelectAction, provider]);
 
+  const handleBatchTransform = () => {
+    if (selectedBatchItems.length > 0) {
+      setTransformDialogOpen(true);
+    }
+  };
+
   React.useEffect(() => {
     // Logging der Library-IDs
     // eslint-disable-next-line no-console
@@ -952,8 +985,46 @@ export const FileList = React.memo(function FileList({
         </div>
       ) : (
         <>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={items.length > 0 && selectedBatchItems.length === items.filter(item => 
+                  item.type === 'file' && 
+                  (item.metadata.mimeType.startsWith('audio/') || item.metadata.mimeType.startsWith('video/'))
+                ).length}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    const transformableItems = items
+                      .filter(item => 
+                        item.type === 'file' && 
+                        (item.metadata.mimeType.startsWith('audio/') || item.metadata.mimeType.startsWith('video/'))
+                      )
+                      .map(item => ({
+                        item,
+                        type: getMediaType(item)
+                      }));
+                    setSelectedBatchItems(transformableItems);
+                  } else {
+                    setSelectedBatchItems([]);
+                  }
+                }}
+              />
+              <span className="text-sm text-muted-foreground">
+                {selectedBatchItems.length} Datei(en) ausgewählt
+              </span>
+            </div>
+            
+            {selectedBatchItems.length > 0 && (
+              <Button
+                size="sm"
+                onClick={handleBatchTransform}
+              >
+                {selectedBatchItems.length} Datei(en) transformieren
+              </Button>
+            )}
+          </div>
           {/* Header - Fixed */}
-          <div className="px-4 py-2 text-xs font-medium text-muted-foreground grid grid-cols-[24px_minmax(0,1fr)_60px_100px_100px_50px] gap-4 items-center border-b flex-shrink-0">
+          <div className="px-4 py-2 text-xs font-medium text-muted-foreground grid grid-cols-[24px_24px_minmax(0,1fr)_60px_100px_100px_50px] gap-4 items-center border-b flex-shrink-0">
             <SortableHeaderCell 
               label="Typ" 
               field="type" 
@@ -1062,3 +1133,14 @@ export const FileList = React.memo(function FileList({
     prevProps.searchTerm === nextProps.searchTerm
   );
 }); 
+
+function FileIcon({ type, mimeType }: { type: string; mimeType: string }) {
+  if (type === 'folder') return <Folder className="h-4 w-4" />;
+  
+  if (mimeType.startsWith('audio/')) return <FileAudio className="h-4 w-4 text-blue-500" />;
+  if (mimeType.startsWith('video/')) return <FileVideo className="h-4 w-4 text-purple-500" />;
+  if (mimeType.startsWith('image/')) return <Image className="h-4 w-4 text-green-500" />;
+  if (mimeType.startsWith('text/')) return <FileText className="h-4 w-4 text-orange-500" />;
+  
+  return <File className="h-4 w-4" />;
+} 
