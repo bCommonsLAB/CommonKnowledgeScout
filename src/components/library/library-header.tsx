@@ -37,21 +37,15 @@ export function LibraryHeader({
   // Referenz für Breadcrumb-Element zum Scrollen
   const breadcrumbRef = React.useRef<HTMLDivElement>(null);
 
+  // Ref für den vorherigen Pfad
+  const prevPathRef = React.useRef('');
+
   // Scrolle zum Ende des Breadcrumbs, wenn sich Items ändern
-  useEffect(() => {
+  React.useEffect(() => {
     if (breadcrumbRef.current) {
       breadcrumbRef.current.scrollLeft = breadcrumbRef.current.scrollWidth;
     }
   }, [breadcrumbItems]);
-
-  // Breadcrumb-Status Logging
-  React.useEffect(() => {
-    NavigationLogger.log('LibraryHeader', 'Breadcrumb updated', {
-      currentFolderId,
-      breadcrumbLength: breadcrumbItems.length,
-      path: breadcrumbItems.map(item => item.metadata.name).join('/')
-    });
-  }, [currentFolderId, breadcrumbItems]);
 
   const handleFolderSelect = useCallback((item: StorageItem) => {
     NavigationLogger.log('LibraryHeader', 'Breadcrumb folder clicked', {

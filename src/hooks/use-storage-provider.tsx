@@ -41,8 +41,6 @@ export function useStorageProvider() {
     console.log(`[useStorageProvider] Initialisiere Provider für Bibliothek: ${activeLibraryId}`)
     const factory = StorageFactory.getInstance()
     
-    factory.setLibraries(libraries)
-    
     factory.getProvider(activeLibraryId)
       .then(provider => {
         console.log(`[useStorageProvider] Provider erfolgreich initialisiert: ${provider.name} (ID: ${provider.id})`)

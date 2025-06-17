@@ -4,8 +4,8 @@ import * as React from 'react';
 import { ChevronDown, ChevronRight, Folder } from "lucide-react"
 import { StorageProvider, StorageItem } from '@/lib/storage/types';
 import { cn, NavigationLogger } from "@/lib/utils"
-import { useAtom } from 'jotai';
-import { currentFolderIdAtom, breadcrumbItemsAtom, activeLibraryIdAtom } from '@/atoms/library-atom';
+import { useAtom, useSetAtom } from 'jotai';
+import { currentFolderIdAtom, breadcrumbItemsAtom, activeLibraryIdAtom, fileTreeReadyAtom } from '@/atoms/library-atom';
 import { StorageAuthButton } from "../shared/storage-auth-button";
 import { useStorage, isStorageError } from '@/contexts/storage-context';
 import { toast } from 'sonner';
@@ -28,6 +28,18 @@ interface TreeItemProps {
   parentId?: string;
   onMoveItem?: (itemId: string, targetFolderId: string) => Promise<void>;
   onRefreshItems?: () => void;
+  loadPath: (folderId: string) => Promise<StorageItem[]>;
+}
+
+interface TreeNode {
+  id: string;
+  name: string;
+  children: StorageItem[];
+  parent: string | null;
+}
+
+interface LoadedChildren {
+  [key: string]: StorageItem[];
 }
 
 // TreeItem Komponente
@@ -41,7 +53,8 @@ function TreeItem({
   loadedChildren,
   parentId,
   onMoveItem,
-  onRefreshItems
+  onRefreshItems,
+  loadPath
 }: TreeItemProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isDragOver, setIsDragOver] = React.useState(false);
@@ -49,43 +62,23 @@ function TreeItem({
   const handleClick = async () => {
     if (item.type === 'folder') {
       if (!isExpanded) {
-        // Expanding folder
+        // Expanding folder - NUR expandieren, NICHT die Ansicht wechseln
         await onExpand(item.id);
         setIsExpanded(true);
+
+        // Setze den Ordner als aktiv (global)
         onSelectAction(item);
       } else {
-        // Collapsing folder - select parent folder or root
+        // Collapsing folder - nur zuklappen, keine Aktion
         setIsExpanded(false);
-        if (parentId) {
-          // If we have a parent, select it
-          const parentItem: StorageItem = {
-            id: parentId,
-            type: 'folder',
-            metadata: {
-              name: '',
-              size: 0,
-              modifiedAt: new Date(),
-              mimeType: 'folder'
-            },
-            parentId: ''
-          };
-          onSelectAction(parentItem);
-        } else {
-          // If no parent (root level), select root
-          const rootItem: StorageItem = {
-            id: 'root',
-            type: 'folder',
-            metadata: {
-              name: '',
-              size: 0,
-              modifiedAt: new Date(),
-              mimeType: 'folder'
-            },
-            parentId: ''
-          };
-          onSelectAction(rootItem);
-        }
       }
+    }
+  };
+
+  // Neuer Handler für Doppelklick - wechselt die Ansicht
+  const handleDoubleClick = () => {
+    if (item.type === 'folder') {
+      onSelectAction(item);
     }
   };
 
@@ -278,9 +271,11 @@ function TreeItem({
         )}
         style={{ paddingLeft: level * 12 + 4 }}
         onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        title="Klicken zum Auf-/Zuklappen, Doppelklick zum Öffnen"
       >
         <div className="h-4 w-4 mr-1">
           {isExpanded ? (
@@ -304,6 +299,7 @@ function TreeItem({
           parentId={item.id}
           onMoveItem={onMoveItem}
           onRefreshItems={onRefreshItems}
+          loadPath={loadPath}
         />
       ))}
     </div>
@@ -317,63 +313,105 @@ export function FileTree({
 }: FileTreeProps) {
   const { libraryStatus } = useStorage();
   const [rootItems, setRootItems] = React.useState<StorageItem[]>([]);
-  const [loadedChildren, setLoadedChildren] = React.useState<Record<string, StorageItem[]>>({});
+  const [loadedChildren, setLoadedChildren] = React.useState<LoadedChildren>({});
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [isInitialized, setIsInitialized] = React.useState(false);
   
   // Globale Atome
-  const [currentFolderId, setCurrentFolderId] = useAtom(currentFolderIdAtom);
+  const [currentFolderId] = useAtom(currentFolderIdAtom);
   const [, setBreadcrumbItems] = useAtom(breadcrumbItemsAtom);
   const [activeLibraryId] = useAtom(activeLibraryIdAtom);
+  const setFileTreeReady = useSetAtom(fileTreeReadyAtom);
   
   // Refs für Tracking
   const previousProviderIdRef = React.useRef<string | null>(null);
   const previousLibraryStatusRef = React.useRef<string | null>(null);
   const providerId = React.useMemo(() => provider?.id || null, [provider]);
 
-  // Funktion zum Laden der Root-Elemente
-  const loadRootItems = React.useCallback(async (currentProvider: StorageProvider) => {
-    if (!currentProvider || libraryStatus !== 'ready') return;
+  // Reset isInitialized when provider changes
+  React.useEffect(() => {
+    if (providerId !== previousProviderIdRef.current) {
+      previousProviderIdRef.current = providerId;
+      setIsInitialized(false);
+    }
+  }, [providerId]);
+
+  // Optimierter loadChildren Handler
+  const loadChildren = React.useCallback(async (folderId: string) => {
+    if (!provider) return;
     
-    NavigationLogger.log('FileTree', 'Loading root items');
-    setIsLoading(true);
+    NavigationLogger.log('FileTree', 'Loading children', { folderId });
     
     try {
-      const items = await currentProvider.listItemsById('root');
-      const filteredItems = items
-        .filter(item => item.type === 'folder' && !item.metadata.name.startsWith('.'))
-        .sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
-      
-      NavigationLogger.log('FileTree', 'Root items loaded', {
-        count: filteredItems.length,
-        items: filteredItems.map(i => i.metadata.name)
-      });
-      
-      setRootItems(filteredItems);
-      
-      // Cache die Root-Items
-      filteredItems.forEach(item => {
-        if (item.type === 'folder') {
-          setLoadedChildren(prev => ({
-            ...prev,
-            [item.id]: []
-          }));
-        }
-      });
-      
-      return filteredItems;
-    } catch (err) {
-      if (!isStorageError(err) || err.code !== 'AUTH_REQUIRED') {
-        NavigationLogger.error('FileTree', 'Failed to load root items', err);
-        setError(err instanceof Error ? err.message : String(err));
+      // Prüfe ob bereits geladen
+      if (loadedChildren[folderId]?.length > 0) {
+        NavigationLogger.log('FileTree', 'Children already loaded', { 
+          folderId,
+          count: loadedChildren[folderId].length 
+        });
+        return;
       }
-      setRootItems([]);
-      return [];
-    } finally {
-      setIsLoading(false);
+      
+      const items = await provider.listItemsById(folderId);
+      const children = items.filter(item => item.type === 'folder');
+        
+      NavigationLogger.log('FileTree', 'Children loaded', { 
+        folderId,
+        count: children.length 
+      });
+      
+      setLoadedChildren(prev => ({
+        ...prev,
+        [folderId]: children
+      }));
+      
+    } catch (error) {
+      NavigationLogger.error('FileTree', 'Error loading children', error);
     }
-  }, [libraryStatus]);
+  }, [provider, loadedChildren]);
+
+  // Optimierter handleExpand Handler
+  const handleExpand = React.useCallback(async (folderId: string) => {
+    if (!folderId || !provider) return;
+    
+    // Prüfe ob der Knoten bereits expandiert ist
+    const isExpanded = loadedChildren[folderId]?.length > 0;
+    
+    if (!isExpanded) {
+      // Lade Kinder nur wenn noch nicht geladen
+      await loadChildren(folderId);
+    }
+    
+    // Toggle expanded state
+    setLoadedChildren(prev => ({
+      ...prev,
+      [folderId]: isExpanded 
+        ? []  // Collapse: Leere das Array
+        : prev[folderId] || [] // Expand: Nutze vorhandene Kinder oder leeres Array
+    }));
+  }, [loadedChildren, loadChildren, provider]);
+
+  // Optimierter Initial Load
+  React.useEffect(() => {
+    const initializeTree = async () => {
+      if (!provider || isInitialized) return;
+      
+      try {
+        const rootItems = await provider.listItemsById('root');
+        const folderItems = rootItems.filter(item => item.type === 'folder');
+          
+        setRootItems(folderItems);
+        setIsInitialized(true);
+        setFileTreeReady(true);
+        
+      } catch (error) {
+        NavigationLogger.error('FileTree', 'Error initializing tree', error);
+      }
+    };
+    
+    initializeTree();
+  }, [provider, isInitialized, setFileTreeReady]);
 
   // Funktion zum Laden eines kompletten Pfads
   const loadPath = React.useCallback(async (folderId: string): Promise<StorageItem[]> => {
@@ -412,116 +450,6 @@ export function FileTree({
     
     return path;
   }, [provider]);
-
-  // Initialisierung beim Mount oder Provider/Library-Wechsel
-  React.useEffect(() => {
-    let isMounted = true;
-    
-    const initialize = async () => {
-      if (!provider || libraryStatus !== 'ready' || isInitialized) return;
-      
-      NavigationLogger.log('FileTree', 'Starting initialization', {
-        providerId,
-        libraryStatus,
-        activeLibraryId
-      });
-      
-      try {
-        // 1. Lade Root-Items
-        const rootItems = await loadRootItems(provider);
-        if (!isMounted) return;
-        
-        // 2. Prüfe auf gespeicherten Ordner
-        const savedFolderId = activeLibraryId ? 
-          localStorage.getItem(`folder-${activeLibraryId}`) : 
-          null;
-        
-        // 3. Bestimme den zu ladenden Ordner
-        const targetFolderId = savedFolderId || 'root';
-        NavigationLogger.log('FileTree', 'Target folder determined', {
-          savedFolderId,
-          targetFolderId
-        });
-        
-        // 4. Lade Pfad zum Zielordner
-        const path = await loadPath(targetFolderId);
-        if (!isMounted) return;
-        
-        // 5. Aktualisiere States
-        NavigationLogger.log('FileTree', 'Updating navigation state', {
-          targetFolderId,
-          pathLength: path.length
-        });
-        setCurrentFolderId(targetFolderId);
-        setBreadcrumbItems(path);
-        
-        // 6. Expandiere Ordner im Pfad
-        for (const item of path) {
-          if (item.type === 'folder') {
-            await handleExpand(item.id);
-            if (!isMounted) return;
-          }
-        }
-        
-        // 7. Markiere als initialisiert
-        setIsInitialized(true);
-        NavigationLogger.log('FileTree', 'Initialization complete');
-        
-      } catch (error) {
-        NavigationLogger.error('FileTree', 'Initialization failed', error);
-        if (!isMounted) return;
-        
-        // Bei Fehler auf Root zurücksetzen
-        setCurrentFolderId('root');
-        setBreadcrumbItems([]);
-      }
-    };
-    
-    initialize();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [
-    provider, 
-    providerId, 
-    libraryStatus, 
-    activeLibraryId, 
-    loadRootItems, 
-    loadPath, 
-    setCurrentFolderId, 
-    setBreadcrumbItems,
-    isInitialized,
-    handleExpand
-  ]);
-
-  // Handler für Expand-Click
-  const handleExpand = React.useCallback(async (folderId: string) => {
-    if (loadedChildren[folderId] || !provider || libraryStatus !== 'ready') return;
-    
-    NavigationLogger.log('FileTree', 'Expanding folder', { folderId });
-    
-    try {
-      const children = await provider.listItemsById(folderId);
-      const folderChildren = children
-        .filter(item => item.type === 'folder' && !item.metadata.name.startsWith('.'))
-        .sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
-        
-      NavigationLogger.log('FileTree', 'Folder expanded', {
-        folderId,
-        childCount: folderChildren.length
-      });
-        
-      setLoadedChildren(prev => ({
-        ...prev,
-        [folderId]: folderChildren
-      }));
-    } catch (error) {
-      if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
-        NavigationLogger.error('FileTree', 'Failed to expand folder', error);
-      }
-    }
-  }, [loadedChildren, provider, libraryStatus]);
 
   // Handler für Move Item
   const handleMoveItem = React.useCallback(async (itemId: string, targetFolderId: string) => {
@@ -599,6 +527,7 @@ export function FileTree({
             loadedChildren={loadedChildren}
             onMoveItem={handleMoveItem}
             onRefreshItems={onRefreshItems}
+            loadPath={loadPath}
           />
         ))
       )}

@@ -3,12 +3,12 @@
 import * as React from "react"
 import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText, Folder, Image } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
-import { cn } from "@/lib/utils"
+import { cn, NavigationLogger } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
 import { useAtomValue, useAtom } from 'jotai';
-import { activeLibraryIdAtom } from '@/atoms/library-atom';
+import { activeLibraryIdAtom, fileTreeReadyAtom } from '@/atoms/library-atom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -622,7 +622,58 @@ export const FileList = React.memo(function FileList({
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
   const [, setTranscriptionDialogOpen] = useAtom(transcriptionDialogOpenAtom);
-  
+  const [isInitialized, setIsInitialized] = React.useState(false);
+  const initializationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
+
+  // Initialisierung
+  React.useEffect(() => {
+    if (!provider) return;
+
+    const initialize = async () => {
+      if (isInitialized) {
+        NavigationLogger.log('FileList', 'Skipping initialization', {
+          hasProvider: !!provider,
+          hasItems: items?.length > 0,
+          isInitialized
+        });
+        return;
+      }
+
+      // Warte einen kurzen Moment, um sicherzustellen, dass der FileTree fertig ist
+      initializationTimeoutRef.current = setTimeout(() => {
+        // [Nav:10] FileList Starting initialization
+        NavigationLogger.log('FileList', 'Starting initialization');
+
+        // [Nav:11] FileList Loading items
+        NavigationLogger.log('FileList', 'Loading items');
+
+        try {
+          // [Nav:12] FileList Items loaded
+          NavigationLogger.log('FileList', 'Items loaded', {
+            count: items?.length ?? 0,
+            types: items?.map(item => item.type) ?? []
+          });
+
+          // [Nav:13] FileList Initialization complete
+          NavigationLogger.log('FileList', 'Initialization complete');
+          
+          setIsInitialized(true);
+        } catch (error) {
+          console.error('Error initializing FileList:', error);
+        }
+      }, 100); // Kleiner Delay um nach FileTree zu initialisieren
+    };
+
+    initialize();
+
+    return () => {
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+      }
+    };
+  }, [provider, items, isInitialized]);
+
   // Prüft ob eine Datei ein unaufgelöstes Template enthält
   const hasUnresolvedTemplate = React.useCallback((item: StorageItem): boolean => {
     if (!item?.metadata?.name) return false;
@@ -963,6 +1014,10 @@ export const FileList = React.memo(function FileList({
       activeLibraryIdAtom: activeLibraryId
     });
   }, [currentLibrary, activeLibraryId]);
+
+  if (!isFileTreeReady) {
+    return <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Lade Ordnerstruktur...</div>;
+  }
 
   return (
     <div className="absolute inset-0 flex flex-col">

@@ -2,6 +2,130 @@
 
 Die Library-Komponenten bilden das Herzstück der Dokumentenverwaltung und -anzeige im Knowledge Scout. Sie ermöglichen die effiziente Verwaltung, Navigation und Anzeige verschiedener Dateitypen mit besonderem Fokus auf Markdown-Dokumente und Medieninhalte.
 
+## State Management und Datenfluss
+
+### Zentrale State-Atome (Jotai)
+
+Die Anwendung nutzt Jotai für das State Management mit folgenden zentralen Atomen:
+
+1. **`currentFolderIdAtom`**: Speichert die ID des aktuell ausgewählten Ordners
+   - Initialer Wert: `"root"`
+   - Wird aktualisiert durch: FileTree (bei Ordner-Klick), Library (bei Navigation)
+   - Verwendet von: Library (zum Laden der Dateien), FileTree (für Highlighting), LibraryHeader (für Breadcrumb)
+
+2. **`breadcrumbItemsAtom`**: Array von StorageItems für die Breadcrumb-Navigation
+   - Initialer Wert: `[]`
+   - Wird aktualisiert durch: FileTree (bei Initialisierung und Navigation)
+   - Verwendet von: LibraryHeader (für Anzeige)
+
+3. **`fileTreeReadyAtom`**: Boolean Flag für FileTree-Initialisierungsstatus
+   - Initialer Wert: `false`
+   - Wird gesetzt durch: FileTree nach erfolgreicher Initialisierung
+   - Verwendet von: Library (um FileList erst nach FileTree zu rendern)
+
+4. **`activeLibraryIdAtom`**: ID der aktuell ausgewählten Bibliothek
+   - Verwendet für: Provider-Auswahl, Library-spezifische Operationen
+
+### Initialisierungsreihenfolge
+
+Die korrekte Initialisierungsreihenfolge ist kritisch für die Funktionalität:
+
+1. **Library Component Mount**
+   - Lädt Libraries und setzt activeLibraryId
+   - Initialisiert StorageProvider
+   - Wartet auf FileTree-Initialisierung
+
+2. **FileTree Initialisierung** (Nav:1-9)
+   - Setzt `fileTreeReadyAtom` auf `false`
+   - Lädt Root-Items vom Provider
+   - Bestimmt Target-Folder (gespeichert oder root)
+   - Lädt Pfad für Target-Folder
+   - Aktualisiert `currentFolderIdAtom` und `breadcrumbItemsAtom`
+   - Setzt `fileTreeReadyAtom` auf `true`
+
+3. **FileList Initialisierung** (Nav:10-14)
+   - Wartet bis `fileTreeReadyAtom` true ist
+   - Rendert erst dann
+   - Lädt Items basierend auf `currentFolderIdAtom`
+
+### Datenfluss-Probleme und Lösungen
+
+#### Problem 1: FileList zeigt keine Dateien
+**Ursache**: Die Library-Komponente lädt die Items für `currentFolderId`, aber der useEffect wird nur bei Änderungen von `currentFolderId` ausgelöst. Bei der Initialisierung bleibt `currentFolderId` auf "root", daher wird kein Update getriggert.
+
+**Lösung**: Items sollten initial geladen werden, wenn FileTree bereit ist.
+
+#### Problem 2: FileTree expandiert keine Unterordner
+**Ursache**: Der Click-Handler in TreeItem ruft `onSelectAction` auf, welches in Library auf `handleFolderSelect` gemappt ist. Dies aktualisiert `currentFolderId` und lädt die FileList, aber expandiert nicht den Ordner im Tree.
+
+**Lösung**: Trennung von Expand (Tree-interne Operation) und Select (globale Navigation).
+
+#### Problem 3: Breadcrumb bleibt leer
+**Ursache**: `breadcrumbItemsAtom` wird nur beim FileTree-Init für root gesetzt. Bei Navigation über handleFolderSelect wird zwar updateBreadcrumb aufgerufen, aber die Pfadauflösung könnte fehlschlagen.
+
+### Komponenten-Interaktionen
+
+```mermaid
+graph TD
+    A[Library] -->|provides| B[StorageProvider]
+    A -->|manages| C[currentFolderId]
+    A -->|renders| D[FileTree]
+    A -->|renders| E[FileList]
+    A -->|renders| F[LibraryHeader]
+    
+    D -->|updates| C
+    D -->|updates| G[breadcrumbItems]
+    D -->|sets| H[fileTreeReady]
+    
+    E -->|reads| C
+    E -->|waits for| H
+    E -->|loads items via| B
+    
+    F -->|reads| G
+    F -->|reads| C
+    
+    style A fill:#f9f,stroke:#333,stroke-width:4px
+    style C fill:#bbf,stroke:#333,stroke-width:2px
+    style G fill:#bbf,stroke:#333,stroke-width:2px
+    style H fill:#bbf,stroke:#333,stroke-width:2px
+```
+
+### Kritische Funktionen
+
+1. **`handleFolderSelect` (Library)**
+   - Lädt Items für den ausgewählten Ordner
+   - Aktualisiert `currentFolderId`
+   - Löst Pfad auf und aktualisiert Breadcrumb
+   - Cached Ergebnisse
+
+2. **`loadItems` (Library)**
+   - Lädt Items vom Provider für `currentFolderId`
+   - Nutzt Cache wenn verfügbar
+   - Wird durch useEffect bei `currentFolderId`-Änderung getriggert
+
+3. **`handleExpand` (FileTree)**
+   - Lädt Kinder-Ordner lazy
+   - Speichert in lokalem `loadedChildren` State
+   - Unabhängig von globaler Navigation
+
+### Debugging-Ansätze
+
+1. **Logging-Punkte**:
+   - FileTree: Initialisierung, Root-Items laden, Pfadauflösung
+   - Library: loadItems Aufrufe, currentFolderId Änderungen
+   - FileList: Items empfangen, Render-Zyklen
+
+2. **State-Inspektion**:
+   - DebugPanel zeigt aktuelle Werte der Atome
+   - Browser DevTools: Jotai DevTools
+   - Console Logs mit NavigationLogger
+
+3. **Häufige Fehlerquellen**:
+   - Race Conditions zwischen FileTree und FileList
+   - Cache-Invalidierung bei Provider-Wechsel
+   - Fehlende Dependencies in useEffects
+   - Asynchrone State-Updates
+
 ## Library
 
 Die `Library`-Komponente ist der Hauptcontainer für die Dokumentenverwaltung und implementiert ein dreispaltiges Layout.

@@ -322,9 +322,10 @@ export class OneDriveProvider implements StorageProvider {
   }
 
   private async ensureAccessToken(): Promise<string> {
+    // Wenn kein Token vorhanden, Fehler werfen
     if (!this.accessToken) {
       throw new StorageError(
-        "Nicht authentifiziert. Bitte authentifizieren Sie sich bei OneDrive.",
+        "Nicht authentifiziert",
         "AUTH_REQUIRED",
         this.id
       );
@@ -332,19 +333,35 @@ export class OneDriveProvider implements StorageProvider {
 
     // Wenn Token in weniger als 5 Minuten abläuft, versuche Refresh
     const FIVE_MINUTES = 5 * 60 * 1000; // 5 Minuten in Millisekunden
-    if (this.tokenExpiry - Date.now() <= FIVE_MINUTES && this.refreshToken) {
-      const now = Date.now();
-      const timeUntilExpiry = this.tokenExpiry - now;
-      console.log('[OneDriveProvider] Token-Status:', {
-        libraryId: this.library.id,
-        tokenExpiry: new Date(this.tokenExpiry).toISOString(),
-        currentTime: new Date(now).toISOString(),
-        timeUntilExpiry: `${Math.floor(timeUntilExpiry / 1000)} Sekunden`,
-        hasRefreshToken: !!this.refreshToken,
-        isExpired: this.tokenExpiry <= now,
-        refreshBuffer: `${FIVE_MINUTES / 1000} Sekunden`
-      });
+    const now = Date.now();
+    const timeUntilExpiry = this.tokenExpiry - now;
+    
+    // Log Token-Status
+    console.log('[OneDriveProvider] Token-Status:', {
+      libraryId: this.library.id,
+      tokenExpiry: new Date(this.tokenExpiry).toISOString(),
+      currentTime: new Date(now).toISOString(),
+      timeUntilExpiry: `${Math.floor(timeUntilExpiry / 1000)} Sekunden`,
+      hasRefreshToken: !!this.refreshToken,
+      isExpired: this.tokenExpiry <= now,
+      refreshBuffer: `${FIVE_MINUTES / 1000} Sekunden`
+    });
+
+    // Nur refreshen wenn:
+    // 1. Token abgelaufen ist ODER
+    // 2. Token läuft in weniger als 5 Minuten ab UND
+    // 3. Refresh-Token vorhanden ist UND
+    // 4. Kein Refresh bereits läuft
+    if (
+      (this.tokenExpiry <= now || timeUntilExpiry <= FIVE_MINUTES) && 
+      this.refreshToken && 
+      !this.refreshPromise
+    ) {
       await this.refreshAccessToken();
+    } else if (this.refreshPromise) {
+      // Wenn bereits ein Refresh läuft, warte darauf
+      console.log('[OneDriveProvider] Token-Refresh läuft bereits, warte auf Abschluss...');
+      await this.refreshPromise;
     }
 
     return this.accessToken;

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Remarkable } from 'remarkable';
+import { linkify } from 'remarkable/linkify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css';
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
@@ -486,11 +487,10 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
 };
 
 // Initialize Remarkable with options
-const md = new Remarkable('full', {
+const md = new Remarkable({
   html: true,        // Enable HTML tags in source
   xhtmlOut: true,    // Use '/' to close single tags (<br />)
   breaks: true,      // Convert '\n' in paragraphs into <br>
-  linkify: true,     // Autoconvert URL-like text to links
   typographer: true, // Enable smartypants and other sweet transforms
   highlight: function (str: string, lang: string) {
     if (lang && hljs.getLanguage(lang)) {
@@ -503,7 +503,7 @@ const md = new Remarkable('full', {
     } catch {}
     return '';
   }
-});
+}).use(linkify); // Linkify als Plugin hinzufügen
 
 // Configure horizontal line detection
 md.block.ruler.disable(['hr']);

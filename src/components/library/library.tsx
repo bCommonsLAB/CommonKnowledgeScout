@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useCallback, useEffect, useMemo, useState, useRef } from "react"
-import { useAtom } from "jotai"
+import { useAtom, useAtomValue } from "jotai"
 
 import { LibraryHeader } from "./library-header"
 import { FileTree } from "./file-tree"
@@ -12,7 +12,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { ClientLibrary } from "@/types/library"
 import { StorageItem } from "@/lib/storage/types"
 import { useSelectedFile } from "@/hooks/use-selected-file"
-import { libraryAtom, activeLibraryIdAtom, currentFolderIdAtom, breadcrumbItemsAtom, writeBreadcrumbItemsAtom, librariesAtom } from "@/atoms/library-atom"
+import { libraryAtom, activeLibraryIdAtom, currentFolderIdAtom, breadcrumbItemsAtom, writeBreadcrumbItemsAtom, librariesAtom, fileTreeReadyAtom } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
 import { DebugPanel } from "../debug/debug-panel"
 import { TranscriptionDialog } from "./transcription-dialog"
@@ -64,12 +64,26 @@ export function Library() {
   // Debounce-Referenz für loadItems
   const loadItemsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Vereinfachte loadItems Funktion - nur noch für die FileList
+  // FileTree Ready Status
+  const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
+
+  // Referenz für den letzten geladenen Ordner
+  const lastLoadedFolderRef = useRef<string | null>(null);
+  
+  // Optimierter loadItems mit Cache-Check
   const loadItems = useCallback(async () => {
     if (!providerInstance || libraryStatus !== 'ready') {
       NavigationLogger.log('Library', 'Skip loading - provider not ready', {
         hasProvider: !!providerInstance,
         status: libraryStatus
+      });
+      return;
+    }
+
+    // Prüfe ob der Ordner bereits geladen wurde
+    if (lastLoadedFolderRef.current === currentFolderId) {
+      NavigationLogger.log('Library', 'Skip loading - folder already loaded', {
+        folderId: currentFolderId
       });
       return;
     }
@@ -92,6 +106,7 @@ export function Library() {
               itemCount: cachedItems.length
             });
             setFolderItems(cachedItems);
+            lastLoadedFolderRef.current = currentFolderId;
             resolve();
             return;
           }
@@ -101,7 +116,12 @@ export function Library() {
           NavigationLogger.log('Library', 'Items fetched', {
             itemCount: items.length,
             folderCount: items.filter(i => i.type === 'folder').length,
-            fileCount: items.filter(i => i.type === 'file').length
+            fileCount: items.filter(i => i.type === 'file').length,
+            items: items.slice(0, 5).map(i => ({ 
+              id: i.id, 
+              name: i.metadata.name, 
+              type: i.type 
+            }))
           });
           
           // Update Cache und Items
@@ -116,6 +136,7 @@ export function Library() {
           }
           
           setFolderItems(items);
+          lastLoadedFolderRef.current = currentFolderId;
           
         } catch (error) {
           if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
@@ -131,13 +152,33 @@ export function Library() {
     });
   }, [currentFolderId, listItems, folderCache, providerInstance, libraryStatus]);
 
-  // Reagiere nur noch auf Änderungen des currentFolderId
+  // Optimierter Effect für FileTree Ready
+  useEffect(() => {
+    if (isFileTreeReady && providerInstance && libraryStatus === 'ready' && !lastLoadedFolderRef.current) {
+      NavigationLogger.log('Library', 'FileTree ready - loading initial items');
+      loadItems();
+    }
+  }, [isFileTreeReady, providerInstance, libraryStatus, loadItems]);
+
+  // Optimierter Effect für currentFolderId
   useEffect(() => {
     let isMounted = true;
     
     const loadCurrentFolder = async () => {
-      if (!providerInstance || libraryStatus !== 'ready') {
-        NavigationLogger.log('Library', 'Skip folder load - provider not ready');
+      if (!providerInstance || libraryStatus !== 'ready' || !isFileTreeReady) {
+        NavigationLogger.log('Library', 'Skip folder load - not ready', {
+          hasProvider: !!providerInstance,
+          status: libraryStatus,
+          isFileTreeReady
+        });
+        return;
+      }
+      
+      // Prüfe ob der Ordner bereits geladen wurde
+      if (lastLoadedFolderRef.current === currentFolderId) {
+        NavigationLogger.log('Library', 'Skip folder load - already loaded', {
+          folderId: currentFolderId
+        });
         return;
       }
       
@@ -160,8 +201,16 @@ export function Library() {
     
     return () => {
       isMounted = false;
+      if (loadItemsTimeoutRef.current) {
+        clearTimeout(loadItemsTimeoutRef.current);
+      }
     };
-  }, [loadItems, providerInstance, currentFolderId, libraryStatus, globalActiveLibraryId]);
+  }, [loadItems, providerInstance, currentFolderId, libraryStatus, globalActiveLibraryId, isFileTreeReady]);
+
+  // Reset lastLoadedFolder wenn sich die Library ändert
+  useEffect(() => {
+    lastLoadedFolderRef.current = null;
+  }, [globalActiveLibraryId]);
 
   // Memoized values
   const transcriptionEnabled = useMemo(() => {
@@ -245,28 +294,27 @@ export function Library() {
         console.timeEnd('cacheUpdate');
         
         console.time('stateUpdates');
-        // Kein flushSync mehr verwenden, sondern getrennte State-Updates
-        setCurrentFolderId(item.id);
-        setFolderItems(items);
         
-        // Speichere den Ordner im localStorage mit der aktiven Bibliothek
-        if (globalActiveLibraryId) {
-          localStorage.setItem(`folder-${globalActiveLibraryId}`, item.id);
-        }
-        
-        // Update breadcrumb with the resolved path - wichtig für die Navigation
-        console.log('Library: Breadcrumb wird aktualisiert beim Ordnerwechsel zu', item.metadata.name);
-        updateBreadcrumb(path, item.id);
-        
-        // Aktualisiere auch das globale Atom
+        // Breadcrumb-Update mit vollständigem Pfad
+        console.log('resolvePath:', path.map(i => i.metadata.name), 'item:', item.metadata.name);
         setBreadcrumbItems(path);
         
-        // Lösche die Dateiauswahl nur, wenn wir aus einem anderen Ordner kommen
-        // oder wenn der Benutzer explizit auf einen anderen Ordner als den aktuellen klickt
-        if (currentFolderId !== item.id) {
-          console.log('Library: Lösche Dateiauswahl beim Wechsel zu anderem Ordner');
-          clearSelection();
-        } 
+        // State-Updates in einer Transaktion
+        React.startTransition(() => {
+          setCurrentFolderId(item.id);
+          setFolderItems(items);
+          
+          // Speichere den Ordner im localStorage mit der aktiven Bibliothek
+          if (globalActiveLibraryId) {
+            localStorage.setItem(`folder-${globalActiveLibraryId}`, item.id);
+          }
+          
+          // Lösche die Dateiauswahl nur, wenn wir aus einem anderen Ordner kommen
+          if (currentFolderId !== item.id) {
+            console.log('Library: Lösche Dateiauswahl beim Wechsel zu anderem Ordner');
+            clearSelection();
+          }
+        });
         
         console.timeEnd('stateUpdates');
       }
@@ -278,7 +326,7 @@ export function Library() {
     } finally {
       console.timeEnd('folderSelect');
     }
-  }, [listItems, folderCache, resolvePath, updateBreadcrumb, clearSelection, setBreadcrumbItems, currentFolderId, setCurrentFolderId, globalActiveLibraryId]);
+  }, [listItems, folderCache, resolvePath, updateBreadcrumb, clearSelection, setBreadcrumbItems, currentFolderId, globalActiveLibraryId]);
 
   // Cleanup bei Unmount
   useEffect(() => {
@@ -291,29 +339,55 @@ export function Library() {
 
   // Lade den letzten Ordner für die aktive Bibliothek
   useEffect(() => {
+    let isInitialMount = true;
+    
     if (providerInstance && globalActiveLibraryId) {
-      // Versuche den letzten Ordner für diese Bibliothek zu laden
-      const lastFolderId = localStorage.getItem(`folder-${globalActiveLibraryId}`);
-      console.log('[Library] Versuche letzten Ordner zu laden:', {
-        libraryId: globalActiveLibraryId,
-        lastFolderId
-      });
-      
-      if (lastFolderId) {
-        handleFolderSelect({
-          id: lastFolderId,
-          type: 'folder',
-          metadata: {
-            name: '',
-            size: 0,
-            modifiedAt: new Date(),
-            mimeType: 'folder'
-          },
-          parentId: ''
+      // Vermeide doppelte Initialisierung beim ersten Mount
+      if (!isInitialMount) {
+        // Versuche den letzten Ordner für diese Bibliothek zu laden
+        const lastFolderId = localStorage.getItem(`folder-${globalActiveLibraryId}`);
+        console.log('[Library] Versuche letzten Ordner zu laden:', {
+          libraryId: globalActiveLibraryId,
+          lastFolderId
         });
+        
+        if (lastFolderId) {
+          handleFolderSelect({
+            id: lastFolderId,
+            type: 'folder',
+            metadata: {
+              name: '',
+              size: 0,
+              modifiedAt: new Date(),
+              mimeType: 'folder'
+            },
+            parentId: ''
+          });
+        }
       }
+      isInitialMount = false;
     }
+    
+    return () => {
+      if (loadItemsTimeoutRef.current) {
+        clearTimeout(loadItemsTimeoutRef.current);
+      }
+    };
   }, [providerInstance, globalActiveLibraryId, handleFolderSelect]);
+
+  // Lädt die Items für den aktuellen Ordner, sobald der FileTree bereit ist.
+  // Dies stellt sicher, dass die FileList nach der Initialisierung immer korrekt angezeigt wird.
+  React.useEffect(() => {
+    if (isFileTreeReady && currentFolderId) {
+      listItems(currentFolderId)
+        .then(setFolderItems)
+        .catch((err) => {
+          setFolderItems([]);
+          // Fehlerprotokollierung für Debugging
+          console.error('[Library] Fehler beim Laden der Items:', err);
+        });
+    }
+  }, [isFileTreeReady, currentFolderId, listItems]);
 
   // Komponenten nur rendern, wenn Storage bereit oder Daten werden geladen
   if (libraryStatus === "waitingForAuth") {
@@ -371,26 +445,30 @@ export function Library() {
         </div>
         <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
           <ResizablePanel defaultSize={50} minSize={30} className="relative">
-            <FileList
-              items={folderItems}
-              selectedItem={selected.item}
-              onSelectAction={selectFile}
-              searchTerm={searchQuery}
-              onRefresh={(folderId, items) => {
-                // Aktualisiere die Dateiliste nach einem Refresh
-                setFolderItems(items);
-                // Optional: Cache aktualisieren
-                if (folderCache.has(folderId)) {
-                  const cachedFolder = folderCache.get(folderId);
-                  if (cachedFolder) {
-                    folderCache.set(folderId, {
-                      ...cachedFolder,
-                      children: items
-                    });
+            {isFileTreeReady ? (
+              <FileList
+                items={folderItems}
+                selectedItem={selected.item}
+                onSelectAction={selectFile}
+                searchTerm={searchQuery}
+                onRefresh={(folderId, items) => {
+                  setFolderItems(items);
+                  if (folderCache.has(folderId)) {
+                    const cachedFolder = folderCache.get(folderId);
+                    if (cachedFolder) {
+                      folderCache.set(folderId, {
+                        ...cachedFolder,
+                        children: items
+                      });
+                    }
                   }
-                }
-              }}
-            />
+                }}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Lade Ordnerstruktur...
+              </div>
+            )}
           </ResizablePanel>
           <ResizableHandle />
           <ResizablePanel defaultSize={50} minSize={30} className="relative">

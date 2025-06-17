@@ -126,4 +126,6 @@ export const writeBreadcrumbItemsAtom = atom(
     }
   }
 )
-writeBreadcrumbItemsAtom.debugLabel = "writeBreadcrumbItemsAtom" 
+writeBreadcrumbItemsAtom.debugLabel = "writeBreadcrumbItemsAtom"
+
+export const fileTreeReadyAtom = atom(false); 

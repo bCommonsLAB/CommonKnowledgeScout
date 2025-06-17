@@ -55,6 +55,10 @@ export function getUserFriendlyAudioErrorMessage(error: unknown): string {
 export class NavigationLogger {
   private static sequence = 0;
 
+  static resetSequence() {
+    this.sequence = 0;
+  }
+
   static log(component: string, event: string, details?: any) {
     if (process.env.NODE_ENV === 'development') {
       const timestamp = new Date().toISOString().split('T')[1];
