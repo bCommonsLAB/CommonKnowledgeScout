@@ -1030,4 +1030,52 @@ export class OneDriveProvider implements StorageProvider {
       throw new StorageError('Fehler beim Abrufen der Streaming-URL: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
+
+  async getPathItemsById(itemId: string): Promise<StorageItem[]> {
+    if (itemId === 'root') {
+      // Root-Item erzeugen
+      return [
+        {
+          id: 'root',
+          parentId: '',
+          type: 'folder',
+          metadata: {
+            name: 'root',
+            size: 0,
+            modifiedAt: new Date(),
+            mimeType: 'application/folder'
+          }
+        }
+      ];
+    }
+    const path = await this.getPathById(itemId); // z.B. /foo/bar/baz
+    const segments = path.split('/').filter(Boolean);
+    let parentId = 'root';
+    const pathItems: StorageItem[] = [];
+    for (const segment of segments) {
+      const children = await this.listItemsById(parentId);
+      const folder = children.find(child => child.metadata.name === segment && child.type === 'folder');
+      if (!folder) break;
+      // Eltern in den Cache schreiben, falls sie fehlen
+      if (parentId !== 'root' && !pathItems.find(item => item.id === parentId)) {
+        try {
+          const parentItem = await this.getItemById(parentId);
+          pathItems.push(parentItem);
+        } catch {}
+      }
+      pathItems.push(folder);
+      parentId = folder.id;
+    }
+    return [{
+      id: 'root',
+      parentId: '',
+      type: 'folder',
+      metadata: {
+        name: 'root',
+        size: 0,
+        modifiedAt: new Date(),
+        mimeType: 'application/folder'
+      }
+    }, ...pathItems];
+  }
 } 

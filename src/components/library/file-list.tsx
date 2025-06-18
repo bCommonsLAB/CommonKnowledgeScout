@@ -3,12 +3,12 @@
 import * as React from "react"
 import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText, Folder, Image } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
-import { cn, NavigationLogger } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
 import { useAtomValue, useAtom } from 'jotai';
-import { activeLibraryIdAtom, fileTreeReadyAtom } from '@/atoms/library-atom';
+import { activeLibraryIdAtom, fileTreeReadyAtom, selectedFileAtom, currentFolderIdAtom, folderItemsAtom } from '@/atoms/library-atom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,9 @@ import {
   getMediaType
 } from '@/atoms/transcription-options';
 import { Checkbox } from "@/components/ui/checkbox"
+import { useEffect, useMemo, useCallback } from "react"
+import { FileLogger } from "@/lib/debug/logger"
+import { StateLogger } from "@/lib/debug/logger"
 
 interface FileListProps {
   items: StorageItem[]
@@ -611,7 +614,7 @@ export const FileList = React.memo(function FileList({
   onSelectAction,
   searchTerm = "",
   onRefresh
-}: FileListProps) {
+}: FileListProps): JSX.Element {
   const { refreshItems, currentLibrary, provider } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -625,14 +628,27 @@ export const FileList = React.memo(function FileList({
   const [isInitialized, setIsInitialized] = React.useState(false);
   const initializationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
+  const [selectedFile, setSelectedFile] = useAtom(selectedFileAtom);
+  const [currentFolderId] = useAtom(currentFolderIdAtom);
+  const [folderItems, setFolderItems] = useAtom(folderItemsAtom);
+  
+  // Refs für Item-Tracking
+  const lastItemsRef = React.useRef<StorageItem[]>([]);
+  const lastItemsStringRef = React.useRef<string>('');
 
   // Initialisierung
   React.useEffect(() => {
-    if (!provider) return;
+    if (!provider || !isFileTreeReady) {
+      FileLogger.info('FileList', 'Waiting for provider and FileTree', {
+        hasProvider: !!provider,
+        isFileTreeReady
+      });
+      return;
+    }
 
     const initialize = async () => {
       if (isInitialized) {
-        NavigationLogger.log('FileList', 'Skipping initialization', {
+        FileLogger.debug('FileList', 'Already initialized', {
           hasProvider: !!provider,
           hasItems: items?.length > 0,
           isInitialized
@@ -640,29 +656,16 @@ export const FileList = React.memo(function FileList({
         return;
       }
 
-      // Warte einen kurzen Moment, um sicherzustellen, dass der FileTree fertig ist
-      initializationTimeoutRef.current = setTimeout(() => {
-        // [Nav:10] FileList Starting initialization
-        NavigationLogger.log('FileList', 'Starting initialization');
+      // [Nav:10] FileList Starting initialization
+      FileLogger.info('FileList', 'Starting initialization');
 
-        // [Nav:11] FileList Loading items
-        NavigationLogger.log('FileList', 'Loading items');
-
-        try {
-          // [Nav:12] FileList Items loaded
-          NavigationLogger.log('FileList', 'Items loaded', {
-            count: items?.length ?? 0,
-            types: items?.map(item => item.type) ?? []
-          });
-
-          // [Nav:13] FileList Initialization complete
-          NavigationLogger.log('FileList', 'Initialization complete');
-          
-          setIsInitialized(true);
-        } catch (error) {
-          console.error('Error initializing FileList:', error);
-        }
-      }, 100); // Kleiner Delay um nach FileTree zu initialisieren
+      try {
+        // [Nav:13] FileList Initialization complete
+        FileLogger.info('FileList', 'Initialization complete');
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('Error initializing FileList:', error);
+      }
     };
 
     initialize();
@@ -672,7 +675,44 @@ export const FileList = React.memo(function FileList({
         clearTimeout(initializationTimeoutRef.current);
       }
     };
-  }, [provider, items, isInitialized]);
+  }, [provider, isFileTreeReady]); // Nur von provider und isFileTreeReady abhängig machen
+
+  // Items Update Logging
+  React.useEffect(() => {
+    if (!isInitialized || !items) return;
+    
+    // Erstelle einen String-Hash der Items für Vergleich
+    const itemsString = JSON.stringify(items.map(i => ({ 
+      id: i.id, 
+      type: i.type,
+      parentId: i.parentId
+    })));
+    
+    if (itemsString !== lastItemsStringRef.current) {
+      const fileCount = items.filter(i => i.type === 'file').length;
+      const folderCount = items.filter(i => i.type === 'folder').length;
+      const transcribableCount = items.filter(i => {
+        try {
+          const mediaType = getMediaType(i);
+          return mediaType === 'audio' || mediaType === 'video';
+        } catch {
+          return false;
+        }
+      }).length;
+      
+      FileLogger.info('FileList', 'Items updated', {
+        totalCount: items.length,
+        fileCount,
+        folderCount,
+        transcribableCount,
+        parentId: items[0]?.parentId || 'root',
+        selectedCount: selectedBatchItems.length
+      });
+      
+      lastItemsRef.current = items;
+      lastItemsStringRef.current = itemsString;
+    }
+  }, [items, isInitialized, selectedBatchItems.length]);
 
   // Prüft ob eine Datei ein unaufgelöstes Template enthält
   const hasUnresolvedTemplate = React.useCallback((item: StorageItem): boolean => {
@@ -680,30 +720,29 @@ export const FileList = React.memo(function FileList({
     return item.metadata.name.includes('{{') && item.metadata.name.includes('}}');
   }, []);
 
-  // Aktuellen Ordner bestimmen und Dateiliste neu laden
-  const handleRefresh = React.useCallback(async () => {
+  // Aktualisierte handleSelect Funktion
+  const handleSelect = useCallback((item: StorageItem) => {
+    setSelectedFile(item);
+  }, [setSelectedFile]);
+
+  // Aktualisierte handleRefresh Funktion
+  const handleRefresh = useCallback(async () => {
     if (!items || items.length === 0) return;
     
-    // Alle Dateien haben den gleichen Elternordner
     const parentId = items[0]?.parentId;
     if (!parentId) return;
     
     setIsRefreshing(true);
     
     try {
-      // Dateiliste neu laden und Cache explizit leeren
       const refreshedItems = await refreshItems(parentId);
-      
-      // Benachrichtige die Eltern-Komponente über die Aktualisierung
-      if (onRefresh) {
-        onRefresh(parentId, refreshedItems);
-      }
+      setFolderItems(refreshedItems);
     } catch (error) {
       console.error('Fehler beim Aktualisieren der Dateiliste:', error);
     } finally {
       setIsRefreshing(false);
     }
-  }, [items, refreshItems, onRefresh]);
+  }, [items, refreshItems, setFolderItems]);
 
   // Sortierungslogik
   const handleSort = React.useCallback((field: SortField) => {
@@ -785,88 +824,168 @@ export const FileList = React.memo(function FileList({
     return sorted;
   }, [items, searchTerm, sortField, sortOrder]);
 
-  // Gruppiere zusammengehörige Dateien
-  const fileGroups = React.useMemo(() => {
-    const groups = new Map<string, FileGroup>();
-    const processedIds = new Set<string>();
+  // Gruppiere die Dateien
+  const fileGroups = useMemo(() => {
+    const groupMap = new Map<string, FileGroup>();
     
-    // Erste Iteration: Sammle alle Dateien und gruppiere sie
-    for (const file of files) {
-      const baseName = getBaseName(file.metadata.name);
-      
-      if (isTranscriptFile(file.metadata.name)) {
-        // Dies ist eine Transkript-Datei
-        const group = groups.get(baseName) || { baseItem: file };
-        group.transcript = file;
-        groups.set(baseName, group);
-        processedIds.add(file.id);
-      } else if (isTransformedFile(file.metadata.name)) {
-        // Dies ist eine transformierte Datei
-        const group = groups.get(baseName) || { baseItem: file };
-        group.transformed = file;
-        groups.set(baseName, group);
-        processedIds.add(file.id);
+    if (!items) return groupMap;
+
+    // Sortiere die Items nach Typ und Name
+    const sortedFiles = [...items].sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === 'folder' ? -1 : 1;
       }
-    }
-    
-    // Zweite Iteration: Füge Basis-Dateien zu ihren Gruppen hinzu
-    for (const file of files) {
-      if (!processedIds.has(file.id)) {
-        const baseName = getBaseName(file.metadata.name);
-        
-        if (groups.has(baseName)) {
-          // Es gibt bereits eine Gruppe für diesen Basisnamen
-          const group = groups.get(baseName)!;
-          if (!isTranscriptFile(file.metadata.name) && !isTransformedFile(file.metadata.name)) {
-            // Dies ist die Basis-Datei
-            group.baseItem = file;
-          }
-        } else {
-          // Neue Gruppe für alleinstehende Datei
-          groups.set(baseName, { baseItem: file });
+      return a.metadata.name.localeCompare(b.metadata.name);
+    });
+
+    // Gruppiere die Dateien
+    for (const item of sortedFiles) {
+      const baseName = getBaseName(item.metadata.name);
+      
+      if (!groupMap.has(baseName)) {
+        groupMap.set(baseName, {
+          baseItem: item,
+          transcript: undefined,
+          transformed: undefined
+        });
+      } else {
+        const group = groupMap.get(baseName)!;
+        if (isTranscriptFile(item.metadata.name)) {
+          group.transcript = item;
+        } else if (isTransformedFile(item.metadata.name)) {
+          group.transformed = item;
         }
       }
     }
+
+    return groupMap;
+  }, [items]);
+
+  // Berechne, ob alle Dateien ausgewählt sind
+  const isAllSelected = useMemo(() => {
+    if (!items?.length) return false;
+    const transcribableItems = items.filter(item => 
+      item.type === 'file' && 
+      (item.metadata.mimeType.startsWith('audio/') || item.metadata.mimeType.startsWith('video/'))
+    );
+    return transcribableItems.length > 0 && selectedBatchItems.length === transcribableItems.length;
+  }, [items, selectedBatchItems]);
+
+  // Sortiere die Items
+  const sortedItems = useMemo(() => {
+    if (!items) return [];
+    return [...items].sort((a, b) => {
+      if (sortField === 'type') {
+        if (a.type === b.type) return 0;
+        return a.type === 'folder' ? -1 : 1;
+      }
+      if (sortField === 'name') {
+        return sortOrder === 'asc' 
+          ? a.metadata.name.localeCompare(b.metadata.name)
+          : b.metadata.name.localeCompare(a.metadata.name);
+      }
+      if (sortField === 'size') {
+        return sortOrder === 'asc'
+          ? (a.metadata.size || 0) - (b.metadata.size || 0)
+          : (b.metadata.size || 0) - (a.metadata.size || 0);
+      }
+      if (sortField === 'date') {
+        const aDate = a.metadata.modifiedAt?.getTime() || 0;
+        const bDate = b.metadata.modifiedAt?.getTime() || 0;
+        return sortOrder === 'asc' ? aDate - bDate : bDate - aDate;
+      }
+      return 0;
+    });
+  }, [items, sortField, sortOrder]);
+
+  // Handle Select All
+  const handleSelectAll = useCallback((checked: boolean) => {
+    const startTime = performance.now();
     
-    
-    // Konvertiere Map zu Array und sortiere nach dem aktuellen Sortierfeld
-    const groupArray = Array.from(groups.values());
-    
-    // Sortiere die Gruppen basierend auf dem ausgewählten Sortierfeld
-    groupArray.sort((a, b) => {
-      let comparison = 0;
+    if (checked) {
+      const transcribableItems = items
+        .filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
+          } catch {
+            return false;
+          }
+        })
+        .map(item => ({
+          item,
+          type: getMediaType(item)
+        }));
+
+      StateLogger.info('FileList', 'Selecting all transcribable items', {
+        totalItems: items.length,
+        transcribableCount: transcribableItems.length,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
       
-      switch (sortField) {
-        case 'type':
-          comparison = (a.baseItem.metadata.mimeType || '').localeCompare(b.baseItem.metadata.mimeType || '');
-          break;
-        case 'name':
-          comparison = a.baseItem.metadata.name.localeCompare(b.baseItem.metadata.name);
-          break;
-        case 'size':
-          comparison = (a.baseItem.metadata.size || 0) - (b.baseItem.metadata.size || 0);
-          break;
-        case 'date':
-          const dateA = a.baseItem.metadata.modifiedAt ? new Date(a.baseItem.metadata.modifiedAt).getTime() : 0;
-          const dateB = b.baseItem.metadata.modifiedAt ? new Date(b.baseItem.metadata.modifiedAt).getTime() : 0;
-          comparison = dateA - dateB;
-          break;
+      setSelectedBatchItems(transcribableItems);
+    } else {
+      StateLogger.info('FileList', 'Deselecting all items', {
+        previouslySelected: selectedBatchItems.length,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      
+      setSelectedBatchItems([]);
+    }
+  }, [items, setSelectedBatchItems, selectedBatchItems.length]);
+
+  // Handle Item Selection
+  const handleItemSelect = React.useCallback((item: StorageItem) => {
+    const startTime = performance.now();
+    
+    try {
+      const mediaType = getMediaType(item);
+      
+      StateLogger.debug('FileList', 'Item selection attempt', {
+        itemId: item.id,
+        itemName: item.metadata.name,
+        mediaType,
+        isCurrentlySelected: selectedBatchItems.some(i => i.item.id === item.id)
+      });
+      
+      // Nur Audio- und Video-Dateien können für Batch-Transkription ausgewählt werden
+      if (mediaType === 'audio' || mediaType === 'video') {
+        setSelectedBatchItems(prev => {
+          const isAlreadySelected = prev.some(i => i.item.id === item.id);
+          const newSelection = isAlreadySelected
+            ? prev.filter(i => i.item.id !== item.id)
+            : [...prev, { item, type: mediaType }];
+            
+          StateLogger.info('FileList', 'Batch selection updated', {
+            itemId: item.id,
+            itemName: item.metadata.name,
+            mediaType,
+            action: isAlreadySelected ? 'deselected' : 'selected',
+            newSelectionCount: newSelection.length,
+            duration: `${(performance.now() - startTime).toFixed(2)}ms`
+          });
+          
+          return newSelection;
+        });
       }
       
-      // Umkehren der Sortierreihenfolge bei absteigender Sortierung
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-    
-    return groupArray;
-  }, [files, sortField, sortOrder]);
-
-  // Modifizierter Select-Handler mit Template-Warnung
-  const handleSelect = React.useCallback((item: StorageItem) => {
-    if (hasUnresolvedTemplate(item)) {
-      console.warn('Warnung: Datei enthält nicht aufgelöste Template-Variablen:', item.metadata.name);
+      // Immer die Datei auswählen, unabhängig vom Medientyp
+      onSelectAction(item);
+    } catch (error) {
+      StateLogger.warn('FileList', 'Error in item selection', {
+        error,
+        itemId: item.id,
+        itemName: item.metadata.name,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      onSelectAction(item);
     }
-    onSelectAction(item);
-  }, [onSelectAction, hasUnresolvedTemplate]);
+  }, [onSelectAction, selectedBatchItems]);
+
+  // Check if an item is selected
+  const isItemSelected = useCallback((item: StorageItem) => {
+    return selectedBatchItems.some(selected => selected.item.id === item.id);
+  }, [selectedBatchItems]);
 
   // Löschfunktion
   const handleDeleteClick = React.useCallback((e: React.MouseEvent, item: StorageItem) => {
@@ -875,7 +994,13 @@ export const FileList = React.memo(function FileList({
     setDeleteDialogOpen(true);
   }, []);
 
-  // Rename-Funktion
+  // Hilfsfunktion zum Finden einer FileGroup in der Map
+  const findFileGroup = (map: Map<string, FileGroup>, baseName: string): FileGroup | undefined => {
+    return Array.from(map.values()).find(group => 
+      getBaseName(group.baseItem.metadata.name) === baseName
+    );
+  };
+
   const handleRename = React.useCallback(async (item: StorageItem, newName: string) => {
     if (!provider) {
       toast.error("Fehler", {
@@ -886,11 +1011,8 @@ export const FileList = React.memo(function FileList({
 
     try {
       // Finde die FileGroup für dieses Item
-      const fileGroup = fileGroups.find(group => 
-        group.baseItem.id === item.id || 
-        group.transcript?.id === item.id || 
-        group.transformed?.id === item.id
-      );
+      const baseName = getBaseName(item.metadata.name);
+      const fileGroup = findFileGroup(fileGroups, baseName);
 
       if (fileGroup && item.id === fileGroup.baseItem.id) {
         // Dies ist die Basis-Datei - benenne auch abhängige Dateien um
@@ -1020,147 +1142,108 @@ export const FileList = React.memo(function FileList({
   }
 
   return (
-    <div className="absolute inset-0 flex flex-col">
-      {!items || fileGroups.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          {!items ? 'Provider nicht verfügbar' : 'Keine Dateien gefunden'}
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="border-b px-4 py-2 flex items-center justify-between bg-background sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+          </Button>
+          {selectedBatchItems.length > 0 && (
+            <Button
+              size="sm"
+              onClick={handleBatchTranscription}
+            >
+              {selectedBatchItems.length} Datei(en) transkribieren
+            </Button>
+          )}
         </div>
-      ) : (
-        <>
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={items.length > 0 && selectedBatchItems.length === items.filter(item => 
-                  item.type === 'file' && 
-                  (item.metadata.mimeType.startsWith('audio/') || item.metadata.mimeType.startsWith('video/'))
-                ).length}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    const transformableItems = items
-                      .filter(item => 
-                        item.type === 'file' && 
-                        (item.metadata.mimeType.startsWith('audio/') || item.metadata.mimeType.startsWith('video/'))
-                      )
-                      .map(item => ({
-                        item,
-                        type: getMediaType(item)
-                      }));
-                    setSelectedBatchItems(transformableItems);
-                  } else {
-                    setSelectedBatchItems([]);
-                  }
-                }}
-              />
-              <span className="text-sm text-muted-foreground">
-                {selectedBatchItems.length} Datei(en) ausgewählt
-              </span>
-            </div>
-            
-            {selectedBatchItems.length > 0 && (
-              <Button
-                size="sm"
-                onClick={handleBatchTranscription}
-              >
-                {selectedBatchItems.length} Datei(en) transkribieren
-              </Button>
-            )}
-          </div>
-          {/* Header - Fixed */}
-          <div className="px-4 py-2 text-xs font-medium text-muted-foreground grid grid-cols-[24px_24px_minmax(0,1fr)_60px_100px_100px_50px] gap-4 items-center border-b flex-shrink-0">
-            <SortableHeaderCell 
-              label="Typ" 
-              field="type" 
-              currentSortField={sortField} 
-              currentSortOrder={sortOrder} 
-              onSort={handleSort} 
-            />
-            <SortableHeaderCell 
-              label="Name" 
-              field="name" 
-              currentSortField={sortField} 
-              currentSortOrder={sortOrder} 
-              onSort={handleSort} 
-            />
-            <SortableHeaderCell 
-              label="Größe" 
-              field="size" 
-              currentSortField={sortField} 
-              currentSortOrder={sortOrder} 
-              onSort={handleSort} 
-            />
-            <SortableHeaderCell 
-              label="Datum" 
-              field="date" 
-              currentSortField={sortField} 
-              currentSortOrder={sortOrder} 
-              onSort={handleSort} 
-            />
-            <span>Dateien</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="h-6 w-6 p-0"
-                    onClick={handleRefresh}
-                    disabled={isRefreshing}
-                  >
-                    <RefreshCw className={cn(
-                      "h-4 w-4", 
-                      isRefreshing && "animate-spin"
-                    )} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Dateiliste aktualisieren</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          {/* File Groups - Scrollable */}
-          <div className="flex-1 overflow-y-auto min-h-0">
-            <div className="divide-y">
-              {fileGroups.map((group) => (
-                <FileRow
-                  key={group.baseItem.id}
-                  item={group.baseItem}
-                  isSelected={selectedItem?.id === group.baseItem.id || 
-                             selectedItem?.id === group.transcript?.id || 
-                             selectedItem?.id === group.transformed?.id}
-                  onSelect={() => handleSelect(group.baseItem)}
-                  onCreateTranscript={(e) => handleCreateTranscript(e, group.baseItem)}
-                  onDelete={(e) => handleDeleteClick(e, group.baseItem)}
-                  fileGroup={group}
-                  onSelectRelatedFile={(file) => handleSelect(file)}
-                  onRename={handleRename}
+      </div>
+
+      {/* File List */}
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-[800px]">
+          {/* Table Header */}
+          <div className="sticky top-0 bg-background border-b">
+            <div className="grid grid-cols-[auto_1fr_100px_150px_100px_50px] gap-2 px-4 py-2 text-sm font-medium text-muted-foreground">
+              <div className="w-6 flex items-center justify-center">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Alle auswählen"
                 />
-              ))}
+              </div>
+              <SortableHeaderCell
+                label="Name"
+                field="name"
+                currentSortField={sortField}
+                currentSortOrder={sortOrder}
+                onSort={handleSort}
+              />
+              <SortableHeaderCell
+                label="Größe"
+                field="size"
+                currentSortField={sortField}
+                currentSortOrder={sortOrder}
+                onSort={handleSort}
+              />
+              <SortableHeaderCell
+                label="Geändert"
+                field="date"
+                currentSortField={sortField}
+                currentSortOrder={sortOrder}
+                onSort={handleSort}
+              />
+              <div className="text-left">Aktionen</div>
+              <div />
             </div>
           </div>
-        </>
-      )}
-      {deleteDialogOpen && (
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Datei löschen</AlertDialogTitle>
-              <AlertDialogDescription>
-                Möchten Sie die Datei {itemToDelete?.metadata.name} wirklich löschen?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
-                {isDeleting ? "Wird gelöscht..." : "Löschen"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+
+          {/* File Rows */}
+          <div className="divide-y">
+            {sortedItems.map((item) => (
+              <FileRow
+                key={item.id}
+                item={item}
+                isSelected={isItemSelected(item)}
+                onSelect={() => handleItemSelect(item)}
+                onCreateTranscript={(e) => handleCreateTranscript(e, item)}
+                onDelete={(e) => handleDeleteClick(e, item)}
+                fileGroup={fileGroups.get(getBaseName(item.metadata.name))}
+                onSelectRelatedFile={handleSelect}
+                onRename={handleRename}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Datei löschen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie die Datei {itemToDelete?.metadata.name} wirklich löschen?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
+              {isDeleting ? "Wird gelöscht..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-}, (prevProps, nextProps) => {
+}, (prevProps: FileListProps, nextProps: FileListProps): boolean => {
   // Zusätzliche Prüfung für selectedItem
   if (prevProps.selectedItem && nextProps.selectedItem) {
     return (

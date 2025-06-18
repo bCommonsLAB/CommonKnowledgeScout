@@ -2,21 +2,30 @@ import { atom } from "jotai"
 import { ClientLibrary } from "@/types/library"
 import { StorageItem } from "@/lib/storage/types"
 
-export interface LibraryContextData {
+// Basis-Typen für den Library-State
+export interface LibraryState {
   libraries: ClientLibrary[];
   activeLibraryId: string;
   currentFolderId: string;
+  folderCache: Record<string, StorageItem>;
+}
+
+// Typen für den Loading-State
+export interface LoadingState {
+  isLoading: boolean;
+  loadingFolderId: string | null;
 }
 
 // Initialer State
-const initialState: LibraryContextData = {
+const initialState: LibraryState = {
   libraries: [],
   activeLibraryId: "",
-  currentFolderId: "root"
+  currentFolderId: "root",
+  folderCache: {}
 }
 
-// Hauptatom für Library-Kontext
-export const libraryAtom = atom<LibraryContextData>(initialState)
+// Hauptatom für Library-State
+export const libraryAtom = atom<LibraryState>(initialState)
 libraryAtom.debugLabel = "libraryAtom"
 
 // Derivierte Atome für spezifische Eigenschaften
@@ -31,7 +40,7 @@ export const activeLibraryIdAtom = atom(
 )
 activeLibraryIdAtom.debugLabel = "activeLibraryIdAtom"
 
-// Erweitere mit Setter für Bibliotheken
+// Bibliotheken-Atom
 export const librariesAtom = atom(
   get => get(libraryAtom).libraries,
   (get, set, newLibraries: ClientLibrary[]) => {
@@ -43,7 +52,7 @@ export const librariesAtom = atom(
 )
 librariesAtom.debugLabel = "librariesAtom"
 
-// Hilfsfunktion für aktive Library
+// Aktive Bibliothek
 export const activeLibraryAtom = atom(
   get => {
     const state = get(libraryAtom)
@@ -52,7 +61,7 @@ export const activeLibraryAtom = atom(
 )
 activeLibraryAtom.debugLabel = "activeLibraryAtom"
 
-// Atom für aktuelles Verzeichnis
+// Aktuelles Verzeichnis
 export const currentFolderIdAtom = atom(
   get => get(libraryAtom).currentFolderId,
   (get, set, newFolderId: string) => {
@@ -64,68 +73,84 @@ export const currentFolderIdAtom = atom(
 )
 currentFolderIdAtom.debugLabel = "currentFolderIdAtom"
 
-// Atom für Breadcrumb-Pfad-Informationen
-export const breadcrumbItemsAtom = atom<StorageItem[]>([])
-breadcrumbItemsAtom.debugLabel = "breadcrumbItemsAtom"
+// Automatische Pfad-Berechnung
+export const currentPathAtom = atom(
+  get => {
+    const currentLibrary = get(activeLibraryAtom);
+    const currentFolderId = get(currentFolderIdAtom);
+    const libraryState = get(libraryAtom);
+    
+    if (!currentLibrary || !currentFolderId) {
+      return [];
+    }
 
-// Atom für die ausgewählte Datei
+    // Root-Item immer als erstes
+    const rootItem: StorageItem = {
+      id: 'root',
+      parentId: '',
+      type: 'folder',
+      metadata: {
+        name: currentLibrary.label || '/',
+        size: 0,
+        modifiedAt: new Date(),
+        mimeType: 'application/folder'
+      }
+    };
+
+    // Bei root nur das Root-Item zurückgeben
+    if (currentFolderId === 'root') {
+      return [rootItem];
+    }
+
+    // Pfad aus dem Ordner-Cache berechnen
+    const folderCache = libraryState.folderCache;
+    if (!folderCache) {
+      return [rootItem];
+    }
+
+    // Pfad aufbauen
+    const path: StorageItem[] = [];
+    let currentId = currentFolderId;
+    
+    while (currentId && currentId !== 'root') {
+      const folder = folderCache[currentId];
+      if (!folder) break;
+      path.unshift(folder);
+      currentId = folder.parentId;
+    }
+
+    return [rootItem, ...path];
+  }
+)
+currentPathAtom.debugLabel = "currentPathAtom"
+
+// Ausgewählte Datei
 export const selectedFileAtom = atom<StorageItem | null>(null)
 selectedFileAtom.debugLabel = "selectedFileAtom"
 
-// Kombiniertes Atom für Breadcrumb der ausgewählten Datei
-export const selectedFileBreadcrumbAtom = atom<{
-  items: StorageItem[];
-  currentId: string;
-}>({
-  items: [],
-  currentId: 'root'
+// FileTree Ready Status
+export const fileTreeReadyAtom = atom<boolean>(false)
+fileTreeReadyAtom.debugLabel = "fileTreeReadyAtom"
+
+// Ordner-Items
+export const folderItemsAtom = atom<StorageItem[]>([])
+folderItemsAtom.debugLabel = "folderItemsAtom"
+
+// Geladene Kinder im FileTree
+export const loadedChildrenAtom = atom<Record<string, StorageItem[]>>({})
+loadedChildrenAtom.debugLabel = "loadedChildrenAtom"
+
+// Lade-Status
+export const loadingStateAtom = atom<LoadingState>({
+  isLoading: false,
+  loadingFolderId: null
 })
-selectedFileBreadcrumbAtom.debugLabel = "selectedFileBreadcrumbAtom"
+loadingStateAtom.debugLabel = "loadingStateAtom"
 
-// Metadaten der ausgewählten Datei
-export const selectedFileMetadataAtom = atom<{
-  name: string;
-  size: number;
-  type: string;
-  modified: Date;
-  created: Date;
-  transcriptionEnabled?: boolean;
-} | null>(null)
-selectedFileMetadataAtom.debugLabel = "selectedFileMetadataAtom"
+// Expandierte Ordner im FileTree
+export const expandedFoldersAtom = atom<Set<string>>(new Set(['root']))
+expandedFoldersAtom.debugLabel = "expandedFoldersAtom"
 
-// Schreibgeschütztes Atom für Breadcrumb-Items
-export const readBreadcrumbItemsAtom = atom(
-  get => get(breadcrumbItemsAtom)
-)
-readBreadcrumbItemsAtom.debugLabel = "readBreadcrumbItemsAtom"
-
-// Nur-Schreiben Atom für Breadcrumb-Items mit Validierung
-export const writeBreadcrumbItemsAtom = atom(
-  null, // Keine Leseoperation
-  (get, set, newItems: StorageItem[]) => {
-    const currentItems = get(breadcrumbItemsAtom);
-    
-    // Beide Arrays leer? Nichts zu tun
-    if (newItems.length === 0 && currentItems.length === 0) {
-      return;
-    }
-    
-    // Unterschiedliche Längen? Definitiv Update nötig
-    if (newItems.length !== currentItems.length) {
-      set(breadcrumbItemsAtom, newItems);
-      return;
-    }
-    
-    // Vergleiche die IDs, um zu sehen, ob sich die Items geändert haben
-    const isDifferent = newItems.some((item, index) => 
-      item.id !== currentItems[index].id
-    );
-    
-    if (isDifferent) {
-      set(breadcrumbItemsAtom, newItems);
-    }
-  }
-)
-writeBreadcrumbItemsAtom.debugLabel = "writeBreadcrumbItemsAtom"
-
-export const fileTreeReadyAtom = atom(false); 
+// Letzter geladener Ordner
+export const lastLoadedFolderAtom = atom<string | null>(null)
+lastLoadedFolderAtom.debugLabel = "lastLoadedFolderAtom" 

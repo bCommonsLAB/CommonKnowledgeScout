@@ -6,6 +6,7 @@ import { TopNav } from "@/components/top-nav"
 import { Toaster } from "sonner"
 import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
+import { DebugFooterWrapper } from "@/components/debug/debug-footer-wrapper"
 
 export const metadata = {
   title: "Knowledge Scout",
@@ -29,9 +30,12 @@ export default function RootLayout({
           >
             <StorageContextProvider>
               <TooltipProvider>
-                <div className="h-screen overflow-hidden">
+                <div className="relative h-screen overflow-hidden">
                   <TopNav />
-                  {children}
+                  <div className="h-[calc(100vh-4rem)] overflow-auto">
+                    {children}
+                  </div>
+                  <DebugFooterWrapper />
                 </div>
                 <Toaster richColors />
               </TooltipProvider>

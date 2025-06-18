@@ -21,7 +21,7 @@ export interface VideoTransformSettings extends AudioTransformSettings {
 }
 
 // Medientyp für Batch-Items
-export type MediaType = 'audio' | 'video';
+export type MediaType = 'audio' | 'video' | 'document' | 'unknown';
 
 // Interface für Batch-Items
 export interface BatchTranscriptionItem {
@@ -32,9 +32,24 @@ export interface BatchTranscriptionItem {
 // Hilfsfunktion zum Bestimmen des Medientyps
 export const getMediaType = (item: StorageItem): MediaType => {
   const mimeType = item.metadata.mimeType.toLowerCase();
+  
+  // Audio-Dateien
   if (mimeType.startsWith('audio/')) return 'audio';
+  
+  // Video-Dateien
   if (mimeType.startsWith('video/')) return 'video';
-  throw new Error(`Unsupported media type: ${mimeType}`);
+  
+  // Dokumente
+  if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      mimeType === 'application/msword' ||
+      mimeType === 'application/pdf' ||
+      mimeType === 'text/plain' ||
+      mimeType === 'text/markdown') {
+    return 'document';
+  }
+  
+  // Unbekannte Dateitypen
+  return 'unknown';
 };
 
 // Atom für die Basis-Transformationsoptionen

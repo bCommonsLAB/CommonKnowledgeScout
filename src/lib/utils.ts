@@ -50,33 +50,3 @@ export function getUserFriendlyAudioErrorMessage(error: unknown): string {
   }
   return "Unbekannter Fehler bei der Transkription. Bitte versuchen Sie es später erneut.";
 }
-
-// Navigation Logger für besseres Debugging
-export class NavigationLogger {
-  private static sequence = 0;
-
-  static resetSequence() {
-    this.sequence = 0;
-  }
-
-  static log(component: string, event: string, details?: any) {
-    if (process.env.NODE_ENV === 'development') {
-      const timestamp = new Date().toISOString().split('T')[1];
-      console.log(`[${timestamp}][Nav:${++this.sequence}][${component}] ${event}`, details || '');
-    }
-  }
-
-  static warn(component: string, event: string, details?: any) {
-    if (process.env.NODE_ENV === 'development') {
-      const timestamp = new Date().toISOString().split('T')[1];
-      console.warn(`[${timestamp}][Nav:${++this.sequence}][${component}] ⚠️ ${event}`, details || '');
-    }
-  }
-
-  static error(component: string, event: string, error?: any) {
-    if (process.env.NODE_ENV === 'development') {
-      const timestamp = new Date().toISOString().split('T')[1];
-      console.error(`[${timestamp}][Nav:${++this.sequence}][${component}] 🔴 ${event}`, error || '');
-    }
-  }
-}

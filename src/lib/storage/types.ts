@@ -172,6 +172,13 @@ export interface StorageProvider {
    * - Für lokale Provider: Blob-URL oder API-Route
    */
   getStreamingUrl(itemId: string): Promise<string>;
+
+  /**
+   * Gibt alle StorageItems (Ordner) im Pfad von root bis zum angegebenen Item zurück.
+   * @param itemId - ID des Ziel-Items
+   * @returns Array von StorageItems (nur Ordner) von root bis itemId
+   */
+  getPathItemsById(itemId: string): Promise<StorageItem[]>;
 }
 
 /**
