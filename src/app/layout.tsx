@@ -2,7 +2,7 @@ import "@/styles/globals.css"
 import { GeistSans } from 'geist/font/sans';
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { TopNav } from "@/components/top-nav"
+import { TopNavWrapper } from "@/components/top-nav-wrapper"
 import { Toaster } from "sonner"
 import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
@@ -32,6 +32,9 @@ export default function RootLayout({
     );
   };
 
+  // Prüfen, ob Clerk verfügbar ist
+  const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
   return (
     <ClerkWrapper>
       <html lang="en" suppressHydrationWarning>
@@ -45,8 +48,8 @@ export default function RootLayout({
             <StorageContextProvider>
               <TooltipProvider>
                 <div className="relative h-screen overflow-hidden">
-                  <TopNav />
-                  <div className="h-[calc(100vh-4rem)] overflow-auto">
+                  <TopNavWrapper />
+                  <div className={hasClerk ? "h-[calc(100vh-4rem)] overflow-auto" : "h-screen overflow-auto"}>
                     {children}
                   </div>
                   <DebugFooterWrapper />
