@@ -13,15 +13,39 @@ export const metadata = {
   description: "Wissen entdecken und organisieren",
 }
 
+// Prüfen, ob wir im Build-Prozess sind
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.NEXT_RUNTIME;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Während des Builds ein minimales Layout ohne Clerk rendern
+  if (isBuildTime) {
+    return (
+      <html lang="en" suppressHydrationWarning>
+        <body className={GeistSans.className}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <div className="h-screen overflow-auto">
+              {children}
+            </div>
+            <Toaster richColors />
+          </ThemeProvider>
+        </body>
+      </html>
+    );
+  }
+
   // Wrapper-Komponente für Clerk
   const ClerkWrapper = ({ children }: { children: React.ReactNode }) => {
-    // Während des Builds oder wenn kein Clerk-Key vorhanden ist, ohne Clerk rendern
-    if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    // Wenn kein Clerk-Key vorhanden ist, ohne Clerk rendern
+    if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
       return <>{children}</>;
     }
     
