@@ -94,7 +94,7 @@ async function* generateTestSteps(provider: StorageProvider): AsyncGenerator<Tes
       
       // Prüfe ob der Provider eine isAuthenticated Methode hat
       if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function') {
-        const isAuth = (provider as any).isAuthenticated();
+        const isAuth = (provider as AuthenticatedProvider).isAuthenticated();
         
         if (!isAuth) {
           yield logStep("Authentifizierung", "error", `Der ${provider.name} Provider ist nicht authentifiziert. Bitte melden Sie sich zuerst an.`);

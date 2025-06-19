@@ -66,16 +66,7 @@ interface TestLogEntry {
   status: 'success' | 'error' | 'info';
   message: string;
   timestamp: string;
-  details?: {
-    request?: {
-      url?: string;
-      method?: string;
-      params?: Record<string, unknown>;
-    };
-    response?: unknown;
-    data?: unknown;
-    error?: unknown;
-  };
+  details?: Record<string, unknown>;
 }
 
 // Wrapper-Komponente für useSearchParams
@@ -652,7 +643,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     setTestDialogOpen(true);
     try {
       const logs: TestLogEntry[] = [];
-      const logStep = (step: string, status: 'success' | 'error' | 'info', message: string, details?: any) => {
+      const logStep = (step: string, status: 'success' | 'error' | 'info', message: string, details?: TestLogEntry['details']) => {
         const entry = {
           timestamp: new Date().toISOString(),
           step,
@@ -670,7 +661,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
 
       // Debug-Informationen über den Provider
       if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function') {
-        const isAuth = (provider as any).isAuthenticated();
+        const isAuth = (provider as { isAuthenticated(): boolean }).isAuthenticated();
         logStep("Provider-Status", "info", "Provider-Informationen", {
           name: provider.name,
           id: provider.id,
@@ -764,12 +755,18 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         
         // Spezielle Behandlung für Authentifizierungsfehler
         if (errorMessage.includes('Nicht authentifiziert') || errorMessage.includes('AUTH_REQUIRED')) {
-          logStep("Fehler", "error", "Zugriff verweigert: Provider ist nicht authentifiziert", errorDetails);
+          const safeErrorDetails = typeof errorDetails === 'object' && errorDetails !== null 
+            ? errorDetails as Record<string, unknown> 
+            : { error: errorDetails };
+          logStep("Fehler", "error", "Zugriff verweigert: Provider ist nicht authentifiziert", safeErrorDetails);
           logStep("Hinweis", "info", "Bitte authentifizieren Sie sich zuerst in den Storage-Einstellungen");
           return;
         }
         
-        logStep("Fehler", "error", `Test fehlgeschlagen: ${errorMessage}`, errorDetails);
+        const safeErrorDetails = typeof errorDetails === 'object' && errorDetails !== null 
+          ? errorDetails as Record<string, unknown> 
+          : { error: errorDetails };
+        logStep("Fehler", "error", `Test fehlgeschlagen: ${errorMessage}`, safeErrorDetails);
       }
     } catch (error) {
       console.error('[StorageForm] Fehler beim Testen:', error);

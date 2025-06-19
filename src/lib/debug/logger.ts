@@ -27,7 +27,7 @@ class BaseLogger {
     level: LogLevel,
     component: string,
     message: string,
-    details?: any
+    details?: Record<string, unknown>
   ): Omit<LogEntry, 'id'> {
     const timestamp = new Date().toISOString();
     const sequence = ++this.sequences[area];
@@ -64,7 +64,7 @@ class BaseLogger {
     level: LogLevel,
     component: string,
     message: string,
-    details?: any
+    details?: Record<string, unknown>
   ): Omit<LogEntry, 'id'> {
     const entry = this.formatMessage(area, level, component, message, details);
     this.logToConsole(entry);
@@ -83,73 +83,73 @@ class BaseLogger {
 }
 
 export class NavigationLogger extends BaseLogger {
-  static debug(component: string, message: string, details?: any) {
+  static debug(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('nav', 'debug', component, message, details);
   }
 
-  static info(component: string, message: string, details?: any) {
+  static info(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('nav', 'info', component, message, details);
   }
 
-  static warn(component: string, message: string, details?: any) {
+  static warn(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('nav', 'warn', component, message, details);
   }
 
-  static error(component: string, message: string, error?: any) {
-    return this.createLog('nav', 'error', component, message, error);
+  static error(component: string, message: string, error?: unknown) {
+    return this.createLog('nav', 'error', component, message, error instanceof Error ? { error: error.message, stack: error.stack } : { error });
   }
 }
 
 export class StateLogger extends BaseLogger {
-  static debug(component: string, message: string, details?: any) {
+  static debug(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('state', 'debug', component, message, details);
   }
 
-  static info(component: string, message: string, details?: any) {
+  static info(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('state', 'info', component, message, details);
   }
 
-  static warn(component: string, message: string, details?: any) {
+  static warn(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('state', 'warn', component, message, details);
   }
 
-  static error(component: string, message: string, error?: any) {
-    return this.createLog('state', 'error', component, message, error);
+  static error(component: string, message: string, error?: unknown) {
+    return this.createLog('state', 'error', component, message, error instanceof Error ? { error: error.message, stack: error.stack } : { error });
   }
 }
 
 export class FileLogger extends BaseLogger {
-  static debug(component: string, message: string, details?: any) {
+  static debug(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('file', 'debug', component, message, details);
   }
 
-  static info(component: string, message: string, details?: any) {
+  static info(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('file', 'info', component, message, details);
   }
 
-  static warn(component: string, message: string, details?: any) {
+  static warn(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('file', 'warn', component, message, details);
   }
 
-  static error(component: string, message: string, error?: any) {
-    return this.createLog('file', 'error', component, message, error);
+  static error(component: string, message: string, error?: unknown) {
+    return this.createLog('file', 'error', component, message, error instanceof Error ? { error: error.message, stack: error.stack } : { error });
   }
 }
 
 export class UILogger extends BaseLogger {
-  static debug(component: string, message: string, details?: any) {
+  static debug(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('ui', 'debug', component, message, details);
   }
 
-  static info(component: string, message: string, details?: any) {
+  static info(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('ui', 'info', component, message, details);
   }
 
-  static warn(component: string, message: string, details?: any) {
+  static warn(component: string, message: string, details?: Record<string, unknown>) {
     return this.createLog('ui', 'warn', component, message, details);
   }
 
-  static error(component: string, message: string, error?: any) {
-    return this.createLog('ui', 'error', component, message, error);
+  static error(component: string, message: string, error?: unknown) {
+    return this.createLog('ui', 'error', component, message, error instanceof Error ? { error: error.message, stack: error.stack } : { error });
   }
 } 

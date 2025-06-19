@@ -77,7 +77,7 @@ export default function DebugFooter() {
     const duplicateKeys = new Set<string>();
     
     // Erstelle einen deterministischen Schlüssel für ein Objekt
-    const createDetailsKey = (details: Record<string, any> | undefined): string => {
+    const createDetailsKey = (details: Record<string, unknown> | undefined): string => {
       if (!details) return '';
       
       // Sortiere Keys für konsistente Reihenfolge
@@ -88,10 +88,10 @@ export default function DebugFooter() {
         const value = details[key];
         // Rekursiv für verschachtelte Objekte
         acc[key] = typeof value === 'object' && value !== null
-          ? createDetailsKey(value)
+          ? createDetailsKey(value as Record<string, unknown>)
           : value;
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, unknown>);
       
       return JSON.stringify(normalizedDetails);
     };
@@ -382,7 +382,7 @@ export default function DebugFooter() {
                                       ? log.timestamp.split('T')[1]?.split('.')[0] || log.timestamp
                                       : column.startsWith('details.') 
                                         ? log.details?.[column.split('.')[1]] 
-                                        : (log as any)[column];
+                                        : (log as Record<string, unknown>)[column];
                                   
                                   return (
                                     <td key={column} className="p-1 border-b border-muted/20 whitespace-nowrap">
