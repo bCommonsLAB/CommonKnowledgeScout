@@ -75,7 +75,7 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
   }
   
   const handleTransform = async () => {
-    FileLogger.info('VideoTransform', 'handleTransform aufgerufen mit saveOptions', saveOptions);
+    FileLogger.info('VideoTransform', 'handleTransform aufgerufen mit saveOptions', saveOptions as unknown as Record<string, unknown>);
     
     if (!provider) {
       toast.error("Fehler", {
@@ -159,7 +159,7 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
   };
 
   const handleSaveOptionsChange = (options: SaveOptionsType) => {
-    FileLogger.debug('VideoTransform', 'handleSaveOptionsChange aufgerufen mit', options);
+    FileLogger.debug('VideoTransform', 'handleSaveOptionsChange aufgerufen mit', options as unknown as Record<string, unknown>);
     setSaveOptions(options);
   };
 

@@ -58,12 +58,12 @@ export function UploadArea({ provider, currentFolderId, onUploadComplete }: Uplo
     setIsUploading(true)
 
     try {
-      FileLogger.debug('UploadArea', 'Processing files', files.map(f => ({
+      FileLogger.debug('UploadArea', 'Processing files', { files: files.map(f => ({
         name: f.name,
         size: f.size,
         type: f.type,
         id: f.id
-      })));
+      })) });
 
       const results = await Promise.all(
         files.map(async (file) => {
@@ -84,7 +84,7 @@ export function UploadArea({ provider, currentFolderId, onUploadComplete }: Uplo
 
             FileLogger.debug('UploadArea', `Calling provider.uploadFile for ${file.name}`);
             const result = await provider.uploadFile(currentFolderId, file);
-            FileLogger.info('UploadArea', `Upload success for ${file.name}`, result);
+            FileLogger.info('UploadArea', `Upload success for ${file.name}`, { result });
             
             setFiles(prev => 
               prev.map(f => 

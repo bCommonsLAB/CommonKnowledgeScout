@@ -76,7 +76,7 @@ export const MarkdownMetadata = React.memo(function MarkdownMetadata({
     frontmatterKeys: frontmatter ? Object.keys(frontmatter) : []
   });
 
-  FileLogger.debug('MarkdownMetadata', 'Metadata', metadata);
+  FileLogger.debug('MarkdownMetadata', 'Metadata', metadata || undefined);
 
   if (!metadata) return null;
 

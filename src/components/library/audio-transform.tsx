@@ -61,7 +61,7 @@ export function AudioTransform({ onTransformComplete, onRefreshFolder }: AudioTr
   }
   
   const handleTransform = async () => {
-    FileLogger.info('AudioTransform', 'handleTransform aufgerufen mit saveOptions', saveOptions);
+    FileLogger.info('AudioTransform', 'handleTransform aufgerufen mit saveOptions', saveOptions as unknown as Record<string, unknown>);
     
     if (!provider) {
       toast.error("Fehler", {
@@ -134,7 +134,7 @@ export function AudioTransform({ onTransformComplete, onRefreshFolder }: AudioTr
   };
 
   const handleSaveOptionsChange = (options: SaveOptionsType) => {
-    FileLogger.debug('AudioTransform', 'handleSaveOptionsChange aufgerufen mit', options);
+    FileLogger.debug('AudioTransform', 'handleSaveOptionsChange aufgerufen mit', options as unknown as Record<string, unknown>);
     setSaveOptions(options);
   };
 
