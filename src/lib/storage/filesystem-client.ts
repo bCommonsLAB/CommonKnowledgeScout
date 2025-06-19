@@ -175,6 +175,14 @@ export class FileSystemClient implements StorageProvider {
     }
   }
 
+  async getDownloadUrl(fileId: string): Promise<string> {
+    return `${this.baseUrl}?action=binary&fileId=${encodeURIComponent(fileId)}`;
+  }
+
+  async getStreamingUrl(fileId: string): Promise<string> {
+    return `${this.baseUrl}?action=binary&fileId=${encodeURIComponent(fileId)}`;
+  }
+
   async getPathById(itemId: string): Promise<string> {
     console.log('[FileSystemClient] getPathById aufgerufen mit itemId:', itemId);
     const url = `${this.baseUrl}?action=path&fileId=${encodeURIComponent(itemId)}`;

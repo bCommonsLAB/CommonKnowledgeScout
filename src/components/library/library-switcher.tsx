@@ -8,6 +8,7 @@ import { activeLibraryAtom, activeLibraryIdAtom, librariesAtom } from "@/atoms/l
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { createLibraryAtom } from "@/atoms/create-library-atom"
+import { StateLogger } from "@/lib/debug/logger"
 
 interface LibrarySwitcherProps {
   isCollapsed?: boolean;
@@ -45,13 +46,12 @@ export function LibrarySwitcher({
       onLibraryChange(value)
     }
     
-    setActiveLibraryId(value)
-    
-    // Speichere die neue Library-ID im localStorage
-    console.log('LibrarySwitcher: Speichere activeLibraryId im localStorage:', value)
-    localStorage.setItem('activeLibraryId', value)
-    
-    console.log('LibrarySwitcher: Bibliothek geändert zu', value)
+    // Speichere die aktive Library-ID im localStorage
+    StateLogger.debug('LibrarySwitcher', 'Speichere activeLibraryId im localStorage', { value });
+
+    // Aktualisiere das Atom
+    setActiveLibraryId(value);
+    StateLogger.info('LibrarySwitcher', 'Bibliothek geändert zu', { libraryId: value });
   }
 
   return (

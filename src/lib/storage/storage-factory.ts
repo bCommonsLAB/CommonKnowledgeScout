@@ -225,6 +225,16 @@ class LocalStorageProvider implements StorageProvider {
   async validateConfiguration(): Promise<StorageValidationResult> {
     return { isValid: true };
   }
+
+  async getStreamingUrl(itemId: string): Promise<string> {
+    // Für lokale Dateien verwenden wir die filesystem API-Route mit action=binary
+    return this.getApiUrl(`/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(itemId)}&libraryId=${this.library.id}`);
+  }
+
+  async getDownloadUrl(itemId: string): Promise<string> {
+    // Für lokale Dateien ist die Download-URL identisch mit der Streaming-URL
+    return this.getStreamingUrl(itemId);
+  }
 }
 
 export class StorageFactory {

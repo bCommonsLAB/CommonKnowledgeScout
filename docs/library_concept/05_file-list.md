@@ -11,9 +11,28 @@
 
 ## 3. Features
 - Tabellarische Dateiansicht mit Sortierung und Gruppierung (Shadow-Twins)
+- **Gruppierungslogik:**
+
+  - Basename = alles vor dem letzten Punkt im Dateinamen (z.B. "24.06.13 - Vertriebsmeeting-1.m4a" -> "24.06.13 - Vertriebsmeeting-1")
+  - Transcript: Endet mit {Basename}.{Sprachkürzel}.md, vor dem letzten Punkt ein Sprachkürzel (z.B. "24.06.13 - Vertriebsmeeting-1.de.md")
+  - Transformiertes Dokument {Basename}.(Template).{Sprachkürzel}.md
+    (z.B. "24.06.13 - Vertriebsmeeting-1.Besprechung.de.md")
+  - Gruppiert werden alle Dateien mit gleichem Basename
+  - In der Tabelle wird pro Basename eine Zeile angezeigt, Symbole für Transcript (Text) und Template (Dokument) werden eingeblendet
 - Inline-Umbenennung, Löschen, Drag & Drop
 - Batch-Operationen (z.B. Batch-Transkription)
 - Checkbox-Auswahl für Mehrfachaktionen
+
+**Beispiel:**
+- `Besprechung Meisemöbel.m4a` → Basiseintrag
+- `Besprechung Meisemöbel.de.md` → Transcript
+- `Besprechung Meisemöbel.Besprechung.de.md` → Transformiertes Dokument (Template)
+
+```mermaid
+flowchart TD
+  A[Besprechung Meisemöbel.m4a] -->|Transcript| B[Besprechung Meisemöbel.de.md]
+  A -->|Template| C[Besprechung Meisemöbel.Besprechung.de.md]
+```
 
 ## 4. Abhängigkeiten
 - **Atoms:**
@@ -36,6 +55,7 @@
 
 ## 6. Auffälligkeiten & Verbesserungsmöglichkeiten
 - Gruppierungslogik (Shadow-Twins) ist komplex und schwer testbar
+- **Empfehlung:** Gruppierungs- und Sortierlogik als Utility-Funktionen auslagern und mit Unit-Tests abdecken
 - Batch-Operationen könnten besser gekapselt werden
 - Drag & Drop und Rename-Logik sind eng mit UI verknüpft
 

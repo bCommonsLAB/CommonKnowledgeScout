@@ -2,10 +2,10 @@ import { StorageItem, StorageProvider } from '@/lib/storage/types';
 import { TransformService } from './transform-service';
 import { 
   BaseTransformOptions, 
-  BatchItem,
+  BatchTranscriptionItem,
   AudioTransformSettings,
   VideoTransformSettings
-} from '@/atoms/transform-options';
+} from '@/atoms/transcription-options';
 
 // Default-Einstellungen
 const DEFAULT_AUDIO_SETTINGS: AudioTransformSettings = {
@@ -42,7 +42,7 @@ export interface BatchTransformResult {
 
 export class BatchTransformService {
   static async transformBatch(
-    items: BatchItem[],
+    items: BatchTranscriptionItem[],
     baseOptions: BaseTransformOptions,
     provider: StorageProvider,
     refreshItems: (folderId: string) => Promise<StorageItem[]>,

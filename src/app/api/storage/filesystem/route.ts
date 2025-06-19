@@ -293,13 +293,19 @@ export async function GET(request: NextRequest) {
         const content = await fs.readFile(absolutePath);
         const mimeType = mime.lookup(absolutePath) || 'application/octet-stream';
         
-        return new NextResponse(content, {
-          headers: {
-            'Content-Type': mimeType,
-            'Content-Length': stats.size.toString(),
-            'Cache-Control': 'no-store'
-          }
-        });
+        // Spezielle Headers für PDFs, damit sie im Browser angezeigt werden
+        const headers: HeadersInit = {
+          'Content-Type': mimeType,
+          'Content-Length': stats.size.toString(),
+          'Cache-Control': 'no-store'
+        };
+        
+        // Für PDFs Content-Disposition auf inline setzen
+        if (mimeType === 'application/pdf') {
+          headers['Content-Disposition'] = `inline; filename="${encodeURIComponent(pathLib.basename(absolutePath))}"`;
+        }
+        
+        return new NextResponse(content, { headers });
       }
 
       case 'path': {

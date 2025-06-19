@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { cn } from "@/lib/utils";
+import { FileLogger } from "@/lib/debug/logger"
 
 interface MarkdownMetadataProps {
   content: string;
@@ -13,7 +14,7 @@ export function extractFrontmatter(content: string): Record<string, unknown> | n
   // Match frontmatter with or without newlines after the dashes
   const frontmatterMatch = content.match(/^---\s*([\s\S]*?)\s*---/);
   if (!frontmatterMatch) {
-    console.log("No frontmatter match found");
+    FileLogger.debug('MarkdownMetadata', 'No frontmatter match found');
     return null;
   }
 
@@ -55,7 +56,7 @@ export function extractFrontmatter(content: string): Record<string, unknown> | n
     }
   });
 
-  console.log("Extracted frontmatter:", frontmatter);
+  FileLogger.debug('MarkdownMetadata', 'Extracted frontmatter', { frontmatter });
   return frontmatter;
 }
 
@@ -66,14 +67,17 @@ export const MarkdownMetadata = React.memo(function MarkdownMetadata({
   content,
   className
 }: MarkdownMetadataProps) {
-  console.log('[MarkdownMetadata] Analyzing content:', {
-    contentLength: content?.length || 0,
-    firstLines: content?.split('\n').slice(0, 5).join('\n') || 'No content',
-    hasContent: !!content
+  const frontmatter = React.useMemo(() => extractFrontmatter(content), [content]);
+  const metadata = React.useMemo(() => frontmatter, [frontmatter]);
+
+  FileLogger.debug('MarkdownMetadata', 'Analyzing content', {
+    contentLength: content.length,
+    hasFrontmatter: !!frontmatter,
+    frontmatterKeys: frontmatter ? Object.keys(frontmatter) : []
   });
 
-  const metadata = React.useMemo(() => extractFrontmatter(content), [content]);
-  console.log("Metadata", metadata);
+  FileLogger.debug('MarkdownMetadata', 'Metadata', metadata);
+
   if (!metadata) return null;
 
   return (

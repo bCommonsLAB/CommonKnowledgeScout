@@ -12,7 +12,7 @@ import 'highlight.js/styles/github-dark.css';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
-import { activeLibraryAtom } from "@/atoms/library-atom";
+import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { TransformService, TransformSaveOptions, TransformResult } from "@/lib/transform/transform-service";
 import { Label } from "@/components/ui/label";
@@ -21,12 +21,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { FileLogger } from "@/lib/debug/logger"
 
 interface MarkdownPreviewProps {
   content: string;
   currentFolderId?: string;
   provider?: StorageProvider | null;
-  currentItem?: StorageItem | null;
   className?: string;
   onTransform?: () => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
@@ -66,13 +66,13 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   
   // Debug-Logging für Text
   React.useEffect(() => {
-    console.log('[TextTransform] Component mounted/updated:', {
-      contentLength: content?.length || 0,
-      textLength: text?.length || 0,
-      contentPreview: content?.substring(0, 50) || 'KEIN CONTENT',
-      textPreview: text?.substring(0, 50) || 'KEIN TEXT'
+    FileLogger.debug('TextTransform', 'Component mounted/updated', {
+      itemId: currentItem?.id,
+      itemName: currentItem?.metadata.name,
+      hasText: !!text,
+      textLength: text?.length || 0
     });
-  }, [content, text]);
+  }, [currentItem, text]);
   
   // Funktion zum Extrahieren der Frontmatter-Metadaten
   const extractFrontmatter = React.useCallback((markdownContent: string): Record<string, string> => {
@@ -126,8 +126,8 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     // Verwende source_file aus Frontmatter, falls vorhanden
     let baseName: string;
     if (metadata.source_file) {
+      FileLogger.debug('TextTransform', 'Verwende source_file aus Frontmatter', { sourceFile: metadata.source_file });
       baseName = getBaseFileName(metadata.source_file);
-      console.log('[TextTransform] Verwende source_file aus Frontmatter:', metadata.source_file);
     } else if (currentFileName) {
       // Fallback: Verwende aktuellen Dateinamen ohne Sprach-Suffix
       baseName = currentFileName;
@@ -136,7 +136,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
       if (langPattern.test(baseName)) {
         baseName = baseName.replace(langPattern, '');
       }
-      console.log('[TextTransform] Kein source_file in Frontmatter, verwende aktuellen Dateinamen:', baseName);
+      FileLogger.debug('TextTransform', 'Kein source_file in Frontmatter, verwende aktuellen Dateinamen', { baseName });
     } else {
       baseName = "transformation";
     }
@@ -166,14 +166,12 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   
   // Debug-Logging für saveOptions
   React.useEffect(() => {
-    console.log('[TextTransform] saveOptions:', {
+    FileLogger.debug('TextTransform', 'saveOptions', {
       targetLanguage: saveOptions.targetLanguage,
       fileName: saveOptions.fileName,
-      createShadowTwin: saveOptions.createShadowTwin,
-      fileExtension: saveOptions.fileExtension,
-      originalFileName: currentItem?.metadata.name
+      createShadowTwin: saveOptions.createShadowTwin
     });
-  }, [saveOptions, currentItem]);
+  }, [saveOptions]);
   
   // Aktualisiere saveOptions wenn sich relevante Parameter ändern
   React.useEffect(() => {
@@ -186,9 +184,10 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
       );
       
       if (newFileName !== saveOptions.fileName) {
-        console.log('[TextTransform] Aktualisiere fileName:', {
-          alt: saveOptions.fileName,
-          neu: newFileName
+        FileLogger.debug('TextTransform', 'Aktualisiere fileName', {
+          oldFileName: saveOptions.fileName,
+          newFileName: newFileName,
+          targetLanguage: saveOptions.targetLanguage
         });
         
         setSaveOptions(prev => ({
@@ -213,10 +212,11 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
       );
       
       if (newFileName !== saveOptions.fileName) {
-        console.log('[TextTransform] Template geändert, aktualisiere fileName:', {
-          template,
-          alt: saveOptions.fileName,
-          neu: newFileName
+        FileLogger.debug('TextTransform', 'Template geändert, aktualisiere fileName', {
+          oldTemplate: saveOptions.targetLanguage,
+          newTemplate: template,
+          oldFileName: saveOptions.fileName,
+          newFileName: newFileName
         });
         
         setSaveOptions(prev => ({
@@ -229,12 +229,9 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
 
   // Debug-Logging für activeLibrary
   React.useEffect(() => {
-    console.log('[TextTransform] activeLibrary:', {
-      exists: !!activeLibrary,
-      id: activeLibrary?.id,
-      hasConfig: !!activeLibrary?.config,
-      hasSecretaryService: !!activeLibrary?.config?.secretaryService,
-      secretaryServiceConfig: activeLibrary?.config?.secretaryService
+    FileLogger.debug('TextTransform', 'activeLibrary', {
+      libraryId: activeLibrary?.id,
+      libraryLabel: activeLibrary?.label
     });
   }, [activeLibrary]);
 
@@ -246,7 +243,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   const transformResultHandlerRef = React.useRef<(result: TransformResult) => void>(() => {});
   
   const handleTransformClick = async () => {
-    console.log('[TextTransform] handleTransformClick aufgerufen, Text-Länge:', text?.length || 0);
+    FileLogger.info('TextTransform', 'handleTransformClick aufgerufen', { textLength: text?.length || 0 });
     
     if (!text || text.trim().length === 0) {
       toast.error("Fehler", {
@@ -274,7 +271,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
 
     // Für Text-Transformation brauchen wir keine Secretary Service Konfiguration zu prüfen,
     // da die API Route die Konfiguration aus der Datenbank lädt
-    console.log('[TextTransform] Starte Text-Transformation für Bibliothek:', activeLibrary.id);
+    FileLogger.info('TextTransform', 'Starte Text-Transformation für Bibliothek', { libraryId: activeLibrary.id });
 
     setIsLoading(true);
     try {
@@ -289,18 +286,17 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         template
       );
 
-      console.log('Markdown Transformation abgeschlossen:', {
-        textLength: result.text.length,
-        savedItemId: result.savedItem?.id,
-        updatedItemsCount: result.updatedItems?.length || 0
+      FileLogger.info('TextTransform', 'Markdown Transformation abgeschlossen', {
+        originalFile: currentItem.metadata.name,
+        transformedFile: result.savedItem?.metadata.name || 'unknown',
+        textLength: result.text.length
       });
 
       // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
       if (onRefreshFolder && currentItem.parentId && result.updatedItems && result.updatedItems.length > 0) {
-        console.log('Informiere Library über aktualisierte Dateiliste', {
-          folderId: currentItem.parentId,
-          itemsCount: result.updatedItems.length,
-          savedItemId: result.savedItem?.id
+        FileLogger.info('TextTransform', 'Informiere Library über aktualisierte Dateiliste', {
+          libraryId: activeLibrary?.id,
+          newFileCount: result.updatedItems.length
         });
         onRefreshFolder(currentItem.parentId, result.updatedItems, result.savedItem || undefined);
       } else {
@@ -311,10 +307,9 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
       // Jetzt den allgemeinen onTransform-Callback aufrufen
       onTransform(result.text);
     } catch (error) {
-      console.error("Fehler bei der Transformation:", error);
+      FileLogger.error('TextTransform', 'Fehler bei der Transformation', error);
       toast.error("Fehler", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler bei der Transformation",
-        duration: 7000
+        description: `Die Transformation ist fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       });
     } finally {
       setIsLoading(false);
@@ -333,7 +328,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
       
       <TransformResultHandler
         onResultProcessed={() => {
-          console.log("Transformation vollständig abgeschlossen und Datei ausgewählt");
+          FileLogger.info('TextTransform', 'Transformation vollständig abgeschlossen und Datei ausgewählt');
           // Hier könnten zusätzliche Aktionen ausgeführt werden
         }}
         childrenAction={(handleTransformResult, isProcessingResult) => {
@@ -775,20 +770,39 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   content,
   currentFolderId = 'root',
   provider = null,
-  currentItem = null,
   className,
   onTransform,
   onRefreshFolder
 }: MarkdownPreviewProps) {
+  const currentItem = useAtomValue(selectedFileAtom);
   const [activeTab, setActiveTab] = React.useState<string>("preview");
+  
+  FileLogger.debug('MarkdownPreview', 'Komponente gerendert', {
+    contentLength: content.length,
+    currentItemId: currentItem?.id,
+    currentItemName: currentItem?.metadata.name,
+    activeTab,
+    hasProvider: !!provider,
+    hasOnTransform: !!onTransform,
+    hasOnRefreshFolder: !!onRefreshFolder
+  });
   
   // Bei Änderung der Datei-ID auf Vorschau-Tab zurücksetzen
   React.useEffect(() => {
+    FileLogger.debug('MarkdownPreview', 'Datei-ID geändert, setze Tab zurück', {
+      currentItemId: currentItem?.id,
+      currentItemName: currentItem?.metadata.name
+    });
     setActiveTab("preview");
   }, [currentItem?.id]);
   
   // Memoize the markdown renderer
   const renderedContent = React.useMemo(() => {
+    FileLogger.debug('MarkdownPreview', 'Render Markdown Content', {
+      contentLength: content.length,
+      hasFrontmatter: content.includes('---')
+    });
+    
     if (!content) return '';
 
     // Get the content after the frontmatter
@@ -803,14 +817,28 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       provider
     );
 
-    return md.render(processedContent);
+    const rendered = md.render(processedContent);
+    
+    FileLogger.debug('MarkdownPreview', 'Markdown gerendert', {
+      originalLength: content.length,
+      processedLength: processedContent.length,
+      renderedLength: rendered.length
+    });
+    
+    return rendered;
   }, [content, currentFolderId, provider]);
 
   const handleTransformButtonClick = () => {
+    FileLogger.info('MarkdownPreview', 'Transform-Button geklickt', {
+      currentTab: activeTab
+    });
     setActiveTab("transform");
   };
 
   const handleTransformComplete = () => {
+    FileLogger.info('MarkdownPreview', 'Transform abgeschlossen', {
+      currentTab: activeTab
+    });
     // Hier könnten wir den transformierten Inhalt verarbeiten
     // Zum Beispiel könnten wir ihn an die übergeordnete Komponente weitergeben
     if (onTransform) {
@@ -821,7 +849,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   };
 
   return (
-    <div className={cn("flex flex-col", className)}>
+    <div className={cn("flex flex-col h-full", className)}>
       {currentItem && (
         <div className="flex items-center justify-between mx-4 mt-4 mb-2 flex-shrink-0">
           <div className="text-xs text-muted-foreground">
@@ -840,7 +868,15 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
         </div>
       )}
       
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 overflow-hidden">
+      <Tabs value={activeTab} onValueChange={(value) => {
+        FileLogger.info('MarkdownPreview', 'Tab gewechselt', {
+          oldTab: activeTab,
+          newTab: value,
+          currentItemId: currentItem?.id,
+          currentItemName: currentItem?.metadata.name
+        });
+        setActiveTab(value);
+      }} className="flex flex-col flex-1 min-h-0">
         <TabsList className="hidden">
           <TabsTrigger value="preview">Vorschau</TabsTrigger>
           <TabsTrigger value="transform">Transformieren</TabsTrigger>
@@ -871,7 +907,6 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     prevProps.content === nextProps.content &&
     prevProps.currentFolderId === nextProps.currentFolderId &&
     prevProps.provider === nextProps.provider &&
-    prevProps.currentItem?.id === nextProps.currentItem?.id &&
     prevProps.className === nextProps.className &&
     prevProps.onTransform === nextProps.onTransform &&
     prevProps.onRefreshFolder === nextProps.onRefreshFolder

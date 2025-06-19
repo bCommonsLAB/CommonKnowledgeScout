@@ -6,6 +6,7 @@ import { UploadArea } from "@/components/library/upload-area"
 import { StorageProvider } from "@/lib/storage/types"
 import { Folder } from "lucide-react"
 import { useState, useCallback } from "react"
+import { FileLogger } from "@/lib/debug/logger"
 
 interface UploadDialogProps {
   open: boolean
@@ -23,63 +24,53 @@ export function UploadDialog({
   onSuccess
 }: UploadDialogProps) {
   const [currentPath, setCurrentPath] = useState<string>("")
+  const [isOpen, setIsOpen] = useState<boolean>(open)
 
-  // Debug Logging für Dialog-Lebenszyklus
+  if (open !== isOpen) {
+    FileLogger.debug('UploadDialog', 'Dialog state changed', { open, isOpen });
+    setIsOpen(open);
+  }
+
+  // Pfad laden, wenn Dialog geöffnet ist und Provider verfügbar
   React.useEffect(() => {
-    console.log('UploadDialog: Dialog state changed', { 
-      open,
-      hasProvider: !!provider,
-      currentFolderId
-    });
-  }, [open, provider, currentFolderId]);
-
-  // Lade den Pfad nur wenn der Dialog geöffnet wird
-  React.useEffect(() => {
-    if (!open || !provider) {
-      console.log('UploadDialog: Skipping path load - Dialog closed or no provider');
-      return;
-    }
-
-    const loadPath = async () => {
-      console.log('UploadDialog: Loading path for folder ID:', currentFolderId);
-      
-      try {
-        console.time('UploadDialog: getPathById');
-        const path = await provider.getPathById(currentFolderId);
-        console.timeEnd('UploadDialog: getPathById');
-        
-        console.log('UploadDialog: Path loaded successfully:', path);
-        setCurrentPath(path);
-      } catch (error) {
-        console.error('UploadDialog: Failed to load path:', {
-          error,
-          folderId: currentFolderId,
-          provider: provider.id
-        });
-        setCurrentPath('/');
+    if (open && provider && currentFolderId) {
+      if (!open || !provider) {
+        FileLogger.debug('UploadDialog', 'Skipping path load - Dialog closed or no provider');
+        return;
       }
-    };
 
-    loadPath();
-  }, [open, provider, currentFolderId]);
+      FileLogger.debug('UploadDialog', 'Loading path for folder ID', { currentFolderId });
+      
+      provider.getPathById(currentFolderId)
+        .then(path => {
+          FileLogger.info('UploadDialog', 'Path loaded successfully', { path });
+          setCurrentPath(path);
+        })
+        .catch(error => {
+          FileLogger.error('UploadDialog', 'Failed to load path', { error, currentFolderId });
+        });
+    }
+  }, [open, isOpen, provider, currentFolderId]);
 
   const handleUploadComplete = useCallback(() => {
-    console.log('UploadDialog: Upload completed, calling callbacks', {
+    FileLogger.info('UploadDialog', 'Upload completed, calling callbacks', {
       hasOnSuccess: !!onSuccess,
       currentFolderId
     });
     onSuccess?.();
-    console.log('UploadDialog: Closing dialog');
+    FileLogger.debug('UploadDialog', 'Closing dialog');
     onOpenChange(false);
   }, [onSuccess, onOpenChange, currentFolderId]);
 
+  const handleOpenChange = (newOpen: boolean) => {
+    FileLogger.debug('UploadDialog', 'Dialog onOpenChange triggered', { newOpen });
+    onOpenChange?.(newOpen);
+  };
+
   return (
     <Dialog 
-      open={open} 
-      onOpenChange={(newOpen) => {
-        console.log('UploadDialog: Dialog onOpenChange triggered', { newOpen });
-        onOpenChange(newOpen);
-      }}
+      open={isOpen} 
+      onOpenChange={handleOpenChange}
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>

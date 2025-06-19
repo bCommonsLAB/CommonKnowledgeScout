@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { formatFileSize } from "@/lib/utils"
 import { UploadAreaProps, UploadingFile } from "./types"
+import { FileLogger } from "@/lib/debug/logger"
 
 export function UploadArea({ provider, currentFolderId, onUploadComplete }: UploadAreaProps) {
   const [files, setFiles] = useState<UploadingFile[]>([])
@@ -37,18 +38,18 @@ export function UploadArea({ provider, currentFolderId, onUploadComplete }: Uplo
 
   const uploadFiles = async () => {
     if (!provider) {
-      console.error('UploadArea: No provider available');
+      FileLogger.error('UploadArea', 'No provider available');
       toast.error("Kein Storage Provider verfügbar")
       return
     }
 
     if (!files.length) {
-      console.warn('UploadArea: No files selected');
+      FileLogger.warn('UploadArea', 'No files selected');
       toast.error("Keine Dateien zum Hochladen ausgewählt")
       return
     }
 
-    console.log('UploadArea: Starting upload process', {
+    FileLogger.info('UploadArea', 'Starting upload process', {
       filesCount: files.length,
       currentFolderId,
       provider: provider.name
@@ -57,7 +58,7 @@ export function UploadArea({ provider, currentFolderId, onUploadComplete }: Uplo
     setIsUploading(true)
 
     try {
-      console.log('UploadArea: Processing files:', files.map(f => ({
+      FileLogger.debug('UploadArea', 'Processing files', files.map(f => ({
         name: f.name,
         size: f.size,
         type: f.type,
@@ -67,12 +68,12 @@ export function UploadArea({ provider, currentFolderId, onUploadComplete }: Uplo
       const results = await Promise.all(
         files.map(async (file) => {
           if (!file || !file.name) {
-            console.error('UploadArea: Invalid file object:', file);
+            FileLogger.error('UploadArea', 'Invalid file object', file);
             return { success: false, file };
           }
 
           try {
-            console.log(`UploadArea: Starting upload for ${file.name} (${file.size} bytes)`);
+            FileLogger.debug('UploadArea', `Starting upload for ${file.name}`, { size: file.size });
             setFiles(prev => 
               prev.map(f => 
                 f.id === file.id 
@@ -81,10 +82,10 @@ export function UploadArea({ provider, currentFolderId, onUploadComplete }: Uplo
               )
             )
 
-            console.log(`UploadArea: Calling provider.uploadFile for ${file.name}`);
+            FileLogger.debug('UploadArea', `Calling provider.uploadFile for ${file.name}`);
             const result = await provider.uploadFile(currentFolderId, file);
-            console.log(`UploadArea: Upload success for ${file.name}:`, result);
-
+            FileLogger.info('UploadArea', `Upload success for ${file.name}`, result);
+            
             setFiles(prev => 
               prev.map(f => 
                 f.id === file.id 
@@ -94,7 +95,7 @@ export function UploadArea({ provider, currentFolderId, onUploadComplete }: Uplo
             )
             return { success: true, file };
           } catch (error) {
-            console.error(`UploadArea: Upload failed for ${file.name}:`, error);
+            FileLogger.error('UploadArea', `Upload failed for ${file.name}`, error);
             const errorMessage = error instanceof Error ? error.message : 'Upload fehlgeschlagen';
             toast.error(`Fehler beim Hochladen von ${file.name}: ${errorMessage}`);
             
@@ -111,14 +112,14 @@ export function UploadArea({ provider, currentFolderId, onUploadComplete }: Uplo
       )
 
       const completedFiles = results.filter(r => r.success);
-      console.log('UploadArea: Upload process completed', {
+      FileLogger.info('UploadArea', 'Upload process completed', {
         total: results.length,
         successful: completedFiles.length,
         failed: results.length - completedFiles.length
       });
 
       if (completedFiles.length > 0) {
-        console.log('UploadArea: Calling onUploadComplete callback');
+        FileLogger.debug('UploadArea', 'Calling onUploadComplete callback');
         toast.success(
           completedFiles.length === 1
             ? `"${completedFiles[0].file.name}" wurde erfolgreich hochgeladen`
@@ -130,11 +131,12 @@ export function UploadArea({ provider, currentFolderId, onUploadComplete }: Uplo
         onUploadComplete?.();
         setFiles([]);
       }
+
     } catch (error) {
-      console.error('UploadArea: General upload error:', error);
+      FileLogger.error('UploadArea', 'General upload error', error);
       toast.error("Fehler beim Hochladen der Dateien");
     } finally {
-      console.log('UploadArea: Upload process finished');
+      FileLogger.debug('UploadArea', 'Upload process finished');
       setIsUploading(false);
     }
   }

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
 import { useAtomValue } from "jotai";
-import { activeLibraryAtom } from "@/atoms/library-atom";
+import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
 import { TransformService, TransformResult } from "@/lib/transform/transform-service";
@@ -13,15 +13,25 @@ import { TransformSaveOptions as SaveOptionsType } from "@/components/library/tr
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
 import { getUserFriendlyAudioErrorMessage } from "@/lib/utils";
+import { FileLogger } from "@/lib/debug/logger"
 
 interface AudioTransformProps {
-  item: StorageItem;
   onTransformComplete?: (text: string, twinItem?: StorageItem, updatedItems?: StorageItem[]) => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: AudioTransformProps) {
+export function AudioTransform({ onTransformComplete, onRefreshFolder }: AudioTransformProps) {
+  const item = useAtomValue(selectedFileAtom);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Prüfe ob item vorhanden ist
+  if (!item) {
+    return (
+      <div className="flex flex-col gap-4 p-4 text-center text-muted-foreground">
+        Keine Audio-Datei ausgewählt
+      </div>
+    );
+  }
   
   // Hilfsfunktion für den Basis-Dateinamen
   const getBaseFileName = (fileName: string): string => {
@@ -52,7 +62,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
   const { refreshItems } = useStorage();
   
   const handleTransform = async () => {
-    console.log('[AudioTransform] handleTransform aufgerufen mit saveOptions:', saveOptions);
+    FileLogger.info('AudioTransform', 'handleTransform aufgerufen mit saveOptions', saveOptions);
     
     if (!provider) {
       toast.error("Fehler", {
@@ -61,7 +71,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
       });
       return;
     }
-    
+
     if (!activeLibrary) {
       toast.error("Fehler", {
         description: "Aktive Bibliothek nicht gefunden",
@@ -91,7 +101,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
         activeLibrary.id
       );
 
-      console.log('Audio Transformation abgeschlossen:', {
+      FileLogger.info('AudioTransform', 'Audio Transformation abgeschlossen', {
         textLength: result.text.length,
         savedItemId: result.savedItem?.id,
         updatedItemsCount: result.updatedItems.length
@@ -99,7 +109,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
 
       // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
       if (onRefreshFolder && item.parentId && result.updatedItems.length > 0) {
-        console.log('Informiere Library über aktualisierte Dateiliste', {
+        FileLogger.info('AudioTransform', 'Informiere Library über aktualisierte Dateiliste', {
           folderId: item.parentId,
           itemsCount: result.updatedItems.length,
           savedItemId: result.savedItem?.id
@@ -115,7 +125,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
         onTransformComplete(result.text, result.savedItem || undefined, result.updatedItems);
       }
     } catch (error) {
-      console.error("Fehler bei der Audio-Transformation:", error);
+      FileLogger.error('AudioTransform', 'Fehler bei der Audio-Transformation', error);
       toast.error("Fehler", {
         description: getUserFriendlyAudioErrorMessage(error)
       });
@@ -125,7 +135,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
   };
 
   const handleSaveOptionsChange = (options: SaveOptionsType) => {
-    console.log('[AudioTransform] handleSaveOptionsChange aufgerufen mit:', options);
+    FileLogger.debug('AudioTransform', 'handleSaveOptionsChange aufgerufen mit', options);
     setSaveOptions(options);
   };
 
@@ -133,7 +143,7 @@ export function AudioTransform({ item, onTransformComplete, onRefreshFolder }: A
     <div className="flex flex-col gap-4 p-4">
       <TransformResultHandler
         onResultProcessed={() => {
-          console.log("Audio-Transcription vollständig abgeschlossen und Datei ausgewählt");
+          FileLogger.info('AudioTransform', 'Audio-Transcription vollständig abgeschlossen und Datei ausgewählt');
         }}
         childrenAction={(handleTransformResult: (result: TransformResult) => void, isProcessingResult: boolean) => {
           // Speichere die handleTransformResult-Funktion in der Ref

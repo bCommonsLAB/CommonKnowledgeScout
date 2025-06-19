@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
 import { useAtomValue } from "jotai";
-import { activeLibraryAtom } from "@/atoms/library-atom";
+import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
 import { 
@@ -20,15 +20,25 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileLogger } from "@/lib/debug/logger"
 
 interface VideoTransformProps {
-  item: StorageItem;
   onTransformComplete?: (text: string, twinItem?: StorageItem, updatedItems?: StorageItem[]) => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: VideoTransformProps) {
+export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTransformProps) {
+  const item = useAtomValue(selectedFileAtom);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Prüfe ob item vorhanden ist
+  if (!item) {
+    return (
+      <div className="flex flex-col gap-4 p-4 text-center text-muted-foreground">
+        Keine Video-Datei ausgewählt
+      </div>
+    );
+  }
   
   // Hilfsfunktion für den Basis-Dateinamen
   const getBaseFileName = (fileName: string): string => {
@@ -66,7 +76,7 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
   const { refreshItems } = useStorage();
   
   const handleTransform = async () => {
-    console.log('[VideoTransform] handleTransform aufgerufen mit saveOptions:', saveOptions);
+    FileLogger.info('VideoTransform', 'handleTransform aufgerufen mit saveOptions', saveOptions);
     
     if (!provider) {
       toast.error("Fehler", {
@@ -115,7 +125,7 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
         activeLibrary.id
       );
 
-      console.log('Video Transformation abgeschlossen:', {
+      FileLogger.info('VideoTransform', 'Video Transformation abgeschlossen', {
         textLength: result.text.length,
         savedItemId: result.savedItem?.id,
         updatedItemsCount: result.updatedItems.length,
@@ -124,7 +134,7 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
 
       // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
       if (onRefreshFolder && item.parentId && result.updatedItems.length > 0) {
-        console.log('Informiere Library über aktualisierte Dateiliste', {
+        FileLogger.info('VideoTransform', 'Informiere Library über aktualisierte Dateiliste', {
           folderId: item.parentId,
           itemsCount: result.updatedItems.length,
           savedItemId: result.savedItem?.id
@@ -140,7 +150,7 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
         onTransformComplete(result.text, result.savedItem || undefined, result.updatedItems);
       }
     } catch (error) {
-      console.error("Fehler bei der Video-Transformation:", error);
+      FileLogger.error('VideoTransform', 'Fehler bei der Video-Transformation', error);
       toast.error("Fehler", {
         description: error instanceof Error ? error.message : "Unbekannter Fehler bei der Transformation"
       });
@@ -150,7 +160,7 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
   };
 
   const handleSaveOptionsChange = (options: SaveOptionsType) => {
-    console.log('[VideoTransform] handleSaveOptionsChange aufgerufen mit:', options);
+    FileLogger.debug('VideoTransform', 'handleSaveOptionsChange aufgerufen mit', options);
     setSaveOptions(options);
   };
 
@@ -158,7 +168,7 @@ export function VideoTransform({ item, onTransformComplete, onRefreshFolder }: V
     <div className="flex flex-col gap-4 p-4">
       <TransformResultHandler
         onResultProcessed={() => {
-          console.log("Video-Transformation vollständig abgeschlossen und Datei ausgewählt");
+          FileLogger.info('VideoTransform', 'Video-Transformation vollständig abgeschlossen und Datei ausgewählt');
         }}
         childrenAction={(handleTransformResult, isProcessingResult) => {
           // Speichere die handleTransformResult-Funktion in der Ref

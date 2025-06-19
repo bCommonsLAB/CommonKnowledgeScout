@@ -17,7 +17,7 @@ import {
 import { StorageAuthButton } from "../shared/storage-auth-button";
 import { useStorage, isStorageError } from '@/contexts/storage-context';
 import { toast } from 'sonner';
-import { NavigationLogger, StateLogger } from "@/lib/debug/logger"
+import { NavigationLogger, StateLogger, FileLogger } from "@/lib/debug/logger"
 import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { Tree } from "@/components/ui/tree"
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
@@ -89,7 +89,7 @@ function TreeItem({
         return newSet;
       });
     } catch (error) {
-      console.error('Fehler beim Laden des Ordnerinhalts:', error);
+      FileLogger.error('FileTree', 'Fehler beim Laden des Ordnerinhalts', error);
     }
   }, [provider, loadedChildren, setLoadedChildren, setExpandedFolders]);
 
@@ -168,7 +168,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(function FileTree
         setFileTreeReady(true);
       }
     } catch (error) {
-      console.error('Fehler beim Laden der Root-Items:', error);
+      FileLogger.error('FileTree', 'Fehler beim Laden der Root-Items', error);
     }
   }, [provider, setLoadedChildren, isReady, setFileTreeReady]);
 
@@ -195,7 +195,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(function FileTree
           setExpandedFolders(prev => new Set([...Array.from(prev), currentPath]));
         }
       } catch (error) {
-        console.error('Fehler beim Expandieren zum Item:', error);
+        FileLogger.error('FileTree', 'Fehler beim Expandieren zum Item', error);
       }
     }
   }), [provider, setLoadedChildren, setExpandedFolders]);

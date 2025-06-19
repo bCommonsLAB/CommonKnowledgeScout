@@ -366,6 +366,11 @@ export class FileSystemProvider implements StorageProvider {
     return `/api/storage/filesystem?fileId=${encodeURIComponent(itemId)}`;
   }
 
+  async getDownloadUrl(itemId: string): Promise<string> {
+    // Für lokale Dateien verwenden wir die gleiche API-Route wie für Streaming
+    return `/api/storage/filesystem?fileId=${encodeURIComponent(itemId)}`;
+  }
+
   async getPathItemsById(itemId: string): Promise<StorageItem[]> {
     if (itemId === 'root') {
       // Root-Item erzeugen

@@ -1,6 +1,9 @@
 import { atom } from "jotai"
+import { atomFamily } from "jotai/utils"
 import { ClientLibrary } from "@/types/library"
 import { StorageItem } from "@/lib/storage/types"
+import { useSetAtom } from "jotai"
+import { useCallback } from "react"
 
 // Basis-Typen für den Library-State
 export interface LibraryState {
@@ -153,4 +156,104 @@ expandedFoldersAtom.debugLabel = "expandedFoldersAtom"
 
 // Letzter geladener Ordner
 export const lastLoadedFolderAtom = atom<string | null>(null)
-lastLoadedFolderAtom.debugLabel = "lastLoadedFolderAtom" 
+lastLoadedFolderAtom.debugLabel = "lastLoadedFolderAtom"
+
+// Library-spezifische Sort/Filter-Konfiguration
+export interface SortFilterConfig {
+  searchTerm: string
+  sortField: 'name' | 'size' | 'date' | 'type'
+  sortOrder: 'asc' | 'desc'
+}
+
+// AtomFamily für library-spezifische Sort/Filter-Konfiguration
+export const librarySortFilterConfigAtom = atomFamily(
+  (libraryId: string) => atom<SortFilterConfig>({
+    searchTerm: '',
+    sortField: 'name',
+    sortOrder: 'asc'
+  })
+)
+
+// Getter-Atome für die aktuelle Library
+export const searchTermAtom = atom(
+  (get) => {
+    const libraryId = get(activeLibraryIdAtom)
+    if (!libraryId) return ''
+    return get(librarySortFilterConfigAtom(libraryId)).searchTerm
+  },
+  (get, set, newSearchTerm: string) => {
+    const libraryId = get(activeLibraryIdAtom)
+    if (!libraryId) return
+    const config = get(librarySortFilterConfigAtom(libraryId))
+    set(librarySortFilterConfigAtom(libraryId), { ...config, searchTerm: newSearchTerm })
+  }
+)
+
+export const sortFieldAtom = atom(
+  (get) => {
+    const libraryId = get(activeLibraryIdAtom)
+    if (!libraryId) return 'name' as const
+    return get(librarySortFilterConfigAtom(libraryId)).sortField
+  },
+  (get, set, newSortField: 'name' | 'size' | 'date' | 'type') => {
+    const libraryId = get(activeLibraryIdAtom)
+    if (!libraryId) return
+    const config = get(librarySortFilterConfigAtom(libraryId))
+    set(librarySortFilterConfigAtom(libraryId), { ...config, sortField: newSortField })
+  }
+)
+
+export const sortOrderAtom = atom(
+  (get) => {
+    const libraryId = get(activeLibraryIdAtom)
+    if (!libraryId) return 'asc' as const
+    return get(librarySortFilterConfigAtom(libraryId)).sortOrder
+  },
+  (get, set, newSortOrder: 'asc' | 'desc') => {
+    const libraryId = get(activeLibraryIdAtom)
+    if (!libraryId) return
+    const config = get(librarySortFilterConfigAtom(libraryId))
+    set(librarySortFilterConfigAtom(libraryId), { ...config, sortOrder: newSortOrder })
+  }
+)
+
+// Nur Dateien, keine Verzeichnisse
+export const filesOnlyAtom = atom((get) => {
+  const items = get(folderItemsAtom) ?? []
+  return items.filter(item => item.type === 'file')
+})
+
+// Sortiert & gefiltert (nur Dateien)
+export const sortedFilteredFilesAtom = atom((get) => {
+  const files = get(filesOnlyAtom)
+  const searchTerm = get(searchTermAtom).toLowerCase()
+  const sortField = get(sortFieldAtom)
+  const sortOrder = get(sortOrderAtom)
+
+  let filtered = files.filter(item =>
+    !item.metadata.name.startsWith('.') &&
+    !item.metadata.isTwin &&
+    (searchTerm === '' || item.metadata.name.toLowerCase().includes(searchTerm))
+  )
+
+  filtered = filtered.sort((a, b) => {
+    let cmp = 0
+    switch (sortField) {
+      case 'type':
+        cmp = (a.metadata.mimeType || '').localeCompare(b.metadata.mimeType || '')
+        break
+      case 'name':
+        cmp = a.metadata.name.localeCompare(b.metadata.name)
+        break
+      case 'size':
+        cmp = (a.metadata.size || 0) - (b.metadata.size || 0)
+        break
+      case 'date':
+        cmp = new Date(a.metadata.modifiedAt ?? 0).getTime() - new Date(b.metadata.modifiedAt ?? 0).getTime()
+        break
+    }
+    return sortOrder === 'asc' ? cmp : -cmp
+  })
+
+  return filtered
+}) 

@@ -11,7 +11,6 @@ import { FilePreview } from "./file-preview"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ClientLibrary } from "@/types/library"
 import { StorageItem } from "@/lib/storage/types"
-import { useSelectedFile } from "@/hooks/use-selected-file"
 import { 
   libraryAtom, 
   activeLibraryIdAtom, 
@@ -21,7 +20,8 @@ import {
   folderItemsAtom,
   loadingStateAtom,
   lastLoadedFolderAtom,
-  currentPathAtom
+  currentPathAtom,
+  selectedFileAtom
 } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
 import { TranscriptionDialog } from "./transcription-dialog"
@@ -54,6 +54,7 @@ export function Library() {
   const libraries = useAtomValue(librariesAtom);
   const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
   const currentPath = useAtomValue(currentPathAtom);
+  const [selectedFile, setSelectedFile] = useAtom(selectedFileAtom);
   
   // Storage Context
   const { 
@@ -69,8 +70,7 @@ export function Library() {
     [libraries, globalActiveLibraryId]
   );
 
-  // File Selection Hook
-  const { selected, selectFile, clearSelection } = useSelectedFile();
+  // Verwende selectedFileAtom direkt - kein Hook mehr nötig
 
   // Optimierter loadItems mit Cache-Check
   const loadItems = useCallback(async () => {
@@ -259,7 +259,7 @@ export function Library() {
           
           // Lösche die Dateiauswahl nur bei Ordnerwechsel
           if (currentFolderId !== item.id) {
-            clearSelection();
+            setSelectedFile(null);
           }
         });
 
@@ -281,7 +281,7 @@ export function Library() {
     setCurrentFolderId,
     setFolderItems,
     setLastLoadedFolder,
-    clearSelection,
+    setSelectedFile,
     currentFolderId,
     globalActiveLibraryId
   ]);
@@ -353,13 +353,9 @@ export function Library() {
             </div>
           </ResizablePanel>
           <ResizableHandle />
-          <ResizablePanel defaultSize={80} className="min-h-0">
+          <ResizablePanel defaultSize={40} className="min-h-0">
             <div className="h-full overflow-auto">
               <FileList
-                items={folderItems}
-                selectedItem={selected.item}
-                onSelectAction={selectFile}
-                searchTerm=""
                 onRefresh={(folderId, items) => {
                   setFolderItems(items);
                   if (libraryState.folderCache?.[folderId]) {
@@ -376,6 +372,50 @@ export function Library() {
                         }
                       }));
                     }
+                  }
+                }}
+              />
+            </div>
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel defaultSize={40} className="min-h-0">
+            <div className="h-full relative">
+              <FilePreview
+                provider={providerInstance}
+                onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
+                  StateLogger.info('Library', 'FilePreview onRefreshFolder aufgerufen', {
+                    folderId,
+                    itemsCount: items.length,
+                    hasSelectFile: !!selectFileAfterRefresh
+                  });
+                  
+                  // Aktualisiere die Dateiliste
+                  setFolderItems(items);
+                  
+                  // Aktualisiere den Cache
+                  if (libraryState.folderCache?.[folderId]) {
+                    const cachedFolder = libraryState.folderCache[folderId];
+                    if (cachedFolder) {
+                      setLibraryState(state => ({
+                        ...state,
+                        folderCache: {
+                          ...(state.folderCache || {}),
+                          [folderId]: {
+                            ...cachedFolder,
+                            children: items
+                          }
+                        }
+                      }));
+                    }
+                  }
+                  
+                  // Wenn eine Datei ausgewählt werden soll (nach dem Speichern)
+                  if (selectFileAfterRefresh) {
+                    StateLogger.info('Library', 'Wähle gespeicherte Datei aus', {
+                      fileId: selectFileAfterRefresh.id,
+                      fileName: selectFileAfterRefresh.metadata.name
+                    });
+                    setSelectedFile(selectFileAfterRefresh);
                   }
                 }}
               />
