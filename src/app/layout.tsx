@@ -18,8 +18,22 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Wrapper-Komponente für Clerk
+  const ClerkWrapper = ({ children }: { children: React.ReactNode }) => {
+    // Während des Builds oder wenn kein Clerk-Key vorhanden ist, ohne Clerk rendern
+    if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+      return <>{children}</>;
+    }
+    
+    return (
+      <ClerkProvider>
+        {children}
+      </ClerkProvider>
+    );
+  };
+
   return (
-    <ClerkProvider>
+    <ClerkWrapper>
       <html lang="en" suppressHydrationWarning>
         <body className={GeistSans.className}>
           <ThemeProvider
@@ -43,6 +57,6 @@ export default function RootLayout({
           </ThemeProvider>
         </body>
       </html>
-    </ClerkProvider>
+    </ClerkWrapper>
   )
 }
