@@ -2,8 +2,6 @@ import { atom } from "jotai"
 import { atomFamily } from "jotai/utils"
 import { ClientLibrary } from "@/types/library"
 import { StorageItem } from "@/lib/storage/types"
-import { useSetAtom } from "jotai"
-import { useCallback } from "react"
 
 // Basis-Typen für den Library-State
 export interface LibraryState {

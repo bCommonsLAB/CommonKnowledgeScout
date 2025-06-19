@@ -8,7 +8,7 @@ export interface LogEntry {
   component: string;
   level: 'debug' | 'info' | 'warn' | 'error';
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 interface DebugState {

@@ -2,26 +2,22 @@
 
 import * as React from 'react';
 import { useAtom } from 'jotai';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { ChevronDown, ChevronUp, RefreshCw, Maximize2, Minimize2, Copy } from 'lucide-react';
+import { ChevronDown, ChevronUp, Maximize2, Minimize2, Copy } from 'lucide-react';
 import { debugStateAtom, toggleComponentAtom, toggleAreaAtom, clearLogsAtom, addLogAtom } from '@/atoms/debug-atom';
 import { cn } from '@/lib/utils';
 import { subscribeToLogs } from '@/lib/debug/logger';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { toast } from 'sonner';
-import { libraryAtom, activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
-import { StorageItem } from '@/lib/storage/types';
-import { ClientLibrary } from '@/types/library';
 
 interface SystemInfo {
-  userInfo: any;
-  libraries: any;
+  userInfo: Record<string, unknown>;
+  libraries: Record<string, unknown>;
   loading: { user: boolean; libraries: boolean };
   error: { user: string | null; libraries: string | null };
 }

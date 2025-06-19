@@ -12,7 +12,11 @@ interface TestLogEntry {
   status: 'success' | 'error' | 'info';
   message: string;
   timestamp: string;
-  details?: any;
+  details?: Record<string, unknown>;
+}
+
+interface AuthenticatedProvider extends StorageProvider {
+  isAuthenticated(): boolean;
 }
 
 /**
@@ -50,7 +54,7 @@ async function* generateTestSteps(provider: StorageProvider): AsyncGenerator<Tes
   // Hilfsfunktion zum Erzeugen eines Zeitstempels
   const now = () => new Date().toISOString();
   // Hilfsfunktion zum Protokollieren eines Schritts
-  const logStep = (step: string, status: 'success' | 'error' | 'info', message: string, details?: any): TestLogEntry => ({
+  const logStep = (step: string, status: 'success' | 'error' | 'info', message: string, details?: Record<string, unknown>): TestLogEntry => ({
     step,
     status,
     message,
@@ -61,7 +65,8 @@ async function* generateTestSteps(provider: StorageProvider): AsyncGenerator<Tes
   try {
     // Debug-Informationen über den Provider
     if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function') {
-      const isAuth = (provider as any).isAuthenticated();
+      const authProvider = provider as AuthenticatedProvider;
+      const isAuth = authProvider.isAuthenticated();
       yield logStep("Provider-Status", "info", "Provider-Informationen", {
         name: provider.name,
         id: provider.id,
@@ -115,12 +120,12 @@ async function* generateTestSteps(provider: StorageProvider): AsyncGenerator<Tes
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorDetails = error instanceof Error ? {
+      const errorDetails: Record<string, unknown> = error instanceof Error ? {
         name: error.name,
         message: error.message,
         stack: error.stack,
         cause: error.cause
-      } : error;
+      } : { error: String(error) };
       
       // Spezielle Behandlung für Authentifizierungsfehler
       if (errorMessage.includes('Nicht authentifiziert') || errorMessage.includes('AUTH_REQUIRED')) {

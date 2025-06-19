@@ -6,11 +6,6 @@ import { selectedFileAtom } from "@/atoms/library-atom";
 import { FileLogger } from "@/lib/debug/logger";
 import { memo, useEffect, useRef, useState } from 'react';
 import { StorageItem, StorageProvider } from '@/lib/storage/types';
-import { AudioTransform } from './audio-transform';
-import { Button } from '@/components/ui/button';
-import { Wand2, Loader2 } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
 
 interface AudioPlayerProps {
   provider: StorageProvider | null;
@@ -18,7 +13,7 @@ interface AudioPlayerProps {
   activeLibraryId: string;
 }
 
-export const AudioPlayer = memo(function AudioPlayer({ provider, onRefreshFolder, activeLibraryId }: AudioPlayerProps) {
+export const AudioPlayer = memo(function AudioPlayer({ provider, onRefreshFolder }: AudioPlayerProps) {
   const item = useAtomValue(selectedFileAtom);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [error, setError] = useState<string | null>(null);
