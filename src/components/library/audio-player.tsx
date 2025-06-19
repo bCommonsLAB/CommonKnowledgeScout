@@ -8,8 +8,16 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { StorageItem, StorageProvider } from '@/lib/storage/types';
 import { AudioTransform } from './audio-transform';
 import { Button } from '@/components/ui/button';
-import { FileAudio, Wand2 } from 'lucide-react';
+import { Wand2 } from 'lucide-react';
 import { Tabs } from '@/components/ui/tabs';
+import { 
+  Play, 
+  Pause, 
+  SkipBack, 
+  SkipForward, 
+  Volume2, 
+  VolumeX
+} from "lucide-react"
 
 interface AudioPlayerProps {
   provider: StorageProvider | null;
