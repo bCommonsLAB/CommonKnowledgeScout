@@ -14,7 +14,11 @@ export const metadata = {
 }
 
 // Prüfen, ob wir im Build-Prozess sind
-const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.NEXT_RUNTIME;
+// Während des Builds ist NEXT_RUNTIME="build" oder es gibt keine/dummy Clerk Keys
+const isBuildTime = process.env.NEXT_RUNTIME === 'build' || 
+  !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY === 'dummy_pk_test_placeholder' ||
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY === '';
 
 export default function RootLayout({
   children,

@@ -1,8 +1,14 @@
+'use client'
+
 import { SignInButton } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export default function HomePage() {
+  // Prüfen, ob Clerk verfügbar ist
+  const isDummyKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY === 'dummy_pk_test_placeholder';
+  const hasValidClerk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && !isDummyKey;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto text-center">
@@ -18,11 +24,17 @@ export default function HomePage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <SignInButton mode="modal">
-              <Button size="lg" className="font-medium">
+            {hasValidClerk ? (
+              <SignInButton mode="modal">
+                <Button size="lg" className="font-medium">
+                  Anmelden
+                </Button>
+              </SignInButton>
+            ) : (
+              <Button size="lg" className="font-medium" disabled>
                 Anmelden
               </Button>
-            </SignInButton>
+            )}
             
             <Link href="/sign-up" passHref>
               <Button variant="outline" size="lg" className="font-medium">
