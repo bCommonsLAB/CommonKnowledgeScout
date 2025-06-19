@@ -360,4 +360,55 @@ export class FileSystemProvider implements StorageProvider {
       );
     }
   }
+
+  async getStreamingUrl(itemId: string): Promise<string> {
+    // Für lokale Dateien verwenden wir eine API-Route
+    return `/api/storage/filesystem?fileId=${encodeURIComponent(itemId)}`;
+  }
+
+  async getDownloadUrl(itemId: string): Promise<string> {
+    // Für lokale Dateien verwenden wir die gleiche API-Route wie für Streaming
+    return `/api/storage/filesystem?fileId=${encodeURIComponent(itemId)}`;
+  }
+
+  async getPathItemsById(itemId: string): Promise<StorageItem[]> {
+    if (itemId === 'root') {
+      // Root-Item erzeugen
+      return [
+        {
+          id: 'root',
+          parentId: '',
+          type: 'folder',
+          metadata: {
+            name: 'root',
+            size: 0,
+            modifiedAt: new Date(),
+            mimeType: 'application/folder'
+          }
+        }
+      ];
+    }
+    const path = await this.getPathById(itemId); // z.B. /foo/bar/baz
+    const segments = path.split('/').filter(Boolean);
+    let parentId = 'root';
+    const pathItems: StorageItem[] = [];
+    for (const segment of segments) {
+      const children = await this.listItemsById(parentId);
+      const folder = children.find(child => child.metadata.name === segment && child.type === 'folder');
+      if (!folder) break;
+      pathItems.push(folder);
+      parentId = folder.id;
+    }
+    return [{
+      id: 'root',
+      parentId: '',
+      type: 'folder',
+      metadata: {
+        name: 'root',
+        size: 0,
+        modifiedAt: new Date(),
+        mimeType: 'application/folder'
+      }
+    }, ...pathItems];
+  }
 } 

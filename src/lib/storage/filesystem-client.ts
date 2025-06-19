@@ -175,6 +175,14 @@ export class FileSystemClient implements StorageProvider {
     }
   }
 
+  async getDownloadUrl(fileId: string): Promise<string> {
+    return `${this.baseUrl}?action=binary&fileId=${encodeURIComponent(fileId)}`;
+  }
+
+  async getStreamingUrl(fileId: string): Promise<string> {
+    return `${this.baseUrl}?action=binary&fileId=${encodeURIComponent(fileId)}`;
+  }
+
   async getPathById(itemId: string): Promise<string> {
     console.log('[FileSystemClient] getPathById aufgerufen mit itemId:', itemId);
     const url = `${this.baseUrl}?action=path&fileId=${encodeURIComponent(itemId)}`;
@@ -188,6 +196,47 @@ export class FileSystemClient implements StorageProvider {
       console.error('[FileSystemClient] Fehler beim Abrufen des Pfads:', error);
       throw error;
     }
+  }
+
+  async getPathItemsById(itemId: string): Promise<StorageItem[]> {
+    if (itemId === 'root') {
+      // Root-Item erzeugen
+      return [
+        {
+          id: 'root',
+          parentId: '',
+          type: 'folder',
+          metadata: {
+            name: 'root',
+            size: 0,
+            modifiedAt: new Date(),
+            mimeType: 'application/folder'
+          }
+        }
+      ];
+    }
+    const path = await this.getPathById(itemId); // z.B. /foo/bar/baz
+    const segments = path.split('/').filter(Boolean);
+    let parentId = 'root';
+    const pathItems: StorageItem[] = [];
+    for (const segment of segments) {
+      const children = await this.listItemsById(parentId);
+      const folder = children.find(child => child.metadata.name === segment && child.type === 'folder');
+      if (!folder) break;
+      pathItems.push(folder);
+      parentId = folder.id;
+    }
+    return [{
+      id: 'root',
+      parentId: '',
+      type: 'folder',
+      metadata: {
+        name: 'root',
+        size: 0,
+        modifiedAt: new Date(),
+        mimeType: 'application/folder'
+      }
+    }, ...pathItems];
   }
 
   // Cache invalidieren bei Änderungen

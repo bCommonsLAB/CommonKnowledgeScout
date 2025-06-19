@@ -36,7 +36,16 @@ const nextConfig = {
     fetches: {
       fullUrl: false
     }
-  }
+  },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
+  // Wenn keine Clerk Keys vorhanden sind, deaktiviere das statische Prerendering
+  ...(process.env.NEXT_RUNTIME === 'build' || !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? {
+    output: 'standalone',
+  } : {})
 }
 
 module.exports = nextConfig

@@ -66,16 +66,7 @@ interface TestLogEntry {
   status: 'success' | 'error' | 'info';
   message: string;
   timestamp: string;
-  details?: {
-    request?: {
-      url?: string;
-      method?: string;
-      params?: Record<string, unknown>;
-    };
-    response?: unknown;
-    data?: unknown;
-    error?: unknown;
-  };
+  details?: Record<string, unknown>;
 }
 
 // Wrapper-Komponente für useSearchParams
@@ -652,52 +643,131 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     setTestDialogOpen(true);
     try {
       const logs: TestLogEntry[] = [];
-      logs.push({
-        timestamp: new Date().toISOString(),
-        step: "API-Aufruf",
-        message: `Teste Storage-Provider für Bibliothek "${activeLibrary.label}"`,
-        status: "info"
-      });
-      const response = await fetch(`/api/teststorage?libraryId=${activeLibrary.id}`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        throw new Error(`Fehler beim Testen: ${response.statusText}`);
+      const logStep = (step: string, status: 'success' | 'error' | 'info', message: string, details?: TestLogEntry['details']) => {
+        const entry = {
+          timestamp: new Date().toISOString(),
+          step,
+          status,
+          message,
+          details
+        };
+        logs.push(entry);
+        setTestResults([...logs]);
+      };
+
+      // Hole den Provider über die StorageFactory
+      const factory = StorageFactory.getInstance();
+      const provider = await factory.getProvider(activeLibrary.id);
+
+      // Debug-Informationen über den Provider
+      if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function') {
+        const isAuth = (provider as { isAuthenticated(): boolean }).isAuthenticated();
+        logStep("Provider-Status", "info", "Provider-Informationen", {
+          name: provider.name,
+          id: provider.id,
+          isAuthenticated: isAuth,
+          hasTokens: isAuth ? "ja" : "nein"
+        });
       }
-      // JSONL-Stream verarbeiten
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      if (reader) {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-              const entry = JSON.parse(line);
-              logs.push(entry);
-            } catch (err) {
-              console.error('[StorageForm] Fehler beim Parsen einer Log-Zeile:', line, err);
-              toast.error('Fehler beim Parsen einer Log-Zeile', { description: line });
-            }
-          }
-        }
-        // Restpuffer verarbeiten
-        if (buffer.trim()) {
-          try {
-            const entry = JSON.parse(buffer);
-            logs.push(entry);
-          } catch (err) {
-            console.error('[StorageForm] Fehler beim Parsen des Restpuffers:', buffer, err);
-            toast.error('Fehler beim Parsen des Restpuffers', { description: buffer });
-          }
-        }
+
+      // Schritt 1: Konfiguration validieren
+      logStep("Validierung", "info", "Validiere Storage-Provider Konfiguration...");
+      const validationResult = await provider.validateConfiguration();
+      
+      if (!validationResult.isValid) {
+        logStep("Validierung", "error", `Storage-Provider Konfiguration ungültig: ${validationResult.error}`);
+        return;
       }
-      setTestResults(logs);
+      
+      logStep("Validierung", "success", "Storage-Provider Konfiguration ist gültig.", {
+        validationResult
+      });
+
+      // Schritt 2: Root-Verzeichnis auflisten
+      logStep("Root-Verzeichnis", "info", "Liste Root-Verzeichnis auf...");
+      try {
+        const rootItems = await provider.listItemsById('root');
+        logStep("Root-Verzeichnis", "success", `Root-Verzeichnis erfolgreich aufgelistet. ${rootItems.length} Elemente gefunden.`, {
+          itemCount: rootItems.length,
+          items: rootItems.map(item => ({
+            id: item.id,
+            name: item.metadata.name,
+            type: item.type
+          }))
+        });
+
+        // Schritt 3: Testverzeichnis erstellen
+        const testFolderName = `test-folder-${Math.random().toString(36).substring(7)}`;
+        logStep("Testverzeichnis", "info", `Erstelle Testverzeichnis "${testFolderName}"...`);
+        const testFolder = await provider.createFolder('root', testFolderName);
+        logStep("Testverzeichnis", "success", `Testverzeichnis "${testFolderName}" erfolgreich erstellt.`);
+
+        // Schritt 4: Testdatei erstellen
+        logStep("Testdatei", "info", "Erstelle Testdatei...");
+        const testFileContent = "Dies ist eine Testdatei, erstellt von Knowledge Scout Storage Tester.";
+        const testFileName = `test-file-${Math.random().toString(36).substring(7)}.txt`;
+        
+        // Blob aus String erstellen
+        const blob = new Blob([testFileContent], { type: 'text/plain' });
+        // File-Objekt erstellen
+        const testFile = new File([blob], testFileName, { type: 'text/plain' });
+        
+        const createdFile = await provider.uploadFile(testFolder.id, testFile);
+        logStep("Testdatei", "success", `Testdatei "${testFileName}" erfolgreich erstellt.`);
+
+        // Schritt 5: Verzeichnis auflisten
+        logStep("Verzeichnisinhalt", "info", `Liste Inhalt des Testverzeichnisses auf...`);
+        const folderItems = await provider.listItemsById(testFolder.id);
+        logStep("Verzeichnisinhalt", "success", `Verzeichnisinhalt erfolgreich aufgelistet. ${folderItems.length} Element(e) gefunden.`);
+
+        // Schritt 6: Datei abrufen
+        logStep("Datei abrufen", "info", "Rufe Testdatei ab...");
+        const retrievedFile = await provider.getItemById(createdFile.id);
+        logStep("Datei abrufen", "success", `Testdatei erfolgreich abgerufen: "${retrievedFile.metadata.name}" (${retrievedFile.metadata.size} Bytes)`);
+
+        // Schritt 7: Binärdaten abrufen
+        logStep("Binärdaten", "info", "Rufe Binärdaten der Testdatei ab...");
+        const binaryData = await provider.getBinary(createdFile.id);
+        const blobText = await binaryData.blob.text();
+        const verificationResult = blobText === testFileContent
+          ? "Der Inhalt der Datei stimmt mit dem ursprünglichen Inhalt überein."
+          : "Der Inhalt der Datei stimmt nicht mit dem ursprünglichen Inhalt überein!";
+        logStep("Binärdaten", "success", `Binärdaten erfolgreich abgerufen. MIME-Typ: ${binaryData.mimeType}. ${verificationResult}`);
+
+        // Schritt 8: Pfad abrufen
+        logStep("Dateipfad", "info", "Rufe Pfad der Testdatei ab...");
+        const filePath = await provider.getPathById(createdFile.id);
+        logStep("Dateipfad", "success", `Pfad erfolgreich abgerufen: ${filePath}`);
+
+        // Schritt 9: Aufräumen - Testverzeichnis löschen
+        logStep("Aufräumen", "info", "Lösche Testverzeichnis...");
+        await provider.deleteItem(testFolder.id);
+        logStep("Aufräumen", "success", "Testverzeichnis erfolgreich gelöscht.");
+
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorDetails = error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          cause: error.cause
+        } : error;
+        
+        // Spezielle Behandlung für Authentifizierungsfehler
+        if (errorMessage.includes('Nicht authentifiziert') || errorMessage.includes('AUTH_REQUIRED')) {
+          const safeErrorDetails = typeof errorDetails === 'object' && errorDetails !== null 
+            ? errorDetails as Record<string, unknown> 
+            : { error: errorDetails };
+          logStep("Fehler", "error", "Zugriff verweigert: Provider ist nicht authentifiziert", safeErrorDetails);
+          logStep("Hinweis", "info", "Bitte authentifizieren Sie sich zuerst in den Storage-Einstellungen");
+          return;
+        }
+        
+        const safeErrorDetails = typeof errorDetails === 'object' && errorDetails !== null 
+          ? errorDetails as Record<string, unknown> 
+          : { error: errorDetails };
+        logStep("Fehler", "error", `Test fehlgeschlagen: ${errorMessage}`, safeErrorDetails);
+      }
     } catch (error) {
       console.error('[StorageForm] Fehler beim Testen:', error);
       toast.error("Fehler", {

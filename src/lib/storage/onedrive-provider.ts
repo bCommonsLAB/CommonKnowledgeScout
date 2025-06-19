@@ -322,9 +322,10 @@ export class OneDriveProvider implements StorageProvider {
   }
 
   private async ensureAccessToken(): Promise<string> {
+    // Wenn kein Token vorhanden, Fehler werfen
     if (!this.accessToken) {
       throw new StorageError(
-        "Nicht authentifiziert. Bitte authentifizieren Sie sich bei OneDrive.",
+        "Nicht authentifiziert",
         "AUTH_REQUIRED",
         this.id
       );
@@ -332,19 +333,35 @@ export class OneDriveProvider implements StorageProvider {
 
     // Wenn Token in weniger als 5 Minuten abläuft, versuche Refresh
     const FIVE_MINUTES = 5 * 60 * 1000; // 5 Minuten in Millisekunden
-    if (this.tokenExpiry - Date.now() <= FIVE_MINUTES && this.refreshToken) {
-      const now = Date.now();
-      const timeUntilExpiry = this.tokenExpiry - now;
-      console.log('[OneDriveProvider] Token-Status:', {
-        libraryId: this.library.id,
-        tokenExpiry: new Date(this.tokenExpiry).toISOString(),
-        currentTime: new Date(now).toISOString(),
-        timeUntilExpiry: `${Math.floor(timeUntilExpiry / 1000)} Sekunden`,
-        hasRefreshToken: !!this.refreshToken,
-        isExpired: this.tokenExpiry <= now,
-        refreshBuffer: `${FIVE_MINUTES / 1000} Sekunden`
-      });
+    const now = Date.now();
+    const timeUntilExpiry = this.tokenExpiry - now;
+    
+    // Log Token-Status
+    console.log('[OneDriveProvider] Token-Status:', {
+      libraryId: this.library.id,
+      tokenExpiry: new Date(this.tokenExpiry).toISOString(),
+      currentTime: new Date(now).toISOString(),
+      timeUntilExpiry: `${Math.floor(timeUntilExpiry / 1000)} Sekunden`,
+      hasRefreshToken: !!this.refreshToken,
+      isExpired: this.tokenExpiry <= now,
+      refreshBuffer: `${FIVE_MINUTES / 1000} Sekunden`
+    });
+
+    // Nur refreshen wenn:
+    // 1. Token abgelaufen ist ODER
+    // 2. Token läuft in weniger als 5 Minuten ab UND
+    // 3. Refresh-Token vorhanden ist UND
+    // 4. Kein Refresh bereits läuft
+    if (
+      (this.tokenExpiry <= now || timeUntilExpiry <= FIVE_MINUTES) && 
+      this.refreshToken && 
+      !this.refreshPromise
+    ) {
       await this.refreshAccessToken();
+    } else if (this.refreshPromise) {
+      // Wenn bereits ein Refresh läuft, warte darauf
+      console.log('[OneDriveProvider] Token-Refresh läuft bereits, warte auf Abschluss...');
+      await this.refreshPromise;
     }
 
     return this.accessToken;
@@ -952,5 +969,113 @@ export class OneDriveProvider implements StorageProvider {
         this.id
       );
     }
+  }
+
+  async getDownloadUrl(itemId: string): Promise<string> {
+    try {
+      const accessToken = await this.ensureAccessToken();
+      
+      const response = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}?select=@microsoft.graph.downloadUrl`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data['@microsoft.graph.downloadUrl']) {
+        throw new Error('Keine Download-URL in der API-Antwort');
+      }
+
+      return data['@microsoft.graph.downloadUrl'];
+    } catch (error) {
+      console.error('[OneDriveProvider] getDownloadUrl Fehler:', error);
+      throw new StorageError('Fehler beim Abrufen der Download-URL: ' + (error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  async getStreamingUrl(itemId: string): Promise<string> {
+    try {
+      const accessToken = await this.ensureAccessToken();
+      
+      const response = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}?select=@microsoft.graph.downloadUrl`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data['@microsoft.graph.downloadUrl']) {
+        throw new Error('Keine Streaming-URL in der API-Antwort');
+      }
+
+      return data['@microsoft.graph.downloadUrl'];
+    } catch (error) {
+      console.error('[OneDriveProvider] getStreamingUrl Fehler:', error);
+      throw new StorageError('Fehler beim Abrufen der Streaming-URL: ' + (error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  async getPathItemsById(itemId: string): Promise<StorageItem[]> {
+    if (itemId === 'root') {
+      // Root-Item erzeugen
+      return [
+        {
+          id: 'root',
+          parentId: '',
+          type: 'folder',
+          metadata: {
+            name: 'root',
+            size: 0,
+            modifiedAt: new Date(),
+            mimeType: 'application/folder'
+          }
+        }
+      ];
+    }
+    const path = await this.getPathById(itemId); // z.B. /foo/bar/baz
+    const segments = path.split('/').filter(Boolean);
+    let parentId = 'root';
+    const pathItems: StorageItem[] = [];
+    for (const segment of segments) {
+      const children = await this.listItemsById(parentId);
+      const folder = children.find(child => child.metadata.name === segment && child.type === 'folder');
+      if (!folder) break;
+      // Eltern in den Cache schreiben, falls sie fehlen
+      if (parentId !== 'root' && !pathItems.find(item => item.id === parentId)) {
+        try {
+          const parentItem = await this.getItemById(parentId);
+          pathItems.push(parentItem);
+        } catch {}
+      }
+      pathItems.push(folder);
+      parentId = folder.id;
+    }
+    return [{
+      id: 'root',
+      parentId: '',
+      type: 'folder',
+      metadata: {
+        name: 'root',
+        size: 0,
+        modifiedAt: new Date(),
+        mimeType: 'application/folder'
+      }
+    }, ...pathItems];
   }
 } 

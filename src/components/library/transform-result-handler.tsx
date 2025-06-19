@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useSelectedFile } from "@/hooks/use-selected-file";
 import { TransformResult } from "@/lib/transform/transform-service";
+import { FileLogger } from "@/lib/debug/logger"
 
 interface TransformResultHandlerProps {
   onResultProcessed?: () => void;
@@ -33,14 +34,15 @@ export function TransformResultHandler({
       setIsProcessing(true);
       
       try {
-        console.log("TransformResultHandler: Verarbeite Ergebnis", {
-          hasItem: !!result.savedItem,
-          itemsUpdated: result.updatedItems?.length || 0
+        FileLogger.info('TransformResultHandler', 'Verarbeite Ergebnis', {
+          textLength: result.text.length,
+          savedItemId: result.savedItem?.id,
+          updatedItemsCount: result.updatedItems.length
         });
         
         // Die neue Datei auswählen, wenn verfügbar
         if (result.savedItem) {
-          console.log("TransformResultHandler: Wähle neue Datei aus", result.savedItem.id);
+          FileLogger.info('TransformResultHandler', 'Wähle neue Datei aus', { itemId: result.savedItem.id });
           selectFile(result.savedItem);
         }
         
@@ -49,7 +51,7 @@ export function TransformResultHandler({
           onResultProcessed();
         }
       } catch (error) {
-        console.error("Fehler bei der Verarbeitung des Transformationsergebnisses:", error);
+        FileLogger.error('TransformResultHandler', 'Fehler bei der Verarbeitung des Transformationsergebnisses', error);
       } finally {
         setIsProcessing(false);
       }

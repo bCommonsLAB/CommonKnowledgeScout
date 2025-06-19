@@ -158,6 +158,27 @@ export interface StorageProvider {
    * @returns The path of the item
    */
   getPathById(itemId: string): Promise<string>;
+
+  /**
+   * Retrieves the download URL of an item by its ID.
+   * @param itemId - ID of the item
+   * @returns The download URL of the item
+   */
+  getDownloadUrl(itemId: string): Promise<string>;
+
+  /**
+   * Gibt eine URL zurück, die für Streaming verwendet werden kann.
+   * - Für Cloud-Provider: Direkte Download-URL
+   * - Für lokale Provider: Blob-URL oder API-Route
+   */
+  getStreamingUrl(itemId: string): Promise<string>;
+
+  /**
+   * Gibt alle StorageItems (Ordner) im Pfad von root bis zum angegebenen Item zurück.
+   * @param itemId - ID des Ziel-Items
+   * @returns Array von StorageItems (nur Ordner) von root bis itemId
+   */
+  getPathItemsById(itemId: string): Promise<StorageItem[]>;
 }
 
 /**

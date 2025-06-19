@@ -1,40 +1,32 @@
 'use client';
 
 import * as React from "react"
-import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText, Folder, Image } from "lucide-react"
+import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
 import { useAtomValue, useAtom } from 'jotai';
-import { activeLibraryIdAtom } from '@/atoms/library-atom';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { 
+  activeLibraryIdAtom, 
+  fileTreeReadyAtom, 
+  selectedFileAtom, 
+  folderItemsAtom,
+  sortedFilteredFilesAtom,
+  sortFieldAtom,
+  sortOrderAtom
+} from '@/atoms/library-atom';
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input"
 import {
   selectedBatchItemsAtom,
-  transformDialogOpenAtom,
+  transcriptionDialogOpenAtom,
   getMediaType
-} from '@/atoms/transform-options';
+} from '@/atoms/transcription-options';
 import { Checkbox } from "@/components/ui/checkbox"
-
-interface FileListProps {
-  items: StorageItem[]
-  selectedItem: StorageItem | null
-  onSelectAction: (item: StorageItem) => void
-  searchTerm?: string
-  onRefresh?: (folderId: string, items: StorageItem[]) => void
-}
+import { useMemo, useCallback } from "react"
+import { FileLogger, StateLogger } from "@/lib/debug/logger"
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -42,7 +34,7 @@ type SortOrder = 'asc' | 'desc';
 
 // Typ für gruppierte Dateien
 interface FileGroup {
-  baseItem: StorageItem;
+  baseItem?: StorageItem;
   transcript?: StorageItem;
   transformed?: StorageItem;
 }
@@ -93,76 +85,31 @@ const formatDate = (date?: Date): string => {
   return new Date(date).toLocaleDateString('de-DE', options);
 };
 
-// Funktion zum Extrahieren des Basis-Dateinamens (ohne Suffix und Erweiterung)
-const getBaseName = (filename: string): string => {
-  // Für Dateien wie "Sprache 133.Besprechung.de.md" -> "Sprache 133"
-  // Für Dateien wie "Sprache 133.de.md" -> "Sprache 133"
-  // Für Dateien wie "Sprache 133.m4a" -> "Sprache 133"
-  
-  let baseName = filename;
-  
-  // Entferne Dateierweiterung
-  const lastDotIndex = baseName.lastIndexOf('.');
-  if (lastDotIndex > 0) {
-    baseName = baseName.substring(0, lastDotIndex);
-  }
-  
-  // Prüfe auf Template-Muster wie ".Besprechung.de", ".Interview.en" etc.
-  const templatePattern = /\.(Besprechung|Gedanken|Interview|Zusammenfassung|Video|Meeting)\.(de|en|fr|es|it)$/i;
-  if (templatePattern.test(baseName)) {
-    // Entferne Template und Sprache
-    baseName = baseName.replace(templatePattern, '');
-  }
-  
-  // Prüfe auf Sprachcodes wie ".de", ".en" etc. (für Transkripte)
-  const languagePattern = /\.(de|en|fr|es|it)$/i;
-  if (languagePattern.test(baseName)) {
-    baseName = baseName.replace(languagePattern, '');
-  }
-  
-  // Legacy: Entferne alte Suffixe mit Unterstrich
-  const suffixes = ['_transcript', '_transformed', '_transkript', '_transformiert'];
-  for (const suffix of suffixes) {
-    if (baseName.endsWith(suffix)) {
-      baseName = baseName.substring(0, baseName.length - suffix.length);
-      break;
+function getFileStem(name: string): string {
+  // Entferne Transform-Suffix (.Template.de.md, .Template.en.md, etc.)
+  // Wichtig: Das Template kann auch Punkte enthalten!
+  const transformMatch = name.match(/^(.*)\.([^.]+)\.(de|en|fr|es|it)\.md$/);
+  if (transformMatch) {
+    // Prüfe, ob das mittlere Segment ein Sprachkürzel ist
+    // Wenn ja, ist es ein einfaches Transcript
+    const possibleLang = transformMatch[2];
+    if (['de', 'en', 'fr', 'es', 'it'].includes(possibleLang)) {
+      // Es ist ein Transcript: name.de.md
+      return transformMatch[1];
     }
+    // Ansonsten ist es ein Transform: name.Template.de.md
+    return transformMatch[1];
   }
   
-  // Legacy: Prüfe auf Muster wie "_Besprechung_de"
-  if (baseName.includes('_Besprechung')) {
-    baseName = baseName.substring(0, baseName.indexOf('_Besprechung'));
-  }
+  // Entferne Transcript-Suffix (.de.md, .en.md, etc.)
+  const transcriptMatch = name.match(/^(.*)\.(de|en|fr|es|it)\.md$/);
+  if (transcriptMatch) return transcriptMatch[1];
   
-  return baseName.trim();
-};
-
-// Funktion zum Prüfen ob eine Datei ein Transkript ist
-const isTranscriptFile = (filename: string): boolean => {
-  const lowerName = filename.toLowerCase();
-  // Prüfe auf Sprachcode-Muster wie "Sprache 133.de.md" (ohne Template)
-  const hasLanguageCodeOnly = /\.(de|en|fr|es|it)\.(md|txt)$/i.test(lowerName);
-  // Stelle sicher, dass kein Template dazwischen ist
-  const hasTemplate = /\.(besprechung|gedanken|interview|zusammenfassung|video|meeting)\.(de|en|fr|es|it)\.(md|txt)$/i.test(lowerName);
-  
-  return (hasLanguageCodeOnly && !hasTemplate) || 
-         lowerName.includes('_transcript') || 
-         lowerName.includes('_transkript');
-};
-
-// Funktion zum Prüfen ob eine Datei eine transformierte Datei ist
-const isTransformedFile = (filename: string): boolean => {
-  const lowerName = filename.toLowerCase();
-  // Prüfe auf neue Muster wie ".Besprechung.de.md", ".Interview.en.md" etc.
-  const hasTemplatePattern = /\.(besprechung|gedanken|interview|zusammenfassung|video|meeting)\.(de|en|fr|es|it)\.(md|txt)$/i.test(lowerName);
-  
-  // Legacy: Prüfe auf alte Muster
-  return hasTemplatePattern ||
-         lowerName.includes('_besprechung') || 
-         lowerName.includes('_meeting') ||
-         lowerName.includes('_transformed') || 
-         lowerName.includes('_transformiert');
-};
+  // Für alle anderen Dateien: entferne nur die letzte Endung
+  const lastDot = name.lastIndexOf('.');
+  if (lastDot === -1) return name;
+  return name.substring(0, lastDot);
+}
 
 // Sortierbare Kopfzelle Komponente
 const SortableHeaderCell = React.memo(function SortableHeaderCell({
@@ -353,7 +300,7 @@ const FileRow = React.memo(function FileRow({
       try {
         await onRename(item, editName.trim());
       } catch (error) {
-        console.error('Fehler beim Umbenennen:', error);
+        FileLogger.error('FileRow', 'Fehler beim Umbenennen', error);
         // Bei Fehler den ursprünglichen Namen wiederherstellen
         setEditName(item.metadata.name);
       }
@@ -406,7 +353,7 @@ const FileRow = React.memo(function FileRow({
     // Wenn es eine FileGroup gibt, füge auch die zugehörigen Dateien hinzu
     if (fileGroup) {
       // Prüfe ob das aktuelle Item die Basis-Datei ist
-      if (item.id === fileGroup.baseItem.id) {
+      if (item.id === fileGroup.baseItem?.id) {
         // Füge Transkript hinzu, falls vorhanden
         if (fileGroup.transcript) {
           itemsToMove.push({
@@ -605,239 +552,239 @@ const FileRow = React.memo(function FileRow({
   );
 });
 
-export const FileList = React.memo(function FileList({ 
-  items,
-  selectedItem,
-  onSelectAction,
-  searchTerm = "",
-  onRefresh
-}: FileListProps) {
-  const { refreshItems, currentLibrary, provider } = useStorage();
+export const FileList = React.memo(function FileList(): JSX.Element {
+  const { provider, refreshItems, currentLibrary } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
-  const [sortField, setSortField] = React.useState<SortField>('name');
-  const [sortOrder, setSortOrder] = React.useState<SortOrder>('asc');
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [itemToDelete, setItemToDelete] = React.useState<StorageItem | null>(null);
-  const [isDeleting, setIsDeleting] = React.useState(false);
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
-  const [, setTransformDialogOpen] = useAtom(transformDialogOpenAtom);
-  
-  // Prüft ob eine Datei ein unaufgelöstes Template enthält
-  const hasUnresolvedTemplate = React.useCallback((item: StorageItem): boolean => {
-    if (!item?.metadata?.name) return false;
-    return item.metadata.name.includes('{{') && item.metadata.name.includes('}}');
-  }, []);
+  const [, setTranscriptionDialogOpen] = useAtom(transcriptionDialogOpenAtom);
+  const [isInitialized, setIsInitialized] = React.useState(false);
+  const initializationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
+  const [, setSelectedFile] = useAtom(selectedFileAtom);
+  const [, setFolderItems] = useAtom(folderItemsAtom);
 
-  // Aktuellen Ordner bestimmen und Dateiliste neu laden
-  const handleRefresh = React.useCallback(async () => {
+  // NEU: Atome für Sortierung und Filter
+  const items = useAtomValue(sortedFilteredFilesAtom);
+  const [sortField, setSortField] = useAtom(sortFieldAtom);
+  const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
+
+  // handleSort nutzt jetzt Atome
+  const handleSort = React.useCallback((field: SortField) => {
+    if (field === sortField) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  }, [sortField, sortOrder, setSortField, setSortOrder]);
+
+  // Initialisierung
+  React.useEffect(() => {
+    if (!provider || !isFileTreeReady) {
+      FileLogger.info('FileList', 'Waiting for provider and FileTree', {
+        hasProvider: !!provider,
+        isFileTreeReady
+      });
+      return;
+    }
+
+    const initialize = async () => {
+      if (isInitialized) {
+        FileLogger.debug('FileList', 'Already initialized', {
+          hasProvider: !!provider,
+          hasItems: items?.length > 0,
+          isInitialized
+        });
+        return;
+      }
+
+      // [Nav:10] FileList Starting initialization
+      FileLogger.info('FileList', 'Starting initialization');
+
+      try {
+        // [Nav:13] FileList Initialization complete
+        FileLogger.info('FileList', 'Initialization complete');
+        setIsInitialized(true);
+      } catch (error) {
+        FileLogger.error('FileList', 'Error initializing FileList', error);
+      }
+    };
+
+    initialize();
+
+    return () => {
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+      }
+    };
+  }, [provider, isFileTreeReady, isInitialized, items?.length]);
+
+  // Aktualisierte handleSelect Funktion
+  const handleSelect = useCallback((item: StorageItem) => {
+    setSelectedFile(item);
+  }, [setSelectedFile]);
+
+  // Aktualisierte handleRefresh Funktion
+  const handleRefresh = useCallback(async () => {
     if (!items || items.length === 0) return;
     
-    // Alle Dateien haben den gleichen Elternordner
     const parentId = items[0]?.parentId;
     if (!parentId) return;
     
     setIsRefreshing(true);
     
     try {
-      // Dateiliste neu laden und Cache explizit leeren
       const refreshedItems = await refreshItems(parentId);
-      
-      // Benachrichtige die Eltern-Komponente über die Aktualisierung
-      if (onRefresh) {
-        onRefresh(parentId, refreshedItems);
-      }
+      setFolderItems(refreshedItems);
     } catch (error) {
-      console.error('Fehler beim Aktualisieren der Dateiliste:', error);
+      FileLogger.error('FileList', 'Fehler beim Aktualisieren der Dateiliste', error);
     } finally {
       setIsRefreshing(false);
     }
-  }, [items, refreshItems, onRefresh]);
+  }, [items, refreshItems, setFolderItems]);
 
-  // Sortierungslogik
-  const handleSort = React.useCallback((field: SortField) => {
-    // Wenn auf das gleiche Feld geklickt wird, ändere die Richtung
-    if (field === sortField) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Bei neuem Feld setze Sortierrichtung auf aufsteigend
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  }, [sortField, sortOrder]);
-
-  // Debug Logging - measure actual render time
-  const renderStartRef = React.useRef<number>(0);
-  
-  React.useLayoutEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      // Store start time in ref at beginning of render
-      renderStartRef.current = performance.now();
-      
-      // Measure time after render is complete
-      const measureRenderTime = () => {
-        const renderTime = performance.now() - renderStartRef.current;
-        if (renderTime > 1) {
-          console.log(`FileList render time: ${renderTime.toFixed(2)}ms`);
-        }
-      };
-      
-      // Schedule measurement for after paint
-      requestAnimationFrame(measureRenderTime);
-    }
-  });
-
-  const handleCreateTranscript = React.useCallback((e: React.MouseEvent, item: StorageItem) => {
+  const handleCreateTranscript = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Create transcript for:', item.metadata.name);
+    FileLogger.info('FileList', 'Create transcript for', { fileName: 'TODO' });
     // TODO: Implement transcript creation
   }, []);
 
-  // Filter and sort files
-  const files = React.useMemo(() => {
-    if (!items || items.length === 0) {
-      console.log(`FileList: Keine Dateien zum Filtern`);
-      return [];
+  // Gruppiere die Dateien (ohne Logging im Render!)
+  const fileGroups = useMemo(() => {
+    if (!items) return new Map<string, FileGroup>();
+    const groups: FileGroup[] = [];
+    
+    // Einfach jede Datei als eigene "Gruppe" behandeln
+    for (const item of items) {
+      if (item.type === 'file') {
+        groups.push({ 
+          baseItem: item, 
+          transcript: undefined, 
+          transformed: undefined 
+        });
+      }
     }
     
-    const filtered = items
-      .filter(item => item.type === 'file')
-      .filter(item => !item.metadata.name.startsWith('.'))
-      .filter(item => !item.metadata.isTwin)
-      .filter(item => 
-        searchTerm === "" || 
-        item.metadata.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    
-    // Sortieren nach ausgewähltem Feld und Richtung
-    const sorted = [...filtered].sort((a, b) => {
-      let comparison = 0;
-      
-      switch (sortField) {
-        case 'type':
-          comparison = (a.metadata.mimeType || '').localeCompare(b.metadata.mimeType || '');
-          break;
-        case 'name':
-          comparison = a.metadata.name.localeCompare(b.metadata.name);
-          break;
-        case 'size':
-          comparison = (a.metadata.size || 0) - (b.metadata.size || 0);
-          break;
-        case 'date':
-          const dateA = a.metadata.modifiedAt ? new Date(a.metadata.modifiedAt).getTime() : 0;
-          const dateB = b.metadata.modifiedAt ? new Date(b.metadata.modifiedAt).getTime() : 0;
-          comparison = dateA - dateB;
-          break;
-      }
-      
-      // Umkehren der Sortierreihenfolge bei absteigender Sortierung
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-    
-    return sorted;
-  }, [items, searchTerm, sortField, sortOrder]);
+    const groupMap = new Map<string, FileGroup>();
+    for (const group of groups) {
+      const key = group.baseItem?.metadata.name || Math.random().toString();
+      groupMap.set(key, group);
+    }
+    return groupMap;
+  }, [items]);
 
-  // Gruppiere zusammengehörige Dateien
-  const fileGroups = React.useMemo(() => {
-    const groups = new Map<string, FileGroup>();
-    const processedIds = new Set<string>();
+  // Berechne, ob alle Dateien ausgewählt sind
+  const isAllSelected = useMemo(() => {
+    if (!items?.length) return false;
+    const transcribableItems = items.filter(item => 
+      item.type === 'file' && 
+      (item.metadata.mimeType.startsWith('audio/') || item.metadata.mimeType.startsWith('video/'))
+    );
+    return transcribableItems.length > 0 && selectedBatchItems.length === transcribableItems.length;
+  }, [items, selectedBatchItems]);
+
+  // Handle Select All
+  const handleSelectAll = useCallback((checked: boolean) => {
+    const startTime = performance.now();
     
-    console.log('=== Gruppierung startet ===');
-    console.log('Anzahl Dateien:', files.length);
-    
-    // Erste Iteration: Sammle alle Dateien und gruppiere sie
-    for (const file of files) {
-      const baseName = getBaseName(file.metadata.name);
-      console.log(`Datei: ${file.metadata.name} -> Basis: ${baseName}`);
-      
-      if (isTranscriptFile(file.metadata.name)) {
-        console.log(`  -> ist Transkript`);
-        // Dies ist eine Transkript-Datei
-        const group = groups.get(baseName) || { baseItem: file };
-        group.transcript = file;
-        groups.set(baseName, group);
-        processedIds.add(file.id);
-      } else if (isTransformedFile(file.metadata.name)) {
-        console.log(`  -> ist transformierte Datei`);
-        // Dies ist eine transformierte Datei
-        const group = groups.get(baseName) || { baseItem: file };
-        group.transformed = file;
-        groups.set(baseName, group);
-        processedIds.add(file.id);
-      }
-    }
-    
-    // Zweite Iteration: Füge Basis-Dateien zu ihren Gruppen hinzu
-    for (const file of files) {
-      if (!processedIds.has(file.id)) {
-        const baseName = getBaseName(file.metadata.name);
-        
-        if (groups.has(baseName)) {
-          // Es gibt bereits eine Gruppe für diesen Basisnamen
-          const group = groups.get(baseName)!;
-          if (!isTranscriptFile(file.metadata.name) && !isTransformedFile(file.metadata.name)) {
-            console.log(`  -> ist Basis-Datei für Gruppe ${baseName}`);
-            // Dies ist die Basis-Datei
-            group.baseItem = file;
+    if (checked) {
+      const transcribableItems = items
+        .filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
+          } catch {
+            return false;
           }
-        } else {
-          // Neue Gruppe für alleinstehende Datei
-          console.log(`  -> neue Gruppe für ${file.metadata.name}`);
-          groups.set(baseName, { baseItem: file });
-        }
-      }
-    }
-    
-    console.log('Anzahl Gruppen:', groups.size);
-    console.log('=== Gruppierung beendet ===');
-    
-    // Konvertiere Map zu Array und sortiere nach dem aktuellen Sortierfeld
-    const groupArray = Array.from(groups.values());
-    
-    // Sortiere die Gruppen basierend auf dem ausgewählten Sortierfeld
-    groupArray.sort((a, b) => {
-      let comparison = 0;
-      
-      switch (sortField) {
-        case 'type':
-          comparison = (a.baseItem.metadata.mimeType || '').localeCompare(b.baseItem.metadata.mimeType || '');
-          break;
-        case 'name':
-          comparison = a.baseItem.metadata.name.localeCompare(b.baseItem.metadata.name);
-          break;
-        case 'size':
-          comparison = (a.baseItem.metadata.size || 0) - (b.baseItem.metadata.size || 0);
-          break;
-        case 'date':
-          const dateA = a.baseItem.metadata.modifiedAt ? new Date(a.baseItem.metadata.modifiedAt).getTime() : 0;
-          const dateB = b.baseItem.metadata.modifiedAt ? new Date(b.baseItem.metadata.modifiedAt).getTime() : 0;
-          comparison = dateA - dateB;
-          break;
-      }
-      
-      // Umkehren der Sortierreihenfolge bei absteigender Sortierung
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-    
-    return groupArray;
-  }, [files, sortField, sortOrder]);
+        })
+        .map(item => ({
+          item,
+          type: getMediaType(item)
+        }));
 
-  // Modifizierter Select-Handler mit Template-Warnung
-  const handleSelect = React.useCallback((item: StorageItem) => {
-    if (hasUnresolvedTemplate(item)) {
-      console.warn('Warnung: Datei enthält nicht aufgelöste Template-Variablen:', item.metadata.name);
+      StateLogger.info('FileList', 'Selecting all transcribable items', {
+        totalItems: items.length,
+        transcribableCount: transcribableItems.length,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      
+      setSelectedBatchItems(transcribableItems);
+    } else {
+      StateLogger.info('FileList', 'Deselecting all items', {
+        previouslySelected: selectedBatchItems.length,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      
+      setSelectedBatchItems([]);
     }
-    onSelectAction(item);
-  }, [onSelectAction, hasUnresolvedTemplate]);
+  }, [items, setSelectedBatchItems, selectedBatchItems.length]);
+
+  // Handle Item Selection
+  const handleItemSelect = React.useCallback((item: StorageItem) => {
+    const startTime = performance.now();
+    
+    try {
+      const mediaType = getMediaType(item);
+      
+      StateLogger.debug('FileList', 'Item selection attempt', {
+        itemId: item.id,
+        itemName: item.metadata.name,
+        mediaType,
+        isCurrentlySelected: selectedBatchItems.some(i => i.item.id === item.id)
+      });
+      
+      // Nur Audio- und Video-Dateien können für Batch-Transkription ausgewählt werden
+      if (mediaType === 'audio' || mediaType === 'video') {
+        setSelectedBatchItems(prev => {
+          const isAlreadySelected = prev.some(i => i.item.id === item.id);
+          const newSelection = isAlreadySelected
+            ? prev.filter(i => i.item.id !== item.id)
+            : [...prev, { item, type: mediaType }];
+            
+          StateLogger.info('FileList', 'Batch selection updated', {
+            itemId: item.id,
+            itemName: item.metadata.name,
+            mediaType,
+            action: isAlreadySelected ? 'deselected' : 'selected',
+            newSelectionCount: newSelection.length,
+            duration: `${(performance.now() - startTime).toFixed(2)}ms`
+          });
+          
+          return newSelection;
+        });
+      }
+      
+      // Immer die Datei auswählen, unabhängig vom Medientyp
+      handleSelect(item);
+    } catch (error) {
+      StateLogger.warn('FileList', 'Error in item selection', {
+        error,
+        itemId: item.id,
+        itemName: item.metadata.name,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      handleSelect(item);
+    }
+  }, [handleSelect, selectedBatchItems]);
+
+  // Check if an item is selected
+  const isItemSelected = useCallback((item: StorageItem) => {
+    return selectedBatchItems.some(selected => selected.item.id === item.id);
+  }, [selectedBatchItems]);
 
   // Löschfunktion
-  const handleDeleteClick = React.useCallback((e: React.MouseEvent, item: StorageItem) => {
+  const handleDeleteClick = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setItemToDelete(item);
-    setDeleteDialogOpen(true);
+    // TODO: Implement delete logic
   }, []);
 
-  // Rename-Funktion
+  // Hilfsfunktion zum Finden einer FileGroup in der Map
+  const findFileGroup = (map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
+    return Array.from(map.values()).find(group => 
+      group.baseItem && getFileStem(group.baseItem.metadata.name) === stem
+    );
+  };
+
   const handleRename = React.useCallback(async (item: StorageItem, newName: string) => {
     if (!provider) {
       toast.error("Fehler", {
@@ -848,299 +795,167 @@ export const FileList = React.memo(function FileList({
 
     try {
       // Finde die FileGroup für dieses Item
-      const fileGroup = fileGroups.find(group => 
-        group.baseItem.id === item.id || 
-        group.transcript?.id === item.id || 
-        group.transformed?.id === item.id
-      );
+      const itemStem = getFileStem(item.metadata.name);
+      const fileGroup = findFileGroup(fileGroups, itemStem);
 
-      if (fileGroup && item.id === fileGroup.baseItem.id) {
+      if (fileGroup && item.id === fileGroup.baseItem?.id) {
         // Dies ist die Basis-Datei - benenne auch abhängige Dateien um
-        const oldBaseName = getBaseName(item.metadata.name);
-        const newBaseName = getBaseName(newName);
-        
+        const oldStem = getFileStem(item.metadata.name);
+        const newStem = getFileStem(newName);
         // Benenne die Basis-Datei um
         await provider.renameItem(item.id, newName);
-        
         // Benenne das Transkript um, falls vorhanden
         if (fileGroup.transcript) {
           const transcriptName = fileGroup.transcript.metadata.name;
-          // Ersetze den alten Basisnamen mit dem neuen
-          const newTranscriptName = transcriptName.replace(oldBaseName, newBaseName);
+          // Ersetze den alten Stem mit dem neuen
+          const newTranscriptName = transcriptName.replace(oldStem, newStem);
           try {
             await provider.renameItem(fileGroup.transcript.id, newTranscriptName);
           } catch (error) {
-            console.error('Fehler beim Umbenennen des Transkripts:', error);
+            FileLogger.error('FileList', 'Fehler beim Umbenennen des Transkripts', error);
             toast.warning("Hinweis", {
               description: "Das Transkript konnte nicht umbenannt werden"
             });
           }
         }
-        
         // Benenne die transformierte Datei um, falls vorhanden
         if (fileGroup.transformed) {
           const transformedName = fileGroup.transformed.metadata.name;
-          // Ersetze den alten Basisnamen mit dem neuen
-          const newTransformedName = transformedName.replace(oldBaseName, newBaseName);
+          const newTransformedName = transformedName.replace(oldStem, newStem);
           try {
             await provider.renameItem(fileGroup.transformed.id, newTransformedName);
           } catch (error) {
-            console.error('Fehler beim Umbenennen der transformierten Datei:', error);
+            FileLogger.error('FileList', 'Fehler beim Umbenennen der transformierten Datei', error);
             toast.warning("Hinweis", {
               description: "Die transformierte Datei konnte nicht umbenannt werden"
             });
           }
         }
-        
-        // Erfolgsmeldung
         toast.success("Dateien umbenannt", {
           description: `${item.metadata.name} und zugehörige Dateien wurden umbenannt.`
         });
       } else {
         // Dies ist eine abhängige Datei oder keine Gruppe - nur diese Datei umbenennen
         await provider.renameItem(item.id, newName);
-        
-        // Erfolgsmeldung
         toast.success("Datei umbenannt", {
           description: `${item.metadata.name} wurde zu ${newName} umbenannt.`
         });
       }
-      
-      // Dateiliste aktualisieren
       await handleRefresh();
     } catch (error) {
-      console.error('Fehler beim Umbenennen:', error);
+      FileLogger.error('FileList', 'Fehler beim Umbenennen', error);
       toast.error("Fehler", {
         description: `Die Datei konnte nicht umbenannt werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       });
-      throw error; // Weitergeben für Error-Handling in FileRow
+      throw error;
     }
   }, [provider, handleRefresh, fileGroups]);
 
-  const handleDeleteConfirm = React.useCallback(async () => {
-    if (!itemToDelete || !provider) return;
-    
-    setIsDeleting(true);
-    
-    try {
-      // Datei löschen
-      await provider.deleteItem(itemToDelete.id);
-      
-      // Erfolgsmeldung
-      toast.success("Datei gelöscht", {
-        description: `${itemToDelete.metadata.name} wurde erfolgreich gelöscht.`
-      });
-      
-      // Dateiliste aktualisieren
-      await handleRefresh();
-      
-      // Wenn die gelöschte Datei ausgewählt war, Auswahl zurücksetzen
-      if (selectedItem?.id === itemToDelete.id) {
-        // Erstelle ein leeres StorageItem für die Auswahl-Zurücksetzung
-        const emptyItem: StorageItem = {
-          id: '',
-          type: 'file',
-          parentId: '',
-          metadata: {
-            name: '',
-            size: 0,
-            modifiedAt: new Date(),
-            mimeType: ''
-          }
-        };
-        onSelectAction(emptyItem);
-      }
-    } catch (error) {
-      console.error('Fehler beim Löschen der Datei:', error);
-      toast.error("Fehler", {
-        description: `Die Datei ${itemToDelete.metadata.name} konnte nicht gelöscht werden.`
-      });
-    } finally {
-      setIsDeleting(false);
-      setDeleteDialogOpen(false);
-      setItemToDelete(null);
-    }
-  }, [itemToDelete, handleRefresh, selectedItem, onSelectAction, provider]);
-
-  const handleBatchTransform = () => {
+  const handleBatchTranscription = () => {
     if (selectedBatchItems.length > 0) {
-      setTransformDialogOpen(true);
+      setTranscriptionDialogOpen(true);
     }
   };
 
   React.useEffect(() => {
     // Logging der Library-IDs
-    // eslint-disable-next-line no-console
-    console.log('[FileList] Render:', {
+    StateLogger.debug('FileList', 'Render', {
       currentLibraryId: currentLibrary?.id,
       activeLibraryIdAtom: activeLibraryId
     });
   }, [currentLibrary, activeLibraryId]);
 
+  if (!isFileTreeReady) {
+    return <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Lade Ordnerstruktur...</div>;
+  }
+
   return (
-    <div className="absolute inset-0 flex flex-col">
-      {!items || fileGroups.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          {!items ? 'Provider nicht verfügbar' : 'Keine Dateien gefunden'}
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="border-b px-4 py-2 flex items-center justify-between bg-background sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+          </Button>
+          {selectedBatchItems.length > 0 && (
+            <Button
+              size="sm"
+              onClick={handleBatchTranscription}
+            >
+              {selectedBatchItems.length} Datei(en) transkribieren
+            </Button>
+          )}
         </div>
-      ) : (
-        <>
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={items.length > 0 && selectedBatchItems.length === items.filter(item => 
-                  item.type === 'file' && 
-                  (item.metadata.mimeType.startsWith('audio/') || item.metadata.mimeType.startsWith('video/'))
-                ).length}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    const transformableItems = items
-                      .filter(item => 
-                        item.type === 'file' && 
-                        (item.metadata.mimeType.startsWith('audio/') || item.metadata.mimeType.startsWith('video/'))
-                      )
-                      .map(item => ({
-                        item,
-                        type: getMediaType(item)
-                      }));
-                    setSelectedBatchItems(transformableItems);
-                  } else {
-                    setSelectedBatchItems([]);
-                  }
-                }}
-              />
-              <span className="text-sm text-muted-foreground">
-                {selectedBatchItems.length} Datei(en) ausgewählt
-              </span>
-            </div>
-            
-            {selectedBatchItems.length > 0 && (
-              <Button
-                size="sm"
-                onClick={handleBatchTransform}
-              >
-                {selectedBatchItems.length} Datei(en) transformieren
-              </Button>
-            )}
-          </div>
-          {/* Header - Fixed */}
-          <div className="px-4 py-2 text-xs font-medium text-muted-foreground grid grid-cols-[24px_24px_minmax(0,1fr)_60px_100px_100px_50px] gap-4 items-center border-b flex-shrink-0">
-            <SortableHeaderCell 
-              label="Typ" 
-              field="type" 
-              currentSortField={sortField} 
-              currentSortOrder={sortOrder} 
-              onSort={handleSort} 
-            />
-            <SortableHeaderCell 
-              label="Name" 
-              field="name" 
-              currentSortField={sortField} 
-              currentSortOrder={sortOrder} 
-              onSort={handleSort} 
-            />
-            <SortableHeaderCell 
-              label="Größe" 
-              field="size" 
-              currentSortField={sortField} 
-              currentSortOrder={sortOrder} 
-              onSort={handleSort} 
-            />
-            <SortableHeaderCell 
-              label="Datum" 
-              field="date" 
-              currentSortField={sortField} 
-              currentSortOrder={sortOrder} 
-              onSort={handleSort} 
-            />
-            <span>Dateien</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="h-6 w-6 p-0"
-                    onClick={handleRefresh}
-                    disabled={isRefreshing}
-                  >
-                    <RefreshCw className={cn(
-                      "h-4 w-4", 
-                      isRefreshing && "animate-spin"
-                    )} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Dateiliste aktualisieren</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          {/* File Groups - Scrollable */}
-          <div className="flex-1 overflow-y-auto min-h-0">
-            <div className="divide-y">
-              {fileGroups.map((group) => (
-                <FileRow
-                  key={group.baseItem.id}
-                  item={group.baseItem}
-                  isSelected={selectedItem?.id === group.baseItem.id || 
-                             selectedItem?.id === group.transcript?.id || 
-                             selectedItem?.id === group.transformed?.id}
-                  onSelect={() => handleSelect(group.baseItem)}
-                  onCreateTranscript={(e) => handleCreateTranscript(e, group.baseItem)}
-                  onDelete={(e) => handleDeleteClick(e, group.baseItem)}
-                  fileGroup={group}
-                  onSelectRelatedFile={(file) => handleSelect(file)}
-                  onRename={handleRename}
+      </div>
+
+      {/* File List */}
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-[800px]">
+          {/* Table Header */}
+          <div className="sticky top-0 bg-background border-b">
+            <div className="grid grid-cols-[auto_1fr_100px_150px_100px_50px] gap-2 px-4 py-2 text-sm font-medium text-muted-foreground">
+              <div className="w-6 flex items-center justify-center">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Alle auswählen"
                 />
-              ))}
+              </div>
+              <SortableHeaderCell
+                label="Name"
+                field="name"
+                currentSortField={sortField}
+                currentSortOrder={sortOrder}
+                onSort={handleSort}
+              />
+              <SortableHeaderCell
+                label="Größe"
+                field="size"
+                currentSortField={sortField}
+                currentSortOrder={sortOrder}
+                onSort={handleSort}
+              />
+              <SortableHeaderCell
+                label="Geändert"
+                field="date"
+                currentSortField={sortField}
+                currentSortOrder={sortOrder}
+                onSort={handleSort}
+              />
+              <div className="text-left">Aktionen</div>
+              <div />
             </div>
           </div>
-        </>
-      )}
-      {deleteDialogOpen && (
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Datei löschen</AlertDialogTitle>
-              <AlertDialogDescription>
-                Möchten Sie die Datei {itemToDelete?.metadata.name} wirklich löschen?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
-                {isDeleting ? "Wird gelöscht..." : "Löschen"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+
+          {/* File Rows */}
+          <div className="divide-y">
+            {Array.from(fileGroups.values())
+              .map((group) => {
+                const item = group.baseItem || group.transcript || group.transformed;
+                if (!item) return null;
+                return (
+                  <FileRow
+                    key={item.id}
+                    item={item as StorageItem}
+                    isSelected={isItemSelected(item)}
+                    onSelect={() => handleItemSelect(item)}
+                    onCreateTranscript={handleCreateTranscript}
+                    onDelete={handleDeleteClick}
+                    fileGroup={group}
+                    onSelectRelatedFile={handleSelect}
+                    onRename={handleRename}
+                  />
+                );
+              })}
+          </div>
+        </div>
+      </div>
     </div>
   );
-}, (prevProps, nextProps) => {
-  // Zusätzliche Prüfung für selectedItem
-  if (prevProps.selectedItem && nextProps.selectedItem) {
-    return (
-      prevProps.selectedItem.id === nextProps.selectedItem.id &&
-      prevProps.items === nextProps.items &&
-      prevProps.searchTerm === nextProps.searchTerm
-    );
-  }
-  return (
-    (!prevProps.selectedItem && !nextProps.selectedItem) &&
-    prevProps.items === nextProps.items &&
-    prevProps.searchTerm === nextProps.searchTerm
-  );
 }); 
-
-function FileIcon({ type, mimeType }: { type: string; mimeType: string }) {
-  if (type === 'folder') return <Folder className="h-4 w-4" />;
-  
-  if (mimeType.startsWith('audio/')) return <FileAudio className="h-4 w-4 text-blue-500" />;
-  if (mimeType.startsWith('video/')) return <FileVideo className="h-4 w-4 text-purple-500" />;
-  if (mimeType.startsWith('image/')) return <Image className="h-4 w-4 text-green-500" />;
-  if (mimeType.startsWith('text/')) return <FileText className="h-4 w-4 text-orange-500" />;
-  
-  return <File className="h-4 w-4" />;
-} 

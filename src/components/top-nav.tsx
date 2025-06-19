@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { SignInButton, UserButton, SignedIn, SignedOut, useUser } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
-import { libraryAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
+import { libraryAtom } from "@/atoms/library-atom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Öffentliche Navigationselemente (immer sichtbar)
@@ -43,17 +43,9 @@ export function TopNav() {
   
   // Statt Events verwenden wir Jotai
   const [libraryContext] = useAtom(libraryAtom)
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom)
   const { libraries } = libraryContext
   
-  // Debug-Logging hinzufügen
-  React.useEffect(() => {
-    console.log('TopNav: Jotai-Zustand aktualisiert', {
-      libraries: libraries.length > 0 ? libraries.map(l => l.label).join(', ') : 'keine',
-      activeLibraryId
-    });
-  }, [libraries, activeLibraryId]);
-
+ 
   return (
     <div className="border-b">
       <div className="flex h-16 items-center px-4">

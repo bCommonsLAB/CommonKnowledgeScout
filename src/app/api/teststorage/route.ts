@@ -12,6 +12,11 @@ interface TestLogEntry {
   status: 'success' | 'error' | 'info';
   message: string;
   timestamp: string;
+  details?: Record<string, unknown>;
+}
+
+interface AuthenticatedProvider extends StorageProvider {
+  isAuthenticated(): boolean;
 }
 
 /**
@@ -49,14 +54,27 @@ async function* generateTestSteps(provider: StorageProvider): AsyncGenerator<Tes
   // Hilfsfunktion zum Erzeugen eines Zeitstempels
   const now = () => new Date().toISOString();
   // Hilfsfunktion zum Protokollieren eines Schritts
-  const logStep = (step: string, status: 'success' | 'error' | 'info', message: string): TestLogEntry => ({
+  const logStep = (step: string, status: 'success' | 'error' | 'info', message: string, details?: Record<string, unknown>): TestLogEntry => ({
     step,
     status,
     message,
-    timestamp: now()
+    timestamp: now(),
+    details
   });
 
   try {
+    // Debug-Informationen über den Provider
+    if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function') {
+      const authProvider = provider as AuthenticatedProvider;
+      const isAuth = authProvider.isAuthenticated();
+      yield logStep("Provider-Status", "info", "Provider-Informationen", {
+        name: provider.name,
+        id: provider.id,
+        isAuthenticated: isAuth,
+        hasTokens: isAuth ? "ja" : "nein"
+      });
+    }
+
     // Schritt 1: Konfiguration validieren
     yield logStep("Validierung", "info", "Validiere Storage-Provider Konfiguration...");
     const validationResult = await provider.validateConfiguration();
@@ -66,12 +84,59 @@ async function* generateTestSteps(provider: StorageProvider): AsyncGenerator<Tes
       return;
     }
     
-    yield logStep("Validierung", "success", "Storage-Provider Konfiguration ist gültig.");
+    yield logStep("Validierung", "success", "Storage-Provider Konfiguration ist gültig.", {
+      validationResult
+    });
+
+    // Neu: Prüfe Authentifizierungsstatus für Provider die das benötigen
+    if (provider.name === 'Microsoft OneDrive' || provider.name === 'Google Drive') {
+      yield logStep("Authentifizierung", "info", "Prüfe Authentifizierungsstatus...");
+      
+      // Prüfe ob der Provider eine isAuthenticated Methode hat
+      if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function') {
+        const isAuth = (provider as AuthenticatedProvider).isAuthenticated();
+        
+        if (!isAuth) {
+          yield logStep("Authentifizierung", "error", `Der ${provider.name} Provider ist nicht authentifiziert. Bitte melden Sie sich zuerst an.`);
+          yield logStep("Hinweis", "info", "Gehen Sie zu den Storage-Einstellungen und klicken Sie auf 'Bei OneDrive anmelden'.");
+          return;
+        }
+        
+        yield logStep("Authentifizierung", "success", "Provider ist authentifiziert.");
+      }
+    }
 
     // Schritt 2: Root-Verzeichnis auflisten
     yield logStep("Root-Verzeichnis", "info", "Liste Root-Verzeichnis auf...");
-    const rootItems = await provider.listItemsById('root');
-    yield logStep("Root-Verzeichnis", "success", `Root-Verzeichnis erfolgreich aufgelistet. ${rootItems.length} Elemente gefunden.`);
+    try {
+      const rootItems = await provider.listItemsById('root');
+      yield logStep("Root-Verzeichnis", "success", `Root-Verzeichnis erfolgreich aufgelistet. ${rootItems.length} Elemente gefunden.`, {
+        itemCount: rootItems.length,
+        items: rootItems.map(item => ({
+          id: item.id,
+          name: item.metadata.name,
+          type: item.type
+        }))
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorDetails: Record<string, unknown> = error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause
+      } : { error: String(error) };
+      
+      // Spezielle Behandlung für Authentifizierungsfehler
+      if (errorMessage.includes('Nicht authentifiziert') || errorMessage.includes('AUTH_REQUIRED')) {
+        yield logStep("Root-Verzeichnis", "error", "Zugriff verweigert: Provider ist nicht authentifiziert", errorDetails);
+        yield logStep("Hinweis", "info", "Bitte authentifizieren Sie sich zuerst in den Storage-Einstellungen");
+        return;
+      }
+      
+      yield logStep("Root-Verzeichnis", "error", `Fehler beim Auflisten: ${errorMessage}`, errorDetails);
+      return;
+    }
 
     // Schritt 3: Testverzeichnis erstellen
     const testFolderName = `test-folder-${uuidv4().substring(0, 8)}`;

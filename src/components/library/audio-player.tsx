@@ -1,21 +1,21 @@
 'use client';
 
+import * as React from 'react';
+import { useAtomValue } from "jotai";
+import { selectedFileAtom } from "@/atoms/library-atom";
+import { FileLogger } from "@/lib/debug/logger";
 import { memo, useEffect, useRef, useState } from 'react';
 import { StorageItem, StorageProvider } from '@/lib/storage/types';
 import { AudioTransform } from './audio-transform';
-import { Button } from '@/components/ui/button';
-import { Wand2, Loader2 } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
 
 interface AudioPlayerProps {
-  item: StorageItem;
   provider: StorageProvider | null;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
+  activeLibraryId: string;
 }
 
-
-export const AudioPlayer = memo(function AudioPlayer({ item, provider, onRefreshFolder }: AudioPlayerProps) {
+export const AudioPlayer = memo(function AudioPlayer({ provider, onRefreshFolder }: AudioPlayerProps) {
+  const item = useAtomValue(selectedFileAtom);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,61 +28,61 @@ export const AudioPlayer = memo(function AudioPlayer({ item, provider, onRefresh
     buffered: { start: number; end: number } | null;
   } | null>(null);
 
-  // Audio-URL über Provider laden
-  useEffect(() => {
-    let objectUrl: string | null = null;
-    const audioElement = audioRef.current;
+  // Hooks immer außerhalb von Bedingungen aufrufen
+  React.useEffect(() => {
+    if (!item || !provider) {
+      setAudioUrl(null);
+      setError(null);
+      return;
+    }
 
     const loadAudio = async () => {
-      if (!provider) {
-        setError('Kein Storage Provider verfügbar');
-        setIsLoading(false);
-        return;
-      }
-
       try {
         setIsLoading(true);
         setError(null);
         
-        // Verwende die getBinary Methode des Providers
-        const { blob } = await provider.getBinary(item.id);
+        FileLogger.debug('AudioPlayer', 'Lade Audio-URL', {
+          itemId: item.id,
+          itemName: item.metadata.name,
+          mimeType: item.metadata.mimeType
+        });
         
-        // Erstelle eine Object URL für das Audio
-        objectUrl = URL.createObjectURL(blob);
-        setAudioUrl(objectUrl);
+        // Streaming-URL vom Provider holen
+        const url = await provider.getStreamingUrl(item.id);
+        if (!url) {
+          throw new Error('Keine Streaming-URL verfügbar');
+        }
+        
+        setAudioUrl(url);
+        FileLogger.debug('AudioPlayer', 'Audio-URL erhalten', { url });
       } catch (err) {
-        console.error('[AudioPlayer] Fehler beim Laden der Audio-Datei:', err);
-        setError(err instanceof Error ? err.message : 'Fehler beim Laden der Audio-Datei');
+        const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
+        FileLogger.error('AudioPlayer', 'Fehler beim Laden des Audios', err);
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadAudio();
+  }, [item, provider]);
 
-    // Cleanup: Object URL freigeben
+  // Cleanup-Funktion für Object URLs
+  React.useEffect(() => {
     return () => {
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-      // Reset audio element
-      if (audioElement) {
-        audioElement.pause();
-        audioElement.removeAttribute('src');
-        audioElement.load();
+      if (audioUrl && audioUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(audioUrl);
       }
     };
-  }, [item.id, provider]);
+  }, [audioUrl]);
 
   // Debug Logging
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[AudioPlayer] Mounted with item:', {
-        id: item.id,
-        name: item.metadata.name,
-        mimeType: item.metadata.mimeType
-      });
-    }
+    FileLogger.debug('AudioPlayer', 'Mounted with item', {
+      itemId: item?.id,
+      itemName: item?.metadata.name,
+      mimeType: item?.metadata.mimeType
+    });
   }, [item]);
 
   const handleProgress = (e: React.SyntheticEvent<HTMLAudioElement>) => {
@@ -107,40 +107,7 @@ export const AudioPlayer = memo(function AudioPlayer({ item, provider, onRefresh
       JSON.stringify(lastProgressRef.current.buffered) !== JSON.stringify(currentProgress.buffered);
 
     if (hasSignificantChange && process.env.NODE_ENV === 'development') {
-      console.log('[AudioPlayer] Progress:', currentProgress);
       lastProgressRef.current = currentProgress;
-    }
-  };
-
-  const handleLoadStart = (e: React.SyntheticEvent<HTMLAudioElement>) => {
-    const audio = e.currentTarget;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[AudioPlayer] Load started:', {
-        currentTime: audio.currentTime,
-        readyState: audio.readyState,
-        networkState: audio.networkState
-      });
-    }
-  };
-
-  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLAudioElement>) => {
-    const audio = e.currentTarget;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[AudioPlayer] Metadata loaded:', {
-        duration: audio.duration,
-        readyState: audio.readyState
-      });
-    }
-  };
-
-  const handleCanPlay = (e: React.SyntheticEvent<HTMLAudioElement>) => {
-    const audio = e.currentTarget;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[AudioPlayer] Can play:', {
-        duration: audio.duration,
-        readyState: audio.readyState,
-        networkState: audio.networkState
-      });
     }
   };
 
@@ -167,8 +134,8 @@ export const AudioPlayer = memo(function AudioPlayer({ item, provider, onRefresh
     setError(errorMessage);
     
     if (process.env.NODE_ENV === 'development') {
-      console.error('[AudioPlayer] Error:', {
-        error: audio.error,
+      FileLogger.error('AudioPlayer', 'Error', {
+        error,
         errorCode,
         errorMessage,
         networkState: audio.networkState,
@@ -178,76 +145,69 @@ export const AudioPlayer = memo(function AudioPlayer({ item, provider, onRefresh
     }
   };
 
-  if (error) {
+  // Füge die fehlenden Event-Handler hinzu
+  const handleLoadStart = () => {};
+  const handleLoadedMetadata = () => {};
+  const handleCanPlay = () => {};
+
+  if (!item) {
     return (
-      <div className="my-4 mx-4">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+      <div className="flex items-center justify-center h-full text-muted-foreground">
+        Keine Audiodatei ausgewählt
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="my-4 mx-4 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-sm text-muted-foreground">Lade Audio...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full text-destructive">
+        Fehler beim Laden des Audios: {error}
       </div>
     );
   }
 
   if (!audioUrl) {
     return (
-      <div className="my-4 mx-4 text-center text-muted-foreground">
+      <div className="flex items-center justify-center h-full text-muted-foreground">
         Audio konnte nicht geladen werden
       </div>
     );
   }
 
   return (
-    <div className="my-4 mx-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-xs text-muted-foreground">
-          {item.metadata.name}
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowTransform(!showTransform)}
-        >
-          <Wand2 className="h-4 w-4 mr-2" />
-          Transkribieren
-        </Button>
-      </div>
-      <audio 
+    <div className="flex items-center justify-center h-full p-4">
+      <audio
         ref={audioRef}
-        controls 
-        className="w-full"
-        preload="metadata"
+        controls
+        className="w-full max-w-md"
+        onError={handleError}
         onLoadStart={handleLoadStart}
         onLoadedMetadata={handleLoadedMetadata}
         onCanPlay={handleCanPlay}
         onProgress={handleProgress}
-        onError={handleError}
-        src={audioUrl}
       >
-        <source 
-          src={audioUrl}
-          type={item.metadata.mimeType || 'audio/mpeg'} 
-        />
+        <source src={audioUrl} type={item.metadata.mimeType} />
         Ihr Browser unterstützt das Audio-Element nicht.
       </audio>
 
       {showTransform && (
         <div className="mt-4 border rounded-lg">
           <AudioTransform 
-            item={item}
             onRefreshFolder={(folderId, updatedItems, twinItem) => {
-              console.log('Audio Transformation abgeschlossen', {
-                folderId,
-                itemsCount: updatedItems.length,
-                twinItemId: twinItem?.id
+              FileLogger.info('AudioPlayer', 'Audio Transformation abgeschlossen', {
+                originalFile: item.metadata.name,
+                transcriptFile: updatedItems[0]?.metadata.name || 'unknown'
               });
               
               // UI schließen
@@ -264,13 +224,10 @@ export const AudioPlayer = memo(function AudioPlayer({ item, provider, onRefresh
     </div>
   );
 }, (prevProps, nextProps) => {
-  const shouldUpdate = prevProps.item.id !== nextProps.item.id || prevProps.provider !== nextProps.provider;
+  const shouldUpdate = prevProps.provider !== nextProps.provider;
   if (process.env.NODE_ENV === 'development') {
-    console.log('[AudioPlayer] Memo comparison:', {
-      prevId: prevProps.item.id,
-      nextId: nextProps.item.id,
-      providerChanged: prevProps.provider !== nextProps.provider,
-      shouldUpdate
+    FileLogger.debug('AudioPlayer', 'Memo comparison', {
+      hasChanged: shouldUpdate
     });
   }
   return !shouldUpdate;

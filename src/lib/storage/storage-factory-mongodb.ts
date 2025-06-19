@@ -135,6 +135,55 @@ class LocalStorageProvider implements StorageProvider {
     return response.text();
   }
 
+  async getDownloadUrl(itemId: string): Promise<string> {
+    return `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(itemId)}&libraryId=${this.library.id}`;
+  }
+
+  async getStreamingUrl(itemId: string): Promise<string> {
+    return `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(itemId)}&libraryId=${this.library.id}`;
+  }
+
+  async getPathItemsById(itemId: string): Promise<StorageItem[]> {
+    if (itemId === 'root') {
+      return [{
+        id: 'root',
+        parentId: '',
+        type: 'folder',
+        metadata: {
+          name: 'root',
+          size: 0,
+          modifiedAt: new Date(),
+          mimeType: 'application/folder'
+        }
+      }];
+    }
+    
+    const path = await this.getPathById(itemId);
+    const segments = path.split('/').filter(Boolean);
+    let parentId = 'root';
+    const pathItems: StorageItem[] = [];
+    
+    for (const segment of segments) {
+      const children = await this.listItemsById(parentId);
+      const folder = children.find(child => child.metadata.name === segment && child.type === 'folder');
+      if (!folder) break;
+      pathItems.push(folder);
+      parentId = folder.id;
+    }
+    
+    return [{
+      id: 'root',
+      parentId: '',
+      type: 'folder',
+      metadata: {
+        name: 'root',
+        size: 0,
+        modifiedAt: new Date(),
+        mimeType: 'application/folder'
+      }
+    }, ...pathItems];
+  }
+
   async validateConfiguration(): Promise<StorageValidationResult> {
     return { isValid: true };
   }

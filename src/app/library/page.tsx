@@ -24,7 +24,6 @@ function LibraryUrlHandler() {
     
     // Nur die activeLibraryId aus der URL verarbeiten
     if (urlLibraryId) {
-      console.log('[LibraryPage] Setze aktive Bibliothek aus URL-Parameter:', urlLibraryId);
       setActiveLibraryId(urlLibraryId);
       // Speichere auch im localStorage für zukünftige Seitenaufrufe
       localStorage.setItem('activeLibraryId', urlLibraryId);
