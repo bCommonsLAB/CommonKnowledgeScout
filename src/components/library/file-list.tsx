@@ -142,7 +142,17 @@ const SortableHeaderCell = React.memo(function SortableHeaderCell({
   );
 });
 
-// Memoized file row component
+interface FileRowProps {
+  item: StorageItem;
+  isSelected: boolean;
+  onSelect: () => void;
+  onCreateTranscript: (e: React.MouseEvent) => void;
+  onDelete: (e: React.MouseEvent<HTMLButtonElement>, item: StorageItem) => void;
+  fileGroup?: FileGroup;
+  onSelectRelatedFile?: (file: StorageItem) => void;
+  onRename?: (item: StorageItem, newName: string) => Promise<void>;
+}
+
 const FileRow = React.memo(function FileRow({ 
   item, 
   isSelected, 
@@ -152,16 +162,7 @@ const FileRow = React.memo(function FileRow({
   fileGroup,
   onSelectRelatedFile,
   onRename
-}: { 
-  item: StorageItem;
-  isSelected: boolean;
-  onSelect: () => void;
-  onCreateTranscript: (e: React.MouseEvent) => void;
-  onDelete: (e: React.MouseEvent) => void;
-  fileGroup?: FileGroup;
-  onSelectRelatedFile?: (file: StorageItem) => void;
-  onRename?: (item: StorageItem, newName: string) => Promise<void>;
-}) {
+}: FileRowProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [editName, setEditName] = React.useState(item.metadata.name);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -537,7 +538,7 @@ const FileRow = React.memo(function FileRow({
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                onClick={onDelete}
+                onClick={(e) => onDelete(e as React.MouseEvent<HTMLButtonElement>, item)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -773,10 +774,97 @@ export const FileList = React.memo(function FileList(): JSX.Element {
   }, [selectedBatchItems]);
 
   // Löschfunktion
-  const handleDeleteClick = React.useCallback((e: React.MouseEvent) => {
+  const handleDeleteClick = React.useCallback(async (e: React.MouseEvent<HTMLButtonElement>, itemToDelete: StorageItem) => {
     e.stopPropagation();
-    // TODO: Implement delete logic
-  }, []);
+    
+    if (!provider) {
+      toast.error("Fehler", {
+        description: "Storage Provider nicht verfügbar"
+      });
+      return;
+    }
+
+    try {
+      // Finde die FileGroup für dieses Item
+      const itemStem = getFileStem(itemToDelete.metadata.name);
+      const fileGroup = findFileGroup(fileGroups, itemStem);
+
+      // Bestätigungsnachricht vorbereiten
+      let confirmMessage = `Möchten Sie "${itemToDelete.metadata.name}" wirklich löschen?`;
+      if (fileGroup && itemToDelete.id === fileGroup.baseItem?.id) {
+        if (fileGroup.transcript || fileGroup.transformed) {
+          confirmMessage = `Möchten Sie "${itemToDelete.metadata.name}" und alle zugehörigen Dateien wirklich löschen?`;
+        }
+      }
+
+      // Benutzer um Bestätigung bitten
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
+      if (fileGroup && itemToDelete.id === fileGroup.baseItem?.id) {
+        // Dies ist die Basis-Datei - lösche auch abhängige Dateien
+        // Lösche das Transkript, falls vorhanden
+        if (fileGroup.transcript) {
+          try {
+            await provider.deleteItem(fileGroup.transcript.id);
+            FileLogger.info('FileList', 'Transkript gelöscht', {
+              transcriptId: fileGroup.transcript.id,
+              transcriptName: fileGroup.transcript.metadata.name
+            });
+          } catch (error) {
+            FileLogger.error('FileList', 'Fehler beim Löschen des Transkripts', error);
+            toast.warning("Hinweis", {
+              description: "Das Transkript konnte nicht gelöscht werden"
+            });
+          }
+        }
+
+        // Lösche die transformierte Datei, falls vorhanden
+        if (fileGroup.transformed) {
+          try {
+            await provider.deleteItem(fileGroup.transformed.id);
+            FileLogger.info('FileList', 'Transformierte Datei gelöscht', {
+              transformedId: fileGroup.transformed.id,
+              transformedName: fileGroup.transformed.metadata.name
+            });
+          } catch (error) {
+            FileLogger.error('FileList', 'Fehler beim Löschen der transformierten Datei', error);
+            toast.warning("Hinweis", {
+              description: "Die transformierte Datei konnte nicht gelöscht werden"
+            });
+          }
+        }
+
+        // Lösche die Basis-Datei
+        await provider.deleteItem(itemToDelete.id);
+        toast.success("Dateien gelöscht", {
+          description: `${itemToDelete.metadata.name} und zugehörige Dateien wurden gelöscht.`
+        });
+      } else {
+        // Dies ist eine abhängige Datei oder keine Gruppe - nur diese Datei löschen
+        await provider.deleteItem(itemToDelete.id);
+        toast.success("Datei gelöscht", {
+          description: `${itemToDelete.metadata.name} wurde gelöscht.`
+        });
+      }
+
+      // Aktualisiere die Dateiliste
+      await handleRefresh();
+
+      // Wenn die gelöschte Datei ausgewählt war, Auswahl aufheben
+      setSelectedFile(null);
+      
+      // Aus der Batch-Auswahl entfernen
+      setSelectedBatchItems(prev => prev.filter(i => i.item.id !== itemToDelete.id));
+
+    } catch (error) {
+      FileLogger.error('FileList', 'Fehler beim Löschen', error);
+      toast.error("Fehler", {
+        description: `Die Datei konnte nicht gelöscht werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+      });
+    }
+  }, [provider, handleRefresh, fileGroups, setSelectedFile, setSelectedBatchItems]);
 
   // Hilfsfunktion zum Finden einer FileGroup in der Map
   const findFileGroup = (map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
@@ -946,7 +1034,7 @@ export const FileList = React.memo(function FileList(): JSX.Element {
                     isSelected={isItemSelected(item)}
                     onSelect={() => handleItemSelect(item)}
                     onCreateTranscript={handleCreateTranscript}
-                    onDelete={handleDeleteClick}
+                    onDelete={(e) => handleDeleteClick(e, item)}
                     fileGroup={group}
                     onSelectRelatedFile={handleSelect}
                     onRename={handleRename}

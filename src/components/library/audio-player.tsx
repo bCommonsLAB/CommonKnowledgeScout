@@ -7,6 +7,9 @@ import { FileLogger } from "@/lib/debug/logger";
 import { memo, useEffect, useRef, useState } from 'react';
 import { StorageItem, StorageProvider } from '@/lib/storage/types';
 import { AudioTransform } from './audio-transform';
+import { Button } from '@/components/ui/button';
+import { FileAudio, Wand2 } from 'lucide-react';
+import { Tabs } from '@/components/ui/tabs';
 
 interface AudioPlayerProps {
   provider: StorageProvider | null;
@@ -27,6 +30,7 @@ export const AudioPlayer = memo(function AudioPlayer({ provider, onRefreshFolder
     networkState: number;
     buffered: { start: number; end: number } | null;
   } | null>(null);
+  const [activeTab, setActiveTab] = useState('tab1');
 
   // Hooks immer außerhalb von Bedingungen aufrufen
   React.useEffect(() => {
@@ -150,6 +154,10 @@ export const AudioPlayer = memo(function AudioPlayer({ provider, onRefreshFolder
   const handleLoadedMetadata = () => {};
   const handleCanPlay = () => {};
 
+  const handleTransformButtonClick = () => {
+    setShowTransform(true);
+  };
+
   if (!item) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -186,41 +194,63 @@ export const AudioPlayer = memo(function AudioPlayer({ provider, onRefreshFolder
   }
 
   return (
-    <div className="flex items-center justify-center h-full p-4">
-      <audio
-        ref={audioRef}
-        controls
-        className="w-full max-w-md"
-        onError={handleError}
-        onLoadStart={handleLoadStart}
-        onLoadedMetadata={handleLoadedMetadata}
-        onCanPlay={handleCanPlay}
-        onProgress={handleProgress}
-      >
-        <source src={audioUrl} type={item.metadata.mimeType} />
-        Ihr Browser unterstützt das Audio-Element nicht.
-      </audio>
-
-      {showTransform && (
-        <div className="mt-4 border rounded-lg">
-          <AudioTransform 
-            onRefreshFolder={(folderId, updatedItems, twinItem) => {
-              FileLogger.info('AudioPlayer', 'Audio Transformation abgeschlossen', {
-                originalFile: item.metadata.name,
-                transcriptFile: updatedItems[0]?.metadata.name || 'unknown'
-              });
-              
-              // UI schließen
-              setShowTransform(false);
-              
-              // Informiere die übergeordnete Komponente über die Aktualisierung
-              if (onRefreshFolder) {
-                onRefreshFolder(folderId, updatedItems, twinItem);
-              }
-            }}
-          />
+    <div className="flex flex-col h-full">
+      {item && (
+        <div className="flex items-center justify-between mx-4 mt-4 mb-2 flex-shrink-0">
+          <div className="text-xs text-muted-foreground">
+            {item.metadata.name}
+          </div>
+          {onRefreshFolder && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleTransformButtonClick}
+            >
+              <Wand2 className="h-4 w-4 mr-2" />
+              Transformieren
+            </Button>
+          )}
         </div>
       )}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
+        <div className="w-full max-w-md space-y-4">
+          <audio
+            ref={audioRef}
+            controls
+            className="w-full"
+            onError={handleError}
+            onLoadStart={handleLoadStart}
+            onLoadedMetadata={handleLoadedMetadata}
+            onCanPlay={handleCanPlay}
+            onProgress={handleProgress}
+          >
+            <source src={audioUrl} type={item.metadata.mimeType} />
+            Ihr Browser unterstützt das Audio-Element nicht.
+          </audio>
+
+          {/* Transform Dialog */}
+          {showTransform && (
+            <div className="mt-4 border rounded-lg p-4">
+              <AudioTransform 
+                onRefreshFolder={(folderId, updatedItems, twinItem) => {
+                  FileLogger.info('AudioPlayer', 'Audio Transformation abgeschlossen', {
+                    originalFile: item.metadata.name,
+                    transcriptFile: updatedItems[0]?.metadata.name || 'unknown'
+                  });
+                  
+                  // UI schließen
+                  setShowTransform(false);
+                  
+                  // Informiere die übergeordnete Komponente über die Aktualisierung
+                  if (onRefreshFolder) {
+                    onRefreshFolder(folderId, updatedItems, twinItem);
+                  }
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </Tabs>
     </div>
   );
 }, (prevProps, nextProps) => {
