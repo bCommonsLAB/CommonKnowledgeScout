@@ -4,31 +4,17 @@ import * as React from 'react';
 import { useAtomValue } from "jotai";
 import { selectedFileAtom } from "@/atoms/library-atom";
 import { FileLogger } from "@/lib/debug/logger";
-import { StorageItem, StorageProvider } from '@/lib/storage/types';
-import { VideoTransform } from './video-transform';
-import { Button } from '@/components/ui/button';
-import { Wand2, Loader2 } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { StorageProvider } from '@/lib/storage/types';
 
 interface VideoPlayerProps {
   provider: StorageProvider | null;
-  activeLibraryId: string;
-  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-export function VideoPlayer({ provider, activeLibraryId, onRefreshFolder }: VideoPlayerProps) {
+export function VideoPlayer({ provider }: VideoPlayerProps) {
   const item = useAtomValue(selectedFileAtom);
   const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [showTransform, setShowTransform] = React.useState(false);
-  const lastProgressRef = React.useRef<{
-    currentTime: number;
-    readyState: number;
-    networkState: number;
-    buffered: { start: number; end: number } | null;
-  } | null>(null);
 
   // Hooks immer außerhalb von Bedingungen aufrufen
   React.useEffect(() => {
@@ -78,95 +64,6 @@ export function VideoPlayer({ provider, activeLibraryId, onRefreshFolder }: Vide
     };
   }, [videoUrl]);
 
-  const handleProgress = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const video = e.currentTarget;
-    
-    // Nur loggen wenn sich etwas signifikant geändert hat
-    const currentProgress = {
-      currentTime: video.currentTime,
-      readyState: video.readyState,
-      networkState: video.networkState,
-      buffered: video.buffered.length > 0 ? {
-        start: video.buffered.start(0),
-        end: video.buffered.end(0)
-      } : null
-    };
-
-    const hasSignificantChange = !lastProgressRef.current || 
-      lastProgressRef.current.readyState !== currentProgress.readyState ||
-      (lastProgressRef.current.networkState !== currentProgress.networkState && 
-       // Ignoriere schnelle Wechsel zwischen NETWORK_IDLE und NETWORK_LOADING
-       !(currentProgress.networkState <= 2 && lastProgressRef.current.networkState <= 2)) ||
-      JSON.stringify(lastProgressRef.current.buffered) !== JSON.stringify(currentProgress.buffered);
-
-    if (hasSignificantChange && process.env.NODE_ENV === 'development') {
-      FileLogger.debug('VideoPlayer', 'Progress', { currentProgress });
-      lastProgressRef.current = currentProgress;
-    }
-  };
-
-  const handleLoadStart = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const video = e.currentTarget;
-    if (process.env.NODE_ENV === 'development') {
-      FileLogger.debug('VideoPlayer', 'Load started', {
-        itemId: item?.id,
-        itemName: item?.metadata.name
-      });
-    }
-  };
-
-  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const video = e.currentTarget;
-    if (process.env.NODE_ENV === 'development') {
-      FileLogger.debug('VideoPlayer', 'Metadata loaded', {
-        duration: video.duration,
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight
-      });
-    }
-  };
-
-  const handleCanPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const video = e.currentTarget;
-    if (process.env.NODE_ENV === 'development') {
-      FileLogger.debug('VideoPlayer', 'Can play', {
-        readyState: video.readyState,
-        networkState: video.networkState
-      });
-    }
-  };
-
-  const handleError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const video = e.currentTarget;
-    const errorCode = video.error?.code;
-    let errorMessage = 'Unbekannter Fehler';
-    
-    switch (errorCode) {
-      case 1:
-        errorMessage = 'Der Ladevorgang wurde abgebrochen';
-        break;
-      case 2:
-        errorMessage = 'Netzwerkfehler';
-        break;
-      case 3:
-        errorMessage = 'Fehler beim Dekodieren der Video-Datei';
-        break;
-      case 4:
-        errorMessage = 'Video-Format wird nicht unterstützt';
-        break;
-    }
-
-    setError(errorMessage);
-    
-    if (process.env.NODE_ENV === 'development') {
-      FileLogger.error('VideoPlayer', 'Error', {
-        error,
-        itemId: item?.id,
-        itemName: item?.metadata.name
-      });
-    }
-  };
-
   if (!item) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -207,7 +104,6 @@ export function VideoPlayer({ provider, activeLibraryId, onRefreshFolder }: Vide
       <video
         controls
         className="w-full max-w-4xl"
-        onError={handleError}
       >
         <source src={videoUrl} type={item.metadata.mimeType} />
         Ihr Browser unterstützt das Video-Element nicht.

@@ -15,13 +15,6 @@ import { toast } from 'sonner';
 import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 
-interface SystemInfo {
-  userInfo: Record<string, unknown>;
-  libraries: Record<string, unknown>;
-  loading: { user: boolean; libraries: boolean };
-  error: { user: string | null; libraries: string | null };
-}
-
 export default function DebugFooter() {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isFullHeight, setIsFullHeight] = React.useState(false);
@@ -202,12 +195,12 @@ export default function DebugFooter() {
             if (!isNaN(date.getTime())) {
               formattedTimestamp = date.toISOString();
             }
-          } catch (e) {
+          } catch {
             // Behalte den originalen Zeitstempel bei Fehler
             console.warn('Ungültiger Zeitstempel:', log.timestamp);
           }
 
-          const { isDuplicate, ...logData } = log;
+          const { ...logData } = log;
           return {
             ...logData,
             timestamp: formattedTimestamp,
@@ -383,7 +376,7 @@ export default function DebugFooter() {
                                 )}
                               >
                                 {columns.map(column => {
-                                  let value = column === 'remarks' 
+                                  const value = column === 'remarks' 
                                     ? log.remarks
                                     : column === 'timestamp'
                                       ? log.timestamp.split('T')[1]?.split('.')[0] || log.timestamp

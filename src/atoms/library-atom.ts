@@ -165,7 +165,7 @@ export interface SortFilterConfig {
 
 // AtomFamily für library-spezifische Sort/Filter-Konfiguration
 export const librarySortFilterConfigAtom = atomFamily(
-  (libraryId: string) => atom<SortFilterConfig>({
+  () => atom<SortFilterConfig>({
     searchTerm: '',
     sortField: 'name',
     sortOrder: 'asc'

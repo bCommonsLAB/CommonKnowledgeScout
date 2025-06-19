@@ -1,8 +1,5 @@
 import * as React from "react"
-import { cn } from "@/lib/utils"
 import { UILogger } from "@/lib/debug/logger"
-import { StorageItem } from "@/lib/storage/types"
-import { ClientLibrary } from "@/types/library"
 import { Button } from "@/components/ui/button"
 import { Upload, AlertTriangle } from "lucide-react"
 import { UploadDialog } from "./upload-dialog"
@@ -14,7 +11,6 @@ import { currentFolderIdAtom } from "@/atoms/library-atom"
 import { Breadcrumb } from "./breadcrumb"
 
 interface LibraryHeaderProps {
-  activeLibrary: ClientLibrary | undefined
   provider: StorageProvider | null
   onUploadComplete?: () => void
   error?: string | null
@@ -22,7 +18,6 @@ interface LibraryHeaderProps {
 }
 
 export function LibraryHeader({
-  activeLibrary,
   provider,
   onUploadComplete,
   error,

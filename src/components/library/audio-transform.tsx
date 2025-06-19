@@ -23,15 +23,12 @@ interface AudioTransformProps {
 export function AudioTransform({ onTransformComplete, onRefreshFolder }: AudioTransformProps) {
   const item = useAtomValue(selectedFileAtom);
   const [isLoading, setIsLoading] = useState(false);
+  const provider = useStorageProvider();
+  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const { refreshItems } = useStorage();
   
-  // Prüfe ob item vorhanden ist
-  if (!item) {
-    return (
-      <div className="flex flex-col gap-4 p-4 text-center text-muted-foreground">
-        Keine Audio-Datei ausgewählt
-      </div>
-    );
-  }
+  // Referenz für den TransformResultHandler
+  const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});
   
   // Hilfsfunktion für den Basis-Dateinamen
   const getBaseFileName = (fileName: string): string => {
@@ -44,7 +41,7 @@ export function AudioTransform({ onTransformComplete, onRefreshFolder }: AudioTr
     return `${baseName}.${targetLanguage}`;
   };
   
-  const baseName = getBaseFileName(item.metadata.name);
+  const baseName = item ? getBaseFileName(item.metadata.name) : '';
   const defaultLanguage = "de";
   
   const [saveOptions, setSaveOptions] = useState<SaveOptionsType>({
@@ -54,12 +51,14 @@ export function AudioTransform({ onTransformComplete, onRefreshFolder }: AudioTr
     fileExtension: "md"
   });
   
-  // Referenz für den TransformResultHandler
-  const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});
-  
-  const provider = useStorageProvider();
-  const activeLibrary = useAtomValue(activeLibraryAtom);
-  const { refreshItems } = useStorage();
+  // Prüfe ob item vorhanden ist
+  if (!item) {
+    return (
+      <div className="flex flex-col gap-4 p-4 text-center text-muted-foreground">
+        Keine Audio-Datei ausgewählt
+      </div>
+    );
+  }
   
   const handleTransform = async () => {
     FileLogger.info('AudioTransform', 'handleTransform aufgerufen mit saveOptions', saveOptions);

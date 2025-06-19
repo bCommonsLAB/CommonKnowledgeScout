@@ -1,38 +1,22 @@
 'use client';
 
 import * as React from "react"
-import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText, Folder, Image, MoreHorizontal, Download, Edit3, Copy } from "lucide-react"
-import { StorageItem, StorageProvider } from "@/lib/storage/types"
+import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText } from "lucide-react"
+import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
-import { useAtomValue, useAtom, useSetAtom } from 'jotai';
+import { useAtomValue, useAtom } from 'jotai';
 import { 
   activeLibraryIdAtom, 
   fileTreeReadyAtom, 
   selectedFileAtom, 
-  currentFolderIdAtom, 
   folderItemsAtom,
-  loadingStateAtom,
-  expandedFoldersAtom,
-  loadedChildrenAtom,
-  lastLoadedFolderAtom,
   sortedFilteredFilesAtom,
   sortFieldAtom,
-  sortOrderAtom,
-  searchTermAtom
+  sortOrderAtom
 } from '@/atoms/library-atom';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input"
 import {
@@ -41,26 +25,8 @@ import {
   getMediaType
 } from '@/atoms/transcription-options';
 import { Checkbox } from "@/components/ui/checkbox"
-import { useEffect, useMemo, useCallback } from "react"
+import { useMemo, useCallback } from "react"
 import { FileLogger, StateLogger } from "@/lib/debug/logger"
-import { Badge } from "@/components/ui/badge";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { 
-  ContextMenu, 
-  ContextMenuContent, 
-  ContextMenuItem, 
-  ContextMenuTrigger 
-} from "@/components/ui/context-menu";
-
-// Entferne die alten Props - verwende nur noch Atoms
-interface FileListProps {
-  onRefresh?: (folderId: string, items: StorageItem[]) => void
-}
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -118,8 +84,6 @@ const formatDate = (date?: Date): string => {
   
   return new Date(date).toLocaleDateString('de-DE', options);
 };
-
-const LANGS = ['de', 'en', 'fr', 'es', 'it'];
 
 function getFileStem(name: string): string {
   // Entferne Transform-Suffix (.Template.de.md, .Template.en.md, etc.)
@@ -588,9 +552,7 @@ const FileRow = React.memo(function FileRow({
   );
 });
 
-export const FileList = React.memo(function FileList({ 
-  onRefresh
-}: FileListProps): JSX.Element {
+export const FileList = React.memo(function FileList(): JSX.Element {
   const { provider, refreshItems, currentLibrary } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -599,14 +561,13 @@ export const FileList = React.memo(function FileList({
   const [isInitialized, setIsInitialized] = React.useState(false);
   const initializationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
-  const [selectedFile, setSelectedFile] = useAtom(selectedFileAtom);
+  const [, setSelectedFile] = useAtom(selectedFileAtom);
   const [, setFolderItems] = useAtom(folderItemsAtom);
 
   // NEU: Atome für Sortierung und Filter
   const items = useAtomValue(sortedFilteredFilesAtom);
   const [sortField, setSortField] = useAtom(sortFieldAtom);
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
-  const [, setSearchTerm] = useAtom(searchTermAtom);
 
   // handleSort nutzt jetzt Atome
   const handleSort = React.useCallback((field: SortField) => {
@@ -682,9 +643,9 @@ export const FileList = React.memo(function FileList({
     }
   }, [items, refreshItems, setFolderItems]);
 
-  const handleCreateTranscript = React.useCallback((e: React.MouseEvent, item: StorageItem) => {
+  const handleCreateTranscript = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    FileLogger.info('FileList', 'Create transcript for', { fileName: item.metadata.name });
+    FileLogger.info('FileList', 'Create transcript for', { fileName: 'TODO' });
     // TODO: Implement transcript creation
   }, []);
 
@@ -721,33 +682,6 @@ export const FileList = React.memo(function FileList({
     );
     return transcribableItems.length > 0 && selectedBatchItems.length === transcribableItems.length;
   }, [items, selectedBatchItems]);
-
-  // Sortiere die Items
-  const sortedItems = useMemo(() => {
-    if (!items) return [];
-    return [...items].sort((a, b) => {
-      if (sortField === 'type') {
-        if (a.type === b.type) return 0;
-        return a.type === 'folder' ? -1 : 1;
-      }
-      if (sortField === 'name') {
-        return sortOrder === 'asc' 
-          ? a.metadata.name.localeCompare(b.metadata.name)
-          : b.metadata.name.localeCompare(a.metadata.name);
-      }
-      if (sortField === 'size') {
-        return sortOrder === 'asc'
-          ? (a.metadata.size || 0) - (b.metadata.size || 0)
-          : (b.metadata.size || 0) - (a.metadata.size || 0);
-      }
-      if (sortField === 'date') {
-        const aDate = a.metadata.modifiedAt?.getTime() || 0;
-        const bDate = b.metadata.modifiedAt?.getTime() || 0;
-        return sortOrder === 'asc' ? aDate - bDate : bDate - aDate;
-      }
-      return 0;
-    });
-  }, [items, sortField, sortOrder]);
 
   // Handle Select All
   const handleSelectAll = useCallback((checked: boolean) => {
@@ -839,7 +773,7 @@ export const FileList = React.memo(function FileList({
   }, [selectedBatchItems]);
 
   // Löschfunktion
-  const handleDeleteClick = React.useCallback((e: React.MouseEvent, item: StorageItem) => {
+  const handleDeleteClick = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     // TODO: Implement delete logic
   }, []);
@@ -1011,8 +945,8 @@ export const FileList = React.memo(function FileList({
                     item={item as StorageItem}
                     isSelected={isItemSelected(item)}
                     onSelect={() => handleItemSelect(item)}
-                    onCreateTranscript={(e) => handleCreateTranscript(e, item)}
-                    onDelete={(e) => handleDeleteClick(e, item)}
+                    onCreateTranscript={handleCreateTranscript}
+                    onDelete={handleDeleteClick}
                     fileGroup={group}
                     onSelectRelatedFile={handleSelect}
                     onRename={handleRename}
@@ -1025,14 +959,3 @@ export const FileList = React.memo(function FileList({
     </div>
   );
 }); 
-
-function FileIcon({ type, mimeType }: { type: string; mimeType: string }) {
-  if (type === 'folder') return <Folder className="h-4 w-4" />;
-  
-  if (mimeType.startsWith('audio/')) return <FileAudio className="h-4 w-4 text-blue-500" />;
-  if (mimeType.startsWith('video/')) return <FileVideo className="h-4 w-4 text-purple-500" />;
-  if (mimeType.startsWith('image/')) return <Image className="h-4 w-4 text-green-500" />;
-  if (mimeType.startsWith('text/')) return <FileText className="h-4 w-4 text-orange-500" />;
-  
-  return <File className="h-4 w-4" />;
-} 

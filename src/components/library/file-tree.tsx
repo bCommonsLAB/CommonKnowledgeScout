@@ -1,25 +1,19 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronDown, ChevronRight, Folder, File } from "lucide-react"
-import { StorageProvider, StorageItem } from '@/lib/storage/types';
+import { ChevronDown, ChevronRight } from "lucide-react"
+import { StorageItem } from '@/lib/storage/types';
 import { cn } from "@/lib/utils"
-import { useAtom, useSetAtom, useAtomValue } from 'jotai';
+import { useAtom } from 'jotai';
 import { 
-  currentFolderIdAtom, 
-  activeLibraryIdAtom, 
   fileTreeReadyAtom, 
-  librariesAtom,
   loadedChildrenAtom,
   expandedFoldersAtom,
   selectedFileAtom
 } from '@/atoms/library-atom';
-import { StorageAuthButton } from "../shared/storage-auth-button";
-import { useStorage, isStorageError } from '@/contexts/storage-context';
-import { toast } from 'sonner';
-import { NavigationLogger, StateLogger, FileLogger } from "@/lib/debug/logger"
+import { useStorage } from '@/contexts/storage-context';
+import { FileLogger } from "@/lib/debug/logger"
 import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
-import { Tree } from "@/components/ui/tree"
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
 
 // Ref-Interface für externe Steuerung
@@ -28,27 +22,11 @@ export interface FileTreeRef {
   expandToItem: (itemId: string) => Promise<void>;
 }
 
-// Basis-Props für den FileTree
-interface FileTreeProps {
-  libraryName?: string;
-}
-
 // Props für einzelne Tree-Items
 interface TreeItemProps {
   item: StorageItem;
   level: number;
   onMoveItem?: (itemId: string, targetFolderId: string) => Promise<void>;
-}
-
-interface TreeNode {
-  id: string;
-  name: string;
-  children: StorageItem[];
-  parent: string | null;
-}
-
-interface LoadedChildren {
-  [key: string]: StorageItem[];
 }
 
 // TreeItem Komponente
@@ -60,7 +38,6 @@ function TreeItem({
   const [expandedFolders, setExpandedFolders] = useAtom(expandedFoldersAtom);
   const [selectedFile, setSelectedFile] = useAtom(selectedFileAtom);
   const [loadedChildren, setLoadedChildren] = useAtom(loadedChildrenAtom);
-  const [currentFolderId, setCurrentFolderId] = useAtom(currentFolderIdAtom);
   const { provider } = useStorage();
   const navigateToFolder = useFolderNavigation();
 
@@ -98,10 +75,8 @@ function TreeItem({
     setSelectedFile(item);
     if (item.type === 'folder') {
       navigateToFolder(item.id);
-    } else {
-      setCurrentFolderId(item.parentId);
     }
-  }, [setSelectedFile, setCurrentFolderId, navigateToFolder]);
+  }, [setSelectedFile, navigateToFolder]);
 
   const isExpanded = expandedFolders.has(item.id);
   const isSelected = selectedFile?.id === item.id;
@@ -146,12 +121,11 @@ function TreeItem({
 }
 
 // FileTree Hauptkomponente
-export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(function FileTree({
-  libraryName
+export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
 }, forwardedRef) {
-  const { provider, libraryStatus } = useStorage();
+  const { provider } = useStorage();
+  const [, setExpandedFolders] = useAtom(expandedFoldersAtom);
   const [loadedChildren, setLoadedChildren] = useAtom(loadedChildrenAtom);
-  const [expandedFolders, setExpandedFolders] = useAtom(expandedFoldersAtom);
   const [isReady, setFileTreeReady] = useAtom(fileTreeReadyAtom);
 
   // Root-Items laden
@@ -202,17 +176,17 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(function FileTree
 
   // Initial laden
   useEffect(() => {
-    if (libraryStatus === 'ready' && provider && !isReady) {
+    if (provider && !isReady) {
       loadRootItems();
     }
-  }, [libraryStatus, provider, loadRootItems, isReady]);
+  }, [provider, loadRootItems, isReady]);
 
   // Reset wenn sich die Library ändert
   useEffect(() => {
-    if (libraryStatus !== 'ready') {
+    if (!provider) {
       setFileTreeReady(false);
     }
-  }, [libraryStatus, setFileTreeReady]);
+  }, [provider, setFileTreeReady]);
 
   const items = (loadedChildren.root || []).filter(item => item.type === 'folder');
 

@@ -6,6 +6,7 @@ import { selectedFileAtom } from "@/atoms/library-atom";
 import { FileLogger } from "@/lib/debug/logger";
 import { memo, useEffect, useRef, useState } from 'react';
 import { StorageItem, StorageProvider } from '@/lib/storage/types';
+import { AudioTransform } from './audio-transform';
 
 interface AudioPlayerProps {
   provider: StorageProvider | null;

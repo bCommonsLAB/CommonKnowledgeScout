@@ -30,15 +30,12 @@ interface VideoTransformProps {
 export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTransformProps) {
   const item = useAtomValue(selectedFileAtom);
   const [isLoading, setIsLoading] = useState(false);
+  const provider = useStorageProvider();
+  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const { refreshItems } = useStorage();
   
-  // Prüfe ob item vorhanden ist
-  if (!item) {
-    return (
-      <div className="flex flex-col gap-4 p-4 text-center text-muted-foreground">
-        Keine Video-Datei ausgewählt
-      </div>
-    );
-  }
+  // Referenz für den TransformResultHandler
+  const transformResultHandlerRef = useRef<(result: VideoTransformResult) => void>(() => {});
   
   // Hilfsfunktion für den Basis-Dateinamen
   const getBaseFileName = (fileName: string): string => {
@@ -51,7 +48,7 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
     return `${baseName}.${targetLanguage}`;
   };
   
-  const baseName = getBaseFileName(item.metadata.name);
+  const baseName = item ? getBaseFileName(item.metadata.name) : '';
   const defaultLanguage = "de";
   
   const [saveOptions, setSaveOptions] = useState<SaveOptionsType>({
@@ -68,12 +65,14 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
   const [sourceLanguage, setSourceLanguage] = useState<string>("auto");
   const [template, setTemplate] = useState<string>("Video");
   
-  // Referenz für den TransformResultHandler
-  const transformResultHandlerRef = useRef<(result: VideoTransformResult) => void>(() => {});
-  
-  const provider = useStorageProvider();
-  const activeLibrary = useAtomValue(activeLibraryAtom);
-  const { refreshItems } = useStorage();
+  // Prüfe ob item vorhanden ist
+  if (!item) {
+    return (
+      <div className="flex flex-col gap-4 p-4 text-center text-muted-foreground">
+        Keine Video-Datei ausgewählt
+      </div>
+    );
+  }
   
   const handleTransform = async () => {
     FileLogger.info('VideoTransform', 'handleTransform aufgerufen mit saveOptions', saveOptions);

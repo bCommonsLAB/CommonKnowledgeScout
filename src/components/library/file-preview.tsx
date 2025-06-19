@@ -256,7 +256,7 @@ function PreviewContent({
         />
       );
     case 'video':
-      return <VideoPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} />;
+      return <VideoPlayer provider={provider} />;
     case 'markdown':
       return (
         <div className="h-full flex flex-col">

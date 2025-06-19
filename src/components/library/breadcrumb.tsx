@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from "react";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { cn } from "@/lib/utils";
 import { NavigationLogger, UILogger } from "@/lib/debug/logger";
 import { currentPathAtom, currentFolderIdAtom, activeLibraryAtom } from "@/atoms/library-atom";
@@ -15,7 +15,7 @@ interface BreadcrumbProps {
 export function Breadcrumb({ className }: BreadcrumbProps) {
   // Globale Atoms
   const currentPath = useAtomValue(currentPathAtom);
-  const [currentFolderId, setCurrentFolderId] = useAtom(currentFolderIdAtom);
+  const currentFolderId = useAtomValue(currentFolderIdAtom);
   const activeLibrary = useAtomValue(activeLibraryAtom);
 
   // Ref für horizontales Scrollen

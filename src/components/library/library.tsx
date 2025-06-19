@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useCallback, useEffect, useMemo } from "react"
+import { useCallback, useEffect } from "react"
 import { useAtom, useAtomValue } from "jotai"
 
 import { LibraryHeader } from "./library-header"
@@ -9,52 +9,27 @@ import { FileTree } from "./file-tree"
 import { FileList } from "./file-list"
 import { FilePreview } from "./file-preview"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { ClientLibrary } from "@/types/library"
-import { StorageItem } from "@/lib/storage/types"
 import { 
   libraryAtom, 
-  activeLibraryIdAtom, 
-  currentFolderIdAtom, 
-  librariesAtom, 
-  fileTreeReadyAtom,
+  fileTreeReadyAtom, 
   folderItemsAtom,
   loadingStateAtom,
   lastLoadedFolderAtom,
-  currentPathAtom,
-  selectedFileAtom
+  currentFolderIdAtom
 } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
 import { TranscriptionDialog } from "./transcription-dialog"
 import { NavigationLogger, StateLogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
-import { StorageProvider } from "@/lib/storage/types"
-
-export interface LibraryContextProps {
-  libraries: ClientLibrary[];
-  activeLibraryId: string;
-  onLibraryChange: (libraryId: string) => void;
-}
-
-interface LibraryHeaderProps {
-  activeLibrary: ClientLibrary | undefined;
-  provider: StorageProvider | null;
-  error: string | null;
-  onUploadComplete: () => void;
-  children?: React.ReactNode;
-}
 
 export function Library() {
   // Globale Atoms
-  const [folderItems, setFolderItems] = useAtom(folderItemsAtom);
-  const [loadingState, setLoadingState] = useAtom(loadingStateAtom);
+  const [, setFolderItems] = useAtom(folderItemsAtom);
+  const [, setLoadingState] = useAtom(loadingStateAtom);
   const [lastLoadedFolder, setLastLoadedFolder] = useAtom(lastLoadedFolderAtom);
-  const [currentFolderId, setCurrentFolderId] = useAtom(currentFolderIdAtom);
+  const [currentFolderId] = useAtom(currentFolderIdAtom);
   const [libraryState, setLibraryState] = useAtom(libraryAtom);
-  const globalActiveLibraryId = useAtomValue(activeLibraryIdAtom);
-  const libraries = useAtomValue(librariesAtom);
   const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
-  const currentPath = useAtomValue(currentPathAtom);
-  const [selectedFile, setSelectedFile] = useAtom(selectedFileAtom);
   
   // Storage Context
   const { 
@@ -64,21 +39,13 @@ export function Library() {
     libraryStatus
   } = useStorage();
 
-  // Die aktive Bibliothek aus den globalen Libraries ermitteln
-  const currentLibrary = useMemo(() => 
-    libraries.find(lib => lib.id === globalActiveLibraryId), 
-    [libraries, globalActiveLibraryId]
-  );
-
-  // Verwende selectedFileAtom direkt - kein Hook mehr nötig
-
   // Optimierter loadItems mit Cache-Check
   const loadItems = useCallback(async () => {
     StateLogger.info('Library', 'Starting loadItems', {
       currentFolderId,
       lastLoadedFolder,
       hasProvider: !!providerInstance,
-      libraryStatus
+      libraryStatus: libraryStatus
     });
 
     if (!providerInstance || libraryStatus !== 'ready') {
@@ -206,113 +173,7 @@ export function Library() {
       ...state,
       folderCache: {}
     }));
-  }, [globalActiveLibraryId, setLibraryState, setLastLoadedFolder]);
-
-  // Optimierter Folder Select Handler
-  const handleFolderSelect = useCallback(async (item: StorageItem) => {
-    if (item.type !== 'folder') return;
-    
-    NavigationLogger.info('Library', 'Folder selection started', {
-      folderId: item.id,
-      folderName: item.metadata.name
-    });
-
-    try {
-      // Lade Items
-      const items = await listItems(item.id);
-      
-      if (items) {
-        // Cache aktualisieren
-        const newFolderCache = { ...(libraryState.folderCache || {}) };
-        items.forEach(child => {
-          if (child.type === 'folder') {
-            newFolderCache[child.id] = {
-              ...child,
-              children: []
-            };
-          }
-        });
-        
-        // Parent Cache aktualisieren
-        const parent = newFolderCache[item.id];
-        if (parent) {
-          newFolderCache[item.id] = {
-            ...parent,
-            children: items
-          };
-        }
-
-        // State-Updates in einer Transaktion
-        React.startTransition(() => {
-          setLibraryState(state => ({
-            ...state,
-            folderCache: newFolderCache
-          }));
-          setCurrentFolderId(item.id);
-          setFolderItems(items);
-          setLastLoadedFolder(item.id);
-          
-          // Speichere den Ordner im localStorage
-          if (globalActiveLibraryId) {
-            localStorage.setItem(`folder-${globalActiveLibraryId}`, item.id);
-          }
-          
-          // Lösche die Dateiauswahl nur bei Ordnerwechsel
-          if (currentFolderId !== item.id) {
-            setSelectedFile(null);
-          }
-        });
-
-        NavigationLogger.info('Library', 'Folder selection completed', {
-          itemCount: items.length,
-          folderCount: items.filter(i => i.type === 'folder').length,
-          fileCount: items.filter(i => i.type === 'file').length
-        });
-      }
-    } catch (error) {
-      if (!isStorageError(error) || error.code !== 'AUTH_REQUIRED') {
-        StateLogger.error('Library', 'Failed to select folder', error);
-      }
-    }
-  }, [
-    listItems,
-    libraryState.folderCache,
-    setLibraryState,
-    setCurrentFolderId,
-    setFolderItems,
-    setLastLoadedFolder,
-    setSelectedFile,
-    currentFolderId,
-    globalActiveLibraryId
-  ]);
-
-  // Breadcrumb Navigation Handler
-  const handleBreadcrumbNav = useCallback(async (folderId: string) => {
-    if (!providerInstance || !currentLibrary) return;
-
-    try {
-      // Erstelle ein StorageItem für die Navigation
-      const item = folderId === 'root' 
-        ? {
-            id: 'root',
-            type: 'folder' as const,
-            metadata: {
-              name: currentLibrary.label || '/',
-              size: 0,
-              modifiedAt: new Date(),
-              mimeType: 'application/folder'
-            },
-            parentId: ''
-          }
-        : await providerInstance.getItemById(folderId);
-
-      if (item) {
-        handleFolderSelect(item);
-      }
-    } catch (error) {
-      StateLogger.error('Library', 'Failed to navigate via breadcrumb', error);
-    }
-  }, [providerInstance, currentLibrary, handleFolderSelect]);
+  }, [libraryStatus, setLibraryState, setLastLoadedFolder]);
 
   // Render-Logik für verschiedene Status
   if (libraryStatus === "waitingForAuth") {
@@ -335,7 +196,6 @@ export function Library() {
   return (
     <div className="flex flex-col h-full">
       <LibraryHeader
-        activeLibrary={currentLibrary}
         provider={providerInstance}
         error={storageError}
         onUploadComplete={loadItems}
@@ -345,36 +205,15 @@ export function Library() {
       
       <div className="flex-1 min-h-0 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={20} minSize={15} className="min-h-0">
+          <ResizablePanel defaultSize={20} min-size={15} className="min-h-0">
             <div className="h-full overflow-auto">
-              <FileTree
-                libraryName={currentLibrary?.label}
-              />
+              <FileTree />
             </div>
           </ResizablePanel>
           <ResizableHandle />
           <ResizablePanel defaultSize={40} className="min-h-0">
             <div className="h-full overflow-auto">
-              <FileList
-                onRefresh={(folderId, items) => {
-                  setFolderItems(items);
-                  if (libraryState.folderCache?.[folderId]) {
-                    const cachedFolder = libraryState.folderCache[folderId];
-                    if (cachedFolder) {
-                      setLibraryState(state => ({
-                        ...state,
-                        folderCache: {
-                          ...(state.folderCache || {}),
-                          [folderId]: {
-                            ...cachedFolder,
-                            children: items
-                          }
-                        }
-                      }));
-                    }
-                  }
-                }}
-              />
+              <FileList />
             </div>
           </ResizablePanel>
           <ResizableHandle />
@@ -415,7 +254,6 @@ export function Library() {
                       fileId: selectFileAfterRefresh.id,
                       fileName: selectFileAfterRefresh.metadata.name
                     });
-                    setSelectedFile(selectFileAfterRefresh);
                   }
                 }}
               />
