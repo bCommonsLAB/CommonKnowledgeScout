@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import * as React from "react"
-import { Moon, Sun, Settings } from "lucide-react"
+import { Moon, Sun, Settings, Plus } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAtom } from "jotai"
 
@@ -90,11 +90,54 @@ export function TopNav() {
         <div className="ml-auto flex items-center space-x-4">
           {/* Library Switcher - für angemeldete Benutzer mit Bibliotheken */}
           <SignedIn>
-            {libraries.length > 0 && (
+            {libraries.length > 0 ? (
               <div className="flex items-center gap-2">
                 <div className="w-[200px]">
                   <LibrarySwitcher />
                 </div>
+                
+                {/* Zahnrad-Symbol für Einstellungen */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => router.push('/settings')}
+                        className={cn(
+                          "rounded-full",
+                          pathname.startsWith('/settings') && "bg-muted"
+                        )}
+                      >
+                        <Settings className="h-[1.2rem] w-[1.2rem]" />
+                        <span className="sr-only">Bibliothekseinstellungen</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Bibliothekseinstellungen</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            ) : (
+              /* Neue Bibliothek Button für Benutzer ohne Bibliotheken */
+              <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        onClick={() => router.push('/settings?newUser=true')}
+                        className="gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Neue Bibliothek
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Erste Bibliothek erstellen</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 
                 {/* Zahnrad-Symbol für Einstellungen */}
                 <TooltipProvider>

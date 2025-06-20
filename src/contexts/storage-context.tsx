@@ -83,6 +83,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   const [authProvider, setAuthProvider] = useState<string | null>(null);
   const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>('initializing');
   const [lastRequestedLibraryId, setLastRequestedLibraryId] = useState<string | null>(null);
+  const [hasRedirectedToSettings, setHasRedirectedToSettings] = useState(false);
 
   // Provider-Wechsel-Logik
   useEffect(() => {
@@ -218,6 +219,22 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
           const factory = StorageFactory.getInstance();
           factory.setLibraries(data);
           
+          // Prüfe, ob der Benutzer keine Bibliotheken hat und noch nicht zur Settings-Seite weitergeleitet wurde
+          if (data.length === 0 && !hasRedirectedToSettings && typeof window !== 'undefined') {
+            const currentPath = window.location.pathname;
+            // Nur weiterleiten, wenn wir nicht bereits auf der Settings-Seite sind
+            if (!currentPath.startsWith('/settings')) {
+              console.log('[StorageContext] Neuer Benutzer ohne Bibliotheken - leite zur Settings-Seite weiter');
+              setHasRedirectedToSettings(true);
+              
+              // Sanfte Weiterleitung mit kurzer Verzögerung
+              setTimeout(() => {
+                window.location.href = '/settings?newUser=true';
+              }, 500);
+              return;
+            }
+          }
+          
           // Setze die erste Bibliothek als aktiv, falls noch keine ausgewählt ist
           if (data.length > 0) {
             const storedLibraryId = localStorage.getItem('activeLibraryId');
@@ -282,7 +299,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     return () => {
       isCancelled = true;
     };
-  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId]);
+  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId, hasRedirectedToSettings]);
 
   // Aktuelle Bibliothek aktualisieren
   const refreshCurrentLibrary = async () => {
