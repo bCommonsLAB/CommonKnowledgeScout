@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const archived = searchParams.get('archived') === 'true';
+    const eventName = searchParams.get('event'); // 🆕 Event-Filter
     const limit = parseInt(searchParams.get('limit') || '1000');
     const skip = parseInt(searchParams.get('skip') || '0');
     const isActive = searchParams.get('isActive') === 'true' ? true : 
@@ -23,9 +24,10 @@ export async function GET(request: NextRequest) {
       status = statusParam as BatchStatus;
     }
     
-    // Batches abrufen
+    // Batches abrufen mit Event-Filter
     const batches = await repository.getBatches({ 
       archived, 
+      eventName: eventName || undefined, // 🆕 Event-Filter weitergeben
       limit, 
       skip,
       status,
@@ -41,7 +43,8 @@ export async function GET(request: NextRequest) {
         batches,
         total,
         limit,
-        skip
+        skip,
+        eventFilter: eventName || null // 🆕 Info über aktiven Filter
       }
     });
   } catch (error) {

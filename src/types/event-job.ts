@@ -68,6 +68,7 @@ export interface Job {
   job_id: string;
   job_type: string;
   job_name?: string;
+  event_name?: string; // 🆕 Neues Feld für Event-Filterung
   status: JobStatus;
   parameters: JobParameters;
   results?: JobResults;
@@ -97,6 +98,7 @@ export enum BatchStatus {
 export interface Batch {
   batch_id: string;
   batch_name?: string;
+  event_name?: string; // 🆕 Neues Feld für Event-Filterung
   status: BatchStatus;
   created_at: Date;
   updated_at: Date;
@@ -203,5 +205,24 @@ export interface BatchStats {
 export interface ApiResponse<T = unknown> {
   status: 'success' | 'error';
   data?: T;
+  message?: string;
+}
+
+// Event-spezifische Interfaces
+export interface EventFilterOptions {
+  eventName?: string;
+  archived?: boolean;
+  status?: BatchStatus;
+  limit?: number;
+  skip?: number;
+  isActive?: boolean;
+}
+
+export interface EventListResponse {
+  status: 'success' | 'error';
+  data?: {
+    events: string[];
+    total: number;
+  };
   message?: string;
 } 

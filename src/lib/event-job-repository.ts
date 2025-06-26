@@ -258,8 +258,17 @@ export class EventJobRepository {
     limit?: number; 
     skip?: number;
     isActive?: boolean;
+    eventName?: string; // 🆕 Event-Filter
   } = {}): Promise<Batch[]> {
     try {
+      const { eventName, ...otherOptions } = options;
+      
+      // Falls Event-Filter gesetzt, nutze spezifische Methode
+      if (eventName) {
+        return this.getBatchesByEvent(eventName, otherOptions);
+      }
+      
+      // Ansonsten normale getBatches Logik
       const batchCollection = await this.getBatchCollection();
       
       const { 
@@ -268,7 +277,7 @@ export class EventJobRepository {
         limit = 100, 
         skip = 0,
         isActive
-      } = options;
+      } = otherOptions;
       
       const query: Record<string, unknown> = {};
       
@@ -469,18 +478,188 @@ export class EventJobRepository {
   }
   
   /**
-   * Setzt alle Batches auf Failed
+   * Holt alle verfügbaren Event-Namen aus der Datenbank
    */
-  async failAllBatches(): Promise<{ batchesUpdated: number, jobsUpdated: number }> {
+  async getAvailableEvents(): Promise<string[]> {
+    try {
+      const jobCollection = await this.getJobCollection();
+      
+      // Erst versuchen aus event_name Feld (für neue Struktur)
+      const eventsFromField = await jobCollection.distinct('event_name', {
+        event_name: { $exists: true, $ne: null, $ne: "" }
+      }) as string[];
+      
+      // Falls keine event_name Felder vorhanden, aus parameters.event extrahieren
+      if (eventsFromField.length === 0) {
+        const eventsFromParams = await jobCollection.distinct('parameters.event', {
+          'parameters.event': { $exists: true, $ne: null, $ne: "" }
+        }) as string[];
+        return eventsFromParams.filter(event => event != null).sort();
+      }
+      
+      return eventsFromField.filter(event => event != null).sort();
+    } catch (error) {
+      console.error('Fehler beim Abrufen der verfügbaren Events:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Holt Batches gefiltert nach Event
+   */
+  async getBatchesByEvent(
+    eventName: string,
+    options: { 
+      archived?: boolean; 
+      status?: BatchStatus; 
+      limit?: number; 
+      skip?: number;
+      isActive?: boolean;
+    } = {}
+  ): Promise<Batch[]> {
+    try {
+      const batchCollection = await this.getBatchCollection();
+      
+      const { 
+        archived, 
+        status, 
+        limit = 100, 
+        skip = 0,
+        isActive
+      } = options;
+      
+      // Query mit event_name oder fallback auf batch_name Pattern
+      const baseQuery: Record<string, unknown> = {
+        $or: [
+          { event_name: eventName },
+          { batch_name: { $regex: `^${eventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} -` } }
+        ]
+      };
+      
+      const query: Record<string, unknown> = { ...baseQuery };
+      
+      if (archived !== undefined) {
+        query.archived = archived;
+      }
+      
+      if (status !== undefined) {
+        query.status = status;
+      }
+      
+      if (isActive !== undefined) {
+        query.isActive = isActive;
+      }
+      
+      return await batchCollection
+        .find(query)
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+    } catch (error) {
+      console.error('Fehler beim Abrufen der Batches für Event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Migriert bestehende Jobs/Batches um event_name Feld hinzuzufügen
+   */
+  async migrateEventNames(): Promise<{ jobsUpdated: number, batchesUpdated: number }> {
+    try {
+      const jobCollection = await this.getJobCollection();
+      const batchCollection = await this.getBatchCollection();
+      
+      // Jobs migrieren: event_name aus parameters.event extrahieren
+      const jobResult = await jobCollection.updateMany(
+        { 
+          event_name: { $exists: false },
+          'parameters.event': { $exists: true, $ne: null, $ne: "" }
+        },
+        [
+          {
+            $set: {
+              event_name: "$parameters.event",
+              updated_at: new Date()
+            }
+          }
+        ]
+      );
+      
+      // Batches migrieren: event_name aus dem ersten Job des Batches ableiten
+      const batches = await batchCollection.find({ 
+        event_name: { $exists: false } 
+      }).toArray();
+      
+      let batchesUpdated = 0;
+      
+      for (const batch of batches) {
+        // Finde ersten Job des Batches um event_name zu ermitteln
+        const firstJob = await jobCollection.findOne(
+          { 
+            batch_id: batch.batch_id,
+            'parameters.event': { $exists: true, $ne: null, $ne: "" }
+          }
+        );
+        
+        if (firstJob && firstJob.parameters.event) {
+          await batchCollection.updateOne(
+            { batch_id: batch.batch_id },
+            { 
+              $set: { 
+                event_name: firstJob.parameters.event,
+                updated_at: new Date()
+              } 
+            }
+          );
+          batchesUpdated++;
+        }
+      }
+      
+      return {
+        jobsUpdated: jobResult.modifiedCount,
+        batchesUpdated
+      };
+    } catch (error) {
+      console.error('Fehler bei der Migration der Event-Namen:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Setzt alle Batches auf Failed (mit Event-Filter)
+   */
+  async failAllBatches(eventName?: string): Promise<{ batchesUpdated: number, jobsUpdated: number }> {
     try {
       const batchCollection = await this.getBatchCollection();
       const jobCollection = await this.getJobCollection();
       
       const now = new Date();
       
-      // Alle nicht archivierten Batches auf Failed setzen
+      // Query für Batch-Filter
+      let batchQuery: Record<string, unknown> = { archived: false };
+      let jobQuery: Record<string, unknown> = { archived: false };
+      
+      if (eventName) {
+        batchQuery = {
+          archived: false,
+          $or: [
+            { event_name: eventName },
+            { batch_name: { $regex: `^${eventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} -` } }
+          ]
+        };
+        jobQuery = {
+          archived: false,
+          $or: [
+            { event_name: eventName },
+            { 'parameters.event': eventName }
+          ]
+        };
+      }
+      
+      // Batches auf Failed setzen
       const batchResult = await batchCollection.updateMany(
-        { archived: false },
+        batchQuery,
         { 
           $set: { 
             status: BatchStatus.FAILED,
@@ -490,9 +669,9 @@ export class EventJobRepository {
         }
       );
       
-      // Alle nicht archivierten Jobs auf Failed setzen
+      // Jobs auf Failed setzen
       const jobResult = await jobCollection.updateMany(
-        { archived: false },
+        jobQuery,
         { 
           $set: { 
             status: JobStatus.FAILED,
@@ -503,7 +682,8 @@ export class EventJobRepository {
               message: 'Job wurde manuell auf failed gesetzt',
               details: {
                 forced_at: now.toISOString(),
-                reason: 'Manuelle Massenaktualisierung'
+                reason: 'Manuelle Massenaktualisierung',
+                eventFilter: eventName || 'Alle Events'
               }
             }
           } 
@@ -521,19 +701,35 @@ export class EventJobRepository {
   }
   
   /**
-   * Setzt alle nicht archivierten Batches und deren Jobs auf Pending
+   * Setzt alle nicht archivierten Batches und deren Jobs auf Pending (mit Event-Filter)
    * @param targetLanguage Optionale Zielsprache, die für alle Jobs gesetzt werden soll
+   * @param eventName Optionaler Event-Filter
    */
-  async pendingAllBatches(targetLanguage?: string): Promise<{ batchesUpdated: number, jobsUpdated: number }> {
+  async pendingAllBatches(targetLanguage?: string, eventName?: string): Promise<{ batchesUpdated: number, jobsUpdated: number }> {
     try {
       const batchCollection = await this.getBatchCollection();
       const jobCollection = await this.getJobCollection();
       
       const now = new Date();
       
-      // Alle nicht archivierten Batches auf Pending setzen
+      // Query für Batch-Filter
+      const batchQuery: Record<string, unknown> = { archived: false };
+      const jobQuery: Record<string, unknown> = { archived: false };
+      
+      if (eventName) {
+        batchQuery.$or = [
+          { event_name: eventName },
+          { batch_name: { $regex: `^${eventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} -` } }
+        ];
+        jobQuery.$or = [
+          { event_name: eventName },
+          { 'parameters.event': eventName }
+        ];
+      }
+      
+      // Batches auf Pending setzen
       const batchResult = await batchCollection.updateMany(
-        { archived: false },
+        batchQuery,
         { 
           $set: { 
             status: BatchStatus.PENDING,
@@ -567,17 +763,15 @@ export class EventJobRepository {
         }
       };
       
-      // Alle nicht archivierten Jobs auf Pending setzen (und ggf. Zielsprache aktualisieren)
+      // Jobs auf Pending setzen
       const jobResult = await jobCollection.updateMany(
-        { archived: false },
+        jobQuery,
         updateOperation
       );
       
       // Batch-Fortschritte aktualisieren
       if (batchResult.modifiedCount > 0) {
-        const batches = await batchCollection
-          .find({ archived: false })
-          .toArray();
+        const batches = await batchCollection.find(batchQuery).toArray();
           
         for (const batch of batches) {
           await this.updateBatchProgress(batch.batch_id);

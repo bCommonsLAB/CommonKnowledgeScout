@@ -33,6 +33,10 @@ const protectedNavItems = [
     name: "Event-Monitor",
     href: "/event-monitor",
   },
+  {
+    name: "Session-Manager",
+    href: "/session-manager",
+  },
 ];
 
 export function TopNav() {

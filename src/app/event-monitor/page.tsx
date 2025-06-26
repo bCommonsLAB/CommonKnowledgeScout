@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Plus, AlertTriangle, Clock, FileCheck, FileX, Files, BookOpenText } from 'lucide-react';
+import { Loader2, RefreshCw, Plus, AlertTriangle, Clock, FileCheck, FileX, Files, BookOpenText, Filter } from 'lucide-react'; // 🆕 Filter Icon hinzugefügt
 import BatchList from '@/components/event-monitor/batch-list';
 import { Batch } from '@/types/event-job';
 import JobDetailsPanel from '@/components/event-monitor/job-details-panel';
@@ -21,7 +21,9 @@ import { Label } from '@/components/ui/label';
 import { createAllTrackSummaries, SecretaryServiceError } from '@/lib/secretary/client';
 import { useAtom } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
+import { selectedEventAtom } from '@/atoms/event-filter-atom'; // 🆕 Event-Filter Atom
 import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
+import EventFilterDropdown from '@/components/event-monitor/event-filter-dropdown'; // 🆕 Event-Filter Komponente
 
 export default function EventMonitorPage() {
   const [currentTracks, setCurrentTracks] = useState<Batch[]>([]);
@@ -51,6 +53,7 @@ export default function EventMonitorPage() {
   
   // Verwende useAtom statt useAtomValue für activeLibraryIdAtom
   const [activeLibraryId] = useAtom(activeLibraryIdAtom);
+  const [selectedEvent] = useAtom(selectedEventAtom); // 🆕 Event-Filter State
   
   // Debug-Logging für die aktive Bibliothek
   useEffect(() => {
@@ -81,7 +84,7 @@ export default function EventMonitorPage() {
         clearInterval(intervalId);
       }
     };
-  }, [autoRefresh, activeTab]);
+  }, [autoRefresh, activeTab, selectedEvent]); // 🆕 selectedEvent als Dependency hinzugefügt
   
   // Statistiken berechnen
   useEffect(() => {
@@ -101,13 +104,26 @@ export default function EventMonitorPage() {
     setStatsFailed(failed);
   }, [currentTracks]);
   
-  async function loadCurrentTracks(showLoader = true) {
+  // URL für API-Aufrufe erweitern
+  const buildApiUrl = (baseUrl: string, archived: boolean) => {
+    const params = new URLSearchParams();
+    params.set('archived', archived.toString());
+    
+    if (selectedEvent) {
+      params.set('event', selectedEvent);
+    }
+    
+    return `${baseUrl}?${params.toString()}`;
+  };
+
+  const loadCurrentTracks = useCallback(async (showLoader = true) => {
     try {
       if (showLoader) {
         setLoading(true);
       }
       
-      const response = await fetch('/api/event-job/batches?archived=false');
+      const url = buildApiUrl('/api/event-job/batches', false);
+      const response = await fetch(url);
       const data = await response.json();
       
       if (data.status === 'success') {
@@ -125,15 +141,16 @@ export default function EventMonitorPage() {
         setLoading(false);
       }
     }
-  }
+  }, [selectedEvent]);
   
-  async function loadArchiveTracks(showLoader = true) {
+  const loadArchiveTracks = useCallback(async (showLoader = true) => {
     try {
       if (showLoader) {
         setArchiveLoading(true);
       }
       
-      const response = await fetch('/api/event-job/batches?archived=true');
+      const url = buildApiUrl('/api/event-job/batches', true);
+      const response = await fetch(url);
       const data = await response.json();
       
       if (data.status === 'success') {
@@ -151,7 +168,7 @@ export default function EventMonitorPage() {
         setArchiveLoading(false);
       }
     }
-  }
+  }, [selectedEvent]);
   
   async function handleTabChange(value: string) {
     setActiveTab(value);
@@ -277,7 +294,12 @@ export default function EventMonitorPage() {
     }
   }
   
-  // Job-Details Panel schließen
+  // Event-Filter-Change Handler
+  const handleEventFilterChange = useCallback((eventName: string | null) => {
+    // Daten werden automatisch durch useEffect neu geladen wenn selectedEvent sich ändert
+    console.log('Event-Filter geändert zu:', eventName);
+  }, []);
+
   const handleJobDetailsPanelChange = (open: boolean) => {
     setJobDetailsOpen(open);
     if (!open) {
@@ -289,7 +311,15 @@ export default function EventMonitorPage() {
   return (
     <div className="container py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Event-Track-Monitor</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold">Event-Track-Monitor</h1>
+          
+          {/* 🆕 Event-Filter Dropdown */}
+          <EventFilterDropdown 
+            onEventChange={handleEventFilterChange}
+            className="border-l pl-4"
+          />
+        </div>
         
         <div className="flex items-center gap-3">
           <Button 
@@ -351,6 +381,18 @@ export default function EventMonitorPage() {
           </div>
         </div>
       </div>
+      
+      {/* Event-Filter Status anzeigen */}
+      {selectedEvent && (
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span className="text-sm text-blue-800 dark:text-blue-300">
+              Gefiltert nach Event: <strong>{selectedEvent}</strong>
+            </span>
+          </div>
+        </div>
+      )}
       
       {/* Statistiken */}
       <div className="grid grid-cols-3 gap-4 mb-6">
