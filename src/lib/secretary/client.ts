@@ -1,3 +1,10 @@
+import { 
+  AudioTransformationRequest, 
+  AudioTransformationResponse, 
+  TransformationError,
+  TemplateExtractionResponse 
+} from './types';
+
 export class SecretaryServiceError extends Error {
   constructor(message: string) {
     super(message);
@@ -395,5 +402,85 @@ export async function transformVideo(
       throw error;
     }
     throw new SecretaryServiceError('Fehler bei der Verarbeitung der Video-Datei');
+  }
+}
+
+/**
+ * Interface für Session-Import-Response
+ */
+export interface SessionImportResponse {
+  status: string;
+  data: {
+    session: string;
+    filename: string;
+    track: string;
+    video_url: string;
+    attachments_url?: string;
+    event: string;
+    url: string;
+    day: string;
+    starttime: string;
+    endtime: string;
+    speakers: string[];
+    source_language: string;
+  };
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+/**
+ * Importiert Session-Daten aus einer Website-URL mithilfe des Secretary Services
+ * 
+ * @param url Die zu analysierende Website-URL
+ * @param options Optionen für die Session-Extraktion
+ * @returns Die extrahierten Session-Daten
+ */
+export async function importSessionFromUrl(
+  url: string,
+  options: {
+    sourceLanguage?: string;
+    targetLanguage?: string;
+    template?: string;
+    useCache?: boolean;
+  } = {}
+): Promise<TemplateExtractionResponse> {
+  try {
+    console.log('[secretary/client] importSessionFromUrl aufgerufen mit URL:', url);
+    
+    const response = await fetch('/api/secretary/import-from-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        source_language: options.sourceLanguage || 'en',
+        target_language: options.targetLanguage || 'en',
+        template: options.template || 'ExtractSessiondataFromWebsite',
+        use_cache: options.useCache ?? false
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new SecretaryServiceError(
+        errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`
+      );
+    }
+
+    const data: TemplateExtractionResponse = await response.json();
+    console.log('[secretary/client] Session-Import erfolgreich:', data);
+    
+    return data;
+  } catch (error) {
+    console.error('[secretary/client] Fehler beim Session-Import:', error);
+    if (error instanceof SecretaryServiceError) {
+      throw error;
+    }
+    throw new SecretaryServiceError(
+      error instanceof Error ? error.message : 'Unbekannter Fehler beim Session-Import'
+    );
   }
 } 

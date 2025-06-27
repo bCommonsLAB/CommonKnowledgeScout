@@ -51,6 +51,7 @@ import { Session } from '@/types/session';
 import { LANGUAGE_MAP } from '@/lib/secretary/constants';
 import { selectedEventAtom } from '@/atoms/event-filter-atom';
 import EventFilterDropdown from '@/components/event-monitor/event-filter-dropdown';
+import SessionImportModal from '@/components/session/session-import-modal';
 
 export default function SessionManagerPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -71,6 +72,9 @@ export default function SessionManagerPage() {
   const [targetLanguage, setTargetLanguage] = useState('de');
   const [batchName, setBatchName] = useState('');
   const [generating, setGenerating] = useState(false);
+  
+  // Session-Import Dialog
+  const [sessionImportDialog, setSessionImportDialog] = useState(false);
   
   // Editier-Zustand
   const [editingCell, setEditingCell] = useState<{ sessionId: string; field: string } | null>(null);
@@ -100,9 +104,9 @@ export default function SessionManagerPage() {
         setSessions(data.data.sessions);
         
         // Filter-Optionen extrahieren
-        const tracks = Array.from(new Set(data.data.sessions.map((s: Session) => s.track))).filter((t): t is string => typeof t === 'string');
-        const days = Array.from(new Set(data.data.sessions.map((s: Session) => s.day))).filter((d): d is string => typeof d === 'string');
-        const languages = Array.from(new Set(data.data.sessions.map((s: Session) => s.source_language))).filter((l): l is string => typeof l === 'string');
+        const tracks = Array.from(new Set(data.data.sessions.map((s: Session) => s.track))).filter((t): t is string => typeof t === 'string' && t !== null && t !== undefined);
+        const days = Array.from(new Set(data.data.sessions.map((s: Session) => s.day))).filter((d): d is string => typeof d === 'string' && d !== null && d !== undefined);
+        const languages = Array.from(new Set(data.data.sessions.map((s: Session) => s.source_language))).filter((l): l is string => typeof l === 'string' && l !== null && l !== undefined);
         
         setAvailableTracks(tracks.sort());
         setAvailableDays(days.sort());
@@ -256,6 +260,13 @@ export default function SessionManagerPage() {
     }
   };
   
+  // Handler für erfolgreich importierte Session
+  const handleSessionImported = (sessionData: any) => {
+    console.log('[SessionManager] Session importiert:', sessionData);
+    // Sessions neu laden um neue Session anzuzeigen
+    loadSessions();
+  };
+  
   // Editierbare Zelle rendern
   const renderEditableCell = (session: Session, field: keyof Session, value: string, maxWidth = "max-w-64") => {
     const isEditing = editingCell?.sessionId === session.id && editingCell?.field === field;
@@ -380,9 +391,9 @@ export default function SessionManagerPage() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
           </Button>
           
-          <Button variant="outline">
-            <Upload className="w-4 h-4 mr-2" />
-            Import
+          <Button variant="outline" onClick={() => setSessionImportDialog(true)}>
+            <Globe className="w-4 h-4 mr-2" />
+            Aus Website importieren
           </Button>
           
           <Button variant="outline">
@@ -457,7 +468,7 @@ export default function SessionManagerPage() {
             <SelectContent>
               <SelectItem value="__all__">Alle</SelectItem>
               {availableLanguages.map(lang => (
-                <SelectItem key={lang} value={lang}>{lang.toUpperCase()}</SelectItem>
+                <SelectItem key={lang} value={lang}>{lang?.toUpperCase() || 'UNBEKANNT'}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -588,7 +599,7 @@ export default function SessionManagerPage() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Globe className="w-4 h-4 text-gray-500" />
-                        <Badge>{session.source_language.toUpperCase()}</Badge>
+                        <Badge>{session.source_language?.toUpperCase() || 'UNBEKANNT'}</Badge>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -651,6 +662,13 @@ export default function SessionManagerPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Session-Import Dialog */}
+      <SessionImportModal
+        open={sessionImportDialog}
+        onOpenChange={setSessionImportDialog}
+        onSessionImported={handleSessionImported}
+      />
     </div>
   );
 } 
