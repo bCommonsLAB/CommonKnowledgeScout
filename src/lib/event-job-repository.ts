@@ -869,6 +869,7 @@ export class EventJobRepository {
         batch_id: 1,
         user_id: 1,
         parameters: 1,
+        results: 1,
         _id: 0
       };
       
@@ -906,60 +907,60 @@ export class EventJobRepository {
   }
   
   /**
-   * Setzt alle Jobs eines Batches auf PENDING zurück 
+   * Setzt alle Jobs eines Batches auf PENDING zurück und aktualisiert optional parameters.use_cache
    */
-  async restartBatch(batchId: string): Promise<boolean> {
+  async restartBatchWithOptions(batchId: string, useCache?: boolean): Promise<boolean> {
     try {
       const jobCollection = await this.getJobCollection();
       const batchCollection = await this.getBatchCollection();
-      
-      // Prüfen, ob der Batch existiert
       const batch = await this.getBatch(batchId);
-      if (!batch) {
-        return false;
-      }
-      
+      if (!batch) return false;
       const now = new Date();
-      
-      // Alle Jobs des Batches auf PENDING zurücksetzen
-      const updateResult = await jobCollection.updateMany(
-        { batch_id: batchId },
-        { 
-          $set: { 
-            status: JobStatus.PENDING, 
-            updated_at: now,
-            // Zurücksetzen der Verarbeitungsdaten
-            processing_started_at: undefined,
-            completed_at: undefined,
-            error: undefined,
-            progress: undefined
-          },
-          // Entfernen der Ergebnisse, wenn vorhanden
-          $unset: { results: "" }
+
+      // Alle Jobs des Batches abrufen
+      const jobs = await jobCollection.find({ batch_id: batchId }).toArray();
+      let modifiedCount = 0;
+      for (const job of jobs) {
+        const parameters = { ...job.parameters };
+        if (useCache !== undefined) {
+          parameters.use_cache = useCache;
         }
-      );
-      
+        const updateResult = await jobCollection.updateOne(
+          { job_id: job.job_id },
+          {
+            $set: {
+              status: JobStatus.PENDING,
+              updated_at: now,
+              processing_started_at: undefined,
+              completed_at: undefined,
+              error: undefined,
+              progress: undefined,
+              parameters,
+            },
+            $unset: { results: "" }
+          }
+        );
+        if (updateResult.modifiedCount > 0) modifiedCount++;
+      }
       // Batch-Status aktualisieren
-      if (updateResult.modifiedCount > 0) {
+      if (modifiedCount > 0) {
         await batchCollection.updateOne(
           { batch_id: batchId },
-          { 
-            $set: { 
+          {
+            $set: {
               status: BatchStatus.PENDING,
               updated_at: now,
-              // Zurücksetzen der Zähler
               completed_jobs: 0,
               failed_jobs: 0,
               pending_jobs: batch.total_jobs || 0,
               processing_jobs: 0
-            } 
+            }
           }
         );
       }
-      
-      return updateResult.modifiedCount > 0;
+      return modifiedCount > 0;
     } catch (error) {
-      console.error('Fehler beim Neustarten des Batches:', error);
+      console.error('Fehler beim Neustarten des Batches (mit Optionen):', error);
       throw error;
     }
   }

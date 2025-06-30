@@ -35,8 +35,10 @@ import {
   RotateCw,
   Loader2,
   BookOpenText,
-  Download
+  Download,
+  AlertTriangle
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Batch, BatchStatus, Job, JobStatus } from '@/types/event-job';
 import { ClientLibrary } from '@/types/library';
 import { formatDateTime } from '@/lib/utils';
@@ -57,160 +59,19 @@ import { createTrackSummary, SecretaryServiceError } from '@/lib/secretary/clien
 import { useAtom } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
 import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
+import BatchArchiveDialog from './batch-archive-dialog';
 
-// Archive-Dialog-Komponente
-interface ArchiveDialogProps {
-  batch: Batch;
-  completedJobs: Job[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onComplete: (result: any) => void;
-}
-
-function ArchiveDialog({ batch, completedJobs, open, onOpenChange, onComplete }: ArchiveDialogProps) {
-  const [selectedLibraryId, setSelectedLibraryId] = useState<string>('');
-  const [availableLibraries, setAvailableLibraries] = useState<ClientLibrary[]>([]);
-  const [targetDirectory, setTargetDirectory] = useState<string>('');
-  const [processing, setProcessing] = useState(false);
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom);
-
-  useEffect(() => {
-    if (open) {
-      loadLibraries();
-      setSelectedLibraryId(activeLibraryId || '');
-    }
-  }, [open, activeLibraryId]);
-
-  const loadLibraries = async () => {
-    try {
-      const response = await fetch('/api/libraries');
-      const data = await response.json();
-      if (data.status === 'success') {
-        setAvailableLibraries(data.data.libraries || []);
-      }
-    } catch (error) {
-      console.error('Fehler beim Laden der Libraries:', error);
-    }
-  };
-
-  const handleStartArchive = async () => {
-    if (!selectedLibraryId) return;
-    
-    setProcessing(true);
-    try {
-      // Einfacher Test-Download der ersten Archive
-      let successCount = 0;
-      let totalFiles = 0;
-      
-      for (const job of completedJobs) {
-        if (job.results?.archive_data) {
-          try {
-            // Teste Archive-Download
-            const response = await fetch(`/api/event-job/jobs/${job.job_id}/download-archive`);
-            if (response.ok) {
-              successCount++;
-              totalFiles += 2; // Geschätzt: Markdown + Images
-            }
-          } catch (error) {
-            console.error(`Fehler bei Job ${job.job_id}:`, error);
-          }
-        }
-      }
-      
-      onComplete({
-        success: Array.from({ length: successCount }, (_, i) => ({
-          jobId: completedJobs[i]?.job_id || '',
-          sessionName: completedJobs[i]?.parameters?.session || 'Unknown',
-          filesCreated: 2,
-          markdownPath: 'test/path.md'
-        })),
-        failed: [],
-        totalFiles
-      });
-      
-    } catch (error) {
-      console.error('Archive-Fehler:', error);
-      alert('Fehler beim Verarbeiten der Archive');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const jobsWithArchives = completedJobs.filter(job => job.results?.archive_data);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Download className="w-5 h-5" />
-            Jobs in Library speichern
-          </DialogTitle>
-          <DialogDescription>
-            {jobsWithArchives.length} von {completedJobs.length} Jobs aus 
-            "{batch.batch_name}" haben Archive.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Ziel-Library</Label>
-            <Select value={selectedLibraryId} onValueChange={setSelectedLibraryId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Library auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                {availableLibraries.map(library => (
-                  <SelectItem key={library.id} value={library.id}>
-                    {library.label} ({library.type})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label>Zielverzeichnis (optional)</Label>
-            <Input
-              value={targetDirectory}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTargetDirectory(e.target.value)}
-              placeholder="z.B. Conferences/2025"
-              disabled={processing}
-            />
-          </div>
-          
-          <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded">
-            <p className="text-sm">
-              <strong>{jobsWithArchives.length}</strong> Jobs mit Archiven gefunden
-            </p>
-            <p className="text-xs text-gray-600 mt-1">
-              Geschätzte Dateien: ~{jobsWithArchives.length * 3}
-            </p>
-          </div>
-        </div>
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>
-            Abbrechen
-          </Button>
-          <Button onClick={handleStartArchive} disabled={!selectedLibraryId || processing}>
-            {processing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-            Archive speichern
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// Archive-Dialog wird jetzt durch separate BatchArchiveDialog-Komponente ersetzt
 
 interface BatchListProps {
   batches: Batch[];
   onRefresh: () => void;
   isArchive?: boolean;
   onJobClick?: (jobId: string) => void;
+  selectedEvent?: string; // Aktuell gewähltes Event für Filterung
 }
 
-export default function BatchList({ batches, onRefresh, isArchive = false, onJobClick }: BatchListProps) {
+export default function BatchList({ batches, onRefresh, isArchive = false, onJobClick, selectedEvent }: BatchListProps) {
   const router = useRouter();
   const [processingBatch, setProcessingBatch] = useState<string | null>(null);
   const [expandedBatches, setExpandedBatches] = useState<Record<string, boolean>>({});
@@ -233,7 +94,18 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
   const [completedJobsForArchive, setCompletedJobsForArchive] = useState<Job[]>([]);
   
- 
+  // Dialog-Komponente für Batch-Restart
+  const [batchRestartDialogOpen, setBatchRestartDialogOpen] = useState(false);
+  const [selectedBatchForRestart, setSelectedBatchForRestart] = useState<Batch | null>(null);
+  const [batchRestartDialogUseCache, setBatchRestartDialogUseCache] = useState(false);
+  const [batchRestartDialogLoading, setBatchRestartDialogLoading] = useState(false);
+  
+  // Event-weiter Restart-Dialog
+  const [eventRestartDialogOpen, setEventRestartDialogOpen] = useState(false);
+  const [eventRestartUseCache, setEventRestartUseCache] = useState(false);
+  const [eventRestartLoading, setEventRestartLoading] = useState(false);
+  const [selectedEventForRestart, setSelectedEventForRestart] = useState<string>('');
+  
   // Status-Badge darstellen
   function getBatchStatusBadge(status: BatchStatus) {
     switch (status) {
@@ -496,25 +368,150 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
     const data = await response.json();
     
     if (data.status === 'success') {
-      return data.data.jobs.filter((job: Job) => 
-        job.status === JobStatus.COMPLETED && 
-        job.results?.archive_data
-      );
+      const allJobs = data.data.jobs;
+      const completedJobs = allJobs.filter((job: Job) => job.status === JobStatus.COMPLETED);
+      
+      console.log(`[Archive Debug] Batch ${batchId}:`);
+      console.log(`  - Alle Jobs: ${allJobs.length}`);
+      console.log(`  - COMPLETED Jobs: ${completedJobs.length}`);
+      
+      // Debug: Zeige Status-Verteilung
+      const statusCounts = allJobs.reduce((acc: Record<string, number>, job: Job) => {
+        acc[job.status] = (acc[job.status] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(`  - Status-Verteilung:`, statusCounts);
+      
+      // Debug: Analysiere alle COMPLETED Jobs
+      completedJobs.forEach((job: Job, index: number) => {
+        if (index < 3) { // Nur die ersten 3 zur Übersicht
+          console.log(`  - COMPLETED Job ${index + 1}:`, {
+            job_id: job.job_id,
+            job_name: job.job_name,
+            status: job.status,
+            has_results: !!job.results,
+            results_keys: job.results ? Object.keys(job.results) : [],
+            has_archive_data: !!job.results?.archive_data,
+            has_archive_filename: !!job.results?.archive_filename,
+            archive_data_length: job.results?.archive_data ? job.results.archive_data.length : 0
+          });
+        }
+      });
+      
+      // Gib alle COMPLETED Jobs zurück - Filterung passiert im Dialog
+      return completedJobs;
     }
     
     return [];
   };
   
   // Archive-Verarbeitung abgeschlossen
-  const handleArchiveComplete = (result: any) => {
+  const handleArchiveComplete = (result: { success: Array<{ jobId: string; sessionName: string; filesCreated: number; markdownPath: string; assetsPath: string }>; failed: Array<{ jobId: string; sessionName: string; error: string }>; totalFiles: number }) => {
     setArchiveDialogOpen(false);
     setSelectedBatch(null);
     setCompletedJobsForArchive([]);
     
     // Erfolgs-Toast oder Notification
-    alert(`${result.success.length} Sessions erfolgreich in Library gespeichert. ${result.totalFiles} Dateien erstellt.`);
+    if (result.success.length > 0) {
+      const successMessage = `${result.success.length} Sessions erfolgreich in Library gespeichert. ${result.totalFiles} Dateien erstellt.`;
+      if (result.failed.length > 0) {
+        alert(`${successMessage}\n\n${result.failed.length} Session(s) fehlgeschlagen: ${result.failed.map(f => f.sessionName).join(', ')}`);
+      } else {
+        alert(successMessage);
+      }
+    } else if (result.failed.length > 0) {
+      alert(`Alle ${result.failed.length} Sessions sind fehlgeschlagen: ${result.failed.map(f => f.error).join(', ')}`);
+    } else {
+      alert('Keine Sessions gefunden zum Verarbeiten.');
+    }
   };
   
+  // Hilfsfunktion: Zähle alle angezeigten Batches (bereits serverseitig gefiltert)
+  const getBatchCountForFilteredEvent = (): number => {
+    if (!selectedEvent) return 0;
+    
+    // Einfach: Verwende alle aktuell angezeigten Batches
+    // Diese sind bereits serverseitig nach dem gewählten Event gefiltert
+    console.log('[Event Restart] Event-Filter aktiv:', selectedEvent);
+    console.log('[Event Restart] Verwende alle angezeigten Batches:', batches.length);
+    console.log('[Event Restart] Batch-Namen:', batches.map(b => b.batch_name));
+    
+    return batches.length;
+  };
+
+  // Event-weiten Restart starten (für alle angezeigten Batches)
+  const openEventRestartDialog = () => {
+    if (!selectedEvent) {
+      alert('Kein Event gefiltert. Bitte filtern Sie zuerst nach einem Event.');
+      return;
+    }
+    
+    if (batches.length === 0) {
+      alert('Keine Batches zum Neustarten gefunden.');
+      return;
+    }
+    
+    setSelectedEventForRestart(selectedEvent);
+    setEventRestartDialogOpen(true);
+  };
+
+  // Event-weiter Restart durchführen
+  const handleEventRestart = async () => {
+    if (!selectedEventForRestart) {
+      alert('Bitte wählen Sie ein Event aus.');
+      return;
+    }
+    
+    // Verwende alle aktuell angezeigten Batches (bereits serverseitig gefiltert)
+    const batchesForEvent = batches;
+    
+    const confirmMessage = `WARNUNG: Dies startet ALLE ${batchesForEvent.length} Batches des Events "${selectedEventForRestart}" neu.\n\n` +
+      `Cache-Einstellung: ${eventRestartUseCache ? 'Cache VERWENDEN' : 'Cache NICHT verwenden (vollständige Neuverarbeitung)'}\n\n` +
+      `Dies kann nicht rückgängig gemacht werden. Fortfahren?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+    
+    try {
+      setEventRestartLoading(true);
+      
+      const response = await fetch(`/api/event-job/events/${encodeURIComponent(selectedEventForRestart)}/restart-all-batches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          useCache: eventRestartUseCache,
+          confirm: true 
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        setEventRestartDialogOpen(false);
+        
+        // Erfolgs-Details anzeigen
+        const { successful_batches, failed_batches, total_jobs_restarted } = data.data;
+        const successMessage = `Event-Restart erfolgreich!\n\n` +
+          `✅ ${successful_batches} Batches erfolgreich neu gestartet\n` +
+          `❌ ${failed_batches} Batches fehlgeschlagen\n` +
+          `📊 ${total_jobs_restarted} Jobs insgesamt neu gestartet\n` +
+          `🔄 Cache: ${eventRestartUseCache ? 'Verwendet' : 'Deaktiviert'}`;
+        
+        alert(successMessage);
+        onRefresh();
+      } else {
+        console.error('Fehler beim Event-Restart:', data.message);
+        alert(`Fehler beim Event-Restart: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('Fehler beim Event-Restart:', error);
+      alert(`Fehler beim Event-Restart: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+    } finally {
+      setEventRestartLoading(false);
+    }
+  };
+
   // Zusammenfassung für einen Batch erstellen
   async function createSummaryForBatch(batchId: string, template: string, targetLanguage: string) {
     try {
@@ -577,6 +574,35 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   
   return (
     <div className="space-y-4">
+      {/* Event-weite Steuerung - nur wenn Event gefiltert ist */}
+      {selectedEvent && !isArchive && (
+        <Card className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-orange-900 dark:text-orange-100">Event-weite Aktionen</h3>
+                <p className="text-sm text-orange-700 dark:text-orange-300">
+                  Alle <strong>{getBatchCountForFilteredEvent()}</strong> Batches des Events <strong>"{selectedEvent}"</strong> neu starten
+                </p>
+              </div>
+              <Button
+                onClick={() => openEventRestartDialog()}
+                variant="outline"
+                className="border-orange-300 text-orange-700 hover:bg-orange-100 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-800"
+                disabled={eventRestartLoading}
+              >
+                {eventRestartLoading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RotateCw className="w-4 h-4 mr-2" />
+                )}
+                Alle Batches neu starten
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+      
       {batches.map((batch) => (
         <Card key={batch.batch_id} className="overflow-hidden">
       <Table>
@@ -689,6 +715,18 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                       >
                         <Download className="w-4 h-4 mr-2" />
                         In Library speichern
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuItem 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedBatchForRestart(batch);
+                          setBatchRestartDialogOpen(true);
+                        }}
+                        disabled={processingBatch === batch.batch_id}
+                      >
+                        <RotateCw className="w-4 h-4 mr-2" />
+                        Batch neu starten
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -848,14 +886,179 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
       
       {/* Archive-Dialog */}
       {selectedBatch && (
-        <ArchiveDialog
+        <BatchArchiveDialog
           batch={selectedBatch}
           completedJobs={completedJobsForArchive}
           open={archiveDialogOpen}
           onOpenChange={setArchiveDialogOpen}
-          onComplete={handleArchiveComplete}
+          onArchiveComplete={handleArchiveComplete}
         />
       )}
+      
+      {/* Dialog-Komponente für Batch-Restart */}
+      {selectedBatchForRestart && (
+        <Dialog open={batchRestartDialogOpen} onOpenChange={setBatchRestartDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Batch neu starten</DialogTitle>
+              <DialogDescription>
+                Alle Jobs im Batch "{selectedBatchForRestart.batch_name}" werden auf PENDING zurückgesetzt.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="batch-use-cache"
+                  checked={batchRestartDialogUseCache}
+                  onCheckedChange={(checked) => setBatchRestartDialogUseCache(checked === true)}
+                />
+                <Label htmlFor="batch-use-cache" className="text-sm">
+                  Cache verwenden
+                </Label>
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Wenn aktiviert, werden bereits verarbeitete Dateien aus dem Cache wiederverwendet.
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBatchRestartDialogOpen(false)}>
+                Abbrechen
+              </Button>
+              <Button 
+                onClick={async () => {
+                  setBatchRestartDialogLoading(true);
+                  try {
+                    const response = await fetch(`/api/event-job/batches/${selectedBatchForRestart.batch_id}/restart`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ useCache: batchRestartDialogUseCache }),
+                    });
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                      setBatchRestartDialogOpen(false);
+                      setSelectedBatchForRestart(null);
+                      onRefresh();
+                    } else {
+                      alert('Fehler: ' + data.message);
+                    }
+                  } catch (error) {
+                    alert('Fehler beim Neustarten des Batches');
+                  } finally {
+                    setBatchRestartDialogLoading(false);
+                  }
+                }}
+                disabled={batchRestartDialogLoading}
+              >
+                {batchRestartDialogLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Batch neu starten
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Dialog-Komponente für Event-weiten Restart */}
+      <Dialog open={eventRestartDialogOpen} onOpenChange={setEventRestartDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCw className="w-5 h-5 text-orange-600" />
+              Alle Batches neu starten
+            </DialogTitle>
+            <DialogDescription>
+              Startet alle Batches des Events <strong>"{selectedEventForRestart}"</strong> neu. 
+              Dies ist eine mächtige Operation, die viele Jobs gleichzeitig beeinflusst.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Event-Info (nicht editierbar) */}
+            <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+              <div className="flex items-center gap-2">
+                <RotateCw className="w-4 h-4 text-orange-600" />
+                <div>
+                  <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                    Event: {selectedEventForRestart}
+                  </p>
+                  <p className="text-xs text-orange-700 dark:text-orange-300">
+                    Gefiltertes Event wird neu gestartet
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Batch-Vorschau */}
+            {selectedEventForRestart && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <p className="text-sm font-medium mb-2">Betroffene Batches ({batches.length}):</p>
+                <div className="text-sm text-gray-600 dark:text-gray-400 max-h-32 overflow-y-auto">
+                  {batches.map(batch => (
+                    <div key={batch.batch_id} className="flex justify-between py-1">
+                      <span className="truncate mr-2">{batch.batch_name}</span>
+                      <span className="text-xs flex-shrink-0">({batch.total_jobs} Jobs)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Cache-Option */}
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="event-use-cache"
+                  checked={eventRestartUseCache}
+                  onCheckedChange={(checked) => setEventRestartUseCache(checked === true)}
+                  disabled={eventRestartLoading}
+                />
+                <Label htmlFor="event-use-cache" className="text-sm font-medium">
+                  Cache verwenden
+                </Label>
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                <strong>Cache aktiviert:</strong> Bereits verarbeitete Dateien werden wiederverwendet (schneller)<br/>
+                <strong>Cache deaktiviert:</strong> Vollständige Neuverarbeitung aller Dateien (langsamer, aber aktueller)
+              </div>
+            </div>
+
+            {/* Warnung */}
+            <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-orange-600 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-orange-800 dark:text-orange-200">Warnung</p>
+                  <p className="text-orange-700 dark:text-orange-300">
+                    Diese Aktion startet alle Jobs in allen Batches des gewählten Events neu. 
+                    Laufende Verarbeitungen werden unterbrochen.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setEventRestartDialogOpen(false)}
+              disabled={eventRestartLoading}
+            >
+              Abbrechen
+            </Button>
+                          <Button 
+                onClick={handleEventRestart}
+                disabled={eventRestartLoading || !selectedEventForRestart}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                                {eventRestartLoading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RotateCw className="w-4 h-4 mr-2" />
+                )}
+                {getBatchCountForFilteredEvent()} Batches neu starten
+              </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

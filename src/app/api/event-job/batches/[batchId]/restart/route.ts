@@ -14,7 +14,12 @@ export async function POST(
 ) {
   try {
     const { batchId } = await params;
-    
+    // Request-Body parsen
+    let useCache: boolean | undefined = undefined;
+    try {
+      const body = await request.json();
+      if (typeof body.useCache === 'boolean') useCache = body.useCache;
+    } catch {}
     // Batch überprüfen
     const batch = await repository.getBatch(batchId);
     
@@ -25,8 +30,8 @@ export async function POST(
       );
     }
     
-    // Alle Jobs des Batches auf PENDING zurücksetzen
-    const result = await repository.restartBatch(batchId);
+    // Alle Jobs des Batches auf PENDING zurücksetzen (mit useCache)
+    const result = await repository.restartBatchWithOptions(batchId, useCache);
     
     if (!result) {
       return NextResponse.json(

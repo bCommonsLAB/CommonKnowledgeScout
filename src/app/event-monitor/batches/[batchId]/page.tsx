@@ -38,7 +38,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-// BatchArchiveDialog entfernt - verwende einfachen Download
+
 
 interface CollapsibleContentProps {
   job: Job;

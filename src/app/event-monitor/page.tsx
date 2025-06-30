@@ -465,7 +465,8 @@ export default function EventMonitorPage() {
           ) : currentTracks.length > 0 ? (
             <BatchList 
               batches={currentTracks} 
-              onRefresh={loadCurrentTracks} 
+              onRefresh={loadCurrentTracks}
+              selectedEvent={selectedEvent || undefined}
             />
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -491,6 +492,7 @@ export default function EventMonitorPage() {
               batches={archiveTracks} 
               onRefresh={loadArchiveTracks} 
               isArchive={true}
+              selectedEvent={selectedEvent || undefined}
             />
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
