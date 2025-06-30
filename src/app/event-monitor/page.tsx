@@ -23,7 +23,8 @@ import { useAtom } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
 import { selectedEventAtom } from '@/atoms/event-filter-atom'; // 🆕 Event-Filter Atom
 import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
-import EventFilterDropdown from '@/components/event-monitor/event-filter-dropdown'; // 🆕 Event-Filter Komponente
+import EventFilterDropdown from '@/components/event-monitor/event-filter-dropdown';
+// JobArchiveTest entfernt - wird durch Job-spezifische Download-Buttons ersetzt
 
 export default function EventMonitorPage() {
   const [currentTracks, setCurrentTracks] = useState<Batch[]>([]);
@@ -432,6 +433,8 @@ export default function EventMonitorPage() {
           <p>{error}</p>
         </div>
       )}
+      
+      {/* Archive-Test-Komponente entfernt - Download-Buttons sind jetzt direkt bei den Jobs integriert */}
       
       <Tabs 
         defaultValue="current" 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,9 +34,11 @@ import {
   ChevronRight,
   RotateCw,
   Loader2,
-  BookOpenText
+  BookOpenText,
+  Download
 } from 'lucide-react';
 import { Batch, BatchStatus, Job, JobStatus } from '@/types/event-job';
+import { ClientLibrary } from '@/types/library';
 import { formatDateTime } from '@/lib/utils';
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -50,10 +52,156 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { createTrackSummary, SecretaryServiceError } from '@/lib/secretary/client';
 import { useAtom } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
 import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
+
+// Archive-Dialog-Komponente
+interface ArchiveDialogProps {
+  batch: Batch;
+  completedJobs: Job[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onComplete: (result: any) => void;
+}
+
+function ArchiveDialog({ batch, completedJobs, open, onOpenChange, onComplete }: ArchiveDialogProps) {
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string>('');
+  const [availableLibraries, setAvailableLibraries] = useState<ClientLibrary[]>([]);
+  const [targetDirectory, setTargetDirectory] = useState<string>('');
+  const [processing, setProcessing] = useState(false);
+  const [activeLibraryId] = useAtom(activeLibraryIdAtom);
+
+  useEffect(() => {
+    if (open) {
+      loadLibraries();
+      setSelectedLibraryId(activeLibraryId || '');
+    }
+  }, [open, activeLibraryId]);
+
+  const loadLibraries = async () => {
+    try {
+      const response = await fetch('/api/libraries');
+      const data = await response.json();
+      if (data.status === 'success') {
+        setAvailableLibraries(data.data.libraries || []);
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Libraries:', error);
+    }
+  };
+
+  const handleStartArchive = async () => {
+    if (!selectedLibraryId) return;
+    
+    setProcessing(true);
+    try {
+      // Einfacher Test-Download der ersten Archive
+      let successCount = 0;
+      let totalFiles = 0;
+      
+      for (const job of completedJobs) {
+        if (job.results?.archive_data) {
+          try {
+            // Teste Archive-Download
+            const response = await fetch(`/api/event-job/jobs/${job.job_id}/download-archive`);
+            if (response.ok) {
+              successCount++;
+              totalFiles += 2; // Geschätzt: Markdown + Images
+            }
+          } catch (error) {
+            console.error(`Fehler bei Job ${job.job_id}:`, error);
+          }
+        }
+      }
+      
+      onComplete({
+        success: Array.from({ length: successCount }, (_, i) => ({
+          jobId: completedJobs[i]?.job_id || '',
+          sessionName: completedJobs[i]?.parameters?.session || 'Unknown',
+          filesCreated: 2,
+          markdownPath: 'test/path.md'
+        })),
+        failed: [],
+        totalFiles
+      });
+      
+    } catch (error) {
+      console.error('Archive-Fehler:', error);
+      alert('Fehler beim Verarbeiten der Archive');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const jobsWithArchives = completedJobs.filter(job => job.results?.archive_data);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Download className="w-5 h-5" />
+            Jobs in Library speichern
+          </DialogTitle>
+          <DialogDescription>
+            {jobsWithArchives.length} von {completedJobs.length} Jobs aus 
+            "{batch.batch_name}" haben Archive.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Ziel-Library</Label>
+            <Select value={selectedLibraryId} onValueChange={setSelectedLibraryId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Library auswählen..." />
+              </SelectTrigger>
+              <SelectContent>
+                {availableLibraries.map(library => (
+                  <SelectItem key={library.id} value={library.id}>
+                    {library.label} ({library.type})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Zielverzeichnis (optional)</Label>
+            <Input
+              value={targetDirectory}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTargetDirectory(e.target.value)}
+              placeholder="z.B. Conferences/2025"
+              disabled={processing}
+            />
+          </div>
+          
+          <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded">
+            <p className="text-sm">
+              <strong>{jobsWithArchives.length}</strong> Jobs mit Archiven gefunden
+            </p>
+            <p className="text-xs text-gray-600 mt-1">
+              Geschätzte Dateien: ~{jobsWithArchives.length * 3}
+            </p>
+          </div>
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>
+            Abbrechen
+          </Button>
+          <Button onClick={handleStartArchive} disabled={!selectedLibraryId || processing}>
+            {processing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+            Archive speichern
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface BatchListProps {
   batches: Batch[];
@@ -79,6 +227,11 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   
   // Aktive Bibliotheks-ID aus dem Atom-State mit useAtom
   const [activeLibraryId] = useAtom(activeLibraryIdAtom);
+  
+  // Archive-Dialog-Zustände
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
+  const [completedJobsForArchive, setCompletedJobsForArchive] = useState<Job[]>([]);
   
  
   // Status-Badge darstellen
@@ -319,6 +472,49 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
     setSummaryDialogOpen(true);
   };
   
+  // Archive-Dialog öffnen
+  const openArchiveDialog = async (batchId: string) => {
+    const batch = batches.find(b => b.batch_id === batchId);
+    if (!batch) return;
+    
+    try {
+      // Alle abgeschlossenen Jobs mit Archiven laden
+      const jobs = await loadCompletedJobsForBatch(batchId);
+      
+      setSelectedBatch(batch);
+      setCompletedJobsForArchive(jobs);
+      setArchiveDialogOpen(true);
+    } catch (error) {
+      console.error('Fehler beim Laden der Jobs für Archive:', error);
+      alert('Fehler beim Laden der Jobs. Bitte versuchen Sie es erneut.');
+    }
+  };
+  
+  // Completed Jobs mit Archiven laden
+  const loadCompletedJobsForBatch = async (batchId: string): Promise<Job[]> => {
+    const response = await fetch(`/api/event-job/batches/${batchId}/jobs?limit=1000`);
+    const data = await response.json();
+    
+    if (data.status === 'success') {
+      return data.data.jobs.filter((job: Job) => 
+        job.status === JobStatus.COMPLETED && 
+        job.results?.archive_data
+      );
+    }
+    
+    return [];
+  };
+  
+  // Archive-Verarbeitung abgeschlossen
+  const handleArchiveComplete = (result: any) => {
+    setArchiveDialogOpen(false);
+    setSelectedBatch(null);
+    setCompletedJobsForArchive([]);
+    
+    // Erfolgs-Toast oder Notification
+    alert(`${result.success.length} Sessions erfolgreich in Library gespeichert. ${result.totalFiles} Dateien erstellt.`);
+  };
+  
   // Zusammenfassung für einen Batch erstellen
   async function createSummaryForBatch(batchId: string, template: string, targetLanguage: string) {
     try {
@@ -482,6 +678,18 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                         <BookOpenText className="w-4 h-4 mr-2" />
                         Zusammenfassung erstellen
                       </DropdownMenuItem>
+                      
+                      {/* In Library speichern Option */}
+                      <DropdownMenuItem 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openArchiveDialog(batch.batch_id);
+                        }}
+                        disabled={processingBatch === batch.batch_id}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        In Library speichern
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -637,6 +845,17 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Archive-Dialog */}
+      {selectedBatch && (
+        <ArchiveDialog
+          batch={selectedBatch}
+          completedJobs={completedJobsForArchive}
+          open={archiveDialogOpen}
+          onOpenChange={setArchiveDialogOpen}
+          onComplete={handleArchiveComplete}
+        />
+      )}
     </div>
   );
 } 

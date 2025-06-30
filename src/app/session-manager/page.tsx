@@ -30,11 +30,9 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { 
-  Plus, 
   Search, 
   Filter, 
   Download, 
-  Upload, 
   Trash2, 
   PlayCircle,
   Loader2,
@@ -70,6 +68,7 @@ export default function SessionManagerPage() {
   const [targetLanguage, setTargetLanguage] = useState('de');
   const [batchName, setBatchName] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [groupByTrack, setGroupByTrack] = useState(true);
   
   // Session-Import Dialog
   const [sessionImportDialog, setSessionImportDialog] = useState(false);
@@ -200,14 +199,23 @@ export default function SessionManagerPage() {
         body: JSON.stringify({
           sessionIds: Array.from(selectedSessions),
           targetLanguage,
-          batchName: batchName || undefined
+          batchName: batchName || undefined,
+          groupByTrack
         })
       });
       
       const data = await response.json();
       
       if (data.status === 'success') {
-        alert(`Erfolgreich ${data.data.jobIds.length} Jobs generiert!`);
+        const jobCount = groupByTrack ? data.data.totalJobs : data.data.jobIds.length;
+        const batchCount = groupByTrack ? data.data.batchCount : 1;
+        
+        if (groupByTrack) {
+          alert(`Erfolgreich ${jobCount} Jobs in ${batchCount} Batches (nach Tracks gruppiert) generiert!`);
+        } else {
+          alert(`Erfolgreich ${jobCount} Jobs in 1 Batch generiert!`);
+        }
+        
         setGenerateJobsDialog(false);
         setSelectedSessions(new Set());
         
@@ -259,40 +267,6 @@ export default function SessionManagerPage() {
     console.log('[SessionManager] Session importiert:', sessionData);
     // Sessions neu laden um neue Session anzuzeigen
     loadSessions();
-  };
-  
-  // Editierbare Zelle rendern
-  const renderEditableCell = (session: Session, field: keyof Session, value: string, maxWidth = "max-w-64") => {
-    const isEditing = editingCell?.sessionId === session.id && editingCell?.field === field;
-    
-    if (isEditing) {
-      return (
-        <Input
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={saveEdit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') saveEdit();
-            if (e.key === 'Escape') cancelEdit();
-          }}
-          className="w-full h-8"
-          autoFocus
-        />
-      );
-    }
-    
-    return (
-      <div
-        className={`cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded group ${maxWidth}`}
-        onClick={() => startEditing(session.id!, field, value)}
-        title="Klicken zum Bearbeiten"
-      >
-        <div className="flex items-center gap-2">
-          <span className="break-words whitespace-pre-line">{value || <span className="text-gray-400">—</span>}</span>
-          <Edit3 className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
-        </div>
-      </div>
-    );
   };
   
   // Speakers Array editieren
@@ -662,14 +636,37 @@ export default function SessionManagerPage() {
               </Select>
             </div>
             
-            <div>
-              <label className="text-sm font-medium">Batch-Name (optional)</label>
-              <Input
-                value={batchName}
-                onChange={(e) => setBatchName(e.target.value)}
-                placeholder="Automatisch generiert falls leer"
-              />
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="groupByTrack"
+                  checked={groupByTrack}
+                  onChange={(e) => setGroupByTrack(e.target.checked)}
+                  className="rounded"
+                />
+                <label htmlFor="groupByTrack" className="text-sm font-medium cursor-pointer">
+                  Batches aus Tracks generieren
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 pl-6">
+                {groupByTrack 
+                  ? "Erstellt für jeden Track einen separaten Batch mit dem Track-Namen."
+                  : "Erstellt einen einzigen Batch für alle ausgewählten Sessions."
+                }
+              </p>
             </div>
+            
+            {!groupByTrack && (
+              <div>
+                <label className="text-sm font-medium">Batch-Name (optional)</label>
+                <Input
+                  value={batchName}
+                  onChange={(e) => setBatchName(e.target.value)}
+                  placeholder="Automatisch generiert falls leer"
+                />
+              </div>
+            )}
           </div>
           
           <DialogFooter>

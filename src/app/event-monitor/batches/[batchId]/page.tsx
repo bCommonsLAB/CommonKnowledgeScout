@@ -18,7 +18,8 @@ import {
   RotateCw,
   Trash2,
   AlertTriangle,
-  ChevronDown
+  ChevronDown,
+  Download
 } from 'lucide-react';
 import {
   Table,
@@ -37,11 +38,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+// BatchArchiveDialog entfernt - verwende einfachen Download
 
 interface CollapsibleContentProps {
   job: Job;
   onRestartJob?: (jobId: string) => void;
   onDeleteJob?: (jobId: string) => void;
+  onDownloadArchive?: (jobId: string) => void;
 }
 
 const CollapsibleContent = ({ job, onRestartJob, onDeleteJob }: CollapsibleContentProps) => {
@@ -128,9 +131,10 @@ interface JobItemProps {
   job: Job;
   onRestartJob?: (jobId: string) => void;
   onDeleteJob?: (jobId: string) => void;
+  onDownloadArchive?: (jobId: string) => void;
 }
 
-const JobItem = ({ job, onRestartJob, onDeleteJob }: JobItemProps) => {
+const JobItem = ({ job, onRestartJob, onDeleteJob, onDownloadArchive }: JobItemProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const getStatusColor = () => {
@@ -152,24 +156,7 @@ const JobItem = ({ job, onRestartJob, onDeleteJob }: JobItemProps) => {
     }
   };
 
-  const getStatusText = () => {
-    switch (job.status) {
-      case JobStatus.COMPLETED:
-        return "Abgeschlossen";
-      case JobStatus.PROCESSING:
-        return "In Bearbeitung";
-      case JobStatus.PENDING:
-        return "Ausstehend";
-      case "WAITING" as JobStatus:
-        return "Wartend";
-      case JobStatus.FAILED:
-        return "Fehlgeschlagen";
-      case JobStatus.CANCELLED:
-        return "Abgebrochen";
-      default:
-        return job.status;
-    }
-  };
+  // getStatusText entfernt da unbenutzt
 
   // Job-Status-Badge darstellen
   const getJobStatusBadge = (status: JobStatus) => {
@@ -212,6 +199,22 @@ const JobItem = ({ job, onRestartJob, onDeleteJob }: JobItemProps) => {
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end space-x-2">
+            {/* Archive-Button */}
+            {job.results?.archive_data && onDownloadArchive && (
+              <Button
+                variant="outline"
+                size="sm"
+                title="Archive herunterladen"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownloadArchive(job.job_id);
+                }}
+                className="text-green-600 dark:text-green-400"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            )}
+            
             {job.status === JobStatus.FAILED && onRestartJob && (
               <Button
                 variant="outline"
@@ -264,6 +267,8 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ batchId
   const [selectedJob] = useState<Job | null>(null);
   const [showJobDetails, setShowJobDetails] = useState(false);
   const [batchId, setBatchId] = useState<string>('');
+  
+  // Archive-Dialog entfernt, verwende direkten Download
   
   const router = useRouter();
 
@@ -360,6 +365,31 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ batchId
     } catch (error) {
       console.error('Fehler beim Neustarten des Jobs:', error);
       alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+    }
+  }
+
+  // Archive direkt herunterladen
+  async function downloadJobArchive(jobId: string) {
+    try {
+      const response = await fetch(`/api/event-job/jobs/${jobId}/download-archive`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `session-${jobId}.zip`;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        alert('Archiv erfolgreich heruntergeladen!');
+      } else {
+        throw new Error(`Download fehlgeschlagen: ${response.statusText}`);
+      }
+      
+    } catch (error) {
+      console.error('Fehler beim Archive-Download:', error);
+      alert(`Fehler beim Download: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
     }
   }
 
@@ -563,6 +593,7 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ batchId
                     job={job} 
                     onRestartJob={restartJob} 
                     onDeleteJob={deleteJob} 
+                    onDownloadArchive={downloadJobArchive}
                   />
                 ))}
               </TableBody>
@@ -701,6 +732,8 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ batchId
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Archive-Dialog entfernt - verwende direkten Download */}
     </div>
   );
 }

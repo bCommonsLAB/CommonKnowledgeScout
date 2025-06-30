@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { EventJobRepository } from '@/lib/event-job-repository';
 
 /**
  * GET /api/event-job/events
  * Lädt alle verfügbaren Event-Namen
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const repository = new EventJobRepository();
     
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
  * POST /api/event-job/events/migrate
  * Migriert bestehende Jobs/Batches um event_name Felder hinzuzufügen
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const repository = new EventJobRepository();
     

@@ -20,7 +20,8 @@ import {
   PauseCircle,
   RotateCw,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Download
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -37,6 +38,7 @@ export default function JobDetailsPanel({ isOpen, onOpenChange, jobId, onRefresh
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+
 
   // Job laden
   const loadJob = useCallback(async () => {
@@ -97,6 +99,41 @@ export default function JobDetailsPanel({ isOpen, onOpenChange, jobId, onRefresh
       setProcessing(false);
     }
   }
+
+  // Archive in Library speichern
+  const handleSaveToLibrary = async () => {
+    if (!job || !job.results?.archive_data) {
+      alert('Dieser Job hat kein Archiv zum Speichern.');
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      
+      // Einfacher Direct-Download für Testzwecke
+      const response = await fetch(`/api/event-job/jobs/${job.job_id}/download-archive`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = job.results.archive_filename || `session-${job.job_id}.zip`;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        alert('Archiv erfolgreich heruntergeladen!');
+      } else {
+        throw new Error(`Download fehlgeschlagen: ${response.statusText}`);
+      }
+      
+    } catch (error) {
+      console.error('Fehler beim Archive-Download:', error);
+      alert(`Fehler beim Download: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   // Job löschen
   async function deleteJob() {
@@ -320,6 +357,27 @@ export default function JobDetailsPanel({ isOpen, onOpenChange, jobId, onRefresh
               </SheetClose>
               
               <div className="flex gap-2">
+                {/* Archive-Button */}
+                {job.results?.archive_data && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={handleSaveToLibrary}
+                        variant="outline"
+                        size="sm"
+                        disabled={processing}
+                        className="text-green-600 dark:text-green-400"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Archive herunterladen
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      ZIP-Archiv mit Markdown und Bildern herunterladen
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button

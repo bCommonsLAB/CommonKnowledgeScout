@@ -56,6 +56,10 @@ export interface JobResults {
   attachments_text?: string | null;
   context?: Record<string, unknown> | null;
   attachments_url?: string | null;
+  // Archive-spezifische Felder
+  archive_data?: string; // Base64-kodierte ZIP-Daten
+  archive_filename?: string; // Name der ZIP-Datei
+  structured_data?: Record<string, unknown>; // Strukturierte Session-Daten
 }
 
 export interface JobError {

@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { SessionRepository } from '@/lib/session-repository';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Authentifizierung prüfen
     const { userId } = await auth();

@@ -17,14 +17,18 @@ import {
   PauseCircle,
   RotateCw,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Download
 } from 'lucide-react';
+// SingleJobArchiveDialog entfernt - verwende direkten Download
 
 export default function JobDetailsPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  
+  // Archive-Dialog entfernt - verwende direkten Download
   
   const router = useRouter();
   // In Next.js 15 useParams() verwenden statt params direkt zu nutzen
@@ -86,6 +90,42 @@ export default function JobDetailsPage() {
       setProcessing(false);
     }
   }
+
+  // Vereinfacht: Nur direkter Download verfuegbar
+
+  // Direkter Download (zusätzlich zum Library-Save)
+  const handleDirectDownload = async () => {
+    if (!job || !job.results?.archive_data) {
+      alert('Dieser Job hat kein Archiv zum Herunterladen.');
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      
+      const response = await fetch(`/api/event-job/jobs/${job.job_id}/download-archive`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = job.results.archive_filename || `session-${job.job_id}.zip`;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        alert('Archiv erfolgreich heruntergeladen!');
+      } else {
+        throw new Error(`Download fehlgeschlagen: ${response.statusText}`);
+      }
+      
+    } catch (error) {
+      console.error('Fehler beim Archive-Download:', error);
+      alert(`Fehler beim Download: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   // Job löschen
   async function deleteJob() {
@@ -325,6 +365,19 @@ export default function JobDetailsPage() {
 
       {/* Aktionsbuttons */}
       <div className="flex gap-2 justify-end">
+        {/* Archive-Button */}
+        {job.results?.archive_data && (
+          <Button
+            onClick={handleDirectDownload}
+            variant="outline"
+            disabled={processing}
+            className="text-green-600 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-700 dark:hover:bg-green-900/30"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Archive herunterladen
+          </Button>
+        )}
+
         {job.status === JobStatus.FAILED && (
           <Button
             onClick={restartJob}
@@ -346,6 +399,8 @@ export default function JobDetailsPage() {
           Job löschen
         </Button>
       </div>
+
+      {/* Archive-Dialog entfernt - verwende direkten Download */}
     </div>
   );
 } 
