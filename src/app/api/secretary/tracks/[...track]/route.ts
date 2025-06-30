@@ -30,12 +30,11 @@ async function getActiveLibraryId(): Promise<string | null> {
 
 export async function GET(
   req: NextRequest,
-  // @ts-expect-error - Next.js 15 App Router params typing issue
-  { params }
+  { params }: { params: Promise<{ track: string[] }> }
 ) {
   try {
     // Extrahiere die Parameter manuell und sicherer
-    const trackParams = params.track || [];
+    const { track: trackParams = [] } = await params;
     const trackPath = trackParams.join('/');
     
     // Auth prüfen
@@ -118,12 +117,11 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  // @ts-expect-error - Next.js 15 App Router params typing issue
-  { params }
+  { params }: { params: Promise<{ track: string[] }> }
 ) {
   try {
     // Extrahiere die Parameter manuell und sicherer
-    const trackParams = params.track || [];
+    const { track: trackParams = [] } = await params;
     const trackPath = trackParams.join('/');
     
     // Auth prüfen

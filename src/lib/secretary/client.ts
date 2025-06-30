@@ -458,7 +458,7 @@ export async function importSessionFromUrl(
         url,
         source_language: options.sourceLanguage || 'en',
         target_language: options.targetLanguage || 'en',
-        template: options.template || 'ExtractSessiondataFromWebsite',
+        template: options.template || 'ExtractSessionDataFromWebsite',
         use_cache: options.useCache ?? false
       }),
     });

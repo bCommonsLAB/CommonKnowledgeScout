@@ -486,13 +486,13 @@ export class EventJobRepository {
       
       // Erst versuchen aus event_name Feld (für neue Struktur)
       const eventsFromField = await jobCollection.distinct('event_name', {
-        event_name: { $exists: true, $ne: null, $ne: "" }
+        event_name: { $exists: true, $ne: "" }
       }) as string[];
       
       // Falls keine event_name Felder vorhanden, aus parameters.event extrahieren
       if (eventsFromField.length === 0) {
         const eventsFromParams = await jobCollection.distinct('parameters.event', {
-          'parameters.event': { $exists: true, $ne: null, $ne: "" }
+          'parameters.event': { $exists: true, $ne: "" }
         }) as string[];
         return eventsFromParams.filter(event => event != null).sort();
       }
@@ -574,7 +574,7 @@ export class EventJobRepository {
       const jobResult = await jobCollection.updateMany(
         { 
           event_name: { $exists: false },
-          'parameters.event': { $exists: true, $ne: null, $ne: "" }
+          'parameters.event': { $exists: true, $ne: "" }
         },
         [
           {
@@ -598,7 +598,7 @@ export class EventJobRepository {
         const firstJob = await jobCollection.findOne(
           { 
             batch_id: batch.batch_id,
-            'parameters.event': { $exists: true, $ne: null, $ne: "" }
+            'parameters.event': { $exists: true, $ne: "" }
           }
         );
         

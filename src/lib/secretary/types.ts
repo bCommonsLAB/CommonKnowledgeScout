@@ -25,7 +25,7 @@ export interface TransformationError {
 // Neue Typen für Template-Extraktion
 export interface StructuredSessionData {
   event: string;
-  title: string;
+  session: string;
   subtitle: string;
   description: string;
   filename: string;

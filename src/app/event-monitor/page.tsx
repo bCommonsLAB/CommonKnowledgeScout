@@ -317,7 +317,7 @@ export default function EventMonitorPage() {
           {/* 🆕 Event-Filter Dropdown */}
           <EventFilterDropdown 
             onEventChange={handleEventFilterChange}
-            className="border-l pl-4"
+            className="border-l pl-4 pr-4"
           />
         </div>
         

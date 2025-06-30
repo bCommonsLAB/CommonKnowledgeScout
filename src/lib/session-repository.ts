@@ -120,6 +120,8 @@ export class SessionRepository {
       if (search) {
         query.$or = [
           { session: { $regex: search, $options: 'i' } },
+          { subtitle: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
           { filename: { $regex: search, $options: 'i' } },
           { url: { $regex: search, $options: 'i' } }
         ];
@@ -167,6 +169,8 @@ export class SessionRepository {
       if (search) {
         query.$or = [
           { session: { $regex: search, $options: 'i' } },
+          { subtitle: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
           { filename: { $regex: search, $options: 'i' } },
           { url: { $regex: search, $options: 'i' } }
         ];

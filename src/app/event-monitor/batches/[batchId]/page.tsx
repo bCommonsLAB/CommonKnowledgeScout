@@ -23,6 +23,7 @@ import {
 import {
   Table,
   TableBody,
+  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -170,44 +171,87 @@ const JobItem = ({ job, onRestartJob, onDeleteJob }: JobItemProps) => {
     }
   };
 
-  const jobCardClass = cn(
-    "border rounded-md mb-2 overflow-hidden transition-all duration-200 ease-in-out",
-    {
-      "border-gray-200 dark:border-gray-700": !isOpen,
-      "border-gray-300 dark:border-gray-600 shadow-sm": isOpen,
+  // Job-Status-Badge darstellen
+  const getJobStatusBadge = (status: JobStatus) => {
+    switch (status) {
+      case JobStatus.PENDING:
+        return <Badge variant="outline" className="bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"><Clock className="w-3 h-3 mr-1" /> Ausstehend</Badge>;
+      case JobStatus.PROCESSING:
+        return <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800 animate-pulse"><span className="animate-pulse">⚡</span> In Bearbeitung</Badge>;
+      case JobStatus.COMPLETED:
+        return <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"><CheckCircle2 className="w-3 h-3 mr-1" /> Abgeschlossen</Badge>;
+      case JobStatus.FAILED:
+        return <Badge variant="outline" className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"><XCircle className="w-3 h-3 mr-1" /> Fehlgeschlagen</Badge>;
+      case JobStatus.CANCELLED:
+        return <Badge variant="outline" className="bg-gray-50 dark:bg-gray-800/40 text-gray-700 dark:text-gray-400 border-gray-200 dark:border-gray-700"><PauseCircle className="w-3 h-3 mr-1" /> Abgebrochen</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
-  );
+  };
 
   return (
-    <div className={jobCardClass}>
-      <div
-        className={cn(
-          "p-4 cursor-pointer flex items-center justify-between",
-          {
-            "bg-white dark:bg-gray-900": !isOpen,
-            "bg-gray-50 dark:bg-gray-800": isOpen,
-          }
-        )}
+    <>
+      <TableRow 
+        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="flex items-center space-x-3">
-          <div className={cn("w-3 h-3 rounded-full", getStatusColor())} />
-          <div className="font-medium text-gray-900 dark:text-gray-100">{job.job_name || job.job_id}</div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">{getStatusText()}</div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {formatDateTime(job.created_at)}
-          </span>
-          <ChevronDown
-            className={cn("h-4 w-4 text-gray-500 transition-transform", {
-              "transform rotate-180": isOpen,
-            })}
-          />
-        </div>
-      </div>
-      {isOpen && <CollapsibleContent job={job} onRestartJob={onRestartJob} onDeleteJob={onDeleteJob} />}
-    </div>
+        <TableCell>
+          <div className="flex items-center space-x-3">
+            <div className={cn("w-3 h-3 rounded-full", getStatusColor())} />
+            <span className="font-medium">{job.job_name || job.job_id}</span>
+          </div>
+        </TableCell>
+        <TableCell>
+          <div>{getJobStatusBadge(job.status)}</div>
+        </TableCell>
+        <TableCell>
+          {formatDateTime(job.created_at)}
+        </TableCell>
+        <TableCell className="hidden md:table-cell">
+          {formatDateTime(job.updated_at)}
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="flex items-center justify-end space-x-2">
+            {job.status === JobStatus.FAILED && onRestartJob && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRestartJob(job.job_id);
+                }}
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            )}
+            {onDeleteJob && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteJob(job.job_id);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            <ChevronDown
+              className={cn("h-4 w-4 text-gray-500 transition-transform", {
+                "transform rotate-180": isOpen,
+              })}
+            />
+          </div>
+        </TableCell>
+      </TableRow>
+      {isOpen && (
+        <TableRow>
+          <TableCell colSpan={5} className="p-0">
+            <CollapsibleContent job={job} onRestartJob={onRestartJob} onDeleteJob={onDeleteJob} />
+          </TableCell>
+        </TableRow>
+      )}
+    </>
   );
 };
 

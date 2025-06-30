@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAtom } from 'jotai';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -49,8 +48,7 @@ import {
 } from 'lucide-react';
 import { Session } from '@/types/session';
 import { LANGUAGE_MAP } from '@/lib/secretary/constants';
-import { selectedEventAtom } from '@/atoms/event-filter-atom';
-import EventFilterDropdown from '@/components/event-monitor/event-filter-dropdown';
+import SessionEventFilter from '@/components/session/session-event-filter';
 import SessionImportModal from '@/components/session/session-import-modal';
 
 export default function SessionManagerPage() {
@@ -80,8 +78,8 @@ export default function SessionManagerPage() {
   const [editingCell, setEditingCell] = useState<{ sessionId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   
-  // Event-Filter aus Atom
-  const [selectedEvent] = useAtom(selectedEventAtom);
+  // Event-Filter State
+  const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   
   const router = useRouter();
   
@@ -125,11 +123,7 @@ export default function SessionManagerPage() {
     loadSessions();
   }, [loadSessions]);
   
-  // Event-Filter-Change Handler
-  const handleEventFilterChange = useCallback((eventName: string | null) => {
-    // Sessions werden automatisch durch useEffect neu geladen
-    console.log('Event-Filter geändert zu:', eventName);
-  }, []);
+
   
   // Session auswählen/abwählen
   const toggleSessionSelection = (sessionId: string) => {
@@ -375,9 +369,10 @@ export default function SessionManagerPage() {
           <h1 className="text-3xl font-bold">Session Manager</h1>
           
           {/* Event-Filter Dropdown */}
-          <EventFilterDropdown 
-            onEventChange={handleEventFilterChange}
-            className="border-l pl-4"
+          <SessionEventFilter
+            value={selectedEvent}
+            onChange={setSelectedEvent}
+            className="border-l pl-4 pr-4"
           />
         </div>
         
@@ -510,13 +505,10 @@ export default function SessionManagerPage() {
                     className="rounded"
                   />
                 </TableHead>
-                <TableHead>Session</TableHead>
-                <TableHead>Event</TableHead>
-                <TableHead>Track</TableHead>
-                <TableHead>Tag</TableHead>
+                <TableHead>Session Details</TableHead>
                 <TableHead>Zeit</TableHead>
                 <TableHead>Sprecher</TableHead>
-                <TableHead>Video</TableHead>
+                <TableHead>Links</TableHead>
                 <TableHead>Sprache</TableHead>
                 <TableHead>Dateiname</TableHead>
               </TableRow>
@@ -524,13 +516,13 @@ export default function SessionManagerPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" />
                   </TableCell>
                 </TableRow>
               ) : sessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                     Keine Sessions gefunden
                     {(searchTerm || selectedEvent || trackFilter || dayFilter || languageFilter) && (
                       <div className="mt-2">
@@ -561,39 +553,69 @@ export default function SessionManagerPage() {
                         className="rounded"
                       />
                     </TableCell>
-                    <TableCell className="break-words whitespace-pre-line align-top">
-                      {renderEditableCell(session, 'session', session.session, "break-words whitespace-pre-line")}
+                    <TableCell className="align-top">
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500">{session.event} - {session.track}</div>
+                        {session.url ? (
+                          <a 
+                            href={session.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-blue-600 hover:underline block"
+                            title="Session-Webseite öffnen"
+                          >
+                            {session.session}
+                          </a>
+                        ) : (
+                          <div className="font-medium">{session.session}</div>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{session.event}</Badge>
-                    </TableCell>
-                    <TableCell className="break-words whitespace-pre-line align-top">
-                      {renderEditableCell(session, 'track', session.track, "break-words whitespace-pre-line")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{session.day}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-sm">
-                        <Clock className="w-4 h-4 text-gray-500" />
-                        <span>{session.starttime} - {session.endtime}</span>
+                    <TableCell className="align-top">
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium">{session.day}</div>
+                        <div className="flex items-center gap-1 text-xs text-gray-600">
+                          <Clock className="w-3 h-3" />
+                          <span>{session.starttime} - {session.endtime}</span>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="break-words whitespace-pre-line align-top">
                       {renderSpeakersCell(session)}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Video className="w-4 h-4 text-gray-500" />
-                        <a 
-                          href={session.video_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-sm truncate max-w-32"
-                          title={session.video_url}
-                        >
-                          Video
-                        </a>
+                    <TableCell className="align-top">
+                      <div className="space-y-2">
+                        {session.video_url && (
+                          <div className="flex items-center gap-2">
+                            <Video className="w-3 h-3 text-gray-500" />
+                            <a 
+                              href={session.video_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-xs truncate max-w-32"
+                              title={session.video_url}
+                            >
+                              Video
+                            </a>
+                          </div>
+                        )}
+                        {session.attachments_url && (
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-3 h-3 text-gray-500" />
+                            <a 
+                              href={session.attachments_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-xs truncate max-w-32"
+                              title={session.attachments_url}
+                            >
+                              Anhänge
+                            </a>
+                          </div>
+                        )}
+                        {!session.video_url && !session.attachments_url && (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -602,10 +624,9 @@ export default function SessionManagerPage() {
                         <Badge>{session.source_language?.toUpperCase() || 'UNBEKANNT'}</Badge>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-gray-500" />
-                        {renderEditableCell(session, 'filename', session.filename, "max-w-48")}
+                    <TableCell className="align-top">
+                      <div className="text-[10px] text-gray-500 truncate max-w-48" title={session.filename}>
+                        {session.filename || '—'}
                       </div>
                     </TableCell>
                   </TableRow>

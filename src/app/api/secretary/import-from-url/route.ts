@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     formData.append('url', url);
     formData.append('source_language', source_language || 'en');
     formData.append('target_language', target_language || 'en');
-    formData.append('template', template || 'ExtractSessiondataFromWebsite');
+    formData.append('template', template || 'ExtractSessionDataFromWebsite');
     formData.append('use_cache', String(use_cache || false));
     
     // Anfrage an Secretary Service weiterleiten
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         url,
         extracted_at: new Date().toISOString(),
-        template_used: template || 'ExtractSessiondataFromWebsite'
+        template_used: template || 'ExtractSessionDataFromWebsite'
       }
     };
     
@@ -128,7 +128,7 @@ export async function GET() {
       url: 'string (required) - URL der Website',
       source_language: 'string (optional) - Quellsprache (Standard: en)',
       target_language: 'string (optional) - Zielsprache (Standard: en)',
-      template: 'string (optional) - Template-Name (Standard: ExtractSessiondataFromWebsite)',
+      template: 'string (optional) - Template-Name (Standard: ExtractSessionDataFromWebsite)',
       use_cache: 'boolean (optional) - Cache verwenden (Standard: false)'
     }
   });

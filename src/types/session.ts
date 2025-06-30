@@ -1,6 +1,8 @@
 export interface Session {
   id?: string; // Automatisch generierte ID
   session: string;
+  subtitle?: string;  // ← Ergänzt: Untertitel der Session
+  description?: string;  // ← Ergänzt: Beschreibung der Session
   filename: string;
   track: string;
   video_url: string;

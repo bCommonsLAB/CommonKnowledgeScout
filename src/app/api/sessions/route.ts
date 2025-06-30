@@ -62,6 +62,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as SessionCreateRequest;
     
+    console.log('[API] POST /api/sessions - Request Body:', JSON.stringify(body, null, 2));
+    
     // Validierung der Eingabedaten
     if (!body.sessions || !Array.isArray(body.sessions) || body.sessions.length === 0) {
       return NextResponse.json(
@@ -70,8 +72,41 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Validierung der einzelnen Session-Felder
+    for (let i = 0; i < body.sessions.length; i++) {
+      const session = body.sessions[i];
+      const requiredFields = ['session', 'filename', 'track', 'video_url', 'event', 'url', 'day', 'starttime', 'endtime', 'speakers', 'source_language'];
+      
+      for (const field of requiredFields) {
+        if (!session[field as keyof typeof session]) {
+          return NextResponse.json(
+            { 
+              status: 'error', 
+              message: `Session ${i + 1}: Erforderliches Feld '${field}' fehlt oder ist leer`,
+              details: { sessionIndex: i, missingField: field, sessionData: session }
+            },
+            { status: 400 }
+          );
+        }
+      }
+      
+      // Validierung des speakers Arrays
+      if (!Array.isArray(session.speakers) || session.speakers.length === 0) {
+        return NextResponse.json(
+          { 
+            status: 'error', 
+            message: `Session ${i + 1}: 'speakers' muss ein nicht-leeres Array sein`,
+            details: { sessionIndex: i, speakers: session.speakers }
+          },
+          { status: 400 }
+        );
+      }
+    }
+    
     // Sessions erstellen
     const sessionIds = await repository.createSessions(body.sessions);
+    
+    console.log('[API] POST /api/sessions - Sessions erstellt:', sessionIds);
     
     return NextResponse.json(
       { 

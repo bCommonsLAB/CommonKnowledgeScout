@@ -9,12 +9,11 @@ const repository = new EventJobRepository();
  */
 export async function GET(
   request: NextRequest,
-  // @ts-expect-error - Next.js 15 App Router params typing issue
-  { params }
+  { params }: { params: Promise<{ batchId: string }> }
 ) {
   try {
     // In Next.js 15 müssen wir das params-Objekt mit await behandeln
-    const batchId = params.batchId;
+    const { batchId } = await params;
     
     // Batch abrufen
     const batch = await repository.getBatch(batchId);
@@ -48,12 +47,11 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  // @ts-expect-error - Next.js 15 App Router params typing issue
-  { params }
+  { params }: { params: Promise<{ batchId: string }> }
 ) {
   try {
     // In Next.js 15 müssen wir das params-Objekt mit await behandeln
-    const batchId = params.batchId;
+    const { batchId } = await params;
     
     // Batch überprüfen
     const batch = await repository.getBatch(batchId);

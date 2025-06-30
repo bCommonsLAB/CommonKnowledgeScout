@@ -777,15 +777,18 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   const currentItem = useAtomValue(selectedFileAtom);
   const [activeTab, setActiveTab] = React.useState<string>("preview");
   
-  FileLogger.debug('MarkdownPreview', 'Komponente gerendert', {
-    contentLength: content.length,
-    currentItemId: currentItem?.id,
-    currentItemName: currentItem?.metadata.name,
-    activeTab,
-    hasProvider: !!provider,
-    hasOnTransform: !!onTransform,
-    hasOnRefreshFolder: !!onRefreshFolder
-  });
+  // Logging in useEffect verschieben, um State-Updates während des Renderns zu vermeiden
+  React.useEffect(() => {
+    FileLogger.debug('MarkdownPreview', 'Komponente gerendert', {
+      contentLength: content.length,
+      currentItemId: currentItem?.id,
+      currentItemName: currentItem?.metadata.name,
+      activeTab,
+      hasProvider: !!provider,
+      hasOnTransform: !!onTransform,
+      hasOnRefreshFolder: !!onRefreshFolder
+    });
+  }, [content.length, currentItem?.id, currentItem?.metadata.name, activeTab, provider, onTransform, onRefreshFolder]);
   
   // Bei Änderung der Datei-ID auf Vorschau-Tab zurücksetzen
   React.useEffect(() => {
@@ -798,11 +801,6 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   
   // Memoize the markdown renderer
   const renderedContent = React.useMemo(() => {
-    FileLogger.debug('MarkdownPreview', 'Render Markdown Content', {
-      contentLength: content.length,
-      hasFrontmatter: content.includes('---')
-    });
-    
     if (!content) return '';
 
     // Get the content after the frontmatter
@@ -819,14 +817,19 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
 
     const rendered = md.render(processedContent);
     
-    FileLogger.debug('MarkdownPreview', 'Markdown gerendert', {
-      originalLength: content.length,
-      processedLength: processedContent.length,
-      renderedLength: rendered.length
-    });
-    
     return rendered;
   }, [content, currentFolderId, provider]);
+  
+  // Logging nach dem Rendern in useEffect
+  React.useEffect(() => {
+    if (content) {
+      FileLogger.debug('MarkdownPreview', 'Markdown Content verarbeitet', {
+        contentLength: content.length,
+        hasFrontmatter: content.includes('---'),
+        renderedLength: renderedContent.length
+      });
+    }
+  }, [content, renderedContent.length]);
 
   const handleTransformButtonClick = () => {
     FileLogger.info('MarkdownPreview', 'Transform-Button geklickt', {
