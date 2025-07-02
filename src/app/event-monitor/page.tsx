@@ -6,8 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Plus, AlertTriangle, Clock, FileCheck, FileX, Files, BookOpenText, Filter } from 'lucide-react'; // 🆕 Filter Icon hinzugefügt
 import BatchList from '@/components/event-monitor/batch-list';
-import { Batch } from '@/types/event-job';
+import { Batch, Job, JobStatus } from '@/types/event-job';
 import JobDetailsPanel from '@/components/event-monitor/job-details-panel';
+import BatchArchiveDialog from '@/components/event-monitor/batch-archive-dialog';
 import { 
   Dialog, 
   DialogContent, 
@@ -38,6 +39,11 @@ export default function EventMonitorPage() {
   // Job-Details Panel Zustand
   const [jobDetailsOpen, setJobDetailsOpen] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  
+  // Multi-Batch-Archivierung Zustand
+  const [multiBatchArchiveDialogOpen, setMultiBatchArchiveDialogOpen] = useState(false);
+  const [multiBatchArchiveJobs, setMultiBatchArchiveJobs] = useState<Job[]>([]);
+  const [multiBatchArchiveLoading, setMultiBatchArchiveLoading] = useState(false);
   
   // Statistiken
   const [statsTotal, setStatsTotal] = useState(0);
@@ -308,6 +314,83 @@ export default function EventMonitorPage() {
       setSelectedJobId(null);
     }
   };
+
+  // Multi-Batch-Archivierung: Alle Jobs aus gefilterten Batches laden
+  const handleArchiveAllFilteredBatches = async () => {
+    if (!selectedEvent) {
+      alert('Kein Event gefiltert. Bitte filtern Sie zuerst nach einem Event.');
+      return;
+    }
+
+    if (currentTracks.length === 0) {
+      alert('Keine Batches zum Archivieren gefunden.');
+      return;
+    }
+
+    try {
+      setMultiBatchArchiveLoading(true);
+      
+      // Alle Jobs aus allen gefilterten Batches laden
+      const allJobs: Job[] = [];
+      
+      for (const batch of currentTracks) {
+        try {
+          const response = await fetch(`/api/event-job/batches/${batch.batch_id}/jobs?limit=1000`);
+          const data = await response.json();
+          
+          if (data.status === 'success') {
+            const batchJobs = data.data.jobs || [];
+            // Nur COMPLETED Jobs mit Archiven
+            const completedJobsWithArchives = batchJobs.filter((job: Job) => 
+              job.status === JobStatus.COMPLETED && job.results?.archive_data
+            );
+            allJobs.push(...completedJobsWithArchives);
+          }
+        } catch (error) {
+          console.error(`Fehler beim Laden der Jobs für Batch ${batch.batch_id}:`, error);
+        }
+      }
+
+      console.log(`[Multi-Batch Archive] Gefundene Jobs:`, {
+        totalBatches: currentTracks.length,
+        totalJobs: allJobs.length,
+        jobsWithArchives: allJobs.filter(job => job.results?.archive_data).length
+      });
+
+      setMultiBatchArchiveJobs(allJobs);
+      setMultiBatchArchiveDialogOpen(true);
+
+    } catch (error) {
+      console.error('Fehler beim Laden der Jobs für Multi-Batch-Archivierung:', error);
+      alert('Fehler beim Laden der Jobs. Bitte versuchen Sie es erneut.');
+    } finally {
+      setMultiBatchArchiveLoading(false);
+    }
+  };
+
+  // Multi-Batch-Archivierung abgeschlossen
+  const handleMultiBatchArchiveComplete = (result: { 
+    success: Array<{ jobId: string; sessionName: string; filesCreated: number; markdownPath: string; assetsPath: string }>; 
+    failed: Array<{ jobId: string; sessionName: string; error: string }>; 
+    totalFiles: number 
+  }) => {
+    setMultiBatchArchiveDialogOpen(false);
+    setMultiBatchArchiveJobs([]);
+    
+    // Erfolgs-Toast oder Notification
+    if (result.success.length > 0) {
+      const successMessage = `${result.success.length} Sessions erfolgreich in Library gespeichert. ${result.totalFiles} Dateien erstellt.`;
+      if (result.failed.length > 0) {
+        alert(`${successMessage}\n\n${result.failed.length} Session(s) fehlgeschlagen: ${result.failed.map(f => f.sessionName).join(', ')}`);
+      } else {
+        alert(successMessage);
+      }
+    } else if (result.failed.length > 0) {
+      alert(`Alle ${result.failed.length} Sessions sind fehlgeschlagen: ${result.failed.map(f => f.error).join(', ')}`);
+    } else {
+      alert('Keine Sessions gefunden zum Verarbeiten.');
+    }
+  };
   
   return (
     <div className="container py-6">
@@ -467,6 +550,7 @@ export default function EventMonitorPage() {
               batches={currentTracks} 
               onRefresh={loadCurrentTracks}
               selectedEvent={selectedEvent || undefined}
+              onArchiveAllBatches={handleArchiveAllFilteredBatches}
             />
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -621,6 +705,18 @@ export default function EventMonitorPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Multi-Batch-Archive-Dialog */}
+      {multiBatchArchiveJobs.length > 0 && (
+        <BatchArchiveDialog
+          batches={currentTracks}
+          completedJobs={multiBatchArchiveJobs}
+          open={multiBatchArchiveDialogOpen}
+          onOpenChange={setMultiBatchArchiveDialogOpen}
+          onArchiveComplete={handleMultiBatchArchiveComplete}
+          isMultiBatch={true}
+        />
+      )}
     </div>
   );
 } 

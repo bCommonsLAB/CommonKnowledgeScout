@@ -69,9 +69,10 @@ interface BatchListProps {
   isArchive?: boolean;
   onJobClick?: (jobId: string) => void;
   selectedEvent?: string; // Aktuell gewähltes Event für Filterung
+  onArchiveAllBatches?: () => void; // Neue Callback-Funktion für Multi-Batch-Archivierung
 }
 
-export default function BatchList({ batches, onRefresh, isArchive = false, onJobClick, selectedEvent }: BatchListProps) {
+export default function BatchList({ batches, onRefresh, isArchive = false, onJobClick, selectedEvent, onArchiveAllBatches }: BatchListProps) {
   const router = useRouter();
   const [processingBatch, setProcessingBatch] = useState<string | null>(null);
   const [expandedBatches, setExpandedBatches] = useState<Record<string, boolean>>({});
@@ -106,6 +107,29 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   const [eventRestartLoading, setEventRestartLoading] = useState(false);
   const [selectedEventForRestart, setSelectedEventForRestart] = useState<string>('');
   
+  // Doppelte Batches nach batch_name finden
+  const duplicateBatches = batches
+    .map((batch, idx) => ({ ...batch, _idx: idx }))
+    .filter((batch, _, arr) =>
+      arr.findIndex(b => b.batch_name === batch.batch_name) !== batch._idx
+    );
+
+  // Debug-Ausgabe
+  useEffect(() => {
+    if (duplicateBatches.length > 0) {
+      console.warn('Doppelte Batches gefunden:', duplicateBatches.map(b => b.batch_name));
+    }
+  }, [batches]);
+
+  // Hilfsfunktion: Doppelte Jobs nach job_name innerhalb eines Batches finden
+  function getDuplicateJobs(jobs: Job[]) {
+    return jobs
+      .map((job, idx) => ({ ...job, _idx: idx }))
+      .filter((job, _, arr) =>
+        arr.findIndex(j => j.job_name === job.job_name) !== job._idx
+      );
+  }
+
   // Status-Badge darstellen
   function getBatchStatusBadge(status: BatchStatus) {
     switch (status) {
@@ -574,6 +598,17 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   
   return (
     <div className="space-y-4">
+      {/* Warnung für doppelte Batches */}
+      {duplicateBatches.length > 0 && (
+        <div className="bg-red-50 p-2 rounded text-red-700 text-sm">
+          <strong>Doppelte Batches gefunden:</strong>
+          <ul>
+            {duplicateBatches.map(b => (
+              <li key={b.batch_id}>{b.batch_name}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {/* Event-weite Steuerung - nur wenn Event gefiltert ist */}
       {selectedEvent && !isArchive && (
         <Card className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
@@ -582,243 +617,274 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
               <div>
                 <h3 className="font-medium text-orange-900 dark:text-orange-100">Event-weite Aktionen</h3>
                 <p className="text-sm text-orange-700 dark:text-orange-300">
-                  Alle <strong>{getBatchCountForFilteredEvent()}</strong> Batches des Events <strong>"{selectedEvent}"</strong> neu starten
+                  Alle <strong>{getBatchCountForFilteredEvent()}</strong> Batches des Events <strong>"{selectedEvent}"</strong> verwalten
                 </p>
               </div>
-              <Button
-                onClick={() => openEventRestartDialog()}
-                variant="outline"
-                className="border-orange-300 text-orange-700 hover:bg-orange-100 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-800"
-                disabled={eventRestartLoading}
-              >
-                {eventRestartLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <RotateCw className="w-4 h-4 mr-2" />
+              <div className="flex gap-2">
+                {/* Alle Batches archivieren Button */}
+                {onArchiveAllBatches && (
+                  <Button
+                    onClick={onArchiveAllBatches}
+                    variant="outline"
+                    className="border-green-300 text-green-700 hover:bg-green-100 dark:border-green-600 dark:text-green-300 dark:hover:bg-green-800"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Alle Batches archivieren
+                  </Button>
                 )}
-                Alle Batches neu starten
-              </Button>
+                
+                {/* Alle Batches neu starten Button */}
+                <Button
+                  onClick={() => openEventRestartDialog()}
+                  variant="outline"
+                  className="border-orange-300 text-orange-700 hover:bg-orange-100 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-800"
+                  disabled={eventRestartLoading}
+                >
+                  {eventRestartLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RotateCw className="w-4 h-4 mr-2" />
+                  )}
+                  Alle Batches neu starten
+                </Button>
+              </div>
             </div>
           </div>
         </Card>
       )}
       
-      {batches.map((batch) => (
-        <Card key={batch.batch_id} className="overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[300px]">Batch-Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Erstellungsdatum</TableHead>
-            <TableHead>Letzte Aktualisierung</TableHead>
-            <TableHead>Jobs Total</TableHead>
-            <TableHead>Jobs Erfolgreich</TableHead>
-            <TableHead>Jobs Fehlgeschlagen</TableHead>
-            <TableHead className="text-right">Aktionen</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-              <TableRow 
-                className={`${batch.isActive && !isArchive ? 'bg-blue-50 dark:bg-blue-900/20' : ''} ${processingBatch === batch.batch_id ? 'opacity-50' : ''}`}
-              >
-                <TableCell className="font-medium">
-                  <div className="flex items-center">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="mr-2 p-0 h-6 w-6"
-                      onClick={() => toggleBatchExpansion(batch.batch_id)}
+      {batches.map((batch) => {
+        const jobs = jobsByBatch[batch.batch_id] || [];
+        const duplicateJobs = getDuplicateJobs(jobs);
+        return (
+          <Card key={batch.batch_id} className="overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[300px]">Batch-Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Erstellungsdatum</TableHead>
+                  <TableHead>Letzte Aktualisierung</TableHead>
+                  <TableHead>Jobs Total</TableHead>
+                  <TableHead>Jobs Erfolgreich</TableHead>
+                  <TableHead>Jobs Fehlgeschlagen</TableHead>
+                  <TableHead className="text-right">Aktionen</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                    <TableRow 
+                      className={`${batch.isActive && !isArchive ? 'bg-blue-50 dark:bg-blue-900/20' : ''} ${processingBatch === batch.batch_id ? 'opacity-50' : ''}`}
                     >
-                      {expandedBatches[batch.batch_id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    </Button>
-                    {batch.batch_name}
-                    {batch.isActive && !isArchive && <Badge className="ml-2 bg-blue-600 dark:bg-blue-500">Aktiv</Badge>}
-                  </div>
-                </TableCell>
-                <TableCell>{getBatchStatusBadge(batch.status)}</TableCell>
-                <TableCell>{formatDateTime(batch.created_at)}</TableCell>
-                <TableCell>{formatDateTime(batch.updated_at)}</TableCell>
-                <TableCell>{batch.total_jobs || 0}</TableCell>
-                <TableCell>{batch.completed_jobs || 0}</TableCell>
-                <TableCell>{batch.failed_jobs || 0}</TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        className="h-8 w-8 p-0" 
-                        disabled={processingBatch === batch.batch_id}
-                      >
-                        {processingBatch === batch.batch_id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                        <MoreHorizontal className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => router.push(`/event-monitor/batches/${batch.batch_id}`)}>
-                        <Eye className="mr-2 h-4 w-4" /> Details anzeigen
-                      </DropdownMenuItem>
-                      
-                      {!isArchive && (
-                        <>
-                          <DropdownMenuItem onClick={() => toggleBatchActive(batch.batch_id)}>
-                            {batch.isActive ? (
+                      <TableCell className="font-medium">
+                        <div className="flex items-center">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="mr-2 p-0 h-6 w-6"
+                            onClick={() => toggleBatchExpansion(batch.batch_id)}
+                          >
+                            {expandedBatches[batch.batch_id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </Button>
+                          {batch.batch_name}
+                          {batch.isActive && !isArchive && <Badge className="ml-2 bg-blue-600 dark:bg-blue-500">Aktiv</Badge>}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getBatchStatusBadge(batch.status)}</TableCell>
+                      <TableCell>{formatDateTime(batch.created_at)}</TableCell>
+                      <TableCell>{formatDateTime(batch.updated_at)}</TableCell>
+                      <TableCell>{batch.total_jobs || 0}</TableCell>
+                      <TableCell>{batch.completed_jobs || 0}</TableCell>
+                      <TableCell>{batch.failed_jobs || 0}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0" 
+                              disabled={processingBatch === batch.batch_id}
+                            >
+                              {processingBatch === batch.batch_id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                              <MoreHorizontal className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/event-monitor/batches/${batch.batch_id}`)}>
+                              <Eye className="mr-2 h-4 w-4" /> Details anzeigen
+                            </DropdownMenuItem>
+                            
+                            {!isArchive && (
                               <>
-                                <PauseCircle className="mr-2 h-4 w-4" /> Deaktivieren
-                              </>
-                            ) : (
-                              <>
-                                <PlayCircle className="mr-2 h-4 w-4" /> Aktivieren
+                                <DropdownMenuItem onClick={() => toggleBatchActive(batch.batch_id)}>
+                                  {batch.isActive ? (
+                                    <>
+                                      <PauseCircle className="mr-2 h-4 w-4" /> Deaktivieren
+                                    </>
+                                  ) : (
+                                    <>
+                                      <PlayCircle className="mr-2 h-4 w-4" /> Aktivieren
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                
+                                <DropdownMenuItem onClick={() => archiveBatch(batch.batch_id)}>
+                                  <ArchiveIcon className="mr-2 h-4 w-4" /> Archivieren
+                                </DropdownMenuItem>
                               </>
                             )}
-                          </DropdownMenuItem>
-                          
-                          <DropdownMenuItem onClick={() => archiveBatch(batch.batch_id)}>
-                            <ArchiveIcon className="mr-2 h-4 w-4" /> Archivieren
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      
-                      <DropdownMenuItem onClick={() => router.push(`/event-monitor/batches/${batch.batch_id}/export`)}>
-                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportieren
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuItem 
-                        onClick={() => deleteBatch(batch.batch_id)}
-                        className="text-red-600 focus:text-red-700"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" /> Löschen
-                      </DropdownMenuItem>
-                      
-                      {/* Zusammenfassung erstellen Option */}
-                      <DropdownMenuItem 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openSummaryDialog(batch.batch_id);
-                        }}
-                        disabled={processingBatch === batch.batch_id || creatingSummary}
-                      >
-                        <BookOpenText className="w-4 h-4 mr-2" />
-                        Zusammenfassung erstellen
-                      </DropdownMenuItem>
-                      
-                      {/* In Library speichern Option */}
-                      <DropdownMenuItem 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openArchiveDialog(batch.batch_id);
-                        }}
-                        disabled={processingBatch === batch.batch_id}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        In Library speichern
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuItem 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedBatchForRestart(batch);
-                          setBatchRestartDialogOpen(true);
-                        }}
-                        disabled={processingBatch === batch.batch_id}
-                      >
-                        <RotateCw className="w-4 h-4 mr-2" />
-                        Batch neu starten
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-              
-              {/* Jobs für diesen Batch anzeigen, wenn expandiert */}
-              {expandedBatches[batch.batch_id] && (
-                <TableRow className="bg-gray-50 dark:bg-gray-900/20">
-                  <TableCell colSpan={8} className="p-0">
-                    <div className="py-2 px-6 ml-6 border-l-2 border-gray-200 dark:border-gray-700">
-                      <h4 className="text-sm font-medium mb-2">Jobs in diesem Batch</h4>
-                      
-                      {loadingJobs[batch.batch_id] ? (
-                        <div className="flex justify-center items-center py-4">
-                          <Loader2 className="h-5 w-5 animate-spin text-blue-600 mr-2" />
-                          <span className="text-sm text-gray-500 dark:text-gray-400">Jobs werden geladen...</span>
-                        </div>
-                      ) : jobsByBatch[batch.batch_id]?.length ? (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Job-Name</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Erstellt</TableHead>
-                              <TableHead className="text-right">Aktionen</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {jobsByBatch[batch.batch_id].map(job => (
-                              <TableRow 
-                                key={job.job_id} 
-                                className={processingJob === job.job_id ? 'opacity-50' : ''}
-                              >
-                                <TableCell className="font-medium">{job.job_name || job.job_id}</TableCell>
-                                <TableCell>{getJobStatusBadge(job.status)}</TableCell>
-                                <TableCell>{formatDateTime(job.created_at)}</TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex gap-2 justify-end">
-                                    <Button 
-                                      onClick={() => handleJobClick(job.job_id)}
-                                      variant="outline" 
-                                      size="sm"
-                                      disabled={processingJob === job.job_id}
+                            
+                            <DropdownMenuItem onClick={() => router.push(`/event-monitor/batches/${batch.batch_id}/export`)}>
+                              <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportieren
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem 
+                              onClick={() => deleteBatch(batch.batch_id)}
+                              className="text-red-600 focus:text-red-700"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Löschen
+                            </DropdownMenuItem>
+                            
+                            {/* Zusammenfassung erstellen Option */}
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openSummaryDialog(batch.batch_id);
+                              }}
+                              disabled={processingBatch === batch.batch_id || creatingSummary}
+                            >
+                              <BookOpenText className="w-4 h-4 mr-2" />
+                              Zusammenfassung erstellen
+                            </DropdownMenuItem>
+                            
+                            {/* In Library speichern Option */}
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openArchiveDialog(batch.batch_id);
+                              }}
+                              disabled={processingBatch === batch.batch_id}
+                            >
+                              <Download className="w-4 h-4 mr-2" />
+                              In Library speichern
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedBatchForRestart(batch);
+                                setBatchRestartDialogOpen(true);
+                              }}
+                              disabled={processingBatch === batch.batch_id}
+                            >
+                              <RotateCw className="w-4 h-4 mr-2" />
+                              Batch neu starten
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                    
+                    {/* Jobs für diesen Batch anzeigen, wenn expandiert */}
+                    {expandedBatches[batch.batch_id] && (
+                      <TableRow className="bg-gray-50 dark:bg-gray-900/20">
+                        <TableCell colSpan={8} className="p-0">
+                          <div className="py-2 px-6 ml-6 border-l-2 border-gray-200 dark:border-gray-700">
+                            <h4 className="text-sm font-medium mb-2">Jobs in diesem Batch</h4>
+                            
+                            {/* Warnung für doppelte Jobs im Batch */}
+                            {duplicateJobs.length > 0 && (
+                              <div className="bg-yellow-50 p-2 rounded text-yellow-800 text-xs border border-yellow-300 m-2">
+                                <strong>Doppelte Jobs in diesem Batch:</strong>
+                                <ul>
+                                  {duplicateJobs.map(j => (
+                                    <li key={j.job_id}>{j.job_name}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {loadingJobs[batch.batch_id] ? (
+                              <div className="flex justify-center items-center py-4">
+                                <Loader2 className="h-5 w-5 animate-spin text-blue-600 mr-2" />
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Jobs werden geladen...</span>
+                              </div>
+                            ) : jobsByBatch[batch.batch_id]?.length ? (
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Job-Name</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Erstellt</TableHead>
+                                    <TableHead className="text-right">Aktionen</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {jobsByBatch[batch.batch_id].map(job => (
+                                    <TableRow 
+                                      key={job.job_id} 
+                                      className={processingJob === job.job_id ? 'opacity-50' : ''}
                                     >
-                                      <Eye className="w-4 h-4" />
-                                    </Button>
-                                    
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button 
-                                          onClick={() => restartJob(job.job_id, batch.batch_id)}
-                                          variant="outline"
-                                          size="sm"
-                                          className="text-blue-600 dark:text-blue-400"
-                                        >
-                                          <RotateCw className="w-4 h-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        {job.status === JobStatus.PROCESSING ? "Job wird gerade verarbeitet" : "Job neu starten"}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                    
-                                    <Button 
-                                      onClick={() => deleteJob(job.job_id, batch.batch_id)}
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={processingJob === job.job_id}
-                                      className="text-red-600 dark:text-red-400"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      ) : (
-                        <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                          Keine Jobs in diesem Batch gefunden.
-                        </div>
-                      )}
-                    </div>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </Card>
-      ))}
+                                      <TableCell className="font-medium">{job.job_name || job.job_id}</TableCell>
+                                      <TableCell>{getJobStatusBadge(job.status)}</TableCell>
+                                      <TableCell>{formatDateTime(job.created_at)}</TableCell>
+                                      <TableCell className="text-right">
+                                        <div className="flex gap-2 justify-end">
+                                          <Button 
+                                            onClick={() => handleJobClick(job.job_id)}
+                                            variant="outline" 
+                                            size="sm"
+                                            disabled={processingJob === job.job_id}
+                                          >
+                                            <Eye className="w-4 h-4" />
+                                          </Button>
+                                          
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button 
+                                                onClick={() => restartJob(job.job_id, batch.batch_id)}
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-blue-600 dark:text-blue-400"
+                                              >
+                                                <RotateCw className="w-4 h-4" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              {job.status === JobStatus.PROCESSING ? "Job wird gerade verarbeitet" : "Job neu starten"}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                          
+                                          <Button 
+                                            onClick={() => deleteJob(job.job_id, batch.batch_id)}
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={processingJob === job.job_id}
+                                            className="text-red-600 dark:text-red-400"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            ) : (
+                              <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                                Keine Jobs in diesem Batch gefunden.
+                              </div>
+                            )}
+                          </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        );
+      })}
       
       {/* Zusammenfassungs-Dialog */}
       <Dialog 

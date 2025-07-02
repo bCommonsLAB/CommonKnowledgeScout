@@ -49,17 +49,21 @@ interface ArchiveResult {
 interface BatchArchiveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  batch: Batch;
+  batch?: Batch; // Optional für Multi-Batch-Modus
+  batches?: Batch[]; // Neue Prop für Multi-Batch-Modus
   completedJobs: Job[];
   onArchiveComplete: (result: ArchiveResult) => void;
+  isMultiBatch?: boolean; // Neue Prop für Multi-Batch-Modus
 }
 
 export default function BatchArchiveDialog({
   open,
   onOpenChange,
   batch,
+  batches = [],
   completedJobs,
-  onArchiveComplete
+  onArchiveComplete,
+  isMultiBatch = false
 }: BatchArchiveDialogProps) {
   const [activeLibrary] = useAtom(activeLibraryAtom);
   const [currentPath] = useAtom(currentPathAtom);
@@ -81,6 +85,8 @@ export default function BatchArchiveDialog({
   useEffect(() => {
     if (open) {
       console.log('[Archive Dialog Debug]:');
+      console.log('  - Multi-Batch Mode:', isMultiBatch);
+      console.log('  - Batches Count:', batches.length);
       console.log('  - Active Library:', activeLibrary);
       console.log('  - Active Library ID from Atom:', activeLibrary?.id);
       console.log('  - Current Path:', currentPath);
@@ -118,7 +124,7 @@ export default function BatchArchiveDialog({
         });
       }
     }
-  }, [open, activeLibrary, currentPath, completedJobs, jobsWithArchives]);
+  }, [open, isMultiBatch, batches, activeLibrary, currentPath, completedJobs, jobsWithArchives]);
 
   // Archive-Dialog erfordert immer eine aktive Library - keine Fallback-Logik!
 
@@ -448,8 +454,6 @@ export default function BatchArchiveDialog({
     return parentFolderId;
   };
 
-
-
   // Dateiname bereinigen
   const sanitizeFilename = (filename: string): string => {
     return filename
@@ -481,8 +485,8 @@ export default function BatchArchiveDialog({
     }
   };
 
-  const eventName = extractEventName(batch.batch_name || '');
-  const trackName = extractTrackName(batch.batch_name || '');
+  const eventName = extractEventName(batch?.batch_name || '');
+  const trackName = extractTrackName(batch?.batch_name || '');
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -490,15 +494,29 @@ export default function BatchArchiveDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="w-5 h-5" />
-            Jobs in Library speichern
+            {isMultiBatch ? 'Alle gefilterten Batches in Library speichern' : 'Jobs in Library speichern'}
           </DialogTitle>
           <DialogDescription>
-            {jobsWithArchives.length} von {completedJobs.length} abgeschlossene Jobs aus 
-            "{batch.batch_name}" haben Archive und können gespeichert werden.
-            {completedJobs.length === 0 && (
-              <div className="mt-2 text-amber-600">
-                Keine abgeschlossenen Jobs gefunden. Stellen Sie sicher, dass die Jobs erfolgreich verarbeitet wurden.
-              </div>
+            {isMultiBatch ? (
+              <>
+                {jobsWithArchives.length} von {completedJobs.length} abgeschlossene Jobs aus 
+                {batches.length} gefilterten Batches haben Archive und können gespeichert werden.
+                {completedJobs.length === 0 && (
+                  <div className="mt-2 text-amber-600">
+                    Keine abgeschlossenen Jobs gefunden. Stellen Sie sicher, dass die Jobs erfolgreich verarbeitet wurden.
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {jobsWithArchives.length} von {completedJobs.length} abgeschlossene Jobs aus 
+                "{batch?.batch_name}" haben Archive und können gespeichert werden.
+                {completedJobs.length === 0 && (
+                  <div className="mt-2 text-amber-600">
+                    Keine abgeschlossenen Jobs gefunden. Stellen Sie sicher, dass die Jobs erfolgreich verarbeitet wurden.
+                  </div>
+                )}
+              </>
             )}
           </DialogDescription>
         </DialogHeader>
@@ -586,8 +604,6 @@ export default function BatchArchiveDialog({
             </div>
           )}
 
-
-
           {/* Struktur-Optionen */}
           <div className="space-y-3">
             <div className="flex items-center space-x-2">
@@ -617,21 +633,39 @@ export default function BatchArchiveDialog({
 
           {/* Job-Übersicht */}
           <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-            <h4 className="font-medium mb-2">Jobs zum Speichern:</h4>
+            <h4 className="font-medium mb-2">
+              {isMultiBatch ? 'Gefilterte Batches & Jobs:' : 'Jobs zum Speichern:'}
+            </h4>
             <div className="space-y-1 text-sm">
+              {isMultiBatch && (
+                <>
+                  <div className="flex justify-between">
+                    <span>Gefilterte Batches:</span>
+                    <Badge variant="default">{batches.length}</Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Alle Jobs:</span>
+                    <Badge variant="secondary">{completedJobs.length}</Badge>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between">
                 <span>Jobs mit Archiven:</span>
                 <Badge variant="default">{jobsWithArchives.length}</Badge>
               </div>
-              <div className="flex justify-between">
-                <span>Event:</span>
-                <Badge variant="secondary">{eventName}</Badge>
-              </div>
-              {trackName && (
-                <div className="flex justify-between">
-                  <span>Track:</span>
-                  <Badge variant="secondary">{trackName}</Badge>
-                </div>
+              {!isMultiBatch && (
+                <>
+                  <div className="flex justify-between">
+                    <span>Event:</span>
+                    <Badge variant="secondary">{eventName}</Badge>
+                  </div>
+                  {trackName && (
+                    <div className="flex justify-between">
+                      <span>Track:</span>
+                      <Badge variant="secondary">{trackName}</Badge>
+                    </div>
+                  )}
+                </>
               )}
               <div className="flex justify-between">
                 <span>Struktur:</span>
