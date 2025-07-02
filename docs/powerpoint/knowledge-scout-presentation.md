@@ -122,6 +122,52 @@ graph LR
 
 ---
 
+## Folie 7a: Secretary Service - The 6 Processors
+### 🔥 Complete Media Processing
+```mermaid
+graph TD
+    subgraph "🎯 The 6 Processors"
+        A["🎥 Video Processor<br/>📥 Video File/URL<br/>📤 Audio + Frames"]
+        B["🎵 Audio Processor<br/>📥 Audio File<br/>📤 Transcription"]
+        C["📄 PDF Processor<br/>📥 PDF Document<br/>📤 Extracted Text"]
+        D["🖼️ Image Processor (OCR)<br/>📥 Image File<br/>📤 Recognized Text"]
+        E["📝 Text Processor<br/>📥 Raw Text<br/>📤 Structured Content"]
+        F["🔄 Metadata Processor<br/>📥 Any Input<br/>📤 Structured Info"]
+    end
+    
+    subgraph "🔄 Transformation Workflow"
+        G["1️⃣ Video → Audio + Frames"]
+        H["2️⃣ Audio → Text"]
+        I["3️⃣ PDF → Text"]
+        J["4️⃣ Image → Text (OCR)"]
+        K["5️⃣ Text → Template"]
+        L["6️⃣ Extract → Metadata"]
+    end
+    
+    A --> G
+    B --> H
+    C --> I
+    D --> J
+    E --> K
+    F --> L
+    
+    G --> H
+    H --> K
+    I --> K
+    J --> K
+    K --> L
+```
+
+### 🚀 Supported Formats
+- **Video**: MP4, AVI, MOV, WebM → Audio Extraction + Frame Extraction
+- **Audio**: MP3, WAV, M4A → Whisper Transcription
+- **PDF**: All PDF versions → Text Extraction + OCR
+- **Images**: JPG, PNG, WebP → Tesseract OCR
+- **Text**: TXT, MD, CSV → Template Transformation
+- **URLs**: YouTube, Websites → Content Extraction
+
+---
+
 ## Folie 8: Sicherheit & Compliance
 ### 🔒 Sicherheitskonzept
 - **Clerk Authentication** für sichere Anmeldung
