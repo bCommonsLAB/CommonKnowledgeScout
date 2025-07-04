@@ -81,6 +81,77 @@ export interface SecretaryAudioResponse {
 }
 
 /**
+ * Typ für die Secretary Service Video Response
+ */
+export interface SecretaryVideoResponse {
+  status: string;
+  request?: {
+    processor: string;
+    timestamp: string;
+    parameters: {
+      source: {
+        url: string | null;
+        file_name: string;
+        file_size: number;
+        upload_timestamp: string;
+      };
+      source_language: string;
+      target_language: string;
+      template: string | null;
+      use_cache: boolean;
+    };
+  };
+  process?: {
+    id: string;
+    main_processor: string;
+    started: string;
+    sub_processors: string[];
+    completed: string | null;
+    duration: number | null;
+    is_from_cache: boolean;
+    cache_key: string;
+    llm_info?: {
+      requests: Array<{
+        model: string;
+        purpose: string;
+        tokens: number;
+        duration: number;
+        processor: string;
+        timestamp: string;
+      }>;
+      requests_count: number;
+      total_tokens: number;
+      total_duration: number;
+    };
+  };
+  error: unknown | null;
+  data: {
+    metadata: {
+      title: string;
+      source: {
+        url: string | null;
+        file_name: string;
+        file_size: number;
+        upload_timestamp: string;
+      };
+      duration: number;
+      duration_formatted: string;
+      file_size: number;
+      process_dir: string;
+      audio_file: string;
+      video_id: string | null;
+    };
+    process_id: string;
+    audio_result: unknown | null;
+    transcription: {
+      text: string;
+      source_language: string;
+      segments: unknown[];
+    };
+  };
+}
+
+/**
  * Transformiert eine Audio-Datei mithilfe des Secretary Services in Text
  * 
  * @param file Die zu transformierende Audio-Datei 
@@ -327,7 +398,7 @@ export async function createAllTrackSummaries(
  * @param file Die zu transformierende Video-Datei 
  * @param options Optionen für die Video-Transformation
  * @param libraryId ID der aktiven Bibliothek
- * @returns Die Transformationsergebnisse
+ * @returns Die vollständige Response vom Secretary Service
  */
 export async function transformVideo(
   file: File, 
@@ -340,10 +411,7 @@ export async function transformVideo(
     template?: string;
   },
   libraryId: string
-): Promise<{
-  transcription?: { text: string };
-  frames?: { url: string; timestamp: number }[];
-}> {
+): Promise<SecretaryVideoResponse> {
   try {
     console.log('[secretary/client] transformVideo aufgerufen mit Optionen:', options);
     
@@ -395,7 +463,9 @@ export async function transformVideo(
 
     const data = await response.json();
     console.log('[secretary/client] Video-Daten erfolgreich empfangen');
-    return data;
+    
+    // Gebe die vollständige Response zurück
+    return data as SecretaryVideoResponse;
   } catch (error) {
     console.error('[secretary/client] Fehler bei der Video-Transformation:', error);
     if (error instanceof SecretaryServiceError) {

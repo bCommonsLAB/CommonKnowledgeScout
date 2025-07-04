@@ -4,17 +4,27 @@ import * as React from 'react';
 import { useAtomValue } from "jotai";
 import { selectedFileAtom } from "@/atoms/library-atom";
 import { FileLogger } from "@/lib/debug/logger";
-import { StorageProvider } from '@/lib/storage/types';
+import { memo, useEffect, useRef, useState } from 'react';
+import { StorageItem, StorageProvider } from '@/lib/storage/types';
+import { VideoTransform } from './video-transform';
+import { Button } from '@/components/ui/button';
+import { Wand2 } from 'lucide-react';
+import { Tabs } from '@/components/ui/tabs';
 
 interface VideoPlayerProps {
   provider: StorageProvider | null;
+  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
+  activeLibraryId: string;
 }
 
-export function VideoPlayer({ provider }: VideoPlayerProps) {
+export const VideoPlayer = memo(function VideoPlayer({ provider, onRefreshFolder }: VideoPlayerProps) {
   const item = useAtomValue(selectedFileAtom);
-  const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showTransform, setShowTransform] = useState(false);
+  const [activeTab, setActiveTab] = useState('tab1');
 
   // Hooks immer außerhalb von Bedingungen aufrufen
   React.useEffect(() => {
@@ -64,6 +74,53 @@ export function VideoPlayer({ provider }: VideoPlayerProps) {
     };
   }, [videoUrl]);
 
+  // Debug Logging
+  useEffect(() => {
+    FileLogger.debug('VideoPlayer', 'Mounted with item', {
+      itemId: item?.id,
+      itemName: item?.metadata.name,
+      mimeType: item?.metadata.mimeType
+    });
+  }, [item]);
+
+  const handleError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    const errorCode = video.error?.code;
+    let errorMessage = 'Unbekannter Fehler';
+    
+    switch (errorCode) {
+      case 1:
+        errorMessage = 'Der Ladevorgang wurde abgebrochen';
+        break;
+      case 2:
+        errorMessage = 'Netzwerkfehler';
+        break;
+      case 3:
+        errorMessage = 'Fehler beim Dekodieren der Video-Datei';
+        break;
+      case 4:
+        errorMessage = 'Video-Format wird nicht unterstützt';
+        break;
+    }
+
+    setError(errorMessage);
+    
+    if (process.env.NODE_ENV === 'development') {
+      FileLogger.error('VideoPlayer', 'Error', {
+        error,
+        errorCode,
+        errorMessage,
+        networkState: video.networkState,
+        readyState: video.readyState,
+        src: video.currentSrc
+      });
+    }
+  };
+
+  const handleTransformButtonClick = () => {
+    setShowTransform(true);
+  };
+
   if (!item) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -100,14 +157,71 @@ export function VideoPlayer({ provider }: VideoPlayerProps) {
   }
 
   return (
-    <div className="flex items-center justify-center h-full p-4">
-      <video
-        controls
-        className="w-full max-w-4xl"
-      >
-        <source src={videoUrl} type={item.metadata.mimeType} />
-        Ihr Browser unterstützt das Video-Element nicht.
-      </video>
+    <div className="flex flex-col h-full">
+      {item && (
+        <div className="flex items-center justify-between mx-4 mt-4 mb-2 flex-shrink-0">
+          <div className="text-xs text-muted-foreground">
+            {item.metadata.name}
+          </div>
+          {onRefreshFolder && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleTransformButtonClick}
+            >
+              <Wand2 className="h-4 w-4 mr-2" />
+              Transformieren
+            </Button>
+          )}
+        </div>
+      )}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
+        <div className="flex flex-col h-full">
+          <div className="flex-1 flex items-start justify-start p-4 gap-4">
+            <div className="flex-1 max-w-4xl">
+              <video
+                ref={videoRef}
+                controls
+                className="w-full"
+                onError={handleError}
+              >
+                <source src={videoUrl} type={item.metadata.mimeType} />
+                Ihr Browser unterstützt das Video-Element nicht.
+              </video>
+            </div>
+
+            {/* Transform Dialog */}
+            {showTransform && (
+              <div className="w-80 border rounded-lg p-4 bg-background flex-shrink-0">
+                <VideoTransform 
+                  onRefreshFolder={(folderId, updatedItems, twinItem) => {
+                    FileLogger.info('VideoPlayer', 'Video Transformation abgeschlossen', {
+                      originalFile: item.metadata.name,
+                      transcriptFile: updatedItems[0]?.metadata.name || 'unknown'
+                    });
+                    
+                    // UI schließen
+                    setShowTransform(false);
+                    
+                    // Informiere die übergeordnete Komponente über die Aktualisierung
+                    if (onRefreshFolder) {
+                      onRefreshFolder(folderId, updatedItems, twinItem);
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </Tabs>
     </div>
   );
-} 
+}, (prevProps, nextProps) => {
+  const shouldUpdate = prevProps.provider !== nextProps.provider;
+  if (process.env.NODE_ENV === 'development') {
+    FileLogger.debug('VideoPlayer', 'Memo comparison', {
+      hasChanged: shouldUpdate
+    });
+  }
+  return !shouldUpdate;
+}); 

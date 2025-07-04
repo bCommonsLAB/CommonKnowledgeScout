@@ -1,5 +1,5 @@
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
-import { transformAudio, transformText, transformVideo, SecretaryAudioResponse } from "@/lib/secretary/client";
+import { transformAudio, transformText, transformVideo, SecretaryAudioResponse, SecretaryVideoResponse } from "@/lib/secretary/client";
 
 export interface TransformSaveOptions {
   targetLanguage: string;
@@ -20,10 +20,6 @@ export interface VideoTransformOptions extends TransformSaveOptions {
   frameInterval: number;
   sourceLanguage?: string;
   template?: string;
-}
-
-export interface VideoTransformResult extends TransformResult {
-  frames?: { url: string; timestamp: number }[];
 }
 
 /**
@@ -201,9 +197,11 @@ export class TransformService {
     provider: StorageProvider,
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
     libraryId: string
-  ): Promise<VideoTransformResult> {
-    // Video-Datei wird transformiert
-    const videoTransformResult = await transformVideo(
+  ): Promise<TransformResult> {
+    console.log('[TransformService] transformVideo gestartet mit Optionen:', options);
+    
+    // Video-Datei wird transformiert - hole die vollständige Response
+    const response = await transformVideo(
       file, 
       {
         extractAudio: options.extractAudio,
@@ -216,13 +214,95 @@ export class TransformService {
       libraryId
     );
     
-    // Text aus der Transkription extrahieren (falls vorhanden)
-    const transformedText = videoTransformResult.transcription?.text || '';
+    console.log('[TransformService] Vollständige Video-Response:', JSON.stringify(response, null, 2));
+    
+    // Extrahiere den Text aus der Response
+    let transformedText = '';
+    let metadata: TransformMetadata = {};
+    
+    console.log('[TransformService] Response-Check:', {
+      hasResponse: !!response,
+      responseType: typeof response,
+      hasData: !!(response && response.data),
+      dataType: response && response.data ? typeof response.data : 'undefined',
+      hasTranscription: !!(response && response.data && response.data.transcription),
+      transcriptionType: response && response.data && response.data.transcription ? typeof response.data.transcription : 'undefined',
+      dataKeys: response && response.data ? Object.keys(response.data) : [],
+      transcriptionKeys: response && response.data && response.data.transcription ? Object.keys(response.data.transcription) : []
+    });
+    
+    if (response && response.data && response.data.transcription) {
+      console.log('[TransformService] Transkription gefunden:', response.data.transcription);
+      
+      // Vollständige Video-Response mit Metadaten
+      const videoResponse = response as SecretaryVideoResponse;
+      transformedText = videoResponse.data.transcription.text;
+      
+      console.log('[TransformService] Extrahierter Text-Länge:', transformedText.length);
+      console.log('[TransformService] Text-Vorschau:', transformedText.substring(0, 200));
+      
+      // Sammle relevante Video-Metadaten
+      metadata = {
+        // Quelldatei-Informationen
+        source_file: originalItem.metadata.name,
+        source_file_id: originalItem.id,
+        source_file_size: originalItem.metadata.size,
+        source_file_type: originalItem.metadata.mimeType,
+        
+        // Transformations-Informationen
+        source_language: videoResponse.data.transcription.source_language || options.sourceLanguage || 'auto',
+        target_language: options.targetLanguage,
+        
+        // Video-Metadaten
+        video_duration: videoResponse.data.metadata?.duration,
+        video_duration_formatted: videoResponse.data.metadata?.duration_formatted,
+        video_file_size: videoResponse.data.metadata?.file_size,
+        video_title: videoResponse.data.metadata?.title,
+        audio_file: videoResponse.data.metadata?.audio_file,
+        
+        // Prozess-Informationen
+        process_id: videoResponse.process?.id,
+        processor: videoResponse.process?.main_processor,
+        sub_processors: videoResponse.process?.sub_processors?.join(', '),
+        processing_duration_ms: videoResponse.process?.llm_info?.total_duration,
+        model_used: videoResponse.process?.llm_info?.requests?.[0]?.model,
+        tokens_used: videoResponse.process?.llm_info?.total_tokens,
+        
+        // Secretary Service Informationen
+        cache_used: videoResponse.process?.is_from_cache || false,
+        cache_key: videoResponse.process?.cache_key
+      };
+      
+      console.log('[TransformService] Extrahierte Metadaten:', metadata);
+      
+      // Entferne undefined-Werte
+      Object.keys(metadata).forEach(key => {
+        if (metadata[key] === undefined || metadata[key] === null) {
+          delete metadata[key];
+        }
+      });
+    } else {
+      console.error('[TransformService] Keine Transkription in der Response gefunden!');
+      console.error('[TransformService] Response-Struktur:', {
+        hasResponse: !!response,
+        hasData: !!(response && response.data),
+        hasTranscription: !!(response && response.data && response.data.transcription),
+        responseKeys: response ? Object.keys(response) : [],
+        dataKeys: response && response.data ? Object.keys(response.data) : []
+      });
+    }
+    
+    console.log('[TransformService] Finaler transformierter Text-Länge:', transformedText.length);
+    
+    // Erstelle Markdown-Inhalt mit Frontmatter
+    const markdownContent = TransformService.createMarkdownWithFrontmatter(transformedText, metadata);
     
     // Ergebnis wird gespeichert, wenn gewünscht
     if (options.createShadowTwin && transformedText) {
+      console.log('[TransformService] Speichere Shadow-Twin mit Länge:', markdownContent.length);
+      
       const result = await TransformService.saveTwinFile(
-        transformedText,
+        markdownContent,
         originalItem,
         options.fileName,
         options.fileExtension,
@@ -231,17 +311,21 @@ export class TransformService {
       );
       
       return {
-        text: transformedText,
+        text: transformedText, // Gebe nur den Text zurück, nicht das Markdown mit Frontmatter
         savedItem: result.savedItem,
-        updatedItems: result.updatedItems,
-        frames: videoTransformResult.frames
+        updatedItems: result.updatedItems
       };
+    } else {
+      console.log('[TransformService] Keine Speicherung:', {
+        createShadowTwin: options.createShadowTwin,
+        hasText: !!transformedText,
+        textLength: transformedText.length
+      });
     }
     
     return {
       text: transformedText,
-      updatedItems: [],
-      frames: videoTransformResult.frames
+      updatedItems: []
     };
   }
 

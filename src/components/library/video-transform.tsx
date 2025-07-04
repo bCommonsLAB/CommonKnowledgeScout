@@ -16,10 +16,7 @@ import {
 import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getUserFriendlyVideoErrorMessage } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
 
 interface VideoTransformProps {
@@ -57,13 +54,6 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
     createShadowTwin: true,
     fileExtension: "md"
   });
-  
-  // Video-spezifische Optionen
-  const [extractAudio, setExtractAudio] = useState<boolean>(true);
-  const [extractFrames, setExtractFrames] = useState<boolean>(false);
-  const [frameInterval, setFrameInterval] = useState<number>(1);
-  const [sourceLanguage, setSourceLanguage] = useState<string>("auto");
-  const [template, setTemplate] = useState<string>("Video");
   
   // Prüfe ob item vorhanden ist
   if (!item) {
@@ -104,14 +94,14 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
       // Konvertiere Blob zu File für die Verarbeitung
       const file = new File([blob], item.metadata.name, { type: item.metadata.mimeType });
 
-      // Kombiniere die allgemeinen und video-spezifischen Optionen
+      // Kombiniere die allgemeinen Optionen mit festen Video-Transkriptions-Einstellungen
       const videoOptions: VideoTransformOptions = {
         ...saveOptions,
-        extractAudio,
-        extractFrames,
-        frameInterval,
-        sourceLanguage,
-        template
+        extractAudio: true,      // Audio muss für Transkription extrahiert werden
+        extractFrames: false,    // Frames sind für Transkription nicht notwendig
+        frameInterval: 1,        // Irrelevant da extractFrames false ist
+        sourceLanguage: "auto",  // Automatische Spracherkennung
+        template: undefined      // Keine Vorlage notwendig
       };
 
       // Transformiere die Video-Datei mit dem TransformService
@@ -127,8 +117,7 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
       FileLogger.info('VideoTransform', 'Video Transformation abgeschlossen', {
         textLength: result.text.length,
         savedItemId: result.savedItem?.id,
-        updatedItemsCount: result.updatedItems.length,
-        framesCount: result.frames?.length || 0
+        updatedItemsCount: result.updatedItems.length
       });
 
       // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
@@ -151,7 +140,7 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
     } catch (error) {
       FileLogger.error('VideoTransform', 'Fehler bei der Video-Transformation', error);
       toast.error("Fehler", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler bei der Transformation"
+        description: getUserFriendlyVideoErrorMessage(error)
       });
     } finally {
       setIsLoading(false);
@@ -167,7 +156,7 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
     <div className="flex flex-col gap-4 p-4">
       <TransformResultHandler
         onResultProcessed={() => {
-          FileLogger.info('VideoTransform', 'Video-Transformation vollständig abgeschlossen und Datei ausgewählt');
+          FileLogger.info('VideoTransform', 'Video-Transkription vollständig abgeschlossen und Datei ausgewählt');
         }}
         childrenAction={(handleTransformResult, isProcessingResult) => {
           // Speichere die handleTransformResult-Funktion in der Ref
@@ -181,90 +170,12 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
                 className="mb-4"
               />
               
-              <div className="space-y-4 mb-4">
-                <h4 className="text-sm font-medium">Video-Optionen</h4>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="extractAudio" 
-                    checked={extractAudio}
-                    onCheckedChange={(checked) => setExtractAudio(checked === true)}
-                  />
-                  <Label htmlFor="extractAudio">Audio extrahieren und transkribieren</Label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="extractFrames" 
-                    checked={extractFrames}
-                    onCheckedChange={(checked) => setExtractFrames(checked === true)}
-                  />
-                  <Label htmlFor="extractFrames">Frames extrahieren</Label>
-                </div>
-                
-                {extractFrames && (
-                  <div className="flex flex-col space-y-2">
-                    <Label htmlFor="frameInterval">Intervall (Sekunden)</Label>
-                    <Input 
-                      id="frameInterval"
-                      type="number" 
-                      min={1}
-                      value={frameInterval}
-                      onChange={(e) => setFrameInterval(parseInt(e.target.value) || 1)}
-                      className="w-full"
-                    />
-                  </div>
-                )}
-
-                {extractAudio && (
-                  <>
-                    <div className="flex flex-col space-y-2">
-                      <Label htmlFor="sourceLanguage">Quellsprache</Label>
-                      <Select
-                        value={sourceLanguage}
-                        onValueChange={setSourceLanguage}
-                      >
-                        <SelectTrigger id="sourceLanguage">
-                          <SelectValue placeholder="Quellsprache auswählen" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="auto">Automatisch erkennen</SelectItem>
-                          <SelectItem value="de">Deutsch</SelectItem>
-                          <SelectItem value="en">Englisch</SelectItem>
-                          <SelectItem value="fr">Französisch</SelectItem>
-                          <SelectItem value="es">Spanisch</SelectItem>
-                          <SelectItem value="it">Italienisch</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex flex-col space-y-2">
-                      <Label htmlFor="template">Vorlage</Label>
-                      <Select
-                        value={template}
-                        onValueChange={setTemplate}
-                      >
-                        <SelectTrigger id="template">
-                          <SelectValue placeholder="Vorlage auswählen" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Video">Video</SelectItem>
-                          <SelectItem value="Besprechung">Besprechung</SelectItem>
-                          <SelectItem value="Interview">Interview</SelectItem>
-                          <SelectItem value="Zusammenfassung">Zusammenfassung</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-              </div>
-              
               <Button 
                 onClick={handleTransform} 
                 disabled={isLoading || isProcessingResult}
                 className="w-full"
               >
-                {isLoading ? "Wird verarbeitet..." : "Video verarbeiten"}
+                {isLoading ? "Wird transkribiert..." : "Transkribieren"}
               </Button>
             </>
           );

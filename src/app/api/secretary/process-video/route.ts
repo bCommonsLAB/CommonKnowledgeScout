@@ -55,30 +55,14 @@ export async function POST(request: NextRequest) {
       console.log('[process-video] Ungefähre Dateigröße:', file.size, 'Bytes');
     }
     
-    // Optionen für Video-Verarbeitung
-    if (formData.has('extractAudio')) {
-      serviceFormData.append('extract_audio', formData.get('extractAudio') as string);
-    } else {
-      serviceFormData.append('extract_audio', 'true'); // Standardwert
-    }
-    
-    if (formData.has('extractFrames')) {
-      serviceFormData.append('extract_frames', formData.get('extractFrames') as string);
-    } else {
-      serviceFormData.append('extract_frames', 'false'); // Standardwert
-    }
-    
-    if (formData.has('frameInterval')) {
-      serviceFormData.append('frame_interval', formData.get('frameInterval') as string);
-    }
-    
-    // Sprachoptionen
+    // Zielsprache (target_language)
     if (formData.has('targetLanguage')) {
       serviceFormData.append('target_language', formData.get('targetLanguage') as string);
     } else {
       serviceFormData.append('target_language', 'de'); // Standardwert
     }
     
+    // Quellsprache (source_language)
     if (formData.has('sourceLanguage')) {
       serviceFormData.append('source_language', formData.get('sourceLanguage') as string);
     } else {
@@ -90,11 +74,18 @@ export async function POST(request: NextRequest) {
       serviceFormData.append('template', formData.get('template') as string);
     }
     
-    // Cache-Option
+    // Cache-Optionen - korrigiert für neue API
     if (formData.has('useCache')) {
       serviceFormData.append('useCache', formData.get('useCache') as string);
     } else {
-      serviceFormData.append('useCache', 'false'); // Standardwert
+      serviceFormData.append('useCache', 'true'); // Standardwert: Cache verwenden
+    }
+    
+    // Force refresh Option
+    if (formData.has('force_refresh')) {
+      serviceFormData.append('force_refresh', formData.get('force_refresh') as string);
+    } else {
+      serviceFormData.append('force_refresh', 'false'); // Standardwert
     }
 
     // Anfrage an den Secretary Service senden
@@ -122,7 +113,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data.data);
+    // Gebe die vollständige Response zurück, nicht nur data.data
+    return NextResponse.json(data);
   } catch (error) {
     console.error('[process-video] Secretary Service Error:', error);
     return NextResponse.json(
