@@ -78,7 +78,9 @@ async function startNextServer() {
     const possiblePaths = [
       // Development: lokaler Build
       path.join(__dirname, '..', '.next', 'standalone', 'server.js'),
-      // Production: extraResources Pfad (bevorzugt)
+      // Production: extraResources Pfad (bevorzugt) - neue Konfiguration
+      path.join(process.resourcesPath, 'app', 'standalone', 'server.js'),
+      // Fallback: alte Konfiguration
       path.join(process.resourcesPath, 'app', '.next', 'standalone', 'server.js'),
     ];
     
@@ -211,13 +213,14 @@ async function startNextServer() {
           
           // Versuche next-Modul aus verschiedenen Pfaden zu laden
           const possibleNextPaths = [
+            path.join(process.resourcesPath, 'app', 'standalone', 'node_modules', 'next'),
             path.join(process.resourcesPath, 'app', '.next', 'standalone', 'node_modules', 'next'),
             path.join(__dirname, '..', 'node_modules', 'next'),
             path.join(process.cwd(), 'node_modules', 'next')
           ];
           
           // Versuche auch @swc/helpers zu laden
-          const swcHelpersPath = path.join(process.resourcesPath, 'app', '.next', 'standalone', 'node_modules', '@swc', 'helpers');
+          const swcHelpersPath = path.join(process.resourcesPath, 'app', 'standalone', 'node_modules', '@swc', 'helpers');
           if (fs.existsSync(swcHelpersPath)) {
             log.info(`Lade @swc/helpers aus: ${swcHelpersPath}`);
             try {
