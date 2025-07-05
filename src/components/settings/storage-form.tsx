@@ -476,7 +476,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     } finally {
       setIsLoading(false);
     }
-  }, [activeLibrary, libraries, setLibraries, form, oauthDefaults]);
+  }, [activeLibrary, libraries, setLibraries]);
   
   // Funktion zum Starten der OneDrive-Authentifizierung
   const handleOneDriveAuth = useCallback(async () => {

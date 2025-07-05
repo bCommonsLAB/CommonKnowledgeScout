@@ -196,7 +196,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         }));
       }
     }
-  }, [content, template, saveOptions.targetLanguage, saveOptions.createShadowTwin, currentItem, generateTransformationFileName]);
+  }, [content, template, saveOptions.targetLanguage, saveOptions.createShadowTwin, saveOptions.fileName, currentItem, generateTransformationFileName]);
   
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const { refreshItems } = useStorage();
@@ -225,7 +225,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         }));
       }
     }
-  }, [template, content, saveOptions.targetLanguage, saveOptions.createShadowTwin, currentItem?.metadata.name, saveOptions.fileName, generateTransformationFileName]);
+  }, [template, content, saveOptions.targetLanguage, saveOptions.createShadowTwin, saveOptions.fileName, currentItem?.metadata.name, generateTransformationFileName]);
 
   // Debug-Logging für activeLibrary
   React.useEffect(() => {
@@ -797,7 +797,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       currentItemName: currentItem?.metadata.name
     });
     setActiveTab("preview");
-  }, [currentItem?.id]);
+  }, [currentItem?.id, currentItem?.metadata?.name]);
   
   // Memoize the markdown renderer
   const renderedContent = React.useMemo(() => {

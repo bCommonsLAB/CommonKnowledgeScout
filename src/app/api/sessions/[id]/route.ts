@@ -53,7 +53,7 @@ export async function PUT(
     const updates = await request.json() as Partial<Session>;
     
     // Entferne id, created_at aus Updates
-    const { id, created_at, ...validUpdates } = updates;
+    const validUpdates = Object.fromEntries(Object.entries(updates).filter(([key]) => key !== 'id' && key !== 'created_at'));
     
     const success = await repository.updateSession(id, validUpdates);
     

@@ -144,39 +144,6 @@ export default function SessionManagerPage() {
     }
   };
   
-  // Cell-Editing starten
-  const startEditing = (sessionId: string, field: string, currentValue: string) => {
-    setEditingCell({ sessionId, field });
-    setEditValue(currentValue);
-  };
-  
-  // Cell-Editing speichern
-  const saveEdit = async () => {
-    if (!editingCell) return;
-    
-    try {
-      const { sessionId, field } = editingCell;
-      
-      const response = await fetch(`/api/sessions/${sessionId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: editValue })
-      });
-      
-      if (response.ok) {
-        // Sessions neu laden um Änderungen zu zeigen
-        loadSessions();
-      } else {
-        console.error('Fehler beim Speichern der Änderung');
-      }
-    } catch (error) {
-      console.error('Fehler beim Speichern:', error);
-    } finally {
-      setEditingCell(null);
-      setEditValue('');
-    }
-  };
-  
   // Cell-Editing abbrechen
   const cancelEdit = () => {
     setEditingCell(null);
@@ -263,7 +230,7 @@ export default function SessionManagerPage() {
   };
   
   // Handler für erfolgreich importierte Session
-  const handleSessionImported = (sessionData: any) => {
+  const handleSessionImported = (sessionData: { sessionIds: string[] }) => {
     console.log('[SessionManager] Session importiert:', sessionData);
     // Sessions neu laden um neue Session anzuzeigen
     loadSessions();

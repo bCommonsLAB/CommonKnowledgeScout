@@ -89,16 +89,12 @@ function ContentLoader({
   item, 
   provider, 
   fileType, 
-  isAudioFile, 
-  isVideoFile, 
   contentCache,
   onContentLoaded 
 }: {
   item: StorageItem | null;
   provider: StorageProvider | null;
   fileType: string;
-  isAudioFile: boolean;
-  isVideoFile: boolean;
   contentCache: React.MutableRefObject<Map<string, { content: string; hasMetadata: boolean }>>;
   onContentLoaded: (content: string, hasMetadata: boolean) => void;
 }) {
@@ -194,7 +190,7 @@ function ContentLoader({
     } finally {
       loadingIdRef.current = null;
     }
-  }, [item?.id, item?.metadata?.name, provider, fileType, isAudioFile, isVideoFile, onContentLoaded, isTemplateFile, contentCache]);
+  }, [item?.id, item?.metadata?.name, provider, fileType, onContentLoaded, isTemplateFile, contentCache]);
 
   // Cleanup bei Unmount
   React.useEffect(() => {
@@ -473,9 +469,6 @@ export function FilePreview({
     [selectedFile]
   );
   
-  const isAudioFile = React.useMemo(() => fileType === 'audio', [fileType]);
-  const isVideoFile = React.useMemo(() => fileType === 'video', [fileType]);
-
   // Memoize content loader callback
   const handleContentLoaded = React.useCallback((content: string, hasMetadata: boolean) => {
     FileLogger.debug('FilePreview', 'handleContentLoaded aufgerufen', {
@@ -516,7 +509,7 @@ export function FilePreview({
         });
       }
     }
-  }, [selectedFile?.id]);
+  }, [selectedFile?.id, selectedFile?.metadata?.name]);
 
   if (!selectedFile) {
     return (
@@ -532,8 +525,6 @@ export function FilePreview({
         item={selectedFile}
         provider={provider}
         fileType={fileType}
-        isAudioFile={isAudioFile}
-        isVideoFile={isVideoFile}
         contentCache={contentCache}
         onContentLoaded={handleContentLoaded}
       />

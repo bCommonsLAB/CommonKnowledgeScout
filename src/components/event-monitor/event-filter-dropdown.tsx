@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useAtom } from 'jotai';
 import { 
   Select, 
@@ -19,12 +19,10 @@ import {
 } from '@/atoms/event-filter-atom';
 
 interface EventFilterDropdownProps {
-  onEventChange?: (eventName: string | null) => void;
   className?: string;
 }
 
 export default function EventFilterDropdown({ 
-  onEventChange, 
   className = "" 
 }: EventFilterDropdownProps) {
   const [selectedEvent, setSelectedEvent] = useAtom(selectedEventAtom);
@@ -33,31 +31,31 @@ export default function EventFilterDropdown({
 
   // Events beim ersten Laden abrufen
   useEffect(() => {
+    // Events von der API laden
+    async function loadEvents() {
+      try {
+        setEventsLoading(true);
+        
+        const response = await fetch('/api/event-job/events');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          setAvailableEvents(data.data.events || []);
+        } else {
+          console.error('Fehler beim Laden der Events:', data.message);
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der Events:', error);
+      } finally {
+        setEventsLoading(false);
+      }
+    }
+    
     loadEvents();
-  }, []);
+  }, [setAvailableEvents, setEventsLoading]);
 
   // Event-Änderung wird automatisch über das Jotai-Atom verfolgt
   // Kein separater useEffect für onEventChange nötig
-
-  // Events von der API laden
-  async function loadEvents() {
-    try {
-      setEventsLoading(true);
-      
-      const response = await fetch('/api/event-job/events');
-      const data = await response.json();
-      
-      if (data.status === 'success') {
-        setAvailableEvents(data.data.events || []);
-      } else {
-        console.error('Fehler beim Laden der Events:', data.message);
-      }
-    } catch (error) {
-      console.error('Fehler beim Laden der Events:', error);
-    } finally {
-      setEventsLoading(false);
-    }
-  }
 
   // Event-Auswahl behandeln
   const handleEventSelect = (eventName: string) => {

@@ -11,17 +11,14 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Loader2, FolderOpen, Download, AlertTriangle, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Batch, Job } from '@/types/event-job';
-import { ClientLibrary } from '@/types/library';
 import { useAtom } from 'jotai';
-import { activeLibraryAtom, currentPathAtom, librariesAtom, activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { activeLibraryAtom, currentPathAtom, currentFolderIdAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
+import { Download, AlertTriangle, Info, FolderOpen, Loader2 } from 'lucide-react';
 
 interface ArchiveProgress {
   current: number;
@@ -67,8 +64,6 @@ export default function BatchArchiveDialog({
 }: BatchArchiveDialogProps) {
   const [activeLibrary] = useAtom(activeLibraryAtom);
   const [currentPath] = useAtom(currentPathAtom);
-  const [libraries, setLibraries] = useAtom(librariesAtom);
-  const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const { provider } = useStorage();
   const [preserveZipStructure, setPreserveZipStructure] = useState(true);
@@ -124,7 +119,7 @@ export default function BatchArchiveDialog({
         });
       }
     }
-  }, [open, isMultiBatch, batches, activeLibrary, currentPath, completedJobs, jobsWithArchives]);
+  }, [open, isMultiBatch, batches, activeLibrary, currentPath, completedJobs, jobsWithArchives, currentFolderId, provider]);
 
   // Archive-Dialog erfordert immer eine aktive Library - keine Fallback-Logik!
 
@@ -510,7 +505,7 @@ export default function BatchArchiveDialog({
             ) : (
               <>
                 {jobsWithArchives.length} von {completedJobs.length} abgeschlossene Jobs aus 
-                "{batch?.batch_name}" haben Archive und können gespeichert werden.
+                &quot;{batch?.batch_name}&quot; haben Archive und können gespeichert werden.
                 {completedJobs.length === 0 && (
                   <div className="mt-2 text-amber-600">
                     Keine abgeschlossenen Jobs gefunden. Stellen Sie sicher, dass die Jobs erfolgreich verarbeitet wurden.

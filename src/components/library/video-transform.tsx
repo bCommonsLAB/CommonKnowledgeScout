@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { 
   TransformService, 
   VideoTransformOptions, 
-  VideoTransformResult 
+  TransformResult 
 } from "@/lib/transform/transform-service";
 import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
@@ -32,7 +32,7 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
   const { refreshItems } = useStorage();
   
   // Referenz für den TransformResultHandler
-  const transformResultHandlerRef = useRef<(result: VideoTransformResult) => void>(() => {});
+  const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});
   
   // Hilfsfunktion für den Basis-Dateinamen
   const getBaseFileName = (fileName: string): string => {

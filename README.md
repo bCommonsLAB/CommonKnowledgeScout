@@ -29,23 +29,39 @@ Ein modernes, erweiterbares Dokumentenmanagementsystem, gebaut mit Next.js 14, T
 
 ## 🚀 Quick Start
 
+### Web-Anwendung
 ```bash
 # Repository klonen
 git clone [repository-url]
 cd [projekt-verzeichnis]
 
 # Dependencies installieren
-pnpm install
+npm install
 
 # Umgebungsvariablen konfigurieren
 cp .env.example .env.local
 # .env.local anpassen
 
 # Entwicklungsserver starten
-pnpm dev
+npm run dev
 ```
 
 Die Anwendung ist nun unter `http://localhost:3000` verfügbar.
+
+### Desktop-Anwendung (Electron)
+```bash
+# Dependencies installieren
+npm install
+
+# Electron-App bauen
+npm run build
+npm run electron:build
+
+# App starten (Windows)
+./dist/win-unpacked/Knowledge Scout.exe
+```
+
+⚠️ **Wichtig**: Verwende npm statt pnpm für Electron-Builds!
 
 ## 📚 Dokumentation
 
@@ -59,21 +75,25 @@ Detaillierte Dokumentation finden Sie in den folgenden Bereichen:
 
 ### Benutzer & Features
 - [Funktionen und Benutzergruppen](docs/05_features.md)
-- [Entwickler Setup Guide](docs/05_setup.md)
+- [Entwickler Setup Guide](docs/06_setup.md)
 - [API Dokumentation](docs/07_api.md)
+
+### Electron & Troubleshooting
+- [Electron Troubleshooting Guide](docs/electron-troubleshooting.md)
 
 ## 🛠 Technologie-Stack
 
-- **Frontend**: Next.js 14, React 18, TypeScript
+- **Frontend**: Next.js 15.2.3, React 18, TypeScript
 - **UI**: Tailwind CSS, shadcn/ui, Radix UI
 - **State**: Jotai, React Hook Form
 - **Auth**: Clerk
-- **Build**: pnpm
+- **Desktop**: Electron
+- **Build**: npm (⚠️ pnpm nicht für Electron-Builds)
 
 ## 📋 Systemanforderungen
 
 - Node.js >= 18
-- pnpm >= 9.15
+- npm >= 9 (⚠️ pnpm nicht für Electron-Builds)
 - Git
 
 ## 🤝 Beitragen

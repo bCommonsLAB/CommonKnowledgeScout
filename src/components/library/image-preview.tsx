@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import { useAtomValue } from "jotai";
 import { selectedFileAtom } from "@/atoms/library-atom";
 import { FileLogger } from "@/lib/debug/logger";
@@ -76,9 +77,11 @@ export function ImagePreview({ provider }: ImagePreviewProps) {
 
   return (
     <div className="flex items-center justify-center h-full p-4">
-      <img
+      <Image
         src={imageUrl}
         alt={item.metadata.name}
+        width={800}
+        height={600}
         className="max-w-full max-h-full object-contain"
         onError={() => {
           FileLogger.error('ImagePreview', 'Fehler beim Laden des Bildes', {

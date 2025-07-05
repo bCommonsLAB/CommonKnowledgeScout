@@ -18,7 +18,6 @@ import {
   selectedBatchItemsAtom,
   transcriptionDialogOpenAtom,
   baseTransformOptionsAtom,
-  BaseTransformOptions
 } from '@/atoms/transcription-options';
 import { BatchTransformService, BatchTransformProgress, BatchTransformResult } from '@/lib/transform/batch-transform-service';
 import { useStorage } from '@/contexts/storage-context';

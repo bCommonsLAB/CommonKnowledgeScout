@@ -19,12 +19,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { importSessionFromUrl, SecretaryServiceError } from '@/lib/secretary/client';
-import { TemplateExtractionResponse, StructuredSessionData } from '@/lib/secretary/types';
+import { StructuredSessionData } from '@/lib/secretary/types';
 
 interface SessionImportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSessionImported?: (sessionData: any) => void;
+  onSessionImported?: (sessionData: { sessionIds: string[] }) => void;
 }
 
 // Typ für Session-Link aus Batch-Import
@@ -204,7 +204,7 @@ export default function SessionImportModal({
         
         // Callback aufrufen falls vorhanden
         if (onSessionImported) {
-          onSessionImported(data.data);
+          onSessionImported(data.data as { sessionIds: string[] });
         }
         
         // Nach kurzer Verzögerung Modal schließen
@@ -255,34 +255,38 @@ export default function SessionImportModal({
 
       if (response.status === 'success' && response.data && response.data.structured_data) {
         // Erwarte ein Array von Sessions oder ein Objekt mit sessions-Array
-        const data = response.data.structured_data as any; // Flexiblere Typisierung für Batch-Import
+        const data = response.data.structured_data as unknown as Record<string, unknown>; // Flexiblere Typisierung für Batch-Import
         let sessions: SessionLink[] = [];
         
         // Event und andere globale Daten speichern
         const globalEvent = data.event || '';
         
         if (Array.isArray(data)) {
-          sessions = data.map((item: any) => ({
-            name: item.name || item.session || item.title || 'Unbenannte Session',
-            url: item.url || item.link || '',
-            status: 'pending' as const,
-            // Track aus dem Item speichern
-            track: item.track || ''
-          }));
-        } else if (data.sessions && Array.isArray(data.sessions)) {
-          sessions = data.sessions.map((item: any) => ({
-            name: item.name || item.session || item.title || 'Unbenannte Session',
-            url: item.url || item.link || '',
-            status: 'pending' as const,
-            // Track aus dem Item speichern
-            track: item.track || ''
-          }));
+          sessions = (data as unknown[]).map((item) => {
+            const obj = item as Record<string, unknown>;
+            return {
+              name: (obj.name as string) || (obj.session as string) || (obj.title as string) || 'Unbenannte Session',
+              url: (obj.url as string) || (obj.link as string) || '',
+              status: 'pending' as const,
+              track: (obj.track as string) || ''
+            };
+          });
+        } else if (data.sessions && Array.isArray((data as { sessions: unknown[] }).sessions)) {
+          sessions = ((data as { sessions: unknown[] }).sessions).map((item) => {
+            const obj = item as Record<string, unknown>;
+            return {
+              name: (obj.name as string) || (obj.session as string) || (obj.title as string) || 'Unbenannte Session',
+              url: (obj.url as string) || (obj.link as string) || '',
+              status: 'pending' as const,
+              track: (obj.track as string) || ''
+            };
+          });
         }
         
         if (sessions.length > 0) {
           setSessionLinks(sessions);
           // Globales Event speichern für späteren Gebrauch
-          setBatchEvent(globalEvent);
+          setBatchEvent(typeof globalEvent === 'string' ? globalEvent : '');
         } else {
           throw new Error('Keine Session-Links gefunden');
         }

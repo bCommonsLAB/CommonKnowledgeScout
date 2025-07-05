@@ -4,6 +4,16 @@ const path = require('path');     // eslint-disable-line @typescript-eslint/no-r
 const nextConfig = {
   // Deaktiviere Strict Mode in der Entwicklung, um Mounting-Logs zu reduzieren
   reactStrictMode: process.env.NODE_ENV === 'production',
+  
+  // Standalone output für Electron-Kompatibilität
+    output: 'standalone',
+  
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
+  
   images: {
     remotePatterns: [
       {
@@ -37,15 +47,12 @@ const nextConfig = {
       fullUrl: false
     }
   },
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '10mb',
-    },
-  },
-  // Wenn keine Clerk Keys vorhanden sind, deaktiviere das statische Prerendering
-  ...(process.env.NEXT_RUNTIME === 'build' || !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? {
-    output: 'standalone',
-  } : {})
+  
+  // Environment Variables für Build-Target
+  env: {
+    BUILD_TARGET: process.env.BUILD_TARGET || 'web',
+    ELECTRON: process.env.ELECTRON === 'true' ? 'true' : 'false'
+  }
 }
 
 module.exports = nextConfig

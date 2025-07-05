@@ -1,6 +1,64 @@
+# Dependencies
 node_modules
-.next/cache
-.git
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+.next
+out
+
+# Production
+build
+dist
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+
+# Electron
+electron
+*.exe
+*.dmg
+*.AppImage
+
+# IDE
 .vscode
-.env*
-*.log 
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs/
+instructions/
+
+# Testing
+test/
+tests/
+__tests__/
+
+# Temporary files
+*.tmp
+*.temp 

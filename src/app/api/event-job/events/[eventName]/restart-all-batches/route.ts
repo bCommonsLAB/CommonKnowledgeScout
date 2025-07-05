@@ -26,7 +26,7 @@ export async function POST(
       const body = await request.json();
       if (typeof body.useCache === 'boolean') useCache = body.useCache;
       if (typeof body.confirm === 'boolean') confirm = body.confirm;
-    } catch (error) {
+    } catch {
       console.log('[Event Restart] No valid JSON body provided, using defaults');
     }
     

@@ -25,7 +25,7 @@ import {
   getMediaType
 } from '@/atoms/transcription-options';
 import { Checkbox } from "@/components/ui/checkbox"
-import { useMemo, useCallback } from "react"
+import { useMemo, useEffect } from "react"
 import { FileLogger, StateLogger } from "@/lib/debug/logger"
 
 // Typen für Sortieroptionen
@@ -289,8 +289,9 @@ const FileRow = React.memo(function FileRow({
   // Cleanup Timer bei Unmount
   React.useEffect(() => {
     return () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
+      const timeoutId = longPressTimerRef.current;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
     };
   }, []);
@@ -580,7 +581,7 @@ export const FileList = React.memo(function FileList(): JSX.Element {
   }, [sortField, sortOrder, setSortField, setSortOrder]);
 
   // Initialisierung
-  React.useEffect(() => {
+  useEffect(() => {
     if (!provider || !isFileTreeReady) {
       FileLogger.info('FileList', 'Waiting for provider and FileTree', {
         hasProvider: !!provider,
@@ -612,21 +613,21 @@ export const FileList = React.memo(function FileList(): JSX.Element {
     };
 
     initialize();
-
+    const timeoutId = initializationTimeoutRef.current;
     return () => {
-      if (initializationTimeoutRef.current) {
-        clearTimeout(initializationTimeoutRef.current);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
     };
   }, [provider, isFileTreeReady, isInitialized, items?.length]);
 
   // Aktualisierte handleSelect Funktion
-  const handleSelect = useCallback((item: StorageItem) => {
+  const handleSelect = React.useCallback((item: StorageItem) => {
     setSelectedFile(item);
   }, [setSelectedFile]);
 
   // Aktualisierte handleRefresh Funktion
-  const handleRefresh = useCallback(async () => {
+  const handleRefresh = React.useCallback(async () => {
     if (!items || items.length === 0) return;
     
     const parentId = items[0]?.parentId;
@@ -685,7 +686,7 @@ export const FileList = React.memo(function FileList(): JSX.Element {
   }, [items, selectedBatchItems]);
 
   // Handle Select All
-  const handleSelectAll = useCallback((checked: boolean) => {
+  const handleSelectAll = React.useCallback((checked: boolean) => {
     const startTime = performance.now();
     
     if (checked) {
@@ -766,10 +767,10 @@ export const FileList = React.memo(function FileList(): JSX.Element {
       });
       handleSelect(item);
     }
-  }, [handleSelect, selectedBatchItems]);
+  }, [handleSelect, selectedBatchItems, setSelectedBatchItems]);
 
   // Check if an item is selected
-  const isItemSelected = useCallback((item: StorageItem) => {
+  const isItemSelected = React.useCallback((item: StorageItem) => {
     return selectedBatchItems.some(selected => selected.item.id === item.id);
   }, [selectedBatchItems]);
 

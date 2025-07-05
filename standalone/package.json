@@ -135,6 +135,9 @@
       "electron/**/*",
       "package.json"
     ],
+    "asarUnpack": [
+      "standalone/**/*"
+    ],
     "extraResources": [
       {
         "from": "standalone",

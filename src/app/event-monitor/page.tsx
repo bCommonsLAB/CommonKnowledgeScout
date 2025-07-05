@@ -43,7 +43,6 @@ export default function EventMonitorPage() {
   // Multi-Batch-Archivierung Zustand
   const [multiBatchArchiveDialogOpen, setMultiBatchArchiveDialogOpen] = useState(false);
   const [multiBatchArchiveJobs, setMultiBatchArchiveJobs] = useState<Job[]>([]);
-  const [multiBatchArchiveLoading, setMultiBatchArchiveLoading] = useState(false);
   
   // Statistiken
   const [statsTotal, setStatsTotal] = useState(0);
@@ -69,13 +68,57 @@ export default function EventMonitorPage() {
   
   const router = useRouter();
   
-  // Laufende Tracks laden
+  // URL für API-Aufrufe erweitern
+  const buildApiUrl = useCallback((baseUrl: string, archived: boolean) => {
+    const params = new URLSearchParams();
+    params.set('archived', archived.toString());
+    if (selectedEvent) {
+      params.set('event', selectedEvent);
+    }
+    return `${baseUrl}?${params.toString()}`;
+  }, [selectedEvent]);
+
+  const loadCurrentTracks = useCallback(async (showLoader = true) => {
+    try {
+      if (showLoader) setLoading(true);
+      const url = buildApiUrl('/api/event-job/batches', false);
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === 'success') {
+        setCurrentTracks(data.data.batches);
+        setError(null);
+      } else {
+        setError(data.message || 'Fehler beim Laden der Tracks');
+      }
+    } catch {
+      setError('Fehler beim Laden der Tracks');
+    } finally {
+      if (showLoader) setLoading(false);
+    }
+  }, [buildApiUrl]);
+  
+  const loadArchiveTracks = useCallback(async (showLoader = true) => {
+    try {
+      if (showLoader) setArchiveLoading(true);
+      const url = buildApiUrl('/api/event-job/batches', true);
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === 'success') {
+        setArchiveTracks(data.data.batches);
+        setError(null);
+      } else {
+        setError(data.message || 'Fehler beim Laden der archivierten Tracks');
+      }
+    } catch {
+      setError('Fehler beim Laden der archivierten Tracks');
+    } finally {
+      if (showLoader) setArchiveLoading(false);
+    }
+  }, [buildApiUrl]);
+  
   useEffect(() => {
     loadCurrentTracks();
-    
-    // Auto-Refresh Timer einrichten
     let intervalId: NodeJS.Timeout | undefined = undefined;
-    
     if (autoRefresh) {
       intervalId = setInterval(() => {
         if (activeTab === 'current') {
@@ -85,13 +128,10 @@ export default function EventMonitorPage() {
         }
       }, 10000);
     }
-    
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [autoRefresh, activeTab, selectedEvent]); // 🆕 selectedEvent als Dependency hinzugefügt
+  }, [autoRefresh, activeTab, selectedEvent, loadCurrentTracks, loadArchiveTracks]);
   
   // Statistiken berechnen
   useEffect(() => {
@@ -110,72 +150,6 @@ export default function EventMonitorPage() {
     setStatsCompleted(completed);
     setStatsFailed(failed);
   }, [currentTracks]);
-  
-  // URL für API-Aufrufe erweitern
-  const buildApiUrl = (baseUrl: string, archived: boolean) => {
-    const params = new URLSearchParams();
-    params.set('archived', archived.toString());
-    
-    if (selectedEvent) {
-      params.set('event', selectedEvent);
-    }
-    
-    return `${baseUrl}?${params.toString()}`;
-  };
-
-  const loadCurrentTracks = useCallback(async (showLoader = true) => {
-    try {
-      if (showLoader) {
-        setLoading(true);
-      }
-      
-      const url = buildApiUrl('/api/event-job/batches', false);
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.status === 'success') {
-        setCurrentTracks(data.data.batches);
-        setError(null);
-      } else {
-        console.error('Fehler beim Laden der Tracks:', data.message);
-        setError(data.message || 'Fehler beim Laden der Tracks');
-      }
-    } catch (error) {
-      console.error('Fehler beim Laden der Tracks:', error);
-      setError('Fehler beim Laden der Tracks');
-    } finally {
-      if (showLoader) {
-        setLoading(false);
-      }
-    }
-  }, [selectedEvent]);
-  
-  const loadArchiveTracks = useCallback(async (showLoader = true) => {
-    try {
-      if (showLoader) {
-        setArchiveLoading(true);
-      }
-      
-      const url = buildApiUrl('/api/event-job/batches', true);
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.status === 'success') {
-        setArchiveTracks(data.data.batches);
-        setError(null);
-      } else {
-        console.error('Fehler beim Laden der archivierten Tracks:', data.message);
-        setError(data.message || 'Fehler beim Laden der archivierten Tracks');
-      }
-    } catch (error) {
-      console.error('Fehler beim Laden der archivierten Tracks:', error);
-      setError('Fehler beim Laden der archivierten Tracks');
-    } finally {
-      if (showLoader) {
-        setArchiveLoading(false);
-      }
-    }
-  }, [selectedEvent]);
   
   async function handleTabChange(value: string) {
     setActiveTab(value);
@@ -301,12 +275,6 @@ export default function EventMonitorPage() {
     }
   }
   
-  // Event-Filter-Change Handler
-  const handleEventFilterChange = useCallback((eventName: string | null) => {
-    // Daten werden automatisch durch useEffect neu geladen wenn selectedEvent sich ändert
-    console.log('Event-Filter geändert zu:', eventName);
-  }, []);
-
   const handleJobDetailsPanelChange = (open: boolean) => {
     setJobDetailsOpen(open);
     if (!open) {
@@ -328,8 +296,6 @@ export default function EventMonitorPage() {
     }
 
     try {
-      setMultiBatchArchiveLoading(true);
-      
       // Alle Jobs aus allen gefilterten Batches laden
       const allJobs: Job[] = [];
       
@@ -363,8 +329,6 @@ export default function EventMonitorPage() {
     } catch (error) {
       console.error('Fehler beim Laden der Jobs für Multi-Batch-Archivierung:', error);
       alert('Fehler beim Laden der Jobs. Bitte versuchen Sie es erneut.');
-    } finally {
-      setMultiBatchArchiveLoading(false);
     }
   };
 
@@ -400,7 +364,6 @@ export default function EventMonitorPage() {
           
           {/* 🆕 Event-Filter Dropdown */}
           <EventFilterDropdown 
-            onEventChange={handleEventFilterChange}
             className="border-l pl-4 pr-4"
           />
         </div>

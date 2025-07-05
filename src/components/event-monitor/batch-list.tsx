@@ -40,7 +40,6 @@ import {
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Batch, BatchStatus, Job, JobStatus } from '@/types/event-job';
-import { ClientLibrary } from '@/types/library';
 import { formatDateTime } from '@/lib/utils';
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -54,7 +53,6 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { createTrackSummary, SecretaryServiceError } from '@/lib/secretary/client';
 import { useAtom } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
@@ -119,7 +117,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
     if (duplicateBatches.length > 0) {
       console.warn('Doppelte Batches gefunden:', duplicateBatches.map(b => b.batch_name));
     }
-  }, [batches]);
+  }, [batches, duplicateBatches]);
 
   // Hilfsfunktion: Doppelte Jobs nach job_name innerhalb eines Batches finden
   function getDuplicateJobs(jobs: Job[]) {
@@ -489,7 +487,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
     // Verwende alle aktuell angezeigten Batches (bereits serverseitig gefiltert)
     const batchesForEvent = batches;
     
-    const confirmMessage = `WARNUNG: Dies startet ALLE ${batchesForEvent.length} Batches des Events "${selectedEventForRestart}" neu.\n\n` +
+    const confirmMessage = `WARNUNG: Dies startet ALLE ${batchesForEvent.length} Batches des Events &quot;${selectedEventForRestart}&quot; neu.\n\n` +
       `Cache-Einstellung: ${eventRestartUseCache ? 'Cache VERWENDEN' : 'Cache NICHT verwenden (vollständige Neuverarbeitung)'}\n\n` +
       `Dies kann nicht rückgängig gemacht werden. Fortfahren?`;
     
@@ -617,7 +615,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
               <div>
                 <h3 className="font-medium text-orange-900 dark:text-orange-100">Event-weite Aktionen</h3>
                 <p className="text-sm text-orange-700 dark:text-orange-300">
-                  Alle <strong>{getBatchCountForFilteredEvent()}</strong> Batches des Events <strong>"{selectedEvent}"</strong> verwalten
+                  Alle <strong>{getBatchCountForFilteredEvent()}</strong> Batches des Events <strong>&quot;{selectedEvent}&quot;</strong> verwalten
                 </p>
               </div>
               <div className="flex gap-2">
@@ -968,7 +966,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
             <DialogHeader>
               <DialogTitle>Batch neu starten</DialogTitle>
               <DialogDescription>
-                Alle Jobs im Batch "{selectedBatchForRestart.batch_name}" werden auf PENDING zurückgesetzt.
+                Alle Jobs im Batch &quot;{selectedBatchForRestart.batch_name}&quot; werden auf PENDING zurückgesetzt.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -1007,7 +1005,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                     } else {
                       alert('Fehler: ' + data.message);
                     }
-                  } catch (error) {
+                  } catch {
                     alert('Fehler beim Neustarten des Batches');
                   } finally {
                     setBatchRestartDialogLoading(false);
@@ -1032,7 +1030,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
               Alle Batches neu starten
             </DialogTitle>
             <DialogDescription>
-              Startet alle Batches des Events <strong>"{selectedEventForRestart}"</strong> neu. 
+              Startet alle Batches des Events <strong>&quot;{selectedEventForRestart}&quot;</strong> neu. 
               Dies ist eine mächtige Operation, die viele Jobs gleichzeitig beeinflusst.
             </DialogDescription>
           </DialogHeader>
