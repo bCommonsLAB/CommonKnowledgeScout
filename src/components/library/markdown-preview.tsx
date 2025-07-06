@@ -12,9 +12,10 @@ import 'highlight.js/styles/github-dark.css';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
-import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
+import { activeLibraryAtom, selectedFileAtom, libraryStatusAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { TransformService, TransformSaveOptions, TransformResult } from "@/lib/transform/transform-service";
+import { transformTextWithTemplate } from "@/lib/secretary/client";
 import { Label } from "@/components/ui/label";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,6 +50,11 @@ interface TextTransformProps {
 const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshFolder }: TextTransformProps) => {
   const [isLoading, setIsLoading] = React.useState(false);
   const [template, setTemplate] = React.useState("Besprechung");
+  
+  // Template-Management Integration
+  const [customTemplateNames, setCustomTemplateNames] = React.useState<string[]>([]);
+  const libraryStatus = useAtomValue(libraryStatusAtom);
+  const { listItems } = useStorage();
   
   // Text State mit entferntem Frontmatter initialisieren
   const [text, setText] = React.useState(() => {
@@ -201,6 +207,55 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const { refreshItems } = useStorage();
 
+  // Standard-Templates definieren
+  const standardTemplates = [
+    { name: "Besprechung", isStandard: true },
+    { name: "Gedanken", isStandard: true },
+    { name: "Interview", isStandard: true },
+    { name: "Zusammenfassung", isStandard: true }
+  ];
+
+  // Templates laden wenn Provider und Library bereit sind
+  React.useEffect(() => {
+    async function loadTemplatesIfNeeded() {
+      if (!provider || libraryStatus !== 'ready' || !activeLibrary) {
+        return;
+      }
+
+      try {
+        // Templates-Ordner finden oder erstellen
+        const rootItems = await listItems('root');
+        let templatesFolder = rootItems.find(item => 
+          item.type === 'folder' && item.metadata.name === 'templates'
+        );
+        
+        if (!templatesFolder) {
+          // Templates-Ordner erstellen
+          templatesFolder = await provider.createFolder('root', 'templates');
+        }
+
+        // Template-Dateien laden
+        const templateItems = await listItems(templatesFolder.id);
+        const templateFiles = templateItems.filter(item => 
+          item.type === 'file' && item.metadata.name.endsWith('.md')
+        );
+
+        // Nur Template-Namen extrahieren
+        const templateNames = templateFiles.map(file => 
+          file.metadata.name.replace('.md', '')
+        );
+
+        setCustomTemplateNames(templateNames);
+      } catch (error) {
+        console.error('Fehler beim Laden der Templates:', error);
+        // Bei Fehler leere Template-Liste setzen
+        setCustomTemplateNames([]);
+      }
+    }
+
+    loadTemplatesIfNeeded();
+  }, [provider, libraryStatus, activeLibrary, listItems]);
+
   // Aktualisiere den Dateinamen, wenn das Template geändert wird
   React.useEffect(() => {
     if (saveOptions.createShadowTwin) {
@@ -275,16 +330,110 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
 
     setIsLoading(true);
     try {
-      // Transformation mit dem TransformService
-      const result = await TransformService.transformText(
-        text, 
-        currentItem,
-        saveOptions,
-        provider,
-        refreshItems,
-        activeLibrary.id,
-        template
-      );
+      // Template-Typ bestimmen
+      const isStandardTemplate = standardTemplates.some(t => t.name === template);
+      
+      let result: TransformResult;
+      
+      if (isStandardTemplate) {
+        // Standard-Template: Verwende TransformService mit Template-Name
+        FileLogger.info('TextTransform', 'Verwende Standard-Template', { templateName: template });
+        
+        result = await TransformService.transformText(
+          text, 
+          currentItem,
+          saveOptions,
+          provider,
+          refreshItems,
+          activeLibrary.id,
+          template
+        );
+      } else if (customTemplateNames.includes(template)) {
+        // Benutzerdefiniertes Template: Lade Inhalt und verwende direkten Secretary Service Call
+        FileLogger.info('TextTransform', 'Lade benutzerdefinierten Template-Inhalt', { templateName: template });
+        
+        try {
+          // Templates-Ordner finden
+          const rootItems = await listItems('root');
+          const templatesFolder = rootItems.find(item => 
+            item.type === 'folder' && item.metadata.name === 'templates'
+          );
+          
+          if (!templatesFolder) {
+            throw new Error('Templates-Ordner nicht gefunden');
+          }
+          
+          // Template-Datei finden
+          const templateItems = await listItems(templatesFolder.id);
+          const templateFile = templateItems.find(item => 
+            item.type === 'file' && 
+            item.metadata.name === `${template}.md`
+          );
+          
+          if (!templateFile) {
+            throw new Error(`Template-Datei "${template}.md" nicht gefunden`);
+          }
+          
+          // Template-Inhalt laden
+          const { blob } = await provider.getBinary(templateFile.id);
+          const templateContent = await blob.text();
+          
+          FileLogger.info('TextTransform', 'Template-Inhalt geladen', { 
+            templateName: template,
+            contentLength: templateContent.length 
+          });
+          
+          // Direkter Secretary Service Call mit Template-Content
+          const transformedText = await transformTextWithTemplate(
+            text,
+            saveOptions.targetLanguage,
+            activeLibrary.id,
+            templateContent
+          );
+          
+          // Ergebnis speichern falls gewünscht
+          if (saveOptions.createShadowTwin) {
+            const saveResult = await TransformService.saveTransformedText(
+              transformedText,
+              currentItem,
+              saveOptions,
+              provider,
+              refreshItems
+            );
+            result = saveResult;
+          } else {
+            result = {
+              text: transformedText,
+              updatedItems: []
+            };
+          }
+        } catch (error) {
+          FileLogger.error('TextTransform', 'Fehler beim Laden des Template-Inhalts', error);
+          // Fallback auf Standard-Template
+          result = await TransformService.transformText(
+            text, 
+            currentItem,
+            saveOptions,
+            provider,
+            refreshItems,
+            activeLibrary.id,
+            "Besprechung"
+          );
+        }
+      } else {
+        // Unbekanntes Template: Fallback auf Standard-Template
+        FileLogger.warn('TextTransform', 'Unbekanntes Template, verwende Standard-Template', { templateName: template });
+        
+        result = await TransformService.transformText(
+          text, 
+          currentItem,
+          saveOptions,
+          provider,
+          refreshItems,
+          activeLibrary.id,
+          "Besprechung"
+        );
+      }
 
       FileLogger.info('TextTransform', 'Markdown Transformation abgeschlossen', {
         originalFile: currentItem.metadata.name,
@@ -449,10 +598,27 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
                       <SelectValue placeholder="Vorlage auswählen" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Besprechung">Besprechung</SelectItem>
-                      <SelectItem value="Gedanken">Gedanken</SelectItem>
-                      <SelectItem value="Interview">Interview</SelectItem>
-                      <SelectItem value="Zusammenfassung">Zusammenfassung</SelectItem>
+                      {/* Benutzerdefinierte Templates zuerst */}
+                      {customTemplateNames.length > 0 && (
+                        <>
+                          {customTemplateNames.map((templateName) => (
+                            <SelectItem key={templateName} value={templateName}>
+                              {templateName}
+                            </SelectItem>
+                          ))}
+                          {/* Trenner zwischen benutzerdefinierten und Standard-Templates */}
+                          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-2">
+                            Standard-Templates
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Standard-Templates */}
+                      {standardTemplates.map((standardTemplate) => (
+                        <SelectItem key={standardTemplate.name} value={standardTemplate.name}>
+                          {standardTemplate.name} <span className="text-muted-foreground">(Standard)</span>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

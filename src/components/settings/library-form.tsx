@@ -60,6 +60,7 @@ const libraryFormSchema = z.object({
   transcription: z.enum(["shadowTwin", "db"], {
     required_error: "Bitte wählen Sie eine Transkriptionsstrategie.",
   }),
+  templateDirectory: z.string().default("/templates"),
   // Zusätzliche Storage-Konfiguration, abhängig vom Typ
   storageConfig: z.object({
     // Lokales Dateisystem
@@ -97,6 +98,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     description: "",
     isEnabled: true,
     transcription: "shadowTwin",
+    templateDirectory: "/templates",
     storageConfig: {
       basePath: "",
       clientId: "",
@@ -138,6 +140,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
           description: activeLibrary.config?.description as string || "",
           isEnabled: activeLibrary.isEnabled,
           transcription: activeLibrary.config?.transcription as "shadowTwin" | "db" || "shadowTwin",
+          templateDirectory: activeLibrary.config?.templateDirectory as string || "/templates",
           storageConfig,
         });
       }
@@ -163,6 +166,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
         description: activeLibrary.config?.description as string || "",
         isEnabled: activeLibrary.isEnabled,
         transcription: activeLibrary.config?.transcription as "shadowTwin" | "db" || "shadowTwin",
+        templateDirectory: activeLibrary.config?.templateDirectory as string || "/templates",
         storageConfig,
       });
     }
@@ -212,6 +216,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
         config: {
           description: data.description,
           transcription: data.transcription,
+          templateDirectory: data.templateDirectory,
           ...storageConfig,
         }
       };
@@ -425,6 +430,23 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
               
               <FormField
                 control={form.control}
+                name="templateDirectory"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Template-Verzeichnis</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="/templates" />
+                    </FormControl>
+                    <FormDescription>
+                      Verzeichnis in der Bibliothek, in dem die Secretary Service Templates gespeichert werden.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
                 name="isEnabled"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -470,6 +492,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                       description: activeLibrary.config?.description as string || "",
                       isEnabled: activeLibrary.isEnabled,
                       transcription: activeLibrary.config?.transcription as "shadowTwin" | "db" || "shadowTwin",
+                      templateDirectory: activeLibrary.config?.templateDirectory as string || "/templates",
                       storageConfig,
                     });
                   }

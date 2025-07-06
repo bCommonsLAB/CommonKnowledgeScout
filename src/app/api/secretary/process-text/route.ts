@@ -47,12 +47,17 @@ export async function POST(request: NextRequest) {
 
     const targetLanguage = formData.get('targetLanguage') as string || 'de';
     const template = formData.get('template') as string || 'Besprechung';
+    const templateContent = formData.get('templateContent') as string; // Neuer Parameter für Template-Inhalt
     const sourceLanguage = formData.get('sourceLanguage') as string;
+
+    // Bestimme ob Template-Name oder Template-Content verwendet wird
+    const isTemplateContent = templateContent && templateContent.trim().length > 0;
 
     console.log('[process-text] Request-Daten für Secretary Service:', {
       textLength: text.length,
       target_language: targetLanguage,
-      template: template,
+      template: isTemplateContent ? 'CUSTOM_CONTENT' : template,
+      templateContentLength: isTemplateContent ? templateContent.length : 0,
       source_language: sourceLanguage || 'nicht angegeben'
     });
 
@@ -62,7 +67,14 @@ export async function POST(request: NextRequest) {
     const secretaryFormData = new FormData();
     secretaryFormData.append('text', text);
     secretaryFormData.append('target_language', targetLanguage);
-    secretaryFormData.append('template', template);
+    
+    // Template-Parameter: entweder Name oder Content
+    if (isTemplateContent) {
+      secretaryFormData.append('template_content', templateContent);
+    } else {
+      secretaryFormData.append('template', template);
+    }
+    
     secretaryFormData.append('use_cache', 'false');
     
     if (sourceLanguage) {

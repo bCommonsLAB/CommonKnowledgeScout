@@ -22,7 +22,7 @@ export async function POST() {
     
     // Für jeden Batch alle Jobs zurücksetzen
     for (const batch of batches) {
-      const result = await repository.restartBatch(batch.batch_id);
+      const result = await repository.restartBatchWithOptions(batch.batch_id, false);
       if (result) {
         totalJobsReset += batch.total_jobs || 0;
         results.push({

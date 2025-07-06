@@ -204,12 +204,12 @@ export async function transformAudio(
 }
 
 /**
- * Transformiert einen Text mithilfe des Secretary Services
+ * Transformiert einen Text mithilfe des Secretary Services mit Template-Name
  * 
  * @param textContent Der zu transformierende Text
  * @param targetLanguage Die Zielsprache für die Transformation
  * @param libraryId ID der aktiven Bibliothek
- * @param template Optionales Template für die Transformation (Standard: "Besprechung")
+ * @param template Template-Name für die Transformation
  * @returns Den transformierten Text
  */
 export async function transformText(
@@ -264,6 +264,74 @@ export async function transformText(
       throw error;
     }
     throw new SecretaryServiceError('Fehler bei der Verarbeitung des Textes');
+  }
+}
+
+/**
+ * Transformiert einen Text mithilfe des Secretary Services mit Template-Inhalt
+ * 
+ * @param textContent Der zu transformierende Text
+ * @param targetLanguage Die Zielsprache für die Transformation
+ * @param libraryId ID der aktiven Bibliothek
+ * @param templateContent Template-Inhalt für die Transformation
+ * @returns Den transformierten Text
+ */
+export async function transformTextWithTemplate(
+  textContent: string,
+  targetLanguage: string,
+  libraryId: string,
+  templateContent: string
+): Promise<string> {
+  try {
+    console.log('[secretary/client] transformTextWithTemplate aufgerufen mit Template-Content');
+    console.log('[secretary/client] Text-Länge:', textContent?.length || 0);
+    console.log('[secretary/client] Template-Content-Länge:', templateContent?.length || 0);
+    
+    if (!textContent || textContent.trim().length === 0) {
+      throw new SecretaryServiceError('Kein Text zum Transformieren vorhanden');
+    }
+    
+    if (!templateContent || templateContent.trim().length === 0) {
+      throw new SecretaryServiceError('Kein Template-Content vorhanden');
+    }
+    
+    const formData = new FormData();
+    formData.append('text', textContent);
+    formData.append('targetLanguage', targetLanguage);
+    formData.append('templateContent', templateContent);
+    
+    // Debug: FormData-Inhalt prüfen
+    console.log('[secretary/client] FormData erstellt mit:', {
+      text: formData.get('text') ? 'vorhanden' : 'fehlt',
+      targetLanguage: formData.get('targetLanguage'),
+      templateContent: formData.get('templateContent') ? 'vorhanden' : 'fehlt'
+    });
+    
+    // Angepasste Header für den Secretary Service
+    const customHeaders: HeadersInit = {};
+    customHeaders['X-Library-Id'] = libraryId;
+    
+    console.log('[secretary/client] Sende Anfrage an Secretary Service API mit Template-Content');
+    const response = await fetch('/api/secretary/process-text', {
+      method: 'POST',
+      body: formData,
+      headers: customHeaders
+    });
+
+    console.log('[secretary/client] Antwort erhalten, Status:', response.status);
+    if (!response.ok) {
+      throw new SecretaryServiceError(`Fehler bei der Verbindung zum Secretary Service: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('[secretary/client] Template-Content-Transformation erfolgreich');
+    return data.text;
+  } catch (error) {
+    console.error('[secretary/client] Fehler bei der Template-Content-Transformation:', error);
+    if (error instanceof SecretaryServiceError) {
+      throw error;
+    }
+    throw new SecretaryServiceError('Fehler bei der Verarbeitung des Textes mit Template-Content');
   }
 }
 

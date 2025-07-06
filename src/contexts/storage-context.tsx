@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAtom } from 'jotai';
-import { librariesAtom, activeLibraryIdAtom } from '@/atoms/library-atom';
+import { librariesAtom, activeLibraryIdAtom, libraryStatusAtom } from '@/atoms/library-atom';
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { ClientLibrary } from "@/types/library";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
@@ -76,6 +76,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const [, setLibraryStatusAtom] = useAtom(libraryStatusAtom);
   const providerFromHook = useStorageProvider();
   const [isProviderLoading, setIsProviderLoading] = useState(false);
   const previousProviderRef = React.useRef<ExtendedStorageProvider | null>(null);
@@ -117,6 +118,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       previousProviderRef.current = providerFromHook;
       setIsProviderLoading(false);
       setLibraryStatus('ready');
+      setLibraryStatusAtom('ready');
     }
   }, [providerFromHook]);
 
@@ -147,6 +149,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     if (!activeLibraryId || libraries.length === 0) {
       setCurrentLibrary(null);
       setLibraryStatus('initializing');
+      setLibraryStatusAtom('loading');
       return;
     }
     const found = libraries.find(lib => lib.id === activeLibraryId) || null;
@@ -501,11 +504,13 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       
       if (isAuth) {
         setLibraryStatus('ready');
+        setLibraryStatusAtom('ready');
         setIsAuthRequired(false);
         setAuthProvider(null);
         console.log('[StorageContext] Provider ist authentifiziert - Status auf "ready" gesetzt');
       } else {
         setLibraryStatus('waitingForAuth');
+        setLibraryStatusAtom('waitingForAuth');
         setIsAuthRequired(true);
         setAuthProvider(currentLibrary.type);
         console.log('[StorageContext] Provider ist NICHT authentifiziert - Status auf "waitingForAuth" gesetzt');
@@ -514,6 +519,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       console.error('[StorageContext] Fehler beim Prüfen des Authentifizierungsstatus:', error);
       // Bei Fehler annehmen, dass Authentifizierung erforderlich ist
       setLibraryStatus('waitingForAuth');
+      setLibraryStatusAtom('waitingForAuth');
       setIsAuthRequired(true);
       setAuthProvider(currentLibrary.type);
     }
@@ -555,6 +561,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       // Lokale Dateisystem-Bibliotheken sind immer "ready"
       if (currentLibrary.type === 'local') {
         setLibraryStatus('ready');
+        setLibraryStatusAtom('ready');
         // eslint-disable-next-line no-console
         console.log('[StorageContext] Lokale Bibliothek - Status auf "ready" gesetzt.');
       } else if (currentLibrary.type === 'onedrive' || currentLibrary.type === 'gdrive') {
@@ -573,16 +580,19 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         
         if (hasToken) {
           setLibraryStatus('ready');
+          setLibraryStatusAtom('ready');
           // eslint-disable-next-line no-console
           console.log('[StorageContext] OAuth-Provider: Status auf "ready" gesetzt, Token im localStorage gefunden.');
         } else {
           setLibraryStatus('waitingForAuth');
+          setLibraryStatusAtom('waitingForAuth');
           // eslint-disable-next-line no-console
           console.log('[StorageContext] OAuth-Provider: Status auf "waitingForAuth" gesetzt, kein Token im localStorage.');
         }
       } else {
         // Unbekannter Provider-Typ - sicherheitshalber auf ready setzen
         setLibraryStatus('ready');
+        setLibraryStatusAtom('ready');
         // eslint-disable-next-line no-console
         console.log('[StorageContext] Unbekannter Provider-Typ, Status auf "ready" gesetzt.');
       }

@@ -156,6 +156,10 @@ expandedFoldersAtom.debugLabel = "expandedFoldersAtom"
 export const lastLoadedFolderAtom = atom<string | null>(null)
 lastLoadedFolderAtom.debugLabel = "lastLoadedFolderAtom"
 
+// Library Status (für Template Management)
+export const libraryStatusAtom = atom<'ready' | 'waitingForAuth' | 'loading'>('loading')
+libraryStatusAtom.debugLabel = "libraryStatusAtom"
+
 // Library-spezifische Sort/Filter-Konfiguration
 export interface SortFilterConfig {
   searchTerm: string

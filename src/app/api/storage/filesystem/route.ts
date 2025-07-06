@@ -166,6 +166,15 @@ async function listItems(library: LibraryType, fileId: string): Promise<StorageI
   console.log(`[API] Absoluter Pfad für Verzeichnisauflistung: "${absolutePath}"`);
   
   try {
+    // Prüfe zuerst, ob das Verzeichnis existiert
+    const stats = await fs.stat(absolutePath);
+    if (!stats.isDirectory()) {
+      console.error(`[API] Pfad ist kein Verzeichnis: "${absolutePath}"`);
+      const error = new Error(`Der angegebene Pfad ist kein Verzeichnis: ${absolutePath}`);
+      error.name = 'NotDirectoryError';
+      throw error;
+    }
+    
     const items = await fs.readdir(absolutePath);
     
     const itemPromises = items.map(async (item) => {
@@ -184,6 +193,28 @@ async function listItems(library: LibraryType, fileId: string): Promise<StorageI
     return validResults;
   } catch (error) {
     console.error(`[API] Fehler beim Lesen des Verzeichnisses "${absolutePath}":`, error);
+    
+    // Spezifische Fehlerbehandlung für verschiedene Fehlertypen
+    if (error instanceof Error) {
+      // NodeJS SystemError hat eine code Eigenschaft
+      const nodeError = error as Error & { code?: string };
+      if (nodeError.code === 'ENOENT') {
+        // Verzeichnis existiert nicht
+        const specificError = new Error(`Die Bibliothek "${library.label}" konnte nicht gefunden werden. Pfad: "${library.path}"`);
+        specificError.name = 'LibraryPathNotFoundError';
+        throw specificError;
+      } else if (nodeError.code === 'EACCES') {
+        // Keine Berechtigung
+        const specificError = new Error(`Keine Berechtigung für den Zugriff auf die Bibliothek "${library.label}". Pfad: "${library.path}"`);
+        specificError.name = 'LibraryAccessDeniedError';
+        throw specificError;
+      } else if (error.name === 'NotDirectoryError') {
+        // Bereits behandelt
+        throw error;
+      }
+    }
+    
+    // Für alle anderen Fehler
     throw error;
   }
 }

@@ -1,0 +1,688 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import { Loader2, Save, Plus, Trash2, Eye, Play, FolderOpen } from "lucide-react"
+import { useAtom, useAtomValue } from "jotai"
+import { activeLibraryAtom, libraryStatusAtom } from "@/atoms/library-atom"
+import { 
+  templatesAtom, 
+  selectedTemplateNameAtom, 
+  selectedTemplateAtom,
+  templatesFolderIdAtom,
+  templateLoadingAtom,
+  templateErrorAtom,
+  type Template
+} from "@/atoms/template-atom"
+import { useStorage } from "@/contexts/storage-context"
+
+// Schema für Template-Daten
+const templateSchema = z.object({
+  name: z.string().min(1, "Template-Name ist erforderlich"),
+  yamlFrontmatter: z.string(),
+  markdownBody: z.string(),
+  systemPrompt: z.string(),
+})
+
+type TemplateFormValues = z.infer<typeof templateSchema>
+
+export function TemplateManagement() {
+  const [previewMode, setPreviewMode] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const { toast } = useToast()
+
+  // Atoms
+  const [templates, setTemplates] = useAtom(templatesAtom)
+  const [selectedTemplateName, setSelectedTemplateName] = useAtom(selectedTemplateNameAtom)
+  const [selectedTemplate] = useAtom(selectedTemplateAtom)
+  const [templatesFolderId, setTemplatesFolderId] = useAtom(templatesFolderIdAtom)
+  const [isLoading, setIsLoading] = useAtom(templateLoadingAtom)
+  const [error, setError] = useAtom(templateErrorAtom)
+
+  // Library und Storage
+  const activeLibrary = useAtomValue(activeLibraryAtom)
+  const libraryStatus = useAtomValue(libraryStatusAtom)
+  const { 
+    provider: providerInstance, 
+    listItems
+  } = useStorage()
+
+  const form = useForm<TemplateFormValues>({
+    resolver: zodResolver(templateSchema),
+    defaultValues: {
+      name: "",
+      yamlFrontmatter: `---
+title: {{title|Titel des Dokuments}}
+tags: {{tags|Relevante Tags}}
+date: {{date|Datum im Format yyyy-mm-dd}}
+---`,
+      markdownBody: `# {{title}}
+
+## Zusammenfassung
+{{summary|Kurze Zusammenfassung des Inhalts}}
+
+## Details
+{{details|Detaillierte Beschreibung}}`,
+      systemPrompt: `You are a specialized assistant that processes and structures information clearly and concisely.
+
+IMPORTANT: Your response must be a valid JSON object where each key corresponds to a template variable.`,
+    },
+  })
+
+  // Template-Daten laden wenn sich die Auswahl ändert
+  useEffect(() => {
+    if (selectedTemplate) {
+      form.reset({
+        name: selectedTemplate.name,
+        yamlFrontmatter: selectedTemplate.yamlFrontmatter,
+        markdownBody: selectedTemplate.markdownBody,
+        systemPrompt: selectedTemplate.systemPrompt,
+      })
+    }
+  }, [selectedTemplate, form])
+
+  // Templates laden mit der gleichen Logik wie Library-Komponente
+  const loadTemplates = useCallback(async () => {
+    if (!providerInstance || libraryStatus !== 'ready' || !activeLibrary) {
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      // 1. Templates-Ordner finden oder erstellen
+      const folderId = await ensureTemplatesFolder()
+      setTemplatesFolderId(folderId)
+
+      // 2. Alle Template-Dateien im Ordner auflisten
+      const items = await listItems(folderId)
+      const templateFiles = items.filter(item => 
+        item.type === 'file' && 
+        item.metadata.name.endsWith('.md')
+      )
+
+      // 3. Template-Inhalte laden
+      const templatePromises = templateFiles.map(async (file) => {
+        try {
+          const { blob } = await providerInstance.getBinary(file.id)
+        const content = await blob.text()
+          const template = parseTemplateContent(content, file.metadata.name.replace('.md', ''))
+          
+          return {
+            ...template,
+            fileId: file.id,
+            lastModified: typeof file.metadata.modifiedAt === 'string' 
+              ? file.metadata.modifiedAt 
+              : file.metadata.modifiedAt instanceof Date 
+                ? file.metadata.modifiedAt.toISOString()
+                : new Date().toISOString()
+          } as Template
+        } catch (error) {
+          console.error(`Fehler beim Parsen von ${file.metadata.name}:`, error)
+          return null
+        }
+      })
+
+      const loadedTemplates = await Promise.all(templatePromises)
+      const validTemplates = loadedTemplates.filter((t): t is Template => t !== null)
+      
+      setTemplates(validTemplates)
+      
+      if (validTemplates.length === 0) {
+        toast({
+          title: "Keine Templates gefunden",
+          description: "Erstellen Sie Ihr erstes Template im Verzeichnis '/templates'.",
+        })
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Templates:', error)
+      const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler"
+      setError(errorMessage)
+      toast({
+        title: "Fehler beim Laden der Templates",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [providerInstance, libraryStatus, activeLibrary, listItems, setTemplates, setTemplatesFolderId, setIsLoading, setError, toast])
+
+  // Effect für Template Loading (wie Library-Komponente)
+  useEffect(() => {
+    const isReady = providerInstance && libraryStatus === 'ready' && activeLibrary
+    
+    if (!isReady) {
+      return
+    }
+
+    // Templates laden wenn noch nicht geladen
+    if (!templatesFolderId) {
+      loadTemplates()
+    }
+  }, [providerInstance, libraryStatus, activeLibrary, templatesFolderId, loadTemplates])
+
+  // Reset wenn sich die Library ändert
+  useEffect(() => {
+    setSelectedTemplateName(null)
+    setTemplatesFolderId(null)
+    setTemplates([])
+    setError(null)
+  }, [libraryStatus, setSelectedTemplateName, setTemplatesFolderId, setTemplates, setError])
+
+  async function ensureTemplatesFolder(): Promise<string> {
+    if (!providerInstance || !activeLibrary) {
+      throw new Error("Keine aktive Bibliothek oder Provider")
+    }
+
+    try {
+      // Versuche zuerst, den Templates-Ordner zu finden
+      const rootItems = await listItems('root')
+      const templatesFolder = rootItems.find(item => 
+        item.type === 'folder' && item.metadata.name === 'templates'
+      )
+      
+      if (templatesFolder) {
+        return templatesFolder.id
+      }
+
+      // Templates-Ordner erstellen, falls er nicht existiert
+      const newFolder = await providerInstance.createFolder('root', 'templates')
+      return newFolder.id
+    } catch (error) {
+      console.error('Fehler beim Erstellen des Templates-Ordners:', error)
+      throw error
+    }
+  }
+
+  function parseTemplateContent(content: string, fileName: string): Template {
+    // Template in drei Bereiche aufteilen
+    const parts = content.split('--- systemprompt')
+    
+    let yamlFrontmatter = ""
+    let markdownBody = ""
+    let systemPrompt = ""
+    
+    if (parts.length >= 2) {
+      const mainContent = parts[0].trim()
+      systemPrompt = parts[1].trim()
+      
+      // YAML Frontmatter extrahieren
+      const yamlMatch = mainContent.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
+      if (yamlMatch) {
+        yamlFrontmatter = `---\n${yamlMatch[1]}\n---`
+        markdownBody = yamlMatch[2].trim()
+      } else {
+        // Kein YAML Frontmatter gefunden
+        markdownBody = mainContent
+      }
+    } else {
+      // Kein Systemprompt gefunden
+      const yamlMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
+      if (yamlMatch) {
+        yamlFrontmatter = `---\n${yamlMatch[1]}\n---`
+        markdownBody = yamlMatch[2].trim()
+      } else {
+        markdownBody = content
+      }
+    }
+
+    return {
+      name: fileName,
+      yamlFrontmatter,
+      markdownBody,
+      systemPrompt,
+    }
+  }
+
+  function generateTemplateContent(values: TemplateFormValues): string {
+    let content = ""
+    
+    // YAML Frontmatter hinzufügen
+    if (values.yamlFrontmatter.trim()) {
+      content += values.yamlFrontmatter + "\n\n"
+    }
+    
+    // Markdown Body hinzufügen
+    content += values.markdownBody
+    
+    // System Prompt hinzufügen
+    if (values.systemPrompt.trim()) {
+      content += "\n\n--- systemprompt\n" + values.systemPrompt
+    }
+    
+    return content
+  }
+
+  async function onSubmit(data: TemplateFormValues) {
+    if (!activeLibrary || !templatesFolderId || !providerInstance) {
+      toast({
+        title: "Fehler",
+        description: "Keine aktive Bibliothek oder Templates-Ordner nicht gefunden.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const templateContent = generateTemplateContent(data)
+      const fileName = `${data.name}.md`
+      
+      // Datei als Blob erstellen
+      const blob = new Blob([templateContent], { type: 'text/markdown' })
+      const file = new File([blob], fileName, { type: 'text/markdown' })
+      
+      // Datei hochladen
+      await providerInstance.uploadFile(templatesFolderId, file)
+      
+      // Templates neu laden
+      await loadTemplates()
+      
+      // Auswahl auf das neue Template setzen
+      setSelectedTemplateName(data.name)
+      
+      toast({
+        title: "Template gespeichert",
+        description: `Template "${data.name}" wurde erfolgreich im Verzeichnis "/templates" gespeichert.`,
+      })
+    } catch (error) {
+      console.error('Fehler beim Speichern des Templates:', error)
+      toast({
+        title: "Fehler beim Speichern",
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function deleteTemplate(templateName: string) {
+    if (!activeLibrary || !providerInstance) return
+
+    try {
+      const template = templates.find(t => t.name === templateName)
+      if (!template?.fileId) {
+        throw new Error("Template-Datei nicht gefunden")
+      }
+
+      // Datei löschen
+      await providerInstance.deleteItem(template.fileId)
+
+      // Templates neu laden
+      await loadTemplates()
+      
+      if (selectedTemplateName === templateName) {
+        setSelectedTemplateName(null)
+        form.reset()
+      }
+      
+      toast({
+        title: "Template gelöscht",
+        description: `Template "${templateName}" wurde erfolgreich gelöscht.`,
+      })
+    } catch (error) {
+      console.error('Fehler beim Löschen des Templates:', error)
+      toast({
+        title: "Fehler beim Löschen",
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+        variant: "destructive",
+      })
+    }
+  }
+
+  function createNewTemplate() {
+    setSelectedTemplateName(null)
+    form.reset({
+      name: "",
+      yamlFrontmatter: `---
+title: {{title|Titel des Dokuments}}
+tags: {{tags|Relevante Tags}}
+date: {{date|Datum im Format yyyy-mm-dd}}
+---`,
+      markdownBody: `# {{title}}
+
+## Zusammenfassung
+{{summary|Kurze Zusammenfassung des Inhalts}}
+
+## Details
+{{details|Detaillierte Beschreibung}}`,
+      systemPrompt: `You are a specialized assistant that processes and structures information clearly and concisely.
+
+IMPORTANT: Your response must be a valid JSON object where each key corresponds to a template variable.`,
+    })
+  }
+
+  function generatePreview(): string {
+    const values = form.getValues()
+    return generateTemplateContent(values)
+  }
+
+  async function testTemplate() {
+    if (!activeLibrary) return
+
+    const values = form.getValues()
+    const templateContent = generateTemplateContent(values)
+    
+    try {
+      const response = await fetch('/api/secretary/process-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Library-Id': activeLibrary.id,
+        },
+        body: new URLSearchParams({
+          text: "Dies ist ein Testtext für das Template.",
+          template_content: templateContent,
+          source_language: 'de',
+          target_language: 'de',
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      
+      toast({
+        title: "Template-Test erfolgreich",
+        description: "Das Template wurde erfolgreich mit dem Testtext verarbeitet.",
+      })
+      
+      console.log('Template-Test Ergebnis:', result)
+    } catch (error) {
+      console.error('Fehler beim Template-Test:', error)
+      toast({
+        title: "Template-Test fehlgeschlagen",
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Render-Logik für verschiedene Status
+  if (libraryStatus === "waitingForAuth") {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+        <span>Diese Bibliothek benötigt eine Authentifizierung.</span>
+        <span className="text-sm mt-2">Bitte konfigurieren Sie die Bibliothek in den Einstellungen.</span>
+      </div>
+    )
+  }
+  
+  if (libraryStatus !== "ready") {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+        <span>Lade Storage...</span>
+      </div>
+    )
+  }
+
+  if (!activeLibrary) {
+    return (
+      <div className="text-center text-muted-foreground">
+        Bitte wählen Sie eine Bibliothek aus.
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center text-destructive">
+        <p>Fehler beim Laden der Templates:</p>
+        <p className="text-sm">{error}</p>
+        <Button 
+          variant="outline" 
+          className="mt-4"
+          onClick={loadTemplates}
+        >
+          Erneut versuchen
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Template auswählen</span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={createNewTemplate}
+                disabled={isLoading}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Neu
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPreviewMode(!previewMode)}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                {previewMode ? "Bearbeiten" : "Vorschau"}
+              </Button>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 items-center">
+            <Select
+              value={selectedTemplateName || ""}
+              onValueChange={setSelectedTemplateName}
+              disabled={isLoading}
+            >
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Template auswählen..." />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template) => (
+                  <SelectItem key={template.name} value={template.name}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{template.name}</span>
+                      <Badge variant="secondary" className="ml-2">
+                        {template.lastModified ? 
+                          new Date(template.lastModified).toLocaleDateString('de-DE') : 
+                          'Neu'
+                        }
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            {selectedTemplateName && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => deleteTemplate(selectedTemplateName)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Löschen
+              </Button>
+            )}
+          </div>
+          
+          <div className="mt-4 text-sm text-muted-foreground">
+            <FolderOpen className="h-4 w-4 inline mr-1" />
+            Templates werden im Verzeichnis &quot;/templates&quot; der Bibliothek &quot;{activeLibrary.label}&quot; gespeichert.
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Template bearbeiten</CardTitle>
+          <CardDescription>
+            Bearbeiten Sie die drei Hauptbereiche des Templates: YAML Frontmatter, Markdown Body und System Prompt.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="name">Template-Name</Label>
+              <Input
+                id="name"
+                {...form.register("name")}
+                placeholder="z.B. Session_en, Besprechung, Blogeintrag"
+              />
+              {form.formState.errors.name && (
+                <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+              )}
+            </div>
+
+            {previewMode ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Template-Vorschau</h4>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreviewMode(false)}
+                  >
+                    Bearbeiten
+                  </Button>
+                </div>
+                <div className="border rounded-md p-4 bg-muted/50">
+                  <pre className="text-sm whitespace-pre-wrap font-mono">
+                    {generatePreview()}
+                  </pre>
+                </div>
+              </div>
+            ) : (
+              <Tabs defaultValue="yaml" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="yaml">YAML Frontmatter</TabsTrigger>
+                  <TabsTrigger value="body">Markdown Body</TabsTrigger>
+                  <TabsTrigger value="prompt">System Prompt</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="yaml" className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>YAML Frontmatter</Label>
+                    <Textarea
+                      {...form.register("yamlFrontmatter")}
+                      className="font-mono text-sm min-h-[200px]"
+                      placeholder="---&#10;title: {{title|Titel des Dokuments}}&#10;tags: {{tags|Relevante Tags}}&#10;---"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      YAML-Metadaten mit Template-Variablen. Format: key: {"{{variable|description}}"}
+                    </p>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="body" className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Markdown Body</Label>
+                    <Textarea
+                      {...form.register("markdownBody")}
+                      className="font-mono text-sm min-h-[300px]"
+                      placeholder="# {{title}}&#10;&#10;## Zusammenfassung&#10;{{summary|Kurze Zusammenfassung}}"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Markdown-Inhalt mit Template-Variablen. Format: {"{{variable|description}}"}
+                    </p>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="prompt" className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>System Prompt</Label>
+                    <Textarea
+                      {...form.register("systemPrompt")}
+                      className="font-mono text-sm min-h-[200px]"
+                      placeholder="You are a specialized assistant..."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Anweisungen für das LLM. Wird automatisch mit JSON-Formatierung ergänzt.
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPreviewMode(!previewMode)}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                {previewMode ? "Bearbeiten" : "Vorschau"}
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSaving || !form.formState.isDirty}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Wird gespeichert...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Speichern
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Template testen</CardTitle>
+          <CardDescription>
+            Testen Sie das ausgewählte Template mit einem Beispieltext über den Secretary Service.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Test-Text</Label>
+              <Textarea
+                placeholder="Geben Sie einen Testtext ein..."
+                className="min-h-[100px]"
+                defaultValue="Dies ist ein Testtext für das Template. Er enthält verschiedene Informationen, die vom Template verarbeitet werden sollen."
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={testTemplate}
+                disabled={!selectedTemplateName}
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Template testen
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+} 

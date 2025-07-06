@@ -31,6 +31,10 @@ const protectedNavItems = [
     href: "/library",
   },
   {
+    name: "Templates",
+    href: "/templates",
+  },
+  {
     name: "Event-Monitor",
     href: "/event-monitor",
   },

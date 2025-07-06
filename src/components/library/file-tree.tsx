@@ -15,6 +15,7 @@ import { useStorage } from '@/contexts/storage-context';
 import { FileLogger } from "@/lib/debug/logger"
 import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
+import { toast } from "sonner";
 
 // Ref-Interface für externe Steuerung
 export interface FileTreeRef {
@@ -143,8 +144,47 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
       }
     } catch (error) {
       FileLogger.error('FileTree', 'Fehler beim Laden der Root-Items', error);
+      
+      // Prüfe, ob es sich um einen spezifischen Bibliotheksfehler handelt
+      if (error instanceof Error) {
+        if (error.message.includes('konnte nicht gefunden werden') || 
+            error.message.includes('ENOENT') ||
+            error.message.includes('LibraryPathNotFoundError')) {
+          // Zeige eine benutzerfreundliche Fehlermeldung
+          console.warn('🚨 Bibliothek nicht gefunden:', error.message);
+          toast.error(`Bibliothek nicht gefunden: ${error.message}`, {
+            action: {
+              label: 'Erneut versuchen',
+              onClick: () => loadRootItems()
+            }
+          });
+        } else if (error.message.includes('Keine Berechtigung')) {
+          console.warn('🚨 Keine Berechtigung:', error.message);
+          toast.error(`Keine Berechtigung: ${error.message}`, {
+            action: {
+              label: 'Erneut versuchen',
+              onClick: () => loadRootItems()
+            }
+          });
+        } else {
+          // Generische Fehlermeldung für andere Fehler
+          toast.error(`Fehler beim Laden der Bibliothek: ${error.message}`, {
+            action: {
+              label: 'Erneut versuchen',
+              onClick: () => loadRootItems()
+            }
+          });
+        }
+      } else {
+        toast.error('Unbekannter Fehler beim Laden der Bibliothek', {
+          action: {
+            label: 'Erneut versuchen',
+            onClick: () => loadRootItems()
+          }
+        });
+      }
     }
-  }, [provider, setLoadedChildren, isReady, setFileTreeReady]);
+  }, [provider, setLoadedChildren, isReady, setFileTreeReady, toast]);
 
   // Ref-Methoden
   useImperativeHandle(forwardedRef, () => ({

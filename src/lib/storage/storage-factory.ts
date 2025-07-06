@@ -61,7 +61,21 @@ class LocalStorageProvider implements StorageProvider {
         statusText: response.statusText,
         url
       });
-      throw new Error('Failed to list items');
+      
+      // Versuche, die spezifische Fehlermeldung aus der Response zu extrahieren
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          // Spezifische Fehlermeldung verwenden
+          throw new Error(errorData.error);
+        }
+      } catch (parseError) {
+        // Wenn JSON-Parsing fehlschlägt, verwende generische Meldung
+        console.warn(`[LocalStorageProvider] Konnte Fehlermeldung nicht parsen:`, parseError);
+      }
+      
+      // Fallback für generische Fehler
+      throw new Error(`Fehler beim Laden der Bibliothek (HTTP ${response.status}): ${response.statusText}`);
     }
     return response.json();
   }
@@ -171,6 +185,8 @@ class LocalStorageProvider implements StorageProvider {
       mimeType: response.headers.get('Content-Type') || 'application/octet-stream',
     };
   }
+
+
 
   async getPathById(itemId: string): Promise<string> {
     const url = this.getApiUrl(`/api/storage/filesystem?action=path&fileId=${itemId}&libraryId=${this.library.id}`);
