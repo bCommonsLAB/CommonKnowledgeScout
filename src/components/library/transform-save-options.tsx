@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
+import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
 
 export interface TransformSaveOptions {
   [key: string]: unknown;
@@ -28,13 +29,7 @@ export function TransformSaveOptions({
   originalFileName,
   onOptionsChangeAction,
   defaultLanguage = "de",
-  supportedLanguages = [
-    { value: "de", label: "Deutsch" },
-    { value: "en", label: "Englisch" },
-    { value: "fr", label: "Französisch" },
-    { value: "es", label: "Spanisch" },
-    { value: "it", label: "Italienisch" }
-  ],
+  supportedLanguages = SUPPORTED_LANGUAGES.map(lang => ({ value: lang.code, label: lang.name })),
   defaultExtension = "md",
   className
 }: TransformSaveOptionsProps) {

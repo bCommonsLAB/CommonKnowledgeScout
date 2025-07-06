@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
+import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
 
 interface MarkdownPreviewProps {
   content: string;
@@ -513,11 +514,11 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
                             <SelectValue placeholder="Sprache auswählen" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="de">Deutsch</SelectItem>
-                            <SelectItem value="en">Englisch</SelectItem>
-                            <SelectItem value="fr">Französisch</SelectItem>
-                            <SelectItem value="es">Spanisch</SelectItem>
-                            <SelectItem value="it">Italienisch</SelectItem>
+                            {SUPPORTED_LANGUAGES.map((language) => (
+                              <SelectItem key={language.code} value={language.code}>
+                                {language.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>

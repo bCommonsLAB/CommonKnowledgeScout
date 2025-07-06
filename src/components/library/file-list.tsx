@@ -22,11 +22,17 @@ import { Input } from "@/components/ui/input"
 import {
   selectedBatchItemsAtom,
   transcriptionDialogOpenAtom,
-  getMediaType
+  selectedTransformationItemsAtom,
+  transformationDialogOpenAtom,
+  getMediaType,
+  getFileCategory,
+  fileCategoryFilterAtom,
+  FileCategory
 } from '@/atoms/transcription-options';
 import { Checkbox } from "@/components/ui/checkbox"
 import { useMemo, useCallback } from "react"
 import { FileLogger, StateLogger } from "@/lib/debug/logger"
+import { FileCategoryFilter } from './file-category-filter';
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -399,7 +405,39 @@ const FileRow = React.memo(function FileRow({
   }, []);
 
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
+  const [selectedTransformationItems, setSelectedTransformationItems] = useAtom(selectedTransformationItemsAtom);
+  
+  // Prüfe ob das Item in einem der beiden Atome ausgewählt ist
   const isInBatch = selectedBatchItems.some(batchItem => batchItem.item.id === item.id);
+  const isInTransformation = selectedTransformationItems.some(transformationItem => transformationItem.item.id === item.id);
+  const isInAnyBatch = isInBatch || isInTransformation;
+
+  // Handler für Checkbox-Änderungen
+  const handleCheckboxChange = React.useCallback((checked: boolean) => {
+    const mediaType = getMediaType(item);
+    
+    if (mediaType === 'audio' || mediaType === 'video') {
+      // Für Audio/Video: Transcription-Atom verwenden
+      if (checked) {
+        setSelectedBatchItems([...selectedBatchItems, {
+          item,
+          type: mediaType
+        }]);
+      } else {
+        setSelectedBatchItems(selectedBatchItems.filter(i => i.item.id !== item.id));
+      }
+    } else if (mediaType === 'text' || mediaType === 'document') {
+      // Für Text/Dokumente: Transformation-Atom verwenden
+      if (checked) {
+        setSelectedTransformationItems([...selectedTransformationItems, {
+          item,
+          type: mediaType
+        }]);
+      } else {
+        setSelectedTransformationItems(selectedTransformationItems.filter(i => i.item.id !== item.id));
+      }
+    }
+  }, [item, selectedBatchItems, selectedTransformationItems, setSelectedBatchItems, setSelectedTransformationItems]);
 
   return (
     <div
@@ -420,17 +458,8 @@ const FileRow = React.memo(function FileRow({
     >
       <div className="w-6 flex items-center justify-center">
         <Checkbox
-          checked={isInBatch}
-          onCheckedChange={(checked) => {
-            if (checked) {
-              setSelectedBatchItems([...selectedBatchItems, {
-                item,
-                type: getMediaType(item)
-              }]);
-            } else {
-              setSelectedBatchItems(selectedBatchItems.filter(i => i.item.id !== item.id));
-            }
-          }}
+          checked={isInAnyBatch}
+          onCheckedChange={handleCheckboxChange}
           onClick={(e) => e.stopPropagation()}
         />
       </div>
@@ -558,12 +587,15 @@ export const FileList = React.memo(function FileList(): JSX.Element {
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
+  const [selectedTransformationItems, setSelectedTransformationItems] = useAtom(selectedTransformationItemsAtom);
   const [, setTranscriptionDialogOpen] = useAtom(transcriptionDialogOpenAtom);
+  const [, setTransformationDialogOpen] = useAtom(transformationDialogOpenAtom);
   const [isInitialized, setIsInitialized] = React.useState(false);
   const initializationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
   const [, setSelectedFile] = useAtom(selectedFileAtom);
   const [, setFolderItems] = useAtom(folderItemsAtom);
+  const currentCategoryFilter = useAtomValue(fileCategoryFilterAtom);
 
   // NEU: Atome für Sortierung und Filter
   const items = useAtomValue(sortedFilteredFilesAtom);
@@ -677,64 +709,168 @@ export const FileList = React.memo(function FileList(): JSX.Element {
   // Berechne, ob alle Dateien ausgewählt sind
   const isAllSelected = useMemo(() => {
     if (!items?.length) return false;
-    const transcribableItems = items.filter(item => 
-      item.type === 'file' && 
-      (item.metadata.mimeType.startsWith('audio/') || item.metadata.mimeType.startsWith('video/'))
-    );
-    return transcribableItems.length > 0 && selectedBatchItems.length === transcribableItems.length;
-  }, [items, selectedBatchItems]);
-
-  // Handle Select All
-  const handleSelectAll = useCallback((checked: boolean) => {
-    const startTime = performance.now();
     
-    if (checked) {
-      const transcribableItems = items
-        .filter(item => {
+    // Je nach Filter unterschiedliche Dateien zählen
+    let selectableItems: StorageItem[] = [];
+    
+    switch (currentCategoryFilter) {
+      case 'media':
+        selectableItems = items.filter(item => {
           try {
             const mediaType = getMediaType(item);
             return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
           } catch {
             return false;
           }
-        })
-        .map(item => ({
-          item,
-          type: getMediaType(item)
-        }));
+        });
+        return selectableItems.length > 0 && selectedBatchItems.length === selectableItems.length;
+        
+      case 'text':
+        selectableItems = items.filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && mediaType === 'text';
+          } catch {
+            return false;
+          }
+        });
+        return selectableItems.length > 0 && selectedTransformationItems.length === selectableItems.length;
+        
+      case 'documents':
+        selectableItems = items.filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && mediaType === 'document';
+          } catch {
+            return false;
+          }
+        });
+        return selectableItems.length > 0 && selectedTransformationItems.length === selectableItems.length;
+        
+      default:
+        // Bei 'all' prüfen ob alle verfügbaren Dateien ausgewählt sind
+        const mediaItems = items.filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
+          } catch {
+            return false;
+          }
+        });
+        const textItems = items.filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && (mediaType === 'text' || mediaType === 'document');
+          } catch {
+            return false;
+          }
+        });
+        
+        const allMediaSelected = mediaItems.length === 0 || selectedBatchItems.length === mediaItems.length;
+        const allTextSelected = textItems.length === 0 || selectedTransformationItems.length === textItems.length;
+        
+        return allMediaSelected && allTextSelected;
+    }
+  }, [items, selectedBatchItems, selectedTransformationItems, currentCategoryFilter]);
 
-      StateLogger.info('FileList', 'Selecting all transcribable items', {
+  // Intelligente Batch-Auswahl basierend auf Filter
+  const handleSelectAll = useCallback((checked: boolean) => {
+    const startTime = performance.now();
+    
+    if (checked) {
+      let selectableItems = items.filter(item => {
+        try {
+          const mediaType = getMediaType(item);
+          const category = getFileCategory(item);
+          
+          // Je nach Filter unterschiedliche Dateien auswählen
+          switch (currentCategoryFilter) {
+            case 'media':
+              return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
+            case 'text':
+              return item.type === 'file' && mediaType === 'text';
+            case 'documents':
+              return item.type === 'file' && mediaType === 'document';
+            default:
+              // Bei 'all' alle Dateien auswählen, die für eine Operation geeignet sind
+              return item.type === 'file' && (
+                mediaType === 'audio' || 
+                mediaType === 'video' || 
+                mediaType === 'text' || 
+                mediaType === 'document'
+              );
+          }
+        } catch {
+          return false;
+        }
+      });
+
+      StateLogger.info('FileList', 'Selecting all items based on filter', {
+        filter: currentCategoryFilter,
         totalItems: items.length,
-        transcribableCount: transcribableItems.length,
+        selectableCount: selectableItems.length,
         duration: `${(performance.now() - startTime).toFixed(2)}ms`
       });
       
-      setSelectedBatchItems(transcribableItems);
+      // Je nach Filter unterschiedliche Atome verwenden
+      if (currentCategoryFilter === 'media') {
+        setSelectedBatchItems(selectableItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+      } else if (currentCategoryFilter === 'text') {
+        setSelectedTransformationItems(selectableItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+      } else {
+        // Bei 'all' oder 'documents' beide Atome füllen
+        const mediaItems = selectableItems.filter(item => {
+          const mediaType = getMediaType(item);
+          return mediaType === 'audio' || mediaType === 'video';
+        });
+        const textItems = selectableItems.filter(item => {
+          const mediaType = getMediaType(item);
+          return mediaType === 'text' || mediaType === 'document';
+        });
+        
+        setSelectedBatchItems(mediaItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+        setSelectedTransformationItems(textItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+      }
     } else {
       StateLogger.info('FileList', 'Deselecting all items', {
-        previouslySelected: selectedBatchItems.length,
+        previouslySelected: selectedBatchItems.length + selectedTransformationItems.length,
         duration: `${(performance.now() - startTime).toFixed(2)}ms`
       });
       
       setSelectedBatchItems([]);
+      setSelectedTransformationItems([]);
     }
-  }, [items, setSelectedBatchItems, selectedBatchItems.length]);
+  }, [items, currentCategoryFilter, setSelectedBatchItems, setSelectedTransformationItems, selectedBatchItems.length, selectedTransformationItems.length]);
 
-  // Handle Item Selection
+  // Intelligente Item-Auswahl
   const handleItemSelect = React.useCallback((item: StorageItem) => {
     const startTime = performance.now();
     
     try {
       const mediaType = getMediaType(item);
+      const category = getFileCategory(item);
       
       StateLogger.debug('FileList', 'Item selection attempt', {
         itemId: item.id,
         itemName: item.metadata.name,
         mediaType,
-        isCurrentlySelected: selectedBatchItems.some(i => i.item.id === item.id)
+        category,
+        currentFilter: currentCategoryFilter
       });
       
-      // Nur Audio- und Video-Dateien können für Batch-Transkription ausgewählt werden
+      // Je nach Medientyp und Filter das entsprechende Atom verwenden
       if (mediaType === 'audio' || mediaType === 'video') {
         setSelectedBatchItems(prev => {
           const isAlreadySelected = prev.some(i => i.item.id === item.id);
@@ -742,7 +878,25 @@ export const FileList = React.memo(function FileList(): JSX.Element {
             ? prev.filter(i => i.item.id !== item.id)
             : [...prev, { item, type: mediaType }];
             
-          StateLogger.info('FileList', 'Batch selection updated', {
+          StateLogger.info('FileList', 'Transcription selection updated', {
+            itemId: item.id,
+            itemName: item.metadata.name,
+            mediaType,
+            action: isAlreadySelected ? 'deselected' : 'selected',
+            newSelectionCount: newSelection.length,
+            duration: `${(performance.now() - startTime).toFixed(2)}ms`
+          });
+          
+          return newSelection;
+        });
+      } else if (mediaType === 'text' || mediaType === 'document') {
+        setSelectedTransformationItems(prev => {
+          const isAlreadySelected = prev.some(i => i.item.id === item.id);
+          const newSelection = isAlreadySelected
+            ? prev.filter(i => i.item.id !== item.id)
+            : [...prev, { item, type: mediaType }];
+            
+          StateLogger.info('FileList', 'Transformation selection updated', {
             itemId: item.id,
             itemName: item.metadata.name,
             mediaType,
@@ -766,12 +920,17 @@ export const FileList = React.memo(function FileList(): JSX.Element {
       });
       handleSelect(item);
     }
-  }, [handleSelect, selectedBatchItems]);
+  }, [handleSelect, currentCategoryFilter, setSelectedBatchItems, setSelectedTransformationItems]);
 
-  // Check if an item is selected
+  // Check if an item is selected (beide Atome prüfen)
   const isItemSelected = useCallback((item: StorageItem) => {
-    return selectedBatchItems.some(selected => selected.item.id === item.id);
-  }, [selectedBatchItems]);
+    const mediaType = getMediaType(item);
+    if (mediaType === 'audio' || mediaType === 'video') {
+      return selectedBatchItems.some(selected => selected.item.id === item.id);
+    } else {
+      return selectedTransformationItems.some(selected => selected.item.id === item.id);
+    }
+  }, [selectedBatchItems, selectedTransformationItems]);
 
   // Löschfunktion
   const handleDeleteClick = React.useCallback(async (e: React.MouseEvent<HTMLButtonElement>, itemToDelete: StorageItem) => {
@@ -945,6 +1104,12 @@ export const FileList = React.memo(function FileList(): JSX.Element {
     }
   };
 
+  const handleBatchTransformation = () => {
+    if (selectedTransformationItems.length > 0) {
+      setTransformationDialogOpen(true);
+    }
+  };
+
   React.useEffect(() => {
     // Logging der Library-IDs
     StateLogger.debug('FileList', 'Render', {
@@ -961,7 +1126,7 @@ export const FileList = React.memo(function FileList(): JSX.Element {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="border-b px-4 py-2 flex items-center justify-between bg-background sticky top-0 z-10">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
@@ -971,12 +1136,27 @@ export const FileList = React.memo(function FileList(): JSX.Element {
           >
             <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
+          
+          {/* Dateikategorie-Filter */}
+          <FileCategoryFilter />
+          
+          {/* Intelligente Batch-Buttons */}
           {selectedBatchItems.length > 0 && (
             <Button
               size="sm"
               onClick={handleBatchTranscription}
             >
               {selectedBatchItems.length} Datei(en) transkribieren
+            </Button>
+          )}
+          
+          {selectedTransformationItems.length > 0 && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleBatchTransformation}
+            >
+              {selectedTransformationItems.length} Datei(en) kombinieren & transformieren
             </Button>
           )}
         </div>

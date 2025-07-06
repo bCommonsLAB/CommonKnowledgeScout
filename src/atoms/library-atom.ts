@@ -231,12 +231,25 @@ export const sortedFilteredFilesAtom = atom((get) => {
   const searchTerm = get(searchTermAtom).toLowerCase()
   const sortField = get(sortFieldAtom)
   const sortOrder = get(sortOrderAtom)
+  
+  // Importiere die Filter-Funktionen
+  const { fileCategoryFilterAtom, getFileCategory } = require('@/atoms/transcription-options')
+  const categoryFilter = get(fileCategoryFilterAtom)
 
-  let filtered = files.filter(item =>
-    !item.metadata.name.startsWith('.') &&
-    !item.metadata.isTwin &&
-    (searchTerm === '' || item.metadata.name.toLowerCase().includes(searchTerm))
-  )
+  let filtered = files.filter(item => {
+    // Basis-Filter
+    const basicFilter = !item.metadata.name.startsWith('.') &&
+      !item.metadata.isTwin &&
+      (searchTerm === '' || item.metadata.name.toLowerCase().includes(searchTerm))
+    
+    if (!basicFilter) return false
+    
+    // Kategorie-Filter
+    if (categoryFilter === 'all') return true
+    
+    const itemCategory = getFileCategory(item)
+    return itemCategory === categoryFilter
+  })
 
   filtered = filtered.sort((a, b) => {
     let cmp = 0

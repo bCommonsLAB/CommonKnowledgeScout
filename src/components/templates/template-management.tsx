@@ -12,8 +12,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Save, Plus, Trash2, Eye, Play, FolderOpen } from "lucide-react"
+import { Loader2, Save, Plus, Trash2, Eye, Play, FolderOpen, Info } from "lucide-react"
 import { useAtom, useAtomValue } from "jotai"
 import { activeLibraryAtom, libraryStatusAtom } from "@/atoms/library-atom"
 import { 
@@ -40,6 +41,8 @@ type TemplateFormValues = z.infer<typeof templateSchema>
 export function TemplateManagement() {
   const [previewMode, setPreviewMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [testResult, setTestResult] = useState<string | null>(null)
   const { toast } = useToast()
 
   // Atoms
@@ -374,8 +377,15 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
   async function testTemplate() {
     if (!activeLibrary) return
 
+    setIsTesting(true)
+    setTestResult(null)
+
     const values = form.getValues()
     const templateContent = generateTemplateContent(values)
+    
+    // Testtext aus dem Textarea lesen
+    const testTextarea = document.querySelector('textarea[placeholder="Geben Sie einen Testtext ein..."]') as HTMLTextAreaElement
+    const testText = testTextarea?.value || "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed eiusmod tempor incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquid ex ea commodi consequat. Quis aute iure reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
     
     try {
       const response = await fetch('/api/secretary/process-text', {
@@ -385,7 +395,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
           'X-Library-Id': activeLibrary.id,
         },
         body: new URLSearchParams({
-          text: "Dies ist ein Testtext für das Template.",
+          text: testText,
           template_content: templateContent,
           source_language: 'de',
           target_language: 'de',
@@ -399,6 +409,10 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
       const result = await response.json()
       
+      // Ergebnis formatieren und anzeigen
+      const formattedResult = JSON.stringify(result, null, 2)
+      setTestResult(formattedResult)
+      
       toast({
         title: "Template-Test erfolgreich",
         description: "Das Template wurde erfolgreich mit dem Testtext verarbeitet.",
@@ -407,11 +421,15 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       console.log('Template-Test Ergebnis:', result)
     } catch (error) {
       console.error('Fehler beim Template-Test:', error)
+      const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler"
+      setTestResult(`Fehler: ${errorMessage}`)
       toast({
         title: "Template-Test fehlgeschlagen",
-        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+        description: errorMessage,
         variant: "destructive",
       })
+    } finally {
+      setIsTesting(false)
     }
   }
 
@@ -460,56 +478,60 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Template auswählen</span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={createNewTemplate}
+        <CardContent className="pt-6">
+          <div className="flex gap-4 items-center">
+            <div className="flex-1">
+              <Select
+                value={selectedTemplateName || ""}
+                onValueChange={setSelectedTemplateName}
                 disabled={isLoading}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Neu
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPreviewMode(!previewMode)}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                {previewMode ? "Bearbeiten" : "Vorschau"}
-              </Button>
+                <SelectTrigger>
+                  <SelectValue placeholder="Template auswählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((template) => (
+                    <SelectItem key={template.name} value={template.name}>
+                      <div className="flex items-center justify-between w-full">
+                        <span>{template.name}</span>
+                        <Badge variant="secondary" className="ml-2">
+                          {template.lastModified ? 
+                            new Date(template.lastModified).toLocaleDateString('de-DE') : 
+                            'Neu'
+                          }
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 items-center">
-            <Select
-              value={selectedTemplateName || ""}
-              onValueChange={setSelectedTemplateName}
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4" />
+                    <span>Templates werden im Verzeichnis "/templates" der Bibliothek "{activeLibrary.label}" gespeichert.</span>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={createNewTemplate}
               disabled={isLoading}
             >
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Template auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                {templates.map((template) => (
-                  <SelectItem key={template.name} value={template.name}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>{template.name}</span>
-                      <Badge variant="secondary" className="ml-2">
-                        {template.lastModified ? 
-                          new Date(template.lastModified).toLocaleDateString('de-DE') : 
-                          'Neu'
-                        }
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Plus className="h-4 w-4 mr-2" />
+              Neu
+            </Button>
             
             {selectedTemplateName && (
               <Button
@@ -522,167 +544,184 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
               </Button>
             )}
           </div>
-          
-          <div className="mt-4 text-sm text-muted-foreground">
-            <FolderOpen className="h-4 w-4 inline mr-1" />
-            Templates werden im Verzeichnis &quot;/templates&quot; der Bibliothek &quot;{activeLibrary.label}&quot; gespeichert.
-          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Template bearbeiten</CardTitle>
-          <CardDescription>
-            Bearbeiten Sie die drei Hauptbereiche des Templates: YAML Frontmatter, Markdown Body und System Prompt.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Template-Name</Label>
-              <Input
-                id="name"
-                {...form.register("name")}
-                placeholder="z.B. Session_en, Besprechung, Blogeintrag"
-              />
-              {form.formState.errors.name && (
-                <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Template bearbeiten</CardTitle>
+            <CardDescription>
+              Bearbeiten Sie die drei Hauptbereiche des Templates: Markdown Body, YAML Frontmatter und System Prompt.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="name">Template-Name</Label>
+                <Input
+                  id="name"
+                  {...form.register("name")}
+                  placeholder="z.B. Session_en, Besprechung, Blogeintrag"
+                />
+                {form.formState.errors.name && (
+                  <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+                )}
+              </div>
+
+              {previewMode ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium">Template-Vorschau</h4>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewMode(false)}
+                    >
+                      Bearbeiten
+                    </Button>
+                  </div>
+                  <div className="border rounded-md p-4 bg-muted/50">
+                    <pre className="text-sm whitespace-pre-wrap font-mono">
+                      {generatePreview()}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <Tabs defaultValue="body" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="body">Markdown Body</TabsTrigger>
+                    <TabsTrigger value="yaml">YAML Frontmatter</TabsTrigger>
+                    <TabsTrigger value="prompt">System Prompt</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="body" className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Markdown Body</Label>
+                      <Textarea
+                        {...form.register("markdownBody")}
+                        className="font-mono text-sm min-h-[300px]"
+                        placeholder="# {{title}}&#10;&#10;## Zusammenfassung&#10;{{summary|Kurze Zusammenfassung}}"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Markdown-Inhalt mit Template-Variablen. Format: {"{{variable|description}}"}
+                      </p>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="yaml" className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>YAML Frontmatter</Label>
+                      <Textarea
+                        {...form.register("yamlFrontmatter")}
+                        className="font-mono text-sm min-h-[200px]"
+                        placeholder="---&#10;title: {{title|Titel des Dokuments}}&#10;tags: {{tags|Relevante Tags}}&#10;---"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        YAML-Metadaten mit Template-Variablen. Format: key: {"{{variable|description}}"}
+                      </p>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="prompt" className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>System Prompt</Label>
+                      <Textarea
+                        {...form.register("systemPrompt")}
+                        className="font-mono text-sm min-h-[200px]"
+                        placeholder="You are a specialized assistant..."
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Anweisungen für das LLM. Wird automatisch mit JSON-Formatierung ergänzt.
+                      </p>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPreviewMode(!previewMode)}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  {previewMode ? "Bearbeiten" : "Vorschau"}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSaving || !form.formState.isDirty}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Wird gespeichert...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Speichern
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Template testen</CardTitle>
+            <CardDescription>
+              Testen Sie das ausgewählte Template mit einem Beispieltext über den Secretary Service.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Test-Text</Label>
+                <Textarea
+                  placeholder="Geben Sie einen Testtext ein..."
+                  className="min-h-[100px]"
+                  defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed eiusmod tempor incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquid ex ea commodi consequat. Quis aute iure reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={testTemplate}
+                  disabled={!selectedTemplateName || isTesting}
+                >
+                  {isTesting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Teste...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Template testen
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              {testResult && (
+                <div className="space-y-2">
+                  <Label>Test-Ergebnis</Label>
+                  <div className="border rounded-md p-4 bg-muted/50">
+                    <pre className="text-sm whitespace-pre-wrap font-mono max-h-[300px] overflow-y-auto">
+                      {testResult}
+                    </pre>
+                  </div>
+                </div>
               )}
             </div>
-
-            {previewMode ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium">Template-Vorschau</h4>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPreviewMode(false)}
-                  >
-                    Bearbeiten
-                  </Button>
-                </div>
-                <div className="border rounded-md p-4 bg-muted/50">
-                  <pre className="text-sm whitespace-pre-wrap font-mono">
-                    {generatePreview()}
-                  </pre>
-                </div>
-              </div>
-            ) : (
-              <Tabs defaultValue="yaml" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="yaml">YAML Frontmatter</TabsTrigger>
-                  <TabsTrigger value="body">Markdown Body</TabsTrigger>
-                  <TabsTrigger value="prompt">System Prompt</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="yaml" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>YAML Frontmatter</Label>
-                    <Textarea
-                      {...form.register("yamlFrontmatter")}
-                      className="font-mono text-sm min-h-[200px]"
-                      placeholder="---&#10;title: {{title|Titel des Dokuments}}&#10;tags: {{tags|Relevante Tags}}&#10;---"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      YAML-Metadaten mit Template-Variablen. Format: key: {"{{variable|description}}"}
-                    </p>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="body" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Markdown Body</Label>
-                    <Textarea
-                      {...form.register("markdownBody")}
-                      className="font-mono text-sm min-h-[300px]"
-                      placeholder="# {{title}}&#10;&#10;## Zusammenfassung&#10;{{summary|Kurze Zusammenfassung}}"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Markdown-Inhalt mit Template-Variablen. Format: {"{{variable|description}}"}
-                    </p>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="prompt" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>System Prompt</Label>
-                    <Textarea
-                      {...form.register("systemPrompt")}
-                      className="font-mono text-sm min-h-[200px]"
-                      placeholder="You are a specialized assistant..."
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Anweisungen für das LLM. Wird automatisch mit JSON-Formatierung ergänzt.
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPreviewMode(!previewMode)}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                {previewMode ? "Bearbeiten" : "Vorschau"}
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSaving || !form.formState.isDirty}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Wird gespeichert...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Speichern
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Template testen</CardTitle>
-          <CardDescription>
-            Testen Sie das ausgewählte Template mit einem Beispieltext über den Secretary Service.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Test-Text</Label>
-              <Textarea
-                placeholder="Geben Sie einen Testtext ein..."
-                className="min-h-[100px]"
-                defaultValue="Dies ist ein Testtext für das Template. Er enthält verschiedene Informationen, die vom Template verarbeitet werden sollen."
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={testTemplate}
-                disabled={!selectedTemplateName}
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Template testen
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 } 

@@ -19,6 +19,8 @@ import {
 } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
 import { TranscriptionDialog } from "./transcription-dialog"
+import { TransformationDialog } from "./transformation-dialog"
+import { StorageItem } from "@/lib/storage/types"
 import { NavigationLogger, StateLogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
 
@@ -264,6 +266,43 @@ export function Library() {
       
       {/* Dialoge */}
       <TranscriptionDialog />
+      <TransformationDialog 
+        onRefreshFolder={(folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => {
+          StateLogger.info('Library', 'TransformationDialog onRefreshFolder aufgerufen', {
+            folderId,
+            itemsCount: items.length,
+            hasSelectFile: !!selectFileAfterRefresh
+          });
+          
+          // Aktualisiere die Dateiliste
+          setFolderItems(items);
+          
+          // Aktualisiere den Cache
+          if (libraryState.folderCache?.[folderId]) {
+            const cachedFolder = libraryState.folderCache[folderId];
+            if (cachedFolder) {
+              setLibraryState(state => ({
+                ...state,
+                folderCache: {
+                  ...(state.folderCache || {}),
+                  [folderId]: {
+                    ...cachedFolder,
+                    children: items
+                  }
+                }
+              }));
+            }
+          }
+          
+          // Wenn eine Datei ausgewählt werden soll (nach dem Speichern)
+          if (selectFileAfterRefresh) {
+            StateLogger.info('Library', 'Wähle gespeicherte Datei aus', {
+              fileId: selectFileAfterRefresh.id,
+              fileName: selectFileAfterRefresh.metadata.name
+            });
+          }
+        }}
+      />
     </div>
   );
 }
