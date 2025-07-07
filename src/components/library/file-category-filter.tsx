@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
-import { FileAudio, FileVideo, FileText, File, FolderOpen } from 'lucide-react';
+import { FileAudio, FileText, File, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAtom } from 'jotai';
 import { fileCategoryFilterAtom, FileCategory } from '@/atoms/transcription-options';

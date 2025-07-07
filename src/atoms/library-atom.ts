@@ -1,7 +1,8 @@
 import { atom } from "jotai"
 import { atomFamily } from "jotai/utils"
-import { ClientLibrary } from "@/types/library"
 import { StorageItem } from "@/lib/storage/types"
+import { ClientLibrary } from "@/types/library"
+import { fileCategoryFilterAtom, getFileCategory } from '@/atoms/transcription-options'
 
 // Basis-Typen für den Library-State
 export interface LibraryState {
@@ -233,7 +234,6 @@ export const sortedFilteredFilesAtom = atom((get) => {
   const sortOrder = get(sortOrderAtom)
   
   // Importiere die Filter-Funktionen
-  const { fileCategoryFilterAtom, getFileCategory } = require('@/atoms/transcription-options')
   const categoryFilter = get(fileCategoryFilterAtom)
 
   let filtered = files.filter(item => {

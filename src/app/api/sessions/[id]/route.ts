@@ -53,7 +53,8 @@ export async function PUT(
     const updates = await request.json() as Partial<Session>;
     
     // Entferne id, created_at aus Updates
-    const { id: updateId, created_at, ...validUpdates } = updates;
+    const { id: _deleted1, created_at: _deleted2, ...validUpdates } = updates;
+    void _deleted1; void _deleted2;
     
     const success = await repository.updateSession(id, validUpdates);
     

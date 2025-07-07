@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, Loader2, FileText, File } from "lucide-react";
+import { CheckCircle, XCircle, FileText, File } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -20,8 +20,7 @@ import { Input } from "@/components/ui/input";
 import {
   selectedTransformationItemsAtom,
   transformationDialogOpenAtom,
-  baseTransformOptionsAtom,
-  BaseTransformOptions
+  baseTransformOptionsAtom
 } from '@/atoms/transcription-options';
 import { BatchTransformService, BatchTransformProgress, BatchTransformResult } from '@/lib/transform/batch-transform-service';
 import { useStorage } from '@/contexts/storage-context';

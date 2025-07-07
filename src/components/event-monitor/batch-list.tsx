@@ -40,7 +40,6 @@ import {
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Batch, BatchStatus, Job, JobStatus } from '@/types/event-job';
-import { ClientLibrary } from '@/types/library';
 import { formatDateTime } from '@/lib/utils';
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -54,7 +53,6 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { createTrackSummary, SecretaryServiceError } from '@/lib/secretary/client';
 import { useAtom } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
@@ -1007,7 +1005,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                     } else {
                       alert('Fehler: ' + data.message);
                     }
-                  } catch (error) {
+                  } catch {
                     alert('Fehler beim Neustarten des Batches');
                   } finally {
                     setBatchRestartDialogLoading(false);

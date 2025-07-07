@@ -25,9 +25,7 @@ import {
   selectedTransformationItemsAtom,
   transformationDialogOpenAtom,
   getMediaType,
-  getFileCategory,
   fileCategoryFilterAtom,
-  FileCategory
 } from '@/atoms/transcription-options';
 import { Checkbox } from "@/components/ui/checkbox"
 import { useMemo, useCallback } from "react"
@@ -778,10 +776,9 @@ export const FileList = React.memo(function FileList(): JSX.Element {
     const startTime = performance.now();
     
     if (checked) {
-      let selectableItems = items.filter(item => {
+      const selectableItems = items.filter(item => {
         try {
           const mediaType = getMediaType(item);
-          const category = getFileCategory(item);
           
           // Je nach Filter unterschiedliche Dateien auswählen
           switch (currentCategoryFilter) {
@@ -860,13 +857,11 @@ export const FileList = React.memo(function FileList(): JSX.Element {
     
     try {
       const mediaType = getMediaType(item);
-      const category = getFileCategory(item);
       
       StateLogger.debug('FileList', 'Item selection attempt', {
         itemId: item.id,
         itemName: item.metadata.name,
         mediaType,
-        category,
         currentFilter: currentCategoryFilter
       });
       

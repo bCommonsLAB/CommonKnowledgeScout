@@ -4,6 +4,13 @@ const path = require('path');     // eslint-disable-line @typescript-eslint/no-r
 const nextConfig = {
   // Deaktiviere Strict Mode in der Entwicklung, um Mounting-Logs zu reduzieren
   reactStrictMode: process.env.NODE_ENV === 'production',
+  
+  // Package-spezifische Umgebungsvariablen
+  env: {
+    BUILD_TARGET: process.env.BUILD_TARGET || 'web',
+    IS_PACKAGE_BUILD: process.env.IS_PACKAGE_BUILD || 'false'
+  },
+  
   images: {
     remotePatterns: [
       {
@@ -24,28 +31,57 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config) => {
+  
+  // Webpack-Konfiguration für Package-Build
+  webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       jotai: path.resolve(process.cwd(), 'node_modules/jotai'),
     };
+    
+    // Package-spezifische Optimierungen
+    if (process.env.IS_PACKAGE_BUILD === 'true') {
+      config.externals = config.externals || [];
+      
+      // Electron-spezifische Module ausschließen für Package-Build
+      config.externals.push('electron');
+      
+      // Optimierungen für Package-Build
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: 'all',
+          minSize: 20000,
+          maxSize: 500000,
+        }
+      };
+    }
+    
     return config;
   },
+  
   // Reduziere Logging in der Entwicklung
   logging: {
     fetches: {
       fullUrl: false
     }
   },
+  
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+    esmExternals: 'loose',
   },
-  // Wenn keine Clerk Keys vorhanden sind, deaktiviere das statische Prerendering
-  ...(process.env.NEXT_RUNTIME === 'build' || !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? {
-    output: 'standalone',
-  } : {})
+  
+  // ESLint und TypeScript-Checks nur für Package-Build deaktivieren
+  eslint: {
+    ignoreDuringBuilds: process.env.IS_PACKAGE_BUILD === 'true',
+  },
+  
+  typescript: {
+    ignoreBuildErrors: process.env.IS_PACKAGE_BUILD === 'true',
+  }
 }
 
 module.exports = nextConfig

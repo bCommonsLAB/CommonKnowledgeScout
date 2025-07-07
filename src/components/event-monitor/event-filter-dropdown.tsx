@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useAtom } from 'jotai';
 import { 
   Select, 
@@ -19,12 +19,10 @@ import {
 } from '@/atoms/event-filter-atom';
 
 interface EventFilterDropdownProps {
-  onEventChange?: (eventName: string | null) => void;
   className?: string;
 }
 
 export default function EventFilterDropdown({ 
-  onEventChange, 
   className = "" 
 }: EventFilterDropdownProps) {
   const [selectedEvent, setSelectedEvent] = useAtom(selectedEventAtom);

@@ -43,7 +43,6 @@ export default function EventMonitorPage() {
   // Multi-Batch-Archivierung Zustand
   const [multiBatchArchiveDialogOpen, setMultiBatchArchiveDialogOpen] = useState(false);
   const [multiBatchArchiveJobs, setMultiBatchArchiveJobs] = useState<Job[]>([]);
-  const [multiBatchArchiveLoading, setMultiBatchArchiveLoading] = useState(false);
   
   // Statistiken
   const [statsTotal, setStatsTotal] = useState(0);
@@ -301,12 +300,6 @@ export default function EventMonitorPage() {
     }
   }
   
-  // Event-Filter-Change Handler
-  const handleEventFilterChange = useCallback((eventName: string | null) => {
-    // Daten werden automatisch durch useEffect neu geladen wenn selectedEvent sich ändert
-    console.log('Event-Filter geändert zu:', eventName);
-  }, []);
-
   const handleJobDetailsPanelChange = (open: boolean) => {
     setJobDetailsOpen(open);
     if (!open) {
@@ -328,8 +321,6 @@ export default function EventMonitorPage() {
     }
 
     try {
-      setMultiBatchArchiveLoading(true);
-      
       // Alle Jobs aus allen gefilterten Batches laden
       const allJobs: Job[] = [];
       
@@ -364,7 +355,7 @@ export default function EventMonitorPage() {
       console.error('Fehler beim Laden der Jobs für Multi-Batch-Archivierung:', error);
       alert('Fehler beim Laden der Jobs. Bitte versuchen Sie es erneut.');
     } finally {
-      setMultiBatchArchiveLoading(false);
+      // Loading state removed
     }
   };
 
@@ -400,7 +391,6 @@ export default function EventMonitorPage() {
           
           {/* 🆕 Event-Filter Dropdown */}
           <EventFilterDropdown 
-            onEventChange={handleEventFilterChange}
             className="border-l pl-4 pr-4"
           />
         </div>

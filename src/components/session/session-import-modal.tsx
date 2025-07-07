@@ -19,12 +19,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { importSessionFromUrl, SecretaryServiceError } from '@/lib/secretary/client';
-import { TemplateExtractionResponse, StructuredSessionData } from '@/lib/secretary/types';
+import { StructuredSessionData } from '@/lib/secretary/types';
 
 interface SessionImportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSessionImported?: (sessionData: any) => void;
+  onSessionImported?: (sessionData: unknown) => void;
 }
 
 // Typ für Session-Link aus Batch-Import
@@ -255,14 +255,14 @@ export default function SessionImportModal({
 
       if (response.status === 'success' && response.data && response.data.structured_data) {
         // Erwarte ein Array von Sessions oder ein Objekt mit sessions-Array
-        const data = response.data.structured_data as any; // Flexiblere Typisierung für Batch-Import
+        const data = response.data.structured_data as unknown; // Flexiblere Typisierung für Batch-Import
         let sessions: SessionLink[] = [];
         
         // Event und andere globale Daten speichern
         const globalEvent = data.event || '';
         
         if (Array.isArray(data)) {
-          sessions = data.map((item: any) => ({
+          sessions = data.map((item: unknown) => ({
             name: item.name || item.session || item.title || 'Unbenannte Session',
             url: item.url || item.link || '',
             status: 'pending' as const,
@@ -270,7 +270,7 @@ export default function SessionImportModal({
             track: item.track || ''
           }));
         } else if (data.sessions && Array.isArray(data.sessions)) {
-          sessions = data.sessions.map((item: any) => ({
+          sessions = data.sessions.map((item: unknown) => ({
             name: item.name || item.session || item.title || 'Unbenannte Session',
             url: item.url || item.link || '',
             status: 'pending' as const,
@@ -466,8 +466,6 @@ export default function SessionImportModal({
               </p>
             </div>
 
-
-
             {/* Fehler-Anzeige */}
             {error && (
               <Alert variant="destructive">
@@ -580,8 +578,6 @@ export default function SessionImportModal({
                   URL einer Seite, die Links zu mehreren Sessions enthält
                 </p>
               </div>
-
-
 
               {/* Batch Fehler-Anzeige */}
               {batchError && (

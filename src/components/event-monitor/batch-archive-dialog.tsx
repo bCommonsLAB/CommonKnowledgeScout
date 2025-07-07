@@ -11,16 +11,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Loader2, FolderOpen, Download, AlertTriangle, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Batch, Job } from '@/types/event-job';
-import { ClientLibrary } from '@/types/library';
 import { useAtom } from 'jotai';
-import { activeLibraryAtom, currentPathAtom, librariesAtom, activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { activeLibraryAtom, currentPathAtom, currentFolderIdAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 
 interface ArchiveProgress {
@@ -67,8 +64,6 @@ export default function BatchArchiveDialog({
 }: BatchArchiveDialogProps) {
   const [activeLibrary] = useAtom(activeLibraryAtom);
   const [currentPath] = useAtom(currentPathAtom);
-  const [libraries, setLibraries] = useAtom(librariesAtom);
-  const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const { provider } = useStorage();
   const [preserveZipStructure, setPreserveZipStructure] = useState(true);

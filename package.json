@@ -1,11 +1,38 @@
 {
-  "name": "mail-app",
-  "version": "0.1.0",
+  "name": "@bcommonslab/common-knowledge-scout",
+  "version": "1.0.1",
+  "description": "Common Knowledge Scout - Modern Document Management System",
+  "main": "dist/server.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "public/**/*",
+    "package.json",
+    "README.md"
+  ],
+  "keywords": [
+    "document-management",
+    "next.js",
+    "typescript",
+    "file-management",
+    "knowledge-scout"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bCommonsLAB/CommonKnowledgeScout.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "private": true,
   "packageManager": "pnpm@9.15.3",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:web": "next build",
+    "build:package": "cross-env IS_PACKAGE_BUILD=true BUILD_TARGET=package pnpm exec next build && node scripts/prepare-package.js",
+    "package:prepare": "node scripts/prepare-package.js",
+    "package:publish": "pnpm run build:package && pnpm publish",
     "start": "next start",
     "lint": "next lint"
   },
@@ -91,6 +118,7 @@
     "@typescript-eslint/eslint-plugin": "^8.34.1",
     "@typescript-eslint/parser": "^8.34.1",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^7.0.3",
     "eslint": "^9.28.0",
     "eslint-config-next": "15.3.3",
     "postcss": "^8.4.49",

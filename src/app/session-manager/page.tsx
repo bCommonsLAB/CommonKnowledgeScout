@@ -37,7 +37,6 @@ import {
   PlayCircle,
   Loader2,
   RefreshCw,
-  Edit3,
   Users,
   Clock,
   Globe,
@@ -72,10 +71,6 @@ export default function SessionManagerPage() {
   
   // Session-Import Dialog
   const [sessionImportDialog, setSessionImportDialog] = useState(false);
-  
-  // Editier-Zustand
-  const [editingCell, setEditingCell] = useState<{ sessionId: string; field: string } | null>(null);
-  const [editValue, setEditValue] = useState('');
   
   // Event-Filter State
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
@@ -142,45 +137,6 @@ export default function SessionManagerPage() {
     } else {
       setSelectedSessions(new Set(sessions.map(s => s.id!)));
     }
-  };
-  
-  // Cell-Editing starten
-  const startEditing = (sessionId: string, field: string, currentValue: string) => {
-    setEditingCell({ sessionId, field });
-    setEditValue(currentValue);
-  };
-  
-  // Cell-Editing speichern
-  const saveEdit = async () => {
-    if (!editingCell) return;
-    
-    try {
-      const { sessionId, field } = editingCell;
-      
-      const response = await fetch(`/api/sessions/${sessionId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: editValue })
-      });
-      
-      if (response.ok) {
-        // Sessions neu laden um Änderungen zu zeigen
-        loadSessions();
-      } else {
-        console.error('Fehler beim Speichern der Änderung');
-      }
-    } catch (error) {
-      console.error('Fehler beim Speichern:', error);
-    } finally {
-      setEditingCell(null);
-      setEditValue('');
-    }
-  };
-  
-  // Cell-Editing abbrechen
-  const cancelEdit = () => {
-    setEditingCell(null);
-    setEditValue('');
   };
   
   // Event-Jobs generieren
@@ -263,7 +219,7 @@ export default function SessionManagerPage() {
   };
   
   // Handler für erfolgreich importierte Session
-  const handleSessionImported = (sessionData: any) => {
+  const handleSessionImported = (sessionData: unknown) => {
     console.log('[SessionManager] Session importiert:', sessionData);
     // Sessions neu laden um neue Session anzuzeigen
     loadSessions();
@@ -271,66 +227,16 @@ export default function SessionManagerPage() {
   
   // Speakers Array editieren
   const renderSpeakersCell = (session: Session) => {
-    const isEditing = editingCell?.sessionId === session.id && editingCell?.field === 'speakers';
     const speakersText = session.speakers?.join(', ') || '';
-    
-    if (isEditing) {
-      return (
-        <Input
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={() => {
-            // Speakers als Array speichern
-            const speakersArray = editValue.split(',').map(s => s.trim()).filter(s => s);
-            const { sessionId } = editingCell!;
-            
-            fetch(`/api/sessions/${sessionId}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ speakers: speakersArray })
-            }).then(() => {
-              loadSessions();
-              setEditingCell(null);
-              setEditValue('');
-            });
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              const speakersArray = editValue.split(',').map(s => s.trim()).filter(s => s);
-              const { sessionId } = editingCell!;
-              
-              fetch(`/api/sessions/${sessionId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ speakers: speakersArray })
-              }).then(() => {
-                loadSessions();
-                setEditingCell(null);
-                setEditValue('');
-              });
-            }
-            if (e.key === 'Escape') cancelEdit();
-          }}
-          className="w-full h-8"
-          placeholder="Sprecher mit Komma trennen"
-          autoFocus
-        />
-      );
-    }
     
     return (
       <div
         className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded group max-w-48"
-        onClick={() => {
-          setEditingCell({ sessionId: session.id!, field: 'speakers' });
-          setEditValue(speakersText);
-        }}
         title="Klicken zum Bearbeiten (Sprecher mit Komma trennen)"
       >
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-gray-500 flex-shrink-0" />
           <span className="text-sm break-words whitespace-pre-line">{speakersText || <span className="text-gray-400">Keine Sprecher</span>}</span>
-          <Edit3 className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0" />
         </div>
       </div>
     );
