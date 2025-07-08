@@ -24,7 +24,7 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
-  "private": true,
+  "private": false,
   "packageManager": "pnpm@9.15.3",
   "scripts": {
     "dev": "next dev",
