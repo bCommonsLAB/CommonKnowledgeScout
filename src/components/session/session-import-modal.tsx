@@ -258,25 +258,60 @@ export default function SessionImportModal({
         const data = response.data.structured_data as unknown; // Flexiblere Typisierung für Batch-Import
         let sessions: SessionLink[] = [];
         
+        // Type Guards für sicheren Zugriff auf unknown
+        const isDataObject = (obj: unknown): obj is Record<string, unknown> => 
+          typeof obj === 'object' && obj !== null && !Array.isArray(obj);
+        
+        const isSessionItem = (item: unknown): item is Record<string, unknown> => 
+          typeof item === 'object' && item !== null;
+        
         // Event und andere globale Daten speichern
-        const globalEvent = data.event || '';
+        const globalEvent = isDataObject(data) && typeof data.event === 'string' ? data.event : '';
         
         if (Array.isArray(data)) {
-          sessions = data.map((item: unknown) => ({
-            name: item.name || item.session || item.title || 'Unbenannte Session',
-            url: item.url || item.link || '',
-            status: 'pending' as const,
-            // Track aus dem Item speichern
-            track: item.track || ''
-          }));
-        } else if (data.sessions && Array.isArray(data.sessions)) {
-          sessions = data.sessions.map((item: unknown) => ({
-            name: item.name || item.session || item.title || 'Unbenannte Session',
-            url: item.url || item.link || '',
-            status: 'pending' as const,
-            // Track aus dem Item speichern
-            track: item.track || ''
-          }));
+          sessions = data.map((item: unknown) => {
+            if (!isSessionItem(item)) {
+              return {
+                name: 'Unbenannte Session',
+                url: '',
+                status: 'pending' as const,
+                track: ''
+              };
+            }
+            return {
+              name: (typeof item.name === 'string' ? item.name : 
+                     typeof item.session === 'string' ? item.session : 
+                     typeof item.title === 'string' ? item.title : 
+                     'Unbenannte Session'),
+              url: (typeof item.url === 'string' ? item.url : 
+                    typeof item.link === 'string' ? item.link : ''),
+              status: 'pending' as const,
+              // Track aus dem Item speichern
+              track: typeof item.track === 'string' ? item.track : ''
+            };
+          });
+        } else if (isDataObject(data) && Array.isArray(data.sessions)) {
+          sessions = data.sessions.map((item: unknown) => {
+            if (!isSessionItem(item)) {
+              return {
+                name: 'Unbenannte Session',
+                url: '',
+                status: 'pending' as const,
+                track: ''
+              };
+            }
+            return {
+              name: (typeof item.name === 'string' ? item.name : 
+                     typeof item.session === 'string' ? item.session : 
+                     typeof item.title === 'string' ? item.title : 
+                     'Unbenannte Session'),
+              url: (typeof item.url === 'string' ? item.url : 
+                    typeof item.link === 'string' ? item.link : ''),
+              status: 'pending' as const,
+              // Track aus dem Item speichern
+              track: typeof item.track === 'string' ? item.track : ''
+            };
+          });
         }
         
         if (sessions.length > 0) {

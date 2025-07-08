@@ -615,7 +615,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
               <div>
                 <h3 className="font-medium text-orange-900 dark:text-orange-100">Event-weite Aktionen</h3>
                 <p className="text-sm text-orange-700 dark:text-orange-300">
-                  Alle <strong>{getBatchCountForFilteredEvent()}</strong> Batches des Events <strong>"{selectedEvent}"</strong> verwalten
+                  Alle <strong>{getBatchCountForFilteredEvent()}</strong> Batches des Events <strong>&quot;{selectedEvent}&quot;</strong> verwalten
                 </p>
               </div>
               <div className="flex gap-2">
@@ -966,7 +966,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
             <DialogHeader>
               <DialogTitle>Batch neu starten</DialogTitle>
               <DialogDescription>
-                Alle Jobs im Batch "{selectedBatchForRestart.batch_name}" werden auf PENDING zurückgesetzt.
+                Alle Jobs im Batch &quot;{selectedBatchForRestart.batch_name}&quot; werden auf PENDING zurückgesetzt.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -1030,7 +1030,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
               Alle Batches neu starten
             </DialogTitle>
             <DialogDescription>
-              Startet alle Batches des Events <strong>"{selectedEventForRestart}"</strong> neu. 
+              Startet alle Batches des Events <strong>&quot;{selectedEventForRestart}&quot;</strong> neu. 
               Dies ist eine mächtige Operation, die viele Jobs gleichzeitig beeinflusst.
             </DialogDescription>
           </DialogHeader>

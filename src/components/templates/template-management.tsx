@@ -517,7 +517,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                 <TooltipContent>
                   <div className="flex items-center gap-2">
                     <FolderOpen className="h-4 w-4" />
-                    <span>Templates werden im Verzeichnis "/templates" der Bibliothek "{activeLibrary.label}" gespeichert.</span>
+                    <span>Templates werden im Verzeichnis &quot;/templates&quot; der Bibliothek &quot;{activeLibrary.label}&quot; gespeichert.</span>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -605,7 +605,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                         placeholder="# {{title}}&#10;&#10;## Zusammenfassung&#10;{{summary|Kurze Zusammenfassung}}"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Markdown-Inhalt mit Template-Variablen. Format: {"{{variable|description}}"}
+                        Markdown-Inhalt mit Template-Variablen. Format: variable|description
                       </p>
                     </div>
                   </TabsContent>
@@ -619,7 +619,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                         placeholder="---&#10;title: {{title|Titel des Dokuments}}&#10;tags: {{tags|Relevante Tags}}&#10;---"
                       />
                       <p className="text-xs text-muted-foreground">
-                        YAML-Metadaten mit Template-Variablen. Format: key: {"{{variable|description}}"}
+                        YAML-Metadaten mit Template-Variablen. Format: key: variable|description
                       </p>
                     </div>
                   </TabsContent>

@@ -2,6 +2,9 @@
 const path = require('path');     // eslint-disable-line @typescript-eslint/no-require-imports
 
 const nextConfig = {
+  // Standalone-Output für Package-Build (nur wenn nicht Windows oder Admin-Rechte)
+  output: process.env.IS_PACKAGE_BUILD === 'true' && process.platform !== 'win32' ? 'standalone' : undefined,
+  
   // Deaktiviere Strict Mode in der Entwicklung, um Mounting-Logs zu reduzieren
   reactStrictMode: process.env.NODE_ENV === 'production',
   

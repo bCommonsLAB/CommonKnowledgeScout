@@ -505,7 +505,7 @@ export default function BatchArchiveDialog({
             ) : (
               <>
                 {jobsWithArchives.length} von {completedJobs.length} abgeschlossene Jobs aus 
-                "{batch?.batch_name}" haben Archive und können gespeichert werden.
+                &quot;{batch?.batch_name}&quot; haben Archive und können gespeichert werden.
                 {completedJobs.length === 0 && (
                   <div className="mt-2 text-amber-600">
                     Keine abgeschlossenen Jobs gefunden. Stellen Sie sicher, dass die Jobs erfolgreich verarbeitet wurden.

@@ -43,6 +43,7 @@ async function preparePackage() {
  */
 async function copyBuildArtifacts() {
   const nextPath = path.join(__dirname, '..', '.next');
+  const standalonePath = path.join(__dirname, '..', '.next', 'standalone');
   const distPath = path.join(__dirname, '..', 'dist');
   
   // Dist-Verzeichnis erstellen oder leeren
@@ -51,11 +52,17 @@ async function copyBuildArtifacts() {
   }
   fs.mkdirSync(distPath, { recursive: true });
   
-  if (fs.existsSync(nextPath)) {
+  // Prüfe ob Standalone-Build existiert
+  if (fs.existsSync(standalonePath)) {
+    // Kopiere Standalone-Build (enthält server.js)
+    copyFolderRecursive(standalonePath, distPath);
+    console.log('✅ Standalone-Build nach dist/ kopiert');
+  } else if (fs.existsSync(nextPath)) {
+    // Fallback: Normales Next.js Build
     copyFolderRecursive(nextPath, path.join(distPath, '.next'));
-    console.log('✅ Build-Artefakte nach dist/.next kopiert');
+    console.log('✅ Build-Artefakte nach dist/.next kopiert (kein Standalone)');
   } else {
-    throw new Error('Build nicht gefunden. Bitte zuerst "pnpm build" ausführen.');
+    throw new Error('Build nicht gefunden. Bitte zuerst "pnpm build:package" ausführen.');
   }
 }
 
@@ -91,7 +98,7 @@ async function createPackageJson() {
     main: 'index.js',
     packageManager: 'pnpm@9.15.3',
     scripts: {
-      start: 'node -r @bcommonslab/common-knowledge-scout',
+      start: 'node index.js',
       dev: 'next dev',
       build: 'next build'
     },
@@ -120,30 +127,58 @@ async function createPackageJson() {
 async function createIndexFile() {
   const indexContent = `// CommonKnowledgeScout Package Export
 const path = require('path');
+const { createServer } = require('http');
+const next = require('next');
 
 /**
  * Startet den CommonKnowledgeScout Server
  * @param {Object} options - Konfigurationsoptionen
  * @param {number} options.port - Port für den Server (default: 3000)
  * @param {string} options.hostname - Hostname für den Server (default: 'localhost')
+ * @param {boolean} options.dev - Entwicklungsmodus (default: false)
  * @returns {Promise<Object>} Server-Instanz
  */
-function startServer(options = {}) {
-  const { port = 3000, hostname = 'localhost' } = options;
+async function startServer(options = {}) {
+  const { port = 3000, hostname = 'localhost', dev = false } = options;
   
   // Setze Umgebungsvariablen
   process.env.PORT = port.toString();
   process.env.HOSTNAME = hostname;
   
-  // Importiere und starte Next.js App
-  const nextApp = require('./.next/server/app');
-  
-  return Promise.resolve({
-    port,
-    hostname,
-    url: \`http://\${hostname}:\${port}\`,
-    app: nextApp
-  });
+  try {
+    // Erstelle Next.js App
+    const app = next({ 
+      dev,
+      dir: __dirname,
+      conf: {
+        distDir: '.next'
+      }
+    });
+    
+    await app.prepare();
+    
+    // Erstelle HTTP Server
+    const server = createServer(app.getRequestHandler());
+    
+    return new Promise((resolve, reject) => {
+      server.listen(port, hostname, (err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        resolve({
+          port,
+          hostname,
+          url: \`http://\${hostname}:\${port}\`,
+          server,
+          app
+        });
+      });
+    });
+  } catch (error) {
+    throw new Error(\`Fehler beim Starten des Servers: \${error.message}\`);
+  }
 }
 
 /**

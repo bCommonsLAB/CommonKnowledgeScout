@@ -95,7 +95,7 @@ export default function JobArchiveTest() {
         <div className="text-xs text-gray-500">
           <p>Hinweise:</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>Job muss den Status "completed" haben</li>
+            <li>Job muss den Status &quot;completed&quot; haben</li>
             <li>Job muss ein ZIP-Archiv enthalten</li>
             <li>Teste mit einer echten Job-ID aus dem Event-Monitor</li>
           </ul>
