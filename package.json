@@ -1,6 +1,6 @@
 {
   "name": "@bcommonslab/common-knowledge-scout",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Common Knowledge Scout - Modern Document Management System",
   "main": "dist/server.js",
   "types": "dist/index.d.ts",
