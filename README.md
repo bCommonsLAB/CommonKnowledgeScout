@@ -44,8 +44,19 @@ cp .env.example .env.local
 # Entwicklungsserver starten
 pnpm dev
 ```
-
 Die Anwendung ist nun unter `http://localhost:3000` verfügbar.
+
+
+## Package deployen
+1. Githuvb Token setzen
+$env:GITHUB_TOKEN="ghp_YOUR_TOKEN_HERE"
+
+2. Token prüfen
+echo "Token gesetzt: $env:GITHUB_TOKEN"
+
+3. Package veröffentlichen
+pnpm run package:publish
+
 
 ## 📚 Dokumentation
 
