@@ -1,6 +1,43 @@
 'use client'
 
-import { SignInButton } from '@clerk/nextjs';
+import { getAuthComponents } from '@/lib/auth/client';
+import { useState, useEffect } from 'react';
+
+// Dynamische Komponente für SignInButton
+function DynamicSignInButton({ children }: { children: React.ReactNode }) {
+  const [SignInButton, setSignInButton] = useState<React.ComponentType<{ children: React.ReactNode }> | null>(null);
+
+  useEffect(() => {
+    const loadComponent = async () => {
+      try {
+        const { SignInButton: ClerkSignInButton } = await getAuthComponents();
+        setSignInButton(() => ClerkSignInButton);
+      } catch (error) {
+        console.error('Fehler beim Laden der Auth-Komponente:', error);
+        // Fallback: Einfacher Button
+        const FallbackButton = ({ children }: { children: React.ReactNode }) => (
+          <button className="px-4 py-2 bg-blue-500 text-white rounded">
+            {children}
+          </button>
+        );
+        FallbackButton.displayName = 'FallbackButton';
+        setSignInButton(() => FallbackButton);
+      }
+    };
+    
+    loadComponent();
+  }, []);
+
+  if (!SignInButton) {
+    return <div>Laden...</div>;
+  }
+
+  return <SignInButton>{children}</SignInButton>;
+}
+
+// Display name hinzufügen
+DynamicSignInButton.displayName = 'DynamicSignInButton';
+
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -25,11 +62,11 @@ export default function HomePage() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             {hasValidClerk ? (
-              <SignInButton mode="modal">
+              <DynamicSignInButton>
                 <Button size="lg" className="font-medium">
                   Anmelden
                 </Button>
-              </SignInButton>
+              </DynamicSignInButton>
             ) : (
               <Button size="lg" className="font-medium" disabled>
                 Anmelden

@@ -1,10 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { getServerAuth } from '@/lib/auth/server';
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { LibraryService } from '@/lib/services/library-service';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+/**
+ * Hilfsfunktion zum Abrufen von Auth-Informationen und Bibliotheken
+ */
+async function getAuthAndLibraries(request: NextRequest) {
+  // Authentifizierung prüfen mit neuer Abstraktionsschicht
+  const authResult = await getServerAuth(request);
+  
+  if (!authResult.userId || !authResult.user) {
+    throw new Error('Nicht authentifiziert');
+  }
+
+  const userEmail = authResult.user.email;
+  
+  // Bibliotheken des Benutzers laden
+  const libraryService = LibraryService.getInstance();
+  const libraries = await libraryService.getUserLibraries(userEmail);
+  const clientLibraries = libraryService.toClientLibraries(libraries);
+  
+  return {
+    userEmail,
+    libraries: clientLibraries,
+    authResult
+  };
+}
 
 /**
  * Generische Storage API Route
@@ -26,27 +51,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Benutzerauthentifizierung
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
-    }
-
-    // Benutzer-E-Mail abrufen
-    const user = await currentUser();
-    if (!user?.emailAddresses?.length) {
-      return NextResponse.json({ error: 'Keine E-Mail-Adresse gefunden' }, { status: 401 });
-    }
-    const userEmail = user.emailAddresses[0].emailAddress;
-
-    // Bibliotheken des Benutzers laden
-    const libraryService = LibraryService.getInstance();
-    const libraries = await libraryService.getUserLibraries(userEmail);
-    const clientLibraries = libraryService.toClientLibraries(libraries);
+    // Auth und Bibliotheken abrufen
+    const { libraries } = await getAuthAndLibraries(request);
     
     // Storage Factory initialisieren
     const storageFactory = StorageFactory.getInstance();
-    storageFactory.setLibraries(clientLibraries);
+    storageFactory.setLibraries(libraries);
     
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);
@@ -85,6 +95,12 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('[Storage API] Error:', error);
+    
+    // Spezielle Behandlung für Auth-Fehler
+    if (error instanceof Error && error.message === 'Nicht authentifiziert') {
+      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
+    }
+    
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 });
@@ -102,27 +118,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Benutzerauthentifizierung
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
-    }
-
-    // Benutzer-E-Mail abrufen
-    const user = await currentUser();
-    if (!user?.emailAddresses?.length) {
-      return NextResponse.json({ error: 'Keine E-Mail-Adresse gefunden' }, { status: 401 });
-    }
-    const userEmail = user.emailAddresses[0].emailAddress;
-
-    // Bibliotheken des Benutzers laden
-    const libraryService = LibraryService.getInstance();
-    const libraries = await libraryService.getUserLibraries(userEmail);
-    const clientLibraries = libraryService.toClientLibraries(libraries);
+    // Auth und Bibliotheken abrufen
+    const { libraries } = await getAuthAndLibraries(request);
     
     // Storage Factory initialisieren
     const storageFactory = StorageFactory.getInstance();
-    storageFactory.setLibraries(clientLibraries);
+    storageFactory.setLibraries(libraries);
     
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);
@@ -151,6 +152,12 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('[Storage API] Error:', error);
+    
+    // Spezielle Behandlung für Auth-Fehler
+    if (error instanceof Error && error.message === 'Nicht authentifiziert') {
+      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
+    }
+    
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 });
@@ -167,27 +174,12 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    // Benutzerauthentifizierung
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
-    }
-
-    // Benutzer-E-Mail abrufen
-    const user = await currentUser();
-    if (!user?.emailAddresses?.length) {
-      return NextResponse.json({ error: 'Keine E-Mail-Adresse gefunden' }, { status: 401 });
-    }
-    const userEmail = user.emailAddresses[0].emailAddress;
-
-    // Bibliotheken des Benutzers laden
-    const libraryService = LibraryService.getInstance();
-    const libraries = await libraryService.getUserLibraries(userEmail);
-    const clientLibraries = libraryService.toClientLibraries(libraries);
+    // Auth und Bibliotheken abrufen
+    const { libraries } = await getAuthAndLibraries(request);
     
     // Storage Factory initialisieren
     const storageFactory = StorageFactory.getInstance();
-    storageFactory.setLibraries(clientLibraries);
+    storageFactory.setLibraries(libraries);
     
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);
@@ -196,6 +188,12 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[Storage API] Error:', error);
+    
+    // Spezielle Behandlung für Auth-Fehler
+    if (error instanceof Error && error.message === 'Nicht authentifiziert') {
+      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
+    }
+    
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 });
@@ -213,27 +211,12 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    // Benutzerauthentifizierung
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
-    }
-
-    // Benutzer-E-Mail abrufen
-    const user = await currentUser();
-    if (!user?.emailAddresses?.length) {
-      return NextResponse.json({ error: 'Keine E-Mail-Adresse gefunden' }, { status: 401 });
-    }
-    const userEmail = user.emailAddresses[0].emailAddress;
-
-    // Bibliotheken des Benutzers laden
-    const libraryService = LibraryService.getInstance();
-    const libraries = await libraryService.getUserLibraries(userEmail);
-    const clientLibraries = libraryService.toClientLibraries(libraries);
+    // Auth und Bibliotheken abrufen
+    const { libraries } = await getAuthAndLibraries(request);
     
     // Storage Factory initialisieren
     const storageFactory = StorageFactory.getInstance();
-    storageFactory.setLibraries(clientLibraries);
+    storageFactory.setLibraries(libraries);
     
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);
@@ -242,6 +225,12 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[Storage API] Error:', error);
+    
+    // Spezielle Behandlung für Auth-Fehler
+    if (error instanceof Error && error.message === 'Nicht authentifiziert') {
+      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
+    }
+    
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 });

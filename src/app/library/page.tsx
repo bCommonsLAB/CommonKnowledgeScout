@@ -2,7 +2,7 @@
 
 import React, { Suspense } from "react";
 import { Library } from "@/components/library/library";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/client";
 import { useAtom, useAtomValue } from "jotai";
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom";
 import { useSearchParams, useRouter } from "next/navigation";

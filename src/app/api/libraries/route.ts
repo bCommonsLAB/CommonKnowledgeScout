@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { LibraryService } from '@/lib/services/library-service';
-import { auth, currentUser } from '@clerk/nextjs/server';
 import { Library } from '@/types/library';
+import { getServerAuth } from '@/lib/auth/server';
 
 /**
  * Hilfsfunktion zum Abrufen der Benutzer-E-Mail-Adresse
  * Verwendet den Test-E-Mail-Parameter, falls vorhanden, sonst die authentifizierte E-Mail
+ * Unterstützt sowohl Clerk als auch Offline-Modus
  */
 async function getUserEmail(request: NextRequest): Promise<{ email: string | null; isAuthenticated: boolean }> {
   // Prüfen, ob ein Test-E-Mail-Parameter verwendet wird
@@ -16,22 +17,22 @@ async function getUserEmail(request: NextRequest): Promise<{ email: string | nul
     return { email: testEmail, isAuthenticated: true };
   }
   
-  // Benutzer-Authentifizierung prüfen
-  const { userId } = await auth();
-  if (!userId) {
+  // Verwende die neue Auth-Abstraktionsschicht
+  try {
+    const authResult = await getServerAuth(request);
+    
+    if (!authResult.userId || !authResult.user) {
+      return { email: null, isAuthenticated: false };
+    }
+    
+    return { 
+      email: authResult.user.email, 
+      isAuthenticated: true 
+    };
+  } catch (error) {
+    console.warn('Auth-Fehler in getUserEmail:', error);
     return { email: null, isAuthenticated: false };
   }
-  
-  // Benutzer-E-Mail abrufen
-  const user = await currentUser();
-  if (!user?.emailAddresses?.length) {
-    return { email: null, isAuthenticated: true };
-  }
-  
-  return { 
-    email: user.emailAddresses[0].emailAddress, 
-    isAuthenticated: true 
-  };
 }
 
 /**

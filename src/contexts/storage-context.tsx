@@ -6,7 +6,7 @@ import { librariesAtom, activeLibraryIdAtom, libraryStatusAtom } from '@/atoms/l
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { ClientLibrary } from "@/types/library";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@/lib/auth/client';
 import { StorageProvider, StorageItem, StorageError } from '@/lib/storage/types';
 
 // Erweitere den StorageProvider um getAuthInfo
@@ -166,7 +166,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       return;
     }
 
-    const userEmail = user?.primaryEmailAddress?.emailAddress;
+    const userEmail = user?.email;
     if (!userEmail) {
       setError("Keine Benutzer-Email verfügbar");
       setIsLoading(false);
@@ -318,10 +318,10 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
 
   // Alle Bibliotheken aktualisieren
   const refreshLibraries = async () => {
-    if (!user?.primaryEmailAddress?.emailAddress) return;
+    if (!user?.email) return;
     
     try {
-      const res = await fetch(`/api/libraries?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`);
+      const res = await fetch(`/api/libraries?email=${encodeURIComponent(user.email)}`);
       if (!res.ok) {
         // Versuche die Fehlermeldung aus dem Response-Body zu lesen
         let errorMessage = `HTTP-Fehler: ${res.status}`;

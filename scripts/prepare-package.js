@@ -2,38 +2,40 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Bereitet das Package für die Veröffentlichung vor
+ * Bereitet das reine Offline-Package für die Veröffentlichung vor
  * - Kopiert Build-Artefakte nach dist/
  * - Kopiert Public-Assets
- * - Erstellt package-spezifische package.json
+ * - Erstellt package-spezifische package.json (ohne Clerk)
  * - Bereitet alle nötigen Dateien für das pnpm-Package vor
+ * - Nur Offline-Modus, keine Clerk-Option
  */
 async function preparePackage() {
-  console.log('🔧 Bereite Package für Distribution vor...');
+  console.log('🔧 Bereite reines Offline-Package für Distribution vor...');
   
   try {
-    // 1. Build-Artefakte kopieren
+    console.log('📁 Schritt 1: Build-Artefakte kopieren...');
     await copyBuildArtifacts();
     
-    // 2. Public-Assets kopieren
+    console.log('📁 Schritt 2: Public-Assets kopieren...');
     await copyPublicAssets();
     
-    // 3. Package-spezifische package.json erstellen
+    console.log('📁 Schritt 3: Package-spezifische package.json erstellen...');
     await createPackageJson();
     
-    // 4. Index-Datei für Package-Export erstellen
+    console.log('📁 Schritt 4: Index-Datei für Package-Export erstellen...');
     await createIndexFile();
     
-    // 5. pnpm-spezifische Dateien erstellen
+    console.log('📁 Schritt 5: pnpm-spezifische Dateien erstellen...');
     await createPnpmFiles();
     
-    console.log('✅ Package erfolgreich vorbereitet!');
+    console.log('✅ Offline-Package erfolgreich vorbereitet!');
     
-    // 6. Build-Artefakte auflisten
+    console.log('📁 Schritt 6: Build-Artefakte auflisten...');
     await listBuildArtifacts();
     
   } catch (error) {
     console.error('❌ Fehler beim Vorbereiten des Packages:', error);
+    console.error('Stack Trace:', error.stack);
     process.exit(1);
   }
 }
@@ -80,21 +82,25 @@ async function copyPublicAssets() {
 }
 
 /**
- * Erstellt package-spezifische package.json
+ * Erstellt package-spezifische package.json (ohne Clerk)
  */
 async function createPackageJson() {
   const mainPackageJson = require('../package.json');
   
-  // Nur Production-Dependencies (ohne Electron-spezifische)
+  // Nur Production-Dependencies, ohne Clerk
   const productionDependencies = Object.fromEntries(
     Object.entries(mainPackageJson.dependencies || {})
-      .filter(([key]) => !key.startsWith('electron'))
+      .filter(([key]) =>
+        !key.startsWith('electron') &&
+        !key.startsWith('@clerk') &&
+        !key.startsWith('clerk')
+      )
   );
   
   const packageJson = {
-    name: mainPackageJson.name,
+    name: mainPackageJson.name + '-offline',
     version: mainPackageJson.version,
-    description: mainPackageJson.description,
+    description: mainPackageJson.description + ' (Nur Offline-Modus, keine Clerk-Abhängigkeiten)',
     main: 'index.js',
     packageManager: 'pnpm@9.15.3',
     scripts: {
@@ -103,7 +109,7 @@ async function createPackageJson() {
       build: 'next build'
     },
     dependencies: productionDependencies,
-    keywords: mainPackageJson.keywords,
+    keywords: [...mainPackageJson.keywords, 'offline', 'no-auth'],
     repository: mainPackageJson.repository,
     author: mainPackageJson.author,
     license: mainPackageJson.license,
@@ -118,86 +124,57 @@ async function createPackageJson() {
     JSON.stringify(packageJson, null, 2)
   );
   
-  console.log('✅ Package-spezifische package.json erstellt');
+  console.log('✅ Package-spezifische package.json (ohne Clerk) erstellt');
 }
 
 /**
- * Erstellt Index-Datei für Package-Export
+ * Erstellt Index-Datei für Package-Export (nur Offline-Modus)
  */
 async function createIndexFile() {
-  const indexContent = `// CommonKnowledgeScout Package Export
-const path = require('path');
-const { createServer } = require('http');
-const next = require('next');
+  const indexContent = `// CommonKnowledgeScout Offline-Package Export\nconst path = require('path');\nconst { createServer } = require('http');\nconst next = require('next');\n\n/**\n * Startet den CommonKnowledgeScout Server im Offline-Modus\n * @param {Object} options - Konfigurationsoptionen\n * @param {number} options.port - Port für den Server (default: 3000)\n * @param {string} options.hostname - Hostname für den Server (default: 'localhost')\n * @param {boolean} options.dev - Entwicklungsmodus (default: false)\n * @returns {Promise<Object>} Server-Instanz\n */\nasync function startServer(options = {}) {\n  const { \n    port = 3000, \n    hostname = 'localhost', \n    dev = false\n  } = options;\n  \n  // Setze Umgebungsvariablen\n  process.env.PORT = port.toString();\n  process.env.HOSTNAME = hostname;\n  process.env.NEXT_PUBLIC_AUTH_MODE = 'offline';\n  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'dummy_pk_test_placeholder';\n  process.env.CLERK_SECRET_KEY = 'sk_test_placeholder';\n  \n  try {\n    // Erstelle Next.js App\n    const app = next({ \n      dev,\n      dir: __dirname,\n      conf: {\n        distDir: '.next'\n      }\n    });\n    \n    await app.prepare();\n    \n    // Erstelle HTTP Server\n    const server = createServer(app.getRequestHandler());\n    \n    return new Promise((resolve, reject) => {\n      server.listen(port, hostname, (err) => {\n        if (err) {\n          reject(err);\n          return;\n        }\n        \n        resolve({\n          port,\n          hostname,\n          url: \`http://\${hostname}:\${port}\`,\n          server,\n          app,\n          authMode: 'offline'\n        });\n      });\n    });\n  } catch (error) {\n    throw new Error(\`Fehler beim Starten des Servers: \${error.message}\`);\n  }\n}\n\nmodule.exports = { startServer };\n`;
 
-/**
- * Startet den CommonKnowledgeScout Server
- * @param {Object} options - Konfigurationsoptionen
- * @param {number} options.port - Port für den Server (default: 3000)
- * @param {string} options.hostname - Hostname für den Server (default: 'localhost')
- * @param {boolean} options.dev - Entwicklungsmodus (default: false)
- * @returns {Promise<Object>} Server-Instanz
- */
-async function startServer(options = {}) {
-  const { port = 3000, hostname = 'localhost', dev = false } = options;
-  
-  // Setze Umgebungsvariablen
-  process.env.PORT = port.toString();
-  process.env.HOSTNAME = hostname;
-  
-  try {
-    // Erstelle Next.js App
-    const app = next({ 
-      dev,
-      dir: __dirname,
-      conf: {
-        distDir: '.next'
-      }
-    });
-    
-    await app.prepare();
-    
-    // Erstelle HTTP Server
-    const server = createServer(app.getRequestHandler());
-    
-    return new Promise((resolve, reject) => {
-      server.listen(port, hostname, (err) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        
-        resolve({
-          port,
-          hostname,
-          url: \`http://\${hostname}:\${port}\`,
-          server,
-          app
-        });
-      });
-    });
-  } catch (error) {
-    throw new Error(\`Fehler beim Starten des Servers: \${error.message}\`);
-  }
-}
-
-/**
- * Exportiert die Next.js App für direkte Verwendung
- */
-function getApp() {
-  return require('./.next/server/app');
-}
-
-module.exports = {
-  startServer,
-  getApp
-};
-`;
-  
   const distPath = path.join(__dirname, '..', 'dist');
   fs.writeFileSync(path.join(distPath, 'index.js'), indexContent);
   
-  console.log('✅ Index-Datei für Package-Export erstellt');
+  // README für Offline-Package
+  const offlineReadme = `# CommonKnowledgeScout Offline-Version
+
+Diese Version des CommonKnowledgeScout funktioniert **nur** im Offline-Modus und enthält keinerlei Clerk-Abhängigkeiten.
+
+## Installation
+
+    npm install @bcommonslab/common-knowledge-scout-offline
+
+## Verwendung
+
+    const { startServer } = require('@bcommonslab/common-knowledge-scout-offline');
+
+    // Starte Server im Offline-Modus
+    startServer({
+      port: 3000
+    }).then(({ url }) => {
+      console.log('Server läuft auf', url, '(Offline-Modus)');
+    });
+
+## Konfiguration
+
+Setzen Sie folgende Umgebungsvariablen für den Offline-Modus:
+
+- NEXT_PUBLIC_AUTH_MODE=offline
+- NEXT_PUBLIC_OFFLINE_USER_EMAIL=ihre-email@example.com (optional)
+- NEXT_PUBLIC_OFFLINE_USER_FIRST_NAME=Name (optional)
+- NEXT_PUBLIC_OFFLINE_USER_LAST_NAME=Nachname (optional)
+
+## Features
+
+- Lokales Filesystem als Storage-Provider
+- Keine externen Auth-Abhängigkeiten
+- Vollständig offline-fähig
+- Gleiche API wie die Hauptversion (ohne Auth)
+`;
+  fs.writeFileSync(path.join(distPath, 'README.md'), offlineReadme);
+
+  console.log('✅ Index-Datei und README für Offline-Package erstellt');
 }
 
 /**
@@ -218,7 +195,7 @@ async function createPnpmFiles() {
   
   // .npmrc für GitHub Packages
   const npmrcContent = `@bcommonslab:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}
+//npm.pkg.github.com/:_authToken=${process.env.NODE_AUTH_TOKEN || ''}
 `;
   
   fs.writeFileSync(
@@ -249,6 +226,10 @@ async function listBuildArtifacts() {
         console.log(`   📄 ${file} (${size} MB)`);
       }
     });
+    
+    console.log('\n🚀 Offline-Package bereit für Distribution!');
+    console.log('   - Nur Offline-Modus (keine Clerk-Abhängigkeiten)');
+    console.log('   - Authentifizierung ist immer offline-mock');
   }
 }
 
@@ -256,7 +237,7 @@ async function listBuildArtifacts() {
  * Hilfsfunktion zum rekursiven Kopieren von Ordnern
  * Behandelt Symlinks korrekt für pnpm
  */
-function copyFolderRecursive(source, target) {
+function copyFolderRecursive(source, target, excludeFiles = []) {
   if (!fs.existsSync(target)) {
     fs.mkdirSync(target, { recursive: true });
   }
@@ -264,13 +245,18 @@ function copyFolderRecursive(source, target) {
   const files = fs.readdirSync(source);
   
   files.forEach(file => {
+    // Überspringe ausgeschlossene Dateien
+    if (excludeFiles.includes(file)) {
+      return;
+    }
+    
     const sourcePath = path.join(source, file);
     const targetPath = path.join(target, file);
     
     const stats = fs.statSync(sourcePath);
     
     if (stats.isDirectory()) {
-      copyFolderRecursive(sourcePath, targetPath);
+      copyFolderRecursive(sourcePath, targetPath, excludeFiles);
     } else if (stats.isSymbolicLink()) {
       // Symlinks überspringen - pnpm-spezifisch
       console.log(`   ⚠️  Symlink übersprungen: ${file}`);

@@ -6,7 +6,7 @@ import { z } from "zod"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { v4 as uuidv4 } from "uuid"
 import { useAtom } from "jotai"
-import { useUser } from "@clerk/nextjs"
+import { useUser } from "@/lib/auth/client";
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
@@ -174,7 +174,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
 
   // Bibliothek speichern (neu erstellen oder aktualisieren)
   async function onSubmit(data: LibraryFormValues) {
-    if (!user?.primaryEmailAddress?.emailAddress) {
+    if (!user?.email) {
       toast({
         title: "Fehler",
         description: "Sie müssen angemeldet sein, um eine Bibliothek zu speichern.",
@@ -286,7 +286,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
   
   // Bibliothek löschen
   const handleDeleteLibrary = async () => {
-    if (!activeLibraryId || !user?.primaryEmailAddress?.emailAddress) {
+    if (!activeLibraryId || !user?.email) {
       toast({
         title: "Fehler",
         description: "Keine Bibliothek zum Löschen ausgewählt oder Benutzer nicht angemeldet.",
