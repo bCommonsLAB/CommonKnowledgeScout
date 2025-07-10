@@ -2,7 +2,6 @@
 
 import { SignInButton } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 
 export default function HomePage() {
   // Prüfen, ob Clerk verfügbar ist
@@ -35,12 +34,7 @@ export default function HomePage() {
                 Anmelden
               </Button>
             )}
-            
-            <Link href="/sign-up" passHref>
-              <Button variant="outline" size="lg" className="font-medium">
-                Konto erstellen
-              </Button>
-            </Link>
+            {/* Link zu /sign-up entfernt, da Route nicht mehr vorhanden */}
           </div>
         </div>
         

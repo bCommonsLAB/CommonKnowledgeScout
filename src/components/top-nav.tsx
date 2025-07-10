@@ -10,7 +10,7 @@ import { useAtom } from "jotai"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { SignInButton, UserButton, SignedIn, SignedOut, useUser } from "@clerk/nextjs"
+import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
 import { libraryAtom } from "@/atoms/library-atom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -48,7 +48,6 @@ export function TopNav() {
   const pathname = usePathname()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const { user } = useUser();
   
   // Statt Events verwenden wir Jotai
   const [libraryContext] = useAtom(libraryAtom)
@@ -196,11 +195,6 @@ export function TopNav() {
             </SignedOut>
 
             <SignedIn>
-              {user && (
-                <div className="mr-2 text-sm font-medium hidden md:block">
-                  {user.firstName} {user.lastName}
-                </div>
-              )}
               <UserButton afterSignOutUrl="/" />
             </SignedIn>
           </div>

@@ -68,48 +68,6 @@ export default function EventMonitorPage() {
   
   const router = useRouter();
   
-  // Laufende Tracks laden
-  useEffect(() => {
-    loadCurrentTracks();
-    
-    // Auto-Refresh Timer einrichten
-    let intervalId: NodeJS.Timeout | undefined = undefined;
-    
-    if (autoRefresh) {
-      intervalId = setInterval(() => {
-        if (activeTab === 'current') {
-          loadCurrentTracks(false);
-        } else if (activeTab === 'archive') {
-          loadArchiveTracks(false);
-        }
-      }, 10000);
-    }
-    
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [autoRefresh, activeTab, selectedEvent]); // 🆕 selectedEvent als Dependency hinzugefügt
-  
-  // Statistiken berechnen
-  useEffect(() => {
-    // Berechnung der Statistiken aus den aktuellen Tracks
-    let total = 0;
-    let completed = 0;
-    let failed = 0;
-    
-    currentTracks.forEach(track => {
-      total += track.total_jobs || 0;
-      completed += track.completed_jobs || 0;
-      failed += track.failed_jobs || 0;
-    });
-    
-    setStatsTotal(total);
-    setStatsCompleted(completed);
-    setStatsFailed(failed);
-  }, [currentTracks]);
-  
   // URL für API-Aufrufe erweitern
   const buildApiUrl = (baseUrl: string, archived: boolean) => {
     const params = new URLSearchParams();
@@ -147,7 +105,7 @@ export default function EventMonitorPage() {
         setLoading(false);
       }
     }
-  }, [selectedEvent]);
+  }, [selectedEvent, buildApiUrl]);
   
   const loadArchiveTracks = useCallback(async (showLoader = true) => {
     try {
@@ -174,7 +132,49 @@ export default function EventMonitorPage() {
         setArchiveLoading(false);
       }
     }
-  }, [selectedEvent]);
+  }, [selectedEvent, buildApiUrl]);
+  
+  // Laufende Tracks laden
+  useEffect(() => {
+    loadCurrentTracks();
+    
+    // Auto-Refresh Timer einrichten
+    let intervalId: NodeJS.Timeout | undefined = undefined;
+    
+    if (autoRefresh) {
+      intervalId = setInterval(() => {
+        if (activeTab === 'current') {
+          loadCurrentTracks(false);
+        } else if (activeTab === 'archive') {
+          loadArchiveTracks(false);
+        }
+      }, 10000);
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [autoRefresh, activeTab, selectedEvent, loadArchiveTracks, loadCurrentTracks]); // Dependencies ergänzt
+  
+  // Statistiken berechnen
+  useEffect(() => {
+    // Berechnung der Statistiken aus den aktuellen Tracks
+    let total = 0;
+    let completed = 0;
+    let failed = 0;
+    
+    currentTracks.forEach(track => {
+      total += track.total_jobs || 0;
+      completed += track.completed_jobs || 0;
+      failed += track.failed_jobs || 0;
+    });
+    
+    setStatsTotal(total);
+    setStatsCompleted(completed);
+    setStatsFailed(failed);
+  }, [currentTracks]);
   
   async function handleTabChange(value: string) {
     setActiveTab(value);
