@@ -149,6 +149,63 @@ export interface SecretaryVideoResponse {
 }
 
 /**
+ * Typ für die Secretary Service PDF Response
+ */
+export interface SecretaryPdfResponse {
+  status: string;
+  request?: {
+    processor: string;
+    timestamp: string;
+    parameters: {
+      source: {
+        file_name: string;
+        file_size: number;
+        file_type: string;
+        file_ext: string;
+      };
+      target_language: string;
+      template: string | null;
+      use_cache: boolean;
+    };
+  };
+  process?: {
+    id: string;
+    main_processor: string;
+    started: string;
+    sub_processors: string[];
+    completed: string | null;
+    duration: number | null;
+    is_from_cache: boolean;
+    cache_key: string;
+    llm_info?: {
+      requests: Array<{
+        model: string;
+        purpose: string;
+        tokens: number;
+        duration: number;
+        processor: string;
+        timestamp: string;
+      }>;
+      requests_count: number;
+      total_tokens: number;
+      total_duration: number;
+    };
+  };
+  error: unknown | null;
+  data: {
+    text_content: string;
+    metadata?: {
+      page_count: number;
+      format: string;
+      process_dir: string;
+    };
+    process_id: string;
+    transformation_result: unknown | null;
+    status: string;
+  };
+}
+
+/**
  * Transformiert eine Audio-Datei mithilfe des Secretary Services in Text
  * 
  * @param file Die zu transformierende Audio-Datei 
@@ -537,6 +594,63 @@ export async function transformVideo(
       throw error;
     }
     throw new SecretaryServiceError('Fehler bei der Verarbeitung der Video-Datei');
+  }
+}
+
+/**
+ * Transformiert eine PDF-Datei mithilfe des Secretary Services
+ * 
+ * @param file Die zu transformierende PDF-Datei 
+ * @param targetLanguage Die Zielsprache für die Verarbeitung
+ * @param libraryId ID der aktiven Bibliothek
+ * @param template Optionales Template für die Verarbeitung
+ * @returns Die vollständige Response vom Secretary Service
+ */
+export async function transformPdf(
+  file: File, 
+  targetLanguage: string,
+  libraryId: string,
+  template?: string
+): Promise<SecretaryPdfResponse> {
+  try {
+    console.log('[secretary/client] transformPdf aufgerufen mit Sprache:', targetLanguage, 'und Template:', template);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('targetLanguage', targetLanguage);
+    
+    // Template-Option
+    if (template) {
+      formData.append('template', template);
+    }
+    
+    // Angepasste Header bei expliziten Optionen
+    const customHeaders: HeadersInit = {};
+    customHeaders['X-Library-Id'] = libraryId;
+    
+    console.log('[secretary/client] Sende Anfrage an Secretary Service API');
+    const response = await fetch('/api/secretary/process-pdf', {
+      method: 'POST',
+      body: formData,
+      headers: customHeaders
+    });
+
+    console.log('[secretary/client] Antwort erhalten, Status:', response.status);
+    if (!response.ok) {
+      throw new SecretaryServiceError(`Fehler bei der Verbindung zum Secretary Service: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('[secretary/client] PDF-Daten erfolgreich empfangen');
+    
+    // Gebe die vollständige Response zurück
+    return data as SecretaryPdfResponse;
+  } catch (error) {
+    console.error('[secretary/client] Fehler bei der PDF-Transformation:', error);
+    if (error instanceof SecretaryServiceError) {
+      throw error;
+    }
+    throw new SecretaryServiceError('Fehler bei der Verarbeitung der PDF-Datei');
   }
 }
 

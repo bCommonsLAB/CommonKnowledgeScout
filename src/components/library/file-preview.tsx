@@ -404,6 +404,7 @@ function PreviewContent({
         <DocumentPreviewComponent
           provider={provider}
           activeLibraryId={activeLibraryId}
+          onRefreshFolder={onRefreshFolder}
         />
       );
     case 'website':

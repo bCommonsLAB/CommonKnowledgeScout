@@ -1,5 +1,5 @@
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
-import { transformAudio, transformText, transformVideo, SecretaryAudioResponse, SecretaryVideoResponse } from "@/lib/secretary/client";
+import { transformAudio, transformText, transformVideo, transformPdf, SecretaryAudioResponse, SecretaryVideoResponse, SecretaryPdfResponse } from "@/lib/secretary/client";
 
 export interface TransformSaveOptions {
   targetLanguage: string;
@@ -371,6 +371,139 @@ export class TransformService {
         savedItem: result.savedItem,
         updatedItems: result.updatedItems
       };
+    }
+    
+    return {
+      text: transformedText,
+      updatedItems: []
+    };
+  }
+
+  /**
+   * Transformiert eine PDF-Datei mithilfe des Secretary Services
+   * @param file Die zu transformierende PDF-Datei
+   * @param originalItem Das ursprüngliche StorageItem
+   * @param options Speicheroptionen
+   * @param provider Der Storage-Provider
+   * @param refreshItems Callback zum Aktualisieren der Dateiliste
+   * @param libraryId ID der aktiven Bibliothek
+   * @returns Das Transformationsergebnis
+   */
+  static async transformPdf(
+    file: File,
+    originalItem: StorageItem,
+    options: TransformSaveOptions,
+    provider: StorageProvider,
+    refreshItems: (folderId: string) => Promise<StorageItem[]>,
+    libraryId: string
+  ): Promise<TransformResult> {
+    console.log('[TransformService] transformPdf gestartet mit Optionen:', options);
+    
+    // PDF-Datei wird transformiert - hole die vollständige Response
+    const response = await transformPdf(file, options.targetLanguage, libraryId);
+    
+    console.log('[TransformService] Vollständige PDF-Response:', JSON.stringify(response, null, 2));
+    
+    // Extrahiere den Text aus der Response
+    let transformedText = '';
+    let metadata: TransformMetadata = {};
+    
+    console.log('[TransformService] Response-Check:', {
+      hasResponse: !!response,
+      responseType: typeof response,
+      hasData: !!(response && response.data),
+      dataType: response && response.data ? typeof response.data : 'undefined',
+      hasTextContent: !!(response && response.data && response.data.text_content),
+      textContentType: response && response.data && response.data.text_content ? typeof response.data.text_content : 'undefined',
+      dataKeys: response && response.data ? Object.keys(response.data) : []
+    });
+    
+    if (response && response.data && response.data.text_content) {
+      console.log('[TransformService] Text-Content gefunden:', response.data.text_content);
+      
+      // Vollständige PDF-Response mit Metadaten
+      const pdfResponse = response as SecretaryPdfResponse;
+      transformedText = pdfResponse.data.text_content;
+      
+      console.log('[TransformService] Extrahierter Text-Länge:', transformedText.length);
+      console.log('[TransformService] Text-Vorschau:', transformedText.substring(0, 200));
+      
+      // Sammle relevante PDF-Metadaten
+      metadata = {
+        // Quelldatei-Informationen
+        source_file: originalItem.metadata.name,
+        source_file_id: originalItem.id,
+        source_file_size: originalItem.metadata.size,
+        source_file_type: originalItem.metadata.mimeType,
+        
+        // Transformations-Informationen
+        target_language: options.targetLanguage,
+        
+        // PDF-Metadaten
+        page_count: pdfResponse.data.metadata?.page_count,
+        format: pdfResponse.data.metadata?.format,
+        
+        // Prozess-Informationen
+        process_id: pdfResponse.process?.id,
+        processor: pdfResponse.process?.main_processor,
+        sub_processors: pdfResponse.process?.sub_processors?.join(', '),
+        processing_duration_ms: pdfResponse.process?.llm_info?.total_duration,
+        model_used: pdfResponse.process?.llm_info?.requests?.[0]?.model,
+        tokens_used: pdfResponse.process?.llm_info?.total_tokens,
+        
+        // Secretary Service Informationen
+        cache_used: pdfResponse.process?.is_from_cache || false,
+        cache_key: pdfResponse.process?.cache_key
+      };
+      
+      console.log('[TransformService] Extrahierte Metadaten:', metadata);
+      
+      // Entferne undefined-Werte
+      Object.keys(metadata).forEach(key => {
+        if (metadata[key] === undefined || metadata[key] === null) {
+          delete metadata[key];
+        }
+      });
+    } else {
+      console.error('[TransformService] Kein Text-Content in der Response gefunden!');
+      console.error('[TransformService] Response-Struktur:', {
+        hasResponse: !!response,
+        hasData: !!(response && response.data),
+        hasTextContent: !!(response && response.data && response.data.text_content),
+        responseKeys: response ? Object.keys(response) : [],
+        dataKeys: response && response.data ? Object.keys(response.data) : []
+      });
+    }
+    
+    console.log('[TransformService] Finaler transformierter Text-Länge:', transformedText.length);
+    
+    // Erstelle Markdown-Inhalt mit Frontmatter
+    const markdownContent = TransformService.createMarkdownWithFrontmatter(transformedText, metadata);
+    
+    // Ergebnis wird gespeichert, wenn gewünscht
+    if (options.createShadowTwin && transformedText) {
+      console.log('[TransformService] Speichere Shadow-Twin mit Länge:', markdownContent.length);
+      
+      const result = await TransformService.saveTwinFile(
+        markdownContent,
+        originalItem,
+        options.fileName,
+        options.fileExtension,
+        provider,
+        refreshItems
+      );
+      
+      return {
+        text: transformedText, // Gebe nur den Text zurück, nicht das Markdown mit Frontmatter
+        savedItem: result.savedItem,
+        updatedItems: result.updatedItems
+      };
+    } else {
+      console.log('[TransformService] Keine Speicherung:', {
+        createShadowTwin: options.createShadowTwin,
+        hasText: !!transformedText,
+        textLength: transformedText.length
+      });
     }
     
     return {
