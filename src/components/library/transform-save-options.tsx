@@ -14,6 +14,7 @@ export interface TransformSaveOptions {
   fileName: string;
   createShadowTwin: boolean;
   fileExtension: string;
+  extractionMethod?: string; // Optional für PDF-Transformation
 }
 
 interface TransformSaveOptionsProps {
@@ -23,6 +24,8 @@ interface TransformSaveOptionsProps {
   supportedLanguages?: Array<{ value: string; label: string }>;
   defaultExtension?: string;
   className?: string;
+  showExtractionMethod?: boolean; // Neu: Zeigt Extraktionsmethode für PDFs
+  defaultExtractionMethod?: string; // Neu: Standard-Extraktionsmethode
 }
 
 export function TransformSaveOptions({
@@ -31,7 +34,9 @@ export function TransformSaveOptions({
   defaultLanguage = "de",
   supportedLanguages = SUPPORTED_LANGUAGES.map(lang => ({ value: lang.code, label: lang.name })),
   defaultExtension = "md",
-  className
+  className,
+  showExtractionMethod = false,
+  defaultExtractionMethod = "native"
 }: TransformSaveOptionsProps) {
   // Hilfsfunktion zum Extrahieren des Basisnamens ohne Erweiterung
   function getBaseFileName(fileName: string): string {
@@ -50,7 +55,8 @@ export function TransformSaveOptions({
       targetLanguage: defaultLanguage,
       fileName: generateShadowTwinName(baseName, defaultLanguage),
       createShadowTwin: true,
-      fileExtension: defaultExtension
+      fileExtension: defaultExtension,
+      extractionMethod: defaultExtractionMethod
     };
   });
 
@@ -136,6 +142,30 @@ export function TransformSaveOptions({
               </Select>
             </div>
           </div>
+
+          {showExtractionMethod && (
+            <div>
+              <Label htmlFor="extraction-method">Extraktionsmethode</Label>
+              <Select
+                value={options.extractionMethod || defaultExtractionMethod}
+                onValueChange={(value) => updateOptions({ extractionMethod: value })}
+              >
+                <SelectTrigger id="extraction-method">
+                  <SelectValue placeholder="Methode auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="native">Nur Text (Native)</SelectItem>
+                  <SelectItem value="ocr">Nur OCR</SelectItem>
+                  <SelectItem value="both">Text und OCR</SelectItem>
+                  <SelectItem value="preview">Vorschaubilder</SelectItem>
+                  <SelectItem value="preview_and_native">Vorschaubilder und Text</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Bestimmt, wie der Inhalt aus der PDF extrahiert wird
+              </p>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="file-name">Dateiname</Label>

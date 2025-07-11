@@ -122,6 +122,7 @@ export class BatchTransformService {
               {
                 ...baseOptions,
                 fileName: shadowTwinName,
+                extractionMethod: "native" // Standard-Extraktionsmethode für Batch-Verarbeitung
               },
               provider,
               refreshItems,

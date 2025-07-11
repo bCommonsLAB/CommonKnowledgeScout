@@ -67,6 +67,13 @@ export async function POST(request: NextRequest) {
       serviceFormData.append('template', formData.get('template') as string);
     }
     
+    // Extraktionsmethode
+    if (formData.has('extractionMethod')) {
+      serviceFormData.append('extraction_method', formData.get('extractionMethod') as string);
+    } else {
+      serviceFormData.append('extraction_method', 'native'); // Standardwert
+    }
+    
     // Cache-Optionen
     if (formData.has('useCache')) {
       serviceFormData.append('useCache', formData.get('useCache') as string);

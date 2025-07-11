@@ -157,15 +157,10 @@ export interface SecretaryPdfResponse {
     processor: string;
     timestamp: string;
     parameters: {
-      source: {
-        file_name: string;
-        file_size: number;
-        file_type: string;
-        file_ext: string;
-      };
-      target_language: string;
+      file_path: string;
       template: string | null;
-      use_cache: boolean;
+      context: string | null;
+      extraction_method: string;
     };
   };
   process?: {
@@ -193,15 +188,27 @@ export interface SecretaryPdfResponse {
   };
   error: unknown | null;
   data: {
-    text_content: string;
-    metadata?: {
+    extracted_text: string;  // ← Geändert von text_content zu extracted_text
+    ocr_text: string | null;
+    metadata: {
+      file_name: string;
+      file_size: number;
       page_count: number;
       format: string;
       process_dir: string;
+      image_paths: string[];
+      preview_paths: string[];
+      preview_zip: string | null;
+      text_paths: string[];
+      original_text_paths: string[];
+      text_contents: Array<{
+        page: number;
+        content: string;
+      }>;
+      extraction_method: string;
     };
     process_id: string;
-    transformation_result: unknown | null;
-    status: string;
+    processed_at: string;
   };
 }
 
@@ -604,13 +611,15 @@ export async function transformVideo(
  * @param targetLanguage Die Zielsprache für die Verarbeitung
  * @param libraryId ID der aktiven Bibliothek
  * @param template Optionales Template für die Verarbeitung
+ * @param extractionMethod Die Extraktionsmethode (native, ocr, both, preview, preview_and_native)
  * @returns Die vollständige Response vom Secretary Service
  */
 export async function transformPdf(
   file: File, 
   targetLanguage: string,
   libraryId: string,
-  template?: string
+  template?: string,
+  extractionMethod: string = 'native'
 ): Promise<SecretaryPdfResponse> {
   try {
     console.log('[secretary/client] transformPdf aufgerufen mit Sprache:', targetLanguage, 'und Template:', template);
@@ -618,6 +627,7 @@ export async function transformPdf(
     const formData = new FormData();
     formData.append('file', file);
     formData.append('targetLanguage', targetLanguage);
+    formData.append('extractionMethod', extractionMethod);
     
     // Template-Option
     if (template) {

@@ -8,7 +8,7 @@ import { useAtomValue } from "jotai";
 import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
-import { TransformService, TransformResult } from "@/lib/transform/transform-service";
+import { TransformService, TransformResult, PdfTransformOptions } from "@/lib/transform/transform-service";
 import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
@@ -43,11 +43,12 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
   const baseName = item ? getBaseFileName(item.metadata.name) : '';
   const defaultLanguage = "de";
   
-  const [saveOptions, setSaveOptions] = useState<SaveOptionsType>({
+  const [saveOptions, setSaveOptions] = useState<PdfTransformOptions>({
     targetLanguage: defaultLanguage,
     fileName: generateShadowTwinName(baseName, defaultLanguage),
     createShadowTwin: true,
-    fileExtension: "md"
+    fileExtension: "md",
+    extractionMethod: "native"
   });
   
   // Prüfe ob item vorhanden ist
@@ -134,7 +135,12 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
 
   const handleSaveOptionsChange = (options: SaveOptionsType) => {
     FileLogger.debug('PdfTransform', 'handleSaveOptionsChange aufgerufen mit', options as unknown as Record<string, unknown>);
-    setSaveOptions(options);
+    // Konvertiere zu PdfTransformOptions mit sicherer extractionMethod
+    const pdfOptions: PdfTransformOptions = {
+      ...options,
+      extractionMethod: options.extractionMethod || "native"
+    };
+    setSaveOptions(pdfOptions);
   };
 
   return (
@@ -153,6 +159,8 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
                 originalFileName={item.metadata.name}
                 onOptionsChangeAction={handleSaveOptionsChange}
                 className="mb-4"
+                showExtractionMethod={true}
+                defaultExtractionMethod="native"
               />
               
               <Button 

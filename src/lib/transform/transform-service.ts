@@ -8,6 +8,10 @@ export interface TransformSaveOptions {
   fileExtension: string;
 }
 
+export interface PdfTransformOptions extends TransformSaveOptions {
+  extractionMethod: string;
+}
+
 export interface TransformResult {
   text: string;
   savedItem?: StorageItem;
@@ -392,7 +396,7 @@ export class TransformService {
   static async transformPdf(
     file: File,
     originalItem: StorageItem,
-    options: TransformSaveOptions,
+    options: PdfTransformOptions,
     provider: StorageProvider,
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
     libraryId: string
@@ -400,7 +404,7 @@ export class TransformService {
     console.log('[TransformService] transformPdf gestartet mit Optionen:', options);
     
     // PDF-Datei wird transformiert - hole die vollständige Response
-    const response = await transformPdf(file, options.targetLanguage, libraryId);
+    const response = await transformPdf(file, options.targetLanguage, libraryId, undefined, options.extractionMethod);
     
     console.log('[TransformService] Vollständige PDF-Response:', JSON.stringify(response, null, 2));
     
@@ -413,17 +417,17 @@ export class TransformService {
       responseType: typeof response,
       hasData: !!(response && response.data),
       dataType: response && response.data ? typeof response.data : 'undefined',
-      hasTextContent: !!(response && response.data && response.data.text_content),
-      textContentType: response && response.data && response.data.text_content ? typeof response.data.text_content : 'undefined',
+      hasExtractedText: !!(response && response.data && response.data.extracted_text),
+      extractedTextType: response && response.data && response.data.extracted_text ? typeof response.data.extracted_text : 'undefined',
       dataKeys: response && response.data ? Object.keys(response.data) : []
     });
     
-    if (response && response.data && response.data.text_content) {
-      console.log('[TransformService] Text-Content gefunden:', response.data.text_content);
+    if (response && response.data && response.data.extracted_text) {
+      console.log('[TransformService] Extracted-Text gefunden:', response.data.extracted_text);
       
       // Vollständige PDF-Response mit Metadaten
       const pdfResponse = response as SecretaryPdfResponse;
-      transformedText = pdfResponse.data.text_content;
+      transformedText = pdfResponse.data.extracted_text;
       
       console.log('[TransformService] Extrahierter Text-Länge:', transformedText.length);
       console.log('[TransformService] Text-Vorschau:', transformedText.substring(0, 200));
@@ -442,6 +446,9 @@ export class TransformService {
         // PDF-Metadaten
         page_count: pdfResponse.data.metadata?.page_count,
         format: pdfResponse.data.metadata?.format,
+        extraction_method: pdfResponse.data.metadata?.extraction_method,
+        file_name: pdfResponse.data.metadata?.file_name,
+        file_size: pdfResponse.data.metadata?.file_size,
         
         // Prozess-Informationen
         process_id: pdfResponse.process?.id,
@@ -465,11 +472,11 @@ export class TransformService {
         }
       });
     } else {
-      console.error('[TransformService] Kein Text-Content in der Response gefunden!');
+      console.error('[TransformService] Kein Extracted-Text in der Response gefunden!');
       console.error('[TransformService] Response-Struktur:', {
         hasResponse: !!response,
         hasData: !!(response && response.data),
-        hasTextContent: !!(response && response.data && response.data.text_content),
+        hasExtractedText: !!(response && response.data && response.data.extracted_text),
         responseKeys: response ? Object.keys(response) : [],
         dataKeys: response && response.data ? Object.keys(response.data) : []
       });
