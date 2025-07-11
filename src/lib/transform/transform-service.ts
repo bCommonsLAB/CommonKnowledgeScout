@@ -1,11 +1,15 @@
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { transformAudio, transformText, transformVideo, transformPdf, SecretaryAudioResponse, SecretaryVideoResponse, SecretaryPdfResponse } from "@/lib/secretary/client";
+import { ImageExtractionService, ImageExtractionResult } from "./image-extraction-service";
+import { FileLogger } from '@/lib/debug/logger';
 
 export interface TransformSaveOptions {
   targetLanguage: string;
   fileName: string;
   createShadowTwin: boolean;
   fileExtension: string;
+  useCache?: boolean; // Neu: Cache-Option für alle Transformationen
+  includeImages?: boolean; // Neu: Bilder mit extrahieren und speichern
 }
 
 export interface PdfTransformOptions extends TransformSaveOptions {
@@ -16,6 +20,7 @@ export interface TransformResult {
   text: string;
   savedItem?: StorageItem;
   updatedItems: StorageItem[];
+  imageExtractionResult?: ImageExtractionResult; // Neu: Ergebnis der Bild-Extraktion
 }
 
 export interface VideoTransformOptions extends TransformSaveOptions {
@@ -401,18 +406,29 @@ export class TransformService {
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
     libraryId: string
   ): Promise<TransformResult> {
-    console.log('[TransformService] transformPdf gestartet mit Optionen:', options);
+    FileLogger.info('TransformService', 'PDF-Transformation gestartet', {
+      fileName: originalItem.metadata.name,
+      includeImages: options.includeImages,
+      extractionMethod: options.extractionMethod,
+      targetLanguage: options.targetLanguage
+    });
+    FileLogger.debug('TransformService', 'IncludeImages Option', {
+      includeImages: options.includeImages,
+      type: typeof options.includeImages
+    });
     
     // PDF-Datei wird transformiert - hole die vollständige Response
-    const response = await transformPdf(file, options.targetLanguage, libraryId, undefined, options.extractionMethod);
+    const response = await transformPdf(file, options.targetLanguage, libraryId, undefined, options.extractionMethod, options.useCache ?? true, options.includeImages ?? false);
     
-    console.log('[TransformService] Vollständige PDF-Response:', JSON.stringify(response, null, 2));
+    FileLogger.debug('TransformService', 'Vollständige PDF-Response', {
+      response: JSON.stringify(response, null, 2)
+    });
     
     // Extrahiere den Text aus der Response
     let transformedText = '';
     let metadata: TransformMetadata = {};
     
-    console.log('[TransformService] Response-Check:', {
+    FileLogger.debug('TransformService', 'Response-Check', {
       hasResponse: !!response,
       responseType: typeof response,
       hasData: !!(response && response.data),
@@ -422,15 +438,23 @@ export class TransformService {
       dataKeys: response && response.data ? Object.keys(response.data) : []
     });
     
+    // Prüfe auf images_archive_data
+    FileLogger.debug('TransformService', 'Images Archive Check', {
+      hasImagesArchiveData: !!(response && response.data && response.data.images_archive_data),
+      hasImagesArchiveFilename: !!(response && response.data && response.data.images_archive_filename),
+      imagesArchiveDataLength: response && response.data && response.data.images_archive_data ? response.data.images_archive_data.length : 0,
+      imagesArchiveFilename: response && response.data ? response.data.images_archive_filename : 'undefined'
+    });
+    
     if (response && response.data && response.data.extracted_text) {
-      console.log('[TransformService] Extracted-Text gefunden:', response.data.extracted_text);
+      FileLogger.info('TransformService', 'Extracted-Text gefunden', {
+        textLength: response.data.extracted_text.length,
+        textPreview: response.data.extracted_text.substring(0, 200)
+      });
       
       // Vollständige PDF-Response mit Metadaten
       const pdfResponse = response as SecretaryPdfResponse;
       transformedText = pdfResponse.data.extracted_text;
-      
-      console.log('[TransformService] Extrahierter Text-Länge:', transformedText.length);
-      console.log('[TransformService] Text-Vorschau:', transformedText.substring(0, 200));
       
       // Sammle relevante PDF-Metadaten
       metadata = {
@@ -463,7 +487,7 @@ export class TransformService {
         cache_key: pdfResponse.process?.cache_key
       };
       
-      console.log('[TransformService] Extrahierte Metadaten:', metadata);
+      FileLogger.debug('TransformService', 'Extrahierte Metadaten', metadata);
       
       // Entferne undefined-Werte
       Object.keys(metadata).forEach(key => {
@@ -472,24 +496,46 @@ export class TransformService {
         }
       });
     } else {
-      console.error('[TransformService] Kein Extracted-Text in der Response gefunden!');
-      console.error('[TransformService] Response-Struktur:', {
-        hasResponse: !!response,
-        hasData: !!(response && response.data),
-        hasExtractedText: !!(response && response.data && response.data.extracted_text),
+      FileLogger.error('TransformService', 'Kein Extracted-Text in der Response gefunden!', {
         responseKeys: response ? Object.keys(response) : [],
         dataKeys: response && response.data ? Object.keys(response.data) : []
       });
     }
     
-    console.log('[TransformService] Finaler transformierter Text-Länge:', transformedText.length);
+    let imageExtractionResult: ImageExtractionResult | undefined;
+    if (options.includeImages && response && response.data && response.data.images_archive_data) {
+      try {
+        FileLogger.info('TransformService', 'Starte Bild-Extraktion', {
+          imagesArchiveFilename: response.data.images_archive_filename,
+          imagesArchiveDataLength: response.data.images_archive_data.length
+        });
+        imageExtractionResult = await ImageExtractionService.saveZipArchive(
+          response.data.images_archive_data,
+          response.data.images_archive_filename || 'pdf_images.zip',
+          originalItem,
+          provider,
+          refreshItems
+        );
+        FileLogger.info('TransformService', 'Bild-Extraktion abgeschlossen', {
+          folderCreated: !!imageExtractionResult.folderItem,
+          savedItemsCount: imageExtractionResult.savedItems.length
+        });
+      } catch (error) {
+        FileLogger.error('TransformService', 'Fehler bei der Bild-Extraktion', error);
+        // Bild-Extraktion ist optional, daher weitermachen
+      }
+    }
     
-    // Erstelle Markdown-Inhalt mit Frontmatter
+    FileLogger.debug('TransformService', 'Finaler transformierter Text', {
+      textLength: transformedText.length
+    });
     const markdownContent = TransformService.createMarkdownWithFrontmatter(transformedText, metadata);
-    
+
     // Ergebnis wird gespeichert, wenn gewünscht
     if (options.createShadowTwin && transformedText) {
-      console.log('[TransformService] Speichere Shadow-Twin mit Länge:', markdownContent.length);
+      FileLogger.info('TransformService', 'Speichere Shadow-Twin', {
+        markdownLength: markdownContent.length
+      });
       
       const result = await TransformService.saveTwinFile(
         markdownContent,
@@ -503,19 +549,21 @@ export class TransformService {
       return {
         text: transformedText, // Gebe nur den Text zurück, nicht das Markdown mit Frontmatter
         savedItem: result.savedItem,
-        updatedItems: result.updatedItems
+        updatedItems: result.updatedItems,
+        imageExtractionResult
       };
     } else {
-      console.log('[TransformService] Keine Speicherung:', {
+      FileLogger.debug('TransformService', 'Keine Speicherung', {
         createShadowTwin: options.createShadowTwin,
         hasText: !!transformedText,
         textLength: transformedText.length
       });
     }
-    
+
     return {
       text: transformedText,
-      updatedItems: []
+      updatedItems: [],
+      imageExtractionResult
     };
   }
   

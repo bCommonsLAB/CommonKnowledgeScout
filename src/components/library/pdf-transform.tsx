@@ -48,7 +48,9 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     fileName: generateShadowTwinName(baseName, defaultLanguage),
     createShadowTwin: true,
     fileExtension: "md",
-    extractionMethod: "native"
+    extractionMethod: "native",
+    useCache: true, // Standardwert: Cache verwenden
+    includeImages: false // Standardwert: Keine Bilder
   });
   
   // Prüfe ob item vorhanden ist
@@ -135,11 +137,14 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
 
   const handleSaveOptionsChange = (options: SaveOptionsType) => {
     FileLogger.debug('PdfTransform', 'handleSaveOptionsChange aufgerufen mit', options as unknown as Record<string, unknown>);
-    // Konvertiere zu PdfTransformOptions mit sicherer extractionMethod
+    // Konvertiere zu PdfTransformOptions mit sicherer extractionMethod und useCache
     const pdfOptions: PdfTransformOptions = {
       ...options,
-      extractionMethod: options.extractionMethod || "native"
+      extractionMethod: options.extractionMethod || "native",
+      useCache: options.useCache ?? true, // Standardwert: Cache verwenden
+      includeImages: options.includeImages ?? false // Standardwert: Keine Bilder
     };
+    FileLogger.debug('PdfTransform', 'useCache Wert:', { useCache: pdfOptions.useCache });
     setSaveOptions(pdfOptions);
   };
 
@@ -161,6 +166,10 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
                 className="mb-4"
                 showExtractionMethod={true}
                 defaultExtractionMethod="native"
+                showUseCache={true}
+                defaultUseCache={true}
+                showIncludeImages={true}
+                defaultIncludeImages={false}
               />
               
               <Button 

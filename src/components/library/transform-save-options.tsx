@@ -15,6 +15,8 @@ export interface TransformSaveOptions {
   createShadowTwin: boolean;
   fileExtension: string;
   extractionMethod?: string; // Optional für PDF-Transformation
+  useCache?: boolean; // Neu: Cache-Option für alle Transformationen
+  includeImages?: boolean; // Neu: Bilder mit extrahieren und speichern
 }
 
 interface TransformSaveOptionsProps {
@@ -26,6 +28,10 @@ interface TransformSaveOptionsProps {
   className?: string;
   showExtractionMethod?: boolean; // Neu: Zeigt Extraktionsmethode für PDFs
   defaultExtractionMethod?: string; // Neu: Standard-Extraktionsmethode
+  showUseCache?: boolean; // Neu: Zeigt Cache-Option
+  defaultUseCache?: boolean; // Neu: Standard-Cache-Einstellung
+  showIncludeImages?: boolean; // Neu: Zeigt Bilder-Option
+  defaultIncludeImages?: boolean; // Neu: Standard-Bilder-Einstellung
 }
 
 export function TransformSaveOptions({
@@ -36,7 +42,11 @@ export function TransformSaveOptions({
   defaultExtension = "md",
   className,
   showExtractionMethod = false,
-  defaultExtractionMethod = "native"
+  defaultExtractionMethod = "native",
+  showUseCache = false,
+  defaultUseCache = false,
+  showIncludeImages = false,
+  defaultIncludeImages = false
 }: TransformSaveOptionsProps) {
   // Hilfsfunktion zum Extrahieren des Basisnamens ohne Erweiterung
   function getBaseFileName(fileName: string): string {
@@ -56,7 +66,9 @@ export function TransformSaveOptions({
       fileName: generateShadowTwinName(baseName, defaultLanguage),
       createShadowTwin: true,
       fileExtension: defaultExtension,
-      extractionMethod: defaultExtractionMethod
+      extractionMethod: defaultExtractionMethod,
+      useCache: defaultUseCache,
+      includeImages: defaultIncludeImages
     };
   });
 
@@ -191,6 +203,34 @@ export function TransformSaveOptions({
             />
             <Label htmlFor="create-shadow-twin">Als Shadow-Twin speichern</Label>
           </div>
+
+          {showUseCache && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="use-cache"
+                checked={options.useCache || false}
+                onCheckedChange={(checked) => updateOptions({ useCache: !!checked })}
+              />
+              <Label htmlFor="use-cache">Cache verwenden</Label>
+              <p className="text-xs text-muted-foreground ml-6">
+                Beschleunigt die Verarbeitung durch Wiederverwendung vorheriger Ergebnisse
+              </p>
+            </div>
+          )}
+
+          {showIncludeImages && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-images"
+                checked={options.includeImages || false}
+                onCheckedChange={(checked) => updateOptions({ includeImages: !!checked })}
+              />
+              <Label htmlFor="include-images">Bilder mit extrahieren</Label>
+              <p className="text-xs text-muted-foreground ml-6">
+                Speichert zusätzlich alle PDF-Seiten als Bilder für Qualitätskontrolle
+              </p>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

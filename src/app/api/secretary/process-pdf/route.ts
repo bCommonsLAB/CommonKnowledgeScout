@@ -81,6 +81,13 @@ export async function POST(request: NextRequest) {
       serviceFormData.append('useCache', 'true'); // Standardwert: Cache verwenden
     }
     
+    // Include Images Option
+    if (formData.has('includeImages')) {
+      serviceFormData.append('includeImages', formData.get('includeImages') as string);
+    } else {
+      serviceFormData.append('includeImages', 'false'); // Standardwert: Keine Bilder
+    }
+    
     // Force refresh Option
     if (formData.has('force_refresh')) {
       serviceFormData.append('force_refresh', formData.get('force_refresh') as string);

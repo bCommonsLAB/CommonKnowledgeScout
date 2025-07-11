@@ -209,6 +209,8 @@ export interface SecretaryPdfResponse {
     };
     process_id: string;
     processed_at: string;
+    images_archive_data?: string; 
+    images_archive_filename?: string; 
   };
 }
 
@@ -218,20 +220,23 @@ export interface SecretaryPdfResponse {
  * @param file Die zu transformierende Audio-Datei 
  * @param targetLanguage Die Zielsprache für die Transkription
  * @param libraryId ID der aktiven Bibliothek
+ * @param useCache Cache verwenden (Standard: true)
  * @returns Die vollständige Response vom Secretary Service oder nur den Text (für Abwärtskompatibilität)
  */
 export async function transformAudio(
   file: File, 
   targetLanguage: string,
-  libraryId: string
+  libraryId: string,
+  useCache: boolean = true
 ): Promise<SecretaryAudioResponse | string> {
   try {
-    console.log('[secretary/client] transformAudio aufgerufen mit Sprache:', targetLanguage);
+    console.log('[secretary/client] transformAudio aufgerufen mit Sprache:', targetLanguage, 'und useCache:', useCache);
     
     
     const formData = new FormData();
     formData.append('file', file);
     formData.append('targetLanguage', targetLanguage);
+    formData.append('useCache', useCache.toString());
     
     // Angepasste Header bei expliziten Optionen
     const customHeaders: HeadersInit = {};
@@ -619,7 +624,9 @@ export async function transformPdf(
   targetLanguage: string,
   libraryId: string,
   template?: string,
-  extractionMethod: string = 'native'
+  extractionMethod: string = 'native',
+  useCache: boolean = true,
+  includeImages: boolean = false
 ): Promise<SecretaryPdfResponse> {
   try {
     console.log('[secretary/client] transformPdf aufgerufen mit Sprache:', targetLanguage, 'und Template:', template);
@@ -628,6 +635,8 @@ export async function transformPdf(
     formData.append('file', file);
     formData.append('targetLanguage', targetLanguage);
     formData.append('extractionMethod', extractionMethod);
+    formData.append('useCache', useCache.toString());
+    formData.append('includeImages', includeImages.toString());
     
     // Template-Option
     if (template) {

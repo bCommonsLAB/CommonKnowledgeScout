@@ -168,6 +168,8 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
                 originalFileName={item.metadata.name}
                 onOptionsChangeAction={handleSaveOptionsChange}
                 className="mb-4"
+                showUseCache={true}
+                defaultUseCache={true}
               />
               
               <Button 
