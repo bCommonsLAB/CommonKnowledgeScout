@@ -25,6 +25,7 @@ const DocumentPreviewComponent = DocumentPreview;
 interface FilePreviewProps {
   className?: string;
   provider: StorageProvider | null;
+  file?: StorageItem | null; // Neue prop für explizite Datei-Auswahl
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
@@ -237,18 +238,56 @@ function PreviewContent({
 }) {
   const [activeTab, setActiveTab] = React.useState<string>("preview");
   const setSelectedFile = useSetAtom(selectedFileAtom);
+  
+  // Debug-Log für PreviewContent
+  React.useEffect(() => {
+    FileLogger.info('PreviewContent', 'PreviewContent gerendert', {
+      itemId: item.id,
+      itemName: item.metadata.name,
+      fileType,
+      contentLength: content.length,
+      hasError: !!error,
+      hasProvider: !!provider,
+      activeLibraryId
+    });
+  }, [item.id, fileType, content.length, error, provider, activeLibraryId]);
+  
   React.useEffect(() => {
     setActiveTab("preview");
   }, [item.id]);
 
   if (error) {
+    FileLogger.error('PreviewContent', 'Fehler in PreviewContent', {
+      itemId: item.id,
+      itemName: item.metadata.name,
+      error
+    });
     return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>;
   }
 
+  // Debug-Log vor Switch-Statement
+  FileLogger.debug('PreviewContent', 'Switch-Statement erreicht', {
+    itemId: item.id,
+    itemName: item.metadata.name,
+    fileType,
+    switchCase: fileType
+  });
+
   switch (fileType) {
     case 'audio':
+      FileLogger.debug('PreviewContent', 'Audio-Player wird gerendert', {
+        itemId: item.id,
+        itemName: item.metadata.name
+      });
       return <AudioPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} />;
     case 'image':
+      FileLogger.info('PreviewContent', 'ImagePreview wird gerendert', {
+        itemId: item.id,
+        itemName: item.metadata.name,
+        mimeType: item.metadata.mimeType,
+        hasProvider: !!provider,
+        providerName: provider?.name
+      });
       return (
         <ImagePreviewComponent
           provider={provider}
@@ -256,8 +295,17 @@ function PreviewContent({
         />
       );
     case 'video':
+      FileLogger.debug('PreviewContent', 'Video-Player wird gerendert', {
+        itemId: item.id,
+        itemName: item.metadata.name
+      });
       return <VideoPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} />;
     case 'markdown':
+      FileLogger.debug('PreviewContent', 'Markdown-Editor wird gerendert', {
+        itemId: item.id,
+        itemName: item.metadata.name,
+        contentLength: content.length
+      });
       return (
         <div className="h-full flex flex-col">
           <Tabs defaultValue="preview" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
@@ -400,6 +448,11 @@ function PreviewContent({
     case 'pptx':
     case 'xlsx':
     case 'presentation':
+      FileLogger.debug('PreviewContent', 'DocumentPreview wird gerendert', {
+        itemId: item.id,
+        itemName: item.metadata.name,
+        fileType
+      });
       return (
         <DocumentPreviewComponent
           provider={provider}
@@ -408,6 +461,10 @@ function PreviewContent({
         />
       );
     case 'website':
+      FileLogger.debug('PreviewContent', 'Website-Iframe wird gerendert', {
+        itemId: item.id,
+        itemName: item.metadata.name
+      });
       const urlContent = content.match(/URL=(.*)/)?.[1];
       return urlContent ? (
         <iframe 
@@ -421,6 +478,11 @@ function PreviewContent({
         </div>
       );
     default:
+      FileLogger.warn('PreviewContent', 'Unbekannter Dateityp', {
+        itemId: item.id,
+        itemName: item.metadata.name,
+        fileType
+      });
       return (
         <div className="text-center text-muted-foreground">
           Keine Vorschau verfügbar für diesen Dateityp.
@@ -440,10 +502,27 @@ interface FilePreviewState {
 export function FilePreview({ 
   className,
   provider,
+  file,
   onRefreshFolder
 }: FilePreviewProps) {
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const selectedFile = useAtomValue(selectedFileAtom);
+  const selectedFileFromAtom = useAtomValue(selectedFileAtom);
+  
+  // Verwende explizite file prop oder fallback zum selectedFileAtom
+  const displayFile = file || selectedFileFromAtom;
+  
+  // Debug-Log für FilePreview-Hauptkomponente
+  React.useEffect(() => {
+    FileLogger.info('FilePreview', 'FilePreview-Hauptkomponente gerendert', {
+      hasExplicitFile: !!file,
+      hasSelectedFileFromAtom: !!selectedFileFromAtom,
+      displayFileId: displayFile?.id,
+      displayFileName: displayFile?.metadata.name,
+      hasProvider: !!provider,
+      providerName: provider?.name,
+      activeLibraryId
+    });
+  }, [file, selectedFileFromAtom, displayFile, provider, activeLibraryId]);
   
   // Gemeinsamer Cache für den Inhalt von Dateien
   const contentCache = React.useRef<Map<string, { content: string; hasMetadata: boolean }>>(new Map());
@@ -470,67 +549,91 @@ export function FilePreview({
 
   // Memoize computed values
   const fileType = React.useMemo(() => 
-    selectedFile ? getFileType(selectedFile.metadata.name) : 'unknown', 
-    [selectedFile]
+    displayFile ? getFileType(displayFile.metadata.name) : 'unknown', 
+    [displayFile]
   );
   
   const isAudioFile = React.useMemo(() => fileType === 'audio', [fileType]);
   const isVideoFile = React.useMemo(() => fileType === 'video', [fileType]);
+
+  // Debug-Log für computed values
+  React.useEffect(() => {
+    if (displayFile) {
+      FileLogger.debug('FilePreview', 'Computed values aktualisiert', {
+        itemId: displayFile.id,
+        itemName: displayFile.metadata.name,
+        fileType,
+        isAudioFile,
+        isVideoFile,
+        mimeType: displayFile.metadata.mimeType
+      });
+    }
+  }, [displayFile, fileType, isAudioFile, isVideoFile]);
 
   // Memoize content loader callback
   const handleContentLoaded = React.useCallback((content: string, hasMetadata: boolean) => {
     FileLogger.debug('FilePreview', 'handleContentLoaded aufgerufen', {
       contentLength: content.length,
       hasMetadata,
-      selectedFileId: selectedFile?.id,
-      selectedFileName: selectedFile?.metadata.name
+      selectedFileId: displayFile?.id,
+      selectedFileName: displayFile?.metadata.name
     });
     dispatch({ type: 'SET_CONTENT', content, hasMetadata });
-  }, [selectedFile]);
+  }, [displayFile]);
   
   // Callback für direkte Aktualisierung des Inhalts
   const handleContentUpdated = React.useCallback((content: string) => {
     FileLogger.debug('FilePreview', 'handleContentUpdated aufgerufen', {
       contentLength: content.length,
-      selectedFileId: selectedFile?.id,
-      selectedFileName: selectedFile?.metadata.name
+      selectedFileId: displayFile?.id,
+      selectedFileName: displayFile?.metadata.name
     });
     dispatch({ type: 'UPDATE_CONTENT', content });
-  }, [selectedFile]);
+  }, [displayFile]);
 
   // Cache leeren, wenn sich die Item-ID ändert
   React.useEffect(() => {
-    if (selectedFile?.id) {
+    if (displayFile?.id) {
       FileLogger.debug('FilePreview', 'Neues Item geladen, Cache wird geprüft', {
-        itemId: selectedFile.id,
-        itemName: selectedFile.metadata.name,
+        itemId: displayFile.id,
+        itemName: displayFile.metadata.name,
         cacheSize: contentCache.current.size
       });
       // Nur Cache-Einträge löschen, die nicht zur aktuellen Datei gehören
-      const currentCache = contentCache.current.get(selectedFile.id);
+      const currentCache = contentCache.current.get(displayFile.id);
       if (!currentCache) {
         // Wenn die aktuelle Datei nicht im Cache ist, lösche alte Einträge
         Array.from(contentCache.current.keys()).forEach(key => {
-          if (key !== selectedFile.id) {
+          if (key !== displayFile.id) {
             contentCache.current.delete(key);
           }
         });
       }
     }
-  }, [selectedFile?.id]);
+  }, [displayFile?.id]);
 
-  if (!selectedFile) {
+  if (!displayFile) {
+    FileLogger.debug('FilePreview', 'Keine Datei ausgewählt');
     return (
-      <div className={cn("absolute inset-0 flex items-center justify-center", className)}>
+      <div className={cn("flex items-center justify-center h-full", className)}>
         <p className="text-muted-foreground">Keine Datei ausgewählt</p>
       </div>
     );
   }
 
+  // Debug-Log vor dem Rendern der Komponenten
+  FileLogger.debug('FilePreview', 'Rendere FilePreview-Komponenten', {
+    itemId: displayFile.id,
+    itemName: displayFile.metadata.name,
+    fileType,
+    contentLength: state.content.length,
+    hasError: !!state.error
+  });
+
   return (
-    <div className={cn("absolute inset-0", className)}>
+    <div className={cn("h-full flex flex-col", className)}>
       <ContentLoader
-        item={selectedFile}
+        item={displayFile}
         provider={provider}
         fileType={fileType}
         isAudioFile={isAudioFile}
@@ -538,17 +641,19 @@ export function FilePreview({
         contentCache={contentCache}
         onContentLoaded={handleContentLoaded}
       />
-      <PreviewContent
-        item={selectedFile}
-        fileType={fileType}
-        content={state.content}
-        error={state.error}
-        activeLibraryId={activeLibraryId}
-        provider={provider}
-        contentCache={contentCache}
-        onContentUpdated={handleContentUpdated}
-        onRefreshFolder={onRefreshFolder}
-      />
+      <div className="flex-1 overflow-auto">
+        <PreviewContent
+          item={displayFile}
+          fileType={fileType}
+          content={state.content}
+          error={state.error}
+          activeLibraryId={activeLibraryId}
+          provider={provider}
+          contentCache={contentCache}
+          onContentUpdated={handleContentUpdated}
+          onRefreshFolder={onRefreshFolder}
+        />
+      </div>
     </div>
   );
 }

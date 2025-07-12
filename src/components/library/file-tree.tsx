@@ -231,7 +231,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   const items = (loadedChildren.root || []).filter(item => item.type === 'folder');
 
   return (
-    <div className="w-full">
+    <div className="w-full flex flex-col">
       {items.map(item => (
         <TreeItem
           key={item.id}

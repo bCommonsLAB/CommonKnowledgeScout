@@ -514,7 +514,10 @@ export class TransformService {
           response.data.images_archive_filename || 'pdf_images.zip',
           originalItem,
           provider,
-          refreshItems
+          refreshItems,
+          transformedText, // Extrahierten Text weitergeben
+          options.targetLanguage, // Target Language weitergeben
+          response.data.metadata?.text_contents // Seiten-spezifische Texte weitergeben
         );
         FileLogger.info('TransformService', 'Bild-Extraktion abgeschlossen', {
           folderCreated: !!imageExtractionResult.folderItem,

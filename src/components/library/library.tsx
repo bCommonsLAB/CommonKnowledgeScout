@@ -15,7 +15,10 @@ import {
   folderItemsAtom,
   loadingStateAtom,
   lastLoadedFolderAtom,
-  currentFolderIdAtom
+  currentFolderIdAtom,
+  reviewModeAtom,
+  selectedFileAtom,
+  selectedShadowTwinAtom
 } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
 import { TranscriptionDialog } from "./transcription-dialog"
@@ -32,6 +35,11 @@ export function Library() {
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const [libraryState, setLibraryState] = useAtom(libraryAtom);
   const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
+  
+  // Review-Mode Atoms
+  const [isReviewMode] = useAtom(reviewModeAtom);
+  const [selectedFile] = useAtom(selectedFileAtom);
+  const [selectedShadowTwin, setSelectedShadowTwin] = useAtom(selectedShadowTwinAtom);
   
   // Storage Context
   const { 
@@ -177,6 +185,18 @@ export function Library() {
     }));
   }, [libraryStatus, setLibraryState, setLastLoadedFolder]);
 
+  // Reset selectedShadowTwin wenn Review-Modus verlassen wird
+  useEffect(() => {
+    if (!isReviewMode) {
+      setSelectedShadowTwin(null);
+    }
+  }, [isReviewMode, setSelectedShadowTwin]);
+
+  // ENTFERNT: Der folgende useEffect war problematisch und hat das Shadow-Twin 
+  // bei jedem Klick zurückgesetzt, auch wenn die Datei ein Shadow-Twin hat.
+  // Die Shadow-Twin-Logik wird bereits korrekt in der FileList-Komponente 
+  // in der handleSelect-Funktion behandelt.
+
   // Render-Logik für verschiedene Status
   if (libraryStatus === "waitingForAuth") {
     return (
@@ -206,62 +226,168 @@ export function Library() {
       </LibraryHeader>
       
       <div className="flex-1 min-h-0 overflow-hidden">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={20} min-size={15} className="min-h-0">
-            <div className="h-full overflow-auto">
-              <FileTree />
-            </div>
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel defaultSize={40} className="min-h-0">
-            <div className="h-full overflow-auto">
-              <FileList />
-            </div>
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel defaultSize={40} className="min-h-0">
-            <div className="h-full relative">
-              <FilePreview
-                provider={providerInstance}
-                onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
-                  StateLogger.info('Library', 'FilePreview onRefreshFolder aufgerufen', {
-                    folderId,
-                    itemsCount: items.length,
-                    hasSelectFile: !!selectFileAfterRefresh
-                  });
-                  
-                  // Aktualisiere die Dateiliste
-                  setFolderItems(items);
-                  
-                  // Aktualisiere den Cache
-                  if (libraryState.folderCache?.[folderId]) {
-                    const cachedFolder = libraryState.folderCache[folderId];
-                    if (cachedFolder) {
-                      setLibraryState(state => ({
-                        ...state,
-                        folderCache: {
-                          ...(state.folderCache || {}),
-                          [folderId]: {
-                            ...cachedFolder,
-                            children: items
-                          }
-                        }
-                      }));
-                    }
-                  }
-                  
-                  // Wenn eine Datei ausgewählt werden soll (nach dem Speichern)
-                  if (selectFileAfterRefresh) {
-                    StateLogger.info('Library', 'Wähle gespeicherte Datei aus', {
-                      fileId: selectFileAfterRefresh.id,
-                      fileName: selectFileAfterRefresh.metadata.name
+        {isReviewMode ? (
+          // Review-Layout: 3 Panels ohne FileTree - FileList (compact) | FilePreview (Basis-Datei) | FilePreview (Shadow-Twin)
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            <ResizablePanel defaultSize={25} minSize={20} className="min-h-0">
+              <div className="h-full overflow-auto flex flex-col">
+                <FileList compact={true} />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel defaultSize={37.5} minSize={30} className="min-h-0">
+              <div className="h-full relative flex flex-col">
+                <FilePreview
+                  provider={providerInstance}
+                  file={selectedFile}
+                  onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
+                    StateLogger.info('Library', 'FilePreview (Basis) onRefreshFolder aufgerufen', {
+                      folderId,
+                      itemsCount: items.length,
+                      hasSelectFile: !!selectFileAfterRefresh
                     });
-                  }
-                }}
-              />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+                    
+                    // Aktualisiere die Dateiliste
+                    setFolderItems(items);
+                    
+                    // Aktualisiere den Cache
+                    if (libraryState.folderCache?.[folderId]) {
+                      const cachedFolder = libraryState.folderCache[folderId];
+                      if (cachedFolder) {
+                        setLibraryState(state => ({
+                          ...state,
+                          folderCache: {
+                            ...(state.folderCache || {}),
+                            [folderId]: {
+                              ...cachedFolder,
+                              children: items
+                            }
+                          }
+                        }));
+                      }
+                    }
+                    
+                    // Wenn eine Datei ausgewählt werden soll (nach dem Speichern)
+                    if (selectFileAfterRefresh) {
+                      StateLogger.info('Library', 'Wähle gespeicherte Datei aus', {
+                        fileId: selectFileAfterRefresh.id,
+                        fileName: selectFileAfterRefresh.metadata.name
+                      });
+                    }
+                  }}
+                />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel defaultSize={37.5} minSize={30} className="min-h-0">
+              <div className="h-full relative flex flex-col">
+                {selectedShadowTwin ? (
+                  <FilePreview
+                    provider={providerInstance}
+                    file={selectedShadowTwin}
+                    onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
+                      StateLogger.info('Library', 'FilePreview (Shadow-Twin) onRefreshFolder aufgerufen', {
+                        folderId,
+                        itemsCount: items.length,
+                        hasSelectFile: !!selectFileAfterRefresh
+                      });
+                      
+                      // Aktualisiere die Dateiliste
+                      setFolderItems(items);
+                      
+                      // Aktualisiere den Cache
+                      if (libraryState.folderCache?.[folderId]) {
+                        const cachedFolder = libraryState.folderCache[folderId];
+                        if (cachedFolder) {
+                          setLibraryState(state => ({
+                            ...state,
+                            folderCache: {
+                              ...(state.folderCache || {}),
+                              [folderId]: {
+                                ...cachedFolder,
+                                children: items
+                              }
+                            }
+                          }));
+                        }
+                      }
+                      
+                      // Wenn eine Datei ausgewählt werden soll (nach dem Speichern)
+                      if (selectFileAfterRefresh) {
+                        StateLogger.info('Library', 'Wähle gespeicherte Datei aus', {
+                          fileId: selectFileAfterRefresh.id,
+                          fileName: selectFileAfterRefresh.metadata.name
+                        });
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center text-muted-foreground">
+                    <p>Kein Shadow-Twin ausgewählt</p>
+                  </div>
+                )}
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        ) : (
+          // Normal-Layout: FileTree | FileList | FilePreview
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            <ResizablePanel defaultSize={20} minSize={15} className="min-h-0">
+              <div className="h-full overflow-auto flex flex-col">
+                <FileTree />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel defaultSize={40} className="min-h-0">
+              <div className="h-full overflow-auto flex flex-col">
+                <FileList />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel defaultSize={40} className="min-h-0">
+              <div className="h-full relative flex flex-col">
+                <FilePreview
+                  provider={providerInstance}
+                  onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
+                    StateLogger.info('Library', 'FilePreview onRefreshFolder aufgerufen', {
+                      folderId,
+                      itemsCount: items.length,
+                      hasSelectFile: !!selectFileAfterRefresh
+                    });
+                    
+                    // Aktualisiere die Dateiliste
+                    setFolderItems(items);
+                    
+                    // Aktualisiere den Cache
+                    if (libraryState.folderCache?.[folderId]) {
+                      const cachedFolder = libraryState.folderCache[folderId];
+                      if (cachedFolder) {
+                        setLibraryState(state => ({
+                          ...state,
+                          folderCache: {
+                            ...(state.folderCache || {}),
+                            [folderId]: {
+                              ...cachedFolder,
+                              children: items
+                            }
+                          }
+                        }));
+                      }
+                    }
+                    
+                    // Wenn eine Datei ausgewählt werden soll (nach dem Speichern)
+                    if (selectFileAfterRefresh) {
+                      StateLogger.info('Library', 'Wähle gespeicherte Datei aus', {
+                        fileId: selectFileAfterRefresh.id,
+                        fileName: selectFileAfterRefresh.metadata.name
+                      });
+                    }
+                  }}
+                />
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        )}
       </div>
       
       {/* Dialoge */}

@@ -21,8 +21,8 @@ Dieser Test-Plan dokumentiert die Tests für die PDF-Bilderspeicherung, die bere
 - [x] Base64-ZIP-Daten werden korrekt entpackt
 - [x] MIME-Type-Erkennung für PNG/JPG
 - [x] Einzelne Bilderspeicherung mit Fehlerbehandlung
-- [x] Automatische README-Generierung
 - [x] Verzeichnisstruktur: `.{pdf-name}/`
+- [x] **Namenskonvention**: `page_XXX.{ext}` mit führenden Nullen (z.B. `page_001.jpg`)
 
 ### 4. TransformService Integration
 - [x] `transformPdf()` unterstützt Bild-Extraktion
@@ -45,7 +45,6 @@ Dieser Test-Plan dokumentiert die Tests für die PDF-Bilderspeicherung, die bere
 - [x] Ordner `.{pdf-name}/` wird erstellt
 - [x] Bilder werden einzeln gespeichert (PNG/JPG)
 - [x] ZIP-Backup wird erstellt
-- [x] README.md wird generiert
 - [x] Shadow-Twin Markdown wird erstellt
 
 ### Test 2: Logging-Verifizierung
@@ -69,8 +68,7 @@ Dieser Test-Plan dokumentiert die Tests für die PDF-Bilderspeicherung, die bere
   "details": {
     "folderName": ".{pdf-name}",
     "extractedFilesCount": 7,
-    "totalSavedItems": 9,
-    "readmeCreated": true
+    "totalSavedItems": 9
   }
 }
 ```
@@ -99,18 +97,17 @@ Dieser Test-Plan dokumentiert die Tests für die PDF-Bilderspeicherung, die bere
 - ✅ 7 Bilder erfolgreich extrahiert
 - ✅ Ordner `.Coopbund Startup Fragebogen` erstellt
 - ✅ ZIP-Backup gespeichert
-- ✅ README.md generiert
 - ✅ Shadow-Twin Markdown erstellt
 - ✅ 0 Fehler im Log
 
 **Extrahierte Bilder**:
-- `image_001.jpg` (136,396 Bytes)
-- `image_002.jpg` (136,396 Bytes) 
-- `image_003.jpg` (142,570 Bytes)
-- `image_004.jpg` (187,364 Bytes)
-- `image_005.jpg` (108,387 Bytes)
-- `image_006.jpg` (unbekannte Größe)
-- `image_007.jpg` (unbekannte Größe)
+- `page_001.jpg` (136,396 Bytes)
+- `page_002.jpg` (136,396 Bytes) 
+- `page_003.jpg` (142,570 Bytes)
+- `page_004.jpg` (187,364 Bytes)
+- `page_005.jpg` (108,387 Bytes)
+- `page_006.jpg` (unbekannte Größe)
+- `page_007.jpg` (unbekannte Größe)
 
 ## 🔧 Manuelle Tests
 
@@ -138,7 +135,6 @@ Dieser Test-Plan dokumentiert die Tests für die PDF-Bilderspeicherung, die bere
 # 3. Inhalt überprüfen:
 #    - Bilder (PNG/JPG)
 #    - ZIP-Backup
-#    - README.md
 ```
 
 ## 🐛 Bekannte Probleme

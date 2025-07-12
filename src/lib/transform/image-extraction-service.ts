@@ -8,8 +8,8 @@ export interface ExtractedPageImage {
   pageNumber: number;
   imageBlob: Blob;
   textContent: string;
-  imageName: string; // z.B. "page_1.png"
-  textName: string;  // z.B. "page_1.md"
+  imageName: string; // z.B. "page_001.png"
+  textName: string;  // z.B. "page_001.md"
 }
 
 /**
@@ -33,6 +33,9 @@ export class ImageExtractionService {
    * @param originalItem Das ursprüngliche PDF-StorageItem
    * @param provider Der Storage-Provider
    * @param refreshItems Callback zum Aktualisieren der Dateiliste
+   * @param extractedText Der extrahierte Text aus der PDF (optional)
+   * @param targetLanguage Die Zielsprache für die Markdown-Dateien (optional)
+   * @param textContents Array mit seiten-spezifischen Texten (optional)
    * @returns Ergebnis der Speicherung
    */
   static async saveZipArchive(
@@ -40,7 +43,10 @@ export class ImageExtractionService {
     fileName: string,
     originalItem: StorageItem,
     provider: StorageProvider,
-    refreshItems: (folderId: string) => Promise<StorageItem[]>
+    refreshItems: (folderId: string) => Promise<StorageItem[]>,
+    extractedText?: string,
+    targetLanguage?: string,
+    textContents?: Array<{ page: number; content: string }>
   ): Promise<ImageExtractionResult> {
     try {
       FileLogger.info('ImageExtractionService', 'Starte ZIP-Extraktion und Bild-Speicherung', {
@@ -92,16 +98,7 @@ export class ImageExtractionService {
       
       const savedItems: StorageItem[] = [];
       
-      // Speichere das ZIP-Archiv als Backup
-      const zipBlob = new Blob([buffer], { type: 'application/zip' });
-      const zipFile = new File([zipBlob], fileName, { type: 'application/zip' });
-      const savedZipItem = await provider.uploadFile(folderItem.id, zipFile);
-      savedItems.push(savedZipItem);
-      
-      FileLogger.info('ImageExtractionService', 'ZIP-Backup gespeichert', {
-        zipFileName: fileName,
-        zipSize: zipBlob.size
-      });
+      // ZIP-Backup wird nicht mehr gespeichert - nur Bilder werden extrahiert
       
       // Extrahiere und speichere alle Bilder
       let processedFiles = 0;
@@ -127,12 +124,19 @@ export class ImageExtractionService {
               mimeType = 'image/jpeg';
             }
             
-            // Extrahiere den Dateinamen aus dem Pfad
-            const fileName = filePath.split('/').pop() || filePath;
+            // Extrahiere den ursprünglichen Dateinamen aus dem Pfad
+            const originalFileName = filePath.split('/').pop() || filePath;
+            
+            // Konvertiere image_XXX zu page_XXX und behalte führende Nullen bei
+            const pageFileName = originalFileName.replace(/^image_(\d+)/, (match, pageNum) => {
+              // Behalte die ursprüngliche Formatierung bei (mit oder ohne führende Nullen)
+              return `page_${pageNum.padStart(3, '0')}`;
+            });
             
             FileLogger.debug('ImageExtractionService', 'Extrahiere Bild-Datei', {
               filePath,
-              fileName,
+              originalFileName,
+              pageFileName,
               fileExtension,
               mimeType
             });
@@ -141,22 +145,66 @@ export class ImageExtractionService {
             const imageBlob = await file.async('blob');
             
             FileLogger.debug('ImageExtractionService', 'Bild-Blob erstellt', {
-              fileName,
+              pageFileName,
               blobSize: imageBlob.size,
               blobType: imageBlob.type
             });
             
-            // Bild-Datei erstellen und speichern
-            const imageFile = new File([imageBlob], fileName, { type: mimeType });
+            // Bild-Datei mit neuem Namen erstellen und speichern
+            const imageFile = new File([imageBlob], pageFileName, { type: mimeType });
             const savedImageItem = await provider.uploadFile(folderItem.id, imageFile);
             savedItems.push(savedImageItem);
             
             FileLogger.info('ImageExtractionService', `Bild extrahiert und gespeichert`, {
-              fileName,
+              pageFileName,
               fileSize: imageBlob.size,
               mimeType,
               savedItemId: savedImageItem.id
             });
+            
+            // Erstelle entsprechende Markdown-Datei mit seiten-spezifischem Text
+            if (textContents && textContents.length > 0) {
+              try {
+                // Extrahiere die Seitennummer aus dem Dateinamen (mit führenden Nullen)
+                const pageMatch = pageFileName.match(/page_(\d+)/);
+                if (pageMatch) {
+                  const pageNumber = parseInt(pageMatch[1], 10);
+                  
+                  // Finde den entsprechenden Text für diese Seite
+                  const pageText = textContents.find(tc => tc.page === pageNumber);
+                  
+                  if (pageText) {
+                    // Generiere Markdown-Dateinamen mit Sprachkürzel
+                    const baseFileName = pageFileName.replace(/\.(png|jpg|jpeg)$/i, '');
+                    const markdownFileName = targetLanguage 
+                      ? `${baseFileName}.${targetLanguage}.md`
+                      : `${baseFileName}.md`;
+                    
+                    const markdownContent = this.createMarkdownContent(pageFileName, pageText.content, originalItem.metadata.name, targetLanguage, pageNumber);
+                    const markdownBlob = new Blob([markdownContent], { type: 'text/markdown' });
+                    const markdownFile = new File([markdownBlob], markdownFileName, { type: 'text/markdown' });
+                    const savedMarkdownItem = await provider.uploadFile(folderItem.id, markdownFile);
+                    savedItems.push(savedMarkdownItem);
+                    
+                    FileLogger.info('ImageExtractionService', `Markdown-Datei erstellt`, {
+                      markdownFileName,
+                      pageNumber,
+                      targetLanguage,
+                      contentLength: markdownContent.length,
+                      savedItemId: savedMarkdownItem.id
+                    });
+                  } else {
+                    FileLogger.warn('ImageExtractionService', `Kein Text für Seite ${pageNumber} gefunden`, {
+                      pageFileName,
+                      availablePages: textContents.map(tc => tc.page)
+                    });
+                  }
+                }
+              } catch (error) {
+                FileLogger.error('ImageExtractionService', `Fehler beim Erstellen der Markdown-Datei für ${pageFileName}`, error);
+                // Weitermachen, auch wenn Markdown-Erstellung fehlschlägt
+              }
+            }
             
             processedFiles++;
           } catch (error) {
@@ -177,22 +225,15 @@ export class ImageExtractionService {
         totalSavedItems: savedItems.length
       });
       
-      // Erstelle eine README-Datei
-      const readmeContent = this.createReadmeContent(originalItem.metadata.name, fileName, processedFiles);
-      const readmeBlob = new Blob([readmeContent], { type: 'text/markdown' });
-      const readmeFile = new File([readmeBlob], 'README.md', { type: 'text/markdown' });
-      const savedReadmeItem = await provider.uploadFile(folderItem.id, readmeFile);
-      savedItems.push(savedReadmeItem);
+      // README-Datei wird nicht mehr erstellt - nur Bilder werden gespeichert
       
       // Aktualisiere die Dateiliste des übergeordneten Ordners
       await refreshItems(originalItem.parentId);
       
       FileLogger.info('ImageExtractionService', 'ZIP-Extraktion vollständig abgeschlossen', {
         folderName,
-        zipFileName: fileName,
         extractedFilesCount: processedFiles,
-        totalSavedItems: savedItems.length,
-        readmeCreated: true
+        totalSavedItems: savedItems.length
       });
       
       return {
@@ -239,39 +280,32 @@ export class ImageExtractionService {
   }
   
   /**
-   * Erstellt README-Inhalt für den Bilder-Ordner
-   * @param pdfFileName Name der PDF-Datei
-   * @param zipFileName Name der ZIP-Datei
-   * @param extractedFilesCount Anzahl der extrahierten Dateien
-   * @returns README-Inhalt
+   * Erstellt Markdown-Inhalt für ein Bild
+   * @param imageFileName Name der Bilddatei
+   * @param extractedText Der extrahierte Text aus der PDF
+   * @param pdfFileName Name der ursprünglichen PDF-Datei
+   * @param targetLanguage Die Zielsprache (optional)
+   * @param pageNumber Die Seitennummer (optional)
+   * @returns Markdown-Inhalt
    */
-  private static createReadmeContent(pdfFileName: string, zipFileName: string, extractedFilesCount: number): string {
-    return `# PDF-Bilder Archiv
+  private static createMarkdownContent(imageFileName: string, extractedText: string, pdfFileName: string, targetLanguage?: string, pageNumber?: number): string {
+    const languageInfo = targetLanguage ? `**Sprache:** ${targetLanguage}` : '';
+    const pageInfo = pageNumber ? `**Seite:** ${pageNumber}` : '';
+    
+    return `# ${imageFileName}
 
 ## Quelle
 **PDF-Datei:** ${pdfFileName}
+**Bild:** ${imageFileName}
+${languageInfo}
+${pageInfo}
 
-## Inhalt
-Dieser Ordner enthält alle Seiten der PDF-Datei als Bilder.
-
-**Archiv-Datei:** ${zipFileName} (Backup)
-**Extrahierte Dateien:** ${extractedFilesCount} Bilder
-
-## Dateistruktur
-- \`page_001.png\`, \`page_002.png\`, etc. - Hauptbilder (300 DPI, PNG)
-- \`preview_001.jpg\`, \`preview_002.jpg\`, etc. - Vorschaubilder (JPG)
-- \`${zipFileName}\` - Original-ZIP-Archiv als Backup
-
-## Verwendung
-Die Bilder können für die Qualitätskontrolle der PDF-Textextraktion verwendet werden.
-Vergleichen Sie den extrahierten Text mit den entsprechenden Bildern, um die Genauigkeit zu überprüfen.
-
-## Qualitätskontrolle
-- **Hauptbilder (PNG):** Hohe Auflösung für detaillierte Analyse
-- **Vorschaubilder (JPG):** Komprimiert für schnelle Vorschau
+## Extrahierter Text
+${extractedText}
 
 ---
 *Automatisch erstellt am ${new Date().toLocaleString('de-DE')}*
 `;
   }
+
 } 
