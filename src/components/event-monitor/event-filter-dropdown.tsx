@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useAtom } from 'jotai';
 import { 
   Select, 
@@ -29,16 +29,8 @@ export default function EventFilterDropdown({
   const [availableEvents, setAvailableEvents] = useAtom(availableEventsAtom);
   const [eventsLoading, setEventsLoading] = useAtom(eventsLoadingAtom);
 
-  // Events beim ersten Laden abrufen
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
-  // Event-Änderung wird automatisch über das Jotai-Atom verfolgt
-  // Kein separater useEffect für onEventChange nötig
-
   // Events von der API laden
-  async function loadEvents() {
+  const loadEvents = useCallback(async () => {
     try {
       setEventsLoading(true);
       
@@ -55,7 +47,15 @@ export default function EventFilterDropdown({
     } finally {
       setEventsLoading(false);
     }
-  }
+  }, [setEventsLoading, setAvailableEvents]);
+
+  // Events beim ersten Laden abrufen
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
+  // Event-Änderung wird automatisch über das Jotai-Atom verfolgt
+  // Kein separater useEffect für onEventChange nötig
 
   // Event-Auswahl behandeln
   const handleEventSelect = (eventName: string) => {

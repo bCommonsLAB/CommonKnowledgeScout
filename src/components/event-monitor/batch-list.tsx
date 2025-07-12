@@ -117,7 +117,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
     if (duplicateBatches.length > 0) {
       console.warn('Doppelte Batches gefunden:', duplicateBatches.map(b => b.batch_name));
     }
-  }, [batches]);
+  }, [batches, duplicateBatches]);
 
   // Hilfsfunktion: Doppelte Jobs nach job_name innerhalb eines Batches finden
   function getDuplicateJobs(jobs: Job[]) {

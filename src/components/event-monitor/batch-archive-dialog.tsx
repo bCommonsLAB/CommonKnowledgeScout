@@ -119,7 +119,7 @@ export default function BatchArchiveDialog({
         });
       }
     }
-  }, [open, isMultiBatch, batches, activeLibrary, currentPath, completedJobs, jobsWithArchives]);
+  }, [open, isMultiBatch, batches, activeLibrary, currentPath, completedJobs, jobsWithArchives, currentFolderId, provider]);
 
   // Archive-Dialog erfordert immer eine aktive Library - keine Fallback-Logik!
 

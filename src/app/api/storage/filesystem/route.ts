@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
+import { promises as fs, existsSync } from 'fs';
 import { Stats } from 'fs';
 import * as pathLib from 'path';
 import mime from 'mime-types';
@@ -194,7 +194,7 @@ function getPathFromId(library: LibraryType, fileId: string): string {
     console.log('[getPathFromId] ✅ Final result:', {
       inputId: fileId,
       finalPath: result,
-      exists: require('fs').existsSync(result)
+      exists: existsSync(result)
     });
     return result;
   } catch (error) {
