@@ -272,3 +272,11 @@ export const sortedFilteredFilesAtom = atom((get) => {
 
   return filtered
 }) 
+
+// Review-Mode-Atoms für das neue Layout-Feature
+export const reviewModeAtom = atom<boolean>(false)
+reviewModeAtom.debugLabel = "reviewModeAtom"
+
+// Ausgewähltes Shadow-Twin für Review-Modus
+export const selectedShadowTwinAtom = atom<StorageItem | null>(null)
+selectedShadowTwinAtom.debugLabel = "selectedShadowTwinAtom" 

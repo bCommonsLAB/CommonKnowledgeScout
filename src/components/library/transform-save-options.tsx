@@ -14,6 +14,10 @@ export interface TransformSaveOptions {
   fileName: string;
   createShadowTwin: boolean;
   fileExtension: string;
+  extractionMethod?: string; // Optional für PDF-Transformation
+  useCache?: boolean; // Neu: Cache-Option für alle Transformationen
+  includeImages?: boolean; // Neu: Bilder mit extrahieren und speichern
+  context?: string; // Optionaler Kontext für LLM-Optimierung
 }
 
 interface TransformSaveOptionsProps {
@@ -23,6 +27,12 @@ interface TransformSaveOptionsProps {
   supportedLanguages?: Array<{ value: string; label: string }>;
   defaultExtension?: string;
   className?: string;
+  showExtractionMethod?: boolean; // Neu: Zeigt Extraktionsmethode für PDFs
+  defaultExtractionMethod?: string; // Neu: Standard-Extraktionsmethode
+  showUseCache?: boolean; // Neu: Zeigt Cache-Option
+  defaultUseCache?: boolean; // Neu: Standard-Cache-Einstellung
+  showIncludeImages?: boolean; // Neu: Zeigt Bilder-Option
+  defaultIncludeImages?: boolean; // Neu: Standard-Bilder-Einstellung
 }
 
 export function TransformSaveOptions({
@@ -31,7 +41,13 @@ export function TransformSaveOptions({
   defaultLanguage = "de",
   supportedLanguages = SUPPORTED_LANGUAGES.map(lang => ({ value: lang.code, label: lang.name })),
   defaultExtension = "md",
-  className
+  className,
+  showExtractionMethod = false,
+  defaultExtractionMethod = "native",
+  showUseCache = false,
+  defaultUseCache = false,
+  showIncludeImages = false,
+  defaultIncludeImages = false
 }: TransformSaveOptionsProps) {
   // Hilfsfunktion zum Extrahieren des Basisnamens ohne Erweiterung
   function getBaseFileName(fileName: string): string {
@@ -50,7 +66,10 @@ export function TransformSaveOptions({
       targetLanguage: defaultLanguage,
       fileName: generateShadowTwinName(baseName, defaultLanguage),
       createShadowTwin: true,
-      fileExtension: defaultExtension
+      fileExtension: defaultExtension,
+      extractionMethod: defaultExtractionMethod,
+      useCache: defaultUseCache,
+      includeImages: defaultIncludeImages
     };
   });
 
@@ -137,6 +156,32 @@ export function TransformSaveOptions({
             </div>
           </div>
 
+          {showExtractionMethod && (
+            <div>
+              <Label htmlFor="extraction-method">Extraktionsmethode</Label>
+              <Select
+                value={options.extractionMethod || defaultExtractionMethod}
+                onValueChange={(value) => updateOptions({ extractionMethod: value })}
+              >
+                <SelectTrigger id="extraction-method">
+                  <SelectValue placeholder="Methode auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="native">Native Analyse</SelectItem>
+                  <SelectItem value="ocr">Tesseract OCR</SelectItem>
+                  <SelectItem value="both">OCR + Native</SelectItem>
+                  <SelectItem value="preview">Vorschaubilder</SelectItem>
+                  <SelectItem value="preview_and_native">Vorschaubilder + Native</SelectItem>
+                  <SelectItem value="llm">LLM-basierte OCR</SelectItem>
+                  <SelectItem value="llm_and_ocr">LLM + OCR</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Bestimmt, wie der Inhalt aus der PDF extrahiert wird. Native = Text-Extraktion, OCR = Bild-zu-Text, LLM = KI-basierte Analyse
+              </p>
+            </div>
+          )}
+
           <div>
             <Label htmlFor="file-name">Dateiname</Label>
             <Input
@@ -161,6 +206,34 @@ export function TransformSaveOptions({
             />
             <Label htmlFor="create-shadow-twin">Als Shadow-Twin speichern</Label>
           </div>
+
+          {showUseCache && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="use-cache"
+                checked={options.useCache || false}
+                onCheckedChange={(checked) => updateOptions({ useCache: !!checked })}
+              />
+              <Label htmlFor="use-cache">Cache verwenden</Label>
+              <p className="text-xs text-muted-foreground ml-6">
+                Beschleunigt die Verarbeitung durch Wiederverwendung vorheriger Ergebnisse
+              </p>
+            </div>
+          )}
+
+          {showIncludeImages && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-images"
+                checked={options.includeImages || false}
+                onCheckedChange={(checked) => updateOptions({ includeImages: !!checked })}
+              />
+              <Label htmlFor="include-images">Bilder mit extrahieren</Label>
+              <p className="text-xs text-muted-foreground ml-6">
+                Speichert zusätzlich alle PDF-Seiten als Bilder für Qualitätskontrolle
+              </p>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

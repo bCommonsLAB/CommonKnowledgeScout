@@ -68,6 +68,9 @@ export const getMediaType = (item: StorageItem): MediaType => {
   // Video-Dateien
   if (mimeType.startsWith('video/')) return 'video';
   
+  // Bilddateien
+  if (mimeType.startsWith('image/')) return 'document';
+  
   // Textdateien
   if (mimeType.startsWith('text/') || 
       mimeType === 'application/json' ||

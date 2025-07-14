@@ -115,6 +115,21 @@ export class BatchTransformService {
             );
             break;
             
+          case 'document':
+            result = await TransformService.transformPdf(
+              file,
+              item.item,
+              {
+                ...baseOptions,
+                fileName: shadowTwinName,
+                extractionMethod: "native" // Standard-Extraktionsmethode für Batch-Verarbeitung
+              },
+              provider,
+              refreshItems,
+              libraryId
+            );
+            break;
+            
           default:
             throw new Error(`Unsupported media type: ${item.type}`);
         }

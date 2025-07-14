@@ -363,12 +363,12 @@ export class FileSystemProvider implements StorageProvider {
 
   async getStreamingUrl(itemId: string): Promise<string> {
     // Für lokale Dateien verwenden wir eine API-Route
-    return `/api/storage/filesystem?fileId=${encodeURIComponent(itemId)}`;
+    return `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(itemId)}`;
   }
 
   async getDownloadUrl(itemId: string): Promise<string> {
     // Für lokale Dateien verwenden wir die gleiche API-Route wie für Streaming
-    return `/api/storage/filesystem?fileId=${encodeURIComponent(itemId)}`;
+    return `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(itemId)}`;
   }
 
   async getPathItemsById(itemId: string): Promise<StorageItem[]> {

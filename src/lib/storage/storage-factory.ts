@@ -54,30 +54,70 @@ class LocalStorageProvider implements StorageProvider {
     const url = this.getApiUrl(`/api/storage/filesystem?action=list&fileId=${folderId}&libraryId=${this.library.id}`);
     console.log(`[LocalStorageProvider] Calling API:`, url);
     
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error(`[LocalStorageProvider] API call failed:`, {
-        status: response.status,
-        statusText: response.statusText,
-        url
-      });
+    try {
+      const response = await fetch(url);
       
-      // Versuche, die spezifische Fehlermeldung aus der Response zu extrahieren
-      try {
-        const errorData = await response.json();
-        if (errorData.error) {
-          // Spezifische Fehlermeldung verwenden
-          throw new Error(errorData.error);
+      if (!response.ok) {
+        console.error(`[LocalStorageProvider] API call failed:`, {
+          status: response.status,
+          statusText: response.statusText,
+          url,
+          libraryId: this.library.id,
+          folderId,
+          userEmail: this.userEmail
+        });
+        
+        // Versuche, die spezifische Fehlermeldung aus der Response zu extrahieren
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+          if (errorData.errorCode) {
+            console.error(`[LocalStorageProvider] Error code:`, errorData.errorCode);
+          }
+        } catch (parseError) {
+          console.warn(`[LocalStorageProvider] Konnte Fehlermeldung nicht parsen:`, parseError);
         }
-      } catch (parseError) {
-        // Wenn JSON-Parsing fehlschlägt, verwende generische Meldung
-        console.warn(`[LocalStorageProvider] Konnte Fehlermeldung nicht parsen:`, parseError);
+        
+        // Spezifische Behandlung für verschiedene HTTP-Status-Codes
+        if (response.status === 404) {
+          throw new Error(`Bibliothek nicht gefunden. Bitte überprüfen Sie die Bibliothekskonfiguration.`);
+        } else if (response.status === 400) {
+          throw new Error(`Ungültige Anfrage: ${errorMessage}`);
+        } else if (response.status === 500) {
+          throw new Error(`Server-Fehler beim Laden der Bibliothek. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.`);
+        } else {
+          throw new Error(`Fehler beim Laden der Bibliothek: ${errorMessage}`);
+        }
       }
       
-      // Fallback für generische Fehler
-      throw new Error(`Fehler beim Laden der Bibliothek (HTTP ${response.status}): ${response.statusText}`);
+      const data = await response.json();
+      console.log(`[LocalStorageProvider] Successfully loaded ${data.length} items`);
+      return data;
+      
+    } catch (error) {
+      console.error(`[LocalStorageProvider] Exception in listItemsById:`, {
+        error: error instanceof Error ? {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.split('\n').slice(0, 3)
+        } : error,
+        libraryId: this.library.id,
+        folderId,
+        userEmail: this.userEmail,
+        libraryPath: this.library.path
+      });
+      
+      // Re-throw den Fehler mit zusätzlichem Kontext
+      if (error instanceof Error) {
+        throw new Error(`Fehler beim Laden der Bibliothek "${this.library.label}": ${error.message}`);
+      } else {
+        throw new Error(`Unbekannter Fehler beim Laden der Bibliothek "${this.library.label}"`);
+      }
     }
-    return response.json();
   }
 
   async getItemById(fileId: string): Promise<StorageItem> {

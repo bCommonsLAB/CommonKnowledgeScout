@@ -1,17 +1,26 @@
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
-import { transformAudio, transformText, transformVideo, SecretaryAudioResponse, SecretaryVideoResponse } from "@/lib/secretary/client";
+import { transformAudio, transformText, transformVideo, transformPdf, transformImage, SecretaryAudioResponse, SecretaryVideoResponse, SecretaryPdfResponse, SecretaryImageResponse } from "@/lib/secretary/client";
+import { ImageExtractionService, ImageExtractionResult } from "./image-extraction-service";
+import { FileLogger } from '@/lib/debug/logger';
 
 export interface TransformSaveOptions {
   targetLanguage: string;
   fileName: string;
   createShadowTwin: boolean;
   fileExtension: string;
+  useCache?: boolean; // Neu: Cache-Option für alle Transformationen
+  includeImages?: boolean; // Neu: Bilder mit extrahieren und speichern
+}
+
+export interface PdfTransformOptions extends TransformSaveOptions {
+  extractionMethod: string;
 }
 
 export interface TransformResult {
   text: string;
   savedItem?: StorageItem;
   updatedItems: StorageItem[];
+  imageExtractionResult?: ImageExtractionResult; // Neu: Ergebnis der Bild-Extraktion
 }
 
 export interface VideoTransformOptions extends TransformSaveOptions {
@@ -20,6 +29,11 @@ export interface VideoTransformOptions extends TransformSaveOptions {
   frameInterval: number;
   sourceLanguage?: string;
   template?: string;
+}
+
+export interface ImageTransformOptions extends TransformSaveOptions {
+  extractionMethod: string;
+  context?: string;
 }
 
 /**
@@ -378,6 +392,343 @@ export class TransformService {
       updatedItems: []
     };
   }
+
+  /**
+   * Transformiert eine PDF-Datei mithilfe des Secretary Services
+   * @param file Die zu transformierende PDF-Datei
+   * @param originalItem Das ursprüngliche StorageItem
+   * @param options Speicheroptionen
+   * @param provider Der Storage-Provider
+   * @param refreshItems Callback zum Aktualisieren der Dateiliste
+   * @param libraryId ID der aktiven Bibliothek
+   * @returns Das Transformationsergebnis
+   */
+  static async transformPdf(
+    file: File,
+    originalItem: StorageItem,
+    options: PdfTransformOptions,
+    provider: StorageProvider,
+    refreshItems: (folderId: string) => Promise<StorageItem[]>,
+    libraryId: string
+  ): Promise<TransformResult> {
+    FileLogger.info('TransformService', 'PDF-Transformation gestartet', {
+      fileName: originalItem.metadata.name,
+      includeImages: options.includeImages,
+      extractionMethod: options.extractionMethod,
+      targetLanguage: options.targetLanguage
+    });
+    FileLogger.debug('TransformService', 'IncludeImages Option', {
+      includeImages: options.includeImages,
+      type: typeof options.includeImages
+    });
+    
+    // PDF-Datei wird transformiert - hole die vollständige Response
+    const response = await transformPdf(file, options.targetLanguage, libraryId, undefined, options.extractionMethod, options.useCache ?? true, options.includeImages ?? false);
+    
+    FileLogger.debug('TransformService', 'Vollständige PDF-Response', {
+      response: JSON.stringify(response, null, 2)
+    });
+    
+    // Extrahiere den Text aus der Response
+    let transformedText = '';
+    let metadata: TransformMetadata = {};
+    
+    FileLogger.debug('TransformService', 'Response-Check', {
+      hasResponse: !!response,
+      responseType: typeof response,
+      hasData: !!(response && response.data),
+      dataType: response && response.data ? typeof response.data : 'undefined',
+      hasExtractedText: !!(response && response.data && response.data.extracted_text),
+      extractedTextType: response && response.data && response.data.extracted_text ? typeof response.data.extracted_text : 'undefined',
+      dataKeys: response && response.data ? Object.keys(response.data) : []
+    });
+    
+    // Prüfe auf images_archive_data
+    FileLogger.debug('TransformService', 'Images Archive Check', {
+      hasImagesArchiveData: !!(response && response.data && response.data.images_archive_data),
+      hasImagesArchiveFilename: !!(response && response.data && response.data.images_archive_filename),
+      imagesArchiveDataLength: response && response.data && response.data.images_archive_data ? response.data.images_archive_data.length : 0,
+      imagesArchiveFilename: response && response.data ? response.data.images_archive_filename : 'undefined'
+    });
+    
+    if (response && response.data && response.data.extracted_text) {
+      FileLogger.info('TransformService', 'Extracted-Text gefunden', {
+        textLength: response.data.extracted_text.length,
+        textPreview: response.data.extracted_text.substring(0, 200)
+      });
+      
+      // Vollständige PDF-Response mit Metadaten
+      const pdfResponse = response as SecretaryPdfResponse;
+      transformedText = pdfResponse.data.extracted_text;
+      
+      // Sammle relevante PDF-Metadaten
+      metadata = {
+        // Quelldatei-Informationen
+        source_file: originalItem.metadata.name,
+        source_file_id: originalItem.id,
+        source_file_size: originalItem.metadata.size,
+        source_file_type: originalItem.metadata.mimeType,
+        
+        // Transformations-Informationen
+        target_language: options.targetLanguage,
+        
+        // PDF-Metadaten
+        page_count: pdfResponse.data.metadata?.page_count,
+        format: pdfResponse.data.metadata?.format,
+        extraction_method: pdfResponse.data.metadata?.extraction_method,
+        file_name: pdfResponse.data.metadata?.file_name,
+        file_size: pdfResponse.data.metadata?.file_size,
+        
+        // Prozess-Informationen
+        process_id: pdfResponse.process?.id,
+        processor: pdfResponse.process?.main_processor,
+        sub_processors: pdfResponse.process?.sub_processors?.join(', '),
+        processing_duration_ms: pdfResponse.process?.llm_info?.total_duration,
+        model_used: pdfResponse.process?.llm_info?.requests?.[0]?.model,
+        tokens_used: pdfResponse.process?.llm_info?.total_tokens,
+        
+        // Secretary Service Informationen
+        cache_used: pdfResponse.process?.is_from_cache || false,
+        cache_key: pdfResponse.process?.cache_key
+      };
+      
+      FileLogger.debug('TransformService', 'Extrahierte Metadaten', metadata);
+      
+      // Entferne undefined-Werte
+      Object.keys(metadata).forEach(key => {
+        if (metadata[key] === undefined || metadata[key] === null) {
+          delete metadata[key];
+        }
+      });
+    } else {
+      FileLogger.error('TransformService', 'Kein Extracted-Text in der Response gefunden!', {
+        responseKeys: response ? Object.keys(response) : [],
+        dataKeys: response && response.data ? Object.keys(response.data) : []
+      });
+    }
+    
+    let imageExtractionResult: ImageExtractionResult | undefined;
+    if (options.includeImages && response && response.data && response.data.images_archive_data) {
+      try {
+        FileLogger.info('TransformService', 'Starte Bild-Extraktion', {
+          imagesArchiveFilename: response.data.images_archive_filename,
+          imagesArchiveDataLength: response.data.images_archive_data.length
+        });
+        imageExtractionResult = await ImageExtractionService.saveZipArchive(
+          response.data.images_archive_data,
+          response.data.images_archive_filename || 'pdf_images.zip',
+          originalItem,
+          provider,
+          refreshItems,
+          transformedText, // Extrahierten Text weitergeben
+          options.targetLanguage, // Target Language weitergeben
+          response.data.metadata?.text_contents // Seiten-spezifische Texte weitergeben
+        );
+        FileLogger.info('TransformService', 'Bild-Extraktion abgeschlossen', {
+          folderCreated: !!imageExtractionResult.folderItem,
+          savedItemsCount: imageExtractionResult.savedItems.length
+        });
+      } catch (error) {
+        FileLogger.error('TransformService', 'Fehler bei der Bild-Extraktion', error);
+        // Bild-Extraktion ist optional, daher weitermachen
+      }
+    }
+    
+    FileLogger.debug('TransformService', 'Finaler transformierter Text', {
+      textLength: transformedText.length
+    });
+    const markdownContent = TransformService.createMarkdownWithFrontmatter(transformedText, metadata);
+
+    // NEU: Detaillierte Debug-Logs für das Speicherproblem
+    FileLogger.info('TransformService', 'Speicher-Bedingungen prüfen', {
+      createShadowTwin: options.createShadowTwin,
+      hasTransformedText: !!transformedText,
+      transformedTextLength: transformedText.length,
+      markdownContentLength: markdownContent.length,
+      willSave: options.createShadowTwin && transformedText
+    });
+
+    // Ergebnis wird gespeichert, wenn gewünscht
+    if (options.createShadowTwin && transformedText) {
+      FileLogger.info('TransformService', 'Speichere Shadow-Twin', {
+        markdownLength: markdownContent.length
+      });
+      
+      const result = await TransformService.saveTwinFile(
+        markdownContent,
+        originalItem,
+        options.fileName,
+        options.fileExtension,
+        provider,
+        refreshItems
+      );
+      
+      FileLogger.info('TransformService', 'Shadow-Twin erfolgreich gespeichert', {
+        savedItemId: result.savedItem?.id,
+        savedItemName: result.savedItem?.metadata.name,
+        updatedItemsCount: result.updatedItems.length
+      });
+      
+      return {
+        text: transformedText, // Gebe nur den Text zurück, nicht das Markdown mit Frontmatter
+        savedItem: result.savedItem,
+        updatedItems: result.updatedItems,
+        imageExtractionResult
+      };
+    } else {
+      FileLogger.warn('TransformService', 'Keine Speicherung - Bedingungen nicht erfüllt', {
+        createShadowTwin: options.createShadowTwin,
+        hasText: !!transformedText,
+        textLength: transformedText.length,
+        reason: !options.createShadowTwin ? 'createShadowTwin ist false' : 'transformedText ist leer'
+      });
+    }
+
+    return {
+      text: transformedText,
+      updatedItems: [],
+      imageExtractionResult
+    };
+  }
+
+  /**
+   * Transformiert ein Bild mithilfe des Secretary Services
+   * @param file Die zu transformierende Bilddatei
+   * @param originalItem Das ursprüngliche StorageItem
+   * @param options Optionen für Bild-Transformation und Speicherung
+   * @param provider Der Storage-Provider
+   * @param refreshItems Callback zum Aktualisieren der Dateiliste
+   * @param libraryId ID der aktiven Bibliothek
+   * @returns Das Transformationsergebnis
+   */
+  static async transformImage(
+    file: File,
+    originalItem: StorageItem,
+    options: ImageTransformOptions,
+    provider: StorageProvider,
+    refreshItems: (folderId: string) => Promise<StorageItem[]>,
+    libraryId: string
+  ): Promise<TransformResult> {
+    FileLogger.info('TransformService', 'Bild-Transformation gestartet', {
+      fileName: originalItem.metadata.name,
+      extractionMethod: options.extractionMethod,
+      targetLanguage: options.targetLanguage
+    });
+    
+    // Bild wird transformiert - hole die vollständige Response
+    const response = await transformImage(
+      file,
+      options.targetLanguage,
+      libraryId,
+      options.extractionMethod,
+      options.context,
+      options.useCache ?? true
+    );
+    
+    FileLogger.debug('TransformService', 'Vollständige Bild-Response', {
+      response: JSON.stringify(response, null, 2)
+    });
+    
+    // Extrahiere den Text aus der Response
+    let transformedText = '';
+    let metadata: TransformMetadata = {};
+    
+    if (response && response.data && response.data.extracted_text) {
+      FileLogger.info('TransformService', 'Extracted-Text gefunden', {
+        textLength: response.data.extracted_text.length,
+        textPreview: response.data.extracted_text.substring(0, 200)
+      });
+      
+      // Vollständige Bild-Response mit Metadaten
+      const imageResponse = response as SecretaryImageResponse;
+      transformedText = imageResponse.data.extracted_text;
+      
+      // Sammle relevante Bild-Metadaten
+      metadata = {
+        // Quelldatei-Informationen
+        source_file: originalItem.metadata.name,
+        source_file_id: originalItem.id,
+        source_file_size: originalItem.metadata.size,
+        source_file_type: originalItem.metadata.mimeType,
+        
+        // Transformations-Informationen
+        target_language: options.targetLanguage,
+        
+        // Bild-Metadaten
+        dimensions: imageResponse.data.metadata?.dimensions,
+        format: imageResponse.data.metadata?.format,
+        color_mode: imageResponse.data.metadata?.color_mode,
+        dpi: imageResponse.data.metadata?.dpi?.join('x'),
+        extraction_method: imageResponse.data.metadata?.extraction_method,
+        file_name: imageResponse.data.metadata?.file_name,
+        file_size: imageResponse.data.metadata?.file_size,
+        
+        // Prozess-Informationen
+        process_id: imageResponse.process?.id,
+        processor: imageResponse.process?.main_processor,
+        sub_processors: imageResponse.process?.sub_processors?.join(', '),
+        processing_duration_ms: imageResponse.process?.llm_info?.total_duration,
+        model_used: imageResponse.process?.llm_info?.requests?.[0]?.model,
+        tokens_used: imageResponse.process?.llm_info?.total_tokens,
+        
+        // Secretary Service Informationen
+        cache_used: imageResponse.process?.is_from_cache || false,
+        cache_key: imageResponse.process?.cache_key
+      };
+      
+      FileLogger.debug('TransformService', 'Extrahierte Metadaten', metadata);
+      
+      // Entferne undefined-Werte
+      Object.keys(metadata).forEach(key => {
+        if (metadata[key] === undefined || metadata[key] === null) {
+          delete metadata[key];
+        }
+      });
+    } else {
+      FileLogger.error('TransformService', 'Kein Extracted-Text in der Response gefunden!', {
+        responseKeys: response ? Object.keys(response) : [],
+        dataKeys: response && response.data ? Object.keys(response.data) : []
+      });
+    }
+    
+    FileLogger.debug('TransformService', 'Finaler transformierter Text', {
+      textLength: transformedText.length
+    });
+    const markdownContent = TransformService.createMarkdownWithFrontmatter(transformedText, metadata);
+
+    // Ergebnis wird gespeichert, wenn gewünscht
+    if (options.createShadowTwin && transformedText) {
+      FileLogger.info('TransformService', 'Speichere Shadow-Twin', {
+        markdownLength: markdownContent.length
+      });
+      
+      const result = await TransformService.saveTwinFile(
+        markdownContent,
+        originalItem,
+        options.fileName,
+        options.fileExtension,
+        provider,
+        refreshItems
+      );
+      
+      return {
+        text: transformedText, // Gebe nur den Text zurück, nicht das Markdown mit Frontmatter
+        savedItem: result.savedItem,
+        updatedItems: result.updatedItems
+      };
+    } else {
+      FileLogger.debug('TransformService', 'Keine Speicherung', {
+        createShadowTwin: options.createShadowTwin,
+        hasText: !!transformedText,
+        textLength: transformedText.length
+      });
+    }
+
+    return {
+      text: transformedText,
+      updatedItems: []
+    };
+  }
   
   // Hilfsmethode zum Speichern der transformierten Datei
   private static async saveTwinFile(
@@ -394,8 +745,22 @@ export class TransformService {
       fileExtension: fileExtension
     });
     
+    // NEU: Detaillierte Debug-Logs
+    FileLogger.info('TransformService', 'saveTwinFile gestartet', {
+      originalItemName: originalItem.metadata.name,
+      fileName: fileName,
+      fileExtension: fileExtension,
+      contentLength: content.length,
+      parentId: originalItem.parentId
+    });
+    
     // Hole aktuelle Dateien im Verzeichnis
     const currentItems = await refreshItems(originalItem.parentId);
+    FileLogger.debug('TransformService', 'Aktuelle Dateien im Verzeichnis', {
+      parentId: originalItem.parentId,
+      itemCount: currentItems.length,
+      existingFiles: currentItems.filter(item => item.type === 'file').map(item => item.metadata.name)
+    });
     
     // Funktion zum Generieren eines eindeutigen Dateinamens
     const generateUniqueFileName = (baseName: string, extension: string): string => {
@@ -423,15 +788,44 @@ export class TransformService {
       existingFiles: currentItems.filter(item => item.type === 'file').map(item => item.metadata.name)
     });
     
+    FileLogger.info('TransformService', 'Dateiname generiert', {
+      baseName: fileName,
+      uniqueFileName: uniqueFileName,
+      existingFilesCount: currentItems.filter(item => item.type === 'file').length
+    });
+    
     // Markdown-Datei erstellen und speichern
     const fileBlob = new Blob([content], { type: "text/markdown" });
     const file = new File([fileBlob], uniqueFileName, { type: "text/markdown" });
     
+    FileLogger.info('TransformService', 'Datei vorbereitet für Upload', {
+      fileName: uniqueFileName,
+      fileSize: file.size,
+      fileType: file.type,
+      contentLength: content.length
+    });
+    
     // In dasselbe Verzeichnis wie die Originaldatei hochladen
+    FileLogger.info('TransformService', 'Starte Upload', {
+      parentId: originalItem.parentId,
+      fileName: uniqueFileName
+    });
+    
     const savedItem = await provider.uploadFile(originalItem.parentId, file);
+    
+    FileLogger.info('TransformService', 'Upload erfolgreich', {
+      savedItemId: savedItem.id,
+      savedItemName: savedItem.metadata.name,
+      savedItemSize: savedItem.metadata.size
+    });
     
     // Aktualisierte Dateiliste holen
     const updatedItems = await refreshItems(originalItem.parentId);
+    
+    FileLogger.info('TransformService', 'Dateiliste aktualisiert', {
+      updatedItemsCount: updatedItems.length,
+      newFileFound: updatedItems.some(item => item.id === savedItem.id)
+    });
     
     return { savedItem, updatedItems };
   }

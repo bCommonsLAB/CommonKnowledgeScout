@@ -4,19 +4,22 @@ import * as React from 'react';
 import { useAtomValue } from "jotai";
 import { selectedFileAtom } from "@/atoms/library-atom";
 import { Button } from "@/components/ui/button";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Wand2 } from "lucide-react";
 import { FileLogger } from "@/lib/debug/logger";
-import { StorageProvider } from "@/lib/storage/types";
+import { StorageProvider, StorageItem } from "@/lib/storage/types";
+import { PdfTransform } from './pdf-transform';
 
 interface DocumentPreviewProps {
   provider: StorageProvider | null;
   activeLibraryId: string;
+  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-export function DocumentPreview({ provider }: DocumentPreviewProps) {
+export function DocumentPreview({ provider, onRefreshFolder }: DocumentPreviewProps) {
   const item = useAtomValue(selectedFileAtom);
   const [documentUrl, setDocumentUrl] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [showTransform, setShowTransform] = React.useState(false);
 
   React.useEffect(() => {
     if (!item || !provider) return;
@@ -73,6 +76,10 @@ export function DocumentPreview({ provider }: DocumentPreviewProps) {
     document.body.removeChild(link);
   };
 
+  const handleTransformButtonClick = () => {
+    setShowTransform(true);
+  };
+
   // Bestimme das passende Icon basierend auf dem Dateityp
   const getFileIcon = () => {
     // Hier könnten wir später spezifische Icons für verschiedene Dateitypen hinzufügen
@@ -83,24 +90,65 @@ export function DocumentPreview({ provider }: DocumentPreviewProps) {
   const Icon = getFileIcon();
 
   return (
-    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-      <Icon className="h-16 w-16 text-muted-foreground mb-4" />
-      <h3 className="text-lg font-medium mb-2">{item.metadata.name}</h3>
-      <p className="text-sm text-muted-foreground mb-4">
-        Dokumentvorschau ist für diesen Dateityp nicht verfügbar
-      </p>
-      <p className="text-xs text-muted-foreground mb-6">
-        Dateigröße: {(item.metadata.size / 1024).toFixed(2)} KB
-      </p>
-      {documentUrl && !isLoading && (
-        <Button 
-          onClick={handleDownload}
-          disabled={isLoading}
-          variant="outline"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Dokument herunterladen
-        </Button>
+    <div className="flex flex-col h-full">
+      {item && (
+        <div className="flex items-center justify-between mx-4 mt-4 mb-2 flex-shrink-0">
+          <div className="text-xs text-muted-foreground">
+            {item.metadata.name}
+          </div>
+          {onRefreshFolder && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleTransformButtonClick}
+            >
+              <Wand2 className="h-4 w-4 mr-2" />
+              Transformieren
+            </Button>
+          )}
+        </div>
+      )}
+      
+      {showTransform ? (
+        <div className="flex-1 overflow-auto">
+          <PdfTransform 
+            onRefreshFolder={(folderId, updatedItems, twinItem) => {
+              FileLogger.info('DocumentPreview', 'PDF Transformation abgeschlossen', {
+                originalFile: item.metadata.name,
+                transcriptFile: updatedItems[0]?.metadata.name || 'unknown'
+              });
+              
+              // UI schließen
+              setShowTransform(false);
+              
+              // Informiere die übergeordnete Komponente über die Aktualisierung
+              if (onRefreshFolder) {
+                onRefreshFolder(folderId, updatedItems, twinItem);
+              }
+            }}
+          />
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+          <Icon className="h-16 w-16 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">{item.metadata.name}</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Dokumentvorschau ist für diesen Dateityp nicht verfügbar
+          </p>
+          <p className="text-xs text-muted-foreground mb-6">
+            Dateigröße: {(item.metadata.size / 1024).toFixed(2)} KB
+          </p>
+          {documentUrl && !isLoading && (
+            <Button 
+              onClick={handleDownload}
+              disabled={isLoading}
+              variant="outline"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Dokument herunterladen
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

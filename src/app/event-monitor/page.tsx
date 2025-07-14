@@ -105,7 +105,7 @@ export default function EventMonitorPage() {
         setLoading(false);
       }
     }
-  }, [selectedEvent, buildApiUrl]);
+  }, [buildApiUrl]);
   
   const loadArchiveTracks = useCallback(async (showLoader = true) => {
     try {
@@ -132,7 +132,7 @@ export default function EventMonitorPage() {
         setArchiveLoading(false);
       }
     }
-  }, [selectedEvent, buildApiUrl]);
+  }, [buildApiUrl]);
   
   // Laufende Tracks laden
   useEffect(() => {

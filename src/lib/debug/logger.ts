@@ -69,8 +69,19 @@ class BaseLogger {
     const entry = this.formatMessage(area, level, component, message, details);
     this.logToConsole(entry);
 
-    // Benachrichtige alle Subscribers
-    logCallbacks.forEach(callback => callback(entry));
+    // Verzögere die Callback-Ausführung, um React-Rendering-Konflikte zu vermeiden
+    if (logCallbacks.size > 0) {
+      // Verwende setTimeout mit 0ms Verzögerung, um die Ausführung nach dem aktuellen Render-Zyklus zu verschieben
+      setTimeout(() => {
+        logCallbacks.forEach(callback => {
+          try {
+            callback(entry);
+          } catch (error) {
+            console.warn('Fehler in Logger-Callback:', error);
+          }
+        });
+      }, 0);
+    }
 
     return entry;
   }

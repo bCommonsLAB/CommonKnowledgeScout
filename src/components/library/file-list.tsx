@@ -15,7 +15,8 @@ import {
   folderItemsAtom,
   sortedFilteredFilesAtom,
   sortFieldAtom,
-  sortOrderAtom
+  sortOrderAtom,
+  selectedShadowTwinAtom
 } from '@/atoms/library-atom';
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input"
@@ -39,7 +40,7 @@ type SortOrder = 'asc' | 'desc';
 // Typ für gruppierte Dateien
 interface FileGroup {
   baseItem?: StorageItem;
-  transcript?: StorageItem;
+  transcriptFiles?: StorageItem[]; // NEU: alle Transkripte
   transformed?: StorageItem;
 }
 
@@ -89,31 +90,7 @@ const formatDate = (date?: Date): string => {
   return new Date(date).toLocaleDateString('de-DE', options);
 };
 
-function getFileStem(name: string): string {
-  // Entferne Transform-Suffix (.Template.de.md, .Template.en.md, etc.)
-  // Wichtig: Das Template kann auch Punkte enthalten!
-  const transformMatch = name.match(/^(.*)\.([^.]+)\.(de|en|fr|es|it)\.md$/);
-  if (transformMatch) {
-    // Prüfe, ob das mittlere Segment ein Sprachkürzel ist
-    // Wenn ja, ist es ein einfaches Transcript
-    const possibleLang = transformMatch[2];
-    if (['de', 'en', 'fr', 'es', 'it'].includes(possibleLang)) {
-      // Es ist ein Transcript: name.de.md
-      return transformMatch[1];
-    }
-    // Ansonsten ist es ein Transform: name.Template.de.md
-    return transformMatch[1];
-  }
-  
-  // Entferne Transcript-Suffix (.de.md, .en.md, etc.)
-  const transcriptMatch = name.match(/^(.*)\.(de|en|fr|es|it)\.md$/);
-  if (transcriptMatch) return transcriptMatch[1];
-  
-  // Für alle anderen Dateien: entferne nur die letzte Endung
-  const lastDot = name.lastIndexOf('.');
-  if (lastDot === -1) return name;
-  return name.substring(0, lastDot);
-}
+// Entfernt: getFileStem Funktion war unbenutzt
 
 // Sortierbare Kopfzelle Komponente
 const SortableHeaderCell = React.memo(function SortableHeaderCell({
@@ -155,6 +132,7 @@ interface FileRowProps {
   fileGroup?: FileGroup;
   onSelectRelatedFile?: (file: StorageItem) => void;
   onRename?: (item: StorageItem, newName: string) => Promise<void>;
+  compact?: boolean;
 }
 
 const FileRow = React.memo(function FileRow({ 
@@ -165,7 +143,8 @@ const FileRow = React.memo(function FileRow({
   onDelete,
   fileGroup,
   onSelectRelatedFile,
-  onRename
+  onRename,
+  compact = false
 }: FileRowProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [editName, setEditName] = React.useState(item.metadata.name);
@@ -178,7 +157,7 @@ const FileRow = React.memo(function FileRow({
     name: item.metadata?.name || 'Unbekannte Datei',
     size: typeof item.metadata?.size === 'number' ? item.metadata.size : 0,
     mimeType: item.metadata?.mimeType || '',
-    hasTranscript: !!item.metadata?.hasTranscript || !!fileGroup?.transcript,
+    hasTranscript: !!item.metadata?.hasTranscript || (fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0),
     modifiedAt: item.metadata?.modifiedAt
   }), [item.metadata, fileGroup]);
 
@@ -211,8 +190,8 @@ const FileRow = React.memo(function FileRow({
   // Handler für Transkript-Icon Click
   const handleTranscriptClick = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (fileGroup?.transcript && onSelectRelatedFile) {
-      onSelectRelatedFile(fileGroup.transcript);
+    if (fileGroup?.transcriptFiles && onSelectRelatedFile) {
+      onSelectRelatedFile(fileGroup.transcriptFiles[0]); // Nur das erste Transkript anzeigen
     }
   }, [fileGroup, onSelectRelatedFile]);
 
@@ -229,7 +208,7 @@ const FileRow = React.memo(function FileRow({
     if (onRename) {
       // Prüfe ob dies eine abhängige Datei ist
       if (fileGroup && (
-        (fileGroup.transcript && item.id === fileGroup.transcript.id) ||
+        (fileGroup.transcriptFiles && fileGroup.transcriptFiles.length > 0 && fileGroup.transcriptFiles[0]?.id === item.id) ||
         (fileGroup.transformed && item.id === fileGroup.transformed.id)
       )) {
         // Dies ist eine abhängige Datei - zeige Hinweis
@@ -359,13 +338,15 @@ const FileRow = React.memo(function FileRow({
     if (fileGroup) {
       // Prüfe ob das aktuelle Item die Basis-Datei ist
       if (item.id === fileGroup.baseItem?.id) {
-        // Füge Transkript hinzu, falls vorhanden
-        if (fileGroup.transcript) {
-          itemsToMove.push({
-            itemId: fileGroup.transcript.id,
-            itemName: fileGroup.transcript.metadata.name,
-            itemType: fileGroup.transcript.type,
-            parentId: fileGroup.transcript.parentId
+        // Füge Transkripte hinzu, falls vorhanden
+        if (fileGroup.transcriptFiles && fileGroup.transcriptFiles.length > 0) {
+          fileGroup.transcriptFiles.forEach(transcript => {
+            itemsToMove.push({
+              itemId: transcript.id,
+              itemName: transcript.metadata.name,
+              itemType: transcript.type,
+              parentId: transcript.parentId
+            });
           });
         }
         
@@ -437,6 +418,48 @@ const FileRow = React.memo(function FileRow({
     }
   }, [item, selectedBatchItems, selectedTransformationItems, setSelectedBatchItems, setSelectedTransformationItems]);
 
+  React.useEffect(() => {
+    if (fileGroup) {
+      FileLogger.debug('FileRow', 'Transkripte für Zeile', {
+        baseItem: fileGroup.baseItem?.metadata.name,
+        transcripts: fileGroup.transcriptFiles?.map(t => t.metadata.name)
+      });
+    }
+  }, [fileGroup]);
+
+  // Compact-Modus: vereinfachte Darstellung
+  if (compact) {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        className={cn(
+          "w-full px-2 py-1 text-sm hover:bg-muted/50 flex items-center gap-2 cursor-pointer",
+          isSelected && "bg-muted"
+        )}
+      >
+        <FileIconComponent item={item} />
+        <span className="truncate flex-1" title={metadata.name}>
+          {metadata.name}
+        </span>
+        {/* Shadow-Twin-Symbole im compact mode */}
+        {fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0 && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-4 w-4 p-0 hover:bg-muted text-muted-foreground hover:text-foreground"
+            onClick={handleTranscriptClick}
+          >
+            <ScrollText className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // Standard-Modus: vollständige Tabellen-Darstellung
   return (
     <div
       role="button"
@@ -491,26 +514,31 @@ const FileRow = React.memo(function FileRow({
         {formatDate(metadata.modifiedAt)}
       </span>
       <div className="flex items-center justify-start gap-1">
-        {/* Zeige Icons für vorhandene verwandte Dateien */}
-        {fileGroup?.transcript ? (
-          <TooltipProvider>
+        {/* Zeige Icons für alle vorhandenen Transkripte */}
+        {fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0 && fileGroup.transcriptFiles.map((transcript) => (
+          <TooltipProvider key={transcript.id}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 p-0 hover:bg-muted"
-                  onClick={handleTranscriptClick}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onSelectRelatedFile) onSelectRelatedFile(transcript);
+                  }}
                 >
                   <FileText className="h-4 w-4 text-blue-500" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Transkript anzeigen</p>
+                <p>Transkript anzeigen: {transcript.metadata.name}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        ) : isTranscribable && !metadata.hasTranscript ? (
+        ))}
+        {/* Plus-Symbol nur anzeigen, wenn kein Transkript vorhanden und transkribierbar */}
+        {(!fileGroup?.transcriptFiles || fileGroup.transcriptFiles.length === 0) && isTranscribable && !metadata.hasTranscript ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -535,7 +563,6 @@ const FileRow = React.memo(function FileRow({
             </Tooltip>
           </TooltipProvider>
         ) : null}
-        
         {/* Icon für transformierte Datei */}
         {fileGroup?.transformed && (
           <TooltipProvider>
@@ -580,7 +607,11 @@ const FileRow = React.memo(function FileRow({
   );
 });
 
-export const FileList = React.memo(function FileList(): JSX.Element {
+interface FileListProps {
+  compact?: boolean;
+}
+
+export const FileList = React.memo(function FileList({ compact = false }: FileListProps): JSX.Element {
   const { provider, refreshItems, currentLibrary } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -595,10 +626,20 @@ export const FileList = React.memo(function FileList(): JSX.Element {
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const currentCategoryFilter = useAtomValue(fileCategoryFilterAtom);
 
+  // Hilfsfunktion zum Finden einer FileGroup in der Map
+  const findFileGroup = (map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
+    return Array.from((map ?? new Map()).values()).find(group => 
+      group.baseItem && getBaseName(group.baseItem.metadata.name) === stem
+    );
+  };
+
   // NEU: Atome für Sortierung und Filter
   const items = useAtomValue(sortedFilteredFilesAtom);
   const [sortField, setSortField] = useAtom(sortFieldAtom);
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
+  
+  // Review-Mode-Atoms
+  const [, setSelectedShadowTwin] = useAtom(selectedShadowTwinAtom);
 
   // handleSort nutzt jetzt Atome
   const handleSort = React.useCallback((field: SortField) => {
@@ -643,17 +684,212 @@ export const FileList = React.memo(function FileList(): JSX.Element {
 
     initialize();
 
+    const timeoutRef = initializationTimeoutRef.current;
     return () => {
-      if (initializationTimeoutRef.current) {
-        clearTimeout(initializationTimeoutRef.current);
+      if (timeoutRef) {
+        clearTimeout(timeoutRef);
       }
     };
   }, [provider, isFileTreeReady, isInitialized, items?.length]);
 
-  // Aktualisierte handleSelect Funktion
-  const handleSelect = useCallback((item: StorageItem) => {
+  // NEU: Reagieren auf Bibliothekswechsel
+  React.useEffect(() => {
+    StateLogger.debug('FileList', 'Render', {
+      currentLibraryId: activeLibraryId,
+      activeLibraryIdAtom: activeLibraryId
+    });
+
+    // Bei Bibliothekswechsel zurücksetzen
+    if (activeLibraryId) {
+      setIsInitialized(false);
+      setSelectedFile(null);
+      setFolderItems([]);
+      setSelectedBatchItems([]);
+      setSelectedTransformationItems([]);
+      setSelectedShadowTwin(null);
+      
+      StateLogger.info('FileList', 'Bibliothek gewechselt - State zurückgesetzt', {
+        libraryId: activeLibraryId
+      });
+    }
+  }, [activeLibraryId, setSelectedFile, setFolderItems, setSelectedBatchItems, setSelectedTransformationItems, setSelectedShadowTwin]);
+
+  // Vereinfachte Funktion zum Extrahieren des Basisnamens (ohne Endung, auch für Binärdateien)
+  function getBaseName(name: string): string {
+    // ShadowTwin: .de.md, .en.md, etc.
+    const shadowTwinMatch = name.match(/^(.*)\.(de|en|fr|es|it)\.md$/);
+    if (shadowTwinMatch) return shadowTwinMatch[1];
+    // Sonst: alles vor der letzten Endung
+    const lastDot = name.lastIndexOf('.');
+    if (lastDot === -1) return name;
+    return name.substring(0, lastDot);
+  }
+
+  // Prüft ob eine Datei ein ShadowTwin ist (Markdown mit Sprachkürzel)
+  function isShadowTwin(name: string): boolean {
+    // Pattern: name.de.md, name.en.md, etc.
+    const shadowTwinPattern = /^(.+)\.(de|en|fr|es|it)\.md$/;
+    return shadowTwinPattern.test(name);
+  }
+
+  // Gruppiere die Dateien nach Basename
+  const fileGroups = useMemo(() => {
+    if (!items) return new Map<string, FileGroup>();
+
+    // Schritt 1: Gruppiere alle Dateien nach Basename
+    const groupsMap = new Map<string, StorageItem[]>();
+    for (const item of items) {
+      if (item.type !== 'file') continue;
+      const base = getBaseName(item.metadata.name);
+      if (!groupsMap.has(base)) groupsMap.set(base, []);
+      groupsMap.get(base)!.push(item);
+    }
+
+    // Schritt 2: Erstelle FileGroups
+    const fileGroupsMap = new Map<string, FileGroup>();
+    for (const [base, groupItems] of Array.from(groupsMap.entries())) {
+      // Finde Hauptdatei (erste Nicht-ShadowTwin-Datei)
+      const mainFile = groupItems.find((item) => !isShadowTwin(item.metadata.name));
+      // Finde alle ShadowTwins
+      const shadowTwins = groupItems.filter((item) => isShadowTwin(item.metadata.name));
+      if (mainFile) {
+        fileGroupsMap.set(base, {
+          baseItem: mainFile,
+          transcriptFiles: shadowTwins.length > 0 ? shadowTwins : undefined,
+          transformed: undefined
+        });
+      } else {
+        // Keine Hauptdatei: Jede ShadowTwin einzeln anzeigen
+        for (const twin of shadowTwins) {
+          fileGroupsMap.set(`${base}__shadow_${twin.id}`, {
+            baseItem: twin,
+            transcriptFiles: undefined,
+            transformed: undefined
+          });
+        }
+      }
+    }
+    // Debug-Logging für Gruppierung
+    FileLogger.debug('FileList', 'Gruppierung Ergebnis (Basename, alle Endungen)', {
+      groups: Array.from(fileGroupsMap.entries()).map(([base, group]) => ({
+        base,
+        baseItem: group.baseItem?.metadata.name,
+        transcripts: group.transcriptFiles?.map(t => t.metadata.name)
+      }))
+    });
+    return fileGroupsMap;
+  }, [items]);
+
+  // Berechne, ob alle Dateien ausgewählt sind
+  const isAllSelected = useMemo(() => {
+    if (!fileGroups || !fileGroups.size) return false;
+    // Verwende nur die Hauptdateien (baseItem) aus den FileGroups
+    const mainItems = Array.from((fileGroups ?? new Map()).values())
+      .map(group => group.baseItem)
+      .filter((item): item is StorageItem => item !== undefined);
+    // Je nach Filter unterschiedliche Dateien zählen
+    let selectableItems: StorageItem[] = [];
+    switch (currentCategoryFilter) {
+      case 'media':
+        selectableItems = mainItems.filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
+          } catch {
+            return false;
+          }
+        });
+        return selectableItems.length > 0 && selectedBatchItems.length === selectableItems.length;
+      case 'text':
+        selectableItems = mainItems.filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && mediaType === 'text';
+          } catch {
+            return false;
+          }
+        });
+        return selectableItems.length > 0 && selectedTransformationItems.length === selectableItems.length;
+      case 'documents':
+        selectableItems = mainItems.filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && mediaType === 'document';
+          } catch {
+            return false;
+          }
+        });
+        return selectableItems.length > 0 && selectedTransformationItems.length === selectableItems.length;
+      default:
+        // Bei 'all' prüfen ob alle verfügbaren Dateien ausgewählt sind
+        const mediaItems = mainItems.filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
+          } catch {
+            return false;
+          }
+        });
+        const textItems = mainItems.filter(item => {
+          try {
+            const mediaType = getMediaType(item);
+            return item.type === 'file' && (mediaType === 'text' || mediaType === 'document');
+          } catch {
+            return false;
+          }
+        });
+        const allMediaSelected = mediaItems.length === 0 || selectedBatchItems.length === mediaItems.length;
+        const allTextSelected = textItems.length === 0 || selectedTransformationItems.length === textItems.length;
+        return allMediaSelected && allTextSelected;
+    }
+  }, [fileGroups, selectedBatchItems, selectedTransformationItems, currentCategoryFilter]);
+  
+  // Erweiterte handleSelect Funktion für Review-Mode
+  const handleSelect = useCallback((item: StorageItem, group?: FileGroup) => {
+    FileLogger.debug('FileList', 'handleSelect aufgerufen', {
+      itemId: item.id,
+      itemName: item.metadata.name,
+      groupBase: group?.baseItem?.metadata.name,
+      transcriptCount: group?.transcriptFiles?.length ?? 0,
+      hasTranscripts: !!(group && group.transcriptFiles && group.transcriptFiles.length > 0)
+    });
+    
+    // Nur die ausgewählte Datei setzen - Review-Modus wird über Toggle-Button gesteuert
     setSelectedFile(item);
-  }, [setSelectedFile]);
+    
+    // Wenn wir im Review-Modus sind und eine Basis-Datei mit Shadow-Twin ausgewählt wird,
+    // dann automatisch das Shadow-Twin setzen
+    if (group && group.transcriptFiles && group.transcriptFiles.length > 0) {
+      const shadowTwin = group.transcriptFiles[0];
+      FileLogger.info('FileList', 'Basis-Datei mit Shadow-Twin ausgewählt', {
+        twinId: shadowTwin.id,
+        twinName: shadowTwin.metadata.name,
+        baseFileId: item.id,
+        baseFileName: item.metadata.name
+      });
+      setSelectedShadowTwin(shadowTwin);
+    } else {
+      FileLogger.info('FileList', 'Datei ohne Shadow-Twin ausgewählt', {
+        itemId: item.id,
+        itemName: item.metadata.name,
+        groupExists: !!group,
+        transcriptCount: group?.transcriptFiles?.length ?? 0
+      });
+      setSelectedShadowTwin(null);
+    }
+  }, [setSelectedFile, setSelectedShadowTwin, findFileGroup]);
+  
+  // Erweiterte handleSelectRelatedFile Funktion für Review-Mode
+  const handleSelectRelatedFile = useCallback((shadowTwin: StorageItem) => {
+    StateLogger.info('FileList', 'Shadow-Twin ausgewählt', {
+      shadowTwinId: shadowTwin.id,
+      shadowTwinName: shadowTwin.metadata.name
+    });
+    
+    // Setze das Shadow-Twin als ausgewählte Datei, damit es rechts angezeigt wird
+    setSelectedFile(shadowTwin);
+    setSelectedShadowTwin(null); // Kein zusätzliches Shadow-Twin im normalen Modus
+  }, [setSelectedFile, setSelectedShadowTwin, findFileGroup]);
 
   // Aktualisierte handleRefresh Funktion
   const handleRefresh = useCallback(async () => {
@@ -680,242 +916,7 @@ export const FileList = React.memo(function FileList(): JSX.Element {
     // TODO: Implement transcript creation
   }, []);
 
-  // Gruppiere die Dateien (ohne Logging im Render!)
-  const fileGroups = useMemo(() => {
-    if (!items) return new Map<string, FileGroup>();
-    const groups: FileGroup[] = [];
-    
-    // Einfach jede Datei als eigene "Gruppe" behandeln
-    for (const item of items) {
-      if (item.type === 'file') {
-        groups.push({ 
-          baseItem: item, 
-          transcript: undefined, 
-          transformed: undefined 
-        });
-      }
-    }
-    
-    const groupMap = new Map<string, FileGroup>();
-    for (const group of groups) {
-      const key = group.baseItem?.metadata.name || Math.random().toString();
-      groupMap.set(key, group);
-    }
-    return groupMap;
-  }, [items]);
-
-  // Berechne, ob alle Dateien ausgewählt sind
-  const isAllSelected = useMemo(() => {
-    if (!items?.length) return false;
-    
-    // Je nach Filter unterschiedliche Dateien zählen
-    let selectableItems: StorageItem[] = [];
-    
-    switch (currentCategoryFilter) {
-      case 'media':
-        selectableItems = items.filter(item => {
-          try {
-            const mediaType = getMediaType(item);
-            return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
-          } catch {
-            return false;
-          }
-        });
-        return selectableItems.length > 0 && selectedBatchItems.length === selectableItems.length;
-        
-      case 'text':
-        selectableItems = items.filter(item => {
-          try {
-            const mediaType = getMediaType(item);
-            return item.type === 'file' && mediaType === 'text';
-          } catch {
-            return false;
-          }
-        });
-        return selectableItems.length > 0 && selectedTransformationItems.length === selectableItems.length;
-        
-      case 'documents':
-        selectableItems = items.filter(item => {
-          try {
-            const mediaType = getMediaType(item);
-            return item.type === 'file' && mediaType === 'document';
-          } catch {
-            return false;
-          }
-        });
-        return selectableItems.length > 0 && selectedTransformationItems.length === selectableItems.length;
-        
-      default:
-        // Bei 'all' prüfen ob alle verfügbaren Dateien ausgewählt sind
-        const mediaItems = items.filter(item => {
-          try {
-            const mediaType = getMediaType(item);
-            return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
-          } catch {
-            return false;
-          }
-        });
-        const textItems = items.filter(item => {
-          try {
-            const mediaType = getMediaType(item);
-            return item.type === 'file' && (mediaType === 'text' || mediaType === 'document');
-          } catch {
-            return false;
-          }
-        });
-        
-        const allMediaSelected = mediaItems.length === 0 || selectedBatchItems.length === mediaItems.length;
-        const allTextSelected = textItems.length === 0 || selectedTransformationItems.length === textItems.length;
-        
-        return allMediaSelected && allTextSelected;
-    }
-  }, [items, selectedBatchItems, selectedTransformationItems, currentCategoryFilter]);
-
-  // Intelligente Batch-Auswahl basierend auf Filter
-  const handleSelectAll = useCallback((checked: boolean) => {
-    const startTime = performance.now();
-    
-    if (checked) {
-      const selectableItems = items.filter(item => {
-        try {
-          const mediaType = getMediaType(item);
-          
-          // Je nach Filter unterschiedliche Dateien auswählen
-          switch (currentCategoryFilter) {
-            case 'media':
-              return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
-            case 'text':
-              return item.type === 'file' && mediaType === 'text';
-            case 'documents':
-              return item.type === 'file' && mediaType === 'document';
-            default:
-              // Bei 'all' alle Dateien auswählen, die für eine Operation geeignet sind
-              return item.type === 'file' && (
-                mediaType === 'audio' || 
-                mediaType === 'video' || 
-                mediaType === 'text' || 
-                mediaType === 'document'
-              );
-          }
-        } catch {
-          return false;
-        }
-      });
-
-      StateLogger.info('FileList', 'Selecting all items based on filter', {
-        filter: currentCategoryFilter,
-        totalItems: items.length,
-        selectableCount: selectableItems.length,
-        duration: `${(performance.now() - startTime).toFixed(2)}ms`
-      });
-      
-      // Je nach Filter unterschiedliche Atome verwenden
-      if (currentCategoryFilter === 'media') {
-        setSelectedBatchItems(selectableItems.map(item => ({
-          item,
-          type: getMediaType(item)
-        })));
-      } else if (currentCategoryFilter === 'text') {
-        setSelectedTransformationItems(selectableItems.map(item => ({
-          item,
-          type: getMediaType(item)
-        })));
-      } else {
-        // Bei 'all' oder 'documents' beide Atome füllen
-        const mediaItems = selectableItems.filter(item => {
-          const mediaType = getMediaType(item);
-          return mediaType === 'audio' || mediaType === 'video';
-        });
-        const textItems = selectableItems.filter(item => {
-          const mediaType = getMediaType(item);
-          return mediaType === 'text' || mediaType === 'document';
-        });
-        
-        setSelectedBatchItems(mediaItems.map(item => ({
-          item,
-          type: getMediaType(item)
-        })));
-        setSelectedTransformationItems(textItems.map(item => ({
-          item,
-          type: getMediaType(item)
-        })));
-      }
-    } else {
-      StateLogger.info('FileList', 'Deselecting all items', {
-        previouslySelected: selectedBatchItems.length + selectedTransformationItems.length,
-        duration: `${(performance.now() - startTime).toFixed(2)}ms`
-      });
-      
-      setSelectedBatchItems([]);
-      setSelectedTransformationItems([]);
-    }
-  }, [items, currentCategoryFilter, setSelectedBatchItems, setSelectedTransformationItems, selectedBatchItems.length, selectedTransformationItems.length]);
-
-  // Intelligente Item-Auswahl
-  const handleItemSelect = React.useCallback((item: StorageItem) => {
-    const startTime = performance.now();
-    
-    try {
-      const mediaType = getMediaType(item);
-      
-      StateLogger.debug('FileList', 'Item selection attempt', {
-        itemId: item.id,
-        itemName: item.metadata.name,
-        mediaType,
-        currentFilter: currentCategoryFilter
-      });
-      
-      // Je nach Medientyp und Filter das entsprechende Atom verwenden
-      if (mediaType === 'audio' || mediaType === 'video') {
-        setSelectedBatchItems(prev => {
-          const isAlreadySelected = prev.some(i => i.item.id === item.id);
-          const newSelection = isAlreadySelected
-            ? prev.filter(i => i.item.id !== item.id)
-            : [...prev, { item, type: mediaType }];
-            
-          StateLogger.info('FileList', 'Transcription selection updated', {
-            itemId: item.id,
-            itemName: item.metadata.name,
-            mediaType,
-            action: isAlreadySelected ? 'deselected' : 'selected',
-            newSelectionCount: newSelection.length,
-            duration: `${(performance.now() - startTime).toFixed(2)}ms`
-          });
-          
-          return newSelection;
-        });
-      } else if (mediaType === 'text' || mediaType === 'document') {
-        setSelectedTransformationItems(prev => {
-          const isAlreadySelected = prev.some(i => i.item.id === item.id);
-          const newSelection = isAlreadySelected
-            ? prev.filter(i => i.item.id !== item.id)
-            : [...prev, { item, type: mediaType }];
-            
-          StateLogger.info('FileList', 'Transformation selection updated', {
-            itemId: item.id,
-            itemName: item.metadata.name,
-            mediaType,
-            action: isAlreadySelected ? 'deselected' : 'selected',
-            newSelectionCount: newSelection.length,
-            duration: `${(performance.now() - startTime).toFixed(2)}ms`
-          });
-          
-          return newSelection;
-        });
-      }
-      
-      // Immer die Datei auswählen, unabhängig vom Medientyp
-      handleSelect(item);
-    } catch (error) {
-      StateLogger.warn('FileList', 'Error in item selection', {
-        error,
-        itemId: item.id,
-        itemName: item.metadata.name,
-        duration: `${(performance.now() - startTime).toFixed(2)}ms`
-      });
-      handleSelect(item);
-    }
-  }, [handleSelect, currentCategoryFilter, setSelectedBatchItems, setSelectedTransformationItems]);
+  // Entfernt: handleItemSelect war unbenutzt
 
   // Check if an item is selected (beide Atome prüfen)
   const isItemSelected = useCallback((item: StorageItem) => {
@@ -940,13 +941,13 @@ export const FileList = React.memo(function FileList(): JSX.Element {
 
     try {
       // Finde die FileGroup für dieses Item
-      const itemStem = getFileStem(itemToDelete.metadata.name);
+      const itemStem = getBaseName(itemToDelete.metadata.name);
       const fileGroup = findFileGroup(fileGroups, itemStem);
 
       // Bestätigungsnachricht vorbereiten
       let confirmMessage = `Möchten Sie "${itemToDelete.metadata.name}" wirklich löschen?`;
       if (fileGroup && itemToDelete.id === fileGroup.baseItem?.id) {
-        if (fileGroup.transcript || fileGroup.transformed) {
+        if (fileGroup.transcriptFiles && fileGroup.transcriptFiles.length > 0 || fileGroup.transformed) {
           confirmMessage = `Möchten Sie "${itemToDelete.metadata.name}" und alle zugehörigen Dateien wirklich löschen?`;
         }
       }
@@ -958,19 +959,21 @@ export const FileList = React.memo(function FileList(): JSX.Element {
 
       if (fileGroup && itemToDelete.id === fileGroup.baseItem?.id) {
         // Dies ist die Basis-Datei - lösche auch abhängige Dateien
-        // Lösche das Transkript, falls vorhanden
-        if (fileGroup.transcript) {
-          try {
-            await provider.deleteItem(fileGroup.transcript.id);
-            FileLogger.info('FileList', 'Transkript gelöscht', {
-              transcriptId: fileGroup.transcript.id,
-              transcriptName: fileGroup.transcript.metadata.name
-            });
-          } catch (error) {
-            FileLogger.error('FileList', 'Fehler beim Löschen des Transkripts', error);
-            toast.warning("Hinweis", {
-              description: "Das Transkript konnte nicht gelöscht werden"
-            });
+        // Lösche alle Transkripte, falls vorhanden
+        if (fileGroup.transcriptFiles) {
+          for (const transcript of fileGroup.transcriptFiles) {
+            try {
+              await provider.deleteItem(transcript.id);
+              FileLogger.info('FileList', 'Transkript gelöscht', {
+                transcriptId: transcript.id,
+                transcriptName: transcript.metadata.name
+              });
+            } catch (error) {
+              FileLogger.error('FileList', 'Fehler beim Löschen des Transkripts', error);
+              toast.warning("Hinweis", {
+                description: "Einige Transkripte konnten nicht gelöscht werden"
+              });
+            }
           }
         }
 
@@ -1020,13 +1023,6 @@ export const FileList = React.memo(function FileList(): JSX.Element {
     }
   }, [provider, handleRefresh, fileGroups, setSelectedFile, setSelectedBatchItems]);
 
-  // Hilfsfunktion zum Finden einer FileGroup in der Map
-  const findFileGroup = (map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
-    return Array.from(map.values()).find(group => 
-      group.baseItem && getFileStem(group.baseItem.metadata.name) === stem
-    );
-  };
-
   const handleRename = React.useCallback(async (item: StorageItem, newName: string) => {
     if (!provider) {
       toast.error("Fehler", {
@@ -1037,27 +1033,28 @@ export const FileList = React.memo(function FileList(): JSX.Element {
 
     try {
       // Finde die FileGroup für dieses Item
-      const itemStem = getFileStem(item.metadata.name);
+      const itemStem = getBaseName(item.metadata.name);
       const fileGroup = findFileGroup(fileGroups, itemStem);
 
       if (fileGroup && item.id === fileGroup.baseItem?.id) {
         // Dies ist die Basis-Datei - benenne auch abhängige Dateien um
-        const oldStem = getFileStem(item.metadata.name);
-        const newStem = getFileStem(newName);
+        const oldStem = getBaseName(item.metadata.name);
+        const newStem = getBaseName(newName);
         // Benenne die Basis-Datei um
         await provider.renameItem(item.id, newName);
-        // Benenne das Transkript um, falls vorhanden
-        if (fileGroup.transcript) {
-          const transcriptName = fileGroup.transcript.metadata.name;
-          // Ersetze den alten Stem mit dem neuen
-          const newTranscriptName = transcriptName.replace(oldStem, newStem);
-          try {
-            await provider.renameItem(fileGroup.transcript.id, newTranscriptName);
-          } catch (error) {
-            FileLogger.error('FileList', 'Fehler beim Umbenennen des Transkripts', error);
-            toast.warning("Hinweis", {
-              description: "Das Transkript konnte nicht umbenannt werden"
-            });
+        // Benenne alle Transkripte um, falls vorhanden
+        if (fileGroup.transcriptFiles) {
+          for (const transcript of fileGroup.transcriptFiles) {
+            const transcriptName = transcript.metadata.name;
+            const newTranscriptName = transcriptName.replace(oldStem, newStem);
+            try {
+              await provider.renameItem(transcript.id, newTranscriptName);
+            } catch (error) {
+              FileLogger.error('FileList', 'Fehler beim Umbenennen des Transkripts', error);
+              toast.warning("Hinweis", {
+                description: "Einige Transkripte konnten nicht umbenannt werden"
+              });
+            }
           }
         }
         // Benenne die transformierte Datei um, falls vorhanden
@@ -1105,12 +1102,94 @@ export const FileList = React.memo(function FileList(): JSX.Element {
     }
   };
 
+  // Intelligente Batch-Auswahl basierend auf Filter
+  const handleSelectAll = useCallback((checked: boolean) => {
+    const startTime = performance.now();
+    if (checked) {
+      // Verwende nur die Hauptdateien (baseItem) aus den FileGroups
+      const mainItems = Array.from((fileGroups ?? new Map()).values())
+        .map(group => group.baseItem)
+        .filter((item): item is StorageItem => item !== undefined);
+      const selectableItems = mainItems.filter(item => {
+        try {
+          const mediaType = getMediaType(item);
+          // Je nach Filter unterschiedliche Dateien auswählen
+          switch (currentCategoryFilter) {
+            case 'media':
+              return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
+            case 'text':
+              return item.type === 'file' && mediaType === 'text';
+            case 'documents':
+              return item.type === 'file' && mediaType === 'document';
+            default:
+              // Bei 'all' alle Dateien auswählen, die für eine Operation geeignet sind
+              return item.type === 'file' && (
+                mediaType === 'audio' || 
+                mediaType === 'video' || 
+                mediaType === 'text' || 
+                mediaType === 'document'
+              );
+          }
+        } catch {
+          return false;
+        }
+      });
+      StateLogger.info('FileList', 'Selecting all items based on filter', {
+        filter: currentCategoryFilter,
+        totalItems: items.length,
+        selectableCount: selectableItems.length,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      // Je nach Filter unterschiedliche Atome verwenden
+      if (currentCategoryFilter === 'media') {
+        setSelectedBatchItems(selectableItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+      } else if (currentCategoryFilter === 'text') {
+        setSelectedTransformationItems(selectableItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+      } else {
+        // Bei 'all' oder 'documents' beide Atome füllen
+        const mediaItems = selectableItems.filter(item => {
+          const mediaType = getMediaType(item);
+          return mediaType === 'audio' || mediaType === 'video';
+        });
+        const textItems = selectableItems.filter(item => {
+          const mediaType = getMediaType(item);
+          return mediaType === 'text' || mediaType === 'document';
+        });
+        setSelectedBatchItems(mediaItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+        setSelectedTransformationItems(textItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+      }
+    } else {
+      StateLogger.info('FileList', 'Deselecting all items', {
+        previouslySelected: selectedBatchItems.length + selectedTransformationItems.length,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      setSelectedBatchItems([]);
+      setSelectedTransformationItems([]);
+    }
+  }, [fileGroups, currentCategoryFilter, setSelectedBatchItems, setSelectedTransformationItems, selectedBatchItems.length, selectedTransformationItems.length, items.length]);
+
   React.useEffect(() => {
-    // Logging der Library-IDs
-    StateLogger.debug('FileList', 'Render', {
-      currentLibraryId: currentLibrary?.id,
-      activeLibraryIdAtom: activeLibraryId
-    });
+    // Logging der Library-IDs - verzögert ausführen
+    const timeoutId = setTimeout(() => {
+      StateLogger.debug('FileList', 'Render', {
+        currentLibraryId: currentLibrary?.id,
+        activeLibraryIdAtom: activeLibraryId
+      });
+    }, 0);
+    
+    return () => clearTimeout(timeoutId);
   }, [currentLibrary, activeLibraryId]);
 
   if (!isFileTreeReady) {
@@ -1119,100 +1198,106 @@ export const FileList = React.memo(function FileList(): JSX.Element {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="border-b px-4 py-2 flex items-center justify-between bg-background sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-          </Button>
-          
-          {/* Dateikategorie-Filter */}
-          <FileCategoryFilter />
-          
-          {/* Intelligente Batch-Buttons */}
-          {selectedBatchItems.length > 0 && (
+      {/* Header - versteckt im compact mode */}
+      {!compact && (
+        <div className="border-b px-4 py-2 flex items-center justify-between bg-background sticky top-0 z-10">
+          <div className="flex items-center gap-4">
             <Button
-              size="sm"
-              onClick={handleBatchTranscription}
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
             >
-              {selectedBatchItems.length} Datei(en) transkribieren
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
             </Button>
-          )}
-          
-          {selectedTransformationItems.length > 0 && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleBatchTransformation}
-            >
-              {selectedTransformationItems.length} Datei(en) kombinieren & transformieren
-            </Button>
-          )}
+            
+            {/* Dateikategorie-Filter */}
+            <FileCategoryFilter />
+            
+            {/* Intelligente Batch-Buttons */}
+            {selectedBatchItems.length > 0 && (
+              <Button
+                size="sm"
+                onClick={handleBatchTranscription}
+              >
+                {selectedBatchItems.length} Datei(en) transkribieren
+              </Button>
+            )}
+            
+            {selectedTransformationItems.length > 0 && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleBatchTransformation}
+              >
+                {selectedTransformationItems.length} Datei(en) kombinieren & transformieren
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* File List */}
       <div className="flex-1 overflow-auto">
         <div className="min-w-[800px]">
-          {/* Table Header */}
-          <div className="sticky top-0 bg-background border-b">
-            <div className="grid grid-cols-[auto_1fr_100px_150px_100px_50px] gap-2 px-4 py-2 text-sm font-medium text-muted-foreground">
-              <div className="w-6 flex items-center justify-center">
-                <Checkbox
-                  checked={isAllSelected}
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Alle auswählen"
+          {/* Table Header - versteckt im compact mode */}
+          {!compact && (
+            <div className="sticky top-0 bg-background border-b">
+              <div className="grid grid-cols-[auto_1fr_100px_150px_100px_50px] gap-2 px-4 py-2 text-sm font-medium text-muted-foreground">
+                <div className="w-6 flex items-center justify-center">
+                  <Checkbox
+                    checked={isAllSelected}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Alle auswählen"
+                  />
+                </div>
+                <SortableHeaderCell
+                  label="Name"
+                  field="name"
+                  currentSortField={sortField}
+                  currentSortOrder={sortOrder}
+                  onSort={handleSort}
                 />
+                <SortableHeaderCell
+                  label="Größe"
+                  field="size"
+                  currentSortField={sortField}
+                  currentSortOrder={sortOrder}
+                  onSort={handleSort}
+                />
+                <SortableHeaderCell
+                  label="Geändert"
+                  field="date"
+                  currentSortField={sortField}
+                  currentSortOrder={sortOrder}
+                  onSort={handleSort}
+                />
+                <div className="text-left">Aktionen</div>
+                <div />
               </div>
-              <SortableHeaderCell
-                label="Name"
-                field="name"
-                currentSortField={sortField}
-                currentSortOrder={sortOrder}
-                onSort={handleSort}
-              />
-              <SortableHeaderCell
-                label="Größe"
-                field="size"
-                currentSortField={sortField}
-                currentSortOrder={sortOrder}
-                onSort={handleSort}
-              />
-              <SortableHeaderCell
-                label="Geändert"
-                field="date"
-                currentSortField={sortField}
-                currentSortOrder={sortOrder}
-                onSort={handleSort}
-              />
-              <div className="text-left">Aktionen</div>
-              <div />
             </div>
-          </div>
+          )}
 
           {/* File Rows */}
           <div className="divide-y">
-            {Array.from(fileGroups.values())
+            {Array.from((fileGroups ?? new Map()).values())
               .map((group) => {
-                const item = group.baseItem || group.transcript || group.transformed;
+                // Zeige nur die Hauptdatei (baseItem) an
+                const item = group.baseItem;
                 if (!item) return null;
                 return (
                   <FileRow
                     key={item.id}
                     item={item as StorageItem}
                     isSelected={isItemSelected(item)}
-                    onSelect={() => handleItemSelect(item)}
+                    onSelect={() => handleSelect(item, group)}
                     onCreateTranscript={handleCreateTranscript}
                     onDelete={(e) => handleDeleteClick(e, item)}
                     fileGroup={group}
-                    onSelectRelatedFile={handleSelect}
+                    onSelectRelatedFile={handleSelectRelatedFile}
                     onRename={handleRename}
+                    compact={compact}
                   />
                 );
               })}

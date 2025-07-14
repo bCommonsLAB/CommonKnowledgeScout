@@ -48,7 +48,10 @@ export default function DebugFooter() {
   // Subscribe to logs
   React.useEffect(() => {
     const unsubscribe = subscribeToLogs((entry) => {
-      setAddLog(entry);
+      // Verwende React.startTransition für nicht-kritische Updates
+      React.startTransition(() => {
+        setAddLog(entry);
+      });
     });
     return unsubscribe;
   }, [setAddLog]);

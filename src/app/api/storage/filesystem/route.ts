@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
+import { promises as fs, existsSync } from 'fs';
 import { Stats } from 'fs';
 import * as pathLib from 'path';
 import mime from 'mime-types';
@@ -23,33 +23,89 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
   const searchParams = request.nextUrl.searchParams;
   const emailParam = searchParams.get('email');
   
-  console.log('[API][getUserEmail] Suche nach E-Mail:', {
+  console.log('[API][getUserEmail] 🔍 Suche nach E-Mail:', {
     hasEmailParam: !!emailParam,
     emailParam,
-    url: request.url
+    url: request.url,
+    headers: Object.fromEntries(request.headers.entries()),
+    timestamp: new Date().toISOString()
   });
   
   // Wenn ein Email-Parameter übergeben wurde, diesen verwenden (für Tests)
   if (emailParam) {
+    console.log('[API][getUserEmail] ✅ Verwende Email-Parameter:', emailParam);
     return emailParam;
   }
   
   // Versuche, authentifizierten Benutzer zu erhalten
   try {
+    console.log('[API][getUserEmail] 🔐 Versuche Clerk-Authentifizierung...');
     const { userId } = await auth();
     
+    console.log('[API][getUserEmail] 👤 Clerk-Auth Ergebnis:', {
+      hasUserId: !!userId,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+    
     if (userId) {
+      console.log('[API][getUserEmail] 🔍 Hole User-Details...');
       const user = await currentUser();
+      
+      console.log('[API][getUserEmail] 👤 User-Details:', {
+        hasUser: !!user,
+        userId: user?.id,
+        emailAddressesCount: user?.emailAddresses?.length,
+        primaryEmail: user?.emailAddresses?.[0]?.emailAddress,
+        timestamp: new Date().toISOString()
+      });
+      
       const emailAddresses = user?.emailAddresses || [];
       
       if (user && emailAddresses.length > 0) {
         const email = emailAddresses[0].emailAddress;
+        console.log('[API][getUserEmail] ✅ E-Mail gefunden:', email);
         return email;
+      } else {
+        console.warn('[API][getUserEmail] ⚠️ User hat keine E-Mail-Adressen:', {
+          hasUser: !!user,
+          emailAddressesCount: emailAddresses.length
+        });
       }
+    } else {
+      console.warn('[API][getUserEmail] ⚠️ Keine User-ID von Clerk erhalten');
     }
   } catch (error) {
-    console.warn('[API][getUserEmail] Authentifizierungsdaten konnten nicht abgerufen werden:', error);
+    console.error('[API][getUserEmail] 💥 Fehler bei Clerk-Authentifizierung:', {
+      error: error instanceof Error ? {
+        message: error.message,
+        name: error.name,
+        stack: error.stack?.split('\n').slice(0, 3)
+      } : error,
+      timestamp: new Date().toISOString()
+    });
   }
+  
+  // Fallback: Versuche E-Mail aus Headers zu extrahieren
+  try {
+    const authHeader = request.headers.get('authorization');
+    const cookieHeader = request.headers.get('cookie');
+    
+    console.log('[API][getUserEmail] 🔍 Fallback: Prüfe Headers:', {
+      hasAuthHeader: !!authHeader,
+      hasCookieHeader: !!cookieHeader,
+      authHeaderLength: authHeader?.length,
+      cookieHeaderLength: cookieHeader?.length
+    });
+    
+    // Hier könnten weitere Fallback-Logiken implementiert werden
+    // z.B. E-Mail aus JWT-Token extrahieren
+    
+  } catch (fallbackError) {
+    console.error('[API][getUserEmail] 💥 Fallback-Fehler:', fallbackError);
+  }
+  
+  console.error('[API][getUserEmail] ❌ Keine E-Mail gefunden - alle Methoden fehlgeschlagen');
   return undefined;
 }
 
@@ -79,38 +135,93 @@ async function getLibrary(libraryId: string, email: string): Promise<LibraryType
 
 // Konvertiert eine ID zurück in einen Pfad
 function getPathFromId(library: LibraryType, fileId: string): string {
-  console.log('[getPathFromId] Input:', { fileId, libraryPath: library.path });
+  console.log('[getPathFromId] 🔍 Input:', { 
+    fileId, 
+    libraryPath: library.path,
+    libraryId: library.id,
+    timestamp: new Date().toISOString()
+  });
   
-  if (fileId === 'root') return library.path;
+  if (fileId === 'root') {
+    console.log('[getPathFromId] 🏠 Root-Pfad erkannt, verwende Library-Pfad:', library.path);
+    return library.path;
+  }
   
   try {
     const decodedPath = Buffer.from(fileId, 'base64').toString();
-    console.log('[getPathFromId] Decoded path:', decodedPath);
+    console.log('[getPathFromId] 🔓 Decoded path:', {
+      originalId: fileId,
+      decodedPath,
+      decodedLength: decodedPath.length
+    });
     
     // Always treat decoded path as relative path and normalize it
     const normalizedPath = decodedPath.replace(/\\/g, '/');
+    console.log('[getPathFromId] 🔧 Normalized path:', {
+      original: decodedPath,
+      normalized: normalizedPath
+    });
     
     // Check for path traversal attempts
     if (normalizedPath.includes('..')) {
-      console.log('[getPathFromId] Path traversal detected, returning root');
+      console.log('[getPathFromId] ⚠️ Path traversal detected, returning root');
       return library.path;
     }
     
     // Join with base path using pathLib.join to handle separators correctly
     const result = pathLib.join(library.path, normalizedPath);
+    console.log('[getPathFromId] 🔗 Joined path:', {
+      basePath: library.path,
+      relativePath: normalizedPath,
+      result: result
+    });
     
     // Double check the result is within the library path
     const normalizedResult = pathLib.normalize(result).replace(/\\/g, '/');
     const normalizedLibPath = pathLib.normalize(library.path).replace(/\\/g, '/');
-    if (!normalizedResult.startsWith(normalizedLibPath)) {
-      console.log('[getPathFromId] Path escape detected, returning root');
+    
+    console.log('[getPathFromId] 🔒 Security check:', {
+      normalizedResult,
+      normalizedLibPath,
+      startsWithLibPath: normalizedResult.startsWith(normalizedLibPath)
+    });
+    
+    // Verbesserte Sicherheitsprüfung für Windows-Pfade
+    let isWithinLibrary = false;
+    
+    // Fall 1: Standard-Prüfung
+    if (normalizedResult.startsWith(normalizedLibPath)) {
+      isWithinLibrary = true;
+    }
+    // Fall 2: Windows-Laufwerk-Prüfung (z.B. W: vs W:/)
+    else if (normalizedLibPath.endsWith(':') && normalizedResult.startsWith(normalizedLibPath + '/')) {
+      isWithinLibrary = true;
+    }
+    // Fall 3: Windows-Laufwerk mit Punkt (z.B. W:. vs W:/)
+    else if (normalizedLibPath.endsWith(':.') && normalizedResult.startsWith(normalizedLibPath.slice(0, -1) + '/')) {
+      isWithinLibrary = true;
+    }
+    
+    if (!isWithinLibrary) {
+      console.log('[getPathFromId] 🚫 Path escape detected, returning root');
       return library.path;
     }
     
-    console.log('[getPathFromId] Result:', result);
+    console.log('[getPathFromId] ✅ Final result:', {
+      inputId: fileId,
+      finalPath: result,
+      exists: existsSync(result)
+    });
     return result;
   } catch (error) {
-    console.error('Error decoding path:', error);
+    console.error('[getPathFromId] 💥 Error decoding path:', {
+      error: error instanceof Error ? {
+        message: error.message,
+        name: error.name
+      } : error,
+      fileId,
+      libraryPath: library.path
+    });
     return library.path;
   }
 }
@@ -259,23 +370,45 @@ export async function GET(request: NextRequest) {
   const fileId = url.searchParams.get('fileId');
   const libraryId = url.searchParams.get('libraryId');
   
+  console.log(`[API][filesystem] GET Request:`, {
+    requestId,
+    action,
+    fileId,
+    libraryId,
+    timestamp: new Date().toISOString()
+  });
+  
   // Validiere erforderliche Parameter
   if (!libraryId) {
     console.warn(`[API][filesystem] ❌ Fehlender libraryId Parameter`);
-    return NextResponse.json({ error: 'libraryId is required' }, { status: 400 });
+    return NextResponse.json({ 
+      error: 'libraryId is required',
+      errorCode: 'MISSING_LIBRARY_ID',
+      requestId 
+    }, { status: 400 });
   }
 
   if (!fileId) {
     console.warn(`[API][filesystem] ❌ Fehlender fileId Parameter`);
-    return NextResponse.json({ error: 'fileId is required' }, { status: 400 });
+    return NextResponse.json({ 
+      error: 'fileId is required',
+      errorCode: 'MISSING_FILE_ID',
+      requestId 
+    }, { status: 400 });
   }
 
   // E-Mail aus Authentifizierung oder Parameter ermitteln
   const userEmail = await getUserEmail(request);
   if (!userEmail) {
     console.warn(`[API][filesystem] ❌ Keine E-Mail gefunden`);
-    return NextResponse.json({ error: 'No user email found' }, { status: 400 });
+    return NextResponse.json({ 
+      error: 'No user email found',
+      errorCode: 'NO_USER_EMAIL',
+      requestId 
+    }, { status: 400 });
   }
+
+  console.log(`[API][filesystem] Benutzer-E-Mail gefunden:`, userEmail);
 
   const library = await getLibrary(libraryId, userEmail);
 
@@ -284,32 +417,77 @@ export async function GET(request: NextRequest) {
     return handleLibraryNotFound(libraryId, userEmail);
   }
 
+  console.log(`[API][filesystem] Bibliothek gefunden:`, {
+    libraryId: library.id,
+    libraryLabel: library.label,
+    libraryPath: library.path,
+    libraryType: library.type
+  });
+
   try {
     switch (action) {
       case 'list': {
+        console.log(`[API][filesystem][list] Starte Verzeichnisauflistung:`, {
+          requestId,
+          fileId,
+          libraryId,
+          libraryPath: library.path
+        });
+        
         const items = await listItems(library, fileId);
-        return NextResponse.json(items);
+        
+        console.log(`[API][filesystem][list] Erfolgreich ${items.length} Items geladen:`, {
+          requestId,
+          itemCount: items.length,
+          fileId
+        });
+        
+        return NextResponse.json(items, { headers: debugHeaders });
       }
 
       case 'get': {
         const absolutePath = getPathFromId(library, fileId);
         const stats = await fs.stat(absolutePath);
         const item = await statsToStorageItem(library, absolutePath, stats);
-        return NextResponse.json(item);
+        return NextResponse.json(item, { headers: debugHeaders });
       }
 
       case 'binary': {
+        console.log(`[API][filesystem][binary] 🖼️ Binary-Request gestartet:`, {
+          requestId,
+          fileId,
+          libraryId,
+          userEmail,
+          timestamp: new Date().toISOString()
+        });
+
         if (!fileId || fileId === 'root') {
           console.error('[API][filesystem] Ungültige Datei-ID für binary:', {
             fileId,
             libraryId,
             userEmail
           });
-          return NextResponse.json({ error: 'Invalid file ID' }, { status: 400 });
+          return NextResponse.json({ 
+            error: 'Invalid file ID',
+            errorCode: 'INVALID_FILE_ID',
+            requestId 
+          }, { status: 400 });
         }
 
         const absolutePath = getPathFromId(library, fileId);
+        console.log(`[API][filesystem][binary] 📁 Absoluter Pfad:`, {
+          fileId,
+          absolutePath,
+          libraryPath: library.path
+        });
+
         const stats = await fs.stat(absolutePath);
+        console.log(`[API][filesystem][binary] 📊 Datei-Statistiken:`, {
+          isFile: stats.isFile(),
+          size: stats.size,
+          mtime: stats.mtime,
+          path: absolutePath
+        });
         
         if (!stats.isFile()) {
           console.error('[API][filesystem] Keine Datei:', {
@@ -318,23 +496,49 @@ export async function GET(request: NextRequest) {
             fileId,
             userEmail
           });
-          return NextResponse.json({ error: 'Not a file' }, { status: 400 });
+          return NextResponse.json({ 
+            error: 'Not a file',
+            errorCode: 'NOT_A_FILE',
+            requestId 
+          }, { status: 400 });
         }
 
+        console.log(`[API][filesystem][binary] 📖 Lade Dateiinhalt...`);
         const content = await fs.readFile(absolutePath);
+        console.log(`[API][filesystem][binary] ✅ Dateiinhalt geladen:`, {
+          contentLength: content.length,
+          expectedSize: stats.size,
+          matches: content.length === stats.size
+        });
+
         const mimeType = mime.lookup(absolutePath) || 'application/octet-stream';
+        console.log(`[API][filesystem][binary] 🏷️ MIME-Type erkannt:`, {
+          mimeType,
+          filename: pathLib.basename(absolutePath),
+          extension: pathLib.extname(absolutePath)
+        });
         
         // Spezielle Headers für PDFs, damit sie im Browser angezeigt werden
         const headers: HeadersInit = {
           'Content-Type': mimeType,
           'Content-Length': stats.size.toString(),
-          'Cache-Control': 'no-store'
+          'Cache-Control': 'no-store',
+          'X-Debug-Request-Id': requestId,
+          'X-Debug-File-Path': absolutePath,
+          'X-Debug-File-Size': stats.size.toString(),
+          'X-Debug-Mime-Type': mimeType
         };
         
         // Für PDFs Content-Disposition auf inline setzen
         if (mimeType === 'application/pdf') {
           headers['Content-Disposition'] = `inline; filename="${encodeURIComponent(pathLib.basename(absolutePath))}"`;
         }
+        
+        console.log(`[API][filesystem][binary] 🚀 Sende Response:`, {
+          status: 200,
+          headers: Object.fromEntries(Object.entries(headers).filter(([key]) => !key.startsWith('X-Debug-'))),
+          contentLength: content.length
+        });
         
         return new NextResponse(content, { headers });
       }
@@ -350,10 +554,14 @@ export async function GET(request: NextRequest) {
           fileId,
           userEmail
         });
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        return NextResponse.json({ 
+          error: 'Invalid action',
+          errorCode: 'INVALID_ACTION',
+          requestId 
+        }, { status: 400 });
     }
   } catch (error) {
-    console.warn(`[API][filesystem] 💥 FEHLER:`, {
+    console.error(`[API][filesystem] 💥 FEHLER:`, {
       error: error instanceof Error ? {
         message: error.message,
         stack: error.stack,
@@ -362,11 +570,34 @@ export async function GET(request: NextRequest) {
       action,
       libraryId,
       fileId,
-      userEmail
+      userEmail,
+      requestId
     });
+    
+    // Spezifische Fehlerbehandlung
+    let errorMessage = 'Unbekannter Server-Fehler';
+    let statusCode = 500;
+    
+    if (error instanceof Error) {
+      if (error.name === 'LibraryPathNotFoundError') {
+        errorMessage = error.message;
+        statusCode = 404;
+      } else if (error.name === 'LibraryAccessDeniedError') {
+        errorMessage = error.message;
+        statusCode = 403;
+      } else if (error.name === 'NotDirectoryError') {
+        errorMessage = error.message;
+        statusCode = 400;
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    
     return NextResponse.json({ 
-      error: error instanceof Error ? error.message : String(error) 
-    }, { status: 500 });
+      error: errorMessage,
+      errorCode: 'SERVER_ERROR',
+      requestId
+    }, { status: statusCode });
   }
 }
 

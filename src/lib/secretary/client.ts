@@ -149,25 +149,94 @@ export interface SecretaryVideoResponse {
 }
 
 /**
+ * Typ für die Secretary Service PDF Response
+ */
+export interface SecretaryPdfResponse {
+  status: string;
+  request?: {
+    processor: string;
+    timestamp: string;
+    parameters: {
+      file_path: string;
+      template: string | null;
+      context: string | null;
+      extraction_method: string;
+    };
+  };
+  process?: {
+    id: string;
+    main_processor: string;
+    started: string;
+    sub_processors: string[];
+    completed: string | null;
+    duration: number | null;
+    is_from_cache: boolean;
+    cache_key: string;
+    llm_info?: {
+      requests: Array<{
+        model: string;
+        purpose: string;
+        tokens: number;
+        duration: number;
+        processor: string;
+        timestamp: string;
+      }>;
+      requests_count: number;
+      total_tokens: number;
+      total_duration: number;
+    };
+  };
+  error: unknown | null;
+  data: {
+    extracted_text: string;  // ← Geändert von text_content zu extracted_text
+    ocr_text: string | null;
+    metadata: {
+      file_name: string;
+      file_size: number;
+      page_count: number;
+      format: string;
+      process_dir: string;
+      image_paths: string[];
+      preview_paths: string[];
+      preview_zip: string | null;
+      text_paths: string[];
+      original_text_paths: string[];
+      text_contents: Array<{
+        page: number;
+        content: string;
+      }>;
+      extraction_method: string;
+    };
+    process_id: string;
+    processed_at: string;
+    images_archive_data?: string; 
+    images_archive_filename?: string; 
+  };
+}
+
+/**
  * Transformiert eine Audio-Datei mithilfe des Secretary Services in Text
  * 
  * @param file Die zu transformierende Audio-Datei 
  * @param targetLanguage Die Zielsprache für die Transkription
  * @param libraryId ID der aktiven Bibliothek
+ * @param useCache Cache verwenden (Standard: true)
  * @returns Die vollständige Response vom Secretary Service oder nur den Text (für Abwärtskompatibilität)
  */
 export async function transformAudio(
   file: File, 
   targetLanguage: string,
-  libraryId: string
+  libraryId: string,
+  useCache: boolean = true
 ): Promise<SecretaryAudioResponse | string> {
   try {
-    console.log('[secretary/client] transformAudio aufgerufen mit Sprache:', targetLanguage);
+    console.log('[secretary/client] transformAudio aufgerufen mit Sprache:', targetLanguage, 'und useCache:', useCache);
     
     
     const formData = new FormData();
     formData.append('file', file);
     formData.append('targetLanguage', targetLanguage);
+    formData.append('useCache', useCache.toString());
     
     // Angepasste Header bei expliziten Optionen
     const customHeaders: HeadersInit = {};
@@ -541,6 +610,130 @@ export async function transformVideo(
 }
 
 /**
+ * Transformiert eine PDF-Datei mithilfe des Secretary Services
+ * 
+ * @param file Die zu transformierende PDF-Datei 
+ * @param targetLanguage Die Zielsprache für die Verarbeitung
+ * @param libraryId ID der aktiven Bibliothek
+ * @param template Optionales Template für die Verarbeitung
+ * @param extractionMethod Die Extraktionsmethode (native, ocr, both, preview, preview_and_native, llm, llm_and_ocr)
+ * @param useCache Ob Cache verwendet werden soll
+ * @param includeImages Ob Bilder mit extrahiert werden sollen
+ * @returns Die vollständige Response vom Secretary Service
+ */
+export async function transformPdf(
+  file: File, 
+  targetLanguage: string,
+  libraryId: string,
+  template?: string,
+  extractionMethod: string = 'native',
+  useCache: boolean = true,
+  includeImages: boolean = false
+): Promise<SecretaryPdfResponse> {
+  try {
+    console.log('[secretary/client] transformPdf aufgerufen mit Sprache:', targetLanguage, 'und Template:', template);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('targetLanguage', targetLanguage);
+    formData.append('extractionMethod', extractionMethod);
+    formData.append('useCache', useCache.toString());
+    formData.append('includeImages', includeImages.toString());
+    
+    // Template-Option
+    if (template) {
+      formData.append('template', template);
+    }
+    
+    // Angepasste Header bei expliziten Optionen
+    const customHeaders: HeadersInit = {};
+    customHeaders['X-Library-Id'] = libraryId;
+    
+    console.log('[secretary/client] Sende Anfrage an Secretary Service API');
+    const response = await fetch('/api/secretary/process-pdf', {
+      method: 'POST',
+      body: formData,
+      headers: customHeaders
+    });
+
+    console.log('[secretary/client] Antwort erhalten, Status:', response.status);
+    if (!response.ok) {
+      throw new SecretaryServiceError(`Fehler bei der Verbindung zum Secretary Service: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('[secretary/client] PDF-Daten erfolgreich empfangen');
+    
+    // Gebe die vollständige Response zurück
+    return data as SecretaryPdfResponse;
+  } catch (error) {
+    console.error('[secretary/client] Fehler bei der PDF-Transformation:', error);
+    if (error instanceof SecretaryServiceError) {
+      throw error;
+    }
+    throw new SecretaryServiceError('Fehler bei der Verarbeitung der PDF-Datei');
+  }
+}
+
+/**
+ * Interface für Image-OCR-Response
+ */
+export interface SecretaryImageResponse {
+  status: string;
+  request?: {
+    processor: string;
+    timestamp: string;
+    parameters: {
+      file_path: string;
+      template: string | null;
+      context: string | null;
+      extraction_method: string;
+    };
+  };
+  process?: {
+    id: string;
+    main_processor: string;
+    started: string;
+    sub_processors: string[];
+    completed: string | null;
+    duration: number | null;
+    is_from_cache: boolean;
+    cache_key: string;
+    llm_info?: {
+      requests: Array<{
+        model: string;
+        purpose: string;
+        tokens: number;
+        duration: number;
+        processor: string;
+        timestamp: string;
+      }>;
+      requests_count: number;
+      total_tokens: number;
+      total_duration: number;
+    };
+  };
+  error: unknown | null;
+  data: {
+    extracted_text: string;
+    metadata: {
+      file_name: string;
+      file_size: number;
+      dimensions: string;
+      format: string;
+      color_mode: string;
+      dpi: number[];
+      process_dir: string;
+      extraction_method: string;
+      preview_paths: string[];
+    };
+    process_id: string;
+    processed_at: string;
+    status: string;
+  };
+}
+
+/**
  * Interface für Session-Import-Response
  */
 export interface SessionImportResponse {
@@ -563,6 +756,69 @@ export interface SessionImportResponse {
     code: string;
     message: string;
   };
+}
+
+/**
+ * Transformiert ein Bild mithilfe des Secretary Services
+ * 
+ * @param file Die zu transformierende Bilddatei
+ * @param targetLanguage Die Zielsprache für die Verarbeitung
+ * @param libraryId ID der aktiven Bibliothek
+ * @param extractionMethod Die Extraktionsmethode (ocr, llm, llm_and_ocr, native, both, preview, preview_and_native)
+ * @param context Optionaler JSON-Kontext für LLM-Optimierung
+ * @param useCache Ob Cache verwendet werden soll
+ * @returns Die vollständige Response vom Secretary Service
+ */
+export async function transformImage(
+  file: File,
+  targetLanguage: string,
+  libraryId: string,
+  extractionMethod: string = 'ocr',
+  context?: string,
+  useCache: boolean = true
+): Promise<SecretaryImageResponse> {
+  try {
+    console.log('[secretary/client] transformImage aufgerufen mit Sprache:', targetLanguage, 'und Methode:', extractionMethod);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('targetLanguage', targetLanguage);
+    formData.append('extraction_method', extractionMethod);
+    formData.append('useCache', useCache.toString());
+    
+    // Context-Option
+    if (context) {
+      formData.append('context', context);
+    }
+    
+    // Angepasste Header bei expliziten Optionen
+    const customHeaders: HeadersInit = {};
+    customHeaders['X-Library-Id'] = libraryId;
+    
+    console.log('[secretary/client] Sende Anfrage an Secretary Service API');
+    const response = await fetch('/api/secretary/process-image', {
+      method: 'POST',
+      body: formData,
+      headers: customHeaders
+    });
+
+    console.log('[secretary/client] Antwort erhalten, Status:', response.status);
+    if (!response.ok) {
+      throw new SecretaryServiceError(`Fehler bei der Verbindung zum Secretary Service: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('[secretary/client] Bild-Daten erfolgreich empfangen');
+    
+    // Gebe die vollständige Response zurück
+    return data as SecretaryImageResponse;
+  } catch (error) {
+    console.error('[secretary/client] Fehler bei der Bild-Transformation:', error);
+    if (error instanceof SecretaryServiceError) {
+      throw error;
+    }
+    throw new SecretaryServiceError('Fehler bei der Verarbeitung der Bilddatei');
+  }
 }
 
 /**

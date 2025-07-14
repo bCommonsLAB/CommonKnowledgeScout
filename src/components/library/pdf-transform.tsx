@@ -8,23 +8,18 @@ import { useAtomValue } from "jotai";
 import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
-import { 
-  TransformService, 
-  VideoTransformOptions, 
-  TransformResult 
-} from "@/lib/transform/transform-service";
+import { TransformService, TransformResult, PdfTransformOptions } from "@/lib/transform/transform-service";
 import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
-import { getUserFriendlyVideoErrorMessage } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
 
-interface VideoTransformProps {
+interface PdfTransformProps {
   onTransformComplete?: (text: string, twinItem?: StorageItem, updatedItems?: StorageItem[]) => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTransformProps) {
+export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransformProps) {
   const item = useAtomValue(selectedFileAtom);
   const [isLoading, setIsLoading] = useState(false);
   const provider = useStorageProvider();
@@ -48,24 +43,27 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
   const baseName = item ? getBaseFileName(item.metadata.name) : '';
   const defaultLanguage = "de";
   
-  const [saveOptions, setSaveOptions] = useState<SaveOptionsType>({
+  const [saveOptions, setSaveOptions] = useState<PdfTransformOptions>({
     targetLanguage: defaultLanguage,
     fileName: generateShadowTwinName(baseName, defaultLanguage),
     createShadowTwin: true,
-    fileExtension: "md"
+    fileExtension: "md",
+    extractionMethod: "native",
+    useCache: true, // Standardwert: Cache verwenden
+    includeImages: false // Standardwert: Keine Bilder
   });
   
   // Prüfe ob item vorhanden ist
   if (!item) {
     return (
       <div className="flex flex-col gap-4 p-4 text-center text-muted-foreground">
-        Keine Video-Datei ausgewählt
+        Keine PDF-Datei ausgewählt
       </div>
     );
   }
   
   const handleTransform = async () => {
-    FileLogger.info('VideoTransform', 'handleTransform aufgerufen mit saveOptions', saveOptions as unknown as Record<string, unknown>);
+    FileLogger.info('PdfTransform', 'handleTransform aufgerufen mit saveOptions', saveOptions as unknown as Record<string, unknown>);
     
     if (!provider) {
       toast.error("Fehler", {
@@ -74,7 +72,7 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
       });
       return;
     }
-    
+
     if (!activeLibrary) {
       toast.error("Fehler", {
         description: "Aktive Bibliothek nicht gefunden",
@@ -94,27 +92,17 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
       // Konvertiere Blob zu File für die Verarbeitung
       const file = new File([blob], item.metadata.name, { type: item.metadata.mimeType });
 
-      // Kombiniere die allgemeinen Optionen mit festen Video-Transkriptions-Einstellungen
-      const videoOptions: VideoTransformOptions = {
-        ...saveOptions,
-        extractAudio: true,      // Audio muss für Transkription extrahiert werden
-        extractFrames: false,    // Frames sind für Transkription nicht notwendig
-        frameInterval: 1,        // Irrelevant da extractFrames false ist
-        sourceLanguage: "auto",  // Automatische Spracherkennung
-        template: undefined      // Keine Vorlage notwendig
-      };
-
-      // Transformiere die Video-Datei mit dem TransformService
-      const result = await TransformService.transformVideo(
+      // Transformiere die PDF-Datei mit dem TransformService
+      const result = await TransformService.transformPdf(
         file,
         item,
-        videoOptions,
+        saveOptions,
         provider,
         refreshItems,
         activeLibrary.id
       );
 
-      FileLogger.info('VideoTransform', 'Video Transformation abgeschlossen', {
+      FileLogger.info('PdfTransform', 'PDF Transformation abgeschlossen', {
         textLength: result.text.length,
         savedItemId: result.savedItem?.id,
         updatedItemsCount: result.updatedItems.length
@@ -122,7 +110,7 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
 
       // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
       if (onRefreshFolder && item.parentId && result.updatedItems.length > 0) {
-        FileLogger.info('VideoTransform', 'Informiere Library über aktualisierte Dateiliste', {
+        FileLogger.info('PdfTransform', 'Informiere Library über aktualisierte Dateiliste', {
           folderId: item.parentId,
           itemsCount: result.updatedItems.length,
           savedItemId: result.savedItem?.id
@@ -138,9 +126,9 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
         onTransformComplete(result.text, result.savedItem || undefined, result.updatedItems);
       }
     } catch (error) {
-      FileLogger.error('VideoTransform', 'Fehler bei der Video-Transformation', error);
+      FileLogger.error('PdfTransform', 'Fehler bei der PDF-Transformation', error);
       toast.error("Fehler", {
-        description: getUserFriendlyVideoErrorMessage(error)
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler bei der PDF-Verarbeitung'
       });
     } finally {
       setIsLoading(false);
@@ -148,17 +136,25 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
   };
 
   const handleSaveOptionsChange = (options: SaveOptionsType) => {
-    FileLogger.debug('VideoTransform', 'handleSaveOptionsChange aufgerufen mit', options as unknown as Record<string, unknown>);
-    setSaveOptions(options);
+    FileLogger.debug('PdfTransform', 'handleSaveOptionsChange aufgerufen mit', options as unknown as Record<string, unknown>);
+    // Konvertiere zu PdfTransformOptions mit sicherer extractionMethod und useCache
+    const pdfOptions: PdfTransformOptions = {
+      ...options,
+      extractionMethod: options.extractionMethod || "native",
+      useCache: options.useCache ?? true, // Standardwert: Cache verwenden
+      includeImages: options.includeImages ?? false // Standardwert: Keine Bilder
+    };
+    FileLogger.debug('PdfTransform', 'useCache Wert:', { useCache: pdfOptions.useCache });
+    setSaveOptions(pdfOptions);
   };
 
   return (
     <div className="flex flex-col gap-4 p-4">
       <TransformResultHandler
         onResultProcessed={() => {
-          FileLogger.info('VideoTransform', 'Video-Transkription vollständig abgeschlossen und Datei ausgewählt');
+          FileLogger.info('PdfTransform', 'PDF-Transformation vollständig abgeschlossen und Datei ausgewählt');
         }}
-        childrenAction={(handleTransformResult, isProcessingResult) => {
+        childrenAction={(handleTransformResult: (result: TransformResult) => void, isProcessingResult: boolean) => {
           // Speichere die handleTransformResult-Funktion in der Ref
           transformResultHandlerRef.current = handleTransformResult;
           
@@ -168,8 +164,12 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
                 originalFileName={item.metadata.name}
                 onOptionsChangeAction={handleSaveOptionsChange}
                 className="mb-4"
+                showExtractionMethod={true}
+                defaultExtractionMethod="native"
                 showUseCache={true}
                 defaultUseCache={true}
+                showIncludeImages={true}
+                defaultIncludeImages={false}
               />
               
               <Button 
@@ -177,7 +177,7 @@ export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTr
                 disabled={isLoading || isProcessingResult}
                 className="w-full"
               >
-                {isLoading ? "Wird transkribiert..." : "Transkribieren"}
+                {isLoading ? "Wird verarbeitet..." : "PDF verarbeiten"}
               </Button>
             </>
           );
