@@ -26,7 +26,7 @@ import { TransformationDialog } from "./transformation-dialog"
 import { StorageItem } from "@/lib/storage/types"
 import { NavigationLogger, StateLogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
-
+import { useToast } from "@/components/ui/use-toast"
 export function Library() {
   // Globale Atoms
   const [, setFolderItems] = useAtom(folderItemsAtom);
@@ -46,44 +46,28 @@ export function Library() {
     provider: providerInstance, 
     error: storageError, 
     listItems,
-    libraryStatus
+    libraryStatus,
+    currentLibrary
   } = useStorage();
+  const { toast } = useToast();
 
   // Optimierter loadItems mit Cache-Check
   const loadItems = useCallback(async () => {
-    StateLogger.info('Library', 'Starting loadItems', {
-      currentFolderId,
-      lastLoadedFolder,
-      hasProvider: !!providerInstance,
-      libraryStatus: libraryStatus
-    });
-
     if (!providerInstance || libraryStatus !== 'ready') {
-      NavigationLogger.info('Library', 'Skip loading - provider not ready', {
+      NavigationLogger.debug('Library', 'Skipping loadItems - not ready', {
         hasProvider: !!providerInstance,
         status: libraryStatus
       });
       return;
     }
 
-    // Prüfe ob der Ordner bereits geladen wurde
-    if (lastLoadedFolder === currentFolderId) {
-      StateLogger.info('Library', 'Skip loading - folder already loaded', {
-        folderId: currentFolderId,
-        cacheSize: Object.keys(libraryState.folderCache || {}).length
-      });
-      return;
-    }
+    setLoadingState({ isLoading: true, loadingFolderId: currentFolderId });
 
     try {
-      setLoadingState({ isLoading: true, loadingFolderId: currentFolderId });
-      
-      // Prüfe Cache im globalen State
-      const folderCache = libraryState.folderCache || {};
-      const cachedItems = folderCache[currentFolderId]?.children;
-      
-      if (cachedItems) {
-        StateLogger.info('Library', 'Using cached items', {
+      // Prüfe Cache zuerst
+      if (libraryState.folderCache?.[currentFolderId]?.children) {
+        const cachedItems = libraryState.folderCache[currentFolderId].children;
+        NavigationLogger.info('Library', 'Using cached items', {
           folderId: currentFolderId,
           itemCount: cachedItems.length,
           cacheHit: true
@@ -102,7 +86,7 @@ export function Library() {
       
       // Update Cache und State
       if (currentFolderId !== 'root') {
-        const newFolderCache = { ...folderCache };
+        const newFolderCache = { ...libraryState.folderCache };
         const parent = newFolderCache[currentFolderId];
         if (parent) {
           newFolderCache[currentFolderId] = {
@@ -134,8 +118,42 @@ export function Library() {
     } catch (error) {
       if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
         StateLogger.info('Library', 'Auth required');
+        // Keine Fehlermeldung für AUTH_REQUIRED anzeigen
       } else {
-        StateLogger.error('Library', 'Failed to load items', error);
+        StateLogger.error('Library', 'Failed to load items', {
+          error: error instanceof Error ? {
+            message: error.message,
+            name: error.name,
+            stack: error.stack?.split('\n').slice(0, 3)
+          } : error,
+          folderId: currentFolderId,
+          libraryId: currentLibrary?.id,
+          libraryPath: currentLibrary?.path
+        });
+        
+        // Benutzerfreundliche Fehlermeldung anzeigen
+        let errorMessage = 'Fehler beim Laden der Dateien';
+        
+        if (error instanceof Error) {
+          if (error.message.includes('Nicht authentifiziert')) {
+            errorMessage = 'Bitte authentifizieren Sie sich bei Ihrem Cloud-Speicher.';
+          } else if (error.message.includes('Bibliothek nicht gefunden')) {
+            errorMessage = 'Die ausgewählte Bibliothek wurde nicht gefunden. Bitte überprüfen Sie die Bibliothekskonfiguration.';
+          } else if (error.message.includes('Server-Fehler')) {
+            errorMessage = 'Server-Fehler beim Laden der Dateien. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.';
+          } else if (error.message.includes('Keine aktive Bibliothek')) {
+            errorMessage = 'Keine aktive Bibliothek verfügbar. Bitte wählen Sie eine Bibliothek aus.';
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        
+        // Toast-Nachricht anzeigen
+        toast({
+          title: "Fehler beim Laden der Dateien",
+          description: errorMessage,
+          variant: "destructive",
+        });
       }
       setFolderItems([]);
     } finally {
@@ -151,7 +169,9 @@ export function Library() {
     setLibraryState,
     setFolderItems,
     setLastLoadedFolder,
-    setLoadingState
+    setLoadingState,
+    toast,
+    currentLibrary
   ]);
 
   // Effect für FileTree Ready
@@ -184,6 +204,17 @@ export function Library() {
       folderCache: {}
     }));
   }, [libraryStatus, setLibraryState, setLastLoadedFolder]);
+
+  // Manuelle Cache-Clear-Funktion für Review-Modus
+  const clearCache = useCallback(() => {
+    StateLogger.info('Library', 'Manually clearing cache for review mode');
+    setLastLoadedFolder(null);
+    setLibraryState(state => ({
+      ...state,
+      folderCache: {}
+    }));
+    setFolderItems([]);
+  }, [setLibraryState, setLastLoadedFolder, setFolderItems]);
 
   // Reset selectedShadowTwin wenn Review-Modus verlassen wird
   useEffect(() => {
@@ -221,6 +252,7 @@ export function Library() {
         provider={providerInstance}
         error={storageError}
         onUploadComplete={loadItems}
+        onClearCache={clearCache}
       >
         <Breadcrumb />
       </LibraryHeader>

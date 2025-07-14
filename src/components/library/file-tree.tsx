@@ -5,11 +5,13 @@ import { ChevronDown, ChevronRight } from "lucide-react"
 import { StorageItem } from '@/lib/storage/types';
 import { cn } from "@/lib/utils"
 import { useAtom } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { 
   fileTreeReadyAtom, 
   loadedChildrenAtom,
   expandedFoldersAtom,
-  selectedFileAtom
+  selectedFileAtom,
+  activeLibraryIdAtom
 } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 import { FileLogger } from "@/lib/debug/logger"
@@ -128,6 +130,23 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   const [, setExpandedFolders] = useAtom(expandedFoldersAtom);
   const [loadedChildren, setLoadedChildren] = useAtom(loadedChildrenAtom);
   const [isReady, setFileTreeReady] = useAtom(fileTreeReadyAtom);
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const [, setSelectedFile] = useAtom(selectedFileAtom);
+
+  // NEU: Reagieren auf Bibliothekswechsel
+  React.useEffect(() => {
+    if (activeLibraryId) {
+      // Bei Bibliothekswechsel zurücksetzen
+      setExpandedFolders(new Set(['root']));
+      setLoadedChildren({});
+      setFileTreeReady(false);
+      setSelectedFile(null);
+      
+      FileLogger.info('FileTree', 'Bibliothek gewechselt - State zurückgesetzt', {
+        libraryId: activeLibraryId
+      });
+    }
+  }, [activeLibraryId, setExpandedFolders, setLoadedChildren, setFileTreeReady, setSelectedFile]);
 
   // Root-Items laden
   const loadRootItems = useCallback(async () => {

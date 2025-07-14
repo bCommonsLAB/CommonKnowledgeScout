@@ -186,7 +186,23 @@ function getPathFromId(library: LibraryType, fileId: string): string {
       startsWithLibPath: normalizedResult.startsWith(normalizedLibPath)
     });
     
-    if (!normalizedResult.startsWith(normalizedLibPath)) {
+    // Verbesserte Sicherheitsprüfung für Windows-Pfade
+    let isWithinLibrary = false;
+    
+    // Fall 1: Standard-Prüfung
+    if (normalizedResult.startsWith(normalizedLibPath)) {
+      isWithinLibrary = true;
+    }
+    // Fall 2: Windows-Laufwerk-Prüfung (z.B. W: vs W:/)
+    else if (normalizedLibPath.endsWith(':') && normalizedResult.startsWith(normalizedLibPath + '/')) {
+      isWithinLibrary = true;
+    }
+    // Fall 3: Windows-Laufwerk mit Punkt (z.B. W:. vs W:/)
+    else if (normalizedLibPath.endsWith(':.') && normalizedResult.startsWith(normalizedLibPath.slice(0, -1) + '/')) {
+      isWithinLibrary = true;
+    }
+    
+    if (!isWithinLibrary) {
       console.log('[getPathFromId] 🚫 Path escape detected, returning root');
       return library.path;
     }
@@ -354,23 +370,45 @@ export async function GET(request: NextRequest) {
   const fileId = url.searchParams.get('fileId');
   const libraryId = url.searchParams.get('libraryId');
   
+  console.log(`[API][filesystem] GET Request:`, {
+    requestId,
+    action,
+    fileId,
+    libraryId,
+    timestamp: new Date().toISOString()
+  });
+  
   // Validiere erforderliche Parameter
   if (!libraryId) {
     console.warn(`[API][filesystem] ❌ Fehlender libraryId Parameter`);
-    return NextResponse.json({ error: 'libraryId is required' }, { status: 400 });
+    return NextResponse.json({ 
+      error: 'libraryId is required',
+      errorCode: 'MISSING_LIBRARY_ID',
+      requestId 
+    }, { status: 400 });
   }
 
   if (!fileId) {
     console.warn(`[API][filesystem] ❌ Fehlender fileId Parameter`);
-    return NextResponse.json({ error: 'fileId is required' }, { status: 400 });
+    return NextResponse.json({ 
+      error: 'fileId is required',
+      errorCode: 'MISSING_FILE_ID',
+      requestId 
+    }, { status: 400 });
   }
 
   // E-Mail aus Authentifizierung oder Parameter ermitteln
   const userEmail = await getUserEmail(request);
   if (!userEmail) {
     console.warn(`[API][filesystem] ❌ Keine E-Mail gefunden`);
-    return NextResponse.json({ error: 'No user email found' }, { status: 400 });
+    return NextResponse.json({ 
+      error: 'No user email found',
+      errorCode: 'NO_USER_EMAIL',
+      requestId 
+    }, { status: 400 });
   }
+
+  console.log(`[API][filesystem] Benutzer-E-Mail gefunden:`, userEmail);
 
   const library = await getLibrary(libraryId, userEmail);
 
@@ -379,18 +417,39 @@ export async function GET(request: NextRequest) {
     return handleLibraryNotFound(libraryId, userEmail);
   }
 
+  console.log(`[API][filesystem] Bibliothek gefunden:`, {
+    libraryId: library.id,
+    libraryLabel: library.label,
+    libraryPath: library.path,
+    libraryType: library.type
+  });
+
   try {
     switch (action) {
       case 'list': {
+        console.log(`[API][filesystem][list] Starte Verzeichnisauflistung:`, {
+          requestId,
+          fileId,
+          libraryId,
+          libraryPath: library.path
+        });
+        
         const items = await listItems(library, fileId);
-        return NextResponse.json(items);
+        
+        console.log(`[API][filesystem][list] Erfolgreich ${items.length} Items geladen:`, {
+          requestId,
+          itemCount: items.length,
+          fileId
+        });
+        
+        return NextResponse.json(items, { headers: debugHeaders });
       }
 
       case 'get': {
         const absolutePath = getPathFromId(library, fileId);
         const stats = await fs.stat(absolutePath);
         const item = await statsToStorageItem(library, absolutePath, stats);
-        return NextResponse.json(item);
+        return NextResponse.json(item, { headers: debugHeaders });
       }
 
       case 'binary': {
@@ -408,7 +467,11 @@ export async function GET(request: NextRequest) {
             libraryId,
             userEmail
           });
-          return NextResponse.json({ error: 'Invalid file ID' }, { status: 400 });
+          return NextResponse.json({ 
+            error: 'Invalid file ID',
+            errorCode: 'INVALID_FILE_ID',
+            requestId 
+          }, { status: 400 });
         }
 
         const absolutePath = getPathFromId(library, fileId);
@@ -433,7 +496,11 @@ export async function GET(request: NextRequest) {
             fileId,
             userEmail
           });
-          return NextResponse.json({ error: 'Not a file' }, { status: 400 });
+          return NextResponse.json({ 
+            error: 'Not a file',
+            errorCode: 'NOT_A_FILE',
+            requestId 
+          }, { status: 400 });
         }
 
         console.log(`[API][filesystem][binary] 📖 Lade Dateiinhalt...`);
@@ -487,10 +554,14 @@ export async function GET(request: NextRequest) {
           fileId,
           userEmail
         });
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        return NextResponse.json({ 
+          error: 'Invalid action',
+          errorCode: 'INVALID_ACTION',
+          requestId 
+        }, { status: 400 });
     }
   } catch (error) {
-    console.warn(`[API][filesystem] 💥 FEHLER:`, {
+    console.error(`[API][filesystem] 💥 FEHLER:`, {
       error: error instanceof Error ? {
         message: error.message,
         stack: error.stack,
@@ -499,11 +570,34 @@ export async function GET(request: NextRequest) {
       action,
       libraryId,
       fileId,
-      userEmail
+      userEmail,
+      requestId
     });
+    
+    // Spezifische Fehlerbehandlung
+    let errorMessage = 'Unbekannter Server-Fehler';
+    let statusCode = 500;
+    
+    if (error instanceof Error) {
+      if (error.name === 'LibraryPathNotFoundError') {
+        errorMessage = error.message;
+        statusCode = 404;
+      } else if (error.name === 'LibraryAccessDeniedError') {
+        errorMessage = error.message;
+        statusCode = 403;
+      } else if (error.name === 'NotDirectoryError') {
+        errorMessage = error.message;
+        statusCode = 400;
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    
     return NextResponse.json({ 
-      error: error instanceof Error ? error.message : String(error) 
-    }, { status: 500 });
+      error: errorMessage,
+      errorCode: 'SERVER_ERROR',
+      requestId
+    }, { status: statusCode });
   }
 }
 

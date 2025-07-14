@@ -970,10 +970,9 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   const renderedContent = React.useMemo(() => {
     if (!content) return '';
 
-    // Get the content after the frontmatter
-    const mainContent = content.split('---').length > 2 
-      ? content.split('---').slice(2).join('---')
-      : content;
+    // Entferne Frontmatter nur am Anfang des Dokuments
+    const frontmatterRegex = /^---\n([\s\S]*?)\n---\n?/;
+    const mainContent = content.replace(frontmatterRegex, '');
 
     // Process the main content
     const processedContent = processObsidianContent(

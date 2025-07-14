@@ -98,30 +98,45 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
   // Templates laden mit der gleichen Logik wie Library-Komponente
   const loadTemplates = useCallback(async () => {
     if (!providerInstance || libraryStatus !== 'ready' || !activeLibrary) {
-      return
+      console.log('[TemplateManagement] loadTemplates übersprungen:', {
+        hasProvider: !!providerInstance,
+        libraryStatus,
+        hasActiveLibrary: !!activeLibrary
+      });
+      return;
     }
 
     try {
-      setIsLoading(true)
-      setError(null)
+      setIsLoading(true);
+      setError(null);
+
+      console.log('[TemplateManagement] Starte Template-Loading:', {
+        libraryId: activeLibrary.id,
+        libraryPath: activeLibrary.path,
+        providerName: providerInstance.name
+      });
 
       // 1. Templates-Ordner finden oder erstellen
-      const folderId = await ensureTemplatesFolder()
-      setTemplatesFolderId(folderId)
+      const folderId = await ensureTemplatesFolder();
+      setTemplatesFolderId(folderId);
+
+      console.log('[TemplateManagement] Templates-Ordner gefunden/erstellt:', folderId);
 
       // 2. Alle Template-Dateien im Ordner auflisten
-      const items = await listItems(folderId)
+      const items = await listItems(folderId);
       const templateFiles = items.filter(item => 
         item.type === 'file' && 
         item.metadata.name.endsWith('.md')
-      )
+      );
+
+      console.log('[TemplateManagement] Template-Dateien gefunden:', templateFiles.length);
 
       // 3. Template-Inhalte laden
       const templatePromises = templateFiles.map(async (file) => {
         try {
-          const { blob } = await providerInstance.getBinary(file.id)
-        const content = await blob.text()
-          const template = parseTemplateContent(content, file.metadata.name.replace('.md', ''))
+          const { blob } = await providerInstance.getBinary(file.id);
+          const content = await blob.text();
+          const template = parseTemplateContent(content, file.metadata.name.replace('.md', ''));
           
           return {
             ...template,
@@ -131,37 +146,65 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
               : file.metadata.modifiedAt instanceof Date 
                 ? file.metadata.modifiedAt.toISOString()
                 : new Date().toISOString()
-          } as Template
+          } as Template;
         } catch (error) {
-          console.error(`Fehler beim Parsen von ${file.metadata.name}:`, error)
-          return null
+          console.error(`Fehler beim Parsen von ${file.metadata.name}:`, error);
+          return null;
         }
-      })
+      });
 
-      const loadedTemplates = await Promise.all(templatePromises)
-      const validTemplates = loadedTemplates.filter((t): t is Template => t !== null)
+      const loadedTemplates = await Promise.all(templatePromises);
+      const validTemplates = loadedTemplates.filter((t): t is Template => t !== null);
       
-      setTemplates(validTemplates)
+      setTemplates(validTemplates);
+      
+      console.log('[TemplateManagement] Templates erfolgreich geladen:', validTemplates.length);
       
       if (validTemplates.length === 0) {
         toast({
           title: "Keine Templates gefunden",
           description: "Erstellen Sie Ihr erstes Template im Verzeichnis '/templates'.",
-        })
+        });
       }
     } catch (error) {
-      console.error('Fehler beim Laden der Templates:', error)
-      const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler"
-      setError(errorMessage)
+      console.error('Fehler beim Laden der Templates:', {
+        error: error instanceof Error ? {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.split('\n').slice(0, 3)
+        } : error,
+        libraryId: activeLibrary?.id,
+        libraryPath: activeLibrary?.path,
+        providerName: providerInstance?.name
+      });
+
+      let errorMessage = 'Unbekannter Fehler beim Laden der Templates';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Spezifische Fehlermeldungen für häufige Probleme
+        if (error.message.includes('Nicht authentifiziert')) {
+          errorMessage = 'Bitte authentifizieren Sie sich bei Ihrem Cloud-Speicher, um Templates zu laden.';
+        } else if (error.message.includes('Bibliothek nicht gefunden')) {
+          errorMessage = 'Die ausgewählte Bibliothek wurde nicht gefunden. Bitte überprüfen Sie die Bibliothekskonfiguration.';
+        } else if (error.message.includes('Server-Fehler')) {
+          errorMessage = 'Server-Fehler beim Laden der Templates. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.';
+        } else if (error.message.includes('Keine aktive Bibliothek')) {
+          errorMessage = 'Keine aktive Bibliothek verfügbar. Bitte wählen Sie eine Bibliothek aus.';
+        }
+      }
+      
+      setError(errorMessage);
       toast({
         title: "Fehler beim Laden der Templates",
         description: errorMessage,
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [providerInstance, libraryStatus, activeLibrary, listItems, setTemplates, setTemplatesFolderId, setIsLoading, setError, toast])
+  }, [providerInstance, libraryStatus, activeLibrary, listItems, setTemplates, setTemplatesFolderId, setIsLoading, setError, toast]);
 
   // Effect für Template Loading (wie Library-Komponente)
   useEffect(() => {
@@ -187,26 +230,56 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
   async function ensureTemplatesFolder(): Promise<string> {
     if (!providerInstance || !activeLibrary) {
-      throw new Error("Keine aktive Bibliothek oder Provider")
+      throw new Error("Keine aktive Bibliothek oder Provider verfügbar");
     }
 
     try {
+      console.log('[TemplateManagement] Suche nach Templates-Ordner...');
+      
       // Versuche zuerst, den Templates-Ordner zu finden
-      const rootItems = await listItems('root')
+      const rootItems = await listItems('root');
       const templatesFolder = rootItems.find(item => 
         item.type === 'folder' && item.metadata.name === 'templates'
-      )
+      );
       
       if (templatesFolder) {
-        return templatesFolder.id
+        console.log('[TemplateManagement] Templates-Ordner gefunden:', templatesFolder.id);
+        return templatesFolder.id;
       }
 
+      console.log('[TemplateManagement] Templates-Ordner nicht gefunden, erstelle neuen...');
+      
       // Templates-Ordner erstellen, falls er nicht existiert
-      const newFolder = await providerInstance.createFolder('root', 'templates')
-      return newFolder.id
+      const newFolder = await providerInstance.createFolder('root', 'templates');
+      console.log('[TemplateManagement] Neuer Templates-Ordner erstellt:', newFolder.id);
+      return newFolder.id;
     } catch (error) {
-      console.error('Fehler beim Erstellen des Templates-Ordners:', error)
-      throw error
+      console.error('Fehler beim Erstellen des Templates-Ordners:', {
+        error: error instanceof Error ? {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.split('\n').slice(0, 3)
+        } : error,
+        libraryId: activeLibrary?.id,
+        libraryPath: activeLibrary?.path,
+        providerName: providerInstance?.name
+      });
+      
+      let errorMessage = 'Fehler beim Erstellen des Templates-Ordners';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Nicht authentifiziert')) {
+          errorMessage = 'Bitte authentifizieren Sie sich bei Ihrem Cloud-Speicher, um den Templates-Ordner zu erstellen.';
+        } else if (error.message.includes('Keine Berechtigung')) {
+          errorMessage = 'Keine Berechtigung zum Erstellen von Ordnern in der Bibliothek.';
+        } else if (error.message.includes('Bibliothek nicht gefunden')) {
+          errorMessage = 'Die ausgewählte Bibliothek wurde nicht gefunden.';
+        } else {
+          errorMessage = `Fehler beim Erstellen des Templates-Ordners: ${error.message}`;
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 

@@ -31,7 +31,7 @@ import { toast } from "@/components/ui/use-toast"
 import { Textarea } from "../ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import { AlertCircle, Trash2 } from "lucide-react"
+import { AlertCircle, Trash2, Plus } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -112,43 +112,50 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     defaultValues,
   });
 
+  // Funktion zum Erstellen einer neuen Bibliothek
   const handleCreateNew = useCallback(() => {
     setIsNew(true);
+    // Wichtig: activeLibraryId zurücksetzen, damit keine bestehende Bibliothek überschrieben wird
+    setActiveLibraryId("");
     form.reset(defaultValues);
-  }, [form, defaultValues]);
+  }, [form, defaultValues, setActiveLibraryId]);
+
+  // Funktion zum Zurückkehren zur Bearbeitung der aktiven Bibliothek
+  const handleCancelNew = useCallback(() => {
+    setIsNew(false);
+    // Zurück zur aktiven Bibliothek, falls vorhanden
+    if (activeLibrary) {
+      const storageConfig = {
+        basePath: activeLibrary.path,
+        clientId: activeLibrary.config?.clientId as string || "",
+        clientSecret: activeLibrary.config?.clientSecret as string || "",
+        redirectUri: activeLibrary.config?.redirectUri as string || "",
+      };
+      
+      form.reset({
+        label: activeLibrary.label,
+        path: activeLibrary.path,
+        type: activeLibrary.type,
+        description: activeLibrary.config?.description as string || "",
+        isEnabled: activeLibrary.isEnabled,
+        transcription: activeLibrary.config?.transcription as "shadowTwin" | "db" || "shadowTwin",
+        templateDirectory: activeLibrary.config?.templateDirectory as string || "/templates",
+        storageConfig,
+      });
+    } else if (libraries.length > 0) {
+      // Falls keine aktive Bibliothek, aber Bibliotheken vorhanden sind, zur ersten wechseln
+      setActiveLibraryId(libraries[0].id);
+    }
+  }, [activeLibrary, libraries, form, setActiveLibraryId]);
 
   // Neue Bibliothek erstellen wenn createNew true ist
   useEffect(() => {
     if (createNew) {
       handleCreateNew();
-    } else if (activeLibrary && isNew) {
-      // Wenn createNew false wird und wir im "Neue Bibliothek"-Modus waren,
-      // setzen wir auf die aktive Bibliothek zurück
-      setIsNew(false);
-      // Formular mit den Daten der aktiven Bibliothek füllen
-      if (activeLibrary) {
-        const storageConfig = {
-          basePath: activeLibrary.path,
-          clientId: activeLibrary.config?.clientId as string || "",
-          clientSecret: activeLibrary.config?.clientSecret as string || "",
-          redirectUri: activeLibrary.config?.redirectUri as string || "",
-        };
-        form.reset({
-          label: activeLibrary.label,
-          path: activeLibrary.path,
-          type: activeLibrary.type,
-          description: activeLibrary.config?.description as string || "",
-          isEnabled: activeLibrary.isEnabled,
-          transcription: activeLibrary.config?.transcription as "shadowTwin" | "db" || "shadowTwin",
-          templateDirectory: activeLibrary.config?.templateDirectory as string || "/templates",
-          storageConfig,
-        });
-      }
     }
-  }, [createNew, activeLibrary, form, handleCreateNew, isNew]);
+  }, [createNew, handleCreateNew]);
 
-
-  // Form mit aktiver Bibliothek befüllen
+  // Form mit aktiver Bibliothek befüllen (nur wenn nicht im "Neue Bibliothek"-Modus)
   useEffect(() => {
     if (activeLibrary && !isNew) {
       // Extrahiere Storage-Konfiguration aus dem config-Objekt
@@ -205,9 +212,12 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
           break;
       }
       
+      // WICHTIG: Für neue Bibliotheken IMMER eine neue ID generieren
+      const newLibraryId = isNew ? uuidv4() : activeLibraryId;
+      
       // Bibliotheksobjekt erstellen
       const libraryData = {
-        id: isNew ? uuidv4() : activeLibraryId,
+        id: newLibraryId,
         label: data.label,
         path: data.path,
         type: data.type as StorageProviderType,
@@ -237,15 +247,24 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
       // Lokalen Zustand aktualisieren
       if (isNew) {
         // Neue Bibliothek hinzufügen
-        setLibraries([...libraries, {
+        const newLibrary = {
           ...libraryData,
           icon: <AlertCircle className="h-4 w-4" />,
           config: {
             ...libraryData.config,
           }
-        }]);
-        setActiveLibraryId(libraryData.id);
+        };
+        setLibraries([...libraries, newLibrary]);
+        setActiveLibraryId(newLibraryId);
         setIsNew(false);
+        
+        toast({
+          title: "Bibliothek erstellt",
+          description: `Die Bibliothek "${data.label}" wurde erfolgreich erstellt.`,
+        });
+        
+        // Zur Bibliotheksseite navigieren
+        router.push('/library');
       } else {
         // Bestehende Bibliothek aktualisieren
         const updatedLibraries = libraries.map(lib => 
@@ -260,16 +279,11 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
           } : lib
         );
         setLibraries(updatedLibraries);
-      }
-      
-      toast({
-        title: isNew ? "Bibliothek erstellt" : "Bibliothek aktualisiert",
-        description: `Die Bibliothek "${data.label}" wurde erfolgreich ${isNew ? 'erstellt' : 'aktualisiert'}.`,
-      });
-      
-      // Zur Bibliotheksseite navigieren, wenn eine neue Bibliothek erstellt wurde
-      if (isNew) {
-        router.push('/library');
+        
+        toast({
+          title: "Bibliothek aktualisiert",
+          description: `Die Bibliothek "${data.label}" wurde erfolgreich aktualisiert.`,
+        });
       }
       
     } catch (error) {
@@ -340,18 +354,44 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     }
   };
 
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <Button 
-            onClick={handleCreateNew} 
-            disabled={isNew}
-            size="sm"
-          >
-            Neue Bibliothek erstellen
-          </Button>
+          {isNew ? (
+            <div className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              <span className="font-medium">Neue Bibliothek erstellen</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              <span className="font-medium">
+                {activeLibrary ? `Bibliothek bearbeiten: ${activeLibrary.label}` : "Bibliothek auswählen"}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex gap-2">
+          {isNew ? (
+            <Button 
+              onClick={handleCancelNew}
+              variant="outline"
+              size="sm"
+            >
+              Abbrechen
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleCreateNew} 
+              disabled={isLoading}
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Neue Bibliothek erstellen
+            </Button>
+          )}
         </div>
       </div>
       

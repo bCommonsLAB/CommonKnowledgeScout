@@ -626,6 +626,13 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const currentCategoryFilter = useAtomValue(fileCategoryFilterAtom);
 
+  // Hilfsfunktion zum Finden einer FileGroup in der Map
+  const findFileGroup = (map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
+    return Array.from((map ?? new Map()).values()).find(group => 
+      group.baseItem && getBaseName(group.baseItem.metadata.name) === stem
+    );
+  };
+
   // NEU: Atome für Sortierung und Filter
   const items = useAtomValue(sortedFilteredFilesAtom);
   const [sortField, setSortField] = useAtom(sortFieldAtom);
@@ -677,54 +684,93 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
     initialize();
 
+    const timeoutRef = initializationTimeoutRef.current;
     return () => {
-      if (initializationTimeoutRef.current) {
-        clearTimeout(initializationTimeoutRef.current);
+      if (timeoutRef) {
+        clearTimeout(timeoutRef);
       }
     };
   }, [provider, isFileTreeReady, isInitialized, items?.length]);
 
-  // Gruppiere die Dateien mit Shadow-Twin-Logik
+  // NEU: Reagieren auf Bibliothekswechsel
+  React.useEffect(() => {
+    StateLogger.debug('FileList', 'Render', {
+      currentLibraryId: activeLibraryId,
+      activeLibraryIdAtom: activeLibraryId
+    });
+
+    // Bei Bibliothekswechsel zurücksetzen
+    if (activeLibraryId) {
+      setIsInitialized(false);
+      setSelectedFile(null);
+      setFolderItems([]);
+      setSelectedBatchItems([]);
+      setSelectedTransformationItems([]);
+      setSelectedShadowTwin(null);
+      
+      StateLogger.info('FileList', 'Bibliothek gewechselt - State zurückgesetzt', {
+        libraryId: activeLibraryId
+      });
+    }
+  }, [activeLibraryId, setSelectedFile, setFolderItems, setSelectedBatchItems, setSelectedTransformationItems, setSelectedShadowTwin]);
+
+  // Vereinfachte Funktion zum Extrahieren des Basisnamens (ohne Endung, auch für Binärdateien)
+  function getBaseName(name: string): string {
+    // ShadowTwin: .de.md, .en.md, etc.
+    const shadowTwinMatch = name.match(/^(.*)\.(de|en|fr|es|it)\.md$/);
+    if (shadowTwinMatch) return shadowTwinMatch[1];
+    // Sonst: alles vor der letzten Endung
+    const lastDot = name.lastIndexOf('.');
+    if (lastDot === -1) return name;
+    return name.substring(0, lastDot);
+  }
+
+  // Prüft ob eine Datei ein ShadowTwin ist (Markdown mit Sprachkürzel)
+  function isShadowTwin(name: string): boolean {
+    // Pattern: name.de.md, name.en.md, etc.
+    const shadowTwinPattern = /^(.+)\.(de|en|fr|es|it)\.md$/;
+    return shadowTwinPattern.test(name);
+  }
+
+  // Gruppiere die Dateien nach Basename
   const fileGroups = useMemo(() => {
     if (!items) return new Map<string, FileGroup>();
-    
-    // Gruppiere Dateien nach Basisnamen
+
+    // Schritt 1: Gruppiere alle Dateien nach Basename
     const groupsMap = new Map<string, StorageItem[]>();
-    
-    // Sammle alle Dateien nach Basisnamen
     for (const item of items) {
-      if (item.type === 'file') {
-        const name = item.metadata.name;
-        const baseName = getBaseName(name);
-        const group = groupsMap.get(baseName) || [];
-        group.push(item);
-        groupsMap.set(baseName, group);
+      if (item.type !== 'file') continue;
+      const base = getBaseName(item.metadata.name);
+      if (!groupsMap.has(base)) groupsMap.set(base, []);
+      groupsMap.get(base)!.push(item);
+    }
+
+    // Schritt 2: Erstelle FileGroups
+    const fileGroupsMap = new Map<string, FileGroup>();
+    for (const [base, groupItems] of Array.from(groupsMap.entries())) {
+      // Finde Hauptdatei (erste Nicht-ShadowTwin-Datei)
+      const mainFile = groupItems.find((item) => !isShadowTwin(item.metadata.name));
+      // Finde alle ShadowTwins
+      const shadowTwins = groupItems.filter((item) => isShadowTwin(item.metadata.name));
+      if (mainFile) {
+        fileGroupsMap.set(base, {
+          baseItem: mainFile,
+          transcriptFiles: shadowTwins.length > 0 ? shadowTwins : undefined,
+          transformed: undefined
+        });
+      } else {
+        // Keine Hauptdatei: Jede ShadowTwin einzeln anzeigen
+        for (const twin of shadowTwins) {
+          fileGroupsMap.set(`${base}__shadow_${twin.id}`, {
+            baseItem: twin,
+            transcriptFiles: undefined,
+            transformed: undefined
+          });
+        }
       }
     }
-    
-    // Erstelle FileGroups für jede Gruppe
-    const fileGroupsMap = new Map<string, FileGroup>();
-    
-    groupsMap.forEach((groupItems: StorageItem[], baseName: string) => {
-      // Finde die Hauptdatei (nicht Shadow-Twin)
-      const mainFile = groupItems.find((item: StorageItem) => isMainFile(item.metadata.name));
-      
-      // Finde Shadow-Twins (Markdown mit Sprachkürzel)
-      const shadowTwins = groupItems.filter((item: StorageItem) => isShadowTwin(item.metadata.name));
-      
-      if (mainFile) {
-        // Erstelle FileGroup mit Hauptdatei und allen Transkripten
-        const fileGroup: FileGroup = {
-          baseItem: mainFile,
-          transcriptFiles: shadowTwins,
-          transformed: undefined // Keine transformierten Dateien für jetzt
-        };
-        fileGroupsMap.set(baseName, fileGroup);
-      }
-      // KEIN else: Shadow-Twins ohne Hauptdatei werden ignoriert!
-    });
     // Debug-Logging für Gruppierung
-    FileLogger.debug('FileList', 'Gruppierung Ergebnis', {
+    FileLogger.debug('FileList', 'Gruppierung Ergebnis (Basename, alle Endungen)', {
       groups: Array.from(fileGroupsMap.entries()).map(([base, group]) => ({
         base,
         baseItem: group.baseItem?.metadata.name,
@@ -736,9 +782,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
   // Berechne, ob alle Dateien ausgewählt sind
   const isAllSelected = useMemo(() => {
-    if (!fileGroups.size) return false;
+    if (!fileGroups || !fileGroups.size) return false;
     // Verwende nur die Hauptdateien (baseItem) aus den FileGroups
-    const mainItems = Array.from(fileGroups.values())
+    const mainItems = Array.from((fileGroups ?? new Map()).values())
       .map(group => group.baseItem)
       .filter((item): item is StorageItem => item !== undefined);
     // Je nach Filter unterschiedliche Dateien zählen
@@ -798,7 +844,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   }, [fileGroups, selectedBatchItems, selectedTransformationItems, currentCategoryFilter]);
   
-  // Aktualisierte handleSelect Funktion
+  // Erweiterte handleSelect Funktion für Review-Mode
   const handleSelect = useCallback((item: StorageItem, group?: FileGroup) => {
     FileLogger.debug('FileList', 'handleSelect aufgerufen', {
       itemId: item.id,
@@ -831,7 +877,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       });
       setSelectedShadowTwin(null);
     }
-  }, [setSelectedFile, setSelectedShadowTwin]);
+  }, [setSelectedFile, setSelectedShadowTwin, findFileGroup]);
   
   // Erweiterte handleSelectRelatedFile Funktion für Review-Mode
   const handleSelectRelatedFile = useCallback((shadowTwin: StorageItem) => {
@@ -843,7 +889,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     // Setze das Shadow-Twin als ausgewählte Datei, damit es rechts angezeigt wird
     setSelectedFile(shadowTwin);
     setSelectedShadowTwin(null); // Kein zusätzliches Shadow-Twin im normalen Modus
-  }, [setSelectedFile, setSelectedShadowTwin]);
+  }, [setSelectedFile, setSelectedShadowTwin, findFileGroup]);
 
   // Aktualisierte handleRefresh Funktion
   const handleRefresh = useCallback(async () => {
@@ -869,117 +915,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     FileLogger.info('FileList', 'Create transcript for', { fileName: 'TODO' });
     // TODO: Implement transcript creation
   }, []);
-
-  // Vereinfachte Funktion zum Extrahieren des Basisnamens
-  function getBaseName(name: string): string {
-    // Shadow-Twin: .de.md, .en.md, etc.
-    const match = name.match(/^(.*)\.(de|en|fr|es|it)\.md$/);
-    if (match) return match[1];
-    // Sonst: alles vor dem letzten Punkt
-    const lastDot = name.lastIndexOf('.');
-    return lastDot === -1 ? name : name.substring(0, lastDot);
-  }
-
-  // Prüft ob eine Datei ein Shadow-Twin ist (Markdown mit Sprachkürzel)
-  function isShadowTwin(name: string): boolean {
-    // Pattern: name.de.md, name.en.md, etc.
-    const shadowTwinPattern = /^(.+)\.(de|en|fr|es|it)\.md$/;
-    return shadowTwinPattern.test(name);
-  }
-
-  // Prüft ob eine Datei eine Hauptdatei ist (nicht Markdown oder Markdown ohne Sprachkürzel)
-  function isMainFile(name: string): boolean {
-    // Wenn es ein Shadow-Twin ist, ist es keine Hauptdatei
-    if (isShadowTwin(name)) return false;
-    
-    // Alle anderen Dateien sind Hauptdateien
-    return true;
-  }
-
-  // Intelligente Batch-Auswahl basierend auf Filter
-  const handleSelectAll = useCallback((checked: boolean) => {
-    const startTime = performance.now();
-    
-    if (checked) {
-      // Verwende nur die Hauptdateien (baseItem) aus den FileGroups
-      const mainItems = Array.from(fileGroups.values())
-        .map(group => group.baseItem)
-        .filter((item): item is StorageItem => item !== undefined);
-      
-      const selectableItems = mainItems.filter(item => {
-        try {
-          const mediaType = getMediaType(item);
-          
-          // Je nach Filter unterschiedliche Dateien auswählen
-          switch (currentCategoryFilter) {
-            case 'media':
-              return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
-            case 'text':
-              return item.type === 'file' && mediaType === 'text';
-            case 'documents':
-              return item.type === 'file' && mediaType === 'document';
-            default:
-              // Bei 'all' alle Dateien auswählen, die für eine Operation geeignet sind
-              return item.type === 'file' && (
-                mediaType === 'audio' || 
-                mediaType === 'video' || 
-                mediaType === 'text' || 
-                mediaType === 'document'
-              );
-          }
-        } catch {
-          return false;
-        }
-      });
-
-      StateLogger.info('FileList', 'Selecting all items based on filter', {
-        filter: currentCategoryFilter,
-        totalItems: items.length,
-        selectableCount: selectableItems.length,
-        duration: `${(performance.now() - startTime).toFixed(2)}ms`
-      });
-      
-      // Je nach Filter unterschiedliche Atome verwenden
-      if (currentCategoryFilter === 'media') {
-        setSelectedBatchItems(selectableItems.map(item => ({
-          item,
-          type: getMediaType(item)
-        })));
-      } else if (currentCategoryFilter === 'text') {
-        setSelectedTransformationItems(selectableItems.map(item => ({
-          item,
-          type: getMediaType(item)
-        })));
-      } else {
-        // Bei 'all' oder 'documents' beide Atome füllen
-        const mediaItems = selectableItems.filter(item => {
-          const mediaType = getMediaType(item);
-          return mediaType === 'audio' || mediaType === 'video';
-        });
-        const textItems = selectableItems.filter(item => {
-          const mediaType = getMediaType(item);
-          return mediaType === 'text' || mediaType === 'document';
-        });
-        
-        setSelectedBatchItems(mediaItems.map(item => ({
-          item,
-          type: getMediaType(item)
-        })));
-        setSelectedTransformationItems(textItems.map(item => ({
-          item,
-          type: getMediaType(item)
-        })));
-      }
-    } else {
-      StateLogger.info('FileList', 'Deselecting all items', {
-        previouslySelected: selectedBatchItems.length + selectedTransformationItems.length,
-        duration: `${(performance.now() - startTime).toFixed(2)}ms`
-      });
-      
-      setSelectedBatchItems([]);
-      setSelectedTransformationItems([]);
-    }
-      }, [fileGroups, currentCategoryFilter, setSelectedBatchItems, setSelectedTransformationItems, selectedBatchItems.length, selectedTransformationItems.length]);
 
   // Entfernt: handleItemSelect war unbenutzt
 
@@ -1088,13 +1023,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   }, [provider, handleRefresh, fileGroups, setSelectedFile, setSelectedBatchItems]);
 
-  // Hilfsfunktion zum Finden einer FileGroup in der Map
-  const findFileGroup = (map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
-    return Array.from(map.values()).find(group => 
-      group.baseItem && getBaseName(group.baseItem.metadata.name) === stem
-    );
-  };
-
   const handleRename = React.useCallback(async (item: StorageItem, newName: string) => {
     if (!provider) {
       toast.error("Fehler", {
@@ -1174,12 +1102,94 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   };
 
+  // Intelligente Batch-Auswahl basierend auf Filter
+  const handleSelectAll = useCallback((checked: boolean) => {
+    const startTime = performance.now();
+    if (checked) {
+      // Verwende nur die Hauptdateien (baseItem) aus den FileGroups
+      const mainItems = Array.from((fileGroups ?? new Map()).values())
+        .map(group => group.baseItem)
+        .filter((item): item is StorageItem => item !== undefined);
+      const selectableItems = mainItems.filter(item => {
+        try {
+          const mediaType = getMediaType(item);
+          // Je nach Filter unterschiedliche Dateien auswählen
+          switch (currentCategoryFilter) {
+            case 'media':
+              return item.type === 'file' && (mediaType === 'audio' || mediaType === 'video');
+            case 'text':
+              return item.type === 'file' && mediaType === 'text';
+            case 'documents':
+              return item.type === 'file' && mediaType === 'document';
+            default:
+              // Bei 'all' alle Dateien auswählen, die für eine Operation geeignet sind
+              return item.type === 'file' && (
+                mediaType === 'audio' || 
+                mediaType === 'video' || 
+                mediaType === 'text' || 
+                mediaType === 'document'
+              );
+          }
+        } catch {
+          return false;
+        }
+      });
+      StateLogger.info('FileList', 'Selecting all items based on filter', {
+        filter: currentCategoryFilter,
+        totalItems: items.length,
+        selectableCount: selectableItems.length,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      // Je nach Filter unterschiedliche Atome verwenden
+      if (currentCategoryFilter === 'media') {
+        setSelectedBatchItems(selectableItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+      } else if (currentCategoryFilter === 'text') {
+        setSelectedTransformationItems(selectableItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+      } else {
+        // Bei 'all' oder 'documents' beide Atome füllen
+        const mediaItems = selectableItems.filter(item => {
+          const mediaType = getMediaType(item);
+          return mediaType === 'audio' || mediaType === 'video';
+        });
+        const textItems = selectableItems.filter(item => {
+          const mediaType = getMediaType(item);
+          return mediaType === 'text' || mediaType === 'document';
+        });
+        setSelectedBatchItems(mediaItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+        setSelectedTransformationItems(textItems.map(item => ({
+          item,
+          type: getMediaType(item)
+        })));
+      }
+    } else {
+      StateLogger.info('FileList', 'Deselecting all items', {
+        previouslySelected: selectedBatchItems.length + selectedTransformationItems.length,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      setSelectedBatchItems([]);
+      setSelectedTransformationItems([]);
+    }
+  }, [fileGroups, currentCategoryFilter, setSelectedBatchItems, setSelectedTransformationItems, selectedBatchItems.length, selectedTransformationItems.length, items.length]);
+
   React.useEffect(() => {
-    // Logging der Library-IDs
-    StateLogger.debug('FileList', 'Render', {
-      currentLibraryId: currentLibrary?.id,
-      activeLibraryIdAtom: activeLibraryId
-    });
+    // Logging der Library-IDs - verzögert ausführen
+    const timeoutId = setTimeout(() => {
+      StateLogger.debug('FileList', 'Render', {
+        currentLibraryId: currentLibrary?.id,
+        activeLibraryIdAtom: activeLibraryId
+      });
+    }, 0);
+    
+    return () => clearTimeout(timeoutId);
   }, [currentLibrary, activeLibraryId]);
 
   if (!isFileTreeReady) {
@@ -1271,7 +1281,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
           {/* File Rows */}
           <div className="divide-y">
-            {Array.from(fileGroups.values())
+            {Array.from((fileGroups ?? new Map()).values())
               .map((group) => {
                 // Zeige nur die Hauptdatei (baseItem) an
                 const item = group.baseItem;

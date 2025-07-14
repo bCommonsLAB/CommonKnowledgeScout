@@ -350,7 +350,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     // Überprüfe, ob der Provider zur aktuellen Bibliothek passt
     if (!provider || !currentLibrary) {
       console.error('[StorageContext] Kein Provider oder keine aktuelle Bibliothek verfügbar für listItems');
-      return [];
+      throw new Error('Keine aktive Bibliothek verfügbar. Bitte wählen Sie eine Bibliothek aus.');
     }
     
     // Wichtig: Stelle sicher, dass der Provider zur aktuellen Bibliothek gehört
@@ -400,16 +400,53 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     }
     
     try {
-      return await provider.listItemsById(folderId);
+      const items = await provider.listItemsById(folderId);
+      console.log(`[StorageContext][listItems] Erfolgreich ${items.length} Items geladen`);
+      return items;
     } catch (error) {
       if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
         setIsAuthRequired(true);
         setAuthProvider(provider.name);
+        setLibraryStatus('waitingForAuth');
         // Kein Logging für AUTH_REQUIRED
       } else {
         setIsAuthRequired(false);
         setAuthProvider(null);
-        console.error('[StorageContext] Fehler beim Auflisten der Items:', error);
+        setLibraryStatus('ready');
+        
+        // Verbesserte Fehlerbehandlung
+        let errorMessage = 'Unbekannter Fehler beim Laden der Dateien';
+        
+        if (error instanceof Error) {
+          errorMessage = error.message;
+          
+          // Spezifische Fehlermeldungen für häufige Probleme
+          if (error.message.includes('Bibliothek nicht gefunden')) {
+            errorMessage = 'Die ausgewählte Bibliothek wurde nicht gefunden. Bitte überprüfen Sie die Bibliothekskonfiguration.';
+          } else if (error.message.includes('Server-Fehler')) {
+            errorMessage = 'Server-Fehler beim Laden der Bibliothek. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.';
+          } else if (error.message.includes('Keine Berechtigung')) {
+            errorMessage = 'Keine Berechtigung für den Zugriff auf die Bibliothek. Bitte überprüfen Sie die Dateiberechtigungen.';
+          } else if (error.message.includes('ENOENT')) {
+            errorMessage = 'Der Bibliothekspfad existiert nicht. Bitte überprüfen Sie die Bibliothekskonfiguration.';
+          }
+        }
+        
+        console.error('[StorageContext] Fehler beim Auflisten der Items:', {
+          error: error instanceof Error ? {
+            message: error.message,
+            name: error.name,
+            stack: error.stack?.split('\n').slice(0, 3)
+          } : error,
+          libraryId: currentLibrary.id,
+          libraryPath: currentLibrary.path,
+          providerName: provider.name
+        });
+        
+        // Erstelle einen benutzerfreundlichen Fehler
+        const userFriendlyError = new Error(errorMessage);
+        userFriendlyError.name = 'StorageError';
+        throw userFriendlyError;
       }
       throw error;
     }

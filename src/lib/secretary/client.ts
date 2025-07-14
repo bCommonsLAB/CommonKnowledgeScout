@@ -616,7 +616,9 @@ export async function transformVideo(
  * @param targetLanguage Die Zielsprache für die Verarbeitung
  * @param libraryId ID der aktiven Bibliothek
  * @param template Optionales Template für die Verarbeitung
- * @param extractionMethod Die Extraktionsmethode (native, ocr, both, preview, preview_and_native)
+ * @param extractionMethod Die Extraktionsmethode (native, ocr, both, preview, preview_and_native, llm, llm_and_ocr)
+ * @param useCache Ob Cache verwendet werden soll
+ * @param includeImages Ob Bilder mit extrahiert werden sollen
  * @returns Die vollständige Response vom Secretary Service
  */
 export async function transformPdf(
@@ -674,6 +676,64 @@ export async function transformPdf(
 }
 
 /**
+ * Interface für Image-OCR-Response
+ */
+export interface SecretaryImageResponse {
+  status: string;
+  request?: {
+    processor: string;
+    timestamp: string;
+    parameters: {
+      file_path: string;
+      template: string | null;
+      context: string | null;
+      extraction_method: string;
+    };
+  };
+  process?: {
+    id: string;
+    main_processor: string;
+    started: string;
+    sub_processors: string[];
+    completed: string | null;
+    duration: number | null;
+    is_from_cache: boolean;
+    cache_key: string;
+    llm_info?: {
+      requests: Array<{
+        model: string;
+        purpose: string;
+        tokens: number;
+        duration: number;
+        processor: string;
+        timestamp: string;
+      }>;
+      requests_count: number;
+      total_tokens: number;
+      total_duration: number;
+    };
+  };
+  error: unknown | null;
+  data: {
+    extracted_text: string;
+    metadata: {
+      file_name: string;
+      file_size: number;
+      dimensions: string;
+      format: string;
+      color_mode: string;
+      dpi: number[];
+      process_dir: string;
+      extraction_method: string;
+      preview_paths: string[];
+    };
+    process_id: string;
+    processed_at: string;
+    status: string;
+  };
+}
+
+/**
  * Interface für Session-Import-Response
  */
 export interface SessionImportResponse {
@@ -696,6 +756,69 @@ export interface SessionImportResponse {
     code: string;
     message: string;
   };
+}
+
+/**
+ * Transformiert ein Bild mithilfe des Secretary Services
+ * 
+ * @param file Die zu transformierende Bilddatei
+ * @param targetLanguage Die Zielsprache für die Verarbeitung
+ * @param libraryId ID der aktiven Bibliothek
+ * @param extractionMethod Die Extraktionsmethode (ocr, llm, llm_and_ocr, native, both, preview, preview_and_native)
+ * @param context Optionaler JSON-Kontext für LLM-Optimierung
+ * @param useCache Ob Cache verwendet werden soll
+ * @returns Die vollständige Response vom Secretary Service
+ */
+export async function transformImage(
+  file: File,
+  targetLanguage: string,
+  libraryId: string,
+  extractionMethod: string = 'ocr',
+  context?: string,
+  useCache: boolean = true
+): Promise<SecretaryImageResponse> {
+  try {
+    console.log('[secretary/client] transformImage aufgerufen mit Sprache:', targetLanguage, 'und Methode:', extractionMethod);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('targetLanguage', targetLanguage);
+    formData.append('extraction_method', extractionMethod);
+    formData.append('useCache', useCache.toString());
+    
+    // Context-Option
+    if (context) {
+      formData.append('context', context);
+    }
+    
+    // Angepasste Header bei expliziten Optionen
+    const customHeaders: HeadersInit = {};
+    customHeaders['X-Library-Id'] = libraryId;
+    
+    console.log('[secretary/client] Sende Anfrage an Secretary Service API');
+    const response = await fetch('/api/secretary/process-image', {
+      method: 'POST',
+      body: formData,
+      headers: customHeaders
+    });
+
+    console.log('[secretary/client] Antwort erhalten, Status:', response.status);
+    if (!response.ok) {
+      throw new SecretaryServiceError(`Fehler bei der Verbindung zum Secretary Service: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('[secretary/client] Bild-Daten erfolgreich empfangen');
+    
+    // Gebe die vollständige Response zurück
+    return data as SecretaryImageResponse;
+  } catch (error) {
+    console.error('[secretary/client] Fehler bei der Bild-Transformation:', error);
+    if (error instanceof SecretaryServiceError) {
+      throw error;
+    }
+    throw new SecretaryServiceError('Fehler bei der Verarbeitung der Bilddatei');
+  }
 }
 
 /**

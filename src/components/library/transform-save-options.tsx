@@ -17,6 +17,7 @@ export interface TransformSaveOptions {
   extractionMethod?: string; // Optional für PDF-Transformation
   useCache?: boolean; // Neu: Cache-Option für alle Transformationen
   includeImages?: boolean; // Neu: Bilder mit extrahieren und speichern
+  context?: string; // Optionaler Kontext für LLM-Optimierung
 }
 
 interface TransformSaveOptionsProps {
@@ -166,15 +167,17 @@ export function TransformSaveOptions({
                   <SelectValue placeholder="Methode auswählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="native">Nur Text (Native)</SelectItem>
-                  <SelectItem value="ocr">Nur OCR</SelectItem>
-                  <SelectItem value="both">Text und OCR</SelectItem>
+                  <SelectItem value="native">Native Analyse</SelectItem>
+                  <SelectItem value="ocr">Tesseract OCR</SelectItem>
+                  <SelectItem value="both">OCR + Native</SelectItem>
                   <SelectItem value="preview">Vorschaubilder</SelectItem>
-                  <SelectItem value="preview_and_native">Vorschaubilder und Text</SelectItem>
+                  <SelectItem value="preview_and_native">Vorschaubilder + Native</SelectItem>
+                  <SelectItem value="llm">LLM-basierte OCR</SelectItem>
+                  <SelectItem value="llm_and_ocr">LLM + OCR</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Bestimmt, wie der Inhalt aus der PDF extrahiert wird
+                Bestimmt, wie der Inhalt aus der PDF extrahiert wird. Native = Text-Extraktion, OCR = Bild-zu-Text, LLM = KI-basierte Analyse
               </p>
             </div>
           )}
