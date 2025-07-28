@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAtom } from "jotai"
 import { currentFolderIdAtom, reviewModeAtom } from "@/atoms/library-atom"
 import { Breadcrumb } from "./breadcrumb"
+import { AudioRecorderClient } from "./audio-recorder-client"
 
 interface LibraryHeaderProps {
   provider: StorageProvider | null
@@ -52,6 +53,8 @@ export function LibraryHeader({
     setIsReviewMode(!isReviewMode);
   }, [isReviewMode, setIsReviewMode, onClearCache]);
 
+
+
   return (
     <div className="border-b bg-background flex-shrink-0">
       {error && (
@@ -87,8 +90,10 @@ export function LibraryHeader({
               className="gap-2"
             >
               <Upload className="h-4 w-4" />
-              Hochladen
             </Button>
+            <AudioRecorderClient 
+              onUploadComplete={handleUploadComplete}
+            />
           </div>
         </div>
       </div>
@@ -105,4 +110,4 @@ export function LibraryHeader({
       />
     </div>
   )
-} 
+}
