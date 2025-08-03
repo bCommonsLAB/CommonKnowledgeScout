@@ -3,7 +3,7 @@ import { atom } from 'jotai';
 export interface LogEntry {
   id: string;  // Unique ID für React-Keys
   timestamp: string;
-  area: 'nav' | 'state' | 'file' | 'ui';
+  area: 'nav' | 'state' | 'file' | 'ui' | 'settings';
   sequence: number;  // Sequenznummer für die Reihenfolge
   component: string;
   level: 'debug' | 'info' | 'warn' | 'error';
@@ -14,14 +14,14 @@ export interface LogEntry {
 interface DebugState {
   logs: LogEntry[];
   visibleComponents: Set<string>;  // Komponenten können beliebige Namen haben
-  visibleAreas: Set<'nav' | 'state' | 'file' | 'ui'>;
+  visibleAreas: Set<'nav' | 'state' | 'file' | 'ui' | 'settings'>;
   maxLogs: number;  // Maximum number of logs to keep
 }
 
 const initialDebugState: DebugState = {
   logs: [],
   visibleComponents: new Set(['FileTree', 'Breadcrumb', 'FileList']),  // Standard-aktive Komponenten
-  visibleAreas: new Set<'nav' | 'state' | 'file' | 'ui'>(['nav', 'state', 'file']),  // Standard-aktive Bereiche
+  visibleAreas: new Set<'nav' | 'state' | 'file' | 'ui' | 'settings'>(['nav', 'state', 'file']),  // Standard-aktive Bereiche
   maxLogs: 1000,  // Standardwert für maximale Log-Anzahl
 };
 
@@ -67,7 +67,7 @@ export const toggleComponentAtom = atom(
 // Atom für das Togglen der Bereichs-Sichtbarkeit
 export const toggleAreaAtom = atom(
   null,
-  (get, set, area: 'nav' | 'state' | 'file' | 'ui') => {
+  (get, set, area: 'nav' | 'state' | 'file' | 'ui' | 'settings') => {
     const debugState = get(debugStateAtom);
     const newVisibleAreas = new Set(debugState.visibleAreas);
     

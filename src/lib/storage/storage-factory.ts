@@ -1,6 +1,7 @@
 import { StorageProvider, StorageItem, StorageValidationResult } from './types';
 import { ClientLibrary } from '@/types/library';
 import { OneDriveProvider } from './onedrive-provider';
+import { WebDAVProvider } from './webdav-provider';
 
 interface LibraryPathProvider {
   _libraryPath?: string;
@@ -421,6 +422,10 @@ export class StorageFactory {
       case 'onedrive':
         provider = new OneDriveProvider(library, this.apiBaseUrl || undefined);
         console.log(`StorageFactory: OneDriveProvider erstellt`);
+        break;
+      case 'webdav':
+        provider = new WebDAVProvider(library, this.apiBaseUrl || undefined);
+        console.log(`StorageFactory: WebDAVProvider erstellt`);
         break;
       // Add more provider types here
       default:

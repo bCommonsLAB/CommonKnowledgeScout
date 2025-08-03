@@ -1,7 +1,7 @@
 import { LogEntry } from '@/atoms/debug-atom';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-type LogArea = 'nav' | 'state' | 'file' | 'ui';
+type LogArea = 'nav' | 'state' | 'file' | 'ui' | 'settings';
 
 // Event-System für Logs
 type LogCallback = (entry: Omit<LogEntry, 'id'>) => void;
@@ -19,7 +19,8 @@ class BaseLogger {
     nav: 0,
     state: 0,
     file: 0,
-    ui: 0
+    ui: 0,
+    settings: 0
   };
 
   private static formatMessage(
@@ -162,5 +163,23 @@ export class UILogger extends BaseLogger {
 
   static error(component: string, message: string, error?: unknown) {
     return this.createLog('ui', 'error', component, message, error instanceof Error ? { error: error.message, stack: error.stack } : { error });
+  }
+} 
+
+export class SettingsLogger extends BaseLogger {
+  static debug(component: string, message: string, details?: Record<string, unknown>) {
+    return this.createLog('settings', 'debug', component, message, details);
+  }
+
+  static info(component: string, message: string, details?: Record<string, unknown>) {
+    return this.createLog('settings', 'info', component, message, details);
+  }
+
+  static warn(component: string, message: string, details?: Record<string, unknown>) {
+    return this.createLog('settings', 'warn', component, message, details);
+  }
+
+  static error(component: string, message: string, error?: unknown) {
+    return this.createLog('settings', 'error', component, message, error instanceof Error ? { error: error.message, stack: error.stack } : { error });
   }
 } 

@@ -205,6 +205,10 @@ export async function PATCH(
     console.log(`[API] Existierende Config:`, {
       hasClientSecret: !!existingLibrary.config?.clientSecret,
       clientSecretValue: existingLibrary.config?.clientSecret,
+      hasWebDAVUrl: !!existingLibrary.config?.url,
+      hasWebDAVUsername: !!existingLibrary.config?.username,
+      hasWebDAVPassword: !!existingLibrary.config?.password,
+      hasWebDAVBasePath: !!existingLibrary.config?.basePath,
       configKeys: existingLibrary.config ? Object.keys(existingLibrary.config) : []
     });
     
@@ -232,6 +236,10 @@ export async function PATCH(
             console.log(`[API] Behalte existierendes clientSecret (leerer Wert gesendet)`);
           }
           // Wenn leer, behalten wir den existierenden Wert
+        } else if (key === 'password') {
+          // WebDAV-Passwort wird nicht mehr maskiert - normale Behandlung
+          console.log(`[API] Aktualisiere WebDAV password (Länge: ${value ? (value as string).length : 0})`);
+          updatedConfig[key] = value;
         } else {
           // Alle anderen Felder normal aktualisieren
           updatedConfig[key] = value;
@@ -244,6 +252,10 @@ export async function PATCH(
       hasClientSecret: !!updatedConfig.clientSecret,
       clientSecretValue: updatedConfig.clientSecret === '********' ? 'MASKED' : 
                          updatedConfig.clientSecret ? 'SET' : 'NOT SET',
+      hasWebDAVUrl: !!updatedConfig.url,
+      hasWebDAVUsername: !!updatedConfig.username,
+      hasWebDAVPassword: !!updatedConfig.password,
+      hasWebDAVBasePath: !!updatedConfig.basePath,
       configKeys: Object.keys(updatedConfig)
     });
     
@@ -271,7 +283,11 @@ export async function PATCH(
     
     console.log(`[API] Client-Response:`, {
       hasClientSecret: !!updatedClientLibraryResult.config?.clientSecret,
-      clientSecretValue: updatedClientLibraryResult.config?.clientSecret
+      clientSecretValue: updatedClientLibraryResult.config?.clientSecret,
+      hasWebDAVUrl: !!updatedClientLibraryResult.config?.url,
+      hasWebDAVUsername: !!updatedClientLibraryResult.config?.username,
+      hasWebDAVPassword: !!updatedClientLibraryResult.config?.password,
+      hasWebDAVBasePath: !!updatedClientLibraryResult.config?.basePath
     });
     console.log(`[API] === PATCH END ===`);
     

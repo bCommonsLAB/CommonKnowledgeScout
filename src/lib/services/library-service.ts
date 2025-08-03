@@ -250,6 +250,32 @@ export class LibraryService {
         };
       }
       
+      // WebDAV-spezifische Konfiguration
+      if (lib.type === 'webdav') {
+        console.log(`[LibraryService] Verarbeite WebDAV Library ${lib.id}:`, {
+          hasUrl: !!lib.config?.url,
+          hasUsername: !!lib.config?.username,
+          hasPassword: !!lib.config?.password,
+          hasBasePath: !!lib.config?.basePath
+        });
+        
+        config = {
+          ...config,
+          url: lib.config?.url,
+          username: lib.config?.username,
+          // WebDAV-Passwort NIEMALS maskieren - wird direkt übertragen
+          password: lib.config?.password,
+          basePath: lib.config?.basePath
+        };
+        
+        console.log(`[LibraryService] WebDAV Config nach Maskierung:`, {
+          hasUrl: !!config.url,
+          hasUsername: !!config.username,
+          hasPassword: !!config.password,
+          hasBasePath: !!config.basePath
+        });
+      }
+      
       const result = {
         id: lib.id,
         label: lib.label,

@@ -43,10 +43,11 @@ import { Badge } from "@/components/ui/badge"
 import { useStorage } from "@/contexts/storage-context"
 import { StorageFactory } from "@/lib/storage/storage-factory"
 import React from 'react'
+import { SettingsLogger } from "@/lib/debug/logger"
 
 // Hauptschema für das Formular
 const storageFormSchema = z.object({
-  type: z.enum(["local", "onedrive", "gdrive"], {
+  type: z.enum(["local", "onedrive", "gdrive", "webdav"], {
     required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
   path: z.string({
@@ -56,6 +57,11 @@ const storageFormSchema = z.object({
   tenantId: z.string().optional(),
   clientId: z.string().optional(),
   clientSecret: z.string().optional(),
+  // WebDAV-spezifische Felder
+  url: z.string().optional(),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  basePath: z.string().optional(),
 });
 
 type StorageFormValues = z.infer<typeof storageFormSchema>
@@ -108,11 +114,15 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
   
   // Default-Werte in useMemo verpacken
   const defaultValues = useMemo(() => ({
-    type: 'local' as StorageProviderType,
+    type: 'local' as "local" | "onedrive" | "gdrive" | "webdav",
     path: '',
     tenantId: '',
     clientId: '',
-    clientSecret: ''
+    clientSecret: '',
+    url: '',
+    username: '',
+    password: '',
+    basePath: ''
   }), []); // Leere Dependency-Liste, da die Werte konstant sind
   
   const form = useForm<StorageFormValues>({
@@ -125,7 +135,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
   
   // Logging für Mount und wichtige State-Änderungen
   useEffect(() => {
-    console.log('[StorageForm] Komponente gemountet/aktualisiert:', {
+    SettingsLogger.info('StorageForm', 'Komponente gemountet/aktualisiert', {
       pathname: window.location.pathname,
       search: window.location.search,
       activeLibraryId,
@@ -139,7 +149,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
   useEffect(() => {
     async function loadOAuthDefaults() {
       try {
-        console.log('[StorageForm] Lade OAuth-Standardwerte...');
+        SettingsLogger.info('StorageForm', 'Lade OAuth-Standardwerte...');
         const response = await fetch('/api/settings/oauth-defaults');
         
         if (!response.ok) {
@@ -147,7 +157,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         }
         
         const data = await response.json();
-        console.log('[StorageForm] Geladene OAuth-Defaults:', {
+        SettingsLogger.info('StorageForm', 'Geladene OAuth-Defaults', {
           hasDefaults: data.hasDefaults,
           tenantId: data.defaults?.tenantId ? 'vorhanden' : 'nicht vorhanden',
           clientId: data.defaults?.clientId ? 'vorhanden' : 'nicht vorhanden',
@@ -160,12 +170,12 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
             clientId: data.defaults.clientId,
             clientSecret: data.defaults.clientSecret,
           });
-          console.log('[StorageForm] OAuth-Standardwerte gesetzt');
+          SettingsLogger.info('StorageForm', 'OAuth-Standardwerte gesetzt');
         } else {
-          console.log('[StorageForm] Keine OAuth-Standardwerte gefunden');
+          SettingsLogger.info('StorageForm', 'Keine OAuth-Standardwerte gefunden');
         }
       } catch (error) {
-        console.error('[StorageForm] Fehler beim Laden der OAuth-Standardwerte:', error);
+        SettingsLogger.error('StorageForm', 'Fehler beim Laden der OAuth-Standardwerte', error);
       }
     }
     
@@ -184,7 +194,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       
       // Wenn Bibliothek gewechselt wird, Formular mit den Werten befüllen
       const formData = {
-        type: activeLibrary.type as StorageProviderType,
+        type: activeLibrary.type as "local" | "onedrive" | "gdrive" | "webdav",
         path: activeLibrary.path || "",
         // Alle Werte direkt aus der Bibliothek oder aus den Defaults verwenden
         tenantId: activeLibrary.config?.tenantId as string || oauthDefaults.tenantId,
@@ -193,6 +203,12 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         clientSecret: (activeLibrary.config?.clientSecret as string === '********') 
           ? '' 
           : activeLibrary.config?.clientSecret as string || oauthDefaults.clientSecret,
+        // WebDAV-spezifische Felder
+        url: activeLibrary.config?.url as string || '',
+        username: activeLibrary.config?.username as string || '',
+        // WebDAV-Passwort direkt verwenden ohne Maskierung
+        password: activeLibrary.config?.password as string || '',
+        basePath: activeLibrary.config?.basePath as string || '',
       };
       
       console.log('[StorageForm] Form-Daten zum Befüllen:', formData);
@@ -203,7 +219,38 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       
       // Zusätzlich: Nach Reset den aktuellen Zustand prüfen
       setTimeout(() => {
-        console.log('[StorageForm] Form-Zustand nach Reset:', form.getValues());
+        const currentValues = form.getValues();
+        console.log('[StorageForm] Form-Zustand nach Reset:', currentValues);
+        
+        // Debug: Prüfe speziell die WebDAV-Felder
+        if (activeLibrary.type === 'webdav') {
+          console.log('[StorageForm] WebDAV-Felder nach Reset:', {
+            url: currentValues.url,
+            username: currentValues.username,
+            password: currentValues.password ? 'vorhanden' : 'fehlt',
+            basePath: currentValues.basePath,
+            expectedUrl: activeLibrary.config?.url,
+            expectedUsername: activeLibrary.config?.username
+          });
+          
+          // Fallback: Wenn WebDAV-Felder nicht korrekt gesetzt wurden, setze sie manuell
+          if (!currentValues.url && activeLibrary.config?.url && typeof activeLibrary.config.url === 'string') {
+            console.log('[StorageForm] Fallback: Setze WebDAV URL manuell');
+            form.setValue('url', activeLibrary.config.url);
+          }
+          if (!currentValues.username && activeLibrary.config?.username && typeof activeLibrary.config.username === 'string') {
+            console.log('[StorageForm] Fallback: Setze WebDAV Username manuell');
+            form.setValue('username', activeLibrary.config.username);
+          }
+          if (!currentValues.password && activeLibrary.config?.password && typeof activeLibrary.config.password === 'string') {
+            console.log('[StorageForm] Fallback: Setze WebDAV Password manuell');
+            form.setValue('password', activeLibrary.config.password);
+          }
+          if (!currentValues.basePath && activeLibrary.config?.basePath && typeof activeLibrary.config.basePath === 'string') {
+            console.log('[StorageForm] Fallback: Setze WebDAV BasePath manuell');
+            form.setValue('basePath', activeLibrary.config.basePath);
+          }
+        }
       }, 0);
       
     } else {
@@ -404,9 +451,9 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     setIsLoading(true);
     
     try {
-      console.log('[StorageForm] === SUBMIT START ===');
-      console.log('[StorageForm] Formular-Rohdaten:', data);
-      console.log('[StorageForm] ClientSecret Wert:', {
+      SettingsLogger.info('StorageForm', '=== SUBMIT START ===');
+      SettingsLogger.debug('StorageForm', 'Formular-Rohdaten', data);
+      SettingsLogger.debug('StorageForm', 'ClientSecret Wert', {
         value: data.clientSecret,
         length: data.clientSecret?.length,
         isMasked: data.clientSecret === '********',
@@ -423,14 +470,19 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         if (data.clientId) config.clientId = data.clientId;
         // clientSecret nur senden, wenn es kein maskierter Wert ist und nicht leer
         if (data.clientSecret && data.clientSecret !== '' && data.clientSecret !== '********') {
-          console.log('[StorageForm] ClientSecret wird gesendet (nicht maskiert, nicht leer)');
+          SettingsLogger.info('StorageForm', 'ClientSecret wird gesendet (nicht maskiert, nicht leer)');
           config.clientSecret = data.clientSecret;
         } else {
-          console.log('[StorageForm] ClientSecret wird NICHT gesendet:', {
+          SettingsLogger.info('StorageForm', 'ClientSecret wird NICHT gesendet', {
             reason: data.clientSecret === '********' ? 'maskiert' : 
                     data.clientSecret === '' ? 'leer' : 'undefined/null'
           });
         }
+      } else if (data.type === 'webdav') {
+        if (data.url) config.url = data.url;
+        if (data.username) config.username = data.username;
+        if (data.password) config.password = data.password;
+        if (data.basePath) config.basePath = data.basePath;
       }
       
       const requestBody = {
@@ -439,7 +491,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         config
       };
       
-      console.log('[StorageForm] Request Body:', JSON.stringify(requestBody, null, 2));
+      SettingsLogger.debug('StorageForm', 'Request Body', requestBody);
       
       // API-Aufruf
       const response = await fetch(`/api/libraries/${activeLibrary.id}`, {
@@ -455,21 +507,26 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       }
       
       const updatedLibrary = await response.json();
-      console.log('[StorageForm] Response erhalten:', {
+      SettingsLogger.info('StorageForm', 'Response erhalten', {
         id: updatedLibrary.id,
         hasClientSecret: !!updatedLibrary.config?.clientSecret,
         clientSecretValue: updatedLibrary.config?.clientSecret
       });
-      console.log('[StorageForm] === SUBMIT END ===');
+      SettingsLogger.info('StorageForm', '=== SUBMIT END ===');
       
       // Library in der Liste aktualisieren
-      setLibraries(libraries.map(lib => lib.id === updatedLibrary.id ? updatedLibrary : lib));
+      const updatedLibraries = libraries.map(lib => lib.id === updatedLibrary.id ? updatedLibrary : lib);
+      setLibraries(updatedLibraries);
+      
+      // StorageFactory explizit mit den neuesten Libraries aktualisieren
+      const factory = StorageFactory.getInstance();
+      factory.setLibraries(updatedLibraries);
       
       toast.success("Erfolg", {
         description: "Die Einstellungen wurden gespeichert.",
       });
     } catch (error) {
-      console.error('[StorageForm] Fehler beim Speichern:', error);
+      SettingsLogger.error('StorageForm', 'Fehler beim Speichern', error);
       toast.error("Fehler", {
         description: error instanceof Error ? error.message : "Unbekannter Fehler beim Speichern",
       });
@@ -638,6 +695,13 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       });
       return;
     }
+    
+    SettingsLogger.info('StorageTest', '=== STORAGE TEST START ===', {
+      libraryId: activeLibrary.id,
+      libraryType: activeLibrary.type,
+      libraryLabel: activeLibrary.label
+    });
+    
     setIsTesting(true);
     setTestResults([]);
     setTestDialogOpen(true);
@@ -653,7 +717,18 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         };
         logs.push(entry);
         setTestResults([...logs]);
+        
+        // Zusätzlich über SettingsLogger loggen
+        const logLevel = status === 'error' ? 'error' : status === 'success' ? 'info' : 'debug';
+        SettingsLogger[logLevel]('StorageTest', `${step}: ${message}`, details);
       };
+
+      // Debug-Informationen über die aktive Library
+      logStep("Library-Info", "info", "Aktive Library-Informationen", {
+        id: activeLibrary.id,
+        type: activeLibrary.type,
+        config: activeLibrary.config
+      });
 
       // Hole den Provider über die StorageFactory
       const factory = StorageFactory.getInstance();
@@ -672,6 +747,21 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
 
       // Schritt 1: Konfiguration validieren
       logStep("Validierung", "info", "Validiere Storage-Provider Konfiguration...");
+      
+      // Spezieller WebDAV-Debug
+      if (activeLibrary.type === 'webdav') {
+        const config = activeLibrary.config as any;
+        logStep("WebDAV-Debug", "info", "WebDAV-Konfiguration analysieren", {
+          config: activeLibrary.config,
+          hasUrl: !!config?.url,
+          hasUsername: !!config?.username,
+          hasPassword: !!config?.password,
+          urlLength: typeof config?.url === 'string' ? config.url.length : 0,
+          usernameLength: typeof config?.username === 'string' ? config.username.length : 0,
+          passwordLength: typeof config?.password === 'string' ? config.password.length : 0
+        });
+      }
+      
       const validationResult = await provider.validateConfiguration();
       
       if (!validationResult.isValid) {
@@ -769,11 +859,13 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         logStep("Fehler", "error", `Test fehlgeschlagen: ${errorMessage}`, safeErrorDetails);
       }
     } catch (error) {
+      SettingsLogger.error('StorageTest', 'Fehler beim Testen', error);
       console.error('[StorageForm] Fehler beim Testen:', error);
       toast.error("Fehler", {
         description: error instanceof Error ? error.message : "Unbekannter Fehler beim Testen",
       });
     } finally {
+      SettingsLogger.info('StorageTest', '=== STORAGE TEST END ===');
       setIsTesting(false);
     }
   };
@@ -931,6 +1023,75 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
             />
           </>
         );
+      case "webdav":
+        return (
+          <>
+            <FormField
+              control={form.control}
+              name="url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>WebDAV URL</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ""} placeholder="https://your-nextcloud.com/remote.php/dav/files/username/" />
+                  </FormControl>
+                  <FormDescription>
+                    Die WebDAV-URL Ihrer Nextcloud-Instanz. Format: https://your-nextcloud.com/remote.php/dav/files/username/
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Benutzername</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormDescription>
+                    Ihr Nextcloud-Benutzername.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Passwort</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="password" value={field.value || ""} />
+                  </FormControl>
+                  <FormDescription>
+                    Ihr Nextcloud-Passwort oder App-Passwort.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="basePath"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Basis-Pfad (optional)</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ""} placeholder="/" />
+                  </FormControl>
+                  <FormDescription>
+                    Der Basis-Pfad innerhalb Ihrer Nextcloud-Instanz. Lassen Sie leer für das Root-Verzeichnis.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        );
       default:
         return null;
     }
@@ -1050,6 +1211,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
                     <SelectItem value="local">Lokales Dateisystem</SelectItem>
                     <SelectItem value="onedrive">Microsoft OneDrive</SelectItem>
                     <SelectItem value="gdrive">Google Drive</SelectItem>
+                    <SelectItem value="webdav">Nextcloud WebDAV</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormDescription>

@@ -316,7 +316,7 @@ export default function DebugFooter() {
                   <div>
                     <h4 className="text-xs font-medium mb-1">Areas</h4>
                     <div className="space-y-1">
-                      {(['nav', 'state', 'file', 'ui'] as const).map(area => (
+                      {(['nav', 'state', 'file', 'ui', 'settings'] as const).map(area => (
                         <div key={area} className="flex items-center space-x-2">
                           <Checkbox
                             id={`area-${area}`}

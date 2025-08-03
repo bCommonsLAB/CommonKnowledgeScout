@@ -9,7 +9,7 @@ import { ReactNode } from 'react';
  * Supported storage provider types.
  * Each type represents a different storage backend implementation.
  */
-export type StorageProviderType = 'local' | 'onedrive' | 'gdrive';
+export type StorageProviderType = 'local' | 'onedrive' | 'gdrive' | 'webdav';
 
 /**
  * Configuration options for storage providers.
@@ -30,6 +30,12 @@ export interface StorageConfig {
   
   /** Required OAuth permission scopes */
   scope?: string[];
+
+  /** WebDAV Konfiguration */
+  url?: string;
+  username?: string;
+  password?: string;
+  basePath?: string;
 
   /** Secretary Service Konfiguration */
   secretaryService?: {
