@@ -28,6 +28,7 @@ import { useAtomValue } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
 import { SUPPORTED_LANGUAGES } from '@/lib/secretary/constants';
 import { StorageItem } from '@/lib/storage/types';
+import { UILogger } from '@/lib/debug/logger';
 
 interface ProgressState {
   isProcessing: boolean;
@@ -230,7 +231,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
           if (parentId) {
             try {
               const updatedItems = await refreshItems(parentId);
-              console.log('TransformationDialog: Fileliste aktualisiert', {
+              UILogger.info('TransformationDialog', 'Fileliste aktualisiert', {
                 parentId,
                 itemCount: updatedItems.length
               });

@@ -1,5 +1,6 @@
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata } from './types';
 import { ClientLibrary } from '@/types/library';
+import { WebDAVProviderLogger } from './storage-logger';
 
 interface WebDAVConfig {
   url: string;
@@ -18,11 +19,7 @@ interface WebDAVItem {
   };
 }
 
-interface WebDAVResponse {
-  multistatus: {
-    response: WebDAVItem[];
-  };
-}
+
 
 /**
  * WebDAV Provider für Nextcloud
@@ -40,14 +37,14 @@ export class WebDAVProvider implements StorageProvider {
     
     // Konfiguration aus der Library extrahieren
     this.config = {
-      url: library.config?.url || '',
-      username: library.config?.username || '',
-      password: library.config?.password || '',
-      basePath: library.config?.basePath || '/'
+      url: (library.config?.url as string) || '',
+      username: (library.config?.username as string) || '',
+      password: (library.config?.password as string) || '',
+      basePath: (library.config?.basePath as string) || '/'
     };
     
     // Debug-Informationen
-    console.log('[WebDAVProvider] Konstruktor aufgerufen:', {
+    WebDAVProviderLogger.info('Konstruktor aufgerufen', {
       libraryId: library.id,
       libraryType: library.type,
       config: {
@@ -96,8 +93,7 @@ export class WebDAVProvider implements StorageProvider {
   private async makeWebDAVRequest(
     method: string,
     path: string,
-    body?: string,
-    headers?: Record<string, string>
+    body?: string
   ): Promise<Response> {
     // Verwende die direkte WebDAV-API-Route
     const apiUrl = this.getApiUrl('/api/storage/webdav-direct');
@@ -109,7 +105,7 @@ export class WebDAVProvider implements StorageProvider {
       method: method
     });
     
-    console.log('[WebDAVProvider] makeWebDAVRequest über direkte API:', {
+    WebDAVProviderLogger.debug('makeWebDAVRequest über direkte API', {
       method,
       apiUrl,
       path,
@@ -122,7 +118,7 @@ export class WebDAVProvider implements StorageProvider {
       // Sende PROPFIND als POST mit XML-Body an die Proxy-API
       const propfindBody = '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:allprop/></d:propfind>';
       
-      console.log('[WebDAVProvider] Sende PROPFIND als POST mit XML-Body:', {
+      WebDAVProviderLogger.debug('Sende PROPFIND als POST mit XML-Body', {
         propfindBody,
         bodyLength: propfindBody.length
       });
@@ -135,7 +131,7 @@ export class WebDAVProvider implements StorageProvider {
         body: propfindBody
       });
       
-      console.log('[WebDAVProvider] Response erhalten:', {
+      WebDAVProviderLogger.debug('Response erhalten', {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok
@@ -161,7 +157,7 @@ export class WebDAVProvider implements StorageProvider {
       body: body
     });
     
-    console.log('[WebDAVProvider] Response erhalten:', {
+    WebDAVProviderLogger.debug('Response erhalten', {
       status: response.status,
       statusText: response.statusText,
       ok: response.ok
@@ -191,7 +187,7 @@ export class WebDAVProvider implements StorageProvider {
         default: return match;
       }
     });
-    console.log('[WebDAVProvider] pathToId:', { path, id });
+    WebDAVProviderLogger.debug('pathToId', { path, id });
     return id;
   }
 
@@ -204,7 +200,7 @@ export class WebDAVProvider implements StorageProvider {
     // Füge fehlende Padding-Zeichen hinzu
     const padded = restored + '='.repeat((4 - restored.length % 4) % 4);
     const path = atob(padded);
-    console.log('[WebDAVProvider] idToPath:', { id, restored, padded, path });
+    WebDAVProviderLogger.debug('idToPath', { id, restored, padded, path });
     return path;
   }
 
@@ -235,7 +231,7 @@ export class WebDAVProvider implements StorageProvider {
    * Validiert die WebDAV-Konfiguration
    */
   async validateConfiguration(): Promise<StorageValidationResult> {
-    console.log('[WebDAVProvider] validateConfiguration aufgerufen:', {
+    WebDAVProviderLogger.info('validateConfiguration aufgerufen', {
       config: {
         url: this.config.url ? 'vorhanden' : 'fehlt',
         username: this.config.username ? 'vorhanden' : 'fehlt',
@@ -246,7 +242,7 @@ export class WebDAVProvider implements StorageProvider {
     
     try {
       if (!this.config.url) {
-        console.log('[WebDAVProvider] Validierung fehlgeschlagen: URL fehlt');
+        WebDAVProviderLogger.warn('Validierung fehlgeschlagen: URL fehlt');
         return {
           isValid: false,
           error: 'WebDAV URL ist erforderlich'
@@ -254,26 +250,26 @@ export class WebDAVProvider implements StorageProvider {
       }
 
       if (!this.config.username || !this.config.password) {
-        console.log('[WebDAVProvider] Validierung fehlgeschlagen: Anmeldedaten fehlen');
+        WebDAVProviderLogger.warn('Validierung fehlgeschlagen: Anmeldedaten fehlen');
         return {
           isValid: false,
           error: 'Benutzername und Passwort sind erforderlich'
         };
       }
 
-      console.log('[WebDAVProvider] Teste WebDAV-Verbindung...');
+      WebDAVProviderLogger.info('Teste WebDAV-Verbindung');
       // Teste die Verbindung durch einen PROPFIND-Request auf das konfigurierte Verzeichnis
       const testPath = this.config.basePath || '';
-      console.log('[WebDAVProvider] Verwende BasePath für Test:', testPath);
+      WebDAVProviderLogger.debug('Verwende BasePath für Test', { testPath });
       const response = await this.makeWebDAVRequest('PROPFIND', testPath);
       
       if (response.status === 200 || response.status === 207) {
-        console.log('[WebDAVProvider] Validierung erfolgreich');
+        WebDAVProviderLogger.info('Validierung erfolgreich');
         return {
           isValid: true
         };
       } else {
-        console.log('[WebDAVProvider] Validierung fehlgeschlagen:', response.status, response.statusText);
+        WebDAVProviderLogger.error('Validierung fehlgeschlagen', { status: response.status, statusText: response.statusText });
         return {
           isValid: false,
           error: `WebDAV-Verbindung fehlgeschlagen: ${response.status} ${response.statusText}`
@@ -398,9 +394,7 @@ export class WebDAVProvider implements StorageProvider {
       const itemName = sourcePath.split('/').pop() || '';
       const targetPath = `${targetParentPath}${targetParentPath.endsWith('/') ? '' : '/'}${itemName}`;
       
-      await this.makeWebDAVRequest('MOVE', sourcePath, undefined, {
-        'Destination': targetPath
-      });
+      await this.makeWebDAVRequest('MOVE', sourcePath);
     } catch (error) {
       throw new StorageError(
         `Fehler beim Verschieben des Items: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`,
@@ -419,9 +413,7 @@ export class WebDAVProvider implements StorageProvider {
       const parentPath = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/';
       const newPath = `${parentPath}${parentPath.endsWith('/') ? '' : '/'}${newName}`;
       
-      await this.makeWebDAVRequest('MOVE', oldPath, undefined, {
-        'Destination': newPath
-      });
+      await this.makeWebDAVRequest('MOVE', oldPath);
       
       // Erstelle ein aktualisiertes StorageItem
       const metadata: StorageItemMetadata = {
@@ -454,7 +446,7 @@ export class WebDAVProvider implements StorageProvider {
       const parentPath = parentId === 'root' ? this.config.basePath || '/' : this.idToPath(parentId);
       const filePath = `${parentPath}${parentPath.endsWith('/') ? '' : '/'}${file.name}`;
       
-      console.log('[WebDAVProvider] Upload-Pfad-Debug:', {
+      WebDAVProviderLogger.debug('Upload-Pfad-Debug', {
         parentId,
         parentPath,
         filePath,

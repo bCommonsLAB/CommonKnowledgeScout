@@ -7,13 +7,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChevronDown, ChevronUp, Maximize2, Minimize2, Copy } from 'lucide-react';
-import { debugStateAtom, toggleComponentAtom, toggleAreaAtom, clearLogsAtom, addLogAtom } from '@/atoms/debug-atom';
+import { debugStateAtom, toggleComponentAtom, toggleAreaAtom, clearLogsAtom, addLogAtom, clearServerLogsAtom, toggleServerLogsAtom } from '@/atoms/debug-atom';
 import { cn } from '@/lib/utils';
 import { subscribeToLogs } from '@/lib/debug/logger';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { toast } from 'sonner';
 import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
+import { useServerLogs } from '@/hooks/use-server-logs';
 
 export default function DebugFooter() {
   const [isExpanded, setIsExpanded] = React.useState(false);
@@ -27,11 +28,15 @@ export default function DebugFooter() {
   const [, setClearLogs] = useAtom(clearLogsAtom);
   const [, setAddLog] = useAtom(addLogAtom);
 
+  const [, setClearServerLogs] = useAtom(clearServerLogsAtom);
+  const [, setToggleServerLogs] = useAtom(toggleServerLogsAtom);
+
   // Library State
   const [activeLibrary] = useAtom(activeLibraryAtom);
   const [activeLibraryId] = useAtom(activeLibraryIdAtom);
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const { provider, libraryStatus } = useStorage();
+  const { serverLogs, isLoading: serverLogsLoading, error: serverLogsError, refetch: refetchServerLogs } = useServerLogs();
 
   // Debug Info für System Tab
   const debugInfo = React.useMemo(() => [
@@ -63,16 +68,22 @@ export default function DebugFooter() {
     return Array.from(componentSet).sort();
   }, [debugState.logs]);
 
-  // Gefilterte und sortierte Logs
+  // Gefilterte und sortierte Logs (Client + Server)
   const filteredLogs = React.useMemo(() => {
-    return debugState.logs
+    const clientLogs = debugState.logs
       .filter(log => 
         debugState.visibleComponents.has(log.component) &&
         debugState.visibleAreas.has(log.area)
-      )
+      );
+
+    const serverLogs = debugState.showServerLogs ? debugState.serverLogs : [];
+
+    const allLogs = [...clientLogs, ...serverLogs];
+    
+    return allLogs
       .slice(0, 200) // Limitiere auf 200 Einträge
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp)); // Neueste zuerst
-  }, [debugState.logs, debugState.visibleComponents, debugState.visibleAreas]);
+  }, [debugState.logs, debugState.serverLogs, debugState.visibleComponents, debugState.visibleAreas, debugState.showServerLogs]);
 
   // Duplikaterkennung
   const logsWithRemarks = React.useMemo(() => {
@@ -163,7 +174,7 @@ export default function DebugFooter() {
   }, [setToggleComponent]);
 
   // Checkbox-Handler für Areas
-  const handleAreaToggle = React.useCallback((checked: boolean | 'indeterminate', area: 'nav' | 'state' | 'file' | 'ui') => {
+  const handleAreaToggle = React.useCallback((checked: boolean | 'indeterminate', area: 'nav' | 'state' | 'file' | 'ui' | 'settings' | 'storage') => {
     if (typeof checked === 'boolean') {
       setToggleArea(area);
     }
@@ -336,6 +347,86 @@ export default function DebugFooter() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Server-Logs Controls */}
+                  <div>
+                    <h4 className="text-xs font-medium mb-1">Server Logs</h4>
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="server-logs-toggle"
+                          checked={debugState.showServerLogs}
+                          onCheckedChange={() => setToggleServerLogs()}
+                          className="h-3 w-3"
+                        />
+                        <label
+                          htmlFor="server-logs-toggle"
+                          className="text-xs leading-none"
+                        >
+                          Show Server Logs
+                        </label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 text-xs"
+                          onClick={refetchServerLogs}
+                          disabled={serverLogsLoading}
+                        >
+                          {serverLogsLoading ? 'Loading...' : 'Refresh Server'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 text-xs"
+                          onClick={() => setClearServerLogs()}
+                        >
+                          Clear
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 text-xs"
+                          onClick={async () => {
+                            try {
+                              await fetch('/api/debug/test-server-logs');
+                              refetchServerLogs();
+                            } catch (error) {
+                              console.error('Fehler beim Generieren der Test-Logs:', error);
+                            }
+                          }}
+                        >
+                          Test
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 text-xs"
+                          onClick={async () => {
+                            try {
+                              await fetch('/api/debug/trigger-library-service');
+                              refetchServerLogs();
+                            } catch (error) {
+                              console.error('Fehler beim Generieren der LibraryService-Logs:', error);
+                            }
+                          }}
+                        >
+                          Library
+                        </Button>
+                      </div>
+                      {serverLogsError && (
+                        <div className="text-xs text-red-500">
+                          Error: {serverLogsError}
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        Server-Logs: {serverLogs.length} | 
+                        Client-Logs: {debugState.logs.length}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </ResizablePanel>
@@ -372,6 +463,7 @@ export default function DebugFooter() {
                                 key={log.id}
                                 className={cn(
                                   "hover:bg-muted/50",
+                                  log.source === 'server' && "border-l-2 border-purple-500",
                                   log.level === 'error' && "bg-red-500/20 hover:bg-red-500/30",
                                   log.isDuplicate && log.level !== 'error' && "bg-yellow-500/20 hover:bg-yellow-500/30",
                                   log.level === 'warn' && !log.isDuplicate && "bg-orange-500/20 hover:bg-orange-500/30",

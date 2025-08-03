@@ -52,7 +52,7 @@ const libraryFormSchema = z.object({
   path: z.string({
     required_error: "Bitte geben Sie einen Speicherpfad ein.",
   }),
-  type: z.enum(["local", "onedrive", "gdrive"], {
+  type: z.enum(["local", "onedrive", "gdrive", "webdav"], {
     required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
   description: z.string().optional(),

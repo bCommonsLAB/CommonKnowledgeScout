@@ -5,6 +5,7 @@ import { useAtomValue } from "jotai"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { StorageProvider } from "@/lib/storage/types"
 import { StorageFactory } from "@/lib/storage/storage-factory"
+import { UseStorageProviderLogger } from "@/lib/storage/storage-logger"
 
 export function useStorageProvider() {
   const activeLibraryId = useAtomValue(activeLibraryIdAtom)
@@ -13,41 +14,43 @@ export function useStorageProvider() {
 
   useEffect(() => {
     // Logging der aktiven Library und Provider-Initialisierung
-    // eslint-disable-next-line no-console
-    console.log('[useStorageProvider] useEffect:', {
+    UseStorageProviderLogger.debug('useEffect aufgerufen', {
       activeLibraryId,
       libraries: libraries.map(lib => ({ id: lib.id, label: lib.label })),
     });
 
     if (!activeLibraryId) {
-      console.log('[useStorageProvider] Keine aktive Bibliothek, setze Provider auf null')
+      UseStorageProviderLogger.info('Keine aktive Bibliothek, setze Provider auf null')
       setProvider(null)
       return
     }
 
     if (libraries.length === 0) {
-      console.log('[useStorageProvider] Bibliotheksliste ist leer, warte auf Bibliotheken')
+      UseStorageProviderLogger.info('Bibliotheksliste ist leer, warte auf Bibliotheken')
       setProvider(null)
       return
     }
 
     const libraryExists = libraries.some(lib => lib.id === activeLibraryId)
     if (!libraryExists) {
-      console.warn(`[useStorageProvider] Bibliothek mit ID ${activeLibraryId} existiert nicht in der Liste der verfügbaren Bibliotheken`)
+      UseStorageProviderLogger.warn('Bibliothek existiert nicht in der Liste', { activeLibraryId })
       setProvider(null)
       return
     }
 
-    console.log(`[useStorageProvider] Initialisiere Provider für Bibliothek: ${activeLibraryId}`)
+    UseStorageProviderLogger.info('Initialisiere Provider für Bibliothek', { activeLibraryId })
     const factory = StorageFactory.getInstance()
     
     factory.getProvider(activeLibraryId)
       .then(provider => {
-        console.log(`[useStorageProvider] Provider erfolgreich initialisiert: ${provider.name} (ID: ${provider.id})`)
+        UseStorageProviderLogger.info('Provider erfolgreich initialisiert', { 
+          providerName: provider.name, 
+          providerId: provider.id 
+        })
         setProvider(provider)
       })
       .catch(error => {
-        console.error(`[useStorageProvider] Fehler beim Laden des Storage Providers für ${activeLibraryId}:`, error)
+        UseStorageProviderLogger.error('Fehler beim Laden des Storage Providers', error)
         setProvider(null)
       })
   }, [activeLibraryId, libraries])

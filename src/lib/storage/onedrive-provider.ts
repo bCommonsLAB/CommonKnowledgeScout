@@ -1,6 +1,7 @@
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata } from './types';
 import { ClientLibrary } from '@/types/library';
 import * as process from 'process';
+import { OneDriveProviderLogger } from './storage-logger';
 
 interface OneDriveFile {
   id: string;
@@ -83,7 +84,7 @@ export class OneDriveProvider implements StorageProvider {
           this.refreshToken = tokens.refreshToken;
           this.tokenExpiry = tokens.expiry;
           this.authenticated = true;
-          console.log(`[OneDriveProvider] Tokens für ${this.library.id} aus localStorage geladen`);
+          OneDriveProviderLogger.info('Tokens aus localStorage geladen', { libraryId: this.library.id });
         }
       } catch (error) {
         console.error('[OneDriveProvider] Fehler beim Laden der Tokens aus localStorage:', error);
@@ -108,7 +109,7 @@ export class OneDriveProvider implements StorageProvider {
           expiry
         }));
         
-        console.log('[OneDriveProvider] Tokens im localStorage gespeichert', {
+        OneDriveProviderLogger.info('Tokens im localStorage gespeichert', {
           libraryId: this.library.id,
           expiresIn: `${expiresIn} Sekunden`,
           expiryTime: new Date(expiry).toISOString()
@@ -123,7 +124,7 @@ export class OneDriveProvider implements StorageProvider {
     try {
       // Verhindere mehrfache gleichzeitige Aufrufe
       if (this.clearingTokens) {
-        console.log('[OneDriveProvider] Token-Löschung läuft bereits, überspringe...');
+        OneDriveProviderLogger.debug('Token-Löschung läuft bereits, überspringe');
         return;
       }
       this.clearingTokens = true;
@@ -131,7 +132,7 @@ export class OneDriveProvider implements StorageProvider {
       // Entferne Tokens aus localStorage
       const localStorageKey = `onedrive_tokens_${this.library.id}`;
       localStorage.removeItem(localStorageKey);
-      console.log(`[OneDriveProvider] Tokens für ${this.library.id} aus localStorage entfernt`);
+      OneDriveProviderLogger.info('Tokens aus localStorage entfernt', { libraryId: this.library.id });
     } catch (error) {
       console.error('[OneDriveProvider] Fehler beim Entfernen der Tokens aus localStorage:', error);
     } finally {
@@ -157,7 +158,7 @@ export class OneDriveProvider implements StorageProvider {
             clientSecret: '',
             redirectUri
           };
-          console.log('[OneDriveProvider] OAuth-Defaults aus Umgebungsvariablen geladen (Server-Kontext)');
+          OneDriveProviderLogger.info('OAuth-Defaults aus Umgebungsvariablen geladen (Server-Kontext)');
         }
         return;
       }
@@ -168,7 +169,7 @@ export class OneDriveProvider implements StorageProvider {
         const data = await response.json();
         if (data.hasDefaults) {
           this.oauthDefaults = data.defaults;
-          console.log('[OneDriveProvider] OAuth-Defaults geladen');
+          OneDriveProviderLogger.info('OAuth-Defaults geladen');
         }
       }
     } catch (error) {
@@ -337,7 +338,7 @@ export class OneDriveProvider implements StorageProvider {
     const timeUntilExpiry = this.tokenExpiry - now;
     
     // Log Token-Status
-    console.log('[OneDriveProvider] Token-Status:', {
+    OneDriveProviderLogger.debug('Token-Status', {
       libraryId: this.library.id,
       tokenExpiry: new Date(this.tokenExpiry).toISOString(),
       currentTime: new Date(now).toISOString(),
@@ -360,7 +361,7 @@ export class OneDriveProvider implements StorageProvider {
       await this.refreshAccessToken();
     } else if (this.refreshPromise) {
       // Wenn bereits ein Refresh läuft, warte darauf
-      console.log('[OneDriveProvider] Token-Refresh läuft bereits, warte auf Abschluss...');
+      OneDriveProviderLogger.debug('Token-Refresh läuft bereits, warte auf Abschluss');
       await this.refreshPromise;
     }
 
@@ -370,7 +371,7 @@ export class OneDriveProvider implements StorageProvider {
   private async refreshAccessToken(): Promise<void> {
     // Wenn bereits ein Refresh läuft, warte auf dessen Abschluss
     if (this.refreshPromise) {
-      console.log('[OneDriveProvider] Token-Refresh läuft bereits, warte auf Abschluss...');
+      OneDriveProviderLogger.debug('Token-Refresh läuft bereits, warte auf Abschluss');
       return this.refreshPromise;
     }
 
@@ -386,7 +387,7 @@ export class OneDriveProvider implements StorageProvider {
         }
 
         // Token-Refresh über die Server-Route durchführen (vermeidet CORS-Probleme)
-        console.log('[OneDriveProvider] Führe Token-Refresh über Server-Route durch');
+        OneDriveProviderLogger.info('Führe Token-Refresh über Server-Route durch');
         
         const response = await fetch(this.getApiUrl('/api/auth/onedrive/refresh'), {
           method: 'POST',
@@ -410,7 +411,7 @@ export class OneDriveProvider implements StorageProvider {
 
         const data = await response.json();
         await this.saveTokens(data.accessToken, data.refreshToken, data.expiresIn);
-        console.log('[OneDriveProvider] Token erfolgreich über Server erneuert');
+        OneDriveProviderLogger.info('Token erfolgreich über Server erneuert');
       } catch (error) {
         console.error('[OneDriveProvider] Fehler bei Token-Aktualisierung:', error);
         await this.clearTokens();

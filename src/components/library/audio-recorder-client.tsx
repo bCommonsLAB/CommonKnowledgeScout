@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useStorage } from '@/contexts/storage-context';
 import { useAtomValue } from 'jotai';
 import { currentFolderIdAtom, activeLibraryIdAtom } from '@/atoms/library-atom';
+import { UILogger } from '@/lib/debug/logger';
 
 // Samsung-Style Audio Visualizer - Minimal Working
 function StyleVisualizer({ stream, isPaused }: { stream: MediaStream; isPaused: boolean }) {
@@ -141,7 +142,7 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
   
   // Debug logging
   useEffect(() => {
-    console.log('[AudioRecorder] Storage state:', {
+    UILogger.debug('AudioRecorder', 'Storage state', {
       provider: provider ? provider.name : 'null',
       isStorageReady,
       activeLibraryId,
@@ -192,21 +193,21 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
   }, [provider, currentFolderId, activeLibraryId, generateFileName, refreshItems, onUploadComplete]);
 
   const startRecording = useCallback(async () => {
-    console.log('[AudioRecorder] startRecording called:', { isSupported, isStorageReady });
+    UILogger.debug('AudioRecorder', 'startRecording called', { isSupported, isStorageReady });
     if (!isSupported || !isStorageReady || !isMounted) {
-      console.log('[AudioRecorder] startRecording blocked:', { isSupported, isStorageReady, isMounted });
+      UILogger.debug('AudioRecorder', 'startRecording blocked', { isSupported, isStorageReady, isMounted });
       return;
     }
 
     try {
-      console.log('[AudioRecorder] Requesting microphone permission...');
+      UILogger.info('AudioRecorder', 'Requesting microphone permission');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           noiseSuppression: true,
           echoCancellation: true,
         } 
       });
-      console.log('[AudioRecorder] Microphone permission granted, stream:', stream);
+      UILogger.info('AudioRecorder', 'Microphone permission granted', { stream: stream ? 'available' : 'null' });
       
       streamRef.current = stream;
       

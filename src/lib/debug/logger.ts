@@ -1,7 +1,7 @@
 import { LogEntry } from '@/atoms/debug-atom';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-type LogArea = 'nav' | 'state' | 'file' | 'ui' | 'settings';
+type LogArea = 'nav' | 'state' | 'file' | 'ui' | 'settings' | 'storage';
 
 // Event-System für Logs
 type LogCallback = (entry: Omit<LogEntry, 'id'>) => void;
@@ -20,7 +20,8 @@ class BaseLogger {
     state: 0,
     file: 0,
     ui: 0,
-    settings: 0
+    settings: 0,
+    storage: 0
   };
 
   private static formatMessage(
@@ -45,7 +46,8 @@ class BaseLogger {
   }
 
   private static logToConsole(entry: Omit<LogEntry, 'id'>) {
-    if (process.env.NODE_ENV === 'development') {
+    // Console-Logs können über NEXT_PUBLIC_ENABLE_CONSOLE_LOGS aktiviert werden
+    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_ENABLE_CONSOLE_LOGS === 'true') {
       const icon = entry.level === 'error' ? '🔴' : 
                   entry.level === 'warn' ? '⚠️' : 
                   entry.level === 'info' ? 'ℹ️' : '🔍';
@@ -181,5 +183,23 @@ export class SettingsLogger extends BaseLogger {
 
   static error(component: string, message: string, error?: unknown) {
     return this.createLog('settings', 'error', component, message, error instanceof Error ? { error: error.message, stack: error.stack } : { error });
+  }
+} 
+
+export class ServerLogger extends BaseLogger {
+  static debug(component: string, message: string, details?: Record<string, unknown>) {
+    return this.createLog('storage', 'debug', component, message, details);
+  }
+
+  static info(component: string, message: string, details?: Record<string, unknown>) {
+    return this.createLog('storage', 'info', component, message, details);
+  }
+
+  static warn(component: string, message: string, details?: Record<string, unknown>) {
+    return this.createLog('storage', 'warn', component, message, details);
+  }
+
+  static error(component: string, message: string, error?: unknown) {
+    return this.createLog('storage', 'error', component, message, error instanceof Error ? { error: error.message, stack: error.stack } : { error });
   }
 } 

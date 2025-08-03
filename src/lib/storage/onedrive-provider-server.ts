@@ -2,6 +2,7 @@ import { StorageError } from './types';
 import { ClientLibrary, Library, StorageConfig } from '@/types/library';
 import { LibraryService } from '@/lib/services/library-service';
 import * as process from 'process';
+import { ServerLogger } from '@/lib/debug/logger';
 
 interface TokenResponse {
   access_token: string;
@@ -77,7 +78,7 @@ export class OneDriveServerProvider {
       const config = this.getRequiredConfigValues();
       const { tenantId, clientId, clientSecret, redirectUri } = config;
       
-      console.log(`[OneDriveServerProvider] Authentifizierung mit gespeicherten Konfigurationswerten`, {
+      ServerLogger.info('OneDriveServerProvider', 'Authentifizierung mit gespeicherten Konfigurationswerten', {
         tenantId,
         clientId: clientId ? 'vorhanden' : 'nicht vorhanden',
         clientSecret: clientSecret ? 'vorhanden' : 'nicht vorhanden',
@@ -114,7 +115,7 @@ export class OneDriveServerProvider {
       }
 
       const data = await response.json() as TokenResponse;
-      console.log('[OneDriveServerProvider] Token erfolgreich erhalten', {
+      ServerLogger.info('OneDriveServerProvider', 'Token erfolgreich erhalten', {
         hasAccessToken: !!data.access_token,
         hasRefreshToken: !!data.refresh_token,
         expiresIn: data.expires_in
@@ -140,7 +141,7 @@ export class OneDriveServerProvider {
     try {
       const expiryTime = Math.floor(Date.now() / 1000) + expiresIn;
       
-      console.log('[OneDriveServerProvider] Speichere Tokens TEMPORÄR für Client-Transfer...');
+      ServerLogger.info('OneDriveServerProvider', 'Speichere Tokens TEMPORÄR für Client-Transfer');
       
       const libraryService = LibraryService.getInstance();
       const libraries = await libraryService.getUserLibraries(this.userEmail);
@@ -172,7 +173,7 @@ export class OneDriveServerProvider {
         throw new Error('Bibliotheksupdate fehlgeschlagen');
       }
       
-      console.log('[OneDriveServerProvider] Tokens temporär gespeichert für Client-Abruf');
+      ServerLogger.info('OneDriveServerProvider', 'Tokens temporär gespeichert für Client-Abruf');
     } catch (error) {
       console.error('[OneDriveServerProvider] Fehler beim temporären Speichern der Tokens:', error);
       throw error;

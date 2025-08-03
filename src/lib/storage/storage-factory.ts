@@ -2,6 +2,7 @@ import { StorageProvider, StorageItem, StorageValidationResult } from './types';
 import { ClientLibrary } from '@/types/library';
 import { OneDriveProvider } from './onedrive-provider';
 import { WebDAVProvider } from './webdav-provider';
+import { StorageFactoryLogger, LocalStorageProviderLogger } from './storage-logger';
 
 interface LibraryPathProvider {
   _libraryPath?: string;
@@ -30,7 +31,7 @@ class LocalStorageProvider implements StorageProvider {
   // Setzt die Benutzer-E-Mail für Server-zu-Server API-Calls
   setUserEmail(email: string) {
     this.userEmail = email;
-    console.log(`[LocalStorageProvider] User E-Mail gesetzt: ${email}`);
+    LocalStorageProviderLogger.info('User E-Mail gesetzt', { email });
   }
 
   get name() {
@@ -53,20 +54,21 @@ class LocalStorageProvider implements StorageProvider {
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
     const url = this.getApiUrl(`/api/storage/filesystem?action=list&fileId=${folderId}&libraryId=${this.library.id}`);
-    console.log(`[LocalStorageProvider] Calling API:`, url);
+    LocalStorageProviderLogger.debug('API-Aufruf gestartet', { url, folderId, libraryId: this.library.id });
     
     try {
       const response = await fetch(url);
       
       if (!response.ok) {
-        console.error(`[LocalStorageProvider] API call failed:`, {
+        const errorDetails = {
           status: response.status,
           statusText: response.statusText,
           url,
           libraryId: this.library.id,
           folderId,
           userEmail: this.userEmail
-        });
+        };
+        LocalStorageProviderLogger.error('API-Aufruf fehlgeschlagen', errorDetails);
         
         // Versuche, die spezifische Fehlermeldung aus der Response zu extrahieren
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -77,10 +79,10 @@ class LocalStorageProvider implements StorageProvider {
             errorMessage = errorData.error;
           }
           if (errorData.errorCode) {
-            console.error(`[LocalStorageProvider] Error code:`, errorData.errorCode);
+            LocalStorageProviderLogger.error('Error code erhalten', { errorCode: errorData.errorCode });
           }
         } catch (parseError) {
-          console.warn(`[LocalStorageProvider] Konnte Fehlermeldung nicht parsen:`, parseError);
+          LocalStorageProviderLogger.warn('Fehlermeldung konnte nicht geparst werden', { parseError });
         }
         
         // Spezifische Behandlung für verschiedene HTTP-Status-Codes
@@ -96,7 +98,7 @@ class LocalStorageProvider implements StorageProvider {
       }
       
       const data = await response.json();
-      console.log(`[LocalStorageProvider] Successfully loaded ${data.length} items`);
+      LocalStorageProviderLogger.info('Items erfolgreich geladen', { itemCount: data.length, folderId });
       return data;
       
     } catch (error) {
@@ -181,7 +183,7 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
-    console.log('Preparing upload:', {
+    LocalStorageProviderLogger.info('Upload vorbereitet', {
       parentId,
       fileName: file.name,
       fileSize: file.size,
@@ -312,25 +314,27 @@ export class StorageFactory {
   // Setzt die Basis-URL für API-Anfragen, wichtig für serverseitige Aufrufe
   setApiBaseUrl(baseUrl: string) {
     this.apiBaseUrl = baseUrl;
-    console.log(`StorageFactory: API-Basis-URL gesetzt auf ${baseUrl}`);
+    StorageFactoryLogger.info('API-Basis-URL gesetzt', { baseUrl });
   }
 
   setLibraries(libraries: ClientLibrary[]) {
-    console.log(`StorageFactory: setLibraries aufgerufen mit ${libraries.length} Bibliotheken`);
+    StorageFactoryLogger.info('setLibraries aufgerufen', { libraryCount: libraries.length });
     
     if (libraries.length === 0) {
-      console.warn(`StorageFactory: Warnung - Leere Bibliotheksliste übergeben!`);
+      StorageFactoryLogger.warn('Leere Bibliotheksliste übergeben');
       // Bibliotheksliste nicht leeren, wenn eine neue leere Liste übergeben wird
       // Dies verhindert Probleme, wenn die Komponente mit einer leeren Liste initialisiert wird
       return;
     }
     
     // Bibliotheksdaten protokollieren
-    console.log(`StorageFactory: Bibliotheksdaten:`, libraries.map(lib => ({
-      id: lib.id,
-      label: lib.label,
-      path: lib.path || 'kein Pfad'
-    })));
+    StorageFactoryLogger.debug('Bibliotheksdaten', {
+      libraries: libraries.map(lib => ({
+        id: lib.id,
+        label: lib.label,
+        path: lib.path || 'kein Pfad'
+      }))
+    });
     
     this.libraries = libraries;
     
@@ -343,23 +347,23 @@ export class StorageFactory {
                        newLibraryIds.some(id => !currentProviderIds.includes(id));
     
     if (hasChanges) {
-      console.log(`StorageFactory: Bibliotheksliste hat sich geändert, setze Provider zurück`);
+      StorageFactoryLogger.info('Bibliotheksliste hat sich geändert, setze Provider zurück');
       this.providers.clear();
     } else {
-      console.log(`StorageFactory: Bibliotheksliste unverändert, behalte bestehende Provider`);
+      StorageFactoryLogger.debug('Bibliotheksliste unverändert, behalte bestehende Provider');
     }
   }
 
   // Löscht einen bestimmten Provider aus dem Cache, um eine Neuinitialisierung zu erzwingen
   async clearProvider(libraryId: string): Promise<void> {
-    console.log(`StorageFactory: Lösche Provider für Bibliothek ${libraryId} aus dem Cache`);
+    StorageFactoryLogger.info('Lösche Provider aus Cache', { libraryId });
     
     // Zusätzliche Debugging-Informationen
     const existingProvider = this.providers.get(libraryId);
     const library = this.libraries.find(lib => lib.id === libraryId);
     
     if (existingProvider) {
-      console.log(`StorageFactory: Lösche Provider-Details:`, {
+      StorageFactoryLogger.debug('Provider-Details vor Löschung', {
         providerId: libraryId,
         providerName: existingProvider.name,
         cachedLibraryPath: (existingProvider as LibraryPathProvider)._libraryPath || 'nicht verfügbar',
@@ -367,30 +371,32 @@ export class StorageFactory {
         zeitpunkt: new Date().toISOString()
       });
     } else {
-      console.log(`StorageFactory: Kein Provider im Cache für Bibliothek ${libraryId}`);
+      StorageFactoryLogger.debug('Kein Provider im Cache', { libraryId });
     }
     
     this.providers.delete(libraryId);
-    console.log(`StorageFactory: Provider für ${libraryId} wurde aus dem Cache entfernt`);
+    StorageFactoryLogger.info('Provider aus Cache entfernt', { libraryId });
   }
 
   async getProvider(libraryId: string): Promise<StorageProvider> {
-    console.log(`StorageFactory: getProvider aufgerufen für Bibliothek ${libraryId}`);
+    StorageFactoryLogger.info('getProvider aufgerufen', { libraryId });
     
     // Check if provider already exists
     if (this.providers.has(libraryId)) {
-      console.log(`StorageFactory: Verwende existierenden Provider für Bibliothek ${libraryId}`);
+      StorageFactoryLogger.debug('Verwende existierenden Provider', { libraryId });
       return this.providers.get(libraryId)!;
     }
 
     // Find library
     const library = this.libraries.find(lib => lib.id === libraryId);
     if (!library) {
-      console.error(`StorageFactory: Bibliothek ${libraryId} nicht gefunden!`);
-      console.log(`StorageFactory: Verfügbare Bibliotheken:`, this.libraries.map(lib => ({
-        id: lib.id,
-        label: lib.label
-      })));
+      StorageFactoryLogger.error('Bibliothek nicht gefunden', { libraryId });
+      StorageFactoryLogger.debug('Verfügbare Bibliotheken', {
+        libraries: this.libraries.map(lib => ({
+          id: lib.id,
+          label: lib.label
+        }))
+      });
       
       // Spezifischen Fehler werfen, den wir später abfangen können
       const error = new Error(`Bibliothek ${libraryId} nicht gefunden`);
@@ -405,7 +411,7 @@ export class StorageFactory {
       throw typedError;
     }
 
-    console.log(`StorageFactory: Erstelle neuen Provider für Bibliothek:`, {
+    StorageFactoryLogger.info('Erstelle neuen Provider für Bibliothek', {
       id: library.id,
       label: library.label,
       path: library.path,
@@ -417,19 +423,19 @@ export class StorageFactory {
     switch (library.type) {
       case 'local':
         provider = new LocalStorageProvider(library, this.apiBaseUrl || undefined);
-        console.log(`StorageFactory: LocalStorageProvider erstellt für "${library.path}"`);
+        StorageFactoryLogger.info('LocalStorageProvider erstellt', { path: library.path });
         break;
       case 'onedrive':
         provider = new OneDriveProvider(library, this.apiBaseUrl || undefined);
-        console.log(`StorageFactory: OneDriveProvider erstellt`);
+        StorageFactoryLogger.info('OneDriveProvider erstellt');
         break;
       case 'webdav':
         provider = new WebDAVProvider(library, this.apiBaseUrl || undefined);
-        console.log(`StorageFactory: WebDAVProvider erstellt`);
+        StorageFactoryLogger.info('WebDAVProvider erstellt');
         break;
       // Add more provider types here
       default:
-        console.error(`StorageFactory: Nicht unterstützter Bibliothekstyp: ${library.type}`);
+        StorageFactoryLogger.error('Nicht unterstützter Bibliothekstyp', { type: library.type });
         throw new Error(`Unsupported library type: ${library.type}`);
     }
 

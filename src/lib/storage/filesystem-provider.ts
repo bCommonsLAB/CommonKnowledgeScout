@@ -4,6 +4,7 @@ import { Stats } from 'fs';
 import * as path from 'path';
 import mime from 'mime-types';
 import * as crypto from 'crypto';
+import { FileSystemProviderLogger } from './storage-logger';
 
 /**
  * FileSystemProvider implementiert das StorageProvider Interface für lokale Dateisysteme.
@@ -130,7 +131,7 @@ export class FileSystemProvider implements StorageProvider {
    */
   private async findPathById(fileId: string): Promise<string> {
     if (fileId === 'root') {
-      console.log(`[FileSystemProvider] findPathById: fileId=root, basePath=${this.basePath}`);
+      FileSystemProviderLogger.debug('findPathById: fileId=root', { basePath: this.basePath });
       return this.basePath;
     }
     
@@ -196,7 +197,7 @@ export class FileSystemProvider implements StorageProvider {
   }
 
   public async validateConfiguration(): Promise<StorageValidationResult> {
-    console.log('[StorageProvider] validateConfiguration aufgerufen');
+    FileSystemProviderLogger.info('validateConfiguration aufgerufen');
     
     try {
       const stats = await fs.stat(this.basePath);
@@ -222,9 +223,9 @@ export class FileSystemProvider implements StorageProvider {
   }
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
-    console.log(`[FileSystemProvider] listItemsById: folderId=${folderId}`);
+    FileSystemProviderLogger.debug('listItemsById', { folderId });
     const absolutePath = await this.findPathById(folderId);
-    console.log(`[FileSystemProvider] Absoluter Pfad für folderId=${folderId}: ${absolutePath}`);
+    FileSystemProviderLogger.debug('Absoluter Pfad für folderId', { folderId, absolutePath });
     const items = await fs.readdir(absolutePath);
     
     const itemPromises = items.map(async (item) => {

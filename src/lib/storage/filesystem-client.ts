@@ -1,4 +1,5 @@
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError } from './types';
+import { FileSystemClientLogger } from './storage-logger';
 
 export class FileSystemClient implements StorageProvider {
   name = 'Local FileSystem';
@@ -32,12 +33,12 @@ export class FileSystemClient implements StorageProvider {
       return null;
     }
 
-    console.log('[FileSystemClient] Cache Hit:', key);
+    FileSystemClientLogger.debug('Cache Hit', { key });
     return cached.data as T;
   }
 
   private setCache(key: string, data: unknown): void {
-    console.log('[FileSystemClient] Cache Set:', key);
+    FileSystemClientLogger.debug('Cache Set', { key });
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 
@@ -58,7 +59,7 @@ export class FileSystemClient implements StorageProvider {
   }
 
   private async fetchWithError(url: string, options?: RequestInit): Promise<Response> {
-    console.log('[FileSystemClient] fetchWithError:', { 
+    FileSystemClientLogger.debug('fetchWithError', { 
       url, 
       method: options?.method || 'GET',
       libraryId: this.libraryId 
@@ -155,15 +156,15 @@ export class FileSystemClient implements StorageProvider {
   }
 
   async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string; }> {
-    console.log('[FileSystemClient] getBinary aufgerufen mit fileId:', fileId);
+    FileSystemClientLogger.debug('getBinary aufgerufen', { fileId });
     const url = `${this.baseUrl}?action=binary&fileId=${encodeURIComponent(fileId)}`;
-    console.log('[FileSystemClient] Sende Request an URL:', url);
+    FileSystemClientLogger.debug('Sende Request an URL', { url });
     
     try {
       const response = await this.fetchWithError(url);
       const blob = await response.blob();
       const mimeType = response.headers.get('Content-Type') || 'application/octet-stream';
-      console.log('[FileSystemClient] Antwort erhalten:', {
+      FileSystemClientLogger.debug('Antwort erhalten', {
         mimeType,
         size: blob.size,
         status: response.status
@@ -186,13 +187,13 @@ export class FileSystemClient implements StorageProvider {
   }
 
   async getPathById(itemId: string): Promise<string> {
-    console.log('[FileSystemClient] getPathById aufgerufen mit itemId:', itemId);
+    FileSystemClientLogger.debug('getPathById aufgerufen', { itemId });
     const url = `${this.baseUrl}?action=path&fileId=${encodeURIComponent(itemId)}`;
     
     try {
       const response = await this.fetchWithError(url);
       const path = await response.text();
-      console.log('[FileSystemClient] Pfad erhalten:', path);
+      FileSystemClientLogger.debug('Pfad erhalten', { path });
       return path;
     } catch (error) {
       console.error('[FileSystemClient] Fehler beim Abrufen des Pfads:', error);
@@ -243,7 +244,7 @@ export class FileSystemClient implements StorageProvider {
 
   // Cache invalidieren bei Änderungen
   private invalidateCache(): void {
-    console.log('[FileSystemClient] Cache invalidiert');
+    FileSystemClientLogger.debug('Cache invalidiert');
     this.cache.clear();
   }
 } 

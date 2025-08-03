@@ -1,6 +1,7 @@
 import { StorageProvider, StorageItem, StorageValidationResult } from './types';
 import { Library, ClientLibrary } from '@/types/library';
 import { LibraryService } from '@/lib/services/library-service';
+import { StorageFactoryLogger, LocalStorageProviderLogger } from './storage-logger';
 
 /**
  * Lokaler Dateisystem-Provider
@@ -84,7 +85,7 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
-    console.log('Preparing upload:', {
+    LocalStorageProviderLogger.info('Preparing upload', {
       parentId,
       fileName: file.name,
       fileSize: file.size,
@@ -225,7 +226,7 @@ export class MongoDBStorageFactory {
    */
   async setCurrentUser(userId: string) {
     if (this.currentUserId !== userId) {
-      console.log(`Wechsel zu Benutzer: ${userId}`);
+      StorageFactoryLogger.info('Wechsel zu Benutzer', { userId });
       this.currentUserId = userId;
       // Cache leeren, wenn der Benutzer wechselt
       this.providers.clear();
@@ -254,7 +255,7 @@ export class MongoDBStorageFactory {
    */
   async getClientLibraries(): Promise<ClientLibrary[]> {
     if (!this.cachedLibraries.length) {
-      console.log(`Lade Bibliotheken für Benutzer: ${this.currentUserId}`);
+      StorageFactoryLogger.info('Lade Bibliotheken für Benutzer', { userId: this.currentUserId });
       this.cachedLibraries = await this.libraryService.getUserLibraries(this.currentUserId);
     }
     
