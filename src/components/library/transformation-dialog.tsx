@@ -86,8 +86,16 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
         );
         
         if (!templatesFolder) {
-          // Templates-Ordner erstellen
-          templatesFolder = await provider.createFolder('root', 'templates');
+          // Templates-Ordner erstellen - bei 405 Fehler überspringen
+          try {
+            templatesFolder = await provider.createFolder('root', 'templates');
+          } catch (error) {
+            console.warn('Templates-Ordner konnte nicht erstellt werden (vermutlich bereits vorhanden oder keine Berechtigung):', error);
+            // Versuche den templates-Ordner erneut zu finden (case-insensitive)
+            templatesFolder = rootItems.find(item => 
+              item.type === 'folder' && item.metadata.name.toLowerCase() === 'templates'
+            );
+          }
         }
 
         // Template-Dateien laden

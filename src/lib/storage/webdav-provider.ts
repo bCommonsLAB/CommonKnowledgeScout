@@ -43,7 +43,7 @@ export class WebDAVProvider implements StorageProvider {
       basePath: (library.config?.basePath as string) || '/'
     };
     
-    // Debug-Informationen
+    // Debug-Informationen - detailliert für Konfigurationsprobleme
     WebDAVProviderLogger.info('Konstruktor aufgerufen', {
       libraryId: library.id,
       libraryType: library.type,
@@ -53,7 +53,14 @@ export class WebDAVProvider implements StorageProvider {
         password: this.config.password ? 'vorhanden' : 'fehlt',
         basePath: this.config.basePath || ''
       },
-      libraryConfig: library.config
+      // Debug: Zeige rohe Library-Konfiguration
+      rawLibraryConfig: JSON.stringify(library.config, null, 2),
+      extractedConfig: {
+        url: library.config?.url,
+        username: library.config?.username,
+        password: library.config?.password ? '***masked***' : undefined,
+        basePath: library.config?.basePath
+      }
     });
   }
 
@@ -110,7 +117,13 @@ export class WebDAVProvider implements StorageProvider {
       apiUrl,
       path,
       hasBody: !!body,
-      hasAuth: !!this.config.username && !!this.config.password
+      hasAuth: !!this.config.username && !!this.config.password,
+      // DEBUG: Zeige die tatsächlich verwendeten Credentials
+      actualCredentials: {
+        url: this.config.url,
+        username: this.config.username,
+        password: this.config.password ? `${this.config.password.substring(0, 5)}***${this.config.password.substring(this.config.password.length - 5)}` : 'fehlt'
+      }
     });
 
     // Für PROPFIND müssen wir den XML-Body an die Proxy-API senden
@@ -148,12 +161,12 @@ export class WebDAVProvider implements StorageProvider {
       return response;
     }
 
-    // Für andere Methoden (GET, POST, DELETE)
+    // Für andere Methoden (MKCOL, PUT, DELETE)
     const response = await fetch(`${apiUrl}?${params.toString()}`, {
-      method: method === 'MKCOL' || method === 'PUT' ? 'POST' : 'DELETE',
-      headers: {
+      method: 'POST', // Alle anderen Methoden werden als POST an die API gesendet
+      headers: body ? {
         'Content-Type': 'application/json'
-      },
+      } : {},
       body: body
     });
     
@@ -187,7 +200,6 @@ export class WebDAVProvider implements StorageProvider {
         default: return match;
       }
     });
-    WebDAVProviderLogger.debug('pathToId', { path, id });
     return id;
   }
 
@@ -200,7 +212,6 @@ export class WebDAVProvider implements StorageProvider {
     // Füge fehlende Padding-Zeichen hinzu
     const padded = restored + '='.repeat((4 - restored.length % 4) % 4);
     const path = atob(padded);
-    WebDAVProviderLogger.debug('idToPath', { id, restored, padded, path });
     return path;
   }
 
@@ -599,37 +610,95 @@ export class WebDAVProvider implements StorageProvider {
   }
 
   /**
-   * Parst eine WebDAV XML-Response (vereinfacht)
+   * Parst eine WebDAV XML-Response (robust für verschiedene Server)
    */
   private parseWebDAVResponse(xmlText: string): WebDAVItem[] {
-    // Vereinfachte XML-Parsing für WebDAV-Responses
-    // In einer echten Implementierung würde man eine XML-Parser-Bibliothek verwenden
+    WebDAVProviderLogger.debug('Parsing WebDAV XML Response', { xmlLength: xmlText.length });
+    
     const items: WebDAVItem[] = [];
     
-    // Einfache Regex-basierte Extraktion (für Demo-Zwecke)
-    const hrefMatches = xmlText.match(/<d:href>([^<]+)<\/d:href>/g);
-    const lastModifiedMatches = xmlText.match(/<d:getlastmodified>([^<]+)<\/d:getlastmodified>/g);
-    const contentLengthMatches = xmlText.match(/<d:getcontentlength>([^<]+)<\/d:getcontentlength>/g);
-    const contentTypeMatches = xmlText.match(/<d:getcontenttype>([^<]+)<\/d:getcontenttype>/g);
-    const resourceTypeMatches = xmlText.match(/<d:resourcetype>([^<]+)<\/d:resourcetype>/g);
+    // Debug: Log rohe XML-Response für FileTree-Debugging
+    if (xmlText.length < 2000) {
+      WebDAVProviderLogger.debug('WebDAV XML Response (komplett)', { xmlText });
+    } else {
+      WebDAVProviderLogger.debug('WebDAV XML Response (gekürzt)', { 
+        xmlStart: xmlText.substring(0, 500),
+        xmlEnd: xmlText.substring(xmlText.length - 500)
+      });
+    }
+    
+    // Robuste Regex mit case-insensitive und flexiblen Namespaces
+    const hrefMatches = xmlText.match(/<[^:]*:?href[^>]*>([^<]+)<\/[^:]*:?href>/gi);
+    const lastModifiedMatches = xmlText.match(/<[^:]*:?getlastmodified[^>]*>([^<]+)<\/[^:]*:?getlastmodified>/gi);
+    const contentLengthMatches = xmlText.match(/<[^:]*:?getcontentlength[^>]*>([^<]+)<\/[^:]*:?getcontentlength>/gi);
+    const contentTypeMatches = xmlText.match(/<[^:]*:?getcontenttype[^>]*>([^<]+)<\/[^:]*:?getcontenttype>/gi);
+    const resourceTypeMatches = xmlText.match(/<[^:]*:?resourcetype[^>]*>(.*?)<\/[^:]*:?resourcetype>/gis);
+    
+    WebDAVProviderLogger.debug('XML Parsing Results', {
+      hrefCount: hrefMatches?.length || 0,
+      lastModifiedCount: lastModifiedMatches?.length || 0,
+      contentLengthCount: contentLengthMatches?.length || 0,
+      contentTypeCount: contentTypeMatches?.length || 0,
+      resourceTypeCount: resourceTypeMatches?.length || 0
+    });
     
     if (hrefMatches) {
       for (let i = 0; i < hrefMatches.length; i++) {
-        const href = hrefMatches[i].replace(/<d:href>([^<]+)<\/d:href>/, '$1');
-        const lastModified = lastModifiedMatches?.[i]?.replace(/<d:getlastmodified>([^<]+)<\/d:getlastmodified>/, '$1');
-        const contentLength = contentLengthMatches?.[i]?.replace(/<d:getcontentlength>([^<]+)<\/d:getcontentlength>/, '$1');
-        const contentType = contentTypeMatches?.[i]?.replace(/<d:getcontenttype>([^<]+)<\/d:getcontenttype>/, '$1');
-        const resourceType = resourceTypeMatches?.[i]?.replace(/<d:resourcetype>([^<]+)<\/d:resourcetype>/, '$1');
+        const href = hrefMatches[i].replace(/<[^:]*:?href[^>]*>([^<]+)<\/[^:]*:?href>/i, '$1');
+        const lastModified = lastModifiedMatches?.[i]?.replace(/<[^:]*:?getlastmodified[^>]*>([^<]+)<\/[^:]*:?getlastmodified>/i, '$1');
+        const contentLength = contentLengthMatches?.[i]?.replace(/<[^:]*:?getcontentlength[^>]*>([^<]+)<\/[^:]*:?getcontentlength>/i, '$1');
+        const contentType = contentTypeMatches?.[i]?.replace(/<[^:]*:?getcontenttype[^>]*>([^<]+)<\/[^:]*:?getcontenttype>/i, '$1');
+        const resourceTypeRaw = resourceTypeMatches?.[i]?.replace(/<[^:]*:?resourcetype[^>]*>(.*?)<\/[^:]*:?resourcetype>/is, '$1');
         
-        items.push({
+        // Verbesserte Collection-Detection - mehrere Varianten prüfen
+        const isCollection = resourceTypeRaw ? (
+          resourceTypeRaw.includes('<d:collection') ||
+          resourceTypeRaw.includes('<D:collection') ||
+          resourceTypeRaw.includes('<collection') ||
+          resourceTypeRaw.includes('collection/') ||
+          href.endsWith('/')
+        ) : href.endsWith('/');
+        
+        const item: WebDAVItem = {
           href,
           lastmodified: lastModified,
           getcontentlength: contentLength,
           getcontenttype: contentType,
-          resourcetype: resourceType?.includes('<d:collection/>') ? { collection: true } : undefined
+          resourcetype: isCollection ? { collection: true } : undefined
+        };
+        
+        WebDAVProviderLogger.debug('Parsed WebDAV Item', {
+          href,
+          isCollection,
+          resourceTypeRaw: resourceTypeRaw?.substring(0, 100),
+          contentType,
+          contentLength
         });
+        
+        items.push(item);
       }
     }
+    
+    // Detaillierte Ordner-Analyse für FileTree-Debugging
+    const folders = items.filter(item => item.resourcetype?.collection);
+    const files = items.filter(item => !item.resourcetype?.collection);
+    
+    WebDAVProviderLogger.info('WebDAV XML Response parsed', {
+      totalItems: items.length,
+      folders: folders.length,
+      files: files.length
+    });
+    
+    // Debug: Zeige alle gefundenen Ordner für FileTree-Debugging
+    WebDAVProviderLogger.debug('WebDAV Ordner-Details für FileTree', {
+      folderCount: folders.length,
+      folderPaths: folders.map(f => f.href).slice(0, 10), // Erste 10 Ordner
+      allFolders: folders.map(f => ({ 
+        href: f.href, 
+        name: this.extractNameFromPath(f.href), 
+        isCollection: !!f.resourcetype?.collection 
+      }))
+    });
     
     return items;
   }

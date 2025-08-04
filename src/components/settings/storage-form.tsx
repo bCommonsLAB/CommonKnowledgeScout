@@ -110,7 +110,54 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
   
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
+  
+  // DEBUG: Library-Verwechslungs-Problem analysieren
+  useEffect(() => {
+    if (activeLibraryId && libraries.length > 0) {
+      console.log('[StorageForm] DEBUG: Library-Auswahl-Analyse', {
+        activeLibraryId,
+        availableLibraries: libraries.map(lib => ({
+          id: lib.id,
+          label: lib.label,
+          type: lib.type,
+          password: lib.config?.password || 'fehlt',  // UNMASKIERT für Debugging
+          passwordPrefix: lib.config?.password ? lib.config.password.substring(0, 6) + '***' : 'fehlt'
+        })),
+        foundActiveLibrary: activeLibrary ? {
+          id: activeLibrary.id,
+          label: activeLibrary.label,
+          type: activeLibrary.type,
+          password: activeLibrary.config?.password || 'fehlt',  // UNMASKIERT für Debugging
+          passwordPrefix: activeLibrary.config?.password ? activeLibrary.config.password.substring(0, 6) + '***' : 'fehlt'
+        } : 'nicht gefunden'
+      });
+      
+      // ZUSÄTZLICH: Analysiere wie activeLibrary gefunden wird
+      console.log('[StorageForm] WIE WIRD ACTIVELIBRARY GEFUNDEN?', {
+        suchNachId: activeLibraryId,
+        gefundeneLibrary: libraries.find(lib => lib.id === activeLibraryId),
+        alleLibraryIds: libraries.map(lib => lib.id),
+        istNextcloudLibraryVorhanden: libraries.find(lib => lib.label === 'Nextcloud'),
+        istArchivPeterVorhanden: libraries.find(lib => lib.id === '_ArchivPeter')
+      });
+    }
+  }, [activeLibraryId, libraries, activeLibrary]);
   const { refreshLibraries, refreshAuthStatus } = useStorage();
+  
+  // KRITISCHER FIX: Libraries neu laden wenn StorageForm geladen wird
+  useEffect(() => {
+    console.log('[StorageForm] Lade frische Libraries aus Datenbank...');
+    refreshLibraries();
+  }, []); // Nur einmal beim Mount
+  
+  // FORM RESET: Wenn sich activeLibrary ändert, Form komplett zurücksetzen
+  useEffect(() => {
+    if (activeLibrary) {
+      console.log('[StorageForm] ActiveLibrary geändert - Form zurücksetzen');
+      form.reset(); // Leert alle alten Werte
+      // Dann werden die neuen Werte in einem separaten useEffect gesetzt
+    }
+  }, [activeLibrary?.id, form]); // Reagiert auf ID-Änderungen
   
   // Default-Werte in useMemo verpacken
   const defaultValues = useMemo(() => ({
@@ -192,6 +239,15 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
         config: activeLibrary.config
       });
       
+      // KRITISCHES DEBUGGING: Analysiere config im Detail
+      console.log('[StorageForm] DETAILLIERTE CONFIG-ANALYSE:', {
+        'config.url': activeLibrary.config?.url,
+        'config.username': activeLibrary.config?.username,
+        'config.password': activeLibrary.config?.password,
+        'config.basePath': activeLibrary.config?.basePath,
+        'komplettes config-Object': JSON.stringify(activeLibrary.config, null, 2)
+      });
+      
       // Wenn Bibliothek gewechselt wird, Formular mit den Werten befüllen
       const formData = {
         type: activeLibrary.type as "local" | "onedrive" | "gdrive" | "webdav",
@@ -227,7 +283,8 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
           console.log('[StorageForm] WebDAV-Felder nach Reset:', {
             url: currentValues.url,
             username: currentValues.username,
-            password: currentValues.password ? 'vorhanden' : 'fehlt',
+            password: currentValues.password || 'fehlt',  // UNMASKIERT für Debugging
+            passwordPrefix: currentValues.password ? currentValues.password.substring(0, 6) + '***' : 'fehlt',
             basePath: currentValues.basePath,
             expectedUrl: activeLibrary.config?.url,
             expectedUsername: activeLibrary.config?.username
@@ -1065,10 +1122,10 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
                 <FormItem>
                   <FormLabel>Passwort</FormLabel>
                   <FormControl>
-                    <Input {...field} type="password" value={field.value || ""} />
+                    <Input {...field} type="text" value={field.value || ""} placeholder="WebDAV-Passwort (DEBUG: unmaskiert)" />
                   </FormControl>
                   <FormDescription>
-                    Ihr Nextcloud-Passwort oder App-Passwort.
+                    Ihr Nextcloud-Passwort oder App-Passwort. (DEBUG: Feld ist unmaskiert zum Debugging)
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

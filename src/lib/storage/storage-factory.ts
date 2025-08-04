@@ -347,7 +347,17 @@ export class StorageFactory {
                        newLibraryIds.some(id => !currentProviderIds.includes(id));
     
     if (hasChanges) {
-      StorageFactoryLogger.info('Bibliotheksliste hat sich geändert, setze Provider zurück');
+      const isFirstLoad = currentProviderIds.length === 0;
+      if (isFirstLoad) {
+        StorageFactoryLogger.info('Erstes Laden der Bibliotheken - initialisiere Provider-Cache', {
+          libraryCount: newLibraryIds.length
+        });
+      } else {
+        StorageFactoryLogger.info('Bibliotheksliste hat sich geändert, setze Provider zurück', {
+          removed: currentProviderIds.filter(id => !newLibraryIds.includes(id)),
+          added: newLibraryIds.filter(id => !currentProviderIds.includes(id))
+        });
+      }
       this.providers.clear();
     } else {
       StorageFactoryLogger.debug('Bibliotheksliste unverändert, behalte bestehende Provider');
@@ -381,10 +391,25 @@ export class StorageFactory {
   async getProvider(libraryId: string): Promise<StorageProvider> {
     StorageFactoryLogger.info('getProvider aufgerufen', { libraryId });
     
+    // DEBUG: Zeige alle verfügbaren Libraries für Verwechslungs-Debugging
+    StorageFactoryLogger.debug('Verfügbare Libraries bei getProvider', {
+      requestedLibraryId: libraryId,
+      availableLibraries: this.libraries.map(lib => ({
+        id: lib.id,
+        label: lib.label,
+        type: lib.type
+      }))
+    });
+    
     // Check if provider already exists
     if (this.providers.has(libraryId)) {
-      StorageFactoryLogger.debug('Verwende existierenden Provider', { libraryId });
-      return this.providers.get(libraryId)!;
+      const existingProvider = this.providers.get(libraryId)!;
+      StorageFactoryLogger.debug('Verwende existierenden Provider', { 
+        libraryId,
+        providerType: existingProvider.name,
+        providerId: existingProvider.id
+      });
+      return existingProvider;
     }
 
     // Find library
@@ -415,7 +440,14 @@ export class StorageFactory {
       id: library.id,
       label: library.label,
       path: library.path,
-      type: library.type
+      type: library.type,
+      // DEBUG: Zeige WebDAV-Konfiguration für Verwechslungs-Debugging
+      configPreview: library.type === 'webdav' ? {
+        hasUrl: !!(library.config as any)?.url,
+        hasUsername: !!(library.config as any)?.username,
+        hasPassword: !!(library.config as any)?.password,
+        passwordPrefix: (library.config as any)?.password ? (library.config as any).password.substring(0, 5) + '***' : 'fehlt'
+      } : 'nicht WebDAV'
     });
 
     // Create provider based on library type

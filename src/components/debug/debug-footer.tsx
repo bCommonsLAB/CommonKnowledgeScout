@@ -302,7 +302,7 @@ export default function DebugFooter() {
                 <div className="space-y-4">
                   <div>
                     <h4 className="text-xs font-medium mb-1">Components</h4>
-                    <ScrollArea className="h-24">
+                    <ScrollArea className="h-30">
                       {components.map(component => (
                         <div key={component} className="flex items-center space-x-2 py-0.5">
                           <Checkbox

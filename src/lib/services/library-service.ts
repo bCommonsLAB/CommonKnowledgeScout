@@ -6,6 +6,14 @@ export interface UserLibraries {
   email: string;  // Statt userId eine E-Mail-Adresse verwenden
   name: string;
   libraries: Library[];
+  activeLibraryId?: string;  // Aktive Library-ID hinzugefügt
+  lastUpdated: Date;
+}
+
+export interface UserSettings {
+  email: string;
+  activeLibraryId?: string;
+  preferences?: Record<string, unknown>;
   lastUpdated: Date;
 }
 
@@ -253,11 +261,14 @@ export class LibraryService {
       
       // WebDAV-spezifische Konfiguration
       if (lib.type === 'webdav') {
-        ServerLogger.info('LibraryService', `Verarbeite WebDAV Library ${lib.id}`, {
+        ServerLogger.info('LibraryService', `Verarbeite WebDAV Library ${lib.id} (${lib.label})`, {
           hasUrl: !!lib.config?.url,
           hasUsername: !!lib.config?.username,
           hasPassword: !!lib.config?.password,
-          hasBasePath: !!lib.config?.basePath
+          hasBasePath: !!lib.config?.basePath,
+          // KRITISCH: Zeige tatsächliche Passwort-Prefixes
+          passwordPrefix: lib.config?.password ? lib.config.password.substring(0, 6) + '***' : 'fehlt',
+          actualPassword: lib.config?.password || 'fehlt'
         });
         
         config = {
@@ -269,11 +280,15 @@ export class LibraryService {
           basePath: lib.config?.basePath
         };
         
-        ServerLogger.info('LibraryService', 'WebDAV Config nach Maskierung', {
+        ServerLogger.info('LibraryService', `WebDAV Config nach Transformation ${lib.id}`, {
           hasUrl: !!config.url,
           hasUsername: !!config.username,
           hasPassword: !!config.password,
-          hasBasePath: !!config.basePath
+          hasBasePath: !!config.basePath,
+          // KRITISCH: Zeige transformierte Passwort-Prefixes
+          transformedPasswordPrefix: config.password ? (config.password as string).substring(0, 6) + '***' : 'fehlt',
+          transformedPassword: config.password || 'fehlt',
+          passwordsMatch: lib.config?.password === config.password
         });
       }
       
@@ -290,5 +305,63 @@ export class LibraryService {
       
       return result;
     });
+  }
+
+  /**
+   * Aktive Library-ID für einen Benutzer abrufen
+   * @param email E-Mail-Adresse des Benutzers
+   */
+  async getActiveLibraryId(email: string): Promise<string | undefined> {
+    try {
+      const collection = await getCollection<UserLibraries>(this.collectionName);
+      
+      const userEntry = await collection.findOne({ email });
+      
+      console.log('[LibraryService] getActiveLibraryId:', {
+        email,
+        userEntryFound: !!userEntry,
+        activeLibraryId: userEntry?.activeLibraryId,
+        hasActiveLibraryId: !!userEntry?.activeLibraryId
+      });
+      
+      if (!userEntry) {
+        ServerLogger.info('LibraryService', `Keine Einträge für Benutzer ${email} gefunden.`);
+        return undefined;
+      }
+      
+      return userEntry.activeLibraryId;
+    } catch (error) {
+      ServerLogger.error('LibraryService', 'Fehler beim Abrufen der aktiven Library-ID', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aktive Library-ID für einen Benutzer speichern
+   * @param email E-Mail-Adresse des Benutzers
+   * @param libraryId ID der aktiven Library
+   */
+  async setActiveLibraryId(email: string, libraryId: string): Promise<boolean> {
+    try {
+      const collection = await getCollection<UserLibraries>(this.collectionName);
+      
+      const result = await collection.updateOne(
+        { email },
+        { $set: { activeLibraryId: libraryId, lastUpdated: new Date() } },
+        { upsert: true } // Erstellen, wenn der Benutzer nicht existiert
+      );
+      
+      ServerLogger.info('LibraryService', 'Aktive Library-ID gespeichert', {
+        email,
+        libraryId,
+        modifiedCount: result.modifiedCount,
+        upsertedCount: result.upsertedCount
+      });
+      
+      return result.acknowledged;
+    } catch (error) {
+      ServerLogger.error('LibraryService', 'Fehler beim Speichern der aktiven Library-ID', error);
+      throw error;
+    }
   }
 } 

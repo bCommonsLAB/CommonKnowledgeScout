@@ -9,6 +9,7 @@ import { useStorageProvider } from "@/hooks/use-storage-provider";
 import { useAuth, useUser } from '@clerk/nextjs';
 import { StorageProvider, StorageItem, StorageError } from '@/lib/storage/types';
 import { StorageContextLogger } from '@/lib/storage/storage-logger';
+import { useUserSettings } from '@/hooks/use-user-settings';
 
 // Erweitere den StorageProvider um getAuthInfo
 interface ExtendedStorageProvider extends StorageProvider {
@@ -86,6 +87,9 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>('initializing');
   const [lastRequestedLibraryId, setLastRequestedLibraryId] = useState<string | null>(null);
   const [hasRedirectedToSettings, setHasRedirectedToSettings] = useState(false);
+  
+  // User-Einstellungen Hook
+  const { activeLibraryId: userActiveLibraryId, setActiveLibraryId: saveUserActiveLibraryId } = useUserSettings();
 
   // Provider-Wechsel-Logik
   useEffect(() => {
@@ -157,9 +161,19 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       return;
     }
     const found = libraries.find(lib => lib.id === activeLibraryId) || null;
+    
+    // Nur loggen wenn sich die Library wirklich ändert
+    if (currentLibrary?.id !== found?.id) {
+      StorageContextLogger.info('useEffect: currentLibrary', { 
+        from: currentLibrary?.id || 'null',
+        to: found?.id || 'null',
+        currentLibrary: found 
+      });
+    }
+    
     setCurrentLibrary(found);
     // Status wird in einem anderen useEffect basierend auf der Library gesetzt
-  }, [activeLibraryId, libraries]);
+  }, [activeLibraryId, libraries, currentLibrary?.id]);
 
   // Bibliotheken aus der API laden
   useEffect(() => {
@@ -172,6 +186,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
 
     const userEmail = user?.primaryEmailAddress?.emailAddress;
     if (!userEmail) {
+      StorageContextLogger.error('StorageContext', 'Keine E-Mail-Adresse verfügbar');
       setError("Keine Benutzer-Email verfügbar");
       setIsLoading(false);
       return;
@@ -189,7 +204,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       if (isCancelled) return; // Abbrechen wenn bereits gecancelt
       
       try {
-        const res = await fetch(`/api/libraries?email=${encodeURIComponent(userEmail)}`);
+        const res = await fetch('/api/libraries'); // Einheitlicher Endpunkt, keine Email-Parameter
         if (!res.ok) {
           if (res.status === 404 && retryCount < maxRetries) {
             StorageContextLogger.info('API nicht verfügbar, versuche erneut', { retryCount: retryCount + 1, maxRetries });
@@ -218,16 +233,16 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         const data = await res.json();
         if (isCancelled) return; // Nochmal prüfen nach async Operation
         
-        if (data && Array.isArray(data)) {
-          StorageContextLogger.info('Bibliotheken geladen', { count: data.length });
-          setLibraries(data);
+        if (data && data.libraries && Array.isArray(data.libraries)) {
+          StorageContextLogger.info('Bibliotheken geladen', { count: data.libraries.length });
+          setLibraries(data.libraries);
           
           // Setze StorageFactory Libraries
           const factory = StorageFactory.getInstance();
-          factory.setLibraries(data);
+          factory.setLibraries(data.libraries);
           
           // Prüfe, ob der Benutzer keine Bibliotheken hat und noch nicht zur Settings-Seite weitergeleitet wurde
-          if (data.length === 0 && !hasRedirectedToSettings && typeof window !== 'undefined') {
+          if (data.libraries.length === 0 && !hasRedirectedToSettings && typeof window !== 'undefined') {
             const currentPath = window.location.pathname;
             // Nur weiterleiten, wenn wir nicht bereits auf der Settings-Seite sind
             if (!currentPath.startsWith('/settings')) {
@@ -242,38 +257,22 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             }
           }
           
-          // Setze die erste Bibliothek als aktiv, falls noch keine ausgewählt ist
-          if (data.length > 0) {
-            const storedLibraryId = localStorage.getItem('activeLibraryId');
-            StorageContextLogger.info('Gespeicherte activeLibraryId aus localStorage', { storedLibraryId });
-            
-            // Zusätzliche Validierung: Prüfe, ob die ID ein gültiges UUID-Format hat
-            const isValidUUID = storedLibraryId && 
-              storedLibraryId.length > 10 && 
-              isNaN(Number(storedLibraryId));
-            
-            // Prüfen, ob die gespeicherte ID existiert und gültig ist
-            const validStoredId = isValidUUID && data.some(lib => lib.id === storedLibraryId);
-            
-            if (validStoredId) {
-              StorageContextLogger.info('Gespeicherte Bibliothek wird verwendet', { storedLibraryId });
-              setActiveLibraryId(storedLibraryId);
-            } else {
-              if (storedLibraryId && !isValidUUID) {
-                StorageContextLogger.warn('Ungültige Library-ID im localStorage gefunden - wird bereinigt', { storedLibraryId });
-                localStorage.removeItem('activeLibraryId');
-              }
-              
-              const firstLibId = data[0].id;
-              StorageContextLogger.info('Setze erste Bibliothek als aktiv', { firstLibId });
-              setActiveLibraryId(firstLibId);
-              localStorage.setItem('activeLibraryId', firstLibId);
-            }
+          // WICHTIG: Setze die activeLibraryId sofort mit dem Wert aus der API
+          if (data.activeLibraryId) {
+            StorageContextLogger.info('Setze activeLibraryId aus API-Response', { 
+              activeLibraryId: data.activeLibraryId,
+              librariesCount: data.libraries.length 
+            });
+            setActiveLibraryId(data.activeLibraryId);
+          } else if (data.libraries.length > 0) {
+            // Nur als Fallback, wenn keine activeLibraryId in der DB gespeichert ist
+            StorageContextLogger.warn('Keine activeLibraryId in DB - setze erste Library als Fallback', { 
+              firstLibraryId: data.libraries[0].id 
+            });
+            setActiveLibraryId(data.libraries[0].id);
           } else {
             StorageContextLogger.warn('Keine Bibliotheken verfügbar');
             setActiveLibraryId("");
-            localStorage.removeItem('activeLibraryId');
-            setLibraries([]);
           }
         } else {
           StorageContextLogger.error('Ungültiges Format der Bibliotheksdaten', { data });
@@ -306,7 +305,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     return () => {
       isCancelled = true;
     };
-  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId, hasRedirectedToSettings]);
+  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, hasRedirectedToSettings]);
 
   // Aktuelle Bibliothek aktualisieren
   const refreshCurrentLibrary = async () => {
@@ -652,6 +651,15 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       providerId: provider?.id
     });
   }, [activeLibraryId, currentLibrary, provider]);
+
+  // ENTFERNT: StorageContext soll nicht mehr die activeLibraryId setzen
+  // Das wird jetzt vollständig vom LibrarySwitcher gehandhabt
+
+  // Wenn der User die Library wechselt:
+  const handleLibraryChange = (libraryId: string) => {
+    setActiveLibraryId(libraryId);
+    saveUserActiveLibraryId(libraryId);
+  };
 
   return (
     <StorageContext.Provider value={value}>
