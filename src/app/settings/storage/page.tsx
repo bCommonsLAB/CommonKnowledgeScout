@@ -1,6 +1,10 @@
 import { Metadata } from "next"
 import { Separator } from "@/components/ui/separator"
 import { StorageForm } from "@/components/settings/storage-form"
+import { StorageFormContainer } from "@/components/settings/storage-form-new"
+
+// Feature-Flag für neue Storage-Form-Architektur
+const USE_NEW_STORAGE_FORM = true
 
 export const metadata: Metadata = {
   title: "Bibliothek - Storage-Einstellungen",
@@ -18,7 +22,11 @@ export default function StoragePage() {
       </div>
       <Separator />
       
-      <StorageForm />
+      {USE_NEW_STORAGE_FORM ? (
+        <StorageFormContainer />
+      ) : (
+        <StorageForm />
+      )}
     </div>
   )
 } 

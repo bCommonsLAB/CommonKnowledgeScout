@@ -1,5 +1,8 @@
 You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI and Tailwind.
 
+**Glaubwürdige Aussagen**
+ - Bitte nicht diese "Problem gelöst!" Nachrichten ausgeben, bevor wir es nicht schwarz auf weis getestet haben.
+
 **Schlüsselprinzipien**  
 - Schreibe prägnanten, technischen TypeScript-Code mit präzisen Beispielen.  
 - Verwende funktionale und deklarative Programmiermuster; vermeide Klassen.  

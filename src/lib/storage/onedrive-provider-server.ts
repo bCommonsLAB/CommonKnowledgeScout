@@ -2,7 +2,7 @@ import { StorageError } from './types';
 import { ClientLibrary, Library, StorageConfig } from '@/types/library';
 import { LibraryService } from '@/lib/services/library-service';
 import * as process from 'process';
-import { ServerLogger } from '@/lib/debug/logger';
+import { ServerLogger } from '@/lib/debug/server-logger';
 
 interface TokenResponse {
   access_token: string;
@@ -70,19 +70,29 @@ export class OneDriveServerProvider {
   /**
    * Führt die Authentifizierung mit dem erhaltenen Code durch
    * @param code Der Authentifizierungscode von Microsoft
-   * @returns true, wenn die Authentifizierung erfolgreich war
+   * @returns Tokens bei Erfolg, null bei Fehler
    */
-  public async authenticate(code: string): Promise<boolean> {
+  public async authenticate(code: string): Promise<{ accessToken: string; refreshToken: string; expiresIn: number } | null> {
     try {
+      ServerLogger.auth('OneDriveServerProvider', 'Starte Authentifizierung', {
+        libraryId: this.library.id,
+        userEmail: this.userEmail,
+        hasCode: !!code,
+        codeLength: code?.length || 0,
+        timestamp: new Date().toISOString()
+      });
+      
       // Konfigurationswerte aus der Bibliothek laden
       const config = this.getRequiredConfigValues();
       const { tenantId, clientId, clientSecret, redirectUri } = config;
       
-      ServerLogger.info('OneDriveServerProvider', 'Authentifizierung mit gespeicherten Konfigurationswerten', {
-        tenantId,
-        clientId: clientId ? 'vorhanden' : 'nicht vorhanden',
-        clientSecret: clientSecret ? 'vorhanden' : 'nicht vorhanden',
-        redirectUri: redirectUri || 'nicht vorhanden'
+      ServerLogger.auth('OneDriveServerProvider', 'Konfigurationswerte validiert', {
+        libraryId: this.library.id,
+        tenantId: tenantId || 'nicht vorhanden',
+        hasClientId: !!clientId,
+        hasClientSecret: !!clientSecret,
+        hasRedirectUri: !!redirectUri,
+        timestamp: new Date().toISOString()
       });
 
       const tokenEndpoint = `https://login.microsoftonline.com/${tenantId || 'common'}/oauth2/v2.0/token`;
@@ -96,6 +106,13 @@ export class OneDriveServerProvider {
       });
 
       // Request zum Token-Endpunkt senden
+      ServerLogger.auth('OneDriveServerProvider', 'Sende Token-Request an Microsoft', {
+        libraryId: this.library.id,
+        tokenEndpoint,
+        grantType: 'authorization_code',
+        timestamp: new Date().toISOString()
+      });
+      
       const response = await fetch(tokenEndpoint, {
         method: 'POST',
         headers: {
@@ -106,6 +123,16 @@ export class OneDriveServerProvider {
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        ServerLogger.auth('OneDriveServerProvider', 'Token-Exchange fehlgeschlagen', {
+          libraryId: this.library.id,
+          httpStatus: response.status,
+          httpStatusText: response.statusText,
+          error: errorData.error,
+          errorDescription: errorData.error_description,
+          timestamp: new Date().toISOString()
+        });
+        
         console.error('[OneDriveServerProvider] Token-Fehler:', errorData);
         throw new StorageError(
           `Token-Austausch fehlgeschlagen: ${errorData.error_description || response.statusText}`,
@@ -115,21 +142,41 @@ export class OneDriveServerProvider {
       }
 
       const data = await response.json() as TokenResponse;
-      ServerLogger.info('OneDriveServerProvider', 'Token erfolgreich erhalten', {
+      
+      ServerLogger.auth('OneDriveServerProvider', 'Token erfolgreich von Microsoft erhalten', {
+        libraryId: this.library.id,
         hasAccessToken: !!data.access_token,
         hasRefreshToken: !!data.refresh_token,
-        expiresIn: data.expires_in
+        expiresIn: data.expires_in,
+        accessTokenLength: data.access_token?.length || 0,
+        timestamp: new Date().toISOString()
       });
       
-      // TEMPORÄR: Tokens werden einmalig in der Datenbank gespeichert,
-      // damit der Client sie abrufen und im localStorage speichern kann.
-      // Der Client löscht sie dann sofort aus der Datenbank.
-      await this.saveTokensTemporarily(data.access_token, data.refresh_token, data.expires_in);
+      // Tokens direkt zurückgeben (Browser-only Speicherung)
+      ServerLogger.auth('OneDriveServerProvider', 'Tokens erfolgreich erhalten - Browser-only Speicherung', {
+        libraryId: this.library.id,
+        userEmail: this.userEmail,
+        expiresIn: data.expires_in,
+        timestamp: new Date().toISOString()
+      });
       
-      return true;
+      return {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresIn: data.expires_in
+      };
     } catch (error) {
+      ServerLogger.auth('OneDriveServerProvider', 'Authentifizierung fehlgeschlagen', {
+        libraryId: this.library.id,
+        userEmail: this.userEmail,
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        errorType: error instanceof StorageError ? error.code : 'UNKNOWN_ERROR',
+        timestamp: new Date().toISOString()
+      });
+      
       console.error('[OneDriveServerProvider] Authentifizierungsfehler:', error);
-      throw error;
+      return null;
     }
   }
   

@@ -3,6 +3,7 @@ import { ClientLibrary } from '@/types/library';
 import { OneDriveProvider } from './onedrive-provider';
 import { WebDAVProvider } from './webdav-provider';
 import { StorageFactoryLogger, LocalStorageProviderLogger } from './storage-logger';
+import { ServerLogger } from '@/lib/debug/server-logger';
 
 interface LibraryPathProvider {
   _libraryPath?: string;
@@ -460,10 +461,35 @@ export class StorageFactory {
       case 'onedrive':
         provider = new OneDriveProvider(library, this.apiBaseUrl || undefined);
         StorageFactoryLogger.info('OneDriveProvider erstellt');
+        
+        // Auth-Logging für OneDrive Provider
+        const isAuth = provider.isAuthenticated();
+        ServerLogger.auth('StorageFactory', 'OneDrive Provider erstellt - Auth-Status geprüft', {
+          libraryId: library.id,
+          libraryLabel: library.label,
+          providerType: 'onedrive',
+          isAuthenticated: isAuth,
+          hasClientId: !!(library.config as any)?.clientId,
+          hasClientSecret: !!(library.config as any)?.clientSecret,
+          timestamp: new Date().toISOString()
+        });
         break;
       case 'webdav':
         provider = new WebDAVProvider(library, this.apiBaseUrl || undefined);
         StorageFactoryLogger.info('WebDAVProvider erstellt');
+        
+        // Auth-Logging für WebDAV Provider
+        const webdavIsAuth = provider.isAuthenticated();
+        ServerLogger.auth('StorageFactory', 'WebDAV Provider erstellt - Auth-Status geprüft', {
+          libraryId: library.id,
+          libraryLabel: library.label,
+          providerType: 'webdav',
+          isAuthenticated: webdavIsAuth,
+          hasUrl: !!(library.config as any)?.url,
+          hasUsername: !!(library.config as any)?.username,
+          hasPassword: !!(library.config as any)?.password,
+          timestamp: new Date().toISOString()
+        });
         break;
       // Add more provider types here
       default:
@@ -473,6 +499,16 @@ export class StorageFactory {
 
     // Cache provider
     this.providers.set(libraryId, provider);
+    
+    // Finales Auth-Logging nach Provider-Erstellung
+    ServerLogger.auth('StorageFactory', 'Provider erfolgreich erstellt und gecacht', {
+      libraryId: library.id,
+      providerType: library.type,
+      providerName: provider.name,
+      isAuthenticated: provider.isAuthenticated(),
+      timestamp: new Date().toISOString()
+    });
+    
     return provider;
   }
 } 

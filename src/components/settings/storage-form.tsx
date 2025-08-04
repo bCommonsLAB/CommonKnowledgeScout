@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { useState, useEffect, useCallback, Suspense, useMemo } from "react"
+import { useState, useEffect, useLayoutEffect, useCallback, Suspense, useMemo } from "react"
 import { useAtom, useAtomValue } from "jotai"
 import { useSearchParams } from "next/navigation"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
@@ -107,57 +107,24 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     clientId: "",
     clientSecret: "",
   });
+  // Entfernt: isFormInitialized verursachte Race Conditions
   
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
   
-  // DEBUG: Library-Verwechslungs-Problem analysieren
+  // Loading-State: Nur warten bis activeLibrary geladen ist
+  const isLibrariesLoading = !activeLibrary;
+  
+  // Library-Auswahl - nur wesentliche Logs
   useEffect(() => {
-    if (activeLibraryId && libraries.length > 0) {
-      console.log('[StorageForm] DEBUG: Library-Auswahl-Analyse', {
+    if (activeLibraryId && libraries.length > 0 && !activeLibrary) {
+      SettingsLogger.warn('StorageForm', 'Aktive Library nicht gefunden', {
         activeLibraryId,
-        availableLibraries: libraries.map(lib => ({
-          id: lib.id,
-          label: lib.label,
-          type: lib.type,
-          password: lib.config?.password || 'fehlt',  // UNMASKIERT für Debugging
-          passwordPrefix: lib.config?.password ? lib.config.password.substring(0, 6) + '***' : 'fehlt'
-        })),
-        foundActiveLibrary: activeLibrary ? {
-          id: activeLibrary.id,
-          label: activeLibrary.label,
-          type: activeLibrary.type,
-          password: activeLibrary.config?.password || 'fehlt',  // UNMASKIERT für Debugging
-          passwordPrefix: activeLibrary.config?.password ? activeLibrary.config.password.substring(0, 6) + '***' : 'fehlt'
-        } : 'nicht gefunden'
-      });
-      
-      // ZUSÄTZLICH: Analysiere wie activeLibrary gefunden wird
-      console.log('[StorageForm] WIE WIRD ACTIVELIBRARY GEFUNDEN?', {
-        suchNachId: activeLibraryId,
-        gefundeneLibrary: libraries.find(lib => lib.id === activeLibraryId),
-        alleLibraryIds: libraries.map(lib => lib.id),
-        istNextcloudLibraryVorhanden: libraries.find(lib => lib.label === 'Nextcloud'),
-        istArchivPeterVorhanden: libraries.find(lib => lib.id === '_ArchivPeter')
+        availableIds: libraries.map(lib => lib.id)
       });
     }
   }, [activeLibraryId, libraries, activeLibrary]);
   const { refreshLibraries, refreshAuthStatus } = useStorage();
-  
-  // KRITISCHER FIX: Libraries neu laden wenn StorageForm geladen wird
-  useEffect(() => {
-    console.log('[StorageForm] Lade frische Libraries aus Datenbank...');
-    refreshLibraries();
-  }, []); // Nur einmal beim Mount
-  
-  // FORM RESET: Wenn sich activeLibrary ändert, Form komplett zurücksetzen
-  useEffect(() => {
-    if (activeLibrary) {
-      console.log('[StorageForm] ActiveLibrary geändert - Form zurücksetzen');
-      form.reset(); // Leert alle alten Werte
-      // Dann werden die neuen Werte in einem separaten useEffect gesetzt
-    }
-  }, [activeLibrary?.id, form]); // Reagiert auf ID-Änderungen
   
   // Default-Werte in useMemo verpacken
   const defaultValues = useMemo(() => ({
@@ -177,20 +144,26 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     defaultValues,
   });
   
-  // Aktueller Storage-Typ
+  // Libraries beim Mount laden
+  useEffect(() => {
+    refreshLibraries();
+  }, []); // Nur einmal beim Mount
+  
+  // ENTFERNT: Doppeltes Form Reset - wird jetzt nur im useEffect unten gemacht
+  
+  // Aktueller Storage-Typ - NACH der Form-Initialisierung
   const currentType = form.watch("type");
   
-  // Logging für Mount und wichtige State-Änderungen
+  // Minimal logging für wichtige State-Änderungen
   useEffect(() => {
-    SettingsLogger.info('StorageForm', 'Komponente gemountet/aktualisiert', {
-      pathname: window.location.pathname,
-      search: window.location.search,
-      activeLibraryId,
-      activeLibraryLabel: activeLibrary?.label,
-      librariesCount: libraries.length,
-      formValues: form.getValues()
-    });
-  }, [activeLibraryId, activeLibrary, libraries.length, form]);
+    if (activeLibrary) {
+      SettingsLogger.info('StorageForm', 'Active library changed', {
+        libraryId: activeLibrary.id,
+        libraryLabel: activeLibrary.label,
+        type: activeLibrary.type
+      });
+    }
+  }, [activeLibrary?.id]);
   
   // Lade OAuth-Standardwerte über die API
   useEffect(() => {
@@ -228,94 +201,89 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     
     loadOAuthDefaults();
   }, []);
+
+  // Entfernt: Reset Form-State useEffect (verursachte Race Conditions)
   
-  // Form mit aktiver Bibliothek befüllen
+  // Form mit aktiver Bibliothek befüllen - VEREINFACHT  
+  // ZURÜCK ZU useEffect: useLayoutEffect verursachte 4x Executions
   useEffect(() => {
-    if (activeLibrary) {
-      console.log('[StorageForm] Befülle Form mit Library-Daten:', {
-        libraryLabel: activeLibrary.label,
-        type: activeLibrary.type,
-        path: activeLibrary.path,
-        config: activeLibrary.config
-      });
-      
-      // KRITISCHES DEBUGGING: Analysiere config im Detail
-      console.log('[StorageForm] DETAILLIERTE CONFIG-ANALYSE:', {
-        'config.url': activeLibrary.config?.url,
-        'config.username': activeLibrary.config?.username,
-        'config.password': activeLibrary.config?.password,
-        'config.basePath': activeLibrary.config?.basePath,
-        'komplettes config-Object': JSON.stringify(activeLibrary.config, null, 2)
-      });
-      
-      // Wenn Bibliothek gewechselt wird, Formular mit den Werten befüllen
-      const formData = {
-        type: activeLibrary.type as "local" | "onedrive" | "gdrive" | "webdav",
-        path: activeLibrary.path || "",
-        // Alle Werte direkt aus der Bibliothek oder aus den Defaults verwenden
-        tenantId: activeLibrary.config?.tenantId as string || oauthDefaults.tenantId,
-        clientId: activeLibrary.config?.clientId as string || oauthDefaults.clientId,
-        // Für clientSecret: Wenn es maskiert ist (********), leer lassen
-        clientSecret: (activeLibrary.config?.clientSecret as string === '********') 
-          ? '' 
-          : activeLibrary.config?.clientSecret as string || oauthDefaults.clientSecret,
-        // WebDAV-spezifische Felder
-        url: activeLibrary.config?.url as string || '',
-        username: activeLibrary.config?.username as string || '',
-        // WebDAV-Passwort direkt verwenden ohne Maskierung
-        password: activeLibrary.config?.password as string || '',
-        basePath: activeLibrary.config?.basePath as string || '',
-      };
-      
-      console.log('[StorageForm] Form-Daten zum Befüllen:', formData);
-      console.log('[StorageForm] Aktueller Form-Zustand vor Reset:', form.getValues());
-      
-      // Explizit die Werte setzen und dann resetten
-      form.reset(formData);
-      
-      // Zusätzlich: Nach Reset den aktuellen Zustand prüfen
-      setTimeout(() => {
-        const currentValues = form.getValues();
-        console.log('[StorageForm] Form-Zustand nach Reset:', currentValues);
-        
-        // Debug: Prüfe speziell die WebDAV-Felder
-        if (activeLibrary.type === 'webdav') {
-          console.log('[StorageForm] WebDAV-Felder nach Reset:', {
-            url: currentValues.url,
-            username: currentValues.username,
-            password: currentValues.password || 'fehlt',  // UNMASKIERT für Debugging
-            passwordPrefix: currentValues.password ? currentValues.password.substring(0, 6) + '***' : 'fehlt',
-            basePath: currentValues.basePath,
-            expectedUrl: activeLibrary.config?.url,
-            expectedUsername: activeLibrary.config?.username
-          });
-          
-          // Fallback: Wenn WebDAV-Felder nicht korrekt gesetzt wurden, setze sie manuell
-          if (!currentValues.url && activeLibrary.config?.url && typeof activeLibrary.config.url === 'string') {
-            console.log('[StorageForm] Fallback: Setze WebDAV URL manuell');
-            form.setValue('url', activeLibrary.config.url);
-          }
-          if (!currentValues.username && activeLibrary.config?.username && typeof activeLibrary.config.username === 'string') {
-            console.log('[StorageForm] Fallback: Setze WebDAV Username manuell');
-            form.setValue('username', activeLibrary.config.username);
-          }
-          if (!currentValues.password && activeLibrary.config?.password && typeof activeLibrary.config.password === 'string') {
-            console.log('[StorageForm] Fallback: Setze WebDAV Password manuell');
-            form.setValue('password', activeLibrary.config.password);
-          }
-          if (!currentValues.basePath && activeLibrary.config?.basePath && typeof activeLibrary.config.basePath === 'string') {
-            console.log('[StorageForm] Fallback: Setze WebDAV BasePath manuell');
-            form.setValue('basePath', activeLibrary.config.basePath);
-          }
-        }
-      }, 0);
-      
-    } else {
-      console.log('[StorageForm] Keine aktive Library zum Befüllen der Form');
+    SettingsLogger.info('StorageForm', 'useEffect wird ausgeführt', {
+      hasActiveLibrary: !!activeLibrary,
+      activeLibraryId: activeLibrary?.id,
+      activeLibraryType: activeLibrary?.type,
+      triggerReason: 'activeLibrary?.id dependency change'
+    });
+
+    if (!activeLibrary) {
+      SettingsLogger.info('StorageForm', 'Keine activeLibrary - setze Defaults');
       // Bei keiner aktiven Library, Formular auf Defaults zurücksetzen
       form.reset(defaultValues);
+      return;
     }
-  }, [activeLibrary, form, oauthDefaults, defaultValues]);
+
+    // Formular-Daten basierend auf aktiver Bibliothek erstellen
+    const formData = {
+      type: activeLibrary.type as "local" | "onedrive" | "gdrive" | "webdav",
+      path: activeLibrary.path || "",
+      tenantId: activeLibrary.config?.tenantId as string || "",
+      clientId: activeLibrary.config?.clientId as string || "",
+      // Für clientSecret: Wenn es maskiert ist (********), leer lassen
+      clientSecret: (activeLibrary.config?.clientSecret as string === '********') 
+        ? '' 
+        : activeLibrary.config?.clientSecret as string || "",
+      // WebDAV-spezifische Felder
+      url: activeLibrary.config?.url as string || '',
+      username: activeLibrary.config?.username as string || '',
+      password: activeLibrary.config?.password as string || '',
+      basePath: activeLibrary.config?.basePath as string || '',
+    };
+    
+    // Form mit den Daten befüllen
+    SettingsLogger.info('StorageForm', 'Form mit Library-Daten befüllt', formData);
+    form.reset(formData);
+    
+    // BUGFIX: Type-Feld explizit setzen (React Hook Form Select-Bug)
+    form.setValue('type', formData.type, { shouldValidate: true });
+    
+    // DEBUG: Sofortige Überprüfung
+    const immediateCheck = form.getValues('type');
+    SettingsLogger.info('StorageForm', 'Type-Feld sofort nach setValue', {
+      intended: formData.type,
+      actual: immediateCheck,
+      match: formData.type === immediateCheck
+    });
+    
+    // Form ist jetzt befüllt
+    
+  }, [activeLibrary?.id]); // NUR auf Library-ID-Änderungen reagieren
+  
+  // BUGFIX: Debounce für OAuth-Defaults um Race Conditions zu vermeiden
+  const [debouncedActiveLibrary, setDebouncedActiveLibrary] = useState(activeLibrary);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedActiveLibrary(activeLibrary);
+    }, 50); // 50ms Debounce
+    
+    return () => clearTimeout(timer);
+  }, [activeLibrary?.id]);
+  
+  // Separater useEffect für OAuth-Defaults - NUR wenn Library bereits geladen ist
+  useEffect(() => {
+    if (!debouncedActiveLibrary || !oauthDefaults.tenantId) return;
+    
+    // Nur OAuth-Felder mit Defaults befüllen, wenn sie leer sind
+    const currentValues = form.getValues();
+    if (!currentValues.tenantId && oauthDefaults.tenantId) {
+      form.setValue('tenantId', oauthDefaults.tenantId);
+    }
+    if (!currentValues.clientId && oauthDefaults.clientId) {
+      form.setValue('clientId', oauthDefaults.clientId);
+    }
+    if (!currentValues.clientSecret && oauthDefaults.clientSecret) {
+      form.setValue('clientSecret', oauthDefaults.clientSecret);
+    }
+  }, [oauthDefaults, debouncedActiveLibrary?.id]); // Reagiert auf OAuth-Defaults-Änderungen
   
   // Token-Status laden, wenn sich die aktive Library ändert
   useEffect(() => {
@@ -346,7 +314,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
             loading: false
           });
           
-          console.log('[StorageForm] Token-Status aus localStorage:', {
+          SettingsLogger.info('StorageForm', 'Token-Status aus localStorage geladen', {
             hasTokens: true,
             isExpired
           });
@@ -357,10 +325,10 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
             loading: false
           });
           
-          console.log('[StorageForm] Keine Tokens im localStorage gefunden');
+          SettingsLogger.info('StorageForm', 'Keine Tokens im localStorage gefunden');
         }
       } catch (error) {
-        console.error('[StorageForm] Fehler beim Laden des Token-Status aus localStorage:', error);
+        SettingsLogger.error('StorageForm', 'Fehler beim Laden des Token-Status aus localStorage', error);
         setTokenStatus({
           isAuthenticated: false,
           isExpired: false,
@@ -1235,6 +1203,21 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     );
   };
   
+  // Loading-State: Zeige Loading wenn Libraries noch nicht geladen sind
+  if (isLibrariesLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+            <p>Lade Bibliotheken...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Keine aktive Library gefunden (nach dem Laden)
   if (!activeLibrary) {
     return (
       <Card>

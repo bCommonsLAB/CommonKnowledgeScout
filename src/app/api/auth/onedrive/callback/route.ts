@@ -121,27 +121,67 @@ export async function GET(request: NextRequest) {
       // Die originale Library enthält das echte Client Secret
       const provider = new OneDriveServerProvider(library as unknown as ClientLibrary, userEmail);
 
-      // Authentifizierung mit dem erhaltenen Code durchführen
-      const success = await provider.authenticate(code);
+             // Authentifizierung mit dem erhaltenen Code durchführen
+       const authResult = await provider.authenticate(code);
 
-      if (success) {
-        console.log('[OneDrive Auth Callback] Authentifizierung erfolgreich');
-        // StorageFactory Provider-Cache für diese ID löschen
-        const factory = StorageFactory.getInstance();
-        await factory.clearProvider(libraryId);
-        
-        // Nach erfolgreicher Authentifizierung zum ursprünglichen Ziel weiterleiten (oder Fallback)
-        if (redirectUrl) {
-          // Füge die libraryId als Query-Parameter zur Redirect-URL hinzu
-          const url = new URL(redirectUrl, baseUrl);
-          url.searchParams.set('activeLibraryId', libraryId);
-          url.searchParams.set('authSuccess', 'true');
-          url.searchParams.set('libraryId', libraryId);
-          console.log('[OneDrive Auth Callback] Redirect mit Library-ID:', url.toString());
-          return NextResponse.redirect(url);
-        }
-        return NextResponse.redirect(new URL(`/settings/storage?authSuccess=true&libraryId=${libraryId}`, baseUrl));
-      } else {
+       if (authResult) {
+         console.log('[OneDrive Auth Callback] Authentifizierung erfolgreich');
+         // StorageFactory Provider-Cache für diese ID löschen
+         const factory = StorageFactory.getInstance();
+         await factory.clearProvider(libraryId);
+         
+         // Nach erfolgreicher Authentifizierung zum ursprünglichen Ziel weiterleiten
+         if (redirectUrl) {
+           // Füge die libraryId als Query-Parameter zur Redirect-URL hinzu
+           const url = new URL(redirectUrl, baseUrl);
+           url.searchParams.set('activeLibraryId', libraryId);
+           url.searchParams.set('authSuccess', 'true');
+           url.searchParams.set('libraryId', libraryId);
+           console.log('[OneDrive Auth Callback] Redirect mit Library-ID:', url.toString());
+           
+                       // Erstelle eine HTML-Seite, die das Popup schließt und eine Message an das ursprüngliche Fenster sendet
+            // MIT DEN TOKENS (direkte Übertragung)
+            const html = `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <title>Authentifizierung erfolgreich</title>
+              </head>
+              <body>
+                <script>
+                  // Sende Message an das ursprüngliche Fenster MIT TOKENS
+                  if (window.opener) {
+                    window.opener.postMessage({
+                      type: 'OAUTH_SUCCESS',
+                      libraryId: '${libraryId}',
+                      redirectUrl: '${url.toString()}',
+                      tokens: {
+                        accessToken: '${authResult.accessToken}',
+                        refreshToken: '${authResult.refreshToken}',
+                        expiresIn: ${authResult.expiresIn}
+                      }
+                    }, '*');
+                  }
+                  
+                  // Schließe das Popup-Fenster nach kurzer Verzögerung
+                  setTimeout(() => {
+                    window.close();
+                  }, 1000);
+                </script>
+                <p>Authentifizierung erfolgreich! Das Fenster wird automatisch geschlossen...</p>
+              </body>
+              </html>
+            `;
+           
+           return new NextResponse(html, {
+             status: 200,
+             headers: {
+               'Content-Type': 'text/html',
+             },
+           });
+         }
+         return NextResponse.redirect(new URL(`/settings/storage?authSuccess=true&libraryId=${libraryId}`, baseUrl));
+       } else {
         console.error('[OneDrive Auth Callback] Authentifizierung fehlgeschlagen');
         return NextResponse.redirect(new URL(`/settings/storage?authError=auth_failed&libraryId=${libraryId}`, baseUrl));
       }

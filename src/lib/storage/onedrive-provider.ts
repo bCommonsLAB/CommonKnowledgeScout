@@ -77,12 +77,23 @@ export class OneDriveProvider implements StorageProvider {
     // NUR aus localStorage laden - NICHT aus der Datenbank
     if (typeof window !== 'undefined') {
       try {
-        const tokensJson = localStorage.getItem(`onedrive_tokens_${this.library.id}`);
+        // Extrahiere Library-ID aus der URL oder verwende Fallback
+        const urlParams = new URLSearchParams(window.location.search)
+        const libraryId = urlParams.get('activeLibraryId') || this.library.id
+        const tokensKey = `onedrive_${libraryId}_tokens`
+        
+        OneDriveProviderLogger.info('Lade OneDrive-Tokens', { 
+          libraryId: this.library.id,
+          extractedLibraryId: libraryId,
+          tokensKey 
+        })
+        
+        const tokensJson = localStorage.getItem(tokensKey);
         if (tokensJson) {
           const tokens = JSON.parse(tokensJson);
           this.accessToken = tokens.accessToken;
           this.refreshToken = tokens.refreshToken;
-          this.tokenExpiry = tokens.expiry;
+          this.tokenExpiry = tokens.expiresAt; // Verwende expiresAt statt expiry
           this.authenticated = true;
           OneDriveProviderLogger.info('Tokens aus localStorage geladen', { libraryId: this.library.id });
         }
@@ -98,19 +109,26 @@ export class OneDriveProvider implements StorageProvider {
     this.accessToken = accessToken;
     this.refreshToken = refreshToken;
     this.tokenExpiry = expiry;
+    
+    // Extrahiere Library-ID aus der URL oder verwende Fallback
+    const urlParams = new URLSearchParams(window.location.search)
+    const libraryId = urlParams.get('activeLibraryId') || this.library.id
+    const tokensKey = `onedrive_${libraryId}_tokens`
     this.authenticated = true;
 
     // Tokens NUR im localStorage speichern - NICHT in der Datenbank
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem(`onedrive_tokens_${this.library.id}`, JSON.stringify({
+        localStorage.setItem(tokensKey, JSON.stringify({
           accessToken,
           refreshToken,
-          expiry
+          expiresAt: expiry // Verwende expiresAt statt expiry für Konsistenz
         }));
         
         OneDriveProviderLogger.info('Tokens im localStorage gespeichert', {
           libraryId: this.library.id,
+          extractedLibraryId: libraryId,
+          tokensKey,
           expiresIn: `${expiresIn} Sekunden`,
           expiryTime: new Date(expiry).toISOString()
         });
@@ -130,9 +148,17 @@ export class OneDriveProvider implements StorageProvider {
       this.clearingTokens = true;
       
       // Entferne Tokens aus localStorage
-      const localStorageKey = `onedrive_tokens_${this.library.id}`;
+      // Extrahiere Library-ID aus der URL oder verwende Fallback
+      const urlParams = new URLSearchParams(window.location.search)
+      const libraryId = urlParams.get('activeLibraryId') || this.library.id
+      const localStorageKey = `onedrive_${libraryId}_tokens`
+      
       localStorage.removeItem(localStorageKey);
-      OneDriveProviderLogger.info('Tokens aus localStorage entfernt', { libraryId: this.library.id });
+      OneDriveProviderLogger.info('Tokens aus localStorage entfernt', { 
+        libraryId: this.library.id,
+        extractedLibraryId: libraryId,
+        localStorageKey 
+      });
     } catch (error) {
       console.error('[OneDriveProvider] Fehler beim Entfernen der Tokens aus localStorage:', error);
     } finally {

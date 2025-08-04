@@ -373,6 +373,313 @@ export async function GET(
   - WebDAV Support
   - Photo Management
 
+## Authentifizierung und Token-Management
+
+### Browser-only Authentifizierung
+
+Das System implementiert eine **sichere, browser-basierte Authentifizierung** für OAuth-Provider (OneDrive, Google Drive) und WebDAV-Systeme. Die Authentifizierungsdaten werden **ausschließlich im Browser** gespeichert und nie serverseitig persistiert.
+
+#### Authentifizierungsmodi
+
+```typescript
+type AuthMode = 'memory' | 'session-storage' | 'local-storage';
+
+interface AuthModeConfig {
+  memory: {
+    description: 'Nur im Arbeitsspeicher',
+    security: 'Höchste Sicherheit',
+    persistence: 'Tab schließen = Abmelden'
+  };
+  'session-storage': {
+    description: 'Browser-Session',
+    security: 'Empfohlen',
+    persistence: 'Browser schließen = Abmelden'
+  };
+  'local-storage': {
+    description: 'Browser-Cache',
+    security: 'Weniger sicher',
+    persistence: 'Bleibt bis manuell gelöscht'
+  };
+}
+```
+
+#### Einheitlicher OAuth-Flow
+
+```mermaid
+sequenceDiagram
+    participant UI as Ursprüngliches Fenster
+    participant Popup as OAuth Popup
+    participant MS as Microsoft OAuth
+    participant Callback as Auth Callback
+    participant Storage as Browser Storage
+
+    UI->>Popup: window.open(authUrl)
+    Popup->>MS: OAuth Request
+    MS-->>Popup: Authorization Code
+    Popup->>Callback: GET /api/auth/onedrive/callback
+    Callback->>MS: Token Exchange
+    MS-->>Callback: Access + Refresh Token
+    Callback->>Popup: HTML mit postMessage
+    Popup->>UI: postMessage(tokens)
+    UI->>Storage: BrowserAuthStorage.store()
+    Popup->>Popup: window.close()
+```
+
+#### Implementierung
+
+**1. OAuth-URL-Generierung:**
+```typescript
+// AuthDialog.tsx
+const handleOAuthAuth = async () => {
+  // OneDriveProvider für korrekte OAuth-URL verwenden
+  const provider = new OneDriveProvider(library);
+  const authUrl = await provider.getAuthUrl();
+  
+  // State mit Library-ID und Auth-Modus
+  const stateObj = { 
+    libraryId: library.id,
+    redirect: window.location.href, // Ursprünglicher Tab
+    authMode: authMode
+  };
+  
+  const urlWithState = new URL(authUrl);
+  urlWithState.searchParams.set('state', JSON.stringify(stateObj));
+  
+  // Popup öffnen
+  const authWindow = window.open(urlWithState.toString(), 'oauth_popup');
+};
+```
+
+**2. Callback-Verarbeitung:**
+```typescript
+// /api/auth/onedrive/callback/route.ts
+export async function GET(request: NextRequest) {
+  const { code, state } = extractParams(request);
+  const { libraryId, redirectUrl, authMode } = JSON.parse(state);
+  
+  // OneDriveServerProvider für Token-Exchange
+  const provider = new OneDriveServerProvider(library, userEmail);
+  const authResult = await provider.authenticate(code);
+  
+  if (authResult) {
+    // Tokens direkt an ursprüngliches Fenster senden
+    const html = `
+      <script>
+        if (window.opener) {
+          window.opener.postMessage({
+            type: 'OAUTH_SUCCESS',
+            libraryId: '${libraryId}',
+            redirectUrl: '${redirectUrl}',
+            tokens: {
+              accessToken: '${authResult.accessToken}',
+              refreshToken: '${authResult.refreshToken}',
+              expiresIn: ${authResult.expiresIn}
+            }
+          }, '*');
+        }
+        setTimeout(() => window.close(), 1000);
+      </script>
+    `;
+    
+    return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
+  }
+}
+```
+
+**3. Token-Speicherung im Browser:**
+```typescript
+// AuthDialog.tsx - Message-Handler
+const handleMessage = async (event: MessageEvent) => {
+  if (event.data?.type === 'OAUTH_SUCCESS') {
+    const { tokens, libraryId } = event.data;
+    
+    // Tokens im gewählten Browser-Modus speichern
+    const tokensKey = `${library.type}_${libraryId}_tokens`;
+    const tokenData = {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresAt: (Math.floor(Date.now() / 1000) + tokens.expiresIn) * 1000,
+      timestamp: Date.now()
+    };
+    
+    BrowserAuthStorage.store(tokensKey, tokenData, authMode);
+  }
+};
+```
+
+#### BrowserAuthStorage Utility
+
+```typescript
+// /src/lib/auth/browser-auth-storage.ts
+export class BrowserAuthStorage {
+  static store(key: string, data: any, mode: AuthMode): void {
+    switch (mode) {
+      case 'memory':
+        // In-Memory Storage (nur für aktuelle Session)
+        this.memoryStorage.set(key, data);
+        break;
+      case 'session-storage':
+        sessionStorage.setItem(key, JSON.stringify(data));
+        break;
+      case 'local-storage':
+        localStorage.setItem(key, JSON.stringify(data));
+        break;
+    }
+  }
+  
+  static load(key: string): { data: any | null; isValid: boolean } {
+    // Prüfe alle Storage-Typen
+    const memoryData = this.memoryStorage.get(key);
+    if (memoryData) {
+      return { data: memoryData, isValid: this.isValid(memoryData) };
+    }
+    
+    const sessionData = sessionStorage.getItem(key);
+    if (sessionData) {
+      const data = JSON.parse(sessionData);
+      return { data, isValid: this.isValid(data) };
+    }
+    
+    const localData = localStorage.getItem(key);
+    if (localData) {
+      const data = JSON.parse(localData);
+      return { data, isValid: this.isValid(data) };
+    }
+    
+    return { data: null, isValid: false };
+  }
+  
+  private static isValid(data: any): boolean {
+    if (!data || !data.expiresAt) return false;
+    return Date.now() < data.expiresAt;
+  }
+}
+```
+
+#### WebDAV-Authentifizierung
+
+```typescript
+// AuthDialog.tsx - WebDAV-Handler
+const handleWebDAVAuth = async () => {
+  // WebDAV-Verbindung testen
+  const response = await fetch('/api/storage/webdav-direct', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: authData.url,
+      username: authData.username,
+      password: authData.password
+    })
+  });
+  
+  if (response.ok) {
+    // Credentials im gewählten Browser-Modus speichern
+    const credentialsKey = `webdav_${library.id}_credentials`;
+    const credentials = {
+      url: authData.url,
+      username: authData.username,
+      password: authData.password,
+      timestamp: Date.now()
+    };
+    
+    BrowserAuthStorage.store(credentialsKey, credentials, authMode);
+  }
+};
+```
+
+#### Automatische Authentifizierung
+
+```typescript
+// use-storage-auth.ts
+export const useStorageAuth = () => {
+  const checkAuthentication = async (library: ClientLibrary): Promise<boolean> => {
+    if (library.type === 'onedrive' || library.type === 'gdrive') {
+      const tokensKey = `${library.type}_${library.id}_tokens`;
+      const { isValid } = BrowserAuthStorage.load(tokensKey);
+      return isValid;
+    }
+    
+    if (library.type === 'webdav') {
+      const credentialsKey = `webdav_${library.id}_credentials`;
+      const { isValid } = BrowserAuthStorage.load(credentialsKey);
+      return isValid;
+    }
+    
+    return true; // Local storage benötigt keine Auth
+  };
+  
+  const ensureAuthenticated = async (library: ClientLibrary): Promise<void> => {
+    const isAuth = await checkAuthentication(library);
+    if (!isAuth) {
+      showAuthDialog(library);
+    }
+  };
+  
+  return { checkAuthentication, ensureAuthenticated };
+};
+```
+
+### Vorteile der Browser-only Authentifizierung
+
+1. **Sicherheit**: 
+   - Keine serverseitige Speicherung sensibler Daten
+   - Benutzer hat volle Kontrolle über Persistenz
+   - Tokens berühren nie die Datenbank
+
+2. **Flexibilität**:
+   - Drei Persistenz-Modi zur Auswahl
+   - Einheitliche Logik für alle Provider
+   - Einfache Integration neuer Provider
+
+3. **Benutzerfreundlichkeit**:
+   - Automatische Authentifizierung bei Bedarf
+   - Klare Sicherheitsoptionen
+   - Transparente Token-Verwaltung
+
+4. **Skalierbarkeit**:
+   - Keine Datenbank-Abhängigkeit für Auth
+   - Einfache Erweiterung um neue Provider
+   - Konsistente API für alle Storage-Typen
+
+#### Authentifizierungs-Logging
+
+Das System implementiert umfassendes Logging für alle Authentifizierungsvorgänge:
+
+```typescript
+// Server-seitiges Auth-Logging
+ServerLogger.auth('OneDriveServerProvider', 'Starte Authentifizierung', {
+  libraryId: this.library.id,
+  userEmail: this.userEmail,
+  hasCode: !!code,
+  codeLength: code?.length || 0,
+  timestamp: new Date().toISOString()
+});
+
+// Client-seitiges Auth-Logging
+SettingsLogger.info('AuthDialog', 'OAuth erfolgreich - Tokens direkt erhalten', {
+  libraryId: event.data.libraryId,
+  hasTokens: !!event.data.tokens
+});
+```
+
+**Logging-Bereiche:**
+- **Auth-Start**: Beginn der Authentifizierung
+- **Config-Validation**: Überprüfung der Konfigurationsparameter
+- **Token-Exchange**: Kommunikation mit OAuth-Providern
+- **Token-Storage**: Speicherung im Browser
+- **Auth-Success/Failure**: Erfolg oder Fehler der Authentifizierung
+
+**Debugging-Tools:**
+```typescript
+// Browser-Entwicklertools
+// localStorage/sessionStorage prüfen
+localStorage.getItem('onedrive_libraryId_tokens');
+
+// Network-Tab für OAuth-Flows
+// Console für Client-Logs
+// Server-Logs für Backend-Debugging
+```
+
 ## Error Handling
 
 ### Fehlertypen

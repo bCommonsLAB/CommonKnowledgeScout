@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { SettingsLogger } from '@/lib/debug/logger';
+import { ServerLogger } from '@/lib/debug/server-logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,6 +30,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!webdavUrl || !username || !password) {
+      ServerLogger.auth('WebDAVDirect', 'Unvollständige WebDAV Authentifizierungs-Parameter', {
+        hasUrl: !!webdavUrl,
+        hasUsername: !!username,
+        hasPassword: !!password,
+        method: 'GET',
+        timestamp: new Date().toISOString()
+      });
+      
       console.log('[WebDAV Direct API] Fehlende Parameter:', {
         hasUrl: !!webdavUrl,
         hasUsername: !!username,
@@ -57,6 +66,16 @@ export async function GET(request: NextRequest) {
       hasPassword: !!password
     });
 
+    // Log WebDAV Auth Versuch
+    ServerLogger.auth('WebDAVDirect', 'WebDAV Authentifizierung gestartet', {
+      webdavUrl: cleanWebdavUrl,
+      username,
+      method,
+      path: cleanPath,
+      hasCredentials: !!(username && password),
+      timestamp: new Date().toISOString()
+    });
+    
     // Erstelle Basic Auth Header
     const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
     
@@ -104,6 +123,17 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       // Logge den Fehler detailliert
       const errorText = await response.text();
+      
+      ServerLogger.auth('WebDAVDirect', 'WebDAV Authentifizierung fehlgeschlagen', {
+        webdavUrl: cleanWebdavUrl,
+        username,
+        httpStatus: response.status,
+        httpStatusText: response.statusText,
+        isAuthError: response.status === 401 || response.status === 403,
+        errorPreview: errorText.substring(0, 200),
+        timestamp: new Date().toISOString()
+      });
+      
       SettingsLogger.error('WebDAV Direct API', 'Request failed', {
         status: response.status,
         statusText: response.statusText,
@@ -117,6 +147,17 @@ export async function GET(request: NextRequest) {
     }
 
     const text = await response.text();
+    
+    // Log erfolgreiche WebDAV Auth
+    ServerLogger.auth('WebDAVDirect', 'WebDAV Authentifizierung erfolgreich', {
+      webdavUrl: cleanWebdavUrl,
+      username,
+      method,
+      httpStatus: response.status,
+      responseLength: text.length,
+      timestamp: new Date().toISOString()
+    });
+    
     return new NextResponse(text, {
       status: 200,
       headers: {

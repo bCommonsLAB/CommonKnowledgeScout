@@ -58,7 +58,8 @@ librariesAtom.debugLabel = "librariesAtom"
 export const activeLibraryAtom = atom(
   get => {
     const state = get(libraryAtom)
-    return state.libraries.find(lib => lib.id === state.activeLibraryId)
+    const libraries = Array.isArray(state.libraries) ? state.libraries : []
+    return libraries.find(lib => lib.id === state.activeLibraryId)
   }
 )
 activeLibraryAtom.debugLabel = "activeLibraryAtom"
