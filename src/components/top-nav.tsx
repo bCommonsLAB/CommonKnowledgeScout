@@ -120,7 +120,7 @@ export function TopNav() {
                           onClick={() => router.push('/settings')}
                           className={cn(
                             "rounded-full",
-                            pathname.startsWith('/settings') && "bg-muted"
+                            pathname?.startsWith('/settings') && "bg-muted"
                           )}
                         >
                           <Settings className="h-[1.2rem] w-[1.2rem]" />
@@ -163,7 +163,7 @@ export function TopNav() {
                           onClick={() => router.push('/settings')}
                           className={cn(
                             "rounded-full",
-                            pathname.startsWith('/settings') && "bg-muted"
+                            pathname?.startsWith('/settings') && "bg-muted"
                           )}
                         >
                           <Settings className="h-[1.2rem] w-[1.2rem]" />

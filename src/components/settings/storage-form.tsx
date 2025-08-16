@@ -76,7 +76,7 @@ function StorageFormWithSearchParams() {
 }
 
 // Hauptkomponente ohne useSearchParams
-function StorageFormContent({ searchParams }: { searchParams: URLSearchParams }) {
+function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | null }) {
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -274,23 +274,23 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
     // 1. Libraries geladen sind (sonst können wir die Library nicht finden)
     // 2. Wir die Parameter noch nicht verarbeitet haben
     // 3. Es überhaupt Auth-Parameter gibt
-    const hasAuthSuccess = searchParams.get('authSuccess') === 'true';
-    const hasAuthError = searchParams.get('authError');
+    const hasAuthSuccess = searchParams?.get('authSuccess') === 'true';
+    const hasAuthError = searchParams?.get('authError');
     
     if (!processedAuthParams && libraries.length > 0 && (hasAuthSuccess || hasAuthError)) {
       console.log('[StorageForm] useEffect für Query-Parameter ausgeführt', {
         pathname: window.location.pathname,
         search: window.location.search,
-        authSuccess: searchParams.get('authSuccess'),
-        authError: searchParams.get('authError'),
-        libraryId: searchParams.get('libraryId'),
+        authSuccess: searchParams?.get('authSuccess'),
+        authError: searchParams?.get('authError'),
+        libraryId: searchParams?.get('libraryId'),
         activeLibraryId,
         librariesLoaded: libraries.length
       });
       
       // Erfolgreiche Authentifizierung
       if (hasAuthSuccess) {
-        const authenticatedLibraryId = searchParams.get('libraryId');
+        const authenticatedLibraryId = searchParams?.get('libraryId');
         console.log('[StorageForm] OAuth erfolgreich für Library:', authenticatedLibraryId);
         
         // Erfolgsmeldung setzen
@@ -368,7 +368,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams })
       
       // Fehler bei der Authentifizierung
       if (hasAuthError) {
-        const errorMessage = searchParams.get('authError');
+        const errorMessage = searchParams?.get('authError');
         console.error('[StorageForm] OAuth-Fehler:', errorMessage);
         toast.error("Fehler bei der Authentifizierung", {
           description: errorMessage || "Unbekannter Fehler bei der Authentifizierung",
