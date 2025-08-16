@@ -189,7 +189,7 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
         description: errorMessage
       });
     }
-  }, [provider, currentFolderId, activeLibraryId, generateFileName, refreshItems, onUploadComplete]);
+  }, [provider, currentFolderId, generateFileName, refreshItems, onUploadComplete]);
 
   const startRecording = useCallback(async () => {
     console.log('[AudioRecorder] startRecording called:', { isSupported, isStorageReady });
@@ -258,7 +258,7 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
       toast.info("Aufnahme", {
         description: "Audio-Aufnahme gestartet"
       });
-    } catch (error) {
+    } catch {
       toast.error("Fehler", {
         description: "Aufnahme konnte nicht gestartet werden"
       });
@@ -329,13 +329,7 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
     }
   }, [isSupported, isStorageReady, isMounted, startRecording]);
 
-  const handleDialogClose = useCallback(() => {
-    // If recording is active, stop it when dialog closes
-    if (isRecording) {
-      stopRecording();
-    }
-    setIsDialogOpen(false);
-  }, [isRecording, stopRecording]);
+  
 
   if (!isMounted) {
     return null;

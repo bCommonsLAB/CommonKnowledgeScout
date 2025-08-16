@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 
 declare const process: {
   env: {
@@ -12,31 +11,20 @@ declare const process: {
  */
 export async function GET() {
   try {
-    const { userId } = await auth();
-    
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-    
-    // Nur noch redirectUri aus der Umgebung liefern
+    // Nur noch redirectUri aus der Umgebung liefern (kein auth-Erfordernis)
     const redirectUri = process.env.MS_REDIRECT_URI || '';
-    
-    // Logge die Anwesenheit der redirectUri
+
     console.log('[OAuthDefaults] Umgebungsvariable:', {
       redirectUri: redirectUri
     });
-    
-    // Prüfe, ob redirectUri vorhanden ist
+
     const hasDefaults = !!redirectUri;
-    
+
     return NextResponse.json({
       hasDefaults,
-      defaults: hasDefaults ? {
-        redirectUri
-      } : null
+      defaults: hasDefaults ? { redirectUri } : null
     });
-  } catch (error) {
-    console.error('[OAuthDefaults] Fehler:', error);
+  } catch {
     return new NextResponse('Internal Server Error', { status: 500 });
   }
-} 
+}

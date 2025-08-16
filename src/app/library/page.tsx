@@ -23,7 +23,7 @@ function LibraryUrlHandler() {
   const { refreshAuthStatus } = useStorage();
 
   useEffect(() => {
-    const urlLibraryId = searchParams.get('activeLibraryId');
+    const urlLibraryId = searchParams?.get('activeLibraryId');
     
     // Nur die activeLibraryId aus der URL verarbeiten
     if (urlLibraryId) {
