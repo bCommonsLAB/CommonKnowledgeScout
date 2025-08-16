@@ -1,35 +1,85 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
+// Startup-Log um zu bestätigen, dass Middleware geladen wird
+console.log(`[MIDDLEWARE] 🚀 Middleware wird geladen - ${new Date().toISOString()}`);
+
 // Liste der öffentlichen Routen, die ohne Anmeldung zugänglich sind
 const isPublicRoute = createRouteMatcher([
   '/',
   '/docs(.*)',
-  '/api/storage(.*)', // Storage API für Tests freigeben (sowohl /api/storage als auch /api/storage/filesystem)
   '/api/test-route(.*)', // Test-Route freigeben
+  '/api/settings/oauth-defaults', // OAuth-Defaults ohne Auth
+  '/api/env-test', // Umgebungstests
+  '/api/db-test', // Datenbanktests
+]);
+
+console.log(`[MIDDLEWARE] 🔧 Public routes configured:`, [
+  '/',
+  '/docs(.*)',
+  '/api/test-route(.*)',
+  '/api/settings/oauth-defaults',
+  '/api/env-test',
+  '/api/db-test',
 ]);
 
 // Verwende die offizielle Clerk-Middleware
 export default clerkMiddleware(async (auth, req) => {
   
-  // Wenn die Route öffentlich ist, erlaube den Zugriff
-  if (isPublicRoute(req)) {
+  // Umfassende Debug-Logging
+  console.log(`\n=== [MIDDLEWARE] START ===`);
+  console.log(`[Middleware] Processing route: ${req.nextUrl.pathname}`);
+  console.log(`[Middleware] Full URL: ${req.url}`);
+  console.log(`[Middleware] Method: ${req.method}`);
+  console.log(`[Middleware] Headers:`, {
+    'user-agent': req.headers.get('user-agent')?.substring(0, 50),
+    'cookie': req.headers.get('cookie') ? 'Present' : 'Missing',
+    'authorization': req.headers.get('authorization') ? 'Present' : 'Missing'
+  });
+  
+  // Prüfe Public Routes
+  const isPublic = isPublicRoute(req);
+  console.log(`[Middleware] isPublicRoute check result: ${isPublic}`);
+  
+  if (isPublic) {
+    console.log(`[Middleware] ✅ Route is public, allowing through: ${req.nextUrl.pathname}`);
+    console.log(`=== [MIDDLEWARE] END (PUBLIC) ===\n`);
     return;
   }
 
-  // Für API-Routen, die Authentifizierung benötigen, prüfe nur ob ein Benutzer angemeldet ist
-  // aber lasse sie trotzdem durch, damit die Route selbst die Authentifizierung handhaben kann
-  if (req.nextUrl.pathname.startsWith('/api/')) {
-    // Lass API-Routen durch - sie handhaben ihre eigene Authentifizierung
-    return;
+  console.log(`[Middleware] 🔒 Route requires auth protection: ${req.nextUrl.pathname}`);
+  
+  try {
+    // Prüfe auth() vor protect()
+    console.log(`[Middleware] Calling auth() to check current state...`);
+    const authResult = await auth();
+    console.log(`[Middleware] auth() result:`, {
+      hasUserId: !!authResult.userId,
+      userId: authResult.userId ? `${authResult.userId.substring(0, 8)}...` : null
+    });
+    
+    console.log(`[Middleware] Calling auth.protect()...`);
+    await auth.protect();
+    console.log(`[Middleware] ✅ Auth protection completed successfully for: ${req.nextUrl.pathname}`);
+    
+  } catch (error) {
+    console.error(`[Middleware] ❌ Auth protection failed for: ${req.nextUrl.pathname}`);
+    console.error(`[Middleware] Error details:`, {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 3) : 'No stack'
+    });
+    throw error;
   }
-
-  // Ansonsten schütze die Route - nur angemeldete Benutzer dürfen zugreifen
-  await auth.protect();
+  
+  console.log(`=== [MIDDLEWARE] END (PROTECTED) ===\n`);
 });
 
 export const config = {
   matcher: [
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    '/(api|trpc)(.*)',
+    // Explizite API-Route-Matcher
+    '/api/:path*',
+    '/trpc/:path*',
+    // Alle anderen Routen außer statische Assets
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)).*)',
   ],
 }; 

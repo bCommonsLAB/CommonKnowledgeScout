@@ -163,4 +163,73 @@ export class UILogger extends BaseLogger {
   static error(component: string, message: string, error?: unknown) {
     return this.createLog('ui', 'error', component, message, error instanceof Error ? { error: error.message, stack: error.stack } : { error });
   }
+}
+
+/**
+ * AuthLogger - Spezieller Logger für Authentifizierungs-Events
+ * Verwendet 'state' area da Auth ein State-bezogenes Thema ist
+ */
+export class AuthLogger extends BaseLogger {
+  static debug(component: string, message: string, details?: Record<string, unknown>) {
+    return this.createLog('state', 'debug', component, `🔐 AUTH: ${message}`, details);
+  }
+
+  static info(component: string, message: string, details?: Record<string, unknown>) {
+    return this.createLog('state', 'info', component, `🔐 AUTH: ${message}`, details);
+  }
+
+  static warn(component: string, message: string, details?: Record<string, unknown>) {
+    return this.createLog('state', 'warn', component, `🔐 AUTH: ${message}`, details);
+  }
+
+  static error(component: string, message: string, error?: unknown) {
+    return this.createLog('state', 'error', component, `🔐 AUTH: ${message}`, error instanceof Error ? { 
+      error: error.message, 
+      stack: error.stack,
+      name: error.name
+    } : { error });
+  }
+
+  // Spezielle Methoden für verschiedene Auth-Events
+  static clientAuth(component: string, result: { isSignedIn?: boolean; isLoaded?: boolean; userId?: string; email?: string }) {
+    return this.info(component, 'Client-Side Auth State', {
+      isSignedIn: result.isSignedIn,
+      isLoaded: result.isLoaded,
+      hasUserId: !!result.userId,
+      hasEmail: !!result.email,
+      userId: result.userId ? `${result.userId.substring(0, 8)}...` : undefined,
+      email: result.email ? `${result.email.split('@')[0]}@...` : undefined
+    });
+  }
+
+  static serverAuth(component: string, result: { userId?: string | null; user?: any; error?: unknown }) {
+    return this.info(component, 'Server-Side Auth State', {
+      hasUserId: !!result.userId,
+      hasUser: !!result.user,
+      hasError: !!result.error,
+      userId: result.userId ? `${result.userId.substring(0, 8)}...` : null,
+      emailCount: result.user?.emailAddresses?.length || 0,
+      error: result.error instanceof Error ? result.error.message : result.error
+    });
+  }
+
+  static apiCall(component: string, endpoint: string, status: 'start' | 'success' | 'error', details?: Record<string, unknown>) {
+    const icon = status === 'start' ? '🚀' : status === 'success' ? '✅' : '❌';
+    return this.info(component, `${icon} API Call ${endpoint} - ${status}`, details);
+  }
+
+  static cookieAnalysis(component: string, cookies: { [key: string]: string | undefined }) {
+    const clerkCookies = Object.entries(cookies)
+      .filter(([key]) => key.includes('clerk') || key.includes('session'))
+      .reduce((acc, [key, value]) => {
+        acc[key] = value ? `${value.substring(0, 20)}...` : undefined;
+        return acc;
+      }, {} as Record<string, string | undefined>);
+
+    return this.debug(component, 'Clerk Cookies Analysis', {
+      totalCookies: Object.keys(cookies).length,
+      clerkCookiesCount: Object.keys(clerkCookies).length,
+      clerkCookies
+    });
+  }
 } 

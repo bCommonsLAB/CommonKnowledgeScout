@@ -11,21 +11,39 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  console.log(`\n=== [API-GET] START ===`);
+  console.log(`[API-GET] Request URL: ${request.url}`);
+  
   const { id: libraryId } = await params;
+  console.log(`[API-GET] Library ID: ${libraryId}`);
+  
   // Benutzerauthentifizierung überprüfen
+  console.log(`[API-GET] Calling auth()...`);
   const { userId } = await auth();
+  console.log(`[API-GET] auth() result: ${userId ? `${userId.substring(0, 8)}...` : 'null'}`);
+  
   if (!userId) {
+    console.log(`[API-GET] ❌ No userId, returning 401`);
     return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
   }
 
   // Benutzer-E-Mail abrufen
+  console.log(`[API-GET] Calling currentUser()...`);
   const user = await currentUser();
+  console.log(`[API-GET] currentUser() result:`, {
+    hasUser: !!user,
+    emailCount: user?.emailAddresses?.length || 0
+  });
+  
   if (!user?.emailAddresses?.length) {
+    console.log(`[API-GET] ❌ No email addresses, returning 401`);
     return NextResponse.json({ error: 'Keine E-Mail-Adresse gefunden' }, { status: 401 });
   }
   const userEmail = user.emailAddresses[0].emailAddress;
+  console.log(`[API-GET] ✅ User email: ${userEmail.split('@')[0]}@...`);
 
   if (!libraryId) {
+    console.log(`[API-GET] ❌ No libraryId, returning 400`);
     return NextResponse.json({ error: 'Keine Bibliotheks-ID angegeben' }, { status: 400 });
   }
 
@@ -43,9 +61,16 @@ export async function GET(
     
     // Bibliothek in Client-Format umwandeln und zurückgeben
     const clientLibrary = libraryService.toClientLibraries([library])[0];
+    console.log(`[API-GET] ✅ Returning library data`);
+    console.log(`[API-GET] === GET END ===\n`);
     return NextResponse.json(clientLibrary);
   } catch (error) {
-    console.error(`[API] Fehler beim Abrufen der Bibliothek ${libraryId}:`, error);
+    console.error(`[API-GET] ❌ Fehler beim Abrufen der Bibliothek ${libraryId}:`, {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 3) : 'No stack'
+    });
+    console.log(`[API-GET] === GET END (ERROR) ===\n`);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unbekannter Fehler' },
       { status: 500 }
@@ -156,19 +181,70 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  console.log(`\n=== [API-PATCH] START ===`);
+  console.log(`[API-PATCH] Request URL: ${request.url}`);
+  console.log(`[API-PATCH] Method: ${request.method}`);
+  console.log(`[API-PATCH] Headers:`, {
+    'content-type': request.headers.get('content-type'),
+    'user-agent': request.headers.get('user-agent')?.substring(0, 50),
+    'cookie': request.headers.get('cookie') ? 'Present' : 'Missing',
+    'authorization': request.headers.get('authorization') ? 'Present' : 'Missing'
+  });
+
   const { id: libraryId } = await params;
+  console.log(`[API-PATCH] Library ID from params: ${libraryId}`);
+  
   // Benutzerauthentifizierung überprüfen
-  const { userId } = await auth();
+  console.log(`[API-PATCH] Calling auth()...`);
+  
+  let userId;
+  try {
+    const authResult = await auth();
+    userId = authResult.userId;
+    console.log(`[API-PATCH] auth() result:`, {
+      hasUserId: !!userId,
+      userId: userId ? `${userId.substring(0, 8)}...` : null
+    });
+  } catch (authError) {
+    console.error(`[API-PATCH] ❌ auth() failed:`, {
+      name: authError instanceof Error ? authError.name : 'Unknown',
+      message: authError instanceof Error ? authError.message : 'Unknown error',
+      stack: authError instanceof Error ? authError.stack?.split('\n').slice(0, 3) : 'No stack'
+    });
+    throw authError;
+  }
+  
   if (!userId) {
+    console.log(`[API-PATCH] ❌ No userId, returning 401`);
     return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
   }
 
   // Benutzer-E-Mail abrufen
-  const user = await currentUser();
+  console.log(`[API-PATCH] Calling currentUser()...`);
+  
+  let user;
+  try {
+    user = await currentUser();
+    console.log(`[API-PATCH] currentUser() result:`, {
+      hasUser: !!user,
+      userId: user?.id ? `${user.id.substring(0, 8)}...` : null,
+      emailCount: user?.emailAddresses?.length || 0
+    });
+  } catch (userError) {
+    console.error(`[API-PATCH] ❌ currentUser() failed:`, {
+      name: userError instanceof Error ? userError.name : 'Unknown',
+      message: userError instanceof Error ? userError.message : 'Unknown error',
+      stack: userError instanceof Error ? userError.stack?.split('\n').slice(0, 3) : 'No stack'
+    });
+    throw userError;
+  }
+  
   if (!user?.emailAddresses?.length) {
+    console.log(`[API-PATCH] ❌ No email addresses, returning 401`);
     return NextResponse.json({ error: 'Keine E-Mail-Adresse gefunden' }, { status: 401 });
   }
   const userEmail = user.emailAddresses[0].emailAddress;
+  console.log(`[API-PATCH] ✅ User email: ${userEmail.split('@')[0]}@...`);
 
   if (!libraryId) {
     return NextResponse.json({ error: 'Keine Bibliotheks-ID angegeben' }, { status: 400 });
@@ -273,11 +349,16 @@ export async function PATCH(
       hasClientSecret: !!updatedClientLibraryResult.config?.clientSecret,
       clientSecretValue: updatedClientLibraryResult.config?.clientSecret
     });
-    console.log(`[API] === PATCH END ===`);
+    console.log(`[API-PATCH] === PATCH END ===\n`);
     
     return NextResponse.json(updatedClientLibraryResult);
   } catch (error) {
-    console.error(`[API] Fehler beim Aktualisieren der Bibliothek ${libraryId}:`, error);
+    console.error(`[API-PATCH] ❌ Fehler beim Aktualisieren der Bibliothek ${libraryId}:`, {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : 'No stack'
+    });
+    console.log(`[API-PATCH] === PATCH END (ERROR) ===\n`);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unbekannter Fehler' },
       { status: 500 }

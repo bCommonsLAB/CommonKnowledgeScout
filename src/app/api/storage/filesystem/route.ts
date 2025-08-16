@@ -7,6 +7,7 @@ import { StorageItem } from '@/lib/storage/types';
 import { Library as LibraryType } from '@/types/library';
 import { LibraryService } from '@/lib/services/library-service';
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { AuthLogger } from '@/lib/debug/logger';
 
 // Force dynamic rendering - verhindert Caching
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,25 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
   const searchParams = request.nextUrl.searchParams;
   const emailParam = searchParams.get('email');
   
+  // Debug: Cookie-Analyse
+  const cookieHeader = request.headers.get('cookie');
+  if (cookieHeader) {
+    const cookies = Object.fromEntries(
+      cookieHeader.split(';').map(c => {
+        const [key, ...value] = c.trim().split('=');
+        return [key, value.join('=')];
+      })
+    );
+    AuthLogger.cookieAnalysis('FileSystemAPI', cookies);
+  }
+  
+  AuthLogger.debug('FileSystemAPI', 'getUserEmail called', {
+    hasEmailParam: !!emailParam,
+    url: request.url,
+    method: request.method,
+    timestamp: new Date().toISOString()
+  });
+
   console.log('[API][getUserEmail] 🔍 Suche nach E-Mail:', {
     hasEmailParam: !!emailParam,
     emailParam,
@@ -33,15 +53,19 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
   
   // Wenn ein Email-Parameter übergeben wurde, diesen verwenden (für Tests)
   if (emailParam) {
+    AuthLogger.info('FileSystemAPI', 'Using email parameter for auth bypass');
     console.log('[API][getUserEmail] ✅ Verwende Email-Parameter:', emailParam);
     return emailParam;
   }
   
   // Versuche, authentifizierten Benutzer zu erhalten
   try {
+    AuthLogger.debug('FileSystemAPI', 'Attempting Clerk server-side auth');
     console.log('[API][getUserEmail] 🔐 Versuche Clerk-Authentifizierung...');
+    
     const { userId } = await auth();
     
+    AuthLogger.serverAuth('FileSystemAPI', { userId });
     console.log('[API][getUserEmail] 👤 Clerk-Auth Ergebnis:', {
       hasUserId: !!userId,
       userId,
@@ -49,9 +73,11 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
     });
     
     if (userId) {
+      AuthLogger.debug('FileSystemAPI', 'Fetching current user details');
       console.log('[API][getUserEmail] 🔍 Hole User-Details...');
       const user = await currentUser();
       
+      AuthLogger.serverAuth('FileSystemAPI', { userId, user });
       console.log('[API][getUserEmail] 👤 User-Details:', {
         hasUser: !!user,
         userId: user?.id,
@@ -64,18 +90,25 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
       
       if (user && emailAddresses.length > 0) {
         const email = emailAddresses[0].emailAddress;
+        AuthLogger.info('FileSystemAPI', 'Successfully retrieved user email');
         console.log('[API][getUserEmail] ✅ E-Mail gefunden:', email);
         return email;
       } else {
+        AuthLogger.warn('FileSystemAPI', 'User has no email addresses', {
+          hasUser: !!user,
+          emailAddressesCount: emailAddresses.length
+        });
         console.warn('[API][getUserEmail] ⚠️ User hat keine E-Mail-Adressen:', {
           hasUser: !!user,
           emailAddressesCount: emailAddresses.length
         });
       }
     } else {
+      AuthLogger.warn('FileSystemAPI', 'No userId returned from Clerk auth()');
       console.warn('[API][getUserEmail] ⚠️ Keine User-ID von Clerk erhalten');
     }
   } catch (error) {
+    AuthLogger.error('FileSystemAPI', 'Clerk authentication failed', error);
     console.error('[API][getUserEmail] 💥 Fehler bei Clerk-Authentifizierung:', {
       error: error instanceof Error ? {
         message: error.message,
@@ -91,6 +124,13 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
     const authHeader = request.headers.get('authorization');
     const cookieHeader = request.headers.get('cookie');
     
+    AuthLogger.debug('FileSystemAPI', 'Attempting header fallback', {
+      hasAuthHeader: !!authHeader,
+      hasCookieHeader: !!cookieHeader,
+      authHeaderLength: authHeader?.length,
+      cookieHeaderLength: cookieHeader?.length
+    });
+    
     console.log('[API][getUserEmail] 🔍 Fallback: Prüfe Headers:', {
       hasAuthHeader: !!authHeader,
       hasCookieHeader: !!cookieHeader,
@@ -102,9 +142,11 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
     // z.B. E-Mail aus JWT-Token extrahieren
     
   } catch (fallbackError) {
+    AuthLogger.error('FileSystemAPI', 'Header fallback failed', fallbackError);
     console.error('[API][getUserEmail] 💥 Fallback-Fehler:', fallbackError);
   }
   
+  AuthLogger.error('FileSystemAPI', 'All authentication methods failed - no email found');
   console.error('[API][getUserEmail] ❌ Keine E-Mail gefunden - alle Methoden fehlgeschlagen');
   return undefined;
 }
