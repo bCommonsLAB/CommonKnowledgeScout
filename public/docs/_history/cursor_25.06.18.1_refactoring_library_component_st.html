@@ -1,0 +1,3672 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/_history/cursor_25.06.18.1_refactoring_library_component_st.html">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Refactoring library component structure - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/print-site.css">
+    
+      <link rel="stylesheet" href="../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#refactoring-library-component-structure" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Refactoring library component structure
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Zum Repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Zum Repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+    
+  
+  
+    <span class="md-status md-status--review"></span>
+  
+
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Überblick
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Überblick
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intro
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/features.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Funktionen
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architektur
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architektur
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Übersicht
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/core-components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Kernkomponenten
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Erste Schritte
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Einstellungen
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Bibliothek benutzen
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/event-monitor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Event-Monitor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/batch-session-import.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Session Import
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Konzepte
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Konzepte
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/storage-provider.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage Provider
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/localstorage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileSystem (Local)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/image-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Bild-Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/pdf/extraction-methods.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF-Extraktion
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadaten
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Übersicht
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/global-state.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Globaler Zustand
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/header.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Header
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/breadcrumb.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Breadcrumb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-tree.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileTree
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-list.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileList
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/upload.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upload
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-preview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FilePreview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transform.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transform
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/batch-transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/error-handling-logging-testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fehler & Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/initialization-sequence.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Initialisierung
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Komponenten
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/shadowtwins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/extended-shadowtwin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extended Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/transformation-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transformation Service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/video-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video-Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Referenz
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Referenz
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/glossary.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossar
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/secretary-services.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secretary Services
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/track-processor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Track Processor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Betrieb
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Betrieb
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/deployment/docker.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/quick-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Quick Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/package-strategy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Package Strategy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#vorschlag-fur-die-gliederung-und-dokumentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vorschlag für die Gliederung und Dokumentation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vorschlag für die Gliederung und Dokumentation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-vorgehen-und-ziel" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Vorgehen und Ziel
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-gliederung-der-komponenten-dokumentationsstruktur" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Gliederung der Komponenten &amp; Dokumentationsstruktur
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Gliederung der Komponenten &amp; Dokumentationsstruktur">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-ubersichtsdokument" class="md-nav__link">
+    <span class="md-ellipsis">
+      A. Übersichtsdokument
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-einzelkomponenten-jeweils-eigene-datei" class="md-nav__link">
+    <span class="md-ellipsis">
+      B. Einzelkomponenten (jeweils eigene Datei)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="B. Einzelkomponenten (jeweils eigene Datei)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#beispielhafte-gliederung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Beispielhafte Gliederung:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-beispiel-fur-eine-komponentendokumentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Beispiel für eine Komponentendokumentation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-wie-gehen-wir-vor" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Wie gehen wir vor?
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-nachste-schritte" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Nächste Schritte
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vorschlag-cursor-rule-fur-komponentendokumentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vorschlag: Cursor Rule für Komponentendokumentation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vorschlag: Cursor Rule für Komponentendokumentation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cursor-rule-komponentendokumentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cursor Rule: Komponentendokumentation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#beispiel-fur-die-regel-als-kommentar-fur-rulesmd-oder-als-projektregel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Beispiel für die Regel als Kommentar (für rules.md oder als Projektregel):
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#weiteres-vorgehen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Weiteres Vorgehen
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Weiteres Vorgehen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#logging-api-konzept" class="md-nav__link">
+    <span class="md-ellipsis">
+      Logging-API (Konzept)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vorteile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vorteile
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#todos-konkret" class="md-nav__link">
+    <span class="md-ellipsis">
+      ToDos (konkret)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#konkrete-nachste-schritte" class="md-nav__link">
+    <span class="md-ellipsis">
+      Konkrete nächste Schritte
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-prio-1-technische-grundlagen-state-management-caching-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Prio 1: Technische Grundlagen (State Management, Caching, Navigation)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-prio-2-einfaches-logging-fehlerbehandlung" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Prio 2: Einfaches Logging &amp; Fehlerbehandlung
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-prio-3-initialisierungslogik-grundfunktionalitat" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Prio 3: Initialisierungslogik &amp; Grundfunktionalität
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="refactoring-library-component-structure">Refactoring library component structure<a class="headerlink" href="#refactoring-library-component-structure" title="Permanent link">&para;</a></h1>
+<p><em>Exported on 6/18/2025 at 11:34:48 GMT+2 from Cursor (1.1.3)</em></p>
+<hr />
+<p><strong>User</strong></p>
+<p>@/library Diese library Componentensammlung ist mir zu unübersichtlich geworden. Das Verhalten und event flow sind zu unüberschaubar und entsprechen nicht den Erwartungen.</p>
+<p>Ich möchte die Anwendung Detaillierter gleidern und Funktionalitäten in eigene Komponenten Kapseln.
+Die Komponenten sollten wo sinnvoll nicht direkt miteinander Kommunizieren, sondern über diese globalen state Atoms</p>
+<p>Ich würde gerne folgende Themen behandeln:
+Komponentengliederung: 
+- Header mit Menü, libraryswitscher, settings, 
+- BreadCrumb
+- FileTree
+- Fileliist
+- Upload
+- File-preview mit den unterschiedlichen viewern für audio, video, text, markdown
+- Transcription 
+- Transform
+- Batchtranscription</p>
+<p>Bei jeder Komponente erklären wir ganz kurz Userstories,
+Stand jetzt: Initialisierung, Features und Abhängigkeiten, direkt zu anderen Komponenten, zu global state, 
+Auffälligkeiten &amp; Verbesserungsmöglichkeiten
+Was ist zu tun? </p>
+<p>Wie können wir das am Besten gliedern, damit nicht zu lange Dokumente entstehen?
+Können wir das Konzipieren und hier documentieren /docs/library_concept/xyz.md</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<p>Sehr gute und wichtige Frage! Die aktuelle <code>library</code>-Komponentensammlung ist – wie du richtig erkannt hast – mittlerweile sehr komplex und schwer zu überblicken. Eine klare, modulare Gliederung und eine saubere Trennung der Verantwortlichkeiten sind essenziell, um Wartbarkeit, Testbarkeit und Erweiterbarkeit zu gewährleisten.</p>
+<h2 id="vorschlag-fur-die-gliederung-und-dokumentation">Vorschlag für die Gliederung und Dokumentation<a class="headerlink" href="#vorschlag-fur-die-gliederung-und-dokumentation" title="Permanent link">&para;</a></h2>
+<h3 id="1-vorgehen-und-ziel">1. <strong>Vorgehen und Ziel</strong><a class="headerlink" href="#1-vorgehen-und-ziel" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Ziel:</strong> Jede Kernfunktionalität wird in eine eigene, klar abgegrenzte Komponente ausgelagert.</li>
+<li><strong>Kommunikation:</strong> Komponenten kommunizieren <strong>nicht direkt</strong> miteinander, sondern über globale Atoms (Jotai) oder Contexts.</li>
+<li><strong>Dokumentation:</strong> Für jede Hauptkomponente wird eine eigene Markdown-Datei unter <code>/docs/library_concept/</code> angelegt. Jede Datei bleibt &lt;150 Zeilen, um Lesbarkeit zu gewährleisten.</li>
+</ul>
+<hr />
+<h3 id="2-gliederung-der-komponenten-dokumentationsstruktur">2. <strong>Gliederung der Komponenten &amp; Dokumentationsstruktur</strong><a class="headerlink" href="#2-gliederung-der-komponenten-dokumentationsstruktur" title="Permanent link">&para;</a></h3>
+<h4 id="a-ubersichtsdokument"><strong>A. Übersichtsdokument</strong><a class="headerlink" href="#a-ubersichtsdokument" title="Permanent link">&para;</a></h4>
+<ul>
+<li><code>/docs/library_concept/00_overview.md</code></li>
+<li>Ziel, Architekturprinzipien, Übersicht aller Komponenten und deren Zusammenspiel (Mermaid-Diagramm).</li>
+</ul>
+<h4 id="b-einzelkomponenten-jeweils-eigene-datei"><strong>B. Einzelkomponenten (jeweils eigene Datei)</strong><a class="headerlink" href="#b-einzelkomponenten-jeweils-eigene-datei" title="Permanent link">&para;</a></h4>
+<p>Für jede Komponente:
+- <strong>User Stories</strong> (Was kann der User hier tun?)
+- <strong>Initialisierung</strong> (Wie wird die Komponente geladen/aktiviert?)
+- <strong>Features</strong> (Was bietet die Komponente?)
+- <strong>Abhängigkeiten</strong> (Welche globalen States, Contexts, andere Komponenten werden genutzt?)
+- <strong>Auffälligkeiten &amp; Verbesserungsmöglichkeiten</strong>
+- <strong>ToDos</strong> (Was ist zu tun, um die Komponente zu verbessern/zu entkoppeln?)</p>
+<h5 id="beispielhafte-gliederung"><strong>Beispielhafte Gliederung:</strong><a class="headerlink" href="#beispielhafte-gliederung" title="Permanent link">&para;</a></h5>
+<ol>
+<li><code>/docs/library_concept/header.md</code></li>
+<li><code>/docs/library_concept/breadcrumb.md</code></li>
+<li><code>/docs/library_concept/file-tree.md</code></li>
+<li><code>/docs/library_concept/file-list.md</code></li>
+<li><code>/docs/library_concept/upload.md</code></li>
+<li><code>/docs/library_concept/file-preview.md</code></li>
+<li>Unterpunkte: audio-viewer, video-viewer, markdown-viewer, text-viewer, image-viewer, document-viewer</li>
+<li><code>/docs/library_concept/transcription.md</code></li>
+<li><code>/docs/library_concept/transform.md</code></li>
+<li><code>/docs/library_concept/batch-transcription.md</code></li>
+</ol>
+<hr />
+<h3 id="3-beispiel-fur-eine-komponentendokumentation">3. <strong>Beispiel für eine Komponentendokumentation</strong><a class="headerlink" href="#3-beispiel-fur-eine-komponentendokumentation" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="gh"># FileList Komponente</span>
+
+<span class="gu">## User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User sehe ich alle Dateien im aktuellen Ordner.
+<span class="k">-</span><span class="w"> </span>Ich kann Dateien auswählen, um deren Vorschau zu sehen.
+<span class="k">-</span><span class="w"> </span>Ich kann Dateien umbenennen, löschen, gruppieren und sortieren.
+
+<span class="gu">## Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird geladen, sobald ein Ordner im FileTree ausgewählt wird.
+<span class="k">-</span><span class="w"> </span>Nutzt den globalen Atom <span class="sb">`currentFolderIdAtom`</span> und <span class="sb">`folderItems`</span>.
+
+<span class="gu">## Features</span>
+<span class="k">-</span><span class="w"> </span>Sortierung, Gruppierung (Shadow-Twins), Batch-Operationen, Drag &amp; Drop.
+
+<span class="gu">## Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span>Liest: <span class="sb">`currentFolderIdAtom`</span>, <span class="sb">`folderItems`</span>, <span class="sb">`selectedItemAtom`</span>
+<span class="k">-</span><span class="w"> </span>Schreibt: <span class="sb">`selectedItemAtom`</span>, <span class="sb">`selectedBatchItemsAtom`</span>
+<span class="k">-</span><span class="w"> </span>Nutzt: FilePreview (indirekt), Toasts, StorageProvider
+
+<span class="gu">## Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Zu viele Props, zu viele direkte Callback-Props.
+<span class="k">-</span><span class="w"> </span>Sollte stärker über globale Atoms kommunizieren.
+<span class="k">-</span><span class="w"> </span>Drag &amp; Drop-Logik ist zu eng mit UI gekoppelt.
+
+<span class="gu">## ToDos</span>
+<span class="k">-</span><span class="w"> </span>Refactoring: Callback-Props durch Atoms ersetzen.
+<span class="k">-</span><span class="w"> </span>Drag &amp; Drop in eigene Hook/Komponente auslagern.
+<span class="k">-</span><span class="w"> </span>Testabdeckung erhöhen.
+</code></pre></div>
+<hr />
+<h3 id="4-wie-gehen-wir-vor">4. <strong>Wie gehen wir vor?</strong><a class="headerlink" href="#4-wie-gehen-wir-vor" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Erstelle ein zentrales Übersichts-Dokument</strong> mit Komponentenliste und Architekturdiagramm.</li>
+<li><strong>Für jede Hauptkomponente</strong>:<br />
+   a) Schreibe eine eigene Markdown-Datei nach obigem Muster.<br />
+   b) Analysiere: Welche Props, welche Atoms, welche Abhängigkeiten?<br />
+   c) Notiere ToDos für Refactoring und Verbesserungen.</li>
+<li><strong>Fasse Querverbindungen und globale States</strong> in einer eigenen Datei zusammen (<code>/docs/library_concept/global-state.md</code>).</li>
+<li><strong>Halte alle Dokumente kurz und prägnant</strong> (max. 150 Zeilen pro Datei).</li>
+<li><strong>Nutze für komplexe Abläufe Mermaid-Diagramme</strong>.</li>
+</ol>
+<hr />
+<h3 id="5-nachste-schritte">5. <strong>Nächste Schritte</strong><a class="headerlink" href="#5-nachste-schritte" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Schritt 1:</strong> Lege das Übersichts-Dokument an (<code>00_overview.md</code>).</li>
+<li><strong>Schritt 2:</strong> Erstelle für jede Komponente eine eigene Datei mit der o.g. Struktur.</li>
+<li><strong>Schritt 3:</strong> Fülle die Dokumente iterativ, beginne mit den wichtigsten Komponenten (z.B. FileList, FilePreview).</li>
+<li><strong>Schritt 4:</strong> Nach der Dokumentation: Refactoring-Plan und Aufgabenliste erstellen.</li>
+</ul>
+<hr />
+<p><strong>Fazit:</strong><br />
+Mit dieser Gliederung und Dokumentationsstrategie schaffen wir eine solide Basis für ein nachhaltiges Refactoring und eine bessere Wartbarkeit. Die Dokumente dienen als Referenz für alle Entwickler und helfen, die Komplexität zu reduzieren.</p>
+<p><strong>Möchtest du, dass ich mit dem Übersichts-Dokument beginne und ein Template für die Einzelkomponenten anlege?</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># FileList Komponente</span>
+
+<span class="gu">## User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User sehe ich alle Dateien im aktuellen Ordner.
+<span class="k">-</span><span class="w"> </span>Ich kann Dateien auswählen, um deren Vorschau zu sehen.
+<span class="k">-</span><span class="w"> </span>Ich kann Dateien umbenennen, löschen, gruppieren und sortieren.
+
+<span class="gu">## Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird geladen, sobald ein Ordner im FileTree ausgewählt wird.
+<span class="k">-</span><span class="w"> </span>Nutzt den globalen Atom <span class="sb">`currentFolderIdAtom`</span> und <span class="sb">`folderItems`</span>.
+
+<span class="gu">## Features</span>
+<span class="k">-</span><span class="w"> </span>Sortierung, Gruppierung (Shadow-Twins), Batch-Operationen, Drag &amp; Drop.
+
+<span class="gu">## Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span>Liest: <span class="sb">`currentFolderIdAtom`</span>, <span class="sb">`folderItems`</span>, <span class="sb">`selectedItemAtom`</span>
+<span class="k">-</span><span class="w"> </span>Schreibt: <span class="sb">`selectedItemAtom`</span>, <span class="sb">`selectedBatchItemsAtom`</span>
+<span class="k">-</span><span class="w"> </span>Nutzt: FilePreview (indirekt), Toasts, StorageProvider
+
+<span class="gu">## Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Zu viele Props, zu viele direkte Callback-Props.
+<span class="k">-</span><span class="w"> </span>Sollte stärker über globale Atoms kommunizieren.
+<span class="k">-</span><span class="w"> </span>Drag &amp; Drop-Logik ist zu eng mit UI gekoppelt.
+
+<span class="gu">## ToDos</span>
+<span class="k">-</span><span class="w"> </span>Refactoring: Callback-Props durch Atoms ersetzen.
+<span class="k">-</span><span class="w"> </span>Drag &amp; Drop in eigene Hook/Komponente auslagern.
+<span class="k">-</span><span class="w"> </span>Testabdeckung erhöhen.
+</code></pre></div>
+<hr />
+<p><strong>User</strong></p>
+<p>OK, das würde passen. 
+einen Punkt würde ich je Komponente noch hinzufügen - api calls . welche api aufrufe ins backend werde benötigt
+Wie könnte ich dieses Vorhaben als cursor rule definieren?</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<p>Sehr gute Ergänzung! Der Punkt <strong>API Calls</strong> ist essenziell, um die Backend-Kommunikation pro Komponente transparent zu machen. Das hilft bei der Wartung, beim Testen und bei der späteren API-Dokumentation.</p>
+<hr />
+<h2 id="vorschlag-cursor-rule-fur-komponentendokumentation">Vorschlag: Cursor Rule für Komponentendokumentation<a class="headerlink" href="#vorschlag-cursor-rule-fur-komponentendokumentation" title="Permanent link">&para;</a></h2>
+<p>Du kannst eine Cursor-Regel wie folgt formulieren und in deinen Projektregeln (z.B. in einer zentralen <code>rules.md</code> oder als Kommentar in den Docs) festhalten:</p>
+<hr />
+<h3 id="cursor-rule-komponentendokumentation"><strong>Cursor Rule: Komponentendokumentation</strong><a class="headerlink" href="#cursor-rule-komponentendokumentation" title="Permanent link">&para;</a></h3>
+<p><strong>Für jede Hauptkomponente im Verzeichnis <code>src/components/library/</code> gilt:</strong></p>
+<ul>
+<li><strong>Dokumentiere jede Komponente in einer eigenen Markdown-Datei unter <code>/docs/library_concept/</code>.</strong></li>
+<li><strong>Jede Dokumentation enthält folgende Abschnitte:</strong></li>
+<li><strong>User Stories:</strong> Was kann der User mit dieser Komponente tun?</li>
+<li><strong>Initialisierung:</strong> Wann und wie wird die Komponente geladen/aktiviert?</li>
+<li><strong>Features:</strong> Welche Funktionalitäten bietet die Komponente?</li>
+<li><strong>Abhängigkeiten:</strong>  <ul>
+<li>Globale State-Atoms (Jotai)  </li>
+<li>Contexts  </li>
+<li>Andere Komponenten</li>
+</ul>
+</li>
+<li><strong>API Calls:</strong>  <ul>
+<li>Welche API-Endpunkte werden aufgerufen?  </li>
+<li>Welche Daten werden gesendet/empfangen?  </li>
+<li>Welche Fehlerfälle sind zu beachten?</li>
+</ul>
+</li>
+<li><strong>Auffälligkeiten &amp; Verbesserungsmöglichkeiten:</strong>  <ul>
+<li>Technische Schulden  </li>
+<li>UX-Probleme  </li>
+<li>Performance- oder Architekturthemen</li>
+</ul>
+</li>
+<li>
+<p><strong>ToDos:</strong>  </p>
+<ul>
+<li>Konkrete Aufgaben für Refactoring, Tests, Verbesserungen</li>
+</ul>
+</li>
+<li>
+<p><strong>Jede Datei bleibt möglichst unter 150 Zeilen.</strong></p>
+</li>
+<li><strong>Komplexe Abläufe werden mit Mermaid-Diagrammen visualisiert.</strong></li>
+<li><strong>Die Dokumentation ist auf Deutsch und prägnant.</strong></li>
+</ul>
+<hr />
+<h3 id="beispiel-fur-die-regel-als-kommentar-fur-rulesmd-oder-als-projektregel"><strong>Beispiel für die Regel als Kommentar (für rules.md oder als Projektregel):</strong><a class="headerlink" href="#beispiel-fur-die-regel-als-kommentar-fur-rulesmd-oder-als-projektregel" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="gh"># Cursor Rule: Komponentendokumentation für Library</span>
+
+Jede Hauptkomponente im Bereich Library wird in <span class="sb">`/docs/library_concept/`</span> dokumentiert.  
+Jede Dokumentation enthält folgende Abschnitte:
+
+<span class="k">1.</span> User Stories
+<span class="k">2.</span> Initialisierung
+<span class="k">3.</span> Features
+<span class="k">4.</span> Abhängigkeiten (Atoms, Contexts, Komponenten)
+<span class="k">5.</span> API Calls (Endpunkte, Daten, Fehlerfälle)
+<span class="k">6.</span> Auffälligkeiten &amp; Verbesserungsmöglichkeiten
+<span class="k">7.</span> ToDos
+
+<span class="k">-</span><span class="w"> </span>Jede Datei bleibt &lt;150 Zeilen.
+<span class="k">-</span><span class="w"> </span>Komplexe Abläufe werden mit Mermaid-Diagrammen visualisiert.
+<span class="k">-</span><span class="w"> </span>Dokumentation auf Deutsch, prägnant und technisch.
+</code></pre></div>
+<hr />
+<p><strong>Damit ist für alle Mitwirkenden klar, wie die Dokumentation zu erfolgen hat und welche Informationen pro Komponente verpflichtend sind.</strong></p>
+<p><strong>Möchtest du, dass ich ein Beispiel-Dokument mit dem neuen Abschnitt "API Calls" für eine Komponente anlege?</strong></p>
+<div class="highlight"><pre><span></span><code># Cursor Rule: Komponentendokumentation für Library
+
+Jede Hauptkomponente im Bereich Library wird in `/docs/library_concept/` dokumentiert.  
+Jede Dokumentation enthält folgende Abschnitte:
+
+1. User Stories
+2. Initialisierung
+3. Features
+4. Abhängigkeiten (Atoms, Contexts, Komponenten)
+5. API Calls (Endpunkte, Daten, Fehlerfälle)
+6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten
+7. ToDos
+
+- Jede Datei bleibt &lt;150 Zeilen.
+- Komplexe Abläufe werden mit Mermaid-Diagrammen visualisiert.
+- Dokumentation auf Deutsch, prägnant und technisch.
+</code></pre></div>
+<hr />
+<p><strong>User</strong></p>
+<p>@reorganizing-components.mdc  können wir mit Schritt 1 beginnen?</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># Übersicht: Library-Komponenten</span>
+
+Dieses Dokument gibt einen Überblick über die Hauptkomponenten der Library-Ansicht in Knowledge Scout. Ziel ist eine klare, modulare Gliederung und die Dokumentation aller Kernfunktionen gemäß der Cursor-Regel <span class="sb">`reorganizing-components`</span>.
+
+<span class="gu">## Ziel</span>
+<span class="k">-</span><span class="w"> </span>Jede Kernfunktionalität ist in eine eigene, klar abgegrenzte Komponente ausgelagert.
+<span class="k">-</span><span class="w"> </span>Komponenten kommunizieren primär über globale State-Atoms (Jotai) oder Contexts.
+<span class="k">-</span><span class="w"> </span>Die Dokumentation jeder Komponente erfolgt in einer eigenen Datei unter <span class="sb">`/docs/library_concept/`</span>.
+
+<span class="gu">## Komponentenübersicht</span>
+
+| Komponente         | Zweck / User Story (Kurz)                |
+|--------------------|------------------------------------------|
+| Header             | Navigation, Bibliothekswechsel, Settings |
+| BreadCrumb         | Pfadnavigation, schnelle Ordnerwahl      |
+| FileTree           | Ordnerstruktur, Drag &amp; Drop              |
+| FileList           | Dateiansicht, Sortierung, Batch-Select   |
+| Upload             | Datei-Upload, Fortschritt, Fehler        |
+| FilePreview        | Vorschau für Audio, Video, Text, etc.    |
+| Transcription      | Einzel-Transkription                     |
+| Transform          | Text-/Audio-/Video-Transformation        |
+| BatchTranscription | Mehrfach-Transkription                   |
+
+<span class="gu">## Architektur (Mermaid)</span>
+
+```mermaid
+graph TD;
+  Header --&gt; BreadCrumb
+  Header --&gt; LibrarySwitcher
+  Header --&gt; Settings
+  BreadCrumb --&gt; FileTree
+  FileTree --&gt; FileList
+  FileList --&gt; FilePreview
+  FileList --&gt; Upload
+  FileList --&gt; Transcription
+  FileList --&gt; BatchTranscription
+  FilePreview --&gt; Transform
+  Transcription --&gt; Transform
+  BatchTranscription --&gt; Transform
+
+  subgraph Global State
+    Atoms((Jotai Atoms))
+    Contexts((Contexts))
+  end
+
+  FileTree --- Atoms
+  FileList --- Atoms
+  FilePreview --- Atoms
+  Upload --- Atoms
+  Transcription --- Atoms
+  Transform --- Atoms
+  BatchTranscription --- Atoms
+</code></pre></div>
+<h2 id="weiteres-vorgehen">Weiteres Vorgehen<a class="headerlink" href="#weiteres-vorgehen" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Für jede Komponente wird eine eigene Datei nach dem Standard-Template angelegt.</li>
+<li>Jede Datei enthält: User Stories, Initialisierung, Features, Abhängigkeiten, API Calls, Auffälligkeiten &amp; Verbesserungsmöglichkeiten, ToDos.</li>
+<li>Komplexe Abläufe werden mit Mermaid-Diagrammen visualisiert.</li>
+</ul>
+<div class="highlight"><pre><span></span><code>Das Übersichts-Dokument `00_overview.md` wurde unter `/docs/library_concept/` angelegt.  
+Es enthält:
+- Einleitung und Zielsetzung
+- Komponentenübersicht (Tabelle)
+- Ein erstes Mermaid-Diagramm zur Architektur und State-Anbindung
+- Hinweise zum weiteren Vorgehen
+
+**Nächster Schritt:**  
+Ich kann jetzt ein Template für die Einzelkomponenten-Dokumentation anlegen (z.B. `header.md`), damit du für jede Komponente direkt starten kannst.  
+Möchtest du ein solches Template (mit allen Abschnitten inkl. API Calls) als Markdown-Datei sehen? Wenn ja, für welche Komponente zuerst?
+
+---
+
+**User**
+
+ja bitte
+
+---
+
+**Cursor**
+
+```markdown
+# Header Komponente
+
+## 1. User Stories
+- Als User möchte ich zwischen Bibliotheken wechseln können.
+- Als User möchte ich auf Einstellungen zugreifen.
+- Als User möchte ich den aktuellen Pfad (Breadcrumb) sehen.
+
+## 2. Initialisierung
+- Wird beim Laden der Library-Ansicht automatisch angezeigt.
+- Liest initial den aktiven Bibliotheks-Status aus dem globalen State.
+
+## 3. Features
+- Bibliothekswechsel (LibrarySwitcher)
+- Zugriff auf Einstellungen
+- Anzeige des Breadcrumbs
+- Upload-Button
+
+## 4. Abhängigkeiten
+- **Atoms:**
+  - `activeLibraryIdAtom`
+  - `librariesAtom`
+  - `currentFolderIdAtom`
+- **Contexts:**
+  - StorageContext (Provider-Status)
+- **Komponenten:**
+  - LibrarySwitcher
+  - UploadDialog
+  - Breadcrumb
+
+## 5. API Calls
+- Keine direkten API-Calls im Header selbst.
+- Indirekt: Trigger für Upload (UploadDialog ruft Provider.uploadFile auf)
+- Indirekt: Bibliothekswechsel kann zu neuem Provider-Init führen
+
+## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten
+- Upload-Dialog ist eng mit Header gekoppelt (könnte ausgelagert werden)
+- Breadcrumb-Logik teilweise im Header, teilweise in FileTree
+- Settings-Button könnte klarer abgetrennt werden
+
+## 7. ToDos
+- Upload-Dialog als eigene Komponente auslagern
+- Breadcrumb-Logik zentralisieren
+- Settings-Button als eigenständige Komponente
+- Testabdeckung für alle Interaktionen erhöhen
+</code></pre></div>
+<p>Das Template für die Dokumentation der <strong>Header-Komponente</strong> wurde als <code>docs/library_concept/header.md</code> angelegt.</p>
+<p><strong>Inhalt:</strong><br />
+- Alle geforderten Abschnitte (User Stories, Initialisierung, Features, Abhängigkeiten, API Calls, Auffälligkeiten &amp; Verbesserungsmöglichkeiten, ToDos)
+- API Calls sind als eigener Abschnitt enthalten (direkt/indirekt)
+- Die Datei ist kurz, prägnant und als Vorlage für weitere Komponenten geeignet</p>
+<p><strong>Nächster Schritt:</strong><br />
+Möchtest du, dass ich für die nächste Komponente (z.B. BreadCrumb, FileTree, FileList, Upload, FilePreview, Transcription, Transform, BatchTranscription) ebenfalls ein solches Template anlege?<br />
+Oder möchtest du Anpassungen am Template?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>lass uns diese template auch mit einer nummer benennen, um alphabetisch sinnvolle Reihenfolge zu haben.
+Und global state ist auch noch ein eigenes Thema, das ich als eigene Datei nach unserem Schema erklären möchte.
+können wir damit fortfahren und nächstes Thema vorschlagen</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># Header Komponente</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User möchte ich zwischen Bibliotheken wechseln können.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich auf Einstellungen zugreifen.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich den aktuellen Pfad (Breadcrumb) sehen.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird beim Laden der Library-Ansicht automatisch angezeigt.
+<span class="k">-</span><span class="w"> </span>Liest initial den aktiven Bibliotheks-Status aus dem globalen State.
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Bibliothekswechsel (LibrarySwitcher)
+<span class="k">-</span><span class="w"> </span>Zugriff auf Einstellungen
+<span class="k">-</span><span class="w"> </span>Anzeige des Breadcrumbs
+<span class="k">-</span><span class="w"> </span>Upload-Button
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Atoms:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`activeLibraryIdAtom`</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`librariesAtom`</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`currentFolderIdAtom`</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Contexts:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>StorageContext (Provider-Status)
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>LibrarySwitcher
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>UploadDialog
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>Breadcrumb
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span>Keine direkten API-Calls im Header selbst.
+<span class="k">-</span><span class="w"> </span>Indirekt: Trigger für Upload (UploadDialog ruft Provider.uploadFile auf)
+<span class="k">-</span><span class="w"> </span>Indirekt: Bibliothekswechsel kann zu neuem Provider-Init führen
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Upload-Dialog ist eng mit Header gekoppelt (könnte ausgelagert werden)
+<span class="k">-</span><span class="w"> </span>Breadcrumb-Logik teilweise im Header, teilweise in FileTree
+<span class="k">-</span><span class="w"> </span>Settings-Button könnte klarer abgetrennt werden
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>Upload-Dialog als eigene Komponente auslagern
+<span class="k">-</span><span class="w"> </span>Breadcrumb-Logik zentralisieren
+<span class="k">-</span><span class="w"> </span>Settings-Button als eigenständige Komponente
+<span class="k">-</span><span class="w"> </span>Testabdeckung für alle Interaktionen erhöhen
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="gh"># Global State (Atoms &amp; Contexts)</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als Entwickler möchte ich nachvollziehen, wie der globale Zustand verwaltet wird.
+<span class="k">-</span><span class="w"> </span>Als Entwickler möchte ich wissen, welche Atoms und Contexts für die Kommunikation genutzt werden.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Atoms werden beim Laden der App initialisiert.
+<span class="k">-</span><span class="w"> </span>Contexts werden über Provider im Komponentenbaum bereitgestellt.
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Zentrale Verwaltung von UI- und Datenzustand
+<span class="k">-</span><span class="w"> </span>Kommunikation zwischen Komponenten ohne direkte Props
+<span class="k">-</span><span class="w"> </span>Persistenz von Auswahl, Navigation, Einstellungen
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Verwendet in:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>Fast allen Library-Komponenten
+<span class="k">-</span><span class="w"> </span><span class="gs">**Externe Abhängigkeiten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>Jotai (Atoms)
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>React Context API
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span>Keine direkten API-Calls.
+<span class="k">-</span><span class="w"> </span>Indirekt: Atoms können API-Trigger auslösen (z.B. beim Laden von Dateien, Authentifizierung)
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Teilweise Überschneidungen zwischen Atoms und Contexts
+<span class="k">-</span><span class="w"> </span>Manche Atoms sind zu generisch benannt
+<span class="k">-</span><span class="w"> </span>Persistenz im LocalStorage uneinheitlich
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>Konsolidierung und klare Benennung aller Atoms
+<span class="k">-</span><span class="w"> </span>Dokumentation aller Atoms und Contexts mit Typen
+<span class="k">-</span><span class="w"> </span>Einheitliche Persistenzstrategie
+<span class="k">-</span><span class="w"> </span>Übersichtliches Diagramm aller State-Flows erstellen
+</code></pre></div>
+<p>Die Umbenennung und Strukturierung wurde wie folgt umgesetzt:</p>
+<ul>
+<li>Die Header-Dokumentation liegt jetzt als <strong><code>01_header.md</code></strong> vor (alphabetisch und logisch sortierbar).</li>
+<li>Die alte Datei <code>header.md</code> wurde entfernt.</li>
+<li>Für das Thema <strong>Global State</strong> wurde die Datei <strong><code>00_global-state.md</code></strong> nach dem gleichen Template angelegt.</li>
+</ul>
+<hr />
+<p><strong>Nächstes Thema (Vorschlag):</strong>
+Als logische Fortsetzung und für die Navigation zentral wäre die nächste Komponente:
+- <strong><code>02_breadcrumb.md</code></strong> (BreadCrumb-Komponente)</p>
+<p><strong>Begründung:</strong><br />
+Der BreadCrumb ist direkt im Header sichtbar, aber eine eigenständige Komponente mit klaren User Stories und State-Abhängigkeiten.<br />
+Danach könnten wir mit FileTree, FileList, Upload usw. fortfahren.</p>
+<p><strong>Möchtest du, dass ich das Template für die BreadCrumb-Komponente anlege?</strong><br />
+Oder hast du eine andere Reihenfolge im Sinn?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>Dann bitte mut 03_breadCrumb.md fortfahren</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># BreadCrumb Komponente</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User möchte ich den aktuellen Pfad sehen und schnell zu übergeordneten Ordnern navigieren.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich per Klick auf einen Pfadteil direkt dorthin springen.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird im Header eingebettet und bei jedem Ordnerwechsel aktualisiert.
+<span class="k">-</span><span class="w"> </span>Liest den aktuellen Pfad aus dem globalen State (Atoms).
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Anzeige des vollständigen Navigationspfads (Breadcrumb)
+<span class="k">-</span><span class="w"> </span>Klickbare Pfadteile für schnelle Navigation
+<span class="k">-</span><span class="w"> </span>Automatisches Scrollen zum letzten Element
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Atoms:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`breadcrumbItemsAtom`</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`currentFolderIdAtom`</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>Header (als Parent)
+<span class="k">-</span><span class="w"> </span><span class="gs">**Contexts:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>Keine direkten Contexts
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span>Keine direkten API-Calls.
+<span class="k">-</span><span class="w"> </span>Indirekt: Klick auf einen Pfadteil kann das Nachladen von Ordnerinhalten triggern (Provider.listItemsById)
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Scroll-Handling ist teilweise manuell implementiert
+<span class="k">-</span><span class="w"> </span>Breadcrumb-Logik ist teilweise im Header, teilweise in der Komponente
+<span class="k">-</span><span class="w"> </span>UX: Lange Pfade werden ggf. nicht optimal gekürzt
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>Breadcrumb-Logik vollständig in die Komponente verlagern
+<span class="k">-</span><span class="w"> </span>Besseres Handling für sehr lange Pfade (z.B. Ellipsis)
+<span class="k">-</span><span class="w"> </span>Testabdeckung für Navigation und Scrollverhalten
+</code></pre></div>
+<p>Die Datei <strong><code>03_breadcrumb.md</code></strong> wurde angelegt und enthält das vollständige Template für die BreadCrumb-Komponente:</p>
+<ul>
+<li>User Stories</li>
+<li>Initialisierung</li>
+<li>Features</li>
+<li>Abhängigkeiten (Atoms, Komponenten)</li>
+<li>API Calls (indirekt)</li>
+<li>Auffälligkeiten &amp; Verbesserungsmöglichkeiten</li>
+<li>ToDos</li>
+</ul>
+<p><strong>Nächstes Thema (Vorschlag):</strong>
+- <strong>04_file-tree.md</strong> (FileTree-Komponente: Ordnerstruktur, Navigation, Drag &amp; Drop)</p>
+<p>Möchtest du mit FileTree fortfahren oder ein anderes Thema als nächstes dokumentieren?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>ja bitte</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># FileTree Komponente</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User möchte ich die Ordnerstruktur meiner Bibliothek sehen und darin navigieren.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich Ordner auf- und zuklappen können.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich Dateien und Ordner per Drag &amp; Drop verschieben können.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird beim Laden der Library-Ansicht initialisiert.
+<span class="k">-</span><span class="w"> </span>Lädt die Root-Ordner und deren Kinder bei Bedarf (Lazy Loading).
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Anzeige der Ordnerstruktur (Tree View)
+<span class="k">-</span><span class="w"> </span>Lazy Loading von Unterordnern
+<span class="k">-</span><span class="w"> </span>Drag &amp; Drop für Verschieben von Dateien/Ordnern
+<span class="k">-</span><span class="w"> </span>Visuelles Feedback für Auswahl und Drag-Status
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Atoms:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`currentFolderIdAtom`</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`fileTreeReadyAtom`</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Contexts:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>StorageContext (Provider)
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>Wird im Library-Layout verwendet
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span><span class="sb">`provider.listItemsById(folderId)`</span> – Laden von Ordnerinhalten
+<span class="k">-</span><span class="w"> </span><span class="sb">`provider.moveItem(itemId, targetFolderId)`</span> – Verschieben von Dateien/Ordnern
+<span class="k">-</span><span class="w"> </span>Fehlerfälle: Authentifizierungsfehler, Name bereits vorhanden, Netzwerkfehler
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Drag &amp; Drop-Logik ist komplex und könnte ausgelagert werden
+<span class="k">-</span><span class="w"> </span>Lazy Loading funktioniert, aber Caching ist verbesserungswürdig
+<span class="k">-</span><span class="w"> </span>UX: Feedback bei Fehlern (z.B. Name existiert bereits) noch nicht optimal
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>Drag &amp; Drop in eigene Hook/Komponente auslagern
+<span class="k">-</span><span class="w"> </span>Caching-Strategie für geladene Ordner verbessern
+<span class="k">-</span><span class="w"> </span>Fehler-Feedback für Drag &amp; Drop vereinheitlichen
+<span class="k">-</span><span class="w"> </span>Testabdeckung für Tree-Interaktionen erhöhen
+</code></pre></div>
+<p>Die Datei <strong><code>04_file-tree.md</code></strong> wurde angelegt und enthält das vollständige Template für die FileTree-Komponente:</p>
+<ul>
+<li>User Stories</li>
+<li>Initialisierung</li>
+<li>Features</li>
+<li>Abhängigkeiten (Atoms, Contexts, Komponenten)</li>
+<li>API Calls (inkl. Fehlerfälle)</li>
+<li>Auffälligkeiten &amp; Verbesserungsmöglichkeiten</li>
+<li>ToDos</li>
+</ul>
+<p><strong>Nächstes Thema (Vorschlag):</strong>
+- <strong>05_file-list.md</strong> (FileList-Komponente: Dateiansicht, Sortierung, Gruppierung, Batch-Operationen)</p>
+<p>Möchtest du mit FileList fortfahren oder ein anderes Thema als nächstes dokumentieren?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>ja bitte</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># FileList Komponente</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User möchte ich alle Dateien im aktuellen Ordner sehen und durchsuchen können.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich Dateien auswählen, um deren Vorschau zu sehen.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich Dateien sortieren, gruppieren, umbenennen, löschen und per Batch-Operationen verarbeiten können.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird geladen, sobald ein Ordner im FileTree ausgewählt wird.
+<span class="k">-</span><span class="w"> </span>Nutzt den globalen Atom <span class="sb">`currentFolderIdAtom`</span> und lädt die Dateien über den Provider.
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Tabellarische Dateiansicht mit Sortierung und Gruppierung (Shadow-Twins)
+<span class="k">-</span><span class="w"> </span>Inline-Umbenennung, Löschen, Drag &amp; Drop
+<span class="k">-</span><span class="w"> </span>Batch-Operationen (z.B. Batch-Transkription)
+<span class="k">-</span><span class="w"> </span>Checkbox-Auswahl für Mehrfachaktionen
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Atoms:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`currentFolderIdAtom`</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`selectedItemAtom`</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`selectedBatchItemsAtom`</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`fileTreeReadyAtom`</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Contexts:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>StorageContext (Provider)
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>FilePreview
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>TranscriptionDialog
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span><span class="sb">`provider.listItemsById(folderId)`</span> – Laden der Dateien
+<span class="k">-</span><span class="w"> </span><span class="sb">`provider.renameItem(itemId, newName)`</span> – Umbenennen
+<span class="k">-</span><span class="w"> </span><span class="sb">`provider.deleteItem(itemId)`</span> – Löschen
+<span class="k">-</span><span class="w"> </span>Indirekt: Batch-Transkription (API-Call über BatchTransformService)
+<span class="k">-</span><span class="w"> </span>Fehlerfälle: Authentifizierungsfehler, Name existiert, Netzwerkfehler
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Gruppierungslogik (Shadow-Twins) ist komplex und schwer testbar
+<span class="k">-</span><span class="w"> </span>Batch-Operationen könnten besser gekapselt werden
+<span class="k">-</span><span class="w"> </span>Drag &amp; Drop und Rename-Logik sind eng mit UI verknüpft
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>Gruppierungs- und Sortierlogik in eigene Utilities auslagern
+<span class="k">-</span><span class="w"> </span>Batch-Operationen als eigene Hooks/Komponenten
+<span class="k">-</span><span class="w"> </span>Drag &amp; Drop und Rename-Logik modularisieren
+<span class="k">-</span><span class="w"> </span>Testabdeckung für alle Interaktionen erhöhen
+</code></pre></div>
+<p>Die Datei <strong><code>05_file-list.md</code></strong> wurde angelegt und enthält das vollständige Template für die FileList-Komponente:</p>
+<ul>
+<li>User Stories</li>
+<li>Initialisierung</li>
+<li>Features</li>
+<li>Abhängigkeiten (Atoms, Contexts, Komponenten)</li>
+<li>API Calls (inkl. Fehlerfälle)</li>
+<li>Auffälligkeiten &amp; Verbesserungsmöglichkeiten</li>
+<li>ToDos</li>
+</ul>
+<p><strong>Nächstes Thema (Vorschlag):</strong>
+- <strong>06_upload.md</strong> (Upload-Komponente: Datei-Upload, Fortschritt, Fehlerhandling)</p>
+<p>Möchtest du mit Upload fortfahren oder ein anderes Thema als nächstes dokumentieren?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>ja bitte</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># Upload Komponente</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User möchte ich Dateien in die aktuelle Bibliothek/Ordner hochladen können.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich den Upload-Fortschritt und eventuelle Fehler sehen.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich mehrere Dateien gleichzeitig hochladen können.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird über den Upload-Button im Header geöffnet (UploadDialog).
+<span class="k">-</span><span class="w"> </span>Nutzt den aktuellen Ordner aus dem globalen State.
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Drag &amp; Drop und Dateiauswahl für Upload
+<span class="k">-</span><span class="w"> </span>Fortschrittsanzeige pro Datei
+<span class="k">-</span><span class="w"> </span>Fehleranzeige und Wiederholungsoption
+<span class="k">-</span><span class="w"> </span>Unterstützung für Multi-File-Upload
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Atoms:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`currentFolderIdAtom`</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Contexts:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>StorageContext (Provider)
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>UploadDialog
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>Progress
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span><span class="sb">`provider.uploadFile(parentId, file)`</span> – Hochladen einer Datei
+<span class="k">-</span><span class="w"> </span>Fehlerfälle: Authentifizierungsfehler, Netzwerkfehler, Datei existiert bereits
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Fortschrittsanzeige basiert auf Status im lokalen State, nicht auf echten Netzwerk-Events
+<span class="k">-</span><span class="w"> </span>Fehlerhandling für parallele Uploads könnte verbessert werden
+<span class="k">-</span><span class="w"> </span>UX: Drag &amp; Drop-Feedback und Fehlermeldungen optimieren
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>Echte Fortschrittsanzeige mit Backend-Events (falls möglich)
+<span class="k">-</span><span class="w"> </span>Fehlerhandling und Retry-Logik verbessern
+<span class="k">-</span><span class="w"> </span>UX für Drag &amp; Drop und Multi-Upload weiter optimieren
+<span class="k">-</span><span class="w"> </span>Testabdeckung für Upload-Fehlerfälle erhöhen
+</code></pre></div>
+<p>Die Datei <strong><code>06_upload.md</code></strong> wurde angelegt und enthält das vollständige Template für die Upload-Komponente:</p>
+<ul>
+<li>User Stories</li>
+<li>Initialisierung</li>
+<li>Features</li>
+<li>Abhängigkeiten (Atoms, Contexts, Komponenten)</li>
+<li>API Calls (inkl. Fehlerfälle)</li>
+<li>Auffälligkeiten &amp; Verbesserungsmöglichkeiten</li>
+<li>ToDos</li>
+</ul>
+<p><strong>Nächstes Thema (Vorschlag):</strong>
+- <strong>07_file-preview.md</strong> (FilePreview-Komponente: Vorschau für verschiedene Dateitypen, Viewer-Delegation)</p>
+<p>Möchtest du mit FilePreview fortfahren oder ein anderes Thema als nächstes dokumentieren?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>ja</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># FilePreview Komponente</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User möchte ich eine Vorschau der ausgewählten Datei sehen (Audio, Video, Text, Markdown, Bild, Dokument).
+<span class="k">-</span><span class="w"> </span>Als User möchte ich direkt aus der Vorschau heraus Transformationen oder Transkriptionen starten können.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird geladen, sobald eine Datei in der FileList ausgewählt wird.
+<span class="k">-</span><span class="w"> </span>Erkennt den Dateityp und lädt den passenden Viewer.
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Dynamische Vorschau je nach Dateityp (Audio, Video, Markdown, Text, Bild, PDF, ...)
+<span class="k">-</span><span class="w"> </span>Tabs für Vorschau/Bearbeitung (z.B. Markdown)
+<span class="k">-</span><span class="w"> </span>Transformation/Transkription direkt aus der Vorschau
+<span class="k">-</span><span class="w"> </span>Fehler- und Ladezustände
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Atoms:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`selectedItemAtom`</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`activeLibraryIdAtom`</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Contexts:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>StorageContext (Provider)
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>AudioPlayer, VideoPlayer, MarkdownPreview, TextEditor, ImagePreview, DocumentPreview
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>Transform-Komponenten
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span><span class="sb">`provider.getBinary(itemId)`</span> – Laden des Datei-Inhalts
+<span class="k">-</span><span class="w"> </span><span class="sb">`provider.getStreamingUrl(itemId)`</span> – (Audio/Video)
+<span class="k">-</span><span class="w"> </span>Indirekt: Transformation/Transkription (API-Call über TransformService)
+<span class="k">-</span><span class="w"> </span>Fehlerfälle: Datei nicht gefunden, Netzwerkfehler, nicht unterstützter Typ
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Viewer-Delegation ist komplex und könnte modularer werden
+<span class="k">-</span><span class="w"> </span>Caching von Datei-Inhalten ist noch rudimentär
+<span class="k">-</span><span class="w"> </span>Fehlerhandling für exotische Dateitypen verbessern
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>Viewer-Logik in eigene Komponenten/Hooks auslagern
+<span class="k">-</span><span class="w"> </span>Caching-Strategie für Vorschauinhalte verbessern
+<span class="k">-</span><span class="w"> </span>Testabdeckung für alle Dateitypen und Fehlerfälle erhöhen
+</code></pre></div>
+<p>Die Datei <strong><code>07_file-preview.md</code></strong> wurde angelegt und enthält das vollständige Template für die FilePreview-Komponente:</p>
+<ul>
+<li>User Stories</li>
+<li>Initialisierung</li>
+<li>Features</li>
+<li>Abhängigkeiten (Atoms, Contexts, Komponenten)</li>
+<li>API Calls (inkl. Fehlerfälle)</li>
+<li>Auffälligkeiten &amp; Verbesserungsmöglichkeiten</li>
+<li>ToDos</li>
+</ul>
+<p><strong>Nächstes Thema (Vorschlag):</strong>
+- <strong>08_transcription.md</strong> (Transcription-Komponente: Einzel-Transkription, Dialog, Status, Fehlerhandling)</p>
+<p>Möchtest du mit Transcription fortfahren oder ein anderes Thema als nächstes dokumentieren?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>ja </p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># Transcription Komponente</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User möchte ich eine einzelne Audio- oder Videodatei transkribieren können.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich den Fortschritt und das Ergebnis der Transkription sehen.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich Fehler und Statusmeldungen erhalten.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird über die FileList oder FilePreview (z.B. Button &quot;Transkribieren&quot;) geöffnet.
+<span class="k">-</span><span class="w"> </span>Nutzt den aktuellen Provider und die ausgewählte Datei.
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Starten einer Transkription für eine Datei
+<span class="k">-</span><span class="w"> </span>Fortschrittsanzeige und Statusmeldungen
+<span class="k">-</span><span class="w"> </span>Anzeige und Auswahl von Transkriptionsoptionen (Sprache, Shadow-Twin, Dateiname)
+<span class="k">-</span><span class="w"> </span>Fehler- und Erfolgsfeedback
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Atoms:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`selectedItemAtom`</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`transcriptionDialogOpenAtom`</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Contexts:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>StorageContext (Provider)
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>AudioTransform, VideoTransform, TransformResultHandler
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span><span class="sb">`TransformService.transformAudio(file, item, options, ...)`</span> – Startet die Transkription (API-Call zum Backend)
+<span class="k">-</span><span class="w"> </span><span class="sb">`TransformService.transformVideo(file, item, options, ...)`</span> – Für Video
+<span class="k">-</span><span class="w"> </span>Fehlerfälle: Datei nicht lesbar, API-Fehler, Netzwerkfehler, Limit erreicht
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Fortschrittsanzeige basiert auf lokalen State, nicht auf echten Backend-Events
+<span class="k">-</span><span class="w"> </span>Fehlerhandling für API-Fehler und Limits könnte verbessert werden
+<span class="k">-</span><span class="w"> </span>UX: Dialog- und Statusfeedback optimieren
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>Echte Fortschrittsanzeige mit Backend-Events (falls möglich)
+<span class="k">-</span><span class="w"> </span>Fehlerhandling und Retry-Logik verbessern
+<span class="k">-</span><span class="w"> </span>Testabdeckung für Transkriptions-Edge-Cases erhöhen
+</code></pre></div>
+<p>Die Datei <strong><code>08_transcription.md</code></strong> wurde angelegt und enthält das vollständige Template für die Transcription-Komponente:</p>
+<ul>
+<li>User Stories</li>
+<li>Initialisierung</li>
+<li>Features</li>
+<li>Abhängigkeiten (Atoms, Contexts, Komponenten)</li>
+<li>API Calls (inkl. Fehlerfälle)</li>
+<li>Auffälligkeiten &amp; Verbesserungsmöglichkeiten</li>
+<li>ToDos</li>
+</ul>
+<p><strong>Nächstes Thema (Vorschlag):</strong>
+- <strong>09_transform.md</strong> (Transform-Komponente: Text-/Audio-/Video-Transformation, Optionen, Ergebnis-Handling)</p>
+<p>Möchtest du mit Transform fortfahren oder ein anderes Thema als nächstes dokumentieren?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>ja</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># Transform Komponente</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User möchte ich eine Datei (Text, Audio, Video) transformieren können (z.B. Markdown-Template, Shadow-Twin, Sprache).
+<span class="k">-</span><span class="w"> </span>Als User möchte ich Transformationsergebnisse direkt speichern und weiterverarbeiten können.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird aus FilePreview, Transcription oder BatchTranscription aufgerufen.
+<span class="k">-</span><span class="w"> </span>Nutzt die aktuelle Datei und Transformationseinstellungen aus dem State.
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Transformation von Text, Audio oder Video mit verschiedenen Optionen (Sprache, Template, Shadow-Twin)
+<span class="k">-</span><span class="w"> </span>Vorschau und Anpassung der Transformationsergebnisse
+<span class="k">-</span><span class="w"> </span>Speichern als neue Datei (Shadow-Twin)
+<span class="k">-</span><span class="w"> </span>Fehler- und Erfolgsfeedback
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Atoms:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`selectedItemAtom`</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Contexts:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>StorageContext (Provider)
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>TransformSaveOptions, TransformResultHandler
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span><span class="sb">`TransformService.transformText(text, item, options, ...)`</span> – Text-Transformation
+<span class="k">-</span><span class="w"> </span><span class="sb">`TransformService.transformAudio(file, item, options, ...)`</span> – Audio-Transformation
+<span class="k">-</span><span class="w"> </span><span class="sb">`TransformService.transformVideo(file, item, options, ...)`</span> – Video-Transformation
+<span class="k">-</span><span class="w"> </span>Fehlerfälle: API-Fehler, Netzwerkfehler, ungültige Optionen
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Transformationsergebnis-Handling ist eng mit UI gekoppelt
+<span class="k">-</span><span class="w"> </span>Optionen und Ergebnis-Preview könnten modularer werden
+<span class="k">-</span><span class="w"> </span>Fehlerhandling für komplexe Transformationen verbessern
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>Transformationsergebnis-Logik in eigene Hooks/Komponenten auslagern
+<span class="k">-</span><span class="w"> </span>Testabdeckung für verschiedene Transformationsarten erhöhen
+<span class="k">-</span><span class="w"> </span>UX für Optionen und Ergebnis-Preview optimieren
+</code></pre></div>
+<p>Die Datei <strong><code>09_transform.md</code></strong> wurde angelegt und enthält das vollständige Template für die Transform-Komponente:</p>
+<ul>
+<li>User Stories</li>
+<li>Initialisierung</li>
+<li>Features</li>
+<li>Abhängigkeiten (Atoms, Contexts, Komponenten)</li>
+<li>API Calls (inkl. Fehlerfälle)</li>
+<li>Auffälligkeiten &amp; Verbesserungsmöglichkeiten</li>
+<li>ToDos</li>
+</ul>
+<p><strong>Nächstes Thema (Vorschlag):</strong>
+- <strong>10_batch-transcription.md</strong> (BatchTranscription-Komponente: Mehrfach-Transkription, Fortschritt, Fehlerhandling)</p>
+<p>Möchtest du mit BatchTranscription fortfahren oder ein anderes Thema als nächstes dokumentieren?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>ja</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># BatchTranscription Komponente</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als User möchte ich mehrere Dateien gleichzeitig zur Transkription auswählen und verarbeiten können.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich den Fortschritt und Status jeder Datei im Batch sehen.
+<span class="k">-</span><span class="w"> </span>Als User möchte ich Fehler und Teilerfolge nachvollziehen können.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Wird über die FileList (Batch-Checkboxen und Button) geöffnet.
+<span class="k">-</span><span class="w"> </span>Nutzt die ausgewählten Dateien und den aktuellen Provider.
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Auswahl mehrerer Dateien für die Transkription (Batch)
+<span class="k">-</span><span class="w"> </span>Fortschrittsanzeige pro Datei und für das gesamte Batch
+<span class="k">-</span><span class="w"> </span>Fehler- und Erfolgsfeedback pro Datei
+<span class="k">-</span><span class="w"> </span>Optionen für Sprache, Shadow-Twin, Dateiendung
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Atoms:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`selectedBatchItemsAtom`</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span><span class="sb">`transcriptionDialogOpenAtom`</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Contexts:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>StorageContext (Provider)
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>TranscriptionDialog, BatchTransformService
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span><span class="sb">`BatchTransformService.transformBatch(items, options, ...)`</span> – Startet die Batch-Transkription (API-Call zum Backend)
+<span class="k">-</span><span class="w"> </span>Fehlerfälle: Einzelne Dateien fehlschlagen, Netzwerkfehler, API-Limits
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>Fortschrittsanzeige basiert auf lokalem State, nicht auf echten Backend-Events
+<span class="k">-</span><span class="w"> </span>Fehlerhandling für Teilerfolge und Abbrüche könnte verbessert werden
+<span class="k">-</span><span class="w"> </span>UX: Übersicht und Feedback bei großen Batches optimieren
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>Echte Fortschrittsanzeige mit Backend-Events (falls möglich)
+<span class="k">-</span><span class="w"> </span>Fehlerhandling und Retry-Logik für einzelne Dateien verbessern
+<span class="k">-</span><span class="w"> </span>Testabdeckung für Batch-Edge-Cases erhöhen
+</code></pre></div>
+<p>Die Datei <strong><code>10_batch-transcription.md</code></strong> wurde angelegt und enthält das vollständige Template für die BatchTranscription-Komponente:</p>
+<ul>
+<li>User Stories</li>
+<li>Initialisierung</li>
+<li>Features</li>
+<li>Abhängigkeiten (Atoms, Contexts, Komponenten)</li>
+<li>API Calls (inkl. Fehlerfälle)</li>
+<li>Auffälligkeiten &amp; Verbesserungsmöglichkeiten</li>
+<li>ToDos</li>
+</ul>
+<p>Damit ist die erste Runde der Komponentendokumentation nach deinem Schema abgeschlossen.</p>
+<p><strong>Möchtest du als nächstes:</strong>
+- Ein Review/Checkliste der bisherigen Dokumente?
+- Ein weiteres Thema (z.B. ein Querschnittsthema wie Error Handling, Logging, Testing)?
+- Oder direkt mit der Ausarbeitung/Refactoring einer Komponente starten?</p>
+<p>Sag mir einfach, wie du fortfahren möchtest!</p>
+<hr />
+<p><strong>User</strong></p>
+<p>Ja ich möchte noch ein weiteres Thema Error_Handling_Logging_Testing
+Das betrifft auch @debug-panel.tsx Am liebsten würde ich dort komponenten mit checkboxen aus/ein blenden und nur logs gegliedert nach bestimmten Komponenten sehen</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># Error Handling, Logging &amp; Testing</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als Entwickler möchte ich Fehler und Logs gezielt pro Komponente einsehen können.
+<span class="k">-</span><span class="w"> </span>Als Entwickler möchte ich Fehlerquellen schnell erkennen und reproduzieren können.
+<span class="k">-</span><span class="w"> </span>Als Entwickler möchte ich gezielt Komponenten-Logs ein- und ausblenden können (z.B. im DebugPanel).
+<span class="k">-</span><span class="w"> </span>Als Entwickler möchte ich automatisierte Tests für alle Kernfunktionen haben.
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Fehler- und Logging-Mechanismen werden global initialisiert (z.B. Logger, Error Boundaries).
+<span class="k">-</span><span class="w"> </span>DebugPanel ist immer verfügbar und kann minimiert werden.
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Zentrale Fehlerbehandlung (Error Boundaries, typisierte Fehler)
+<span class="k">-</span><span class="w"> </span>Logging-Strategie: Logs pro Komponente, Filterung nach Komponententyp
+<span class="k">-</span><span class="w"> </span>DebugPanel: Anzeige von State, Logs, Fehlern, mit Checkboxen zum Ein-/Ausblenden von Komponenten-Logs
+<span class="k">-</span><span class="w"> </span>Automatisierte Tests (Unit, Integration, E2E)
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>DebugPanel (src/components/debug/debug-panel.tsx)
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>Error Boundaries
+<span class="k">-</span><span class="w"> </span><span class="gs">**Libraries:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>sonner (Toasts), Jotai, Testing Library, Vitest, Playwright
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span>Keine direkten API-Calls.
+<span class="k">-</span><span class="w"> </span>Indirekt: Fehler und Logs können durch API-Fehler ausgelöst werden (z.B. provider-Methoden)
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>DebugPanel zeigt aktuell nur State, keine echten Logs/Fehler pro Komponente
+<span class="k">-</span><span class="w"> </span>Keine Filterung/Checkboxen für Logs im DebugPanel
+<span class="k">-</span><span class="w"> </span>Fehlerhandling ist teilweise inkonsistent (z.B. try/catch, Toasts, Error Boundaries)
+<span class="k">-</span><span class="w"> </span>Testabdeckung ist nicht für alle Komponenten gleich hoch
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>DebugPanel erweitern: Logs pro Komponente, Checkboxen für Sichtbarkeit
+<span class="k">-</span><span class="w"> </span>Zentrale Logging-API mit Komponententags einführen
+<span class="k">-</span><span class="w"> </span>Fehlerhandling vereinheitlichen (Error Boundaries, typisierte Fehler)
+<span class="k">-</span><span class="w"> </span>Teststrategie und Coverage-Reports für alle Kernkomponenten
+</code></pre></div>
+<p>Die Datei <strong><code>11_error-handling-logging-testing.md</code></strong> wurde angelegt und enthält das vollständige Template für das Querschnittsthema:</p>
+<ul>
+<li>User Stories (inkl. Wunsch nach Logs pro Komponente und Checkboxen im DebugPanel)</li>
+<li>Initialisierung (global, DebugPanel immer verfügbar)</li>
+<li>Features (Error Boundaries, Logging-Strategie, DebugPanel-UX, Testing)</li>
+<li>Abhängigkeiten (DebugPanel, Error Boundaries, Libraries)</li>
+<li>API Calls (indirekt)</li>
+<li>Auffälligkeiten &amp; Verbesserungsmöglichkeiten (u.a. DebugPanel zeigt noch keine Logs, keine Filterung)</li>
+<li>ToDos (DebugPanel erweitern, Logging-API, Fehlerhandling vereinheitlichen, Teststrategie)</li>
+</ul>
+<p><strong>Nächster Schritt-Vorschlag:</strong>
+- Konkretes Konzept/Skizze für die Erweiterung des DebugPanels (Checkboxen, Log-Filter, Logging-API)
+- Oder: Review/Checkliste aller bisherigen Dokumente
+- Oder: Start mit Refactoring/Implementierung einer der ToDos</p>
+<p>Wie möchtest du fortfahren?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>Ja ergänzen wir das Dokument mit Konkretes Konzept/Skizze für die Erweiterung des DebugPanels (Checkboxen, Log-Filter, Logging-API)
+Im Dokument fehlt natürlich Userstory zum überwachen der aktuellen States und wichtigsten Parameter (bestehende Logik)</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code><span class="gh"># Error Handling, Logging &amp; Testing</span>
+
+<span class="gu">## 1. User Stories</span>
+<span class="k">-</span><span class="w"> </span>Als Entwickler möchte ich Fehler und Logs gezielt pro Komponente einsehen können.
+<span class="k">-</span><span class="w"> </span>Als Entwickler möchte ich Fehlerquellen schnell erkennen und reproduzieren können.
+<span class="k">-</span><span class="w"> </span>Als Entwickler möchte ich gezielt Komponenten-Logs ein- und ausblenden können (z.B. im DebugPanel).
+<span class="k">-</span><span class="w"> </span>Als Entwickler möchte ich automatisierte Tests für alle Kernfunktionen haben.
+<span class="k">-</span><span class="w"> </span><span class="gs">**Als Entwickler möchte ich die aktuellen States und wichtigsten Parameter (z.B. ausgewählte Datei, aktiver Ordner, Provider-Status) jederzeit überwachen können.**</span>
+
+<span class="gu">## 2. Initialisierung</span>
+<span class="k">-</span><span class="w"> </span>Fehler- und Logging-Mechanismen werden global initialisiert (z.B. Logger, Error Boundaries).
+<span class="k">-</span><span class="w"> </span>DebugPanel ist immer verfügbar und kann minimiert werden.
+
+<span class="gu">## 3. Features</span>
+<span class="k">-</span><span class="w"> </span>Zentrale Fehlerbehandlung (Error Boundaries, typisierte Fehler)
+<span class="k">-</span><span class="w"> </span>Logging-Strategie: Logs pro Komponente, Filterung nach Komponententyp
+<span class="k">-</span><span class="w"> </span>DebugPanel: Anzeige von State, Logs, Fehlern, mit Checkboxen zum Ein-/Ausblenden von Komponenten-Logs
+<span class="k">-</span><span class="w"> </span>Automatisierte Tests (Unit, Integration, E2E)
+<span class="k">-</span><span class="w"> </span><span class="gs">**DebugPanel: Anzeige der wichtigsten State-Parameter (aktuelle Bibliothek, Ordner, Auswahl, Provider, Status, etc.)**</span>
+
+<span class="gu">## 4. Abhängigkeiten</span>
+<span class="k">-</span><span class="w"> </span><span class="gs">**Komponenten:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>DebugPanel (src/components/debug/debug-panel.tsx)
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>Error Boundaries
+<span class="k">-</span><span class="w"> </span><span class="gs">**Libraries:**</span>
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>sonner (Toasts), Jotai, Testing Library, Vitest, Playwright
+
+<span class="gu">## 5. API Calls</span>
+<span class="k">-</span><span class="w"> </span>Keine direkten API-Calls.
+<span class="k">-</span><span class="w"> </span>Indirekt: Fehler und Logs können durch API-Fehler ausgelöst werden (z.B. provider-Methoden)
+
+<span class="gu">## 6. Auffälligkeiten &amp; Verbesserungsmöglichkeiten</span>
+<span class="k">-</span><span class="w"> </span>DebugPanel zeigt aktuell nur State, keine echten Logs/Fehler pro Komponente
+<span class="k">-</span><span class="w"> </span>Keine Filterung/Checkboxen für Logs im DebugPanel
+<span class="k">-</span><span class="w"> </span>Fehlerhandling ist teilweise inkonsistent (z.B. try/catch, Toasts, Error Boundaries)
+<span class="k">-</span><span class="w"> </span>Testabdeckung ist nicht für alle Komponenten gleich hoch
+
+<span class="gu">## 7. ToDos</span>
+<span class="k">-</span><span class="w"> </span>DebugPanel erweitern: Logs pro Komponente, Checkboxen für Sichtbarkeit
+<span class="k">-</span><span class="w"> </span>Zentrale Logging-API mit Komponententags einführen
+<span class="k">-</span><span class="w"> </span>Fehlerhandling vereinheitlichen (Error Boundaries, typisierte Fehler)
+<span class="k">-</span><span class="w"> </span>Teststrategie und Coverage-Reports für alle Kernkomponenten
+
+---
+
+<span class="gu">## 8. Konzept: Erweiterung DebugPanel (Logs, Filter, Logging-API)</span>
+
+<span class="gu">### Ziel</span>
+<span class="k">-</span><span class="w"> </span>Logs und Fehler pro Komponente im DebugPanel sichtbar machen
+<span class="k">-</span><span class="w"> </span>Checkboxen zum gezielten Ein-/Ausblenden von Logs pro Komponente
+<span class="k">-</span><span class="w"> </span>Zentrale Logging-API, die Logs mit Komponententag und Level (info, warn, error) entgegennimmt
+<span class="k">-</span><span class="w"> </span>State-Überwachung bleibt als separater Bereich erhalten
+
+<span class="gu">### Skizze (UI/UX)</span>
+
+```mermaid
+graph TD;
+  DebugPanel --&gt; StateView
+  DebugPanel --&gt; LogView
+  LogView --&gt; Checkboxen
+  LogView --&gt; LogList
+  Checkboxen --&gt; Komponente1
+  Checkboxen --&gt; Komponente2
+  LogList --&gt; LogEintrag1
+  LogList --&gt; LogEintrag2
+</code></pre></div>
+<ul>
+<li><strong>StateView:</strong> Zeigt wie bisher die wichtigsten State-Parameter</li>
+<li><strong>LogView:</strong></li>
+<li>Checkboxen für jede Komponente (z.B. FileList, FileTree, Upload, ...)</li>
+<li>LogList zeigt nur Logs der aktivierten Komponenten</li>
+<li>Logs werden nach Level (info, warn, error) farblich markiert</li>
+</ul>
+<h3 id="logging-api-konzept">Logging-API (Konzept)<a class="headerlink" href="#logging-api-konzept" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">// logging.ts</span>
+<span class="k">export</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">LogLevel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;info&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;warn&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;error&#39;</span><span class="p">;</span>
+<span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">LogEntry</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">timestamp</span><span class="o">:</span><span class="w"> </span><span class="kt">Date</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">component</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">level</span><span class="o">:</span><span class="w"> </span><span class="kt">LogLevel</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">message</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">data?</span><span class="o">:</span><span class="w"> </span><span class="kt">unknown</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">log</span><span class="p">(</span><span class="nx">component</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">level</span><span class="o">:</span><span class="w"> </span><span class="kt">LogLevel</span><span class="p">,</span><span class="w"> </span><span class="nx">message</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">data?</span><span class="o">:</span><span class="w"> </span><span class="kt">unknown</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// LogEntry erzeugen und globalen Log-Atom updaten</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li>Jeder Komponenten-Code ruft <code>log('FileList', 'info', 'Datei geladen', { ... })</code> auf</li>
+<li>DebugPanel liest globalen Log-Atom und filtert nach Checkboxen</li>
+</ul>
+<h3 id="vorteile">Vorteile<a class="headerlink" href="#vorteile" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Entwickler können gezielt Logs pro Komponente einsehen</li>
+<li>Logs und State sind klar getrennt, aber gemeinsam sichtbar</li>
+<li>Logging-API kann später für Remote-Logging erweitert werden</li>
+</ul>
+<h3 id="todos-konkret">ToDos (konkret)<a class="headerlink" href="#todos-konkret" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Logging-API und globalen Log-Atom implementieren</li>
+<li>DebugPanel um LogView und Checkboxen erweitern</li>
+<li>Bestehende Komponenten auf neue Logging-API umstellen</li>
+</ul>
+<div class="highlight"><pre><span></span><code>Das Dokument **`11_error-handling-logging-testing.md`** wurde wie gewünscht ergänzt:
+
+- **User Story** zur Überwachung der aktuellen States und wichtigsten Parameter (bestehende DebugPanel-Logik) ist jetzt explizit enthalten.
+- **Konkretes Konzept/Skizze** für die DebugPanel-Erweiterung:
+  - Zielbeschreibung
+  - Mermaid-Diagramm für die UI/UX-Struktur
+  - Logging-API-Konzept (TypeScript-Skizze)
+  - Vorteile der Lösung
+  - Konkrete ToDos für die Umsetzung
+
+Damit ist das Dokument eine fundierte Grundlage für die Weiterentwicklung von Debugging, Logging und Fehlerhandling im Projekt.
+
+**Nächster Schritt-Vorschlag:**
+- Umsetzung der Logging-API und Log-Atoms
+- Erweiterung des DebugPanels (Checkboxen, Log-Filter)
+- Oder: Review/Abstimmung, welche Komponente/ToDo als erstes umgesetzt werden soll
+
+Wie möchtest du fortfahren?
+
+---
+
+**User**
+
+Ja wir werden sicher mit dem logging beginnen, aber lass uns einen Plan erstellen, was sind die wichtigsten Erkenntnisse aus @/library_concept ?
+Was sind die nächsten Schritte?
+
+---
+
+**Cursor**
+
+Ich werde die wichtigsten Erkenntnisse aus der Library-Konzept-Dokumentation zusammenfassen und einen konkreten Aktionsplan erstellen.
+
+### Wichtigste Erkenntnisse
+
+1. **Modulare Struktur**
+- Die Library ist in 9 Hauptkomponenten aufgeteilt, jede mit klarer Verantwortlichkeit
+- Kommunikation erfolgt primär über Jotai Atoms und Contexts
+- Jede Komponente ist gut dokumentiert mit User Stories, Features und Abhängigkeiten
+
+2. **Kritische Verbesserungsbereiche**
+- **State Management**: Überschneidungen zwischen Atoms und Contexts
+- **Performance**: Caching-Strategien für FileTree und FilePreview sind verbesserungswürdig
+- **Error Handling**: Inkonsistent über verschiedene Komponenten hinweg
+- **Logging**: Fehlt ein zentrales, komponentenbasiertes Logging-System
+
+3. **Technische Schulden**
+- Komplexe Drag &amp; Drop Logik in FileTree und FileList
+- Batch-Operationen könnten besser gekapselt werden
+- Fortschrittsanzeigen basieren auf lokalem State statt echten Backend-Events
+- Shadow-Twin Gruppierungslogik ist schwer testbar
+
+### Aktionsplan
+
+1. **Phase 1: Grundlegende Infrastruktur** (Höchste Priorität)
+```mermaid
+graph TD
+    A[Logging System] --&gt; B[Error Handling]
+    B --&gt; C[State Management]
+    C --&gt; D[Testing Framework]
+</code></pre></div>
+<ul>
+<li>Implementierung des Logging-Systems mit DebugPanel</li>
+<li>Vereinheitlichung des Error Handlings</li>
+<li>Konsolidierung der State Management Strategie</li>
+<li>
+<p>Aufbau einer soliden Testinfrastruktur</p>
+</li>
+<li>
+<p><strong>Phase 2: Komponenten-Optimierung</strong>
+<pre class="mermaid"><code>graph TD
+    A[FileTree/List Refactoring] --&gt; B[Caching-Strategie]
+    B --&gt; C[Batch Operations]
+    C --&gt; D[Progress Tracking]</code></pre></p>
+</li>
+<li>
+<p>Auslagerung der Drag &amp; Drop Logik</p>
+</li>
+<li>Implementierung einer robusten Caching-Strategie</li>
+<li>Modularisierung der Batch-Operationen</li>
+<li>
+<p>Integration von Backend-Events für Fortschrittsanzeigen</p>
+</li>
+<li>
+<p><strong>Phase 3: UX Verbesserungen</strong>
+<pre class="mermaid"><code>graph TD
+    A[Shadow-Twin UI] --&gt; B[Error Feedback]
+    B --&gt; C[Progress Indicators]
+    C --&gt; D[Performance Optimization]</code></pre></p>
+</li>
+<li>
+<p>Verbesserung der Shadow-Twin Darstellung</p>
+</li>
+<li>Einheitliches Error Feedback</li>
+<li>Echtzeitaktualisierung von Fortschrittsanzeigen</li>
+<li>Performance-Optimierungen</li>
+</ul>
+<h3 id="konkrete-nachste-schritte">Konkrete nächste Schritte<a class="headerlink" href="#konkrete-nachste-schritte" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Logging System (Sprint 1)</strong></li>
+<li>Implementierung der Logging-API</li>
+<li>Erweiterung des DebugPanels</li>
+<li>
+<p>Integration in erste Kernkomponenten (FileTree, FileList)</p>
+</li>
+<li>
+<p><strong>Error Handling (Sprint 2)</strong></p>
+</li>
+<li>Definition einer Error Handling Strategie</li>
+<li>Implementierung typisierter Fehler</li>
+<li>
+<p>Integration mit Logging-System</p>
+</li>
+<li>
+<p><strong>State Management (Sprint 3)</strong></p>
+</li>
+<li>Audit aller Atoms und Contexts</li>
+<li>Dokumentation der State-Flows</li>
+<li>
+<p>Konsolidierung überlappender States</p>
+</li>
+<li>
+<p><strong>Testing (Sprint 4)</strong></p>
+</li>
+<li>Setup Testing Framework</li>
+<li>Definition von Test-Standards</li>
+<li>Implementierung erster kritischer Tests</li>
+</ol>
+<p>Sollen wir mit der Implementierung des Logging-Systems beginnen? Das scheint der logische erste Schritt zu sein, da es uns auch bei der weiteren Entwicklung und Debugging helfen wird.</p>
+<div class="highlight"><pre><span></span><code>graph TD
+    A[Logging System] --&gt; B[Error Handling]
+    B --&gt; C[State Management]
+    C --&gt; D[Testing Framework]
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>graph TD
+    A[FileTree/List Refactoring] --&gt; B[Caching-Strategie]
+    B --&gt; C[Batch Operations]
+    C --&gt; D[Progress Tracking]
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>graph TD
+    A[Shadow-Twin UI] --&gt; B[Error Feedback]
+    B --&gt; C[Progress Indicators]
+    C --&gt; D[Performance Optimization]
+</code></pre></div>
+<hr />
+<p><strong>User</strong></p>
+<p>Können wir eine ToDo Datei erstellen und dort die jeweiligen ToDo Abschnitte aller @/library_concept Dokumente zusammenführen mit einer Spalte Prio 1-10? (1 sehr wichtig)
+Ich möchte dort dann meine Prioritäten bestimmen und dann können wir den toDo Plan nochmal aktualisieren</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<p>Ich werde eine strukturierte ToDo-Liste aus allen Dokumenten erstellen. Ich schlage vor, diese in <code>docs/library_concept/todos.md</code> zu speichern.</p>
+<div class="highlight"><pre><span></span><code><span class="gh"># Library Concept ToDos</span>
+
+Diese Liste fasst alle ToDos aus den Library-Concept-Dokumenten zusammen. Die Priorität (1-10) kann dann vom Team festgelegt werden.
+1 = Höchste Priorität, 10 = Niedrigste Priorität
+
+<span class="gu">## Global State &amp; Infrastructure</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Konsolidierung und klare Benennung aller Atoms | Global State | _ | 🔲 |
+| Dokumentation aller Atoms und Contexts mit Typen | Global State | _ | 🔲 |
+| Einheitliche Persistenzstrategie | Global State | _ | 🔲 |
+| Übersichtliches Diagramm aller State-Flows erstellen | Global State | _ | 🔲 |
+| Logging-API und globalen Log-Atom implementieren | Error Handling | _ | 🔲 |
+| DebugPanel um LogView und Checkboxen erweitern | Error Handling | _ | 🔲 |
+| Bestehende Komponenten auf neue Logging-API umstellen | Error Handling | _ | 🔲 |
+| Zentrale Logging-API mit Komponententags einführen | Error Handling | _ | 🔲 |
+| Fehlerhandling vereinheitlichen (Error Boundaries, typisierte Fehler) | Error Handling | _ | 🔲 |
+| Teststrategie und Coverage-Reports für alle Kernkomponenten | Error Handling | _ | 🔲 |
+
+<span class="gu">## Navigation &amp; UI</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Upload-Dialog als eigene Komponente auslagern | Header | _ | 🔲 |
+| Breadcrumb-Logik zentralisieren | Header | _ | 🔲 |
+| Settings-Button als eigenständige Komponente | Header | _ | 🔲 |
+| Breadcrumb-Logik vollständig in die Komponente verlagern | Breadcrumb | _ | 🔲 |
+| Besseres Handling für sehr lange Pfade (z.B. Ellipsis) | Breadcrumb | _ | 🔲 |
+| Testabdeckung für Navigation und Scrollverhalten | Breadcrumb | _ | 🔲 |
+
+<span class="gu">## FileTree &amp; FileList</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Drag &amp; Drop in eigene Hook/Komponente auslagern | FileTree | _ | 🔲 |
+| Caching-Strategie für geladene Ordner verbessern | FileTree | _ | 🔲 |
+| Fehler-Feedback für Drag &amp; Drop vereinheitlichen | FileTree | _ | 🔲 |
+| Testabdeckung für Tree-Interaktionen erhöhen | FileTree | _ | 🔲 |
+| Gruppierungs- und Sortierlogik in eigene Utilities auslagern | FileList | _ | 🔲 |
+| Batch-Operationen als eigene Hooks/Komponenten | FileList | _ | 🔲 |
+| Drag &amp; Drop und Rename-Logik modularisieren | FileList | _ | 🔲 |
+| Testabdeckung für alle Interaktionen erhöhen | FileList | _ | 🔲 |
+
+<span class="gu">## Upload &amp; Preview</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Echte Fortschrittsanzeige mit Backend-Events (falls möglich) | Upload | _ | 🔲 |
+| Fehlerhandling und Retry-Logik verbessern | Upload | _ | 🔲 |
+| UX für Drag &amp; Drop und Multi-Upload weiter optimieren | Upload | _ | 🔲 |
+| Testabdeckung für Upload-Fehlerfälle erhöhen | Upload | _ | 🔲 |
+| Viewer-Logik in eigene Komponenten/Hooks auslagern | FilePreview | _ | 🔲 |
+| Caching-Strategie für Vorschauinhalte verbessern | FilePreview | _ | 🔲 |
+| Testabdeckung für alle Dateitypen und Fehlerfälle erhöhen | FilePreview | _ | 🔲 |
+
+<span class="gu">## Transformation &amp; Transcription</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Echte Fortschrittsanzeige mit Backend-Events (Transcription) | Transcription | _ | 🔲 |
+| Fehlerhandling und Retry-Logik verbessern (Transcription) | Transcription | _ | 🔲 |
+| Testabdeckung für Transkriptions-Edge-Cases erhöhen | Transcription | _ | 🔲 |
+| Transformationsergebnis-Logik in eigene Hooks/Komponenten | Transform | _ | 🔲 |
+| Testabdeckung für verschiedene Transformationsarten erhöhen | Transform | _ | 🔲 |
+| UX für Optionen und Ergebnis-Preview optimieren | Transform | _ | 🔲 |
+| Echte Fortschrittsanzeige mit Backend-Events (Batch) | BatchTranscription | _ | 🔲 |
+| Fehlerhandling und Retry-Logik für einzelne Dateien verbessern | BatchTranscription | _ | 🔲 |
+| Testabdeckung für Batch-Edge-Cases erhöhen | BatchTranscription | _ | 🔲 |
+
+<span class="gu">## Legende Status</span>
+🔲 Offen
+✅ Erledigt
+⏳ In Bearbeitung
+❌ Verworfen
+</code></pre></div>
+<p>Ich habe eine strukturierte ToDo-Liste in <code>docs/library_concept/todos.md</code> erstellt. Die Liste ist in folgende Hauptkategorien unterteilt:</p>
+<ol>
+<li>Global State &amp; Infrastructure</li>
+<li>Navigation &amp; UI</li>
+<li>FileTree &amp; FileList</li>
+<li>Upload &amp; Preview</li>
+<li>Transformation &amp; Transcription</li>
+</ol>
+<p>Jeder ToDo-Eintrag enthält:
+- Die konkrete Aufgabe
+- Die Quelle (aus welchem Konzeptdokument)
+- Ein Feld für die Priorität (1-10)
+- Den aktuellen Status (mit Emoji-Indikatoren)</p>
+<p>Sie können nun die Prioritäten nach Ihren Vorstellungen setzen. Dabei sollten Sie beachten:
+- Priorität 1-3: Kritische, sofort anzugehende Aufgaben
+- Priorität 4-6: Wichtige, aber nicht kritische Aufgaben
+- Priorität 7-10: Nice-to-have Features und Optimierungen</p>
+<p>Möchten Sie die Prioritäten jetzt durchgehen? Wir können dann basierend auf Ihren Prioritäten den Aktionsplan entsprechend anpassen.</p>
+<hr />
+<p><strong>User</strong></p>
+<p>könnten wir die Prio mit sinnvollen Werten belegen?</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<p>Ich werde die ToDos mit sinnvollen Prioritäten versehen, basierend auf:
+1. Technische Abhängigkeiten (was wird als Grundlage benötigt)
+2. Auswirkung auf Benutzerfreundlichkeit
+3. Performance-Relevanz
+4. Wartbarkeit und Testbarkeit</p>
+<div class="highlight"><pre><span></span><code><span class="gh"># Library Concept ToDos</span>
+
+Diese Liste fasst alle ToDos aus den Library-Concept-Dokumenten zusammen. Die Priorität (1-10) kann dann vom Team festgelegt werden.
+1 = Höchste Priorität, 10 = Niedrigste Priorität
+
+<span class="gu">## Global State &amp; Infrastructure</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Logging-API und globalen Log-Atom implementieren | Error Handling | 1 | 🔲 |
+| Zentrale Logging-API mit Komponententags einführen | Error Handling | 1 | 🔲 |
+| Fehlerhandling vereinheitlichen (Error Boundaries, typisierte Fehler) | Error Handling | 1 | 🔲 |
+| Konsolidierung und klare Benennung aller Atoms | Global State | 2 | 🔲 |
+| Dokumentation aller Atoms und Contexts mit Typen | Global State | 2 | 🔲 |
+| DebugPanel um LogView und Checkboxen erweitern | Error Handling | 2 | 🔲 |
+| Bestehende Komponenten auf neue Logging-API umstellen | Error Handling | 3 | 🔲 |
+| Einheitliche Persistenzstrategie | Global State | 3 | 🔲 |
+| Teststrategie und Coverage-Reports für alle Kernkomponenten | Error Handling | 3 | 🔲 |
+| Übersichtliches Diagramm aller State-Flows erstellen | Global State | 4 | 🔲 |
+
+<span class="gu">## Navigation &amp; UI</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Breadcrumb-Logik zentralisieren | Header | 2 | 🔲 |
+| Breadcrumb-Logik vollständig in die Komponente verlagern | Breadcrumb | 2 | 🔲 |
+| Upload-Dialog als eigene Komponente auslagern | Header | 3 | 🔲 |
+| Settings-Button als eigenständige Komponente | Header | 5 | 🔲 |
+| Besseres Handling für sehr lange Pfade (z.B. Ellipsis) | Breadcrumb | 6 | 🔲 |
+| Testabdeckung für Navigation und Scrollverhalten | Breadcrumb | 6 | 🔲 |
+
+<span class="gu">## FileTree &amp; FileList</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Caching-Strategie für geladene Ordner verbessern | FileTree | 1 | 🔲 |
+| Drag &amp; Drop in eigene Hook/Komponente auslagern | FileTree | 2 | 🔲 |
+| Batch-Operationen als eigene Hooks/Komponenten | FileList | 2 | 🔲 |
+| Fehler-Feedback für Drag &amp; Drop vereinheitlichen | FileTree | 3 | 🔲 |
+| Gruppierungs- und Sortierlogik in eigene Utilities auslagern | FileList | 3 | 🔲 |
+| Drag &amp; Drop und Rename-Logik modularisieren | FileList | 3 | 🔲 |
+| Testabdeckung für Tree-Interaktionen erhöhen | FileTree | 4 | 🔲 |
+| Testabdeckung für alle Interaktionen erhöhen | FileList | 4 | 🔲 |
+
+<span class="gu">## Upload &amp; Preview</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Caching-Strategie für Vorschauinhalte verbessern | FilePreview | 1 | 🔲 |
+| Echte Fortschrittsanzeige mit Backend-Events (falls möglich) | Upload | 2 | 🔲 |
+| Fehlerhandling und Retry-Logik verbessern | Upload | 2 | 🔲 |
+| Viewer-Logik in eigene Komponenten/Hooks auslagern | FilePreview | 3 | 🔲 |
+| UX für Drag &amp; Drop und Multi-Upload weiter optimieren | Upload | 4 | 🔲 |
+| Testabdeckung für Upload-Fehlerfälle erhöhen | Upload | 5 | 🔲 |
+| Testabdeckung für alle Dateitypen und Fehlerfälle erhöhen | FilePreview | 5 | 🔲 |
+
+<span class="gu">## Transformation &amp; Transcription</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Echte Fortschrittsanzeige mit Backend-Events (Transcription) | Transcription | 1 | 🔲 |
+| Echte Fortschrittsanzeige mit Backend-Events (Batch) | BatchTranscription | 1 | 🔲 |
+| Fehlerhandling und Retry-Logik verbessern (Transcription) | Transcription | 2 | 🔲 |
+| Fehlerhandling und Retry-Logik für einzelne Dateien verbessern | BatchTranscription | 2 | 🔲 |
+| Transformationsergebnis-Logik in eigene Hooks/Komponenten | Transform | 3 | 🔲 |
+| UX für Optionen und Ergebnis-Preview optimieren | Transform | 4 | 🔲 |
+| Testabdeckung für Transkriptions-Edge-Cases erhöhen | Transcription | 5 | 🔲 |
+| Testabdeckung für verschiedene Transformationsarten erhöhen | Transform | 5 | 🔲 |
+| Testabdeckung für Batch-Edge-Cases erhöhen | BatchTranscription | 5 | 🔲 |
+
+<span class="gu">## Legende Status</span>
+🔲 Offen
+✅ Erledigt
+⏳ In Bearbeitung
+❌ Verworfen
+
+<span class="gu">## Begründung der Prioritäten</span>
+
+<span class="gu">### Prio 1 (Kritisch &amp; Grundlegend)</span>
+<span class="k">-</span><span class="w"> </span>Logging &amp; Error Handling Infrastruktur als Basis für Debugging
+<span class="k">-</span><span class="w"> </span>Caching-Strategien für Performance-kritische Komponenten
+<span class="k">-</span><span class="w"> </span>Echtzeitfortschritt für lange laufende Operationen
+
+<span class="gu">### Prio 2 (Sehr Wichtig)</span>
+<span class="k">-</span><span class="w"> </span>State Management Grundlagen
+<span class="k">-</span><span class="w"> </span>Zentrale UI-Logik (Breadcrumb, Drag &amp; Drop)
+<span class="k">-</span><span class="w"> </span>Grundlegendes Fehlerhandling für Benutzerinteraktionen
+
+<span class="gu">### Prio 3 (Wichtig)</span>
+<span class="k">-</span><span class="w"> </span>Komponenten-Modularisierung
+<span class="k">-</span><span class="w"> </span>Integration der Logging-API
+<span class="k">-</span><span class="w"> </span>Verbesserung der Codebasis-Struktur
+
+<span class="gu">### Prio 4-5 (Normal)</span>
+<span class="k">-</span><span class="w"> </span>Dokumentation
+<span class="k">-</span><span class="w"> </span>Testabdeckung
+<span class="k">-</span><span class="w"> </span>UX-Optimierungen
+
+<span class="gu">### Prio 6+ (Nice to Have)</span>
+<span class="k">-</span><span class="w"> </span>UI-Verfeinerungen
+<span class="k">-</span><span class="w"> </span>Zusätzliche Benutzerfreundlichkeit
+</code></pre></div>
+<hr />
+<p><strong>User</strong></p>
+<p>Nein es sind für mich falsche Prioritäten. Besser wäre:
+1. Technische Abhängigkeiten (was wird als Grundlage benötigt)
+2. Einfaches übersichtliches logging, fehlerbehandlung
+2. Initialisierungslogik optimieren (keine doppelten Ladezyklen)
+3. Bestehende Grund Funktionalität (Navigation, einzelne Dateien anschauen) muss funktionieren
+4. Performance und Benutzerfreundlichkeit
+5. komplexere Use cases - Transcription, transformation, batchprozesse</p>
+<p>Können wir das nochmal Priorisieren?</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<p>Absolut, das ist ein viel besserer Ansatz. Ich werde die Prioritäten nach diesen Kriterien neu ordnen.</p>
+<div class="highlight"><pre><span></span><code><span class="gh"># Library Concept ToDos</span>
+
+Diese Liste fasst alle ToDos aus den Library-Concept-Dokumenten zusammen. Die Priorität (1-10) kann dann vom Team festgelegt werden.
+1 = Höchste Priorität, 10 = Niedrigste Priorität
+
+<span class="gu">## Global State &amp; Infrastructure</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Konsolidierung und klare Benennung aller Atoms | Global State | 1 | 🔲 |
+| Einheitliche Persistenzstrategie | Global State | 1 | 🔲 |
+| Dokumentation aller Atoms und Contexts mit Typen | Global State | 2 | 🔲 |
+| Zentrale Logging-API mit Komponententags einführen | Error Handling | 2 | 🔲 |
+| Logging-API und globalen Log-Atom implementieren | Error Handling | 2 | 🔲 |
+| Fehlerhandling vereinheitlichen (Error Boundaries, typisierte Fehler) | Error Handling | 2 | 🔲 |
+| DebugPanel um LogView und Checkboxen erweitern | Error Handling | 3 | 🔲 |
+| Bestehende Komponenten auf neue Logging-API umstellen | Error Handling | 4 | 🔲 |
+| Teststrategie und Coverage-Reports für alle Kernkomponenten | Error Handling | 5 | 🔲 |
+| Übersichtliches Diagramm aller State-Flows erstellen | Global State | 5 | 🔲 |
+
+<span class="gu">## Navigation &amp; UI</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Breadcrumb-Logik zentralisieren | Header | 1 | 🔲 |
+| Breadcrumb-Logik vollständig in die Komponente verlagern | Breadcrumb | 1 | 🔲 |
+| Upload-Dialog als eigene Komponente auslagern | Header | 3 | 🔲 |
+| Settings-Button als eigenständige Komponente | Header | 4 | 🔲 |
+| Besseres Handling für sehr lange Pfade (z.B. Ellipsis) | Breadcrumb | 4 | 🔲 |
+| Testabdeckung für Navigation und Scrollverhalten | Breadcrumb | 5 | 🔲 |
+
+<span class="gu">## FileTree &amp; FileList</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Caching-Strategie für geladene Ordner verbessern | FileTree | 1 | 🔲 |
+| Gruppierungs- und Sortierlogik in eigene Utilities auslagern | FileList | 2 | 🔲 |
+| Drag &amp; Drop in eigene Hook/Komponente auslagern | FileTree | 3 | 🔲 |
+| Fehler-Feedback für Drag &amp; Drop vereinheitlichen | FileTree | 3 | 🔲 |
+| Drag &amp; Drop und Rename-Logik modularisieren | FileList | 3 | 🔲 |
+| Batch-Operationen als eigene Hooks/Komponenten | FileList | 4 | 🔲 |
+| Testabdeckung für Tree-Interaktionen erhöhen | FileTree | 5 | 🔲 |
+| Testabdeckung für alle Interaktionen erhöhen | FileList | 5 | 🔲 |
+
+<span class="gu">## Upload &amp; Preview</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Caching-Strategie für Vorschauinhalte verbessern | FilePreview | 1 | 🔲 |
+| Viewer-Logik in eigene Komponenten/Hooks auslagern | FilePreview | 2 | 🔲 |
+| Fehlerhandling und Retry-Logik verbessern | Upload | 3 | 🔲 |
+| UX für Drag &amp; Drop und Multi-Upload weiter optimieren | Upload | 4 | 🔲 |
+| Echte Fortschrittsanzeige mit Backend-Events (falls möglich) | Upload | 4 | 🔲 |
+| Testabdeckung für Upload-Fehlerfälle erhöhen | Upload | 5 | 🔲 |
+| Testabdeckung für alle Dateitypen und Fehlerfälle erhöhen | FilePreview | 5 | 🔲 |
+
+<span class="gu">## Transformation &amp; Transcription</span>
+| ToDo | Quelle | Prio | Status |
+|------|---------|------|--------|
+| Transformationsergebnis-Logik in eigene Hooks/Komponenten | Transform | 5 | 🔲 |
+| Fehlerhandling und Retry-Logik verbessern (Transcription) | Transcription | 5 | 🔲 |
+| Fehlerhandling und Retry-Logik für einzelne Dateien verbessern | BatchTranscription | 5 | 🔲 |
+| Echte Fortschrittsanzeige mit Backend-Events (Transcription) | Transcription | 6 | 🔲 |
+| Echte Fortschrittsanzeige mit Backend-Events (Batch) | BatchTranscription | 6 | 🔲 |
+| UX für Optionen und Ergebnis-Preview optimieren | Transform | 6 | 🔲 |
+| Testabdeckung für Transkriptions-Edge-Cases erhöhen | Transcription | 7 | 🔲 |
+| Testabdeckung für verschiedene Transformationsarten erhöhen | Transform | 7 | 🔲 |
+| Testabdeckung für Batch-Edge-Cases erhöhen | BatchTranscription | 7 | 🔲 |
+
+<span class="gu">## Legende Status</span>
+🔲 Offen
+✅ Erledigt
+⏳ In Bearbeitung
+❌ Verworfen
+
+<span class="gu">## Begründung der Prioritäten</span>
+
+<span class="gu">### Prio 1 (Technische Grundlagen)</span>
+<span class="k">-</span><span class="w"> </span>State Management (Atoms, Persistenz)
+<span class="k">-</span><span class="w"> </span>Caching-Strategien für Kernfunktionen
+<span class="k">-</span><span class="w"> </span>Grundlegende Navigation (Breadcrumb)
+
+<span class="gu">### Prio 2 (Einfaches Logging &amp; Fehlerbehandlung)</span>
+<span class="k">-</span><span class="w"> </span>Basis Logging-Infrastruktur
+<span class="k">-</span><span class="w"> </span>Zentrale Fehlerbehandlung
+<span class="k">-</span><span class="w"> </span>Grundlegende Komponenten-Modularisierung
+
+<span class="gu">### Prio 3 (Initialisierung &amp; Kernfunktionen)</span>
+<span class="k">-</span><span class="w"> </span>Optimierung der Ladezyklen
+<span class="k">-</span><span class="w"> </span>Verbesserung der Grundfunktionen
+<span class="k">-</span><span class="w"> </span>Basis-Fehlerhandling für Benutzerinteraktionen
+
+<span class="gu">### Prio 4 (Performance &amp; UX Basics)</span>
+<span class="k">-</span><span class="w"> </span>Performance-Optimierungen
+<span class="k">-</span><span class="w"> </span>Grundlegende UX-Verbesserungen
+<span class="k">-</span><span class="w"> </span>Fortschrittsanzeigen
+
+<span class="gu">### Prio 5-7 (Erweiterte Funktionen)</span>
+<span class="k">-</span><span class="w"> </span>Transcription &amp; Transformation
+<span class="k">-</span><span class="w"> </span>Batch-Prozesse
+<span class="k">-</span><span class="w"> </span>Erweiterte Tests
+<span class="k">-</span><span class="w"> </span>Komplexe UX-Optimierungen
+</code></pre></div>
+<p>Ich habe die Prioritäten komplett neu geordnet nach Ihren Kriterien:</p>
+<ol>
+<li><strong>Technische Grundlagen (Prio 1)</strong></li>
+<li>State Management (Atoms, Persistenz)</li>
+<li>Caching für Kernfunktionen</li>
+<li>
+<p>Grundlegende Navigation</p>
+</li>
+<li>
+<p><strong>Logging &amp; Fehlerbehandlung (Prio 2)</strong></p>
+</li>
+<li>Einfache, zentrale Logging-Infrastruktur</li>
+<li>Basis-Fehlerbehandlung</li>
+<li>
+<p>Grundlegende Komponenten-Modularisierung</p>
+</li>
+<li>
+<p><strong>Initialisierung &amp; Kernfunktionen (Prio 3)</strong></p>
+</li>
+<li>Optimierung der Ladezyklen</li>
+<li>Verbesserung der Grundfunktionen</li>
+<li>
+<p>Basis-Fehlerhandling für Benutzerinteraktionen</p>
+</li>
+<li>
+<p><strong>Performance &amp; UX Basics (Prio 4)</strong></p>
+</li>
+<li>Performance-Optimierungen</li>
+<li>Grundlegende UX-Verbesserungen</li>
+<li>
+<p>Einfache Fortschrittsanzeigen</p>
+</li>
+<li>
+<p><strong>Erweiterte Funktionen (Prio 5-7)</strong></p>
+</li>
+<li>Transcription &amp; Transformation</li>
+<li>Batch-Prozesse</li>
+<li>Erweiterte Tests</li>
+<li>Komplexe UX-Optimierungen</li>
+</ol>
+<p>Die wichtigsten Änderungen:
+1. Transcription/Transformation wurden nach hinten verschoben (jetzt Prio 5-7)
+2. State Management und Caching sind jetzt höchste Priorität
+3. Logging wurde vereinfacht und auf Prio 2 gesetzt
+4. Kernfunktionalität (Navigation, Datei-Anzeige) wurde priorisiert
+5. Performance-Optimierungen wurden in die Mitte gesetzt</p>
+<p>Sollen wir mit den Prio 1 Aufgaben beginnen, also dem State Management und Caching?</p>
+<hr />
+<p><strong>User</strong></p>
+<p>Ich möchte für Prio1 bis Prio3 je eine cursor rule erstellen, die die jeweilige Aufgabe im Detail beschreibt. Welche Dateien sind zu überarbeiten, was ist zu tun. Kurzer Kontext geben. Ich brache diese Dateien um einen neuen Chat zu beginnen und ausreichend Kontext mitzugeben.</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<p>Sehr gute Idee! Ich schlage vor, für jede Prio (1–3) eine eigene Datei im Format <code>cursor_rule_prioX.md</code> im Ordner <code>docs/library_concept/</code> zu erstellen.<br />
+Jede Datei enthält:</p>
+<ul>
+<li><strong>Kurzer Kontext</strong> (Warum ist das wichtig?)</li>
+<li><strong>Konkret zu überarbeitende Dateien/Module</strong></li>
+<li><strong>Detaillierte Aufgabenbeschreibung</strong></li>
+<li><strong>Hinweise/Besonderheiten</strong></li>
+</ul>
+<p>Hier die Vorschau für die drei Regeln:</p>
+<hr />
+<h3 id="1-prio-1-technische-grundlagen-state-management-caching-navigation">1. Prio 1: Technische Grundlagen (State Management, Caching, Navigation)<a class="headerlink" href="#1-prio-1-technische-grundlagen-state-management-caching-navigation" title="Permanent link">&para;</a></h3>
+<p><strong>Dateiname:</strong> <code>cursor_rule_prio1.md</code></p>
+<p><strong>Inhalt:</strong>
+- Kontext: Stabiles und konsistentes State Management ist die Basis für alle weiteren Features. Caching und Navigation müssen performant und fehlerfrei funktionieren.
+- Zu überarbeiten:
+  - <code>src/atoms/library-atom.ts</code>, <code>src/atoms/create-library-atom.ts</code>, <code>src/atoms/transcription-options.ts</code>
+  - <code>src/contexts/storage-context.tsx</code>
+  - <code>src/components/library/file-tree.tsx</code>, <code>src/components/library/file-list.tsx</code>
+  - <code>src/components/library/breadcrumb.tsx</code>
+- Aufgaben:
+  - Atoms und Contexts konsolidieren, eindeutige Benennung, keine doppelten States
+  - Persistenzstrategie für Atoms festlegen (z.B. lokale Speicherung, Initialisierung)
+  - Caching-Strategie für FileTree und FilePreview implementieren
+  - Breadcrumb-Logik zentralisieren und vereinfachen
+- Hinweise:
+  - Keine breaking changes für bestehende Kernfunktionen!
+  - Alle Änderungen dokumentieren</p>
+<hr />
+<h3 id="2-prio-2-einfaches-logging-fehlerbehandlung">2. Prio 2: Einfaches Logging &amp; Fehlerbehandlung<a class="headerlink" href="#2-prio-2-einfaches-logging-fehlerbehandlung" title="Permanent link">&para;</a></h3>
+<p><strong>Dateiname:</strong> <code>cursor_rule_prio2.md</code></p>
+<p><strong>Inhalt:</strong>
+- Kontext: Einheitliches Logging und Fehlerhandling sind essenziell für Debugging und Wartbarkeit.
+- Zu überarbeiten:
+  - <code>src/components/debug/debug-panel.tsx</code>
+  - <code>src/lib/event-job-repository.ts</code>
+  - <code>src/lib/services/library-service.ts</code>
+  - Alle Komponenten mit Fehlerausgabe (Error Boundaries, Logging)
+- Aufgaben:
+  - Zentrale Logging-API mit Komponententags einführen
+  - Einfaches Log-Atom und DebugPanel erweitern (Checkboxen, Filter)
+  - Fehlerhandling vereinheitlichen (typisierte Fehler, Error Boundaries)
+  - Logging in Kernkomponenten integrieren
+- Hinweise:
+  - Logging darf keine Performance-Probleme verursachen
+  - Fehlerausgaben müssen für User und Entwickler verständlich sein</p>
+<hr />
+<h3 id="3-prio-3-initialisierungslogik-grundfunktionalitat">3. Prio 3: Initialisierungslogik &amp; Grundfunktionalität<a class="headerlink" href="#3-prio-3-initialisierungslogik-grundfunktionalitat" title="Permanent link">&para;</a></h3>
+<p><strong>Dateiname:</strong> <code>cursor_rule_prio3.md</code></p>
+<p><strong>Inhalt:</strong>
+- Kontext: Die Initialisierung der App darf keine doppelten Ladezyklen oder inkonsistente States erzeugen. Grundfunktionen wie Navigation und Datei-Anzeige müssen immer funktionieren.
+- Zu überarbeiten:
+  - <code>src/app/library/[libraryId]/[[...path]]/page.tsx</code>
+  - <code>src/components/library/library.tsx</code>
+  - <code>src/components/library/file-preview.tsx</code>
+  - <code>src/hooks/use-selected-file.ts</code>
+- Aufgaben:
+  - Initialisierungslogik für Bibliothek und Dateiansicht optimieren (keine doppelten Requests)
+  - Sicherstellen, dass Navigation und Datei-Anzeige robust funktionieren
+  - Fehlerquellen bei der Initialisierung identifizieren und beheben
+- Hinweise:
+  - Fokus auf Zuverlässigkeit und Benutzerfreundlichkeit
+  - Testfälle für Initialisierung und Navigation ergänzen</p>
+<hr />
+<p><strong>Soll ich diese drei Dateien jetzt anlegen?</strong></p>
+<hr />
+<p><strong>User</strong></p>
+<p>@/rules ja bitte hier anlegen</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code>**Kontext:**
+Stabiles und konsistentes State Management ist die Basis für alle weiteren Features. Caching und Navigation müssen performant und fehlerfrei funktionieren.
+
+**Zu überarbeiten:**
+- Atoms und Contexts konsolidieren, eindeutige Benennung, keine doppelten States
+- Persistenzstrategie für Atoms festlegen (z.B. lokale Speicherung, Initialisierung)
+- Caching-Strategie für FileTree und FilePreview implementieren
+- Breadcrumb-Logik zentralisieren und vereinfachen
+
+**Hinweise:**
+- Keine breaking changes für bestehende Kernfunktionen!
+- Alle Änderungen dokumentieren
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>**Kontext:**
+Einheitliches Logging und Fehlerhandling sind essenziell für Debugging und Wartbarkeit.
+
+**Zu überarbeiten:**
+- Zentrale Logging-API mit Komponententags einführen
+- Einfaches Log-Atom und DebugPanel erweitern (Checkboxen, Filter)
+- Fehlerhandling vereinheitlichen (typisierte Fehler, Error Boundaries)
+- Logging in Kernkomponenten integrieren
+
+**Hinweise:**
+- Logging darf keine Performance-Probleme verursachen
+- Fehlerausgaben müssen für User und Entwickler verständlich sein
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>**Kontext:**
+Die Initialisierung der App darf keine doppelten Ladezyklen oder inkonsistente States erzeugen. Grundfunktionen wie Navigation und Datei-Anzeige müssen immer funktionieren.
+
+**Zu überarbeiten:**
+- Initialisierungslogik für Bibliothek und Dateiansicht optimieren (keine doppelten Requests)
+- Sicherstellen, dass Navigation und Datei-Anzeige robust funktionieren
+- Fehlerquellen bei der Initialisierung identifizieren und beheben
+
+**Hinweise:**
+- Fokus auf Zuverlässigkeit und Benutzerfreundlichkeit
+- Testfälle für Initialisierung und Navigation ergänzen
+</code></pre></div>
+<p>Die drei Cursor-Regeln für Prio 1–3 wurden im Ordner <code>.cursor/rules/</code> angelegt:</p>
+<ul>
+<li><strong>Prio 1:</strong> <code>.cursor/rules/prio1-state-caching-navigation.mdc</code></li>
+<li><strong>Prio 2:</strong> <code>.cursor/rules/prio2-logging-errorhandling.mdc</code></li>
+<li><strong>Prio 3:</strong> <code>.cursor/rules/prio3-init-grundfunktion.mdc</code></li>
+</ul>
+<p>Jede Datei enthält:
+- Kontext (Warum ist das wichtig?)
+- Zu überarbeitende Dateien/Module (mit Globs)
+- Detaillierte Aufgabenbeschreibung
+- Hinweise/Besonderheiten</p>
+<p>Du kannst diese Dateien direkt für neue Chats oder als Kontext für gezielte Aufgaben verwenden.<br />
+Wenn du möchtest, kann ich dir die Inhalte auch als Text ausgeben oder weitere Regeln für andere Prio-Stufen anlegen. Sag einfach Bescheid!</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

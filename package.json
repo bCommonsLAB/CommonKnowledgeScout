@@ -30,6 +30,8 @@
     "dev": "next dev",
     "build": "next build",
     "build:web": "next build",
+    "docs:build": "mkdocs build",
+    "docs:serve": "mkdocs serve",
     "build:package": "cross-env IS_PACKAGE_BUILD=true BUILD_TARGET=package pnpm exec next build && node scripts/prepare-package.js",
     "package:prepare": "node scripts/prepare-package.js",
     "package:publish": "pnpm run build:package && pnpm publish",

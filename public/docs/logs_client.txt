@@ -1,0 +1,204 @@
+main-app.js?v=1749196461020:2303 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\top-nav.tsx:51 TopNav: Jotai-Zustand aktualisiert {libraries: 'keine', activeLibraryId: ''}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\app\library\page.tsx:31 [LibraryPage] Setze aktive Bibliothek aus URL-Parameter: ID_OnedriveTest
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-storage-provider.tsx:17 [useStorageProvider] useEffect: {activeLibraryId: '', libraries: Array(0)}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-storage-provider.tsx:23 [useStorageProvider] Keine aktive Bibliothek, setze Provider auf null
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:417 [StorageContext] useEffect: currentLibrary null
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:444 [StorageContext] API-Call ausgelöst. Aktueller Status: initializing
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:450 [StorageContextProvider] Render: {activeLibraryId: '', currentLibraryId: undefined, providerId: undefined}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\top-nav.tsx:51 TopNav: Jotai-Zustand aktualisiert {libraries: 'keine', activeLibraryId: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-storage-provider.tsx:17 [useStorageProvider] useEffect: {activeLibraryId: 'ID_OnedriveTest', libraries: Array(0)}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-storage-provider.tsx:29 [useStorageProvider] Bibliotheksliste ist leer, warte auf Bibliotheken
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:450 [StorageContextProvider] Render: {activeLibraryId: 'ID_OnedriveTest', currentLibraryId: undefined, providerId: undefined}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\app\library\page.tsx:52 Loading libraries for user: peter.aichner@crystal-design.com
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:173 [StorageContext] Lade Bibliotheken...
+C:\Users\peter.aichner\projekte\knowledge-scout\src\app\library\page.tsx:80 Loaded libraries: (3) [{…}, {…}, {…}]
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\top-nav.tsx:51 TopNav: Jotai-Zustand aktualisiert {libraries: 'Archiv Peter, Fosdem 2025, Onedrive Test', activeLibraryId: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:48 [Library] StorageContext Status: {providerVorhanden: false, providerTyp: 'keiner', providerID: undefined, isLoading: true, error: null}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:78 Library: Initialisiere Jotai-Zustand mit 3 Bibliotheken
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:89 Library: Aktive Bibliothek geändert, setze currentFolderId zurück
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:143 Library Config: {activeLibraryId: 'ID_OnedriveTest', transcriptionEnabled: false, config: {…}}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-storage-provider.tsx:17 [useStorageProvider] useEffect: {activeLibraryId: 'ID_OnedriveTest', libraries: Array(3)}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-storage-provider.tsx:41 [useStorageProvider] Initialisiere Provider für Bibliothek: ID_OnedriveTest
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:212 StorageFactory: setLibraries aufgerufen mit 3 Bibliotheken
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:222 StorageFactory: Bibliotheksdaten: (3) [{…}, {…}, {…}]
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:239 StorageFactory: Bibliotheksliste hat sich geändert, setze Provider zurück
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:271 StorageFactory: getProvider aufgerufen für Bibliothek ID_OnedriveTest
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:301 StorageFactory: Erstelle neuen Provider für Bibliothek: {id: 'ID_OnedriveTest', label: 'Onedrive Test', path: '', type: 'onedrive'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:72 [OneDriveProvider] Tokens aus Bibliothekskonfiguration geladen
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:317 StorageFactory: OneDriveProvider erstellt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:297 FileList: Keine Dateien zum Filtern
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\upload-dialog.tsx:29 UploadDialog: Dialog state changed {open: false, hasProvider: false, currentFolderId: 'root'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\upload-dialog.tsx:39 UploadDialog: Skipping path load - Dialog closed or no provider
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library-header.tsx:49 LibraryHeader: State updated {isUploadOpen: false, hasProvider: false, currentFolderId: 'root', activeLibrary: 'Onedrive Test', breadcrumbItems: 0, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:204 FileTree: Provider geändert {vorherigerId: null, aktuellerId: null, providerVorhanden: false, libraryName: 'Onedrive Test', currentFolderId: 'root', …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:240 FileTree: No provider available, cannot load items
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:274 [FileTree] Render: {propProvider: undefined, contextLibraryId: 'ID_OnedriveTest', activeLibraryIdAtom: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:349 [FileList] Render: {currentLibraryId: 'ID_OnedriveTest', activeLibraryIdAtom: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:417 [StorageContext] useEffect: currentLibrary {id: 'ID_OnedriveTest', label: 'Onedrive Test', path: '', icon: {…}, type: 'onedrive', …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:421 [StorageContext] Bibliothek geladen. Token vorhanden: true Config: {transcription: 'disabled', tenantId: '0b972e14-e31c-4c25-8739-03638ba51e85', clientId: '54c7c443-c4f8-487b-9bd1-a753046be47d', clientSecret: '_GQ8Q~1fTFG55xZvO9BW_ujOx2cDuqrXaGdwmdv-', accessToken: 'eyJ0eXAiOiJKV1QiLCJub25jZSI6IlhuMUlXbmJmdTdvdkhmSH…VrZPO17ckTT1VtUD61i9Tq-1pxUP4-LlmbtxXWKKHG8_5p_oA', …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:432 [StorageContext] Status auf "ready" gesetzt, Token vorhanden.
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:444 [StorageContext] API-Call ausgelöst. Aktueller Status: ready
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:450 [StorageContextProvider] Render: {activeLibraryId: 'ID_OnedriveTest', currentLibraryId: 'ID_OnedriveTest', providerId: undefined}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-storage-provider.tsx:48 [useStorageProvider] Provider erfolgreich initialisiert: Microsoft OneDrive (ID: ID_OnedriveTest)
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 41.90ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:91 [StorageContext] Provider-Wechsel: Kein Provider -> Microsoft OneDrive
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:106 [StorageContext] Provider Microsoft OneDrive validiert
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\upload-dialog.tsx:29 UploadDialog: Dialog state changed {open: false, hasProvider: true, currentFolderId: 'root'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\upload-dialog.tsx:39 UploadDialog: Skipping path load - Dialog closed or no provider
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library-header.tsx:49 LibraryHeader: State updated {isUploadOpen: false, hasProvider: true, currentFolderId: 'root', activeLibrary: 'Onedrive Test', breadcrumbItems: 0, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:204 FileTree: Provider geändert {vorherigerId: null, aktuellerId: 'ID_OnedriveTest', providerVorhanden: true, libraryName: 'Onedrive Test', currentFolderId: 'root', …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:215 FileTree: Provider-ID hat sich geändert, setze Zustand zurück
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:234 FileTree: Initial root items load for provider {providerId: 'ID_OnedriveTest', providerName: 'Microsoft OneDrive'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:156 FileTree: Starting root load (request #1) for provider ID_OnedriveTest
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:274 [FileTree] Render: {propProvider: 'ID_OnedriveTest', contextLibraryId: 'ID_OnedriveTest', activeLibraryIdAtom: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:48 [Library] StorageContext Status: {providerVorhanden: true, providerTyp: 'Microsoft OneDrive', providerID: 'ID_OnedriveTest', isLoading: true, error: null}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:291 Library: Loading items for current folder due to provider or folder change
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:186 Library: Starting loadItems {currentFolderId: 'root', hasCachedItems: false}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:221 Library: Fetching items from provider
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:322 [StorageContext][listItems] Aufruf: {requestedLibraryId: 'ID_OnedriveTest', activeLibraryId: 'ID_OnedriveTest', currentLibrary: {…}, providerId: 'ID_OnedriveTest', providerName: 'Microsoft OneDrive'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:417 [StorageContext] useEffect: currentLibrary {id: 'ID_OnedriveTest', label: 'Onedrive Test', path: '', icon: {…}, type: 'onedrive', …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:421 [StorageContext] Bibliothek geladen. Token vorhanden: true Config: {transcription: 'disabled', tenantId: '0b972e14-e31c-4c25-8739-03638ba51e85', clientId: '54c7c443-c4f8-487b-9bd1-a753046be47d', clientSecret: '_GQ8Q~1fTFG55xZvO9BW_ujOx2cDuqrXaGdwmdv-', accessToken: 'eyJ0eXAiOiJKV1QiLCJub25jZSI6IlhuMUlXbmJmdTdvdkhmSH…VrZPO17ckTT1VtUD61i9Tq-1pxUP4-LlmbtxXWKKHG8_5p_oA', …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:425 [StorageContext] Provider geladen: Microsoft OneDrive AuthInfo: undefined
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:432 [StorageContext] Status auf "ready" gesetzt, Token vorhanden.
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:450 [StorageContextProvider] Render: {activeLibraryId: 'ID_OnedriveTest', currentLibraryId: 'ID_OnedriveTest', providerId: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 26.40ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 26.60ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:223 FileTree: Triggerung forced reload after provider change
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:156 FileTree: Starting root load (request #2) for provider ID_OnedriveTest
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 2.30ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:239 [OneDriveProvider] OAuth-Defaults geladen
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:291 Library: Loading items for current folder due to provider or folder change
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:186 Library: Starting loadItems {currentFolderId: 'root', hasCachedItems: false}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:221 Library: Fetching items from provider
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:322 [StorageContext][listItems] Aufruf: {requestedLibraryId: 'ID_OnedriveTest', activeLibraryId: 'ID_OnedriveTest', currentLibrary: {…}, providerId: 'ID_OnedriveTest', providerName: 'Microsoft OneDrive'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:197 [StorageContext] Bibliotheken geladen: 3
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:212 StorageFactory: setLibraries aufgerufen mit 3 Bibliotheken
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:222 StorageFactory: Bibliotheksdaten: (3) [{…}, {…}, {…}]
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:239 StorageFactory: Bibliotheksliste hat sich geändert, setze Provider zurück
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:217 [StorageContext] Gespeicherte Bibliothek wird verwendet: ID_OnedriveTest
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\top-nav.tsx:51 TopNav: Jotai-Zustand aktualisiert {libraries: 'Archiv Peter, Fosdem 2025, Onedrive Test', activeLibraryId: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library-header.tsx:49 LibraryHeader: State updated {isUploadOpen: false, hasProvider: true, currentFolderId: 'root', activeLibrary: 'Onedrive Test', breadcrumbItems: 0, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:78 Library: Initialisiere Jotai-Zustand mit 3 Bibliotheken
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:143 Library Config: {activeLibraryId: 'ID_OnedriveTest', transcriptionEnabled: false, config: {…}}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:291 Library: Loading items for current folder due to provider or folder change
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:186 Library: Starting loadItems {currentFolderId: 'root', hasCachedItems: false}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:221 Library: Fetching items from provider
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:322 [StorageContext][listItems] Aufruf: {requestedLibraryId: 'ID_OnedriveTest', activeLibraryId: 'ID_OnedriveTest', currentLibrary: {…}, providerId: 'ID_OnedriveTest', providerName: 'Microsoft OneDrive'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-storage-provider.tsx:17 [useStorageProvider] useEffect: {activeLibraryId: 'ID_OnedriveTest', libraries: Array(3)}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-storage-provider.tsx:41 [useStorageProvider] Initialisiere Provider für Bibliothek: ID_OnedriveTest
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:212 StorageFactory: setLibraries aufgerufen mit 3 Bibliotheken
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:222 StorageFactory: Bibliotheksdaten: (3) [{…}, {…}, {…}]
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:239 StorageFactory: Bibliotheksliste hat sich geändert, setze Provider zurück
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:271 StorageFactory: getProvider aufgerufen für Bibliothek ID_OnedriveTest
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:301 StorageFactory: Erstelle neuen Provider für Bibliothek: {id: 'ID_OnedriveTest', label: 'Onedrive Test', path: '', type: 'onedrive'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:72 [OneDriveProvider] Tokens aus Bibliothekskonfiguration geladen
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\storage-factory.ts:317 StorageFactory: OneDriveProvider erstellt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:274 [FileTree] Render: {propProvider: 'ID_OnedriveTest', contextLibraryId: 'ID_OnedriveTest', activeLibraryIdAtom: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:349 [FileList] Render: {currentLibraryId: 'ID_OnedriveTest', activeLibraryIdAtom: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:291 Library: Loading items for current folder due to provider or folder change
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:186 Library: Starting loadItems {currentFolderId: 'root', hasCachedItems: false}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:221 Library: Fetching items from provider
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:322 [StorageContext][listItems] Aufruf: {requestedLibraryId: 'ID_OnedriveTest', activeLibraryId: 'ID_OnedriveTest', currentLibrary: {…}, providerId: 'ID_OnedriveTest', providerName: 'Microsoft OneDrive'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:417 [StorageContext] useEffect: currentLibrary {id: 'ID_OnedriveTest', label: 'Onedrive Test', type: 'onedrive', path: '', isEnabled: true, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:421 [StorageContext] Bibliothek geladen. Token vorhanden: true Config: {tenantId: '0b972e14-e31c-4c25-8739-03638ba51e85', clientId: '54c7c443-c4f8-487b-9bd1-a753046be47d', clientSecret: '_GQ8Q~1fTFG55xZvO9BW_ujOx2cDuqrXaGdwmdv-', accessToken: 'eyJ0eXAiOiJKV1QiLCJub25jZSI6IlhuMUlXbmJmdTdvdkhmSH…VrZPO17ckTT1VtUD61i9Tq-1pxUP4-LlmbtxXWKKHG8_5p_oA', refreshToken: '1.ATwAFC6XCxzjJUyHOQNji6UehUPEx1T4xHtIm9GnUwRr5H0a…sHQQb5gn0w1S3Hj3UuyDJw7ZyFsj3EsgTXhz5Df0XJPWyALCM', …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:425 [StorageContext] Provider geladen: Microsoft OneDrive AuthInfo: undefined
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:432 [StorageContext] Status auf "ready" gesetzt, Token vorhanden.
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:450 [StorageContextProvider] Render: {activeLibraryId: 'ID_OnedriveTest', currentLibraryId: 'ID_OnedriveTest', providerId: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-storage-provider.tsx:48 [useStorageProvider] Provider erfolgreich initialisiert: Microsoft OneDrive (ID: ID_OnedriveTest)
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 15.70ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 15.80ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 1.20ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:291 Library: Loading items for current folder due to provider or folder change
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:186 Library: Starting loadItems {currentFolderId: 'root', hasCachedItems: false}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:221 Library: Fetching items from provider
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:322 [StorageContext][listItems] Aufruf: {requestedLibraryId: 'ID_OnedriveTest', activeLibraryId: 'ID_OnedriveTest', currentLibrary: {…}, providerId: 'ID_OnedriveTest', providerName: 'Microsoft OneDrive'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:91 [StorageContext] Provider-Wechsel: Microsoft OneDrive -> Microsoft OneDrive
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:97 [StorageContext] Alten Provider Microsoft OneDrive aufgeräumt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:106 [StorageContext] Provider Microsoft OneDrive validiert
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:239 [OneDriveProvider] OAuth-Defaults geladen
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:239 [OneDriveProvider] OAuth-Defaults geladen
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:239 [OneDriveProvider] OAuth-Defaults geladen
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:239 [OneDriveProvider] OAuth-Defaults geladen
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\upload-dialog.tsx:29 UploadDialog: Dialog state changed {open: false, hasProvider: true, currentFolderId: 'root'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\upload-dialog.tsx:39 UploadDialog: Skipping path load - Dialog closed or no provider
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library-header.tsx:49 LibraryHeader: State updated {isUploadOpen: false, hasProvider: true, currentFolderId: 'root', activeLibrary: 'Onedrive Test', breadcrumbItems: 0, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:204 FileTree: Provider geändert {vorherigerId: 'ID_OnedriveTest', aktuellerId: 'ID_OnedriveTest', providerVorhanden: true, libraryName: 'Onedrive Test', currentFolderId: 'root', …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:234 FileTree: Initial root items load for provider {providerId: 'ID_OnedriveTest', providerName: 'Microsoft OneDrive'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:156 FileTree: Starting root load (request #3) for provider ID_OnedriveTest
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-tree.tsx:274 [FileTree] Render: {propProvider: 'ID_OnedriveTest', contextLibraryId: 'ID_OnedriveTest', activeLibraryIdAtom: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:48 [Library] StorageContext Status: {providerVorhanden: true, providerTyp: 'Microsoft OneDrive', providerID: 'ID_OnedriveTest', isLoading: true, error: null}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:291 Library: Loading items for current folder due to provider or folder change
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:186 Library: Starting loadItems {currentFolderId: 'root', hasCachedItems: false}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:221 Library: Fetching items from provider
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:322 [StorageContext][listItems] Aufruf: {requestedLibraryId: 'ID_OnedriveTest', activeLibraryId: 'ID_OnedriveTest', currentLibrary: {…}, providerId: 'ID_OnedriveTest', providerName: 'Microsoft OneDrive'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:417 [StorageContext] useEffect: currentLibrary {id: 'ID_OnedriveTest', label: 'Onedrive Test', type: 'onedrive', path: '', isEnabled: true, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:421 [StorageContext] Bibliothek geladen. Token vorhanden: true Config: {tenantId: '0b972e14-e31c-4c25-8739-03638ba51e85', clientId: '54c7c443-c4f8-487b-9bd1-a753046be47d', clientSecret: '_GQ8Q~1fTFG55xZvO9BW_ujOx2cDuqrXaGdwmdv-', accessToken: 'eyJ0eXAiOiJKV1QiLCJub25jZSI6IlhuMUlXbmJmdTdvdkhmSH…VrZPO17ckTT1VtUD61i9Tq-1pxUP4-LlmbtxXWKKHG8_5p_oA', refreshToken: '1.ATwAFC6XCxzjJUyHOQNji6UehUPEx1T4xHtIm9GnUwRr5H0a…sHQQb5gn0w1S3Hj3UuyDJw7ZyFsj3EsgTXhz5Df0XJPWyALCM', …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:425 [StorageContext] Provider geladen: Microsoft OneDrive AuthInfo: undefined
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:432 [StorageContext] Status auf "ready" gesetzt, Token vorhanden.
+C:\Users\peter.aichner\projekte\knowledge-scout\src\contexts\storage-context.tsx:450 [StorageContextProvider] Render: {activeLibraryId: 'ID_OnedriveTest', currentLibraryId: 'ID_OnedriveTest', providerId: 'ID_OnedriveTest'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:172 [OneDriveProvider] Tokens für ID_OnedriveTest aus localStorage entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:190 [OneDriveProvider] Entferne Tokens aus der Datenbank...
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:172 [OneDriveProvider] Tokens für ID_OnedriveTest aus localStorage entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:190 [OneDriveProvider] Entferne Tokens aus der Datenbank...
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:172 [OneDriveProvider] Tokens für ID_OnedriveTest aus localStorage entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:190 [OneDriveProvider] Entferne Tokens aus der Datenbank...
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:172 [OneDriveProvider] Tokens für ID_OnedriveTest aus localStorage entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:190 [OneDriveProvider] Entferne Tokens aus der Datenbank...
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:172 [OneDriveProvider] Tokens für ID_OnedriveTest aus localStorage entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:190 [OneDriveProvider] Entferne Tokens aus der Datenbank...
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:172 [OneDriveProvider] Tokens für ID_OnedriveTest aus localStorage entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:190 [OneDriveProvider] Entferne Tokens aus der Datenbank...
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:172 [OneDriveProvider] Tokens für ID_OnedriveTest aus localStorage entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:190 [OneDriveProvider] Entferne Tokens aus der Datenbank...
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:172 [OneDriveProvider] Tokens für ID_OnedriveTest aus localStorage entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:190 [OneDriveProvider] Entferne Tokens aus der Datenbank...
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:172 [OneDriveProvider] Tokens für ID_OnedriveTest aus localStorage entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:190 [OneDriveProvider] Entferne Tokens aus der Datenbank...
+C:\src\client\components\react-dev-overlay\app\hot-reloader-client.tsx:306 [Fast Refresh] rebuilding
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:209 [OneDriveProvider] Tokens erfolgreich aus der Datenbank entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:110 useSelectedFile: updateBreadcrumb {itemsCount: 0, items: '', currentId: 'root', action: 'START'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:293 Library: Initial items loaded, ensuring breadcrumb is updated
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:132 useSelectedFile: Breadcrumb unverändert, keine Aktualisierung
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:297 FileList: Keine Dateien zum Filtern
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library-header.tsx:49 LibraryHeader: State updated {isUploadOpen: false, hasProvider: true, currentFolderId: 'root', activeLibrary: 'Onedrive Test', breadcrumbItems: 0, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 3.00ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:209 [OneDriveProvider] Tokens erfolgreich aus der Datenbank entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:209 [OneDriveProvider] Tokens erfolgreich aus der Datenbank entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:110 useSelectedFile: updateBreadcrumb {itemsCount: 0, items: '', currentId: 'root', action: 'START'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:293 Library: Initial items loaded, ensuring breadcrumb is updated
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:132 useSelectedFile: Breadcrumb unverändert, keine Aktualisierung
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:297 FileList: Keine Dateien zum Filtern
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 1.40ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library-header.tsx:49 LibraryHeader: State updated {isUploadOpen: false, hasProvider: true, currentFolderId: 'root', activeLibrary: 'Onedrive Test', breadcrumbItems: 0, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:209 [OneDriveProvider] Tokens erfolgreich aus der Datenbank entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:110 useSelectedFile: updateBreadcrumb {itemsCount: 0, items: '', currentId: 'root', action: 'START'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:293 Library: Initial items loaded, ensuring breadcrumb is updated
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:132 useSelectedFile: Breadcrumb unverändert, keine Aktualisierung
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:297 FileList: Keine Dateien zum Filtern
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 1.10ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library-header.tsx:49 LibraryHeader: State updated {isUploadOpen: false, hasProvider: true, currentFolderId: 'root', activeLibrary: 'Onedrive Test', breadcrumbItems: 0, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:209 [OneDriveProvider] Tokens erfolgreich aus der Datenbank entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:110 useSelectedFile: updateBreadcrumb {itemsCount: 0, items: '', currentId: 'root', action: 'START'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:293 Library: Initial items loaded, ensuring breadcrumb is updated
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:132 useSelectedFile: Breadcrumb unverändert, keine Aktualisierung
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:297 FileList: Keine Dateien zum Filtern
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library-header.tsx:49 LibraryHeader: State updated {isUploadOpen: false, hasProvider: true, currentFolderId: 'root', activeLibrary: 'Onedrive Test', breadcrumbItems: 0, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 3.90ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:209 [OneDriveProvider] Tokens erfolgreich aus der Datenbank entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:110 useSelectedFile: updateBreadcrumb {itemsCount: 0, items: '', currentId: 'root', action: 'START'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:293 Library: Initial items loaded, ensuring breadcrumb is updated
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:132 useSelectedFile: Breadcrumb unverändert, keine Aktualisierung
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:297 FileList: Keine Dateien zum Filtern
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library-header.tsx:49 LibraryHeader: State updated {isUploadOpen: false, hasProvider: true, currentFolderId: 'root', activeLibrary: 'Onedrive Test', breadcrumbItems: 0, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 12.60ms
+C:\src\client\components\react-dev-overlay\utils\report-hmr-latency.ts:26 [Fast Refresh] done in 2858ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:209 [OneDriveProvider] Tokens erfolgreich aus der Datenbank entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:110 useSelectedFile: updateBreadcrumb {itemsCount: 0, items: '', currentId: 'root', action: 'START'}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library.tsx:293 Library: Initial items loaded, ensuring breadcrumb is updated
+C:\Users\peter.aichner\projekte\knowledge-scout\src\hooks\use-selected-file.ts:132 useSelectedFile: Breadcrumb unverändert, keine Aktualisierung
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:297 FileList: Keine Dateien zum Filtern
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:209 [OneDriveProvider] Tokens erfolgreich aus der Datenbank entfernt
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\file-list.tsx:279 FileList render time: 5.30ms
+C:\Users\peter.aichner\projekte\knowledge-scout\src\components\library\library-header.tsx:49 LibraryHeader: State updated {isUploadOpen: false, hasProvider: true, currentFolderId: 'root', activeLibrary: 'Onedrive Test', breadcrumbItems: 0, …}
+C:\Users\peter.aichner\projekte\knowledge-scout\src\lib\storage\onedrive-provider.ts:209 [OneDriveProvider] Tokens erfolgreich aus der Datenbank entfernt

@@ -1,7 +1,7 @@
 import * as React from "react"
 import { UILogger } from "@/lib/debug/logger"
 import { Button } from "@/components/ui/button"
-import { Upload, AlertTriangle, ArrowLeft, Eye } from "lucide-react"
+import { Upload, AlertTriangle, ArrowLeft, Eye, FileStack } from "lucide-react"
 import { UploadDialog } from "./upload-dialog"
 import { StorageProvider } from "@/lib/storage/types"
 import { useCallback } from "react"
@@ -10,6 +10,7 @@ import { useAtom } from "jotai"
 import { currentFolderIdAtom, reviewModeAtom } from "@/atoms/library-atom"
 import { Breadcrumb } from "./breadcrumb"
 import { AudioRecorderClient } from "./audio-recorder-client"
+import PdfBulkImportDialog from "./pdf-bulk-import-dialog"
 
 interface LibraryHeaderProps {
   provider: StorageProvider | null
@@ -27,6 +28,7 @@ export function LibraryHeader({
   onClearCache
 }: LibraryHeaderProps) {
   const [isUploadOpen, setIsUploadOpen] = React.useState(false)
+  const [isPdfBulkOpen, setIsPdfBulkOpen] = React.useState(false)
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const [isReviewMode, setIsReviewMode] = useAtom(reviewModeAtom);
 
@@ -39,6 +41,11 @@ export function LibraryHeader({
   const handleUploadClick = useCallback(() => {
     UILogger.info('LibraryHeader', 'Upload button clicked');
     setIsUploadOpen(true);
+  }, []);
+
+  const handlePdfBulkClick = useCallback(() => {
+    UILogger.info('LibraryHeader', 'PDF bulk button clicked');
+    setIsPdfBulkOpen(true);
   }, []);
 
   const handleReviewModeToggle = useCallback(() => {
@@ -91,6 +98,14 @@ export function LibraryHeader({
             >
               <Upload className="h-4 w-4" />
             </Button>
+            <Button
+              variant="secondary"
+              onClick={handlePdfBulkClick}
+              className="gap-2"
+            >
+              <FileStack className="h-4 w-4" />
+              PDF-Verzeichnis verarbeiten
+            </Button>
             <AudioRecorderClient 
               onUploadComplete={handleUploadComplete}
             />
@@ -107,6 +122,14 @@ export function LibraryHeader({
         provider={provider}
         currentFolderId={currentFolderId}
         onSuccess={handleUploadComplete}
+      />
+
+      <PdfBulkImportDialog
+        open={isPdfBulkOpen}
+        onOpenChange={(open) => {
+          UILogger.info('LibraryHeader', 'PDF bulk dialog state change', { open });
+          setIsPdfBulkOpen(open);
+        }}
       />
     </div>
   )

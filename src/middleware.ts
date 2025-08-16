@@ -3,6 +3,7 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 // Liste der öffentlichen Routen, die ohne Anmeldung zugänglich sind
 const isPublicRoute = createRouteMatcher([
   '/',
+  '/docs(.*)',
   '/api/storage(.*)', // Storage API für Tests freigeben (sowohl /api/storage als auch /api/storage/filesystem)
   '/api/test-route(.*)', // Test-Route freigeben
 ]);

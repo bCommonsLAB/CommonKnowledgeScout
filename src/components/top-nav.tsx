@@ -22,6 +22,10 @@ const publicNavItems = [
     name: "Home",
     href: "/",
   },
+  {
+    name: "Docs",
+    href: "/docs/index.html",
+  },
 ];
 
 // Geschützte Navigationselemente (nur für angemeldete Benutzer)
