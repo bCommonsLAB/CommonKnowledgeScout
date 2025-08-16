@@ -263,8 +263,8 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
           description: `Die Bibliothek "${data.label}" wurde erfolgreich erstellt.`,
         });
         
-        // Zur Bibliotheksseite navigieren
-        router.push('/library');
+        // Weiter direkt zu den Storage-Einstellungen navigieren
+        router.push('/settings/storage');
       } else {
         // Bestehende Bibliothek aktualisieren
         const updatedLibraries = libraries.map(lib => 

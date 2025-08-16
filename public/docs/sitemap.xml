@@ -1,483 +1,487 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>http://localhost:3000/docs/index.html</loc>
-         <lastmod>2025-08-15</lastmod>
-    </url>
-    <url>
          <loc>http://localhost:3000/docs/docker-deployment.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/electron-package-strategy.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/electron-quick-setup.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_analysis/docs-inventory.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_analysis/docs-reorg-plan.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/_analysis/generic-worker-migration.html</loc>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_analysis/ux-gap-2025-08-15.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_archive/01_project_overview.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_archive/02_architecture.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_archive/05-features-transformation-service.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_archive/05_feature-shadowtwins.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_archive/05_features.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_archive/06_setup.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_archive/07_api.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_archive/08_settings.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_archive/localstorage.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_archive/mainConcept.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_24.06.18.2_debugging_global_state_update_is.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25..06.25_eventmanager.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.06.18.1_refactoring_library_component_st.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.06.18.2_prioritizing_state_management_re.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.10_audio_preview_und_transkription.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.11_1_audio_preview_und_transkription.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.11_2_implement_usecache_checkbox_in_f.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.11_3_implement_usecache_checkbox_and.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.11_4_pdf_transformation_implementatio.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.12_1_analyse_der_file_list_ansicht.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.12_2_layout_anpassen_f_r_bild_und_tra.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.12_3_%20was_habe_ich_zuletzt_gemacht.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.12_4_warum_werden_png_nicht_angezeigt.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.12_5_probleme_mit_bilddateinamen_im_p.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.14_1_neue_extraktionsmethoden_f_r_pdf.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.14_2_probleme_bei_der_bibliothekserst.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.14_3_library_switcher_and_recent_chan.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.14_4_verzeichnisse_in_der_fileliste_a.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.14_5_markdown_text_display_issue.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.07.14_6_gruppierungslogik_f_r_shadowtwin.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_25.08.02_PDFforRAG.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/cursor_batch_transcribing_files_in_file.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_history/todo-list-export.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_instructions/AI_Documenter_prompts.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_instructions/HowToUseimageocr.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_instructions/cursor_2025.08.15_dokumentation_f_r_komplexes_proj.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/_instructions/generic-worker.html</loc>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_instructions/history.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_instructions/processors_pdf_imageocr.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_instructions/roadmap.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_instructions/secretary%20service_templates.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_instructions/secretary-services.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_instructions/session_archive_usage.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/architecture/index.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/architecture/architecture.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/architecture/core-components.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/index.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/image-transformation.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/localstorage.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/metadata.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/storage-provider.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/video-transformation.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/features/extended-shadowtwin.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/features/shadowtwins.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/features/transformation-service.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/batch-transcription.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/breadcrumb.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/components.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/error-handling-logging-testing.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/file-list.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/file-preview.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/file-tree.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/global-state.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/header.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/initialization-sequence.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/overview.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/transcription.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/transform.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/library/upload.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/concepts/pdf/extraction-methods.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/index.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/batch-session-import.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/event-monitor.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/faq.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/getting-started.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/library.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/settings.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/setup.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/troubleshooting.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/pdf/image-extraction-test-plan.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/guide/pdf/image-extraction-testing-guide.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/00_overview.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/01_global-state.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/02_header.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/03_breadcrumb.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/04_file-tree.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/05_file-list.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/06_upload.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/07_file-preview.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/08_transcription.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/09_transform.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/10_batch-transcription.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/11_error-handling-logging-testing.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/12_initialization-sequence.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/library_concept/todos.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/ops/index.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/ops/deployment/docker.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/ops/desktop/package-strategy.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/ops/desktop/quick-setup.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/overview/index.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/overview/features.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/overview/intro.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/overview/main-concept.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/powerpoint/index.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/powerpoint/knowledge-scout-presentation-10min.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/powerpoint/knowledge-scout-presentation.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/powerpoint/presentation-notes-10min.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/powerpoint/presentation-notes.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/powerpoint/slides.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/index.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/glossary.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/api/overview.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/api/secretary-services.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/api/track-processor.html</loc>
-         <lastmod>2025-08-15</lastmod>
+         <lastmod>2025-08-16</lastmod>
     </url>
 </urlset>

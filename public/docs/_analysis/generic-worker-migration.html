@@ -8,25 +8,21 @@
       
       
       
-        <link rel="canonical" href="http://localhost:3000/docs/concepts/library/upload.html">
+        <link rel="canonical" href="http://localhost:3000/docs/_analysis/generic-worker-migration.html">
       
       
-        <link rel="prev" href="file-list.html">
       
       
-        <link rel="next" href="file-preview.html">
-      
-      
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
     
     
       
-        <title>Library – Upload - Common Knowledge Scout</title>
+        <title>Generic worker migration - Common Knowledge Scout</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.7e37652d.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
       
       
 
@@ -45,13 +41,13 @@
       
     
     
-      <link rel="stylesheet" href="../../css/print-site.css">
+      <link rel="stylesheet" href="../css/print-site.css">
     
-      <link rel="stylesheet" href="../../css/print-site-material.css">
+      <link rel="stylesheet" href="../css/print-site-material.css">
     
-      <link rel="stylesheet" href="../../assets/stylesheets/print.css">
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -70,7 +66,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#library-upload" class="md-skip">
+        <a href="#migration-vom-event-manager-zum-generischen-job-batch-system" class="md-skip">
           Zum Inhalt
         </a>
       
@@ -86,7 +82,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
-    <a href="../.." title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+    <a href=".." title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -106,7 +102,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Library – Upload
+              Generic worker migration
             
           </span>
         </div>
@@ -196,7 +192,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+    <a href=".." title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -226,7 +222,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../index.md" class="md-nav__link">
+      <a href="../index.md" class="md-nav__link">
         
   
   
@@ -286,7 +282,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../overview/index.html" class="md-nav__link">
+      <a href="../overview/index.html" class="md-nav__link">
         
   
   
@@ -309,7 +305,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../overview/intro.html" class="md-nav__link">
+      <a href="../overview/intro.html" class="md-nav__link">
         
   
   
@@ -332,7 +328,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../overview/features.html" class="md-nav__link">
+      <a href="../overview/features.html" class="md-nav__link">
         
   
   
@@ -400,7 +396,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/index.html" class="md-nav__link">
+      <a href="../architecture/index.html" class="md-nav__link">
         
   
   
@@ -423,7 +419,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/architecture.html" class="md-nav__link">
+      <a href="../architecture/architecture.html" class="md-nav__link">
         
   
   
@@ -446,7 +442,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/core-components.html" class="md-nav__link">
+      <a href="../architecture/core-components.html" class="md-nav__link">
         
   
   
@@ -514,7 +510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/index.html" class="md-nav__link">
+      <a href="../guide/index.html" class="md-nav__link">
         
   
   
@@ -537,7 +533,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/setup.html" class="md-nav__link">
+      <a href="../guide/setup.html" class="md-nav__link">
         
   
   
@@ -560,7 +556,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/getting-started.html" class="md-nav__link">
+      <a href="../guide/getting-started.html" class="md-nav__link">
         
   
   
@@ -583,7 +579,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/settings.html" class="md-nav__link">
+      <a href="../guide/settings.html" class="md-nav__link">
         
   
   
@@ -606,7 +602,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/library.html" class="md-nav__link">
+      <a href="../guide/library.html" class="md-nav__link">
         
   
   
@@ -629,7 +625,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/event-monitor.html" class="md-nav__link">
+      <a href="../guide/event-monitor.html" class="md-nav__link">
         
   
   
@@ -652,7 +648,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/batch-session-import.html" class="md-nav__link">
+      <a href="../guide/batch-session-import.html" class="md-nav__link">
         
   
   
@@ -679,20 +675,18 @@
       
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
           <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
@@ -708,7 +702,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Konzepte
@@ -722,7 +716,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../index.html" class="md-nav__link">
+      <a href="../concepts/index.html" class="md-nav__link">
         
   
   
@@ -745,7 +739,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../storage-provider.html" class="md-nav__link">
+      <a href="../concepts/storage-provider.html" class="md-nav__link">
         
   
   
@@ -768,7 +762,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../localstorage.html" class="md-nav__link">
+      <a href="../concepts/localstorage.html" class="md-nav__link">
         
   
   
@@ -791,7 +785,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../image-transformation.html" class="md-nav__link">
+      <a href="../concepts/image-transformation.html" class="md-nav__link">
         
   
   
@@ -814,7 +808,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../pdf/extraction-methods.html" class="md-nav__link">
+      <a href="../concepts/pdf/extraction-methods.html" class="md-nav__link">
         
   
   
@@ -837,7 +831,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../metadata.html" class="md-nav__link">
+      <a href="../concepts/metadata.html" class="md-nav__link">
         
   
   
@@ -857,20 +851,18 @@
                 
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
         
           
           <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
@@ -886,7 +878,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_7">
             <span class="md-nav__icon md-icon"></span>
             Library
@@ -900,7 +892,7 @@
   
   
     <li class="md-nav__item">
-      <a href="overview.html" class="md-nav__link">
+      <a href="../concepts/library/overview.html" class="md-nav__link">
         
   
   
@@ -923,7 +915,7 @@
   
   
     <li class="md-nav__item">
-      <a href="global-state.html" class="md-nav__link">
+      <a href="../concepts/library/global-state.html" class="md-nav__link">
         
   
   
@@ -946,7 +938,7 @@
   
   
     <li class="md-nav__item">
-      <a href="header.html" class="md-nav__link">
+      <a href="../concepts/library/header.html" class="md-nav__link">
         
   
   
@@ -969,7 +961,7 @@
   
   
     <li class="md-nav__item">
-      <a href="breadcrumb.html" class="md-nav__link">
+      <a href="../concepts/library/breadcrumb.html" class="md-nav__link">
         
   
   
@@ -992,7 +984,7 @@
   
   
     <li class="md-nav__item">
-      <a href="file-tree.html" class="md-nav__link">
+      <a href="../concepts/library/file-tree.html" class="md-nav__link">
         
   
   
@@ -1015,7 +1007,7 @@
   
   
     <li class="md-nav__item">
-      <a href="file-list.html" class="md-nav__link">
+      <a href="../concepts/library/file-list.html" class="md-nav__link">
         
   
   
@@ -1035,19 +1027,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="upload.html" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../concepts/library/upload.html" class="md-nav__link">
         
   
   
@@ -1058,7 +1041,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -1071,7 +1053,7 @@
   
   
     <li class="md-nav__item">
-      <a href="file-preview.html" class="md-nav__link">
+      <a href="../concepts/library/file-preview.html" class="md-nav__link">
         
   
   
@@ -1094,7 +1076,7 @@
   
   
     <li class="md-nav__item">
-      <a href="transcription.html" class="md-nav__link">
+      <a href="../concepts/library/transcription.html" class="md-nav__link">
         
   
   
@@ -1117,7 +1099,7 @@
   
   
     <li class="md-nav__item">
-      <a href="transform.html" class="md-nav__link">
+      <a href="../concepts/library/transform.html" class="md-nav__link">
         
   
   
@@ -1140,7 +1122,7 @@
   
   
     <li class="md-nav__item">
-      <a href="batch-transcription.html" class="md-nav__link">
+      <a href="../concepts/library/batch-transcription.html" class="md-nav__link">
         
   
   
@@ -1163,7 +1145,7 @@
   
   
     <li class="md-nav__item">
-      <a href="error-handling-logging-testing.html" class="md-nav__link">
+      <a href="../concepts/library/error-handling-logging-testing.html" class="md-nav__link">
         
   
   
@@ -1186,7 +1168,7 @@
   
   
     <li class="md-nav__item">
-      <a href="initialization-sequence.html" class="md-nav__link">
+      <a href="../concepts/library/initialization-sequence.html" class="md-nav__link">
         
   
   
@@ -1217,7 +1199,7 @@
   
   
     <li class="md-nav__item">
-      <a href="components.html" class="md-nav__link">
+      <a href="../concepts/library/components.html" class="md-nav__link">
         
   
   
@@ -1240,7 +1222,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../features/shadowtwins.html" class="md-nav__link">
+      <a href="../concepts/features/shadowtwins.html" class="md-nav__link">
         
   
   
@@ -1263,7 +1245,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../features/extended-shadowtwin.html" class="md-nav__link">
+      <a href="../concepts/features/extended-shadowtwin.html" class="md-nav__link">
         
   
   
@@ -1286,7 +1268,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../features/transformation-service.html" class="md-nav__link">
+      <a href="../concepts/features/transformation-service.html" class="md-nav__link">
         
   
   
@@ -1309,7 +1291,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../video-transformation.html" class="md-nav__link">
+      <a href="../concepts/video-transformation.html" class="md-nav__link">
         
   
   
@@ -1377,7 +1359,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/index.html" class="md-nav__link">
+      <a href="../reference/index.html" class="md-nav__link">
         
   
   
@@ -1400,7 +1382,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/glossary.html" class="md-nav__link">
+      <a href="../reference/glossary.html" class="md-nav__link">
         
   
   
@@ -1423,7 +1405,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/api/secretary-services.html" class="md-nav__link">
+      <a href="../reference/api/secretary-services.html" class="md-nav__link">
         
   
   
@@ -1446,7 +1428,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/api/track-processor.html" class="md-nav__link">
+      <a href="../reference/api/track-processor.html" class="md-nav__link">
         
   
   
@@ -1514,7 +1496,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ops/index.html" class="md-nav__link">
+      <a href="../ops/index.html" class="md-nav__link">
         
   
   
@@ -1537,7 +1519,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ops/deployment/docker.html" class="md-nav__link">
+      <a href="../ops/deployment/docker.html" class="md-nav__link">
         
   
   
@@ -1560,7 +1542,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ops/desktop/quick-setup.html" class="md-nav__link">
+      <a href="../ops/desktop/quick-setup.html" class="md-nav__link">
         
   
   
@@ -1583,7 +1565,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ops/desktop/package-strategy.html" class="md-nav__link">
+      <a href="../ops/desktop/package-strategy.html" class="md-nav__link">
         
   
   
@@ -1623,8 +1605,128 @@
   
   
   
-    
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#migration-vom-event-manager-zum-generischen-job-batch-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      Migration: Vom Event Manager zum generischen Job-/Batch-System
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Migration: Vom Event Manager zum generischen Job-/Batch-System">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-ausgangslage-ist-zustand" class="md-nav__link">
+    <span class="md-ellipsis">
+      1) Ausgangslage (Ist-Zustand)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-zielbild-soll-zustand" class="md-nav__link">
+    <span class="md-ellipsis">
+      2) Zielbild (Soll-Zustand)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-datenmodell-und-indizes" class="md-nav__link">
+    <span class="md-ellipsis">
+      3) Datenmodell und Indizes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-api-entwurf-app-router-clerk-auth-strikte-typen" class="md-nav__link">
+    <span class="md-ellipsis">
+      4) API-Entwurf (App Router, Clerk-Auth, strikte Typen)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-ui-entwurf-nextjs-shadcn-rsc-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      5) UI-Entwurf (Next.js, Shadcn, RSC-first)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-migrationsfahrplan-inkrementell-risikoarm" class="md-nav__link">
+    <span class="md-ellipsis">
+      6) Migrationsfahrplan (inkrementell, risikoarm)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-tests-und-qualitat" class="md-nav__link">
+    <span class="md-ellipsis">
+      7) Tests und Qualität
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-risiken-gegenmanahmen" class="md-nav__link">
+    <span class="md-ellipsis">
+      8) Risiken &amp; Gegenmaßnahmen
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-offene-punkte" class="md-nav__link">
+    <span class="md-ellipsis">
+      9) Offene Punkte
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-grobe-aufgabenliste-umsetzung" class="md-nav__link">
+    <span class="md-ellipsis">
+      10) Grobe Aufgabenliste (Umsetzung)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-sequenz-beispiel-session-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      11) Sequenz (Beispiel: Session-Job)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -1643,20 +1745,150 @@
   
 
 
-<h1 id="library-upload">Library – Upload<a class="headerlink" href="#library-upload" title="Permanent link">&para;</a></h1>
-<blockquote>
-<p>Status: 📝 Konzept</p>
-</blockquote>
-<p>Upload-Dialog, Fortschritt, Fehlerbehandlung und Provider-Integration.</p>
+  <h1>Generic worker migration</h1>
+
+<h3 id="migration-vom-event-manager-zum-generischen-job-batch-system">Migration: Vom Event Manager zum generischen Job-/Batch-System<a class="headerlink" href="#migration-vom-event-manager-zum-generischen-job-batch-system" title="Permanent link">&para;</a></h3>
+<p>Ziel: Die bisher event-spezifische Session-/Job-Logik in eine generische, typ-basierte Job-Verarbeitung überführen (job_type ∈ {session, pdf, audio, video, …}), mit vereinheitlichter API, UI und Worker-Integration. Grundlage ist der generische Worker (siehe <code>docs/_instructions/generic-worker.md</code>) und das bestehende <code>EventJobRepository</code>. Dieser Plan baut auf der bereits beschlossenen generischen Dokumentverarbeitung und Batch-Fähigkeit auf [[memory:5008116]].</p>
+<hr />
+<h4 id="1-ausgangslage-ist-zustand">1) Ausgangslage (Ist-Zustand)<a class="headerlink" href="#1-ausgangslage-ist-zustand" title="Permanent link">&para;</a></h4>
+<ul>
+<li>UI: <code>Session Manager</code> (<code>/session-manager</code>) importiert Sessions (Webseiten-Extraktion), speichert in <code>event_sessions</code> und erzeugt daraus Event-Jobs/Batches via <code>/api/sessions/generate-jobs</code>.</li>
+<li>Daten: Drei Sammlungen in MongoDB: <code>event_sessions</code>, <code>event_jobs</code>, <code>event_batches</code>.</li>
+<li>Verarbeitung: Event-spezifische Jobs (job_type = "event") werden vom Event-Monitor/Worker verarbeitet. Fortschritt via <code>EventJobRepository</code>.</li>
+</ul>
+<p>Probleme: Doppeltes Modell (Sessions separat + Jobs), Event-Spezialisierung, kein generisches API für weitere Medien (PDF, Audio, …).</p>
+<hr />
+<h4 id="2-zielbild-soll-zustand">2) Zielbild (Soll-Zustand)<a class="headerlink" href="#2-zielbild-soll-zustand" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Einheitliche API für Jobs/Batches:</li>
+<li><code>POST /api/jobs</code> (Einzeljob, generisch)</li>
+<li><code>POST /api/jobs/batch</code> (Batch mit N Jobs, gemischt nach <code>job_type</code>)</li>
+<li><code>GET /api/jobs</code> (Filter: status, job_type, search, batch_id, created_at)</li>
+<li><code>GET /api/jobs/{job_id}</code></li>
+<li><code>GET /api/batches</code> (Filter: status, isActive, archived, job_type?, search?)</li>
+<li><code>GET /api/batches/{batch_id}</code></li>
+<li>
+<p>Batch-Aktionen: <code>POST /api/batches/{batch_id}/restart</code>, <code>/archive</code>, <code>/fail</code>, <code>/pending</code> (optional: mit Options-Payload)</p>
+</li>
+<li>
+<p>UI: Ein "Job Center" ersetzt den Event Manager:</p>
+</li>
+<li>Seite <code>/jobs</code>: Liste aller Jobs, Filter (Status, Typ, Suche), Fortschritt, Aktionen.</li>
+<li>Seite <code>/batches</code>: Liste aller Batches mit Aggregaten und Filterung; Detailansicht mit Jobs.</li>
+<li>Erstellen: Wizard/Modal „Neuer Job/Batch“ mit Typ-Auswahl (Session/PDF/Audio/…).</li>
+<li>
+<p>Session-Import integriert als „Job vom Typ session erzeugen“ (kein separater Session-Datensatz nötig).</p>
+</li>
+<li>
+<p>Worker: Generischer Registry-/Dispatch-Mechanismus (bereits in <code>generic-worker.md</code>) führt Handler pro <code>job_type</code> aus; Status-/Progress-Updates via <code>EventJobRepository</code>.</p>
+</li>
+</ul>
+<hr />
+<h4 id="3-datenmodell-und-indizes">3) Datenmodell und Indizes<a class="headerlink" href="#3-datenmodell-und-indizes" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Jobs (<code>event_jobs</code>): Felder bestehen bereits; wichtig: Indexe auf <code>{ status, job_type, created_at }</code>, <code>{ batch_id }</code>, <code>{ event_name }</code> (falls genutzt).</li>
+<li>Batches (<code>event_batches</code>): Indexe auf <code>{ status, created_at }</code>, <code>{ isActive }</code>.</li>
+<li>Sessions: Übergangsphase; später entbehrlich. Referenzierbare Session-Felder wandern in <code>job.parameters</code>.</li>
+</ul>
+<hr />
+<h4 id="4-api-entwurf-app-router-clerk-auth-strikte-typen">4) API-Entwurf (App Router, Clerk-Auth, strikte Typen)<a class="headerlink" href="#4-api-entwurf-app-router-clerk-auth-strikte-typen" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Contracts verwenden <code>src/types/event-job.ts</code> (Job, Batch, Status, Responses) und folgen den App-Router-Regeln (Params awaiten, typisierte Bodies/Responses, korrekte HTTP-Codes, Fehlerlogging).</li>
+<li>Endpunkte (neu):</li>
+<li><code>src/app/api/jobs/route.ts</code> (GET/POST)</li>
+<li><code>src/app/api/jobs/[id]/route.ts</code> (GET/DELETE/PATCH für Statusänderung)</li>
+<li><code>src/app/api/jobs/batch/route.ts</code> (POST)</li>
+<li><code>src/app/api/batches/route.ts</code> (GET)</li>
+<li><code>src/app/api/batches/[id]/route.ts</code> (GET/DELETE)</li>
+<li><code>src/app/api/batches/[id]/{restart|archive|fail|pending}/route.ts</code> (POST)</li>
+</ul>
+<p>Validierung: Zod-Schemas pro Endpoint; <code>job_type</code> required; <code>parameters</code> validiert je Typ (discriminated union), aber Storage bleibt generisch.</p>
+<p>Sicherheit: Clerk-Auth an allen Mutations-Endpunkten; Responses maskieren Secrets; Logs nur serverseitig.</p>
+<hr />
+<h4 id="5-ui-entwurf-nextjs-shadcn-rsc-first">5) UI-Entwurf (Next.js, Shadcn, RSC-first)<a class="headerlink" href="#5-ui-entwurf-nextjs-shadcn-rsc-first" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Neue Routen:</li>
+<li><code>src/app/jobs/page.tsx</code>: Jobs-Tabelle mit Filtern (Status, Typ, Textsuche), Pagination, Mehrfachaktionen (Restart/Delete, optional Batch-Zuweisung).</li>
+<li><code>src/app/batches/page.tsx</code>: Batches mit Status-Badges, Progress, Actions; Klick → Batch-Detail.</li>
+<li><code>src/app/batches/[id]/page.tsx</code>: Batch-Detail inkl. Jobliste (Lazy-Pagination), Restart/Pending/Fail/Archive.</li>
+<li>Erstell-Flow:</li>
+<li>"Neuer Job"-Dialog: Auswahl <code>job_type</code> → typ-spezifisches Parameterformular (Session: URL, Sprache; PDF: URL/Methoden/Flags …).</li>
+<li>„Neuer Batch“: Liste von Jobs unterschiedlicher Typen zusammenstellen.</li>
+<li>Migration UI: <code>SessionImportModal</code> ruft künftig <code>POST /api/jobs</code> (job_type=session); optional Wizard bleibt identisch, nur Ziel-API tauschen.</li>
+</ul>
+<p>Performance: Server Components für Listen, Suspense-Fallbacks, Client nur wo nötig (Filter-Controls). TanStack Query optional für Polling.</p>
+<hr />
+<h4 id="6-migrationsfahrplan-inkrementell-risikoarm">6) Migrationsfahrplan (inkrementell, risikoarm)<a class="headerlink" href="#6-migrationsfahrplan-inkrementell-risikoarm" title="Permanent link">&para;</a></h4>
+<p>Phase 0 – Parallelbetrieb vorbereiten
+- Neue API-Endpunkte implementieren, ohne bestehendes <code>/api/sessions</code> zu ändern.
+- Job Center (<code>/jobs</code>, <code>/batches</code>) als Preview-Seiten.</p>
+<p>Phase 1 – Erzeugung umlenken
+- <code>SessionImportModal</code>: Statt <code>/api/sessions</code> → direkt <code>POST /api/jobs (job_type=session)</code>.
+- <code>/api/sessions/generate-jobs</code>: Intern auf <code>POST /api/jobs/batch</code> umstellen (Adapter), Response kompatibel halten.</p>
+<p>Phase 2 – Sichtbarkeit drehen
+- <code>Session Manager</code> nur noch lesend; prominent Link „Zum Job Center“.
+- Neue Features (PDF, Audio) ausschließlich im Job Center.</p>
+<p>Phase 3 – Ablösen und Aufräumen
+- Sessions optional migrieren (Sessions → Jobs), oder <code>event_sessions</code> archivieren.
+- Entfernen: <code>/api/sessions/generate-jobs</code> und Session-spezifische UI.</p>
+<p>Rollback-Strategie: Adapter-Endpunkte lassen Rückbau auf alte Flows zu, bis Telemetrie stabil ist.</p>
+<hr />
+<h4 id="7-tests-und-qualitat">7) Tests und Qualität<a class="headerlink" href="#7-tests-und-qualitat" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Unit (Vitest):</li>
+<li>Repositories (<code>EventJobRepository</code>): createJob, createBatch, updateJobStatus, updateBatchProgress.</li>
+<li>API-Handler: Validierung, Fehlerpfade, Paginierung.</li>
+<li>E2E (Playwright):</li>
+<li>„Neuer Job (session)“ → Worker-Simulation → Statuswechsel sichtbar.</li>
+<li>„Neuer Batch (pdf+session)“ → Jobs gelistet, Batch-Aggregate korrekt.</li>
+<li>Monitoring/Logs: Konsistente <code>logs[]</code>-Einträge je Statuswechsel, UI-Ansicht für Logs im Job-Detail.</li>
+</ul>
+<hr />
+<h4 id="8-risiken-gegenmanahmen">8) Risiken &amp; Gegenmaßnahmen<a class="headerlink" href="#8-risiken-gegenmanahmen" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Doppelquellen (Sessions vs. Jobs): Früh Job-First schreiben, Sessions nur lesend. Adapter minimiert Bruch.</li>
+<li>Index/Skalierung: Vorab Indizes anlegen, Cursor-Pagination, Limit/Skip.</li>
+<li>Fehlertypen: Einheitliche <code>JobError</code>-Codes je Handler; UI-Filterung nach Fehlerklassen.</li>
+</ul>
+<hr />
+<h4 id="9-offene-punkte">9) Offene Punkte<a class="headerlink" href="#9-offene-punkte" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Sollen Session-Datensätze langfristig entfernt oder als Audit erhalten bleiben?</li>
+<li>Archiv-Handling (ZIP/Assets) vereinheitlichen: Download-Routen generisch?</li>
+<li>Access Control: Feingranular pro Job/Batch oder nur user_id-basiert?</li>
+</ul>
+<hr />
+<h4 id="10-grobe-aufgabenliste-umsetzung">10) Grobe Aufgabenliste (Umsetzung)<a class="headerlink" href="#10-grobe-aufgabenliste-umsetzung" title="Permanent link">&para;</a></h4>
+<ol>
+<li>Endpunkte <code>/api/jobs</code>, <code>/api/jobs/batch</code>, <code>/api/batches</code> implementieren (Typen, Zod, Auth, Repos).</li>
+<li>Indizes für <code>event_jobs</code>/<code>event_batches</code> setzen.</li>
+<li>UI: <code>/jobs</code>, <code>/batches</code>, Batch-Detail, Job-Detail, „Neuer Job/Batch“-Dialoge.</li>
+<li><code>SessionImportModal</code> auf <code>POST /api/jobs</code> umstellen; <code>/api/sessions/generate-jobs</code> → Adapter.</li>
+<li>Worker-Registry: Handler für <code>session</code>, <code>pdf</code> aktivieren; Logs/Progress konsistent.</li>
+<li>Tests: Unit + E2E; Telemetrie-Dashboards.</li>
+<li>Phase-2/3-Schalter setzen (Feature Flags), Sessions ablösen.</li>
+</ol>
+<hr />
+<h4 id="11-sequenz-beispiel-session-job">11) Sequenz (Beispiel: Session-Job)<a class="headerlink" href="#11-sequenz-beispiel-session-job" title="Permanent link">&para;</a></h4>
+<pre class="mermaid"><code>sequenceDiagram
+  participant UI as Job Center (UI)
+  participant API as /api/jobs
+  participant DB as MongoDB (event_jobs)
+  participant WRK as Generic Worker
+  UI-&gt;&gt;API: POST job_type=session, parameters
+  API-&gt;&gt;DB: insert Job (status=pending)
+  API--&gt;&gt;UI: 201 { job_id }
+  WRK-&gt;&gt;DB: poll pending jobs
+  WRK-&gt;&gt;DB: update status=processing, progress
+  WRK-&gt;&gt;DB: update status=completed, results
+  UI-&gt;&gt;API: GET /api/jobs/{job_id}
+  API--&gt;&gt;UI: Job mit results/progress</code></pre>
 
 
 
 
 
 
-
-  
-  
 
 
 
@@ -1699,16 +1931,16 @@
     
     
       
-      <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.50899def.min.js"></script>
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
       
-        <script src="../../js/print-site.js"></script>
+        <script src="../js/print-site.js"></script>
       
         <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
       
-        <script src="../../assets/javascripts/mermaid-init.js"></script>
+        <script src="../assets/javascripts/mermaid-init.js"></script>
       
     
   </body>

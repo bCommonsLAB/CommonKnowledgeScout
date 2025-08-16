@@ -259,19 +259,21 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         });
         
         if (data && Array.isArray(data)) {
-          // Filtere unterstützte Bibliothekstypen
-          const supportedLibraries = data.filter(lib => {
-            const isSupported = isSupportedLibraryType(lib.type);
-            if (!isSupported) {
-              console.warn(`[StorageContext] Nicht unterstützter Bibliothekstyp "${lib.type}" für Bibliothek "${lib.label}" - wird ausgeblendet`);
-              AuthLogger.warn('StorageContext', `Unsupported library type filtered out`, {
-                libraryType: lib.type,
-                libraryLabel: lib.label,
-                libraryId: lib.id
-              });
-            }
-            return isSupported;
-          });
+          // Erst valide IDs sicherstellen, dann unterstützte Typen filtern
+          const supportedLibraries = data
+            .filter(lib => typeof lib?.id === 'string' && lib.id.trim() !== '')
+            .filter(lib => {
+              const isSupported = isSupportedLibraryType(lib.type);
+              if (!isSupported) {
+                console.warn(`[StorageContext] Nicht unterstützter Bibliothekstyp "${lib.type}" für Bibliothek "${lib.label}" - wird ausgeblendet`);
+                AuthLogger.warn('StorageContext', `Unsupported library type filtered out`, {
+                  libraryType: lib.type,
+                  libraryLabel: lib.label,
+                  libraryId: lib.id
+                });
+              }
+              return isSupported;
+            });
           
           console.log(`[StorageContext] Bibliotheken geladen: ${data.length} total, ${supportedLibraries.length} unterstützt`);
           setLibraries(supportedLibraries);
@@ -410,7 +412,10 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       
       const data = await res.json();
       if (data && Array.isArray(data)) {
-        setLibraries(data);
+        const filtered = data
+          .filter((lib: any) => typeof lib?.id === 'string' && lib.id.trim() !== '')
+          .filter((lib: any) => isSupportedLibraryType(lib.type));
+        setLibraries(filtered);
       }
     } catch (error) {
       console.error('[StorageContext] Fehler beim Aktualisieren der Bibliotheken:', error);
