@@ -21,6 +21,7 @@ export interface TransformResult {
   savedItem?: StorageItem;
   updatedItems: StorageItem[];
   imageExtractionResult?: ImageExtractionResult; // Neu: Ergebnis der Bild-Extraktion
+  jobId?: string;
 }
 
 export interface VideoTransformOptions extends TransformSaveOptions {
@@ -423,11 +424,32 @@ export class TransformService {
     });
     
     // PDF-Datei wird transformiert - hole die vollständige Response
-    const response = await transformPdf(file, options.targetLanguage, libraryId, undefined, options.extractionMethod, options.useCache ?? true, options.includeImages ?? false);
+    const response = await transformPdf(
+      file,
+      options.targetLanguage,
+      libraryId,
+      undefined,
+      options.extractionMethod,
+      options.useCache ?? true,
+      options.includeImages ?? false,
+      {
+        originalItemId: originalItem.id,
+        parentId: originalItem.parentId,
+        originalFileName: originalItem.metadata.name,
+      }
+    );
     
-    FileLogger.debug('TransformService', 'Vollständige PDF-Response', {
-      response: JSON.stringify(response, null, 2)
-    });
+    FileLogger.debug('TransformService', 'Vollständige PDF-Response', { response: JSON.stringify(response, null, 2) });
+
+    // Asynchroner Flow: nur "accepted" → Ergebnis via Webhook, kein Client-Fehler
+    if (response && (response as any).status === 'accepted' && !(response as any).data?.extracted_text) {
+      FileLogger.info('TransformService', 'Job akzeptiert – Ergebnis kommt per Webhook', {
+        jobId: (response as any)?.job?.id,
+        processId: (response as any)?.process?.id,
+        fromCache: (response as any)?.process?.is_from_cache || false
+      });
+      return { text: '', updatedItems: [], jobId: (response as any)?.job?.id };
+    }
     
     // Extrahiere den Text aus der Response
     let transformedText = '';
@@ -501,9 +523,9 @@ export class TransformService {
         }
       });
     } else {
-      FileLogger.error('TransformService', 'Kein Extracted-Text in der Response gefunden!', {
-        responseKeys: response ? Object.keys(response) : [],
-        dataKeys: response && response.data ? Object.keys(response.data) : []
+      FileLogger.warn('TransformService', 'Keine synchronen PDF-Daten erhalten', {
+        hasResponse: !!response,
+        hasData: !!(response && (response as any).data)
       });
     }
     

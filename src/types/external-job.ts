@@ -1,0 +1,59 @@
+export type ExternalJobStatus =
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'pending-storage';
+
+export interface ExternalJobCorrelationSource {
+  itemId?: string;
+  parentId?: string;
+  mediaType?: string; // e.g. 'pdf'
+  mimeType?: string;
+  name?: string;
+}
+
+export interface ExternalJobCorrelation {
+  jobId: string;
+  libraryId: string;
+  source?: ExternalJobCorrelationSource;
+  options?: Record<string, unknown>;
+  batchId?: string;
+}
+
+export interface ExternalJobPayloadMeta {
+  // secretary/process payload fields (subset)
+  extracted_text?: string;
+  images_archive_data?: string;
+  images_archive_filename?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ExternalJobResultRefs {
+  savedItemId?: string;
+  savedItems?: string[];
+}
+
+export interface ExternalJob {
+  jobId: string;
+  jobSecretHash: string; // sha256 of secret
+  job_type: 'pdf' | 'audio' | 'video' | 'image' | 'text' | string;
+  operation: 'extract' | 'transcribe' | 'transform' | 'summarize' | string;
+  worker: 'secretary' | string;
+  status: ExternalJobStatus;
+  libraryId: string;
+  userEmail: string;
+  correlation: ExternalJobCorrelation;
+  processId?: string;
+  payload?: ExternalJobPayloadMeta;
+  result?: ExternalJobResultRefs;
+  createdAt: Date;
+  updatedAt: Date;
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
+}
+
+

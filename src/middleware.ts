@@ -11,6 +11,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/settings/oauth-defaults', // OAuth-Defaults ohne Auth
   '/api/env-test', // Umgebungstests
   '/api/db-test', // Datenbanktests
+  '/api/external/webhook', // Webhook muss öffentlich sein
 ]);
 
 console.log(`[MIDDLEWARE] 🔧 Public routes configured:`, [

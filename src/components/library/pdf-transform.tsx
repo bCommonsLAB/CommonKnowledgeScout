@@ -108,6 +108,15 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
         updatedItemsCount: result.updatedItems.length
       });
 
+      // Asynchroner Fall: Nur Job eingereicht → UI informieren
+      if (!result.text && !result.savedItem && result.jobId) {
+        toast.success('Job eingereicht', {
+          description: `PDF wird verarbeitet. Job: ${result.jobId.substring(0, 8)}…`,
+          duration: 5000
+        });
+        return;
+      }
+
       // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
       if (onRefreshFolder && item.parentId && result.updatedItems.length > 0) {
         FileLogger.info('PdfTransform', 'Informiere Library über aktualisierte Dateiliste', {
@@ -170,6 +179,7 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
                 defaultUseCache={true}
                 showIncludeImages={true}
                 defaultIncludeImages={false}
+                showCreateShadowTwin={false}
               />
               
               <Button 

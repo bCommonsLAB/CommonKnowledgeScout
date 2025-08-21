@@ -1,7 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-// Startup-Log um zu bestätigen, dass Root-Middleware geladen wird
-console.log(`[MIDDLEWARE-ROOT] 🚀 Root-Middleware wird geladen - ${new Date().toISOString()}`);
 
 // Liste der öffentlichen Routen
 const isPublicRoute = createRouteMatcher([
@@ -11,26 +9,20 @@ const isPublicRoute = createRouteMatcher([
   '/api/settings/oauth-defaults',
   '/api/env-test',
   '/api/db-test',
+  // Webhook-Endpunkte müssen öffentlich zugänglich sein (keine Clerk-Auth)
+  '/api/external/webhook',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  console.log(`\n=== [MIDDLEWARE-ROOT] START ===`);
-  console.log(`[RootMiddleware] Processing route: ${req.nextUrl.pathname}`);
 
   const isPublic = isPublicRoute(req);
-  console.log(`[RootMiddleware] isPublicRoute: ${isPublic}`);
   if (isPublic) {
-    console.log(`[RootMiddleware] ✅ Public route, allow`);
-    console.log(`=== [MIDDLEWARE-ROOT] END (PUBLIC) ===\n`);
     return;
   }
 
   try {
-    console.log(`[RootMiddleware] Calling auth()`);
     const result = await auth();
-    console.log(`[RootMiddleware] auth() userId:`, result.userId ? `${result.userId.substring(0,8)}...` : null);
     await auth.protect();
-    console.log(`[RootMiddleware] ✅ Protected`);
   } catch (error) {
     console.error(`[RootMiddleware] ❌ Auth failed`, {
       name: error instanceof Error ? error.name : 'Unknown',
@@ -39,7 +31,6 @@ export default clerkMiddleware(async (auth, req) => {
     throw error;
   }
 
-  console.log(`=== [MIDDLEWARE-ROOT] END (PROTECTED) ===\n`);
 });
 
 export const config = {
