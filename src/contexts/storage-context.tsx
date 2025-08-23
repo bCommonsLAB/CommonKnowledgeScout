@@ -413,8 +413,8 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       const data = await res.json();
       if (data && Array.isArray(data)) {
         const filtered = data
-          .filter((lib: any) => typeof lib?.id === 'string' && lib.id.trim() !== '')
-          .filter((lib: any) => isSupportedLibraryType(lib.type));
+          .filter((lib: { id?: unknown }) => typeof lib?.id === 'string' && String(lib.id).trim() !== '')
+          .filter((lib: { type?: unknown }) => isSupportedLibraryType(String(lib.type)));
         setLibraries(filtered);
       }
     } catch (error) {

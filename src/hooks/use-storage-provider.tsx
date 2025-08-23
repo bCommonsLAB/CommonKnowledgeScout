@@ -60,7 +60,7 @@ export function useStorageProvider() {
           // Versuche eine andere Bibliothek zu finden
           const supportedLibrary = libraries.find(lib => 
             lib.id !== activeLibraryId && 
-            SUPPORTED_LIBRARY_TYPES.includes(lib.type as any)
+            SUPPORTED_LIBRARY_TYPES.includes(lib.type as unknown as (typeof SUPPORTED_LIBRARY_TYPES)[number])
           )
           
           if (supportedLibrary) {

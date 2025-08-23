@@ -202,7 +202,7 @@ export class AuthLogger extends BaseLogger {
     });
   }
 
-  static serverAuth(component: string, result: { userId?: string | null; user?: any; error?: unknown }) {
+  static serverAuth(component: string, result: { userId?: string | null; user?: { emailAddresses?: Array<unknown> } | null; error?: unknown }) {
     return this.info(component, 'Server-Side Auth State', {
       hasUserId: !!result.userId,
       hasUser: !!result.user,

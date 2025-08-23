@@ -7,6 +7,7 @@ import { Toaster } from "sonner"
 import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
 import { DebugFooterWrapper } from "@/components/debug/debug-footer-wrapper"
+import { JobMonitorPanel } from "@/components/shared/job-monitor-panel"
 
 export const metadata = {
   title: "Knowledge Scout",
@@ -80,6 +81,7 @@ export default function RootLayout({
                   <div className={hasClerk ? "h-[calc(100vh-4rem)] overflow-auto" : "h-screen overflow-auto"}>
                     {children}
                   </div>
+                  <JobMonitorPanel />
                   <DebugFooterWrapper />
                 </div>
                 <Toaster richColors />

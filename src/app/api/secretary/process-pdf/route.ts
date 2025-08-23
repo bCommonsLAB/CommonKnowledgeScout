@@ -5,6 +5,7 @@ import { env } from 'process';
 import { FileLogger } from '@/lib/debug/logger';
 import crypto from 'crypto';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
+import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { ExternalJob } from '@/types/external-job';
 
 export async function POST(request: NextRequest) {
@@ -162,10 +163,24 @@ export async function POST(request: NextRequest) {
       targetLanguage
     });
 
+    // Sofortiges Live-Event: queued (für UI, damit Eintrag direkt erscheint)
+    try {
+      getJobEventBus().emitUpdate(userEmail, {
+        type: 'job_update',
+        jobId,
+        status: 'queued',
+        progress: 0,
+        message: 'queued',
+        updatedAt: new Date().toISOString(),
+        jobType: job.job_type,
+        fileName: correlation.source?.name,
+      });
+    } catch {}
+
     // Callback-Informationen (generisch) anfügen
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
     if (appUrl) {
-      const callbackUrl = `${appUrl.replace(/\/$/, '')}/api/external/webhook`;
+      const callbackUrl = `${appUrl.replace(/\/$/, '')}/api/external/jobs/${jobId}`;
       serviceFormData.append('callback_url', callbackUrl);
       
       // Detailliertes Logging der Callback-Parameter
@@ -181,21 +196,20 @@ export async function POST(request: NextRequest) {
     
     // per-Job-Secret mitgeben
     serviceFormData.append('callback_token', jobSecret);
-    // Wichtig: jobId separat mitsenden (Secretary-Anforderung)
-    serviceFormData.append('jobId', jobId);
+    // jobId nicht zusätzlich mitsenden – steht in der Callback-URL
     FileLogger.info('process-pdf', 'Job-Secret generiert', {
       jobId,
       hasSecret: !!jobSecret,
       secretLength: jobSecret.length
     });
     
-    // Korrelation als JSON mitgeben (inkl. jobId)
-    serviceFormData.append('correlation', JSON.stringify(correlation));
-    FileLogger.info('process-pdf', 'Korrelation an Secretary gesendet', {
+    // Korrelation NICHT an Secretary senden – Secretary erhält nur jobId + Callback
+    FileLogger.info('process-pdf', 'Korrelation nicht an Secretary gesendet (nur jobId & Callback)', {
       jobId,
-      correlationKeys: Object.keys(correlation),
-      correlationSize: JSON.stringify(correlation).length,
-      correlation: correlation
+      correlationSummary: {
+        hasSource: !!correlation.source,
+        hasOptions: !!correlation.options
+      }
     });
 
     // HTTP-Request als JSON loggen (kopierbar für Tests)
@@ -208,15 +222,13 @@ export async function POST(request: NextRequest) {
       },
       body: {
         file: '[BINARY: PDF-Datei]',
-        target_language: formData.get('target_language'),
-        extraction_method: formData.get('extraction_method'),
-        useCache: formData.get('useCache'),
-        includeImages: formData.get('includeImages'),
-        force_refresh: formData.get('force_refresh'),
-        jobId,
-        callback_url: `${appUrl?.replace(/\/$/, '')}/api/external/webhook`,
+        target_language: targetLanguage,
+        extraction_method: extractionMethod,
+        useCache: useCache,
+        includeImages: includeImages,
+        force_refresh: (formData.get('force_refresh') as string) ?? 'false',
+        callback_url: `${appUrl?.replace(/\/$/, '')}/api/external/jobs/${jobId}`,
         callback_token: jobSecret,
-        correlation: JSON.stringify(correlation)
       }
     };
     
@@ -226,16 +238,19 @@ export async function POST(request: NextRequest) {
       phase: 'request_sent',
       sourcePath: correlation.source?.itemId,
       targetParentId: correlation.source?.parentId,
-      callbackUrl: appUrl ? `${appUrl.replace(/\/$/, '')}/api/external/webhook` : undefined
+      callbackUrl: appUrl ? `${appUrl.replace(/\/$/, '')}/api/external/jobs/${jobId}` : undefined
     });
 
     // Anfrage an den Secretary Service senden
     const response = await fetch(normalizedUrl, {
       method: 'POST',
       body: serviceFormData,
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: (() => {
+        const h: Record<string, string> = { 'Accept': 'application/json' };
+        const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+        if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
+        return h;
+      })(),
     });
 
     // HTTP-Response als JSON loggen

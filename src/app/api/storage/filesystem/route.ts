@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs, existsSync } from 'fs';
+import { promises as fs } from 'fs';
 import { Stats } from 'fs';
 import * as pathLib from 'path';
 import mime from 'mime-types';
@@ -75,12 +75,8 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
   
   // Fallback: Versuche E-Mail aus Headers zu extrahieren
   try {
-    const authHeader = request.headers.get('authorization');
-    const cookieHeader = request.headers.get('cookie');
-    
-    // Hier könnten weitere Fallback-Logiken implementiert werden
-    // z.B. E-Mail aus JWT-Token extrahieren
-    
+    // Platzhalter für mögliche Fallbacks (bewusst ungenutzt, um Linter ruhig zu halten)
+    void request.headers;
   } catch (fallbackError) {
     AuthLogger.error('FileSystemAPI', 'Header fallback failed', fallbackError);
     console.error('[API][getUserEmail] 💥 Fallback-Fehler:', fallbackError);

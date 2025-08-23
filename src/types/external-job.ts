@@ -34,6 +34,15 @@ export interface ExternalJobResultRefs {
   savedItems?: string[];
 }
 
+export interface ExternalJobLogEntry {
+  timestamp: Date;
+  phase?: string;
+  progress?: number; // 0..100
+  message?: string;
+  details?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 export interface ExternalJob {
   jobId: string;
   jobSecretHash: string; // sha256 of secret
@@ -47,6 +56,7 @@ export interface ExternalJob {
   processId?: string;
   payload?: ExternalJobPayloadMeta;
   result?: ExternalJobResultRefs;
+  logs?: ExternalJobLogEntry[];
   createdAt: Date;
   updatedAt: Date;
   error?: {

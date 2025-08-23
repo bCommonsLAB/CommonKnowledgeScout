@@ -442,13 +442,14 @@ export class TransformService {
     FileLogger.debug('TransformService', 'Vollständige PDF-Response', { response: JSON.stringify(response, null, 2) });
 
     // Asynchroner Flow: nur "accepted" → Ergebnis via Webhook, kein Client-Fehler
-    if (response && (response as any).status === 'accepted' && !(response as any).data?.extracted_text) {
+    if (response && (response as unknown as { status?: string; data?: { extracted_text?: string } }).status === 'accepted' && !((response as unknown as { data?: { extracted_text?: string } }).data?.extracted_text)) {
+      const r = response as unknown as { job?: { id?: string }; process?: { id?: string; is_from_cache?: boolean } };
       FileLogger.info('TransformService', 'Job akzeptiert – Ergebnis kommt per Webhook', {
-        jobId: (response as any)?.job?.id,
-        processId: (response as any)?.process?.id,
-        fromCache: (response as any)?.process?.is_from_cache || false
+        jobId: r?.job?.id,
+        processId: r?.process?.id,
+        fromCache: r?.process?.is_from_cache || false
       });
-      return { text: '', updatedItems: [], jobId: (response as any)?.job?.id };
+      return { text: '', updatedItems: [], jobId: r?.job?.id };
     }
     
     // Extrahiere den Text aus der Response
@@ -525,7 +526,7 @@ export class TransformService {
     } else {
       FileLogger.warn('TransformService', 'Keine synchronen PDF-Daten erhalten', {
         hasResponse: !!response,
-        hasData: !!(response && (response as any).data)
+        hasData: !!(response && (response as unknown as { data?: unknown }).data)
       });
     }
     
@@ -909,7 +910,7 @@ export class TransformService {
   /**
    * Erstellt Markdown-Inhalt mit YAML-Frontmatter
    */
-  private static createMarkdownWithFrontmatter(content: string, metadata: TransformMetadata): string {
+  static createMarkdownWithFrontmatter(content: string, metadata: TransformMetadata): string {
     // Wenn keine Metadaten vorhanden sind, gebe nur den Inhalt zurück
     if (!metadata || Object.keys(metadata).length === 0) {
       return content;

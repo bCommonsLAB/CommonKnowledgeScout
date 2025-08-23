@@ -85,10 +85,12 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`${secretaryServiceUrl}/transformer/template`, {
       method: 'POST',
       body: secretaryFormData,
-      headers: {
-        'Accept': 'application/json'
-        // Content-Type wird automatisch gesetzt für FormData
-      },
+      headers: (() => {
+        const h: Record<string, string> = { 'Accept': 'application/json' };
+        const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+        if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
+        return h;
+      })(),
     });
 
     console.log('[process-text] Secretary Service Antwort:', {

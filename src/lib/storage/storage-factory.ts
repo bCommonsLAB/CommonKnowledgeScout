@@ -1,7 +1,7 @@
 import { StorageProvider, StorageItem, StorageValidationResult } from './types';
 import { ClientLibrary } from '@/types/library';
 import { OneDriveProvider } from './onedrive-provider';
-import { SUPPORTED_LIBRARY_TYPES, isSupportedLibraryType, getSupportedLibraryTypesString } from './supported-types';
+import { getSupportedLibraryTypesString } from './supported-types';
 import { AuthLogger } from '@/lib/debug/logger';
 
 interface LibraryPathProvider {
@@ -355,7 +355,7 @@ export class StorageFactory {
     // Update existing providers
     this.providers.forEach((provider, libraryId) => {
       if ('setUserEmail' in provider && typeof provider.setUserEmail === 'function') {
-        (provider as any).setUserEmail(email);
+        (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(email);
         console.log(`[StorageFactory] E-Mail an Provider ${libraryId} übertragen`);
       }
     });
@@ -465,8 +465,8 @@ export class StorageFactory {
         provider = new LocalStorageProvider(library, this.apiBaseUrl || undefined);
         console.log(`StorageFactory: LocalStorageProvider erstellt für "${library.path}"`);
         // Set user email if available
-        if (this.userEmail && 'setUserEmail' in provider) {
-          (provider as any).setUserEmail(this.userEmail);
+        if (this.userEmail && 'setUserEmail' in (provider as unknown as { setUserEmail?: (e: string) => void })) {
+          (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(this.userEmail);
           console.log(`StorageFactory: User-Email an LocalStorageProvider gesetzt`);
         }
         break;
@@ -474,8 +474,8 @@ export class StorageFactory {
         provider = new OneDriveProvider(library, this.apiBaseUrl || undefined);
         console.log(`StorageFactory: OneDriveProvider erstellt`);
         // Set user email if available
-        if (this.userEmail && 'setUserEmail' in provider) {
-          (provider as any).setUserEmail(this.userEmail);
+        if (this.userEmail && 'setUserEmail' in (provider as unknown as { setUserEmail?: (e: string) => void })) {
+          (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(this.userEmail);
           console.log(`StorageFactory: User-Email an OneDriveProvider gesetzt`);
         }
         break;

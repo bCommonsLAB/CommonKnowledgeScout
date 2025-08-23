@@ -54,6 +54,26 @@ export class ExternalJobsRepository {
     const col = await this.getCollection();
     return col.findOne({ jobId });
   }
+
+  async listByUserEmail(
+    userEmail: string,
+    options: { page?: number; limit?: number }
+  ): Promise<{ items: ExternalJob[]; total: number; page: number; limit: number }>
+  {
+    const col = await this.getCollection();
+    const page = Math.max(1, options.page ?? 1);
+    const limit = Math.max(1, Math.min(100, options.limit ?? 20));
+    const cursor = col
+      .find({ userEmail })
+      .sort({ updatedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+    const [items, total] = await Promise.all([
+      cursor.toArray(),
+      col.countDocuments({ userEmail })
+    ]);
+    return { items, total, page, limit };
+  }
 }
 
 

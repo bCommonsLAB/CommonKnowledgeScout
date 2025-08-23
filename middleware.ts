@@ -9,8 +9,9 @@ const isPublicRoute = createRouteMatcher([
   '/api/settings/oauth-defaults',
   '/api/env-test',
   '/api/db-test',
-  // Webhook-Endpunkte müssen öffentlich zugänglich sein (keine Clerk-Auth)
-  '/api/external/webhook',
+  // Callback-Endpunkte müssen öffentlich zugänglich sein (keine Clerk-Auth)
+  // Neuer konsolidierter Callback-Endpunkt mit Job-ID im Pfad
+  '/api/external/jobs/(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

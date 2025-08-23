@@ -108,12 +108,21 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
         updatedItemsCount: result.updatedItems.length
       });
 
-      // Asynchroner Fall: Nur Job eingereicht → UI informieren
+      // Asynchroner Fall: Side-Panel sofort via lokalem Event informieren (Fallback, falls SSE spät verbindet)
       if (!result.text && !result.savedItem && result.jobId) {
-        toast.success('Job eingereicht', {
-          description: `PDF wird verarbeitet. Job: ${result.jobId.substring(0, 8)}…`,
-          duration: 5000
-        });
+        try {
+          window.dispatchEvent(new CustomEvent('job_update_local', {
+            detail: {
+              jobId: result.jobId,
+              status: 'queued',
+              message: 'queued',
+              progress: 0,
+              jobType: 'pdf',
+              fileName: item.metadata.name,
+              updatedAt: new Date().toISOString()
+            }
+          }));
+        } catch {}
         return;
       }
 
