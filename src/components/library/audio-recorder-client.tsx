@@ -189,7 +189,7 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
         description: errorMessage
       });
     }
-  }, [provider, currentFolderId, activeLibraryId, generateFileName, refreshItems, onUploadComplete]);
+  }, [provider, currentFolderId, generateFileName, refreshItems, onUploadComplete]);
 
   const startRecording = useCallback(async () => {
     console.log('[AudioRecorder] startRecording called:', { isSupported, isStorageReady });
@@ -329,7 +329,7 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
     }
   }, [isSupported, isStorageReady, isMounted, startRecording]);
 
-
+  
 
   if (!isMounted) {
     return null;

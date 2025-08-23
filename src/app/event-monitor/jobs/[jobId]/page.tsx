@@ -33,7 +33,7 @@ export default function JobDetailsPage() {
   const router = useRouter();
   // In Next.js 15 useParams() verwenden statt params direkt zu nutzen
   const params = useParams();
-  const jobId = params.jobId as string;
+  const jobId = params?.jobId as string;
 
   // Job laden
   const loadJob = useCallback(async () => {

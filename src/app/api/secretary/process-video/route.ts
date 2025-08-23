@@ -92,9 +92,12 @@ export async function POST(request: NextRequest) {
     const response = await fetch(normalizedUrl, {
       method: 'POST',
       body: serviceFormData,
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: (() => {
+        const h: Record<string, string> = { 'Accept': 'application/json' };
+        const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+        if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
+        return h;
+      })(),
     });
 
     console.log('[process-video] Secretary Service Antwort:', {

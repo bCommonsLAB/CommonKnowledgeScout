@@ -18,7 +18,7 @@ export function SettingsClient() {
   
   useEffect(() => {
     // Prüfe, ob der newUser-Parameter in der URL ist oder ob keine Bibliotheken vorhanden sind
-    const hasNewUserParam = searchParams.get('newUser') === 'true'
+    const hasNewUserParam = searchParams?.get('newUser') === 'true'
     const hasNoLibraries = libraries.length === 0
     
     setIsNewUser(hasNewUserParam || hasNoLibraries)
@@ -26,7 +26,7 @@ export function SettingsClient() {
 
   // URL bereinigen, wenn Bibliotheken vorhanden sind und newUser-Parameter gesetzt ist
   useEffect(() => {
-    if (libraries.length > 0 && searchParams.get('newUser') === 'true') {
+    if (libraries.length > 0 && searchParams?.get('newUser') === 'true') {
       // Entferne den newUser-Parameter aus der URL
       const url = new URL(window.location.href)
       url.searchParams.delete('newUser')

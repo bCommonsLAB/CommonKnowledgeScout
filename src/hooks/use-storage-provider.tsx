@@ -5,6 +5,7 @@ import { useAtomValue } from "jotai"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { StorageProvider } from "@/lib/storage/types"
 import { StorageFactory } from "@/lib/storage/storage-factory"
+import { SUPPORTED_LIBRARY_TYPES } from "@/lib/storage/supported-types"
 
 export function useStorageProvider() {
   const activeLibraryId = useAtomValue(activeLibraryIdAtom)
@@ -47,8 +48,32 @@ export function useStorageProvider() {
         setProvider(provider)
       })
       .catch(error => {
-        console.error(`[useStorageProvider] Fehler beim Laden des Storage Providers für ${activeLibraryId}:`, error)
-        setProvider(null)
+        // Graceful handling für nicht unterstützte Bibliothekstypen
+        if (error.name === 'UnsupportedLibraryTypeError') {
+          const currentLibrary = libraries.find(lib => lib.id === activeLibraryId)
+          console.warn(`[useStorageProvider] Nicht unterstützter Bibliothekstyp "${error.libraryType}" für Bibliothek "${currentLibrary?.label}" - Bibliothek wird übersprungen`, {
+            libraryId: activeLibraryId,
+            libraryType: error.libraryType,
+            libraryLabel: currentLibrary?.label
+          })
+          
+          // Versuche eine andere Bibliothek zu finden
+          const supportedLibrary = libraries.find(lib => 
+            lib.id !== activeLibraryId && 
+            SUPPORTED_LIBRARY_TYPES.includes(lib.type as unknown as (typeof SUPPORTED_LIBRARY_TYPES)[number])
+          )
+          
+          if (supportedLibrary) {
+            console.log(`[useStorageProvider] Wechsle zu unterstützter Bibliothek: ${supportedLibrary.label}`)
+            // TODO: activeLibraryId auf supportedLibrary.id setzen
+            // Für jetzt setzen wir Provider auf null
+          }
+          
+          setProvider(null)
+        } else {
+          console.error(`[useStorageProvider] Fehler beim Laden des Storage Providers für ${activeLibraryId}:`, error)
+          setProvider(null)
+        }
       })
   }, [activeLibraryId, libraries])
 

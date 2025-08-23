@@ -33,6 +33,7 @@ interface TransformSaveOptionsProps {
   defaultUseCache?: boolean; // Neu: Standard-Cache-Einstellung
   showIncludeImages?: boolean; // Neu: Zeigt Bilder-Option
   defaultIncludeImages?: boolean; // Neu: Standard-Bilder-Einstellung
+  showCreateShadowTwin?: boolean; // Neu: Checkbox für Shadow-Twin ein-/ausblenden
 }
 
 export function TransformSaveOptions({
@@ -47,7 +48,8 @@ export function TransformSaveOptions({
   showUseCache = false,
   defaultUseCache = false,
   showIncludeImages = false,
-  defaultIncludeImages = false
+  defaultIncludeImages = false,
+  showCreateShadowTwin = true
 }: TransformSaveOptionsProps) {
   // Hilfsfunktion zum Extrahieren des Basisnamens ohne Erweiterung
   function getBaseFileName(fileName: string): string {
@@ -198,14 +200,16 @@ export function TransformSaveOptions({
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="create-shadow-twin"
-              checked={options.createShadowTwin}
-              onCheckedChange={(checked) => updateOptions({ createShadowTwin: !!checked })}
-            />
-            <Label htmlFor="create-shadow-twin">Als Shadow-Twin speichern</Label>
-          </div>
+          {showCreateShadowTwin && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="create-shadow-twin"
+                checked={options.createShadowTwin}
+                onCheckedChange={(checked) => updateOptions({ createShadowTwin: !!checked })}
+              />
+              <Label htmlFor="create-shadow-twin">Als Shadow-Twin speichern</Label>
+            </div>
+          )}
 
           {showUseCache && (
             <div className="flex items-center space-x-2">

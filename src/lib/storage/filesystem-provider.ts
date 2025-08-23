@@ -134,6 +134,25 @@ export class FileSystemProvider implements StorageProvider {
       return this.basePath;
     }
     
+    // Unterstütze zusätzlich base64-kodierte relative Pfade (kompatibel zur Filesystem-API)
+    try {
+      const decoded = Buffer.from(fileId, 'base64').toString('utf-8');
+      if (decoded && decoded !== fileId) {
+        const normalizedRel = decoded.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+        if (normalizedRel && !normalizedRel.includes('..')) {
+          const absoluteCandidate = path.join(this.basePath, normalizedRel);
+          try {
+            await fs.stat(absoluteCandidate);
+            return absoluteCandidate;
+          } catch {
+            // ignore if path not exists; fall back to search
+          }
+        }
+      }
+    } catch {
+      // ignore decode errors; fall back to search
+    }
+
     // Prüfe zuerst den Cache
     const cachedPath = this.pathCache.get(fileId);
     if (cachedPath) return cachedPath;

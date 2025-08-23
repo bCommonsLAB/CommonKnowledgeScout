@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs, existsSync } from 'fs';
+import { promises as fs } from 'fs';
 import { Stats } from 'fs';
 import * as pathLib from 'path';
 import mime from 'mime-types';
@@ -7,6 +7,7 @@ import { StorageItem } from '@/lib/storage/types';
 import { Library as LibraryType } from '@/types/library';
 import { LibraryService } from '@/lib/services/library-service';
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { AuthLogger } from '@/lib/debug/logger';
 
 // Force dynamic rendering - verhindert Caching
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,11 @@ export const runtime = 'nodejs';
 
 // Debug-Zeitstempel für jeden Request
 const REQUEST_ID = () => `REQ_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+// Minimal-Logging über ENV schaltbar
+const VERBOSE = process.env.DEBUG_FILESYSTEM === 'true';
+const vLog = (...args: unknown[]) => { if (VERBOSE) console.log(...args); };
+const vWarn = (...args: unknown[]) => { if (VERBOSE) console.warn(...args); };
 
 /**
  * Hilfsfunktion zum Abrufen der Benutzer-E-Mail-Adresse
@@ -23,59 +29,40 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
   const searchParams = request.nextUrl.searchParams;
   const emailParam = searchParams.get('email');
   
-  console.log('[API][getUserEmail] 🔍 Suche nach E-Mail:', {
-    hasEmailParam: !!emailParam,
-    emailParam,
-    url: request.url,
-    headers: Object.fromEntries(request.headers.entries()),
-    timestamp: new Date().toISOString()
-  });
+  // Cookie-Analyse entfernt - nicht mehr benötigt
+  
+  // Debug-Log entfernt - nicht mehr benötigt
+
+  // reduced noisy console logs
   
   // Wenn ein Email-Parameter übergeben wurde, diesen verwenden (für Tests)
   if (emailParam) {
-    console.log('[API][getUserEmail] ✅ Verwende Email-Parameter:', emailParam);
     return emailParam;
   }
   
   // Versuche, authentifizierten Benutzer zu erhalten
   try {
-    console.log('[API][getUserEmail] 🔐 Versuche Clerk-Authentifizierung...');
     const { userId } = await auth();
     
-    console.log('[API][getUserEmail] 👤 Clerk-Auth Ergebnis:', {
-      hasUserId: !!userId,
-      userId,
-      timestamp: new Date().toISOString()
-    });
-    
     if (userId) {
-      console.log('[API][getUserEmail] 🔍 Hole User-Details...');
       const user = await currentUser();
-      
-      console.log('[API][getUserEmail] 👤 User-Details:', {
-        hasUser: !!user,
-        userId: user?.id,
-        emailAddressesCount: user?.emailAddresses?.length,
-        primaryEmail: user?.emailAddresses?.[0]?.emailAddress,
-        timestamp: new Date().toISOString()
-      });
       
       const emailAddresses = user?.emailAddresses || [];
       
       if (user && emailAddresses.length > 0) {
         const email = emailAddresses[0].emailAddress;
-        console.log('[API][getUserEmail] ✅ E-Mail gefunden:', email);
         return email;
       } else {
-        console.warn('[API][getUserEmail] ⚠️ User hat keine E-Mail-Adressen:', {
+        AuthLogger.warn('FileSystemAPI', 'User has no email addresses', {
           hasUser: !!user,
           emailAddressesCount: emailAddresses.length
         });
       }
     } else {
-      console.warn('[API][getUserEmail] ⚠️ Keine User-ID von Clerk erhalten');
+      AuthLogger.warn('FileSystemAPI', 'No userId returned from Clerk auth()');
     }
   } catch (error) {
+    AuthLogger.error('FileSystemAPI', 'Clerk authentication failed', error);
     console.error('[API][getUserEmail] 💥 Fehler bei Clerk-Authentifizierung:', {
       error: error instanceof Error ? {
         message: error.message,
@@ -88,34 +75,18 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
   
   // Fallback: Versuche E-Mail aus Headers zu extrahieren
   try {
-    const authHeader = request.headers.get('authorization');
-    const cookieHeader = request.headers.get('cookie');
-    
-    console.log('[API][getUserEmail] 🔍 Fallback: Prüfe Headers:', {
-      hasAuthHeader: !!authHeader,
-      hasCookieHeader: !!cookieHeader,
-      authHeaderLength: authHeader?.length,
-      cookieHeaderLength: cookieHeader?.length
-    });
-    
-    // Hier könnten weitere Fallback-Logiken implementiert werden
-    // z.B. E-Mail aus JWT-Token extrahieren
-    
+    // Platzhalter für mögliche Fallbacks (bewusst ungenutzt, um Linter ruhig zu halten)
+    void request.headers;
   } catch (fallbackError) {
+    AuthLogger.error('FileSystemAPI', 'Header fallback failed', fallbackError);
     console.error('[API][getUserEmail] 💥 Fallback-Fehler:', fallbackError);
   }
   
-  console.error('[API][getUserEmail] ❌ Keine E-Mail gefunden - alle Methoden fehlgeschlagen');
+  AuthLogger.error('FileSystemAPI', 'All authentication methods failed - no email found');
   return undefined;
 }
 
 async function getLibrary(libraryId: string, email: string): Promise<LibraryType | undefined> {
-  console.log(`[API][getLibrary] Suche nach Bibliothek:`, {
-    libraryId,
-    email,
-    timestamp: new Date().toISOString()
-  });
-  
   // Bibliothek aus MongoDB abrufen
   const libraryService = LibraryService.getInstance();
   const libraries = await libraryService.getUserLibraries(email);
@@ -135,56 +106,27 @@ async function getLibrary(libraryId: string, email: string): Promise<LibraryType
 
 // Konvertiert eine ID zurück in einen Pfad
 function getPathFromId(library: LibraryType, fileId: string): string {
-  console.log('[getPathFromId] 🔍 Input:', { 
-    fileId, 
-    libraryPath: library.path,
-    libraryId: library.id,
-    timestamp: new Date().toISOString()
-  });
-  
   if (fileId === 'root') {
-    console.log('[getPathFromId] 🏠 Root-Pfad erkannt, verwende Library-Pfad:', library.path);
     return library.path;
   }
   
   try {
     const decodedPath = Buffer.from(fileId, 'base64').toString();
-    console.log('[getPathFromId] 🔓 Decoded path:', {
-      originalId: fileId,
-      decodedPath,
-      decodedLength: decodedPath.length
-    });
     
     // Always treat decoded path as relative path and normalize it
     const normalizedPath = decodedPath.replace(/\\/g, '/');
-    console.log('[getPathFromId] 🔧 Normalized path:', {
-      original: decodedPath,
-      normalized: normalizedPath
-    });
     
     // Check for path traversal attempts
     if (normalizedPath.includes('..')) {
-      console.log('[getPathFromId] ⚠️ Path traversal detected, returning root');
       return library.path;
     }
     
     // Join with base path using pathLib.join to handle separators correctly
     const result = pathLib.join(library.path, normalizedPath);
-    console.log('[getPathFromId] 🔗 Joined path:', {
-      basePath: library.path,
-      relativePath: normalizedPath,
-      result: result
-    });
     
     // Double check the result is within the library path
     const normalizedResult = pathLib.normalize(result).replace(/\\/g, '/');
     const normalizedLibPath = pathLib.normalize(library.path).replace(/\\/g, '/');
-    
-    console.log('[getPathFromId] 🔒 Security check:', {
-      normalizedResult,
-      normalizedLibPath,
-      startsWithLibPath: normalizedResult.startsWith(normalizedLibPath)
-    });
     
     // Verbesserte Sicherheitsprüfung für Windows-Pfade
     let isWithinLibrary = false;
@@ -203,15 +145,9 @@ function getPathFromId(library: LibraryType, fileId: string): string {
     }
     
     if (!isWithinLibrary) {
-      console.log('[getPathFromId] 🚫 Path escape detected, returning root');
       return library.path;
     }
     
-    console.log('[getPathFromId] ✅ Final result:', {
-      inputId: fileId,
-      finalPath: result,
-      exists: existsSync(result)
-    });
     return result;
   } catch (error) {
     console.error('[getPathFromId] 💥 Error decoding path:', {
@@ -271,10 +207,7 @@ async function statsToStorageItem(library: LibraryType, absolutePath: string, st
 
 // Listet Items in einem Verzeichnis
 async function listItems(library: LibraryType, fileId: string): Promise<StorageItem[]> {
-  console.log(`[API] GET listItems fileId=${fileId}, Bibliothek=${library.id}, Pfad="${library.path}"`);
-  
   const absolutePath = getPathFromId(library, fileId);
-  console.log(`[API] Absoluter Pfad für Verzeichnisauflistung: "${absolutePath}"`);
   
   try {
     // Prüfe zuerst, ob das Verzeichnis existiert
@@ -370,7 +303,7 @@ export async function GET(request: NextRequest) {
   const fileId = url.searchParams.get('fileId');
   const libraryId = url.searchParams.get('libraryId');
   
-  console.log(`[API][filesystem] GET Request:`, {
+  vLog(`[API][filesystem] GET Request:`, {
     requestId,
     action,
     fileId,
@@ -380,7 +313,7 @@ export async function GET(request: NextRequest) {
   
   // Validiere erforderliche Parameter
   if (!libraryId) {
-    console.warn(`[API][filesystem] ❌ Fehlender libraryId Parameter`);
+    vWarn(`[API][filesystem] ❌ Fehlender libraryId Parameter`);
     return NextResponse.json({ 
       error: 'libraryId is required',
       errorCode: 'MISSING_LIBRARY_ID',
@@ -389,7 +322,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!fileId) {
-    console.warn(`[API][filesystem] ❌ Fehlender fileId Parameter`);
+    vWarn(`[API][filesystem] ❌ Fehlender fileId Parameter`);
     return NextResponse.json({ 
       error: 'fileId is required',
       errorCode: 'MISSING_FILE_ID',
@@ -400,7 +333,7 @@ export async function GET(request: NextRequest) {
   // E-Mail aus Authentifizierung oder Parameter ermitteln
   const userEmail = await getUserEmail(request);
   if (!userEmail) {
-    console.warn(`[API][filesystem] ❌ Keine E-Mail gefunden`);
+    vWarn(`[API][filesystem] ❌ Keine E-Mail gefunden`);
     return NextResponse.json({ 
       error: 'No user email found',
       errorCode: 'NO_USER_EMAIL',
@@ -408,7 +341,6 @@ export async function GET(request: NextRequest) {
     }, { status: 400 });
   }
 
-  console.log(`[API][filesystem] Benutzer-E-Mail gefunden:`, userEmail);
 
   const library = await getLibrary(libraryId, userEmail);
 
@@ -417,7 +349,7 @@ export async function GET(request: NextRequest) {
     return handleLibraryNotFound(libraryId, userEmail);
   }
 
-  console.log(`[API][filesystem] Bibliothek gefunden:`, {
+  vLog(`[API][filesystem] Bibliothek gefunden:`, {
     libraryId: library.id,
     libraryLabel: library.label,
     libraryPath: library.path,
@@ -427,7 +359,7 @@ export async function GET(request: NextRequest) {
   try {
     switch (action) {
       case 'list': {
-        console.log(`[API][filesystem][list] Starte Verzeichnisauflistung:`, {
+        vLog(`[API][filesystem][list] Starte Verzeichnisauflistung:`, {
           requestId,
           fileId,
           libraryId,
@@ -436,7 +368,7 @@ export async function GET(request: NextRequest) {
         
         const items = await listItems(library, fileId);
         
-        console.log(`[API][filesystem][list] Erfolgreich ${items.length} Items geladen:`, {
+        vLog(`[API][filesystem][list] Erfolgreich ${items.length} Items geladen:`, {
           requestId,
           itemCount: items.length,
           fileId
@@ -453,7 +385,7 @@ export async function GET(request: NextRequest) {
       }
 
       case 'binary': {
-        console.log(`[API][filesystem][binary] 🖼️ Binary-Request gestartet:`, {
+        vLog(`[API][filesystem][binary] 🖼️ Binary-Request gestartet:`, {
           requestId,
           fileId,
           libraryId,
@@ -475,19 +407,8 @@ export async function GET(request: NextRequest) {
         }
 
         const absolutePath = getPathFromId(library, fileId);
-        console.log(`[API][filesystem][binary] 📁 Absoluter Pfad:`, {
-          fileId,
-          absolutePath,
-          libraryPath: library.path
-        });
 
         const stats = await fs.stat(absolutePath);
-        console.log(`[API][filesystem][binary] 📊 Datei-Statistiken:`, {
-          isFile: stats.isFile(),
-          size: stats.size,
-          mtime: stats.mtime,
-          path: absolutePath
-        });
         
         if (!stats.isFile()) {
           console.error('[API][filesystem] Keine Datei:', {
@@ -503,16 +424,10 @@ export async function GET(request: NextRequest) {
           }, { status: 400 });
         }
 
-        console.log(`[API][filesystem][binary] 📖 Lade Dateiinhalt...`);
         const content = await fs.readFile(absolutePath);
-        console.log(`[API][filesystem][binary] ✅ Dateiinhalt geladen:`, {
-          contentLength: content.length,
-          expectedSize: stats.size,
-          matches: content.length === stats.size
-        });
 
         const mimeType = mime.lookup(absolutePath) || 'application/octet-stream';
-        console.log(`[API][filesystem][binary] 🏷️ MIME-Type erkannt:`, {
+        vLog(`[API][filesystem][binary] 🏷️ MIME-Type erkannt:`, {
           mimeType,
           filename: pathLib.basename(absolutePath),
           extension: pathLib.extname(absolutePath)
@@ -534,7 +449,7 @@ export async function GET(request: NextRequest) {
           headers['Content-Disposition'] = `inline; filename="${encodeURIComponent(pathLib.basename(absolutePath))}"`;
         }
         
-        console.log(`[API][filesystem][binary] 🚀 Sende Response:`, {
+        vLog(`[API][filesystem][binary] 🚀 Sende Response:`, {
           status: 200,
           headers: Object.fromEntries(Object.entries(headers).filter(([key]) => !key.startsWith('X-Debug-'))),
           contentLength: content.length
@@ -607,7 +522,7 @@ export async function POST(request: NextRequest) {
   const fileId = searchParams.get('fileId') || 'root';
   const libraryId = searchParams.get('libraryId') || '';
 
-  console.log(`[API] POST ${action} fileId=${fileId}, libraryId=${libraryId}`);
+  vLog(`[API] POST ${action} fileId=${fileId}, libraryId=${libraryId}`);
 
   // E-Mail aus Authentifizierung oder Parameter ermitteln
   const userEmail = await getUserEmail(request);
@@ -682,7 +597,7 @@ export async function DELETE(request: NextRequest) {
   const fileId = searchParams.get('fileId');
   const libraryId = searchParams.get('libraryId') || '';
 
-  console.log(`[API] DELETE fileId=${fileId}, libraryId=${libraryId}`);
+  vLog(`[API] DELETE fileId=${fileId}, libraryId=${libraryId}`);
 
   if (!fileId || fileId === 'root') {
     return NextResponse.json({ error: 'Invalid file ID' }, { status: 400 });
@@ -725,7 +640,7 @@ export async function PATCH(request: NextRequest) {
   const newParentId = searchParams.get('newParentId');
   const libraryId = searchParams.get('libraryId') || '';
 
-  console.log(`[API] PATCH fileId=${fileId}, newParentId=${newParentId}, libraryId=${libraryId}`);
+  vLog(`[API] PATCH fileId=${fileId}, newParentId=${newParentId}, libraryId=${libraryId}`);
 
   if (!fileId || !newParentId || fileId === 'root') {
     return NextResponse.json({ error: 'Invalid file or parent ID' }, { status: 400 });
@@ -761,7 +676,7 @@ export async function PATCH(request: NextRequest) {
 
 async function handleGetPath(library: LibraryType, fileId: string): Promise<Response> {
   try {
-    console.log('[API] GET path fileId=', fileId);
+    vLog('[API] GET path fileId=', fileId);
     const absolutePath = getPathFromId(library, fileId);
     
     // Konvertiere absoluten Pfad zu relativem Pfad

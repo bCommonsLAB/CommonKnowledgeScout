@@ -628,7 +628,8 @@ export async function transformPdf(
   template?: string,
   extractionMethod: string = 'native',
   useCache: boolean = true,
-  includeImages: boolean = false
+  includeImages: boolean = false,
+  context?: { originalItemId?: string; parentId?: string; originalFileName?: string }
 ): Promise<SecretaryPdfResponse> {
   try {
     console.log('[secretary/client] transformPdf aufgerufen mit Sprache:', targetLanguage, 'und Template:', template);
@@ -643,6 +644,16 @@ export async function transformPdf(
     // Template-Option
     if (template) {
       formData.append('template', template);
+    }
+    // Kontext-Informationen für zielgenaues Speichern
+    if (context?.originalItemId) {
+      formData.append('originalItemId', context.originalItemId);
+    }
+    if (context?.parentId) {
+      formData.append('parentId', context.parentId);
+    }
+    if (context?.originalFileName) {
+      formData.append('originalFileName', context.originalFileName);
     }
     
     // Angepasste Header bei expliziten Optionen

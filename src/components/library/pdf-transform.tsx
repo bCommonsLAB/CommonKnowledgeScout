@@ -108,6 +108,24 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
         updatedItemsCount: result.updatedItems.length
       });
 
+      // Asynchroner Fall: Side-Panel sofort via lokalem Event informieren (Fallback, falls SSE spät verbindet)
+      if (!result.text && !result.savedItem && result.jobId) {
+        try {
+          window.dispatchEvent(new CustomEvent('job_update_local', {
+            detail: {
+              jobId: result.jobId,
+              status: 'queued',
+              message: 'queued',
+              progress: 0,
+              jobType: 'pdf',
+              fileName: item.metadata.name,
+              updatedAt: new Date().toISOString()
+            }
+          }));
+        } catch {}
+        return;
+      }
+
       // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
       if (onRefreshFolder && item.parentId && result.updatedItems.length > 0) {
         FileLogger.info('PdfTransform', 'Informiere Library über aktualisierte Dateiliste', {
@@ -170,6 +188,7 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
                 defaultUseCache={true}
                 showIncludeImages={true}
                 defaultIncludeImages={false}
+                showCreateShadowTwin={false}
               />
               
               <Button 

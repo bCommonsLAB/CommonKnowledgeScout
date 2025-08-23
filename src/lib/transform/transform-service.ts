@@ -21,6 +21,7 @@ export interface TransformResult {
   savedItem?: StorageItem;
   updatedItems: StorageItem[];
   imageExtractionResult?: ImageExtractionResult; // Neu: Ergebnis der Bild-Extraktion
+  jobId?: string;
 }
 
 export interface VideoTransformOptions extends TransformSaveOptions {
@@ -423,11 +424,33 @@ export class TransformService {
     });
     
     // PDF-Datei wird transformiert - hole die vollständige Response
-    const response = await transformPdf(file, options.targetLanguage, libraryId, undefined, options.extractionMethod, options.useCache ?? true, options.includeImages ?? false);
+    const response = await transformPdf(
+      file,
+      options.targetLanguage,
+      libraryId,
+      undefined,
+      options.extractionMethod,
+      options.useCache ?? true,
+      options.includeImages ?? false,
+      {
+        originalItemId: originalItem.id,
+        parentId: originalItem.parentId,
+        originalFileName: originalItem.metadata.name,
+      }
+    );
     
-    FileLogger.debug('TransformService', 'Vollständige PDF-Response', {
-      response: JSON.stringify(response, null, 2)
-    });
+    FileLogger.debug('TransformService', 'Vollständige PDF-Response', { response: JSON.stringify(response, null, 2) });
+
+    // Asynchroner Flow: nur "accepted" → Ergebnis via Webhook, kein Client-Fehler
+    if (response && (response as unknown as { status?: string; data?: { extracted_text?: string } }).status === 'accepted' && !((response as unknown as { data?: { extracted_text?: string } }).data?.extracted_text)) {
+      const r = response as unknown as { job?: { id?: string }; process?: { id?: string; is_from_cache?: boolean } };
+      FileLogger.info('TransformService', 'Job akzeptiert – Ergebnis kommt per Webhook', {
+        jobId: r?.job?.id,
+        processId: r?.process?.id,
+        fromCache: r?.process?.is_from_cache || false
+      });
+      return { text: '', updatedItems: [], jobId: r?.job?.id };
+    }
     
     // Extrahiere den Text aus der Response
     let transformedText = '';
@@ -501,9 +524,9 @@ export class TransformService {
         }
       });
     } else {
-      FileLogger.error('TransformService', 'Kein Extracted-Text in der Response gefunden!', {
-        responseKeys: response ? Object.keys(response) : [],
-        dataKeys: response && response.data ? Object.keys(response.data) : []
+      FileLogger.warn('TransformService', 'Keine synchronen PDF-Daten erhalten', {
+        hasResponse: !!response,
+        hasData: !!(response && (response as unknown as { data?: unknown }).data)
       });
     }
     
@@ -887,7 +910,7 @@ export class TransformService {
   /**
    * Erstellt Markdown-Inhalt mit YAML-Frontmatter
    */
-  private static createMarkdownWithFrontmatter(content: string, metadata: TransformMetadata): string {
+  static createMarkdownWithFrontmatter(content: string, metadata: TransformMetadata): string {
     // Wenn keine Metadaten vorhanden sind, gebe nur den Inhalt zurück
     if (!metadata || Object.keys(metadata).length === 0) {
       return content;

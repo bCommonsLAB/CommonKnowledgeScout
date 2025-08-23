@@ -26,6 +26,9 @@ export function LibrarySwitcher({
   const [, setCreateLibrary] = useAtom(createLibraryAtom)
   
   const currentLibrary = libraries.find(lib => lib.id === activeLibraryId) || activeLibrary;
+  const safeLibraries = React.useMemo(() => {
+    return (libraries || []).filter(lib => typeof lib.id === 'string' && lib.id.trim() !== '');
+  }, [libraries]);
   
   const handleLibraryChange = (value: string) => {
     // Wenn der spezielle Wert für "Neue Bibliothek erstellen" ausgewählt wurde
@@ -77,7 +80,7 @@ export function LibrarySwitcher({
       <SelectContent>
         <SelectGroup>
           <SelectLabel>Bibliotheken</SelectLabel>
-          {libraries.map((library) => (
+          {safeLibraries.map((library) => (
             <SelectItem key={library.id} value={library.id}>
               <div className="flex items-center gap-3 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-foreground">
                 {library.icon}

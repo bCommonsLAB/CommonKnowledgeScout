@@ -307,7 +307,7 @@ pnpm dev
 - **Storage Provider** Zugangsdaten
 
 ### 🔗 Wichtige Links
-- [Projektdokumentation](../README.md)
-- [API Dokumentation](../07_api.md)
-- [Setup Guide](../06_setup.md)
-- [Architektur Details](../02_architecture.md) 
+- [Projektdokumentation](../index.md)
+- [API Dokumentation](../reference/api/overview.md)
+- [Setup Guide](../guide/setup.md)
+- [Architektur Details](../architecture/architecture.md)

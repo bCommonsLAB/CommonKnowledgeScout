@@ -1,6 +1,8 @@
 import { StorageProvider, StorageItem, StorageValidationResult } from './types';
 import { ClientLibrary } from '@/types/library';
 import { OneDriveProvider } from './onedrive-provider';
+import { getSupportedLibraryTypesString } from './supported-types';
+import { AuthLogger } from '@/lib/debug/logger';
 
 interface LibraryPathProvider {
   _libraryPath?: string;
@@ -54,6 +56,14 @@ class LocalStorageProvider implements StorageProvider {
     const url = this.getApiUrl(`/api/storage/filesystem?action=list&fileId=${folderId}&libraryId=${this.library.id}`);
     console.log(`[LocalStorageProvider] Calling API:`, url);
     
+    AuthLogger.debug('LocalStorageProvider', 'Starting listItemsById API call', {
+      folderId,
+      libraryId: this.library.id,
+      hasUserEmail: !!this.userEmail,
+      userEmail: this.userEmail ? `${this.userEmail.split('@')[0]}@...` : null,
+      url: url.replace(/email=[^&]+/, 'email=***')
+    });
+    
     try {
       const response = await fetch(url);
       
@@ -92,10 +102,27 @@ class LocalStorageProvider implements StorageProvider {
         } else {
           throw new Error(`Fehler beim Laden der Bibliothek: ${errorMessage}`);
         }
+        
+        // AuthLogger für Fehler
+        AuthLogger.error('LocalStorageProvider', 'API call failed', {
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage,
+          folderId,
+          libraryId: this.library.id,
+          hasUserEmail: !!this.userEmail
+        });
       }
       
       const data = await response.json();
       console.log(`[LocalStorageProvider] Successfully loaded ${data.length} items`);
+      
+      AuthLogger.info('LocalStorageProvider', 'API call successful', {
+        itemCount: data.length,
+        folderId,
+        libraryId: this.library.id
+      });
+      
       return data;
       
     } catch (error) {
@@ -110,6 +137,8 @@ class LocalStorageProvider implements StorageProvider {
         userEmail: this.userEmail,
         libraryPath: this.library.path
       });
+      
+      AuthLogger.error('LocalStorageProvider', 'Exception in listItemsById', error);
       
       // Re-throw den Fehler mit zusätzlichem Kontext
       if (error instanceof Error) {
@@ -298,6 +327,7 @@ export class StorageFactory {
   private libraries: ClientLibrary[] = [];
   private providers = new Map<string, StorageProvider>();
   private apiBaseUrl: string | null = null;
+  private userEmail: string | null = null;
 
   private constructor() {}
 
@@ -312,6 +342,23 @@ export class StorageFactory {
   setApiBaseUrl(baseUrl: string) {
     this.apiBaseUrl = baseUrl;
     console.log(`StorageFactory: API-Basis-URL gesetzt auf ${baseUrl}`);
+  }
+
+  /**
+   * Setzt die Benutzer-E-Mail für alle Provider
+   * Wichtig für Client-zu-Server API-Aufrufe
+   */
+  setUserEmail(email: string) {
+    this.userEmail = email;
+    console.log(`[StorageFactory] User E-Mail gesetzt: ${email}`);
+    
+    // Update existing providers
+    this.providers.forEach((provider, libraryId) => {
+      if ('setUserEmail' in provider && typeof provider.setUserEmail === 'function') {
+        (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(email);
+        console.log(`[StorageFactory] E-Mail an Provider ${libraryId} übertragen`);
+      }
+    });
   }
 
   setLibraries(libraries: ClientLibrary[]) {
@@ -417,15 +464,39 @@ export class StorageFactory {
       case 'local':
         provider = new LocalStorageProvider(library, this.apiBaseUrl || undefined);
         console.log(`StorageFactory: LocalStorageProvider erstellt für "${library.path}"`);
+        // Set user email if available
+        if (this.userEmail && 'setUserEmail' in (provider as unknown as { setUserEmail?: (e: string) => void })) {
+          (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(this.userEmail);
+          console.log(`StorageFactory: User-Email an LocalStorageProvider gesetzt`);
+        }
         break;
       case 'onedrive':
         provider = new OneDriveProvider(library, this.apiBaseUrl || undefined);
         console.log(`StorageFactory: OneDriveProvider erstellt`);
+        // Set user email if available
+        if (this.userEmail && 'setUserEmail' in (provider as unknown as { setUserEmail?: (e: string) => void })) {
+          (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(this.userEmail);
+          console.log(`StorageFactory: User-Email an OneDriveProvider gesetzt`);
+        }
         break;
       // Add more provider types here
       default:
-        console.error(`StorageFactory: Nicht unterstützter Bibliothekstyp: ${library.type}`);
-        throw new Error(`Unsupported library type: ${library.type}`);
+        console.warn(`StorageFactory: Nicht unterstützter Bibliothekstyp "${library.type}" für Bibliothek "${library.label}"`);
+        console.info(`StorageFactory: Unterstützte Typen: ${getSupportedLibraryTypesString()}`);
+        
+        // Spezifischen Fehler werfen, den wir graceful handhaben können
+        const error = new Error(`Bibliothekstyp "${library.type}" wird noch nicht unterstützt. Unterstützte Typen: ${getSupportedLibraryTypesString()}`);
+        error.name = 'UnsupportedLibraryTypeError';
+        interface UnsupportedLibraryTypeError extends Error {
+          errorCode: string;
+          libraryType: string;
+          libraryId: string;
+        }
+        const typedError = error as UnsupportedLibraryTypeError;
+        typedError.errorCode = 'UNSUPPORTED_LIBRARY_TYPE';
+        typedError.libraryType = library.type;
+        typedError.libraryId = library.id;
+        throw typedError;
     }
 
     // Cache provider

@@ -1,0 +1,203 @@
+Detected multiple Jotai instances. It may cause unexpected behavior with the default store. https://github.com/pmndrs/jotai/discussions/2044
+ GET / 200 in 206ms
+ GET /api/libraries?email=peter.aichner%40crystal-design.com 200 in 39ms
+[OAuthDefaults] Umgebungsvariable: { redirectUri: 'http://localhost:3000/api/auth/onedrive/callback' }
+ GET /api/settings/oauth-defaults 200 in 14ms
+ GET /library 200 in 29ms
+ GET /api/libraries?email=peter.aichner%40crystal-design.com 200 in 41ms
+[OAuthDefaults] Umgebungsvariable: { redirectUri: 'http://localhost:3000/api/auth/onedrive/callback' }
+ GET /api/settings/oauth-defaults 200 in 11ms
+[OAuthDefaults] Umgebungsvariable: { redirectUri: 'http://localhost:3000/api/auth/onedrive/callback' }
+ GET /api/settings/oauth-defaults 200 in 10ms
+[OAuthDefaults] Umgebungsvariable: { redirectUri: 'http://localhost:3000/api/auth/onedrive/callback' }
+ GET /api/settings/oauth-defaults 200 in 10ms
+ ✓ Compiled /api/auth/onedrive/callback in 409ms (1203 modules)
+[OneDrive Auth Callback] Received: code=true, libraryId=06a12a4f-a2e4-45af-be91-0985d482d1d3, error=null, sessionState=true
+Verbindung zu MongoDB wird hergestellt... (Datenbank: common-secretary-service)
+[OneDriveServerProvider] Authentifizierung mit gespeicherten Konfigurationswerten {
+  tenantId: '0b972e14-e31c-4c25-8739-03638ba51e85',
+  clientId: 'vorhanden',
+  clientSecret: 'vorhanden',
+  redirectUri: 'http://localhost:3000/api/auth/onedrive/callback'
+}
+[OneDriveServerProvider] Token erfolgreich erhalten
+[OneDriveServerProvider] Speichere Tokens in der Bibliothekskonfiguration...
+[OneDriveServerProvider] Tokens erfolgreich gespeichert
+[OneDrive Auth Callback] Authentifizierung erfolgreich
+StorageFactory: Lösche Provider für Bibliothek 06a12a4f-a2e4-45af-be91-0985d482d1d3 aus dem Cache
+StorageFactory: Kein Provider im Cache für Bibliothek 06a12a4f-a2e4-45af-be91-0985d482d1d3
+StorageFactory: Provider für 06a12a4f-a2e4-45af-be91-0985d482d1d3 wurde aus dem Cache entfernt
+ GET /api/auth/onedrive/callback?code=1.ATwAFC6XCxzjJUyHOQNji6UehUPEx1T4xHtIm9GnUwRr5H0aAZI8AA.AgABBAIAAABVrSpeuWamRam2jAF1XRQEAwDs_wUA9P8ngl_wf37gxtyjJwFp1x0sCEUitYCIMcjPbQzAT7F24BQWPu_yNWLxv-WivOq0zGCsKasW597nTuIKn6LKfHXgb-IWc4LHHTNwqz6Iz5fpRFhIeFx3HfXkEbGL3Kt2URrLUtOQOhJ4WLQe3gBH12Yfn062pBRI_z_LSsXcSMSaD9T_uIa4oZzRxDKbUX4XfQSDNnh5VBxh2aaq4drPu9-7O12JIRCR9FG9w5NmkH9yxtw9vNyeetAtqWRpUPyH-LBwsn7PQcAJTvkd1uNDwixEZZmvW_834pSdBTwY30gnsz_xps22Oq3FrZYTsHb3_DitJ43CqXl2QGMFzBACubpB9c8qFhegCkBjXlwc4YaPWtNdRwLuI-vD_elKS3jr9L6FHse7CgBieKiEKhV8KumjQ7oNSAe-rnYB91rK8N-VI915UvPcUplEYm0DDcDJAg-4cKq_IrdwtafeWxyMFEoTZm7y41MaDMS-7lhhXIPyHV-rXF0IiBDR3x-44_BmhZkw7_unDCHzF6iCpsz7bgdRBbmJJZg_AcixqeFK6M41UNkNQMzeJOiXuhCyzoOmt8RIuwnR6QZ453HoK9-ig3hRGafmPwuLG2l_haXrEWRVrVj2_dfWWhMntL0p0B4N25HK-DHmDLxzn3-EW5WAPAudQHFVUUVh1e1V9xxZh5kIw0oAV-ezLwjptlAC93BD2aYPjnOMUnl1EU6RmHhYQCxeKLu_nc0H-rUDB-7_5d_kKyxADb4Q83HHXWMy2Sg3XRd9dBNH_Txz-9r_D0Qds_sMKjBzb7PVMpnSG2Qz7x2MGf-qqEsXwDQkgrykUKQDYufcC8dY-LGyI1p9arz-qpF-l3gL&state=%7b%22libraryId%22%3a%2206a12a4f-a2e4-45af-be91-0985d482d1d3%22%2c%22redirect%22%3a%22http%3a%2f%2flocalhost%3a3000%2flibrary%22%7d&session_state=002f7c59-524b-e082-d8d4-566fd28706aa 307 in 2420ms
+ │ GET https://api.clerk.com/v1/users/user_2rJr6UCn5.. 200 in 419ms (cache skip)
+ │ │ Cache skipped reason: (auto no cache)
+ │ POST https://login.microsofto../0b972e14-e31c-4c25-8739.. 200 in 341ms (cache skip)
+ │ │ Cache skipped reason: (auto no cache)
+linkify option is removed. Use linkify plugin instead:
+
+import Remarkable from 'remarkable';
+import linkify from 'remarkable/linkify';
+new Remarkable().use(linkify)
+
+Detected multiple Jotai instances. It may cause unexpected behavior with the default store. https://github.com/pmndrs/jotai/discussions/2044
+ GET /library 200 in 277ms
+ GET /api/libraries?email=peter.aichner%40crystal-design.com 200 in 42ms
+ GET /api/libraries?email=peter.aichner%40crystal-design.com 200 in 36ms
+ ✓ Compiled /api/storage/filesystem in 251ms (1209 modules)
+[OAuthDefaults] Umgebungsvariable: { redirectUri: 'http://localhost:3000/api/auth/onedrive/callback' }
+ GET /api/settings/oauth-defaults 200 in 534ms
+[API][getUserEmail] Suche nach E-Mail: {
+  hasEmailParam: true,
+  emailParam: 'peter.aichner@crystal-design.com',
+  url: 'http://localhost:3000/api/storage/filesystem?action=path&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com'
+}
+[API][getUserEmail] Suche nach E-Mail: {
+  hasEmailParam: true,
+  emailParam: 'peter.aichner@crystal-design.com',
+  url: 'http://localhost:3000/api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com'
+}
+[API][getLibrary] Suche nach Bibliothek: {
+  libraryId: '27632423-7615-43cc-a36c-5cb0b656c060',
+  email: 'peter.aichner@crystal-design.com',
+  timestamp: '2025-06-06T06:45:15.247Z'
+}
+Verbindung zu MongoDB wird hergestellt... (Datenbank: common-secretary-service)
+[API][getLibrary] Suche nach Bibliothek: {
+  libraryId: '27632423-7615-43cc-a36c-5cb0b656c060',
+  email: 'peter.aichner@crystal-design.com',
+  timestamp: '2025-06-06T06:45:15.249Z'
+}
+[OAuthDefaults] Umgebungsvariable: { redirectUri: 'http://localhost:3000/api/auth/onedrive/callback' }
+ GET /api/settings/oauth-defaults 200 in 15ms
+[OAuthDefaults] Umgebungsvariable: { redirectUri: 'http://localhost:3000/api/auth/onedrive/callback' }
+ GET /api/settings/oauth-defaults 200 in 13ms
+[OAuthDefaults] Umgebungsvariable: { redirectUri: 'http://localhost:3000/api/auth/onedrive/callback' }
+ GET /api/settings/oauth-defaults 200 in 14ms
+[API] GET listItems fileId=root, Bibliothek=27632423-7615-43cc-a36c-5cb0b656c060, Pfad="C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+[getPathFromId] Input: {
+  fileId: 'root',
+  libraryPath: 'C:\\Users\\peter.aichner\\OneDrive - Crystal Design GmbH\\Archiv Peter'
+}
+[API] Absoluter Pfad für Verzeichnisauflistung: "C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+ GET /api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com 200 in 877ms
+[API] GET path fileId= root
+[getPathFromId] Input: {
+  fileId: 'root',
+  libraryPath: 'C:\\Users\\peter.aichner\\OneDrive - Crystal Design GmbH\\Archiv Peter'
+}
+ GET /api/storage/filesystem?action=path&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com 200 in 903ms
+ ✓ Compiled /api/libraries/[id] in 467ms (1211 modules)
+[API][getUserEmail] Suche nach E-Mail: {
+  hasEmailParam: true,
+  emailParam: 'peter.aichner@crystal-design.com',
+  url: 'http://localhost:3000/api/storage/filesystem?action=path&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com'
+}
+[API][getUserEmail] Suche nach E-Mail: {
+  hasEmailParam: true,
+  emailParam: 'peter.aichner@crystal-design.com',
+  url: 'http://localhost:3000/api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com'
+}
+[API][getLibrary] Suche nach Bibliothek: {
+  libraryId: '27632423-7615-43cc-a36c-5cb0b656c060',
+  email: 'peter.aichner@crystal-design.com',
+  timestamp: '2025-06-06T06:45:16.466Z'
+}
+Verbindung zu MongoDB wird hergestellt... (Datenbank: common-secretary-service)
+[API][getLibrary] Suche nach Bibliothek: {
+  libraryId: '27632423-7615-43cc-a36c-5cb0b656c060',
+  email: 'peter.aichner@crystal-design.com',
+  timestamp: '2025-06-06T06:45:16.470Z'
+}
+[API] PUT /libraries/06a12a4f-a2e4-45af-be91-0985d482d1d3 für Benutzer peter.aichner@crystal-design.com
+[API] PUT /libraries/06a12a4f-a2e4-45af-be91-0985d482d1d3 für Benutzer peter.aichner@crystal-design.com
+[API] PUT /libraries/06a12a4f-a2e4-45af-be91-0985d482d1d3 für Benutzer peter.aichner@crystal-design.com
+[API] GET listItems fileId=root, Bibliothek=27632423-7615-43cc-a36c-5cb0b656c060, Pfad="C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+[getPathFromId] Input: {
+  fileId: 'root',
+  libraryPath: 'C:\\Users\\peter.aichner\\OneDrive - Crystal Design GmbH\\Archiv Peter'
+}
+[API] Absoluter Pfad für Verzeichnisauflistung: "C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+ GET /api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com 200 in 1518ms
+[API][getUserEmail] Suche nach E-Mail: {
+  hasEmailParam: true,
+  emailParam: 'peter.aichner@crystal-design.com',
+  url: 'http://localhost:3000/api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com'
+}
+[API][getLibrary] Suche nach Bibliothek: {
+  libraryId: '27632423-7615-43cc-a36c-5cb0b656c060',
+  email: 'peter.aichner@crystal-design.com',
+  timestamp: '2025-06-06T06:45:17.161Z'
+}
+[API] GET listItems fileId=root, Bibliothek=27632423-7615-43cc-a36c-5cb0b656c060, Pfad="C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+[getPathFromId] Input: {
+  fileId: 'root',
+  libraryPath: 'C:\\Users\\peter.aichner\\OneDrive - Crystal Design GmbH\\Archiv Peter'
+}
+[API] Absoluter Pfad für Verzeichnisauflistung: "C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+ GET /api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com 200 in 98ms
+[API][getUserEmail] Suche nach E-Mail: {
+  hasEmailParam: true,
+  emailParam: 'peter.aichner@crystal-design.com',
+  url: 'http://localhost:3000/api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com'
+}
+[API][getLibrary] Suche nach Bibliothek: {
+  libraryId: '27632423-7615-43cc-a36c-5cb0b656c060',
+  email: 'peter.aichner@crystal-design.com',
+  timestamp: '2025-06-06T06:45:17.279Z'
+}
+ PUT /api/libraries/06a12a4f-a2e4-45af-be91-0985d482d1d3 200 in 1668ms
+ │ GET https://api.clerk.com/v1/users/user_2rJr6UCn5.. 200 in 222ms (cache skip)
+ │ │ Cache skipped reason: (auto no cache)
+[API] GET listItems fileId=root, Bibliothek=27632423-7615-43cc-a36c-5cb0b656c060, Pfad="C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+[getPathFromId] Input: {
+  fileId: 'root',
+  libraryPath: 'C:\\Users\\peter.aichner\\OneDrive - Crystal Design GmbH\\Archiv Peter'
+}
+[API] Absoluter Pfad für Verzeichnisauflistung: "C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+ GET /api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com 200 in 173ms
+[API][getUserEmail] Suche nach E-Mail: {
+  hasEmailParam: true,
+  emailParam: 'peter.aichner@crystal-design.com',
+  url: 'http://localhost:3000/api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com'
+}
+[API][getLibrary] Suche nach Bibliothek: {
+  libraryId: '27632423-7615-43cc-a36c-5cb0b656c060',
+  email: 'peter.aichner@crystal-design.com',
+  timestamp: '2025-06-06T06:45:17.464Z'
+}
+ PUT /api/libraries/06a12a4f-a2e4-45af-be91-0985d482d1d3 200 in 1786ms
+ │ GET https://api.clerk.com/v1/users/user_2rJr6UCn5.. 200 in 224ms (cache skip)
+ │ │ Cache skipped reason: (auto no cache)
+[API] GET listItems fileId=root, Bibliothek=27632423-7615-43cc-a36c-5cb0b656c060, Pfad="C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+[getPathFromId] Input: {
+  fileId: 'root',
+  libraryPath: 'C:\\Users\\peter.aichner\\OneDrive - Crystal Design GmbH\\Archiv Peter'
+}
+[API] Absoluter Pfad für Verzeichnisauflistung: "C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+ GET /api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com 200 in 58ms
+[API] GET path fileId= root
+[getPathFromId] Input: {
+  fileId: 'root',
+  libraryPath: 'C:\\Users\\peter.aichner\\OneDrive - Crystal Design GmbH\\Archiv Peter'
+}
+ GET /api/storage/filesystem?action=path&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com 200 in 1903ms
+[API][getUserEmail] Suche nach E-Mail: {
+  hasEmailParam: true,
+  emailParam: 'peter.aichner@crystal-design.com',
+  url: 'http://localhost:3000/api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com'
+}
+[API][getLibrary] Suche nach Bibliothek: {
+  libraryId: '27632423-7615-43cc-a36c-5cb0b656c060',
+  email: 'peter.aichner@crystal-design.com',
+  timestamp: '2025-06-06T06:45:17.573Z'
+}
+[API] GET listItems fileId=root, Bibliothek=27632423-7615-43cc-a36c-5cb0b656c060, Pfad="C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+[getPathFromId] Input: {
+  fileId: 'root',
+  libraryPath: 'C:\\Users\\peter.aichner\\OneDrive - Crystal Design GmbH\\Archiv Peter'
+}
+[API] Absoluter Pfad für Verzeichnisauflistung: "C:\Users\peter.aichner\OneDrive - Crystal Design GmbH\Archiv Peter"
+ GET /api/storage/filesystem?action=list&fileId=root&libraryId=27632423-7615-43cc-a36c-5cb0b656c060&email=peter.aichner%40crystal-design.com 200 in 45ms
+ PUT /api/libraries/06a12a4f-a2e4-45af-be91-0985d482d1d3 200 in 2030ms
+ │ GET https://api.clerk.com/v1/users/user_2rJr6UCn5.. 200 in 231ms (cache skip)
+ │ │ Cache skipped reason: (auto no cache)
+

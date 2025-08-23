@@ -181,7 +181,7 @@ curl -X POST localhost:3000/api/libraries \
 - [Marp Documentation](https://marp.app/)
 - [Pandoc User Guide](https://pandoc.org/MANUAL.html)
 - [Reveal.js Documentation](https://revealjs.com/)
-- [Knowledge Scout Docs](../README.md)
+- [Knowledge Scout Docs](../index.md)
 
 ## 📝 Feedback und Verbesserungen
 
