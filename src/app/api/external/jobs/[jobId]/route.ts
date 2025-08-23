@@ -10,6 +10,7 @@ import { FileLogger } from '@/lib/debug/logger';
 import type { Library } from '@/types/library';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
+import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 
 interface OneDriveAuthConfig {
   accessToken?: string;
@@ -171,6 +172,8 @@ export async function POST(
     const hasFinalPayload = !!(body?.data?.extracted_text || body?.data?.images_archive_data || body?.status === 'completed');
 
     if (!hasFinalPayload && !hasError && (progressValue !== undefined || phase || message)) {
+      // Watchdog heartbeat
+      bumpWatchdog(jobId);
       bufferLog(jobId, { phase: phase || 'progress', progress: typeof progressValue === 'number' ? Math.max(0, Math.min(100, progressValue)) : undefined, message });
       FileLogger.info('external-jobs', 'Progress-Event', {
         jobId,
@@ -194,6 +197,7 @@ export async function POST(
     }
 
     if (hasError) {
+      clearWatchdog(jobId);
       bufferLog(jobId, { phase: 'failed', details: body.error });
       // Bei Fehler: gepufferte Logs persistieren
       const buffered = drainBufferedLogs(jobId);
@@ -211,6 +215,7 @@ export async function POST(
     const imagesArchiveFilename: string | undefined = body?.data?.images_archive_filename;
 
     if (!extractedText && !imagesArchiveData) {
+      bumpWatchdog(jobId);
       bufferLog(jobId, { phase: 'noop' });
       return NextResponse.json({ status: 'ok', jobId, kind: 'noop' });
     }
@@ -335,6 +340,7 @@ export async function POST(
     }
 
     await repo.setStatus(jobId, 'completed');
+    clearWatchdog(jobId);
     // gepufferte Logs persistieren
     const buffered = drainBufferedLogs(jobId);
     for (const entry of buffered) {

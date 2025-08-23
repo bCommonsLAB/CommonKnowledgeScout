@@ -6,6 +6,7 @@ import { FileLogger } from '@/lib/debug/logger';
 import crypto from 'crypto';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
+import { startWatchdog } from '@/lib/external-jobs-watchdog';
 import { ExternalJob } from '@/types/external-job';
 
 export async function POST(request: NextRequest) {
@@ -176,6 +177,8 @@ export async function POST(request: NextRequest) {
         fileName: correlation.source?.name,
       });
     } catch {}
+    // Watchdog starten (120s ohne Progress => Timeout)
+    startWatchdog({ jobId, userEmail, jobType: job.job_type, fileName: correlation.source?.name }, 120_000);
 
     // Callback-Informationen (generisch) anfügen
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
