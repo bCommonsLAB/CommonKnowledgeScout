@@ -4,24 +4,15 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 console.log(`[MIDDLEWARE] 🚀 Middleware wird geladen - ${new Date().toISOString()}`);
 
 // Liste der öffentlichen Routen, die ohne Anmeldung zugänglich sind
+// Test-/Legacy-Routen entfernt. Externe Callbacks erfolgen über External-Jobs (siehe dynamische Ausnahme unten).
 const isPublicRoute = createRouteMatcher([
   '/',
-  '/docs(.*)',
-  '/api/test-route(.*)', // Test-Route freigeben
-  '/api/settings/oauth-defaults', // OAuth-Defaults ohne Auth
-  '/api/env-test', // Umgebungstests
-  '/api/db-test', // Datenbanktests
-  '/api/external/webhook', // Webhook muss öffentlich sein
+  '/docs(.*)'
 ]);
 
 console.log(`[MIDDLEWARE] 🔧 Public routes configured:`, [
   '/',
   '/docs(.*)',
-  '/api/test-route(.*)',
-  '/api/settings/oauth-defaults',
-  '/api/env-test',
-  '/api/db-test',
-  '/api/external/webhook',
 ]);
 
 // Verwende die offizielle Clerk-Middleware
@@ -55,7 +46,7 @@ export default clerkMiddleware(async (auth, req) => {
   if (isPublic) return;
 
   try {
-    const authResult = await auth();
+    await auth();
     await auth.protect();
     
   } catch (error) {
