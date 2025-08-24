@@ -21,6 +21,7 @@ console.log(`[MIDDLEWARE] 🔧 Public routes configured:`, [
   '/api/settings/oauth-defaults',
   '/api/env-test',
   '/api/db-test',
+  '/api/external/webhook',
 ]);
 
 // Verwende die offizielle Clerk-Middleware
@@ -37,8 +38,19 @@ export default clerkMiddleware(async (auth, req) => {
     'authorization': req.headers.get('authorization') ? 'Present' : 'Missing'
   });
   
-  // Prüfe Public Routes
-  const isPublic = isPublicRoute(req);
+  // Prüfe Public Routes (statisch) + dynamische Ausnahme für Job-Callbacks
+  let isPublic = isPublicRoute(req);
+
+  // Dynamische Ausnahme: Nur POST /api/external/jobs/:jobId erlauben (nicht /stream)
+  if (!isPublic) {
+    const path = req.nextUrl.pathname;
+    const isJobsPath = path.startsWith('/api/external/jobs/');
+    const isStream = path === '/api/external/jobs/stream' || path.endsWith('/stream');
+    if (req.method === 'POST' && isJobsPath && !isStream) {
+      isPublic = true;
+    }
+  }
+
   console.log(`[Middleware] isPublicRoute check result: ${isPublic}`);
   
   if (isPublic) {
