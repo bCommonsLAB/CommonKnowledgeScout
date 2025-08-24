@@ -26,17 +26,16 @@ console.log(`[MIDDLEWARE] 🔧 Public routes configured:`, [
 
 // Verwende die offizielle Clerk-Middleware
 export default clerkMiddleware(async (auth, req) => {
-  
-  // Umfassende Debug-Logging
-  console.log(`\n=== [MIDDLEWARE] START ===`);
-  console.log(`[Middleware] Processing route: ${req.nextUrl.pathname}`);
-  console.log(`[Middleware] Full URL: ${req.url}`);
-  console.log(`[Middleware] Method: ${req.method}`);
-  console.log(`[Middleware] Headers:`, {
-    'user-agent': req.headers.get('user-agent')?.substring(0, 50),
-    'cookie': req.headers.get('cookie') ? 'Present' : 'Missing',
-    'authorization': req.headers.get('authorization') ? 'Present' : 'Missing'
-  });
+
+  // Harte Ausschlüsse: Statische Assets & Next-Interna niemals durch Middleware schützen
+  const path = req.nextUrl.pathname;
+  if (
+    path.startsWith('/_next') ||
+    path === '/favicon.ico' ||
+    /\.(?:css|js|map|png|jpg|jpeg|gif|webp|ico|svg|txt|woff|woff2|ttf)$/i.test(path)
+  ) {
+    return;
+  }
   
   // Prüfe Public Routes (statisch) + dynamische Ausnahme für Job-Callbacks
   let isPublic = isPublicRoute(req);
@@ -51,48 +50,28 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
-  console.log(`[Middleware] isPublicRoute check result: ${isPublic}`);
+  // console.debug(`[Middleware] isPublicRoute: ${isPublic}`);
   
-  if (isPublic) {
-    console.log(`[Middleware] ✅ Route is public, allowing through: ${req.nextUrl.pathname}`);
-    console.log(`=== [MIDDLEWARE] END (PUBLIC) ===\n`);
-    return;
-  }
+  if (isPublic) return;
 
-  console.log(`[Middleware] 🔒 Route requires auth protection: ${req.nextUrl.pathname}`);
-  
   try {
-    // Prüfe auth() vor protect()
-    console.log(`[Middleware] Calling auth() to check current state...`);
     const authResult = await auth();
-    console.log(`[Middleware] auth() result:`, {
-      hasUserId: !!authResult.userId,
-      userId: authResult.userId ? `${authResult.userId.substring(0, 8)}...` : null
-    });
-    
-    console.log(`[Middleware] Calling auth.protect()...`);
     await auth.protect();
-    console.log(`[Middleware] ✅ Auth protection completed successfully for: ${req.nextUrl.pathname}`);
     
   } catch (error) {
-    console.error(`[Middleware] ❌ Auth protection failed for: ${req.nextUrl.pathname}`);
-    console.error(`[Middleware] Error details:`, {
+    console.error(`[MIDDLEWARE] Auth failed for ${req.nextUrl.pathname}`, {
       name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 3) : 'No stack'
+      message: error instanceof Error ? error.message : 'Unknown error'
     });
     throw error;
   }
-  
-  console.log(`=== [MIDDLEWARE] END (PROTECTED) ===\n`);
 });
 
 export const config = {
   matcher: [
-    // Explizite API-Route-Matcher
-    '/api/:path*',
-    '/trpc/:path*',
-    // Alle anderen Routen außer statische Assets
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)).*)',
+    // Empfohlenes Muster: schließt _next und alle Pfade mit Dateiendungen aus
+    '/((?!.+\\.[\\w]+$|_next).*)',
+    '/',
+    '/(api|trpc)(.*)'
   ],
 }; 
