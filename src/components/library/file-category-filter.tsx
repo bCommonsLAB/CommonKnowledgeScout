@@ -9,6 +9,7 @@ import { fileCategoryFilterAtom, FileCategory } from '@/atoms/transcription-opti
 
 interface FileCategoryFilterProps {
   className?: string;
+  iconOnly?: boolean;
 }
 
 const filterOptions: Array<{
@@ -43,7 +44,7 @@ const filterOptions: Array<{
   }
 ];
 
-export function FileCategoryFilter({ className }: FileCategoryFilterProps) {
+export function FileCategoryFilter({ className, iconOnly = false }: FileCategoryFilterProps) {
   const [activeFilter, setActiveFilter] = useAtom(fileCategoryFilterAtom);
 
   return (
@@ -56,16 +57,16 @@ export function FileCategoryFilter({ className }: FileCategoryFilterProps) {
           <Button
             key={option.value}
             variant={isActive ? "default" : "ghost"}
-            size="sm"
+            size={iconOnly ? "icon" : "sm"}
             onClick={() => setActiveFilter(option.value)}
             className={cn(
-              "h-8 px-3 text-xs",
+              iconOnly ? "h-8 w-8" : "h-8 px-3 text-xs",
               isActive && "bg-primary text-primary-foreground"
             )}
             title={option.description}
           >
-            <Icon className="h-3 w-3 mr-1" />
-            {option.label}
+            <Icon className={cn("h-4 w-4", !iconOnly && "mr-1") } />
+            {!iconOnly && option.label}
           </Button>
         );
       })}

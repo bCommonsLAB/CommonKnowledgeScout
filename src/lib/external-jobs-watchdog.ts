@@ -51,7 +51,7 @@ function schedule(jobId: string, entry: WatchdogEntry) {
   entry.timer = timer;
 }
 
-export function startWatchdog(ctx: WatchdogContext, timeoutMs: number = 120_000): void {
+export function startWatchdog(ctx: WatchdogContext, timeoutMs: number = 240_000): void {
   const store = getStore();
   const now = Date.now();
   const existing = store.get(ctx.jobId);

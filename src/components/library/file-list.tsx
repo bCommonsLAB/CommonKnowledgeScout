@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from "react"
-import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText } from "lucide-react"
+import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText, Folder as FolderIcon, Layers } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -32,6 +32,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useMemo, useCallback } from "react"
 import { FileLogger, StateLogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
+import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -133,6 +134,7 @@ interface FileRowProps {
   onSelectRelatedFile?: (file: StorageItem) => void;
   onRename?: (item: StorageItem, newName: string) => Promise<void>;
   compact?: boolean;
+  systemFolderId?: string;
 }
 
 const FileRow = React.memo(function FileRow({ 
@@ -144,8 +146,10 @@ const FileRow = React.memo(function FileRow({
   fileGroup,
   onSelectRelatedFile,
   onRename,
-  compact = false
+  compact = false,
+  systemFolderId
 }: FileRowProps) {
+  const navigateToFolder = useFolderNavigation();
   const [isEditing, setIsEditing] = React.useState(false);
   const [editName, setEditName] = React.useState(item.metadata.name);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -473,7 +477,7 @@ const FileRow = React.memo(function FileRow({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       className={cn(
-        "w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)_60px_100px_100px_50px] gap-4 items-center cursor-move",
+        "w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)_56px_88px_auto] gap-2 items-center cursor-move",
         isSelected && "bg-muted"
       )}
     >
@@ -507,13 +511,36 @@ const FileRow = React.memo(function FileRow({
           {metadata.name}
         </span>
       )}
-      <span className="text-muted-foreground">
+      <span className="text-muted-foreground tabular-nums text-[10px]">
         {formatFileSize(metadata.size)}
       </span>
-      <span className="text-muted-foreground">
+      <span className="text-muted-foreground tabular-nums text-[10px]">
         {formatDate(metadata.modifiedAt)}
       </span>
       <div className="flex items-center justify-start gap-1">
+        {/* System-Unterordner (z. B. extrahierte Seiten) */}
+        {systemFolderId && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 p-0 hover:bg-muted"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigateToFolder(systemFolderId);
+                  }}
+                >
+                  <Layers className="h-4 w-4 text-violet-500" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Seiten-Ordner öffnen</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {/* Zeige Icons für alle vorhandenen Transkripte */}
         {fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0 && fileGroup.transcriptFiles.map((transcript) => (
           <TooltipProvider key={transcript.id}>
@@ -583,8 +610,7 @@ const FileRow = React.memo(function FileRow({
             </Tooltip>
           </TooltipProvider>
         )}
-      </div>
-      <div className="flex items-center justify-center">
+        {/* Delete direkt neben Dokument-Icons */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -603,6 +629,7 @@ const FileRow = React.memo(function FileRow({
           </Tooltip>
         </TooltipProvider>
       </div>
+      <div />
     </div>
   );
 });
@@ -615,6 +642,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const { provider, refreshItems, currentLibrary } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
   const [selectedTransformationItems, setSelectedTransformationItems] = useAtom(selectedTransformationItemsAtom);
   const [, setTranscriptionDialogOpen] = useAtom(transcriptionDialogOpenAtom);
@@ -625,6 +653,25 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [, setSelectedFile] = useAtom(selectedFileAtom);
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const currentCategoryFilter = useAtomValue(fileCategoryFilterAtom);
+  const allItemsInFolder = useAtomValue(folderItemsAtom);
+  const navigateToFolder = useFolderNavigation();
+
+  // Mobile-Flag lokal bestimmen, damit FileList unabhängig vom Tree laden kann
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const apply = (matches: boolean) => setIsMobile(matches);
+    apply(mq.matches);
+    const handler = (e: MediaQueryListEvent) => apply(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const folders = useMemo(() => {
+    const items = allItemsInFolder ?? [];
+    // Verstecke dot-Verzeichnisse generell in der Liste
+    return items.filter(item => item.type === 'folder' && !item.metadata.name.startsWith('.'));
+  }, [allItemsInFolder]);
 
   // Hilfsfunktion zum Finden einer FileGroup in der Map
   const findFileGroup = (map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
@@ -652,7 +699,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
   // Initialisierung
   React.useEffect(() => {
-    if (!provider || !isFileTreeReady) {
+    if (!provider || (!isFileTreeReady && !isMobile)) {
       FileLogger.info('FileList', 'Waiting for provider and FileTree', {
         hasProvider: !!provider,
         isFileTreeReady
@@ -690,28 +737,29 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
         clearTimeout(timeoutRef);
       }
     };
-  }, [provider, isFileTreeReady, isInitialized, items?.length]);
+  }, [provider, isFileTreeReady, isInitialized, items?.length, isMobile]);
 
   // NEU: Reagieren auf Bibliothekswechsel
+  const prevLibraryIdRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     StateLogger.debug('FileList', 'Render', {
       currentLibraryId: activeLibraryId,
       activeLibraryIdAtom: activeLibraryId
     });
 
-    // Bei Bibliothekswechsel zurücksetzen
-    if (activeLibraryId) {
+    // Nur bei tatsächlichem Bibliothekswechsel zurücksetzen
+    if (prevLibraryIdRef.current !== null && prevLibraryIdRef.current !== activeLibraryId) {
       setIsInitialized(false);
       setSelectedFile(null);
       setFolderItems([]);
       setSelectedBatchItems([]);
       setSelectedTransformationItems([]);
       setSelectedShadowTwin(null);
-      
       StateLogger.info('FileList', 'Bibliothek gewechselt - State zurückgesetzt', {
         libraryId: activeLibraryId
       });
     }
+    prevLibraryIdRef.current = activeLibraryId;
   }, [activeLibraryId, setSelectedFile, setFolderItems, setSelectedBatchItems, setSelectedTransformationItems, setSelectedShadowTwin]);
 
   // Vereinfachte Funktion zum Extrahieren des Basisnamens (ohne Endung, auch für Binärdateien)
@@ -779,6 +827,20 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     });
     return fileGroupsMap;
   }, [items]);
+
+  // Mapping: Basename -> dot-Systemordner (z. B. ".<basename>")
+  const systemFolderByBase = useMemo(() => {
+    const map = new Map<string, StorageItem>();
+    const items = allItemsInFolder ?? [];
+    for (const it of items) {
+      if (it.type !== 'folder') continue;
+      const name = it.metadata.name;
+      if (!name.startsWith('.')) continue;
+      const base = name.slice(1);
+      if (base) map.set(base, it);
+    }
+    return map;
+  }, [allItemsInFolder]);
 
   // Berechne, ob alle Dateien ausgewählt sind
   const isAllSelected = useMemo(() => {
@@ -1200,38 +1262,32 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     <div className="h-full flex flex-col">
       {/* Header - versteckt im compact mode */}
       {!compact && (
-        <div className="border-b px-4 py-2 flex items-center justify-between bg-background sticky top-0 z-10">
-          <div className="flex items-center gap-4">
+        <div className="border-b px-2 py-2 flex items-center justify-between bg-background sticky top-0 z-10">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8"
               onClick={handleRefresh}
               disabled={isRefreshing}
+              title="Aktualisieren"
+              aria-label="Aktualisieren"
             >
               <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
             </Button>
-            
-            {/* Dateikategorie-Filter */}
-            <FileCategoryFilter />
-            
-            {/* Intelligente Batch-Buttons */}
+
+            {/* Dateikategorie-Filter (Icon-only Variante) */}
+            <FileCategoryFilter iconOnly />
+
+            {/* Batch-Actions als Icons */}
             {selectedBatchItems.length > 0 && (
-              <Button
-                size="sm"
-                onClick={handleBatchTranscription}
-              >
-                {selectedBatchItems.length} Datei(en) transkribieren
+              <Button size="icon" title="Transkribieren" aria-label="Transkribieren" onClick={handleBatchTranscription}>
+                <ScrollText className="h-4 w-4" />
               </Button>
             )}
-            
             {selectedTransformationItems.length > 0 && (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={handleBatchTransformation}
-              >
-                {selectedTransformationItems.length} Datei(en) kombinieren & transformieren
+              <Button size="icon" variant="secondary" title="Transformieren" aria-label="Transformieren" onClick={handleBatchTransformation}>
+                <Plus className="h-4 w-4" />
               </Button>
             )}
           </div>
@@ -1240,11 +1296,11 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
       {/* File List */}
       <div className="flex-1 overflow-auto">
-        <div className="min-w-[800px]">
+        <div>
           {/* Table Header - versteckt im compact mode */}
           {!compact && (
             <div className="sticky top-0 bg-background border-b">
-              <div className="grid grid-cols-[auto_1fr_100px_150px_100px_50px] gap-2 px-4 py-2 text-sm font-medium text-muted-foreground">
+              <div className="grid grid-cols-[24px_24px_minmax(0,1fr)_56px_88px_auto] gap-2 px-4 py-2 text-sm font-medium text-muted-foreground">
                 <div className="w-6 flex items-center justify-center">
                   <Checkbox
                     checked={isAllSelected}
@@ -1252,6 +1308,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                     aria-label="Alle auswählen"
                   />
                 </div>
+                <div className="w-6" />
                 <SortableHeaderCell
                   label="Name"
                   field="name"
@@ -1273,9 +1330,33 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                   currentSortOrder={sortOrder}
                   onSort={handleSort}
                 />
-                <div className="text-left">Aktionen</div>
                 <div />
               </div>
+            </div>
+          )}
+
+          {/* Folder Rows (oberhalb der Dateien, unabhängig von Datei-Gruppierung) */}
+          {folders.length > 0 && (
+            <div className="divide-y">
+              {folders.map((folder) => (
+                <div
+                  key={folder.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigateToFolder(folder.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id);
+                  }}
+                  className="w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)_56px_88px_auto] gap-2 items-center cursor-pointer"
+                >
+                  <div />
+                  <FolderIcon className="h-4 w-4" />
+                  <span className="text-left truncate select-none">{folder.metadata.name}</span>
+                  <span className="text-muted-foreground" />
+                  <span className="text-muted-foreground" />
+                  <div />
+                </div>
+              ))}
             </div>
           )}
 
@@ -1286,6 +1367,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 // Zeige nur die Hauptdatei (baseItem) an
                 const item = group.baseItem;
                 if (!item) return null;
+                // System-Unterordner-Id, wenn ein ".<basename>"-Folder existiert
+                const systemFolder = systemFolderByBase.get(getBaseName(item.metadata.name));
+                const systemFolderId = systemFolder?.id;
                 return (
                   <FileRow
                     key={item.id}
@@ -1298,6 +1382,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                     onSelectRelatedFile={handleSelectRelatedFile}
                     onRename={handleRename}
                     compact={compact}
+                    systemFolderId={systemFolderId}
                   />
                 );
               })}

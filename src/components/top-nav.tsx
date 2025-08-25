@@ -3,12 +3,19 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import * as React from "react"
-import { Moon, Sun, Settings, Plus } from "lucide-react"
+import { Moon, Sun, Settings, Plus, Menu } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAtom } from "jotai"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
@@ -59,11 +66,69 @@ export function TopNav() {
   
 
 
+  const [open, setOpen] = React.useState(false)
+
   return (
     <>
       <div className="border-b">
         <div className="flex h-16 items-center px-4">
-          <ScrollArea className="max-w-[600px] lg:max-w-none">
+          {/* Hamburger links, bis <lg sichtbar */}
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="lg:hidden mr-2" aria-label="Menü">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72">
+              <SheetHeader>
+                <SheetTitle>Menü</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 space-y-2">
+                {publicNavItems.concat(protectedNavItems).map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "block rounded-md px-3 py-2 text-sm",
+                      pathname === item.href ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
+                    )}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+                <div className="pt-3 border-t" />
+                {/* Library switcher + Settings + Dark Mode im Menü */}
+                <SignedIn>
+                  {libraries.length > 0 && (
+                    <div className="space-y-2">
+                      <div>
+                        <LibrarySwitcher />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => { setOpen(false); router.push('/settings') }}
+                      >
+                        <Settings className="h-4 w-4 mr-2" /> Einstellungen
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                      >
+                        <Sun className="h-4 w-4 mr-2 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                        <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                        <span className="ml-6">Dark Mode</span>
+                      </Button>
+                    </div>
+                  )}
+                </SignedIn>
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          <ScrollArea className="max-w-[600px] lg:max-w-none hidden lg:block">
             <div className="flex items-center space-x-4">
               {/* Öffentliche Navigationselemente - immer sichtbar */}
               {publicNavItems.map((item) => (
@@ -101,11 +166,11 @@ export function TopNav() {
             </div>
             <ScrollBar orientation="horizontal" className="invisible" />
           </ScrollArea>
-          <div className="ml-auto flex items-center space-x-4">
-            {/* Bibliotheks-Switcher - nur für angemeldete Benutzer */}
+          <div className="ml-auto flex items-center space-x-2">
+            {/* Bibliotheks-Switcher - nur Desktop */}
             <SignedIn>
               {libraries.length > 0 ? (
-                <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center gap-2">
                   <div className="w-[200px]">
                     <LibrarySwitcher />
                   </div>
@@ -179,10 +244,11 @@ export function TopNav() {
               )}
             </SignedIn>
             
-            {/* Theme Toggle */}
+            {/* Theme Toggle nur Desktop */}
             <Button
               variant="ghost"
               size="icon"
+              className="hidden sm:inline-flex"
               onClick={() => setTheme(theme === "light" ? "dark" : "light")}
             >
               <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

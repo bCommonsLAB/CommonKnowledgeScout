@@ -51,6 +51,11 @@ export function LibrarySwitcher({
     
     // Speichere die aktive Library-ID im localStorage
     StateLogger.debug('LibrarySwitcher', 'Speichere activeLibraryId im localStorage', { value });
+    try {
+      localStorage.setItem('activeLibraryId', value)
+    } catch {
+      // Ignoriere Storage-Fehler still, UI-State bleibt konsistent
+    }
 
     // Aktualisiere das Atom
     setActiveLibraryId(value);

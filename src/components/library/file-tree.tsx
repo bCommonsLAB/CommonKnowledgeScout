@@ -83,7 +83,11 @@ function TreeItem({
 
   const isExpanded = expandedFolders.has(item.id);
   const isSelected = selectedFile?.id === item.id;
-  const children = (loadedChildren[item.id] || []).filter(child => child.type === 'folder');
+  const children = (loadedChildren[item.id] || []).filter(child => {
+    if (child.type !== 'folder') return false;
+    const name = child.metadata?.name || '';
+    return !name.startsWith('.');
+  });
 
   return (
     <div className={cn(
@@ -247,7 +251,11 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
     }
   }, [provider, setFileTreeReady]);
 
-  const items = (loadedChildren.root || []).filter(item => item.type === 'folder');
+  const items = (loadedChildren.root || []).filter(item => {
+    if (item.type !== 'folder') return false;
+    const name = item.metadata?.name || '';
+    return !name.startsWith('.');
+  });
 
   return (
     <div className="w-full flex flex-col">
