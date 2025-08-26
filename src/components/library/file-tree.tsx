@@ -14,7 +14,7 @@ import {
   activeLibraryIdAtom
 } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
-import { FileLogger } from "@/lib/debug/logger"
+import { FileLogger, UILogger } from "@/lib/debug/logger"
 import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
 import { toast } from "sonner";
@@ -240,6 +240,10 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   // Initial laden
   useEffect(() => {
     if (provider && !isReady) {
+      UILogger.info('FileTree', 'Starting root load', {
+        hasProvider: !!provider,
+        isReady
+      });
       loadRootItems();
     }
   }, [provider, loadRootItems, isReady]);

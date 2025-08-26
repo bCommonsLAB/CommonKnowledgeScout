@@ -98,31 +98,26 @@ export function TopNav() {
                   </Link>
                 ))}
                 <div className="pt-3 border-t" />
-                {/* Library switcher + Settings + Dark Mode im Menü */}
+                {/* Settings + Dark Mode im Menü */}
                 <SignedIn>
-                  {libraries.length > 0 && (
-                    <div className="space-y-2">
-                      <div>
-                        <LibrarySwitcher />
-                      </div>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => { setOpen(false); router.push('/settings') }}
-                      >
-                        <Settings className="h-4 w-4 mr-2" /> Einstellungen
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                      >
-                        <Sun className="h-4 w-4 mr-2 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                        <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                        <span className="ml-6">Dark Mode</span>
-                      </Button>
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => { setOpen(false); router.push('/settings') }}
+                    >
+                      <Settings className="h-4 w-4 mr-2" /> Einstellungen
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                    >
+                      <Sun className="h-4 w-4 mr-2 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                      <span className="ml-6">Dark Mode</span>
+                    </Button>
+                  </div>
                 </SignedIn>
               </div>
             </SheetContent>
@@ -167,11 +162,11 @@ export function TopNav() {
             <ScrollBar orientation="horizontal" className="invisible" />
           </ScrollArea>
           <div className="ml-auto flex items-center space-x-2">
-            {/* Bibliotheks-Switcher - nur Desktop */}
+            {/* Bibliotheks-Switcher - immer sichtbar, rechtsbündig */}
             <SignedIn>
               {libraries.length > 0 ? (
-                <div className="hidden sm:flex items-center gap-2">
-                  <div className="w-[200px]">
+                <div className="flex items-center gap-2">
+                  <div className="w-[160px] sm:w-[180px] md:w-[200px]">
                     <LibrarySwitcher />
                   </div>
                   

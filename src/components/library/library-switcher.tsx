@@ -4,7 +4,7 @@ import * as React from "react"
 import { useAtom } from "jotai"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { activeLibraryAtom, activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
+import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, folderItemsAtom, lastLoadedFolderAtom, librariesAtom } from "@/atoms/library-atom"
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { createLibraryAtom } from "@/atoms/create-library-atom"
@@ -23,6 +23,9 @@ export function LibrarySwitcher({
   const [libraries] = useAtom(librariesAtom)
   const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom)
   const [activeLibrary] = useAtom(activeLibraryAtom)
+  const [, setCurrentFolderId] = useAtom(currentFolderIdAtom)
+  const [, setFolderItems] = useAtom(folderItemsAtom)
+  const [, setLastLoadedFolder] = useAtom(lastLoadedFolderAtom)
   const [, setCreateLibrary] = useAtom(createLibraryAtom)
   
   const currentLibrary = libraries.find(lib => lib.id === activeLibraryId) || activeLibrary;
@@ -56,6 +59,11 @@ export function LibrarySwitcher({
     } catch {
       // Ignoriere Storage-Fehler still, UI-State bleibt konsistent
     }
+
+    // Sofortiger UI-Reset, um alte Liste zu vermeiden
+    setFolderItems([])
+    setLastLoadedFolder(null)
+    setCurrentFolderId('root')
 
     // Aktualisiere das Atom
     setActiveLibraryId(value);

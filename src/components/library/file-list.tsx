@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { useAtomValue, useAtom } from 'jotai';
 import { 
   activeLibraryIdAtom, 
-  fileTreeReadyAtom, 
   selectedFileAtom, 
   folderItemsAtom,
   sortedFilteredFilesAtom,
@@ -30,7 +29,7 @@ import {
 } from '@/atoms/transcription-options';
 import { Checkbox } from "@/components/ui/checkbox"
 import { useMemo, useCallback } from "react"
-import { FileLogger, StateLogger } from "@/lib/debug/logger"
+import { FileLogger, StateLogger, UILogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 
@@ -649,7 +648,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [, setTransformationDialogOpen] = useAtom(transformationDialogOpenAtom);
   const [isInitialized, setIsInitialized] = React.useState(false);
   const initializationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
+  // Entkoppelt: Kein Warten mehr auf FileTree-Status
   const [, setSelectedFile] = useAtom(selectedFileAtom);
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const currentCategoryFilter = useAtomValue(fileCategoryFilterAtom);
@@ -697,31 +696,22 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   }, [sortField, sortOrder, setSortField, setSortOrder]);
 
-  // Initialisierung
+  // Initialisierung - nur auf Provider und Mobile-Flag achten
   React.useEffect(() => {
-    if (!provider || (!isFileTreeReady && !isMobile)) {
-      FileLogger.info('FileList', 'Waiting for provider and FileTree', {
-        hasProvider: !!provider,
-        isFileTreeReady
-      });
+    if (!provider) {
+      FileLogger.info('FileList', 'Waiting for provider');
       return;
     }
 
     const initialize = async () => {
       if (isInitialized) {
-        FileLogger.debug('FileList', 'Already initialized', {
-          hasProvider: !!provider,
-          hasItems: items?.length > 0,
-          isInitialized
-        });
+        FileLogger.debug('FileList', 'Already initialized');
         return;
       }
 
-      // [Nav:10] FileList Starting initialization
       FileLogger.info('FileList', 'Starting initialization');
 
       try {
-        // [Nav:13] FileList Initialization complete
         FileLogger.info('FileList', 'Initialization complete');
         setIsInitialized(true);
       } catch (error) {
@@ -733,11 +723,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
     const timeoutRef = initializationTimeoutRef.current;
     return () => {
-      if (timeoutRef) {
-        clearTimeout(timeoutRef);
-      }
+      if (timeoutRef) clearTimeout(timeoutRef);
     };
-  }, [provider, isFileTreeReady, isInitialized, items?.length, isMobile]);
+  }, [provider, isInitialized]);
 
   // NEU: Reagieren auf Bibliothekswechsel
   const prevLibraryIdRef = React.useRef<string | null>(null);
@@ -1254,9 +1242,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     return () => clearTimeout(timeoutId);
   }, [currentLibrary, activeLibraryId]);
 
-  if (!isFileTreeReady) {
-    return <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Lade Ordnerstruktur...</div>;
-  }
+  // Entkoppelt: kein Render-Gate mehr basierend auf FileTree
 
   return (
     <div className="h-full flex flex-col">
