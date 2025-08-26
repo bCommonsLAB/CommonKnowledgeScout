@@ -15,6 +15,10 @@ const librarySidebarItems = [
     title: "Secretary Service",
     href: "/settings/secretary-service",
   },
+  {
+    title: "Chat",
+    href: "/settings/chat",
+  },
   // Weitere bibliotheksbezogene Einstellungen können hier hinzugefügt werden
 ]
 

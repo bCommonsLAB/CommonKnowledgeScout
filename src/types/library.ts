@@ -12,6 +12,67 @@ import { ReactNode } from 'react';
 export type StorageProviderType = 'local' | 'onedrive' | 'gdrive';
 
 /**
+ * Chat/RAG-spezifische Konfiguration pro Library.
+ * UI-Parameter, Feature-Flags und optionale Modell-/Store-Overrides.
+ * Der Vektor-Index leitet sich standardmäßig aus dem Library-Namen ab,
+ * sofern kein expliziter Override gesetzt ist.
+ */
+export interface LibraryChatConfig {
+  /** Ob der Chat öffentlich zugreifbar ist (ohne Login) */
+  public?: boolean;
+
+  /** Avatarbild der Chat-Ansicht */
+  titleAvatarSrc?: string;
+
+  /** Begrüßungstext */
+  welcomeMessage: string;
+
+  /** Generische Fehlermeldung für Chat-Antworten */
+  errorMessage?: string;
+
+  /** Platzhalter im Eingabefeld */
+  placeholder?: string;
+
+  /** Maximale Eingabelänge */
+  maxChars?: number;
+
+  /** Hinweistext bei Überschreitung der Eingabelänge */
+  maxCharsWarningMessage?: string;
+
+  /** Footer-Text unterhalb des Chats */
+  footerText?: string;
+
+  /** Link im Footer (z. B. Firmen-/Projektlink) */
+  companyLink?: string;
+
+  /** Feature-Flags für die Darstellung/Funktionalität */
+  features?: {
+    /** Zitate/Quellen anzeigen */
+    citations?: boolean;
+    /** Streaming von Teilantworten aktivieren */
+    streaming?: boolean;
+  };
+
+  /** Ratenbegrenzung für öffentliche Nutzung */
+  rateLimit?: {
+    windowSec: number;
+    max: number;
+  };
+
+  /** Modell-Overrides; Standardwerte über ENV konfigurierbar */
+  models?: {
+    chat?: string;
+    embeddings?: string;
+    temperature?: number;
+  };
+
+  /** Vektor-Store-Overrides; Index = Libraryname, außer es wird überschrieben */
+  vectorStore?: {
+    indexOverride?: string;
+  };
+}
+
+/**
  * Configuration options for storage providers.
  * Contains provider-specific settings and authentication details.
  */
@@ -39,6 +100,9 @@ export interface StorageConfig {
     /** API-Key für die Authentifizierung */
     apiKey: string;
   };
+
+  /** Chat-/RAG-Konfiguration pro Library (öffentlich sichere Inhalte) */
+  chat?: LibraryChatConfig;
 }
 
 /**
@@ -104,6 +168,8 @@ export interface ClientLibrary {
       /** API-Key für die Authentifizierung */
       apiKey: string;
     };
+    /** Chat-/RAG-Konfiguration für die UI */
+    chat?: LibraryChatConfig;
     [key: string]: unknown;
   };
   
