@@ -29,7 +29,7 @@ import {
 } from '@/atoms/transcription-options';
 import { Checkbox } from "@/components/ui/checkbox"
 import { useMemo, useCallback } from "react"
-import { FileLogger, StateLogger, UILogger } from "@/lib/debug/logger"
+import { FileLogger, StateLogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 
@@ -641,7 +641,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const { provider, refreshItems, currentLibrary } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
-  const [isMobile, setIsMobile] = React.useState(false);
+  // Mobile-Flag wurde entfernt, FileList lädt unabhängig vom View
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
   const [selectedTransformationItems, setSelectedTransformationItems] = useAtom(selectedTransformationItemsAtom);
   const [, setTranscriptionDialogOpen] = useAtom(transcriptionDialogOpenAtom);
@@ -655,16 +655,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const allItemsInFolder = useAtomValue(folderItemsAtom);
   const navigateToFolder = useFolderNavigation();
 
-  // Mobile-Flag lokal bestimmen, damit FileList unabhängig vom Tree laden kann
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(max-width: 1023px)');
-    const apply = (matches: boolean) => setIsMobile(matches);
-    apply(mq.matches);
-    const handler = (e: MediaQueryListEvent) => apply(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
+  // Kein mobiles Flag mehr notwendig
 
   const folders = useMemo(() => {
     const items = allItemsInFolder ?? [];
