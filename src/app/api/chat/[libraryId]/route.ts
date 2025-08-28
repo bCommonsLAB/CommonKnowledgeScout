@@ -58,7 +58,12 @@ export async function POST(
     if (!idx?.host) return NextResponse.json({ error: 'Index nicht gefunden' }, { status: 404 })
 
     const baseTopK = 20
-    const matches = await queryVectors(idx.host, apiKey, qVec, baseTopK, { user: { $eq: userEmail || '' }, libraryId: { $eq: libraryId } })
+    // Retriever standardmäßig auf Kapitel-Summaries umstellen
+    const matches = await queryVectors(idx.host, apiKey, qVec, baseTopK, {
+      user: { $eq: userEmail || '' },
+      libraryId: { $eq: libraryId },
+      kind: { $eq: 'chapterSummary' }
+    })
     const scoreMap = new Map<string, number>()
     for (const m of matches) scoreMap.set(m.id, typeof m.score === 'number' ? m.score : 0)
 
@@ -88,7 +93,7 @@ export async function POST(
     // Budget nach answerLength
     const baseBudget = answerLength === 'ausführlich' ? 180000 : answerLength === 'mittel' ? 90000 : 30000
     let charBudget = baseBudget
-    const sources: Array<{ id: string; score?: number; fileName?: string; chunkIndex?: number; text?: string }> = []
+    let sources: Array<{ id: string; score?: number; fileName?: string; chunkIndex?: number; text?: string }> = []
     let used = 0
     for (const r of vectorRows) {
       const t = typeof r.meta!.text === 'string' ? (r.meta!.text as string) : ''
@@ -101,14 +106,34 @@ export async function POST(
       used += t.length
     }
 
-    // Wenn keine Quellen, nur Treffer zurückgeben (z. B. bei Altdaten ohne Metadaten)
+    // Fallback: Wenn keine Quellen aus fetchVectors, versuche Matches-Metadaten zu verwenden
     if (sources.length === 0) {
-      return NextResponse.json({
-        status: 'ok',
-        libraryId,
-        vectorIndex: ctx.vectorIndex,
-        results: matches,
-      })
+      let acc = 0
+      const fallback: typeof sources = []
+      for (const m of matches) {
+        const meta = (m?.metadata ?? {}) as Record<string, unknown>
+        const t = typeof meta.text === 'string' ? meta.text as string : ''
+        if (!t) continue
+        const fileName = typeof meta.fileName === 'string' ? meta.fileName as string : undefined
+        const chunkIndex = typeof meta.chunkIndex === 'number' ? meta.chunkIndex as number : undefined
+        const score = m.score
+        const snippet = t.slice(0, 1000)
+        const len = snippet.length
+        if (acc + len > charBudget) break
+        fallback.push({ id: String(m.id), score, fileName, chunkIndex, text: snippet })
+        acc += len
+      }
+      if (fallback.length > 0) {
+        sources = fallback
+      } else {
+        // Als letzte Option: Nur Treffer zurückgeben (z. B. bei sehr alten Daten ohne Text)
+        return NextResponse.json({
+          status: 'ok',
+          libraryId,
+          vectorIndex: ctx.vectorIndex,
+          results: matches,
+        })
+      }
     }
 
     // Kontext bauen
@@ -123,9 +148,16 @@ export async function POST(
     const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
     const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.3)
 
-    const prompt = `Du bist ein präziser Assistent. Beantworte die Frage ausschließlich auf Basis der bereitgestellten Quellen.\n\nFrage:\n${message}\n\nQuellen:\n${context}\n\nAnforderungen:\n- Antworte knapp und fachlich korrekt.\n- Zitiere am Ende die verwendeten Quellen als [n] (Dateiname, Chunk).\n- Antworte auf Deutsch.`
+    // Stilvorgaben je nach gewünschter Antwortlänge
+    const styleInstruction = answerLength === 'ausführlich'
+      ? 'Schreibe eine strukturierte, ausführliche Antwort (ca. 250–600 Wörter): Beginne mit 1–2 Sätzen Zusammenfassung, danach Details in Absätzen oder Stichpunkten. Vermeide Füllwörter.'
+      : answerLength === 'mittel'
+      ? 'Schreibe eine mittellange Antwort (ca. 120–250 Wörter): 3–6 Sätze oder eine kurze Liste der wichtigsten Punkte. Direkt und präzise.'
+      : 'Schreibe eine knappe Antwort (1–3 Sätze, max. 120 Wörter). Keine Einleitung, direkt die Kernaussage.'
 
-    async function callChat(currPrompt: string) {
+    const prompt = `Du bist ein präziser Assistent. Beantworte die Frage ausschließlich auf Basis der bereitgestellten Quellen.\n\nFrage:\n${message}\n\nQuellen:\n${context}\n\nAnforderungen:\n- ${styleInstruction}\n- Fachlich korrekt, ohne Spekulationen.\n- Zitiere am Ende die verwendeten Quellen als [n] (Dateiname, Chunk).\n- Antworte auf Deutsch.`
+
+    const callChat = async (currPrompt: string) => {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -142,6 +174,18 @@ export async function POST(
         })
       })
       return res
+    }
+
+    // Optionales Server-Debugging: nur aktiv, wenn der Client X-Debug: 1 sendet oder nicht production
+    const debug = request.headers.get('X-Debug') === '1' || process.env.NODE_ENV !== 'production'
+    if (debug) {
+      const usedChars = sources.reduce((sum, s) => sum + (s.text?.length ?? 0), 0)
+      // eslint-disable-next-line no-console
+      console.log('[api/chat] params', { answerLength, baseBudget, windowByLength, topK: baseTopK, used: usedChars, sources: sources.length })
+      // eslint-disable-next-line no-console
+      console.log('[api/chat] sources', sources.map(s => ({ id: s.id, fileName: s.fileName, chunkIndex: s.chunkIndex, score: s.score, textChars: s.text?.length ?? 0 })))
+      // eslint-disable-next-line no-console
+      console.log('[api/chat] openai request', { model, temperature, promptChars: prompt.length, contextChars: context.length, style: answerLength })
     }
 
     let chatRes = await callChat(prompt)

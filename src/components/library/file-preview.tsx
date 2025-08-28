@@ -237,6 +237,18 @@ function PreviewContent({
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }) {
   const [activeTab, setActiveTab] = React.useState<string>("preview");
+  const [ragLoading, setRagLoading] = React.useState(false);
+  const [ragError, setRagError] = React.useState<string | null>(null);
+  const [ragStatus, setRagStatus] = React.useState<{
+    status: 'ok' | 'stale' | 'not_indexed';
+    fileName?: string;
+    chunkCount?: number;
+    upsertedAt?: string;
+    docModifiedAt?: string;
+    docMeta?: Record<string, unknown>;
+    toc?: Array<Record<string, unknown>>;
+    totals?: { docs: number; chunks: number };
+  } | null>(null);
   const setSelectedFile = useSetAtom(selectedFileAtom);
   
   // Debug-Log für PreviewContent
@@ -255,6 +267,29 @@ function PreviewContent({
   React.useEffect(() => {
     setActiveTab("preview");
   }, [item.id]);
+
+  async function loadRagStatus() {
+    try {
+      setRagLoading(true);
+      setRagError(null);
+      const docMod = (() => {
+        const d = item.metadata.modifiedAt as unknown as Date | string | number | undefined;
+        const dt = d instanceof Date ? d : (d ? new Date(d) : undefined);
+        return dt ? dt.toISOString() : undefined;
+      })();
+      const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/file-status?fileId=${encodeURIComponent(item.id)}${docMod ? `&docModifiedAt=${encodeURIComponent(docMod)}` : ''}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Status konnte nicht geladen werden');
+      // Library-Stats parallel
+      const statsRes = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/stats`, { cache: 'no-store' });
+      const stats = await statsRes.json().catch(() => ({}));
+      setRagStatus({ ...data, totals: stats?.totals });
+    } catch (e) {
+      setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler');
+    } finally {
+      setRagLoading(false);
+    }
+  }
 
   if (error) {
     FileLogger.error('PreviewContent', 'Fehler in PreviewContent', {
@@ -313,6 +348,7 @@ function PreviewContent({
             <TabsList className="mx-4 mt-2 flex-shrink-0">
               <TabsTrigger value="preview">Vorschau</TabsTrigger>
               <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
+              <TabsTrigger value="rag" onClick={() => { void loadRagStatus(); }}>RAG</TabsTrigger>
             </TabsList>
             <div className="flex-1 min-h-0">
               <TabsContent value="preview" className="h-full mt-0">
@@ -364,6 +400,181 @@ function PreviewContent({
                   onTransform={() => setActiveTab("edit")}
                   onRefreshFolder={onRefreshFolder}
                 />
+              </TabsContent>
+              <TabsContent value="rag" className="h-full mt-0">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium">RAG-Status</div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="inline-flex h-8 items-center rounded-md bg-muted px-3 text-xs"
+                        onClick={() => void loadRagStatus()}
+                      >
+                        Aktualisieren
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center rounded-md bg-muted px-3 text-xs"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/analyze-chapters`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ fileId: item.id, content })
+                            })
+                            const data = await res.json()
+                            if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Kapitelanalyse fehlgeschlagen')
+                            setRagStatus(prev => ({ ...(prev ?? { status: 'not_indexed' as const }), analyze: data?.result }))
+                          } catch (e) {
+                            setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler bei Kapitelanalyse')
+                          }
+                        }}
+                      >
+                        Kapitelanalyse
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center rounded-md bg-muted px-3 text-xs"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/analyze-chapters`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ fileId: item.id, content, mode: 'llm' })
+                            })
+                            const data = await res.json()
+                            if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Kapitelanalyse (LLM) fehlgeschlagen')
+                            setRagStatus(prev => ({ ...(prev ?? { status: 'not_indexed' as const }), analyze: data?.result }))
+                          } catch (e) {
+                            setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler bei Kapitelanalyse (LLM)')
+                          }
+                        }}
+                      >
+                        Kapitelanalyse (LLM)
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center rounded-md bg-primary text-primary-foreground px-3 text-xs"
+                        onClick={async () => {
+                          try {
+                            const docMod = (() => {
+                              const d = item.metadata.modifiedAt as unknown as Date | string | number | undefined;
+                              const dt = d instanceof Date ? d : (d ? new Date(d) : undefined);
+                              return dt ? dt.toISOString() : undefined;
+                            })();
+                            const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/upsert-file`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ fileId: item.id, fileName: item.metadata.name, content, mode: 'A', docModifiedAt: docMod })
+                            });
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Upsert fehlgeschlagen');
+                            await loadRagStatus();
+                          } catch (e) {
+                            setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler beim Upsert');
+                          }
+                        }}
+                      >
+                        Upsert
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center rounded-md bg-primary/70 text-primary-foreground px-3 text-xs"
+                        onClick={async () => {
+                          try {
+                            const chaptersSrc: any[] | undefined = (ragStatus as any)?.analyze?.chapters
+                            if (!Array.isArray(chaptersSrc) || chaptersSrc.length === 0) {
+                              throw new Error('Keine Kapitelanalyse vorhanden')
+                            }
+                            const chapters = chaptersSrc
+                              .filter((c) => typeof c?.summary === 'string' && c.summary.trim().length > 0)
+                              .map((c, i) => ({
+                                chapterId: typeof c.chapterId === 'string' ? c.chapterId : `chap-${i + 1}`,
+                                title: String(c.title ?? `Kapitel ${i + 1}`),
+                                order: i + 1,
+                                summary: String(c.summary).slice(0, 1200),
+                                keywords: Array.isArray(c.keywords) ? c.keywords.slice(0, 12) : undefined,
+                              }))
+                            if (chapters.length === 0) throw new Error('Keine Kapitel mit Summary gefunden')
+
+                            const docMod = (() => {
+                              const d = item.metadata.modifiedAt as unknown as Date | string | number | undefined;
+                              const dt = d instanceof Date ? d : (d ? new Date(d) : undefined);
+                              return dt ? dt.toISOString() : undefined;
+                            })();
+                            const toc: any[] | undefined = (ragStatus as any)?.analyze?.toc
+                            const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/upsert-file`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ fileId: item.id, fileName: item.metadata.name, content, mode: 'A', docModifiedAt: docMod, chapters, toc })
+                            });
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Upsert (Analyse) fehlgeschlagen');
+                            await loadRagStatus();
+                          } catch (e) {
+                            setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler beim Upsert (Analyse)');
+                          }
+                        }}
+                      >
+                        Upsert (Analyse)
+                      </button>
+                    </div>
+                  </div>
+                  {ragLoading && <div className="text-sm text-muted-foreground">Lade Status…</div>}
+                  {ragError && <div className="text-sm text-destructive">{ragError}</div>}
+                  {ragStatus && (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span>Status:</span>
+                        <span className={cn(
+                          'inline-flex items-center rounded px-2 py-0.5 text-xs',
+                          ragStatus.status === 'ok' && 'bg-green-100 text-green-700',
+                          ragStatus.status === 'stale' && 'bg-amber-100 text-amber-800',
+                          ragStatus.status === 'not_indexed' && 'bg-gray-100 text-gray-700'
+                        )}>
+                          {ragStatus.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">fileId: {ragStatus?.fileName ? '' : ''}{(item.id)}</div>
+                      <div>Chunks: {ragStatus.chunkCount ?? '—'}</div>
+                      <div>Upserted: {ragStatus.upsertedAt ?? '—'}</div>
+                      <div>Dokument geändert: {ragStatus.docModifiedAt ?? '—'}</div>
+                      {ragStatus.totals && (
+                        <div className="text-xs text-muted-foreground">Index totals: {ragStatus.totals.docs} Docs, {ragStatus.totals.chunks} Chunks</div>
+                      )}
+                      {ragStatus.docMeta && (
+                        <div className="mt-2">
+                          <div className="font-medium">Dokument-Metadaten</div>
+                          <pre className="mt-1 max-h-44 overflow-auto whitespace-pre-wrap break-words text-xs bg-muted/30 p-2 rounded">{JSON.stringify(ragStatus.docMeta, null, 2)}</pre>
+                        </div>
+                      )}
+                      {ragStatus.toc && Array.isArray(ragStatus.toc) && ragStatus.toc.length > 0 && (
+                        <div className="mt-2">
+                          <div className="font-medium">Kapitel</div>
+                          <ul className="mt-1 space-y-1 list-disc pl-5">
+                            {ragStatus.toc.map((t: any, i: number) => (
+                              <li key={i} className="text-xs">
+                                {(t.title || t.chapterId) ?? 'Kapitel'}
+                                {typeof t.level === 'number' ? ` (L${t.level})` : ''}
+                                {typeof t.page === 'number' ? ` · Seite ${t.page}` : ''}
+                                {typeof t.order === 'number' ? ` · Reihenfolge ${t.order}` : ''}
+                                {typeof t.startChunk === 'number' && typeof t.endChunk === 'number' ? ` · Chunks ${t.startChunk}-${t.endChunk}` : ''}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {ragStatus?.analyze?.chapters && Array.isArray(ragStatus.analyze.chapters) && (
+                        <div className="mt-3">
+                          <div className="font-medium">Kapitel (Heuristik/LLM)</div>
+                          <ul className="mt-1 space-y-1 list-disc pl-5 text-xs max-h-56 overflow-auto">
+                            {ragStatus.analyze.chapters.map((c: any) => (
+                              <li key={c.chapterId}>
+                                L{c.level} · {c.title} · Seiten {c.startPage ?? '—'}–{c.endPage ?? '—'}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </TabsContent>
               <TabsContent value="edit" className="h-full mt-0">
                 <TextEditor 

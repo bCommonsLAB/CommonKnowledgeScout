@@ -9,7 +9,26 @@ const bodySchema = z.object({
   fileId: z.string().min(1),
   fileName: z.string().optional(),
   content: z.string().min(1),
-  mode: z.enum(['A', 'B']).default('A')
+  mode: z.enum(['A', 'B']).default('A'),
+  docModifiedAt: z.string().optional(), // ISO Datum der Originaldatei (für Stale-Check)
+  // Dokument-Metadaten (frei erweiterbar, werden im Meta-Vektor gespeichert)
+  docMeta: z.record(z.any()).optional(),
+  // Kapitel-Infos mit Summaries (optional)
+  chapters: z.array(z.object({
+    chapterId: z.string().min(1),
+    title: z.string().optional(),
+    order: z.number().int().optional(),
+    summary: z.string().min(1).max(4000),
+    startChunk: z.number().int().optional(),
+    endChunk: z.number().int().optional(),
+    keywords: z.array(z.string()).optional(),
+  })).optional(),
+  // Optionaler, bereits erkannter TOC (z. B. aus LLM-Analyse)
+  toc: z.array(z.object({
+    title: z.string(),
+    level: z.number().int().optional(),
+    page: z.number().int().optional(),
+  })).optional()
 })
 
 function chunkText(input: string, maxChars: number = 1000, overlap: number = 100): string[] {
@@ -59,7 +78,7 @@ export async function POST(
     const json = await request.json().catch(() => ({}))
     const parsed = bodySchema.safeParse(json)
     if (!parsed.success) return NextResponse.json({ error: 'Ungültige Eingabe', details: parsed.error.flatten() }, { status: 400 })
-    const { fileId, fileName, content, mode } = parsed.data
+    const { fileId, fileName, content, mode, docModifiedAt, docMeta, chapters, toc } = parsed.data
 
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
@@ -85,9 +104,71 @@ export async function POST(
         mode,
         chunkIndex: i,
         // Beschränke Text im Metadata-Feld
-        text: chunks[i].slice(0, 1000)
+        text: chunks[i].slice(0, 1000),
+        upsertedAt: new Date().toISOString(),
+        docModifiedAt
       }
     }))
+    // Zusätzlich: Meta-Vektor für Dokument-Status (nutzt erstes Embedding als Vektor)
+    if (embeddings.length > 0) {
+      vectors.push({
+        id: `${fileId}-meta`,
+        values: embeddings[0],
+        metadata: {
+          user: userEmail,
+          libraryId,
+          fileId,
+          fileName,
+          kind: 'doc',
+          chunkCount: embeddings.length,
+          upsertedAt: new Date().toISOString(),
+          docModifiedAt,
+          // Hinweis: Pinecone-Serverless erlaubt nur primitive Metadaten oder List<string>.
+          // Deshalb serialisieren wir strukturierte Felder als JSON-String.
+          docMetaJson: docMeta ? JSON.stringify(docMeta) : undefined,
+          tocJson: (Array.isArray(toc) && toc.length > 0)
+            ? JSON.stringify(toc.map(t => ({ title: t.title, level: t.level, page: t.page })))
+            : (chapters && chapters.length > 0
+              ? JSON.stringify(chapters.map(c => ({
+                  chapterId: c.chapterId,
+                  title: c.title,
+                  order: c.order,
+                  startChunk: c.startChunk,
+                  endChunk: c.endChunk,
+                })))
+              : undefined)
+        }
+      })
+    }
+
+    // Kapitel-Summaries als eigene Vektoren (Retriever-Ziel)
+    if (chapters && chapters.length > 0) {
+      const chapterSummaries = chapters.map(c => c.summary)
+      const chapterEmbeds = await embedTexts(chapterSummaries)
+      chapterEmbeds.forEach((values, i) => {
+        const c = chapters[i]
+        vectors.push({
+          id: `${fileId}-chap-${c.chapterId}`,
+          values,
+          metadata: {
+            user: userEmail,
+            libraryId,
+            fileId,
+            fileName,
+            kind: 'chapterSummary',
+            chapterId: c.chapterId,
+            chapterTitle: c.title,
+            order: c.order,
+            startChunk: c.startChunk,
+            endChunk: c.endChunk,
+            text: c.summary.slice(0, 1200),
+            keywords: c.keywords,
+            upsertedAt: new Date().toISOString(),
+            docModifiedAt,
+          }
+        })
+      })
+    }
     await upsertVectorsChunked(idx.host, apiKey, vectors, 8)
 
     return NextResponse.json({ status: 'ok', chunks: chunks.length, index: ctx.vectorIndex })

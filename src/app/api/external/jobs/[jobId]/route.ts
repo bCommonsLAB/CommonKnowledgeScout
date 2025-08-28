@@ -12,6 +12,76 @@ import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 
+function toAsciiKebab(input: unknown, maxLen: number = 80): string | undefined {
+  if (typeof input !== 'string') return undefined;
+  const map: Record<string, string> = { 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss' };
+  const replaced = input
+    .trim()
+    .toLowerCase()
+    .split('')
+    .map(ch => map[ch] ?? ch)
+    .join('')
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-+/g, '-');
+  const cut = replaced.slice(0, maxLen).replace(/-+$/g, '');
+  return cut || undefined;
+}
+
+function splitToArray(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    const arr = value
+      .map(v => (typeof v === 'string' ? v.trim() : ''))
+      .filter(Boolean);
+    return Array.from(new Set(arr));
+  }
+  if (typeof value === 'string') {
+    const arr = value
+      .split(',')
+      .map(v => v.trim())
+      .filter(Boolean);
+    return Array.from(new Set(arr));
+  }
+  return undefined;
+}
+
+function normalizeStructuredData(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...r };
+
+  // shortTitle variants
+  const shortTitleCandidate = (r['shortTitle'] ?? r['shortTitel'] ?? r['shortTitlel']) as unknown;
+  if (typeof shortTitleCandidate === 'string') {
+    const cleaned = shortTitleCandidate.replace(/[.!?]+$/g, '').trim();
+    out['shortTitle'] = cleaned.length > 40 ? cleaned.slice(0, 40) : cleaned;
+  }
+  delete out['shortTitel'];
+  delete out['shortTitlel'];
+
+  // slug normalization
+  const slug = toAsciiKebab(r['slug']);
+  if (slug) out['slug'] = slug;
+
+  // authors and tags arrays
+  const authors = splitToArray(r['authors']);
+  if (authors) out['authors'] = authors;
+  const tags = splitToArray(r['tags']);
+  if (tags) {
+    const norm = tags
+      .map(t => toAsciiKebab(t, 80) || '')
+      .filter(Boolean) as string[];
+    out['tags'] = Array.from(new Set(norm));
+  }
+
+  // year number
+  const yearVal = r['year'];
+  if (typeof yearVal === 'string' && /^\d{4}$/.test(yearVal)) out['year'] = Number(yearVal);
+
+  return out;
+}
+
 interface OneDriveAuthConfig {
   accessToken?: string;
   refreshToken?: string;
@@ -219,11 +289,153 @@ export async function POST(
         // await provider.getPathById(sourceId ?? '').catch(() => undefined);
         // await provider.getPathById(targetParentId).catch(() => '/');
         // Pfade ermitteln (aktuell nur für Debugging/Logging nutzbar)
-        // const sourceAbsPath = sourceRelPath && sourceRelPath !== '/' ? path.join(lib.path, sourceRelPath.replace(/^\//, '')) : lib.path;
-        // const targetAbsPath = targetRelPath && targetRelPath !== '/' ? path.join(lib.path, targetRelPath.replace(/^\//, '')) : lib.path;
+        // const sourceAbsPath = sourceRelPath und targetAbsPath aktuell ungenutzt
 
+        // 1) Optionalen Template-Content laden (aus /templates oder per Chat-Setting 'transformerTemplate')
+        let metadataFromTemplate: Record<string, unknown> | null = null;
+        try {
+          // Standard-Template-Inhalt (wird angelegt, falls kein Template gefunden wird)
+          const defaultTemplateContent = `---
+title: {{title|Vollständiger Titel des Dokuments (string)}}
+shortTitle: {{shortTitle|Kurzer Titel ≤40 Zeichen, ohne abschließende Satzzeichen}}
+slug: {{slug|ASCII, lowercase, kebab-case; Umlaute/Diakritika normalisieren; max 80; keine doppelten Bindestriche}}
+summary: {{summary|1–2 Sätze, ≤120 Zeichen, neutral, nur aus Text extrahiert}}
+teaser: {{teaser|2–3 Sätze, nicht identisch zu summary, prägnant, extraktiv}}
+authors: {{authors|Array von Autoren, dedupliziert, Format "Nachname, Vorname" wenn möglich}}
+tags: {{tags|Array relevanter Tags, normalisiert: lowercase, ASCII, kebab-case, dedupliziert}}
+docType: {{docType|Eine aus: report, study, brochure, offer, contract, manual, law, guideline, other}}
+year: {{year|Vierstelliges Jahr als number; wenn unbekannt: null}}
+region: {{region|Region/Land aus Text; wenn unbekannt: ""}}
+language: {{language|Dokumentsprache, z. B. "de" oder "en"}}
+chapters: {{chapters|Array von Kapiteln mit title, level (1..3), order (int, 1-basiert), startEvidence (≤160), summary (≤1000, extraktiv), keywords (5–12)}}
+toc: {{toc|Optionales Array von { title, page?, level? }, nur wenn explizit im Text erkennbar}}
+---
+
+# {{title|Dokumenttitel}}
+
+## Zusammenfassung
+{{summary|Kurzfassung für Management/Vertrieb}}
+
+--- systemprompt
+Rolle:
+- Du bist ein penibler, rein EXTRAKTIVER Sachbearbeiter. Du liest Kleingedrucktes genau. Abweichungen von der Norm sind preisrelevant – knapp anmerken, aber nichts erfinden.
+
+Strenge Regeln:
+- Verwende ausschließlich Inhalte, die EXPLIZIT im gelieferten Text vorkommen. Keine Halluzinationen.
+- Wenn eine geforderte Information im Text nicht sicher vorliegt: gib "" (leere Zeichenkette) bzw. null (für year) zurück.
+- Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt. Keine Kommentare, kein Markdown, keine Code-Fences.
+
+Format-/Normalisierungsregeln:
+- shortTitle: ≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen.
+- slug: ASCII, lowercase, kebab-case, max 80, Diakritika/Umlaute normalisieren (ä→ae, ö→oe, ü→ue, ß→ss), mehrere Leerzeichen/Bindestriche zu einem Bindestrich zusammenfassen.
+- summary: 1–2 Sätze, ≤120 Zeichen, neutraler Ton, extraktiv.
+- teaser: 2–3 Sätze, nicht identisch zu summary, extraktiv.
+- authors: Array von Strings, dedupliziert. Format „Nachname, Vorname“ wenn eindeutig ableitbar.
+- tags: Array von Strings; normalisieren (lowercase, ASCII, kebab-case), deduplizieren; nur, wenn klar aus Text ableitbar.
+- docType: klassifiziere streng nach Textsignalen in { report, study, brochure, offer, contract, manual, law, guideline }; wenn unklar: "other".
+- year: vierstelliges Jahr als number; nur übernehmen, wenn eindeutig (z. B. „Copyright 2024“, „Stand: 2023“).
+- region: aus Text (z. B. Länder/Bundesländer/Regionen); sonst "".
+- language: bestmögliche Schätzung (z. B. "de", "en") anhand des Textes.
+
+Kapitelanalyse (extraktiv):
+- Erkenne echte Kapitel-/Unterkapitelstarts (Level 1..3), nur wenn sie im Text vorkommen.
+- Für JEDES Kapitel liefere: title, level (1..3), order (1-basiert), startEvidence (≤160, exakter Anfangstext), summary (≤1000, extraktiv bis zum nächsten Kapitelstart), keywords (5–12, kurz und textnah).
+- toc (optional): Liste von { title, page?, level? } nur, wenn explizit als Inhaltsverzeichnis erkennbar; Titel müssen existierenden Kapiteln entsprechen.
+
+Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
+{
+  "title": string,
+  "shortTitle": string,
+  "slug": string,
+  "summary": string,
+  "teaser": string,
+  "authors": string[],
+  "tags": string[],
+  "docType": "report" | "study" | "brochure" | "offer" | "contract" | "manual" | "law" | "guideline" | "other",
+  "year": number | null,
+  "region": string,
+  "language": string,
+  "chapters": [ { "title": string, "level": 1 | 2 | 3, "order": number, "startEvidence": string, "summary": string, "keywords": string[] } ],
+  "toc": [ { "title": string, "page": number?, "level": number? } ] | []
+}`;
+
+          // Bevorzugter Template-Name aus Chat-Config (falls vorhanden)
+          const preferredTemplate = ((lib.config?.chat as unknown as { transformerTemplate?: string })?.transformerTemplate || '').trim();
+          // Templates-Ordner im Root suchen
+          const rootItems = await provider.listItemsById('root');
+          const templatesFolder = rootItems.find(it => it.type === 'folder' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'templates'));
+          const ensureTemplatesFolderId = async (): Promise<string> => {
+            if (templatesFolder) return templatesFolder.id;
+            const created = await provider.createFolder('root', 'templates');
+            bufferLog(jobId, { phase: 'templates_folder_created', message: 'Ordner /templates angelegt' });
+            return created.id;
+          };
+
+          const templatesFolderId = await ensureTemplatesFolderId();
+
+          if (templatesFolderId) {
+            const tplItems = await provider.listItemsById(templatesFolderId);
+            // Auswahllogik: bevorzugt preferredTemplate, sonst 'pdfanalyse.md', sonst erstes .md
+            const pickByName = (name: string) => tplItems.find(it => it.type === 'file' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === name.toLowerCase()));
+            const byPreferred = preferredTemplate ? pickByName(preferredTemplate.endsWith('.md') ? preferredTemplate : `${preferredTemplate}.md`) : undefined;
+            const byDefault = pickByName('pdfanalyse.md') || pickByName('pdfanalyse_default.md');
+            const anyMd = tplItems.find(it => it.type === 'file' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase().endsWith('.md')));
+            let chosen = byPreferred || byDefault || anyMd;
+            if (!chosen) {
+              // Default-Template anlegen
+              const tplFile = new File([new Blob([defaultTemplateContent], { type: 'text/markdown' })], 'pdfanalyse.md', { type: 'text/markdown' });
+              const savedTpl = await provider.uploadFile(templatesFolderId, tplFile);
+              bufferLog(jobId, { phase: 'template_created', message: 'Default-Template pdfanalyse.md angelegt' });
+              // Neu laden
+              const re = await provider.listItemsById(templatesFolderId);
+              chosen = re.find(it => it.type === 'file' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'pdfanalyse.md'));
+            }
+            if (chosen) {
+              const bin = await provider.getBinary(chosen.id);
+              const templateContent = await bin.blob.text();
+              // 2) Secretary Transformer mit template_content aufrufen
+              const secretaryUrlRaw = process.env.SECRETARY_SERVICE_URL || '';
+              const transformerUrl = secretaryUrlRaw.endsWith('/') ? `${secretaryUrlRaw}transformer/template` : `${secretaryUrlRaw}/transformer/template`;
+              const fd = new FormData();
+              fd.append('text', extractedText);
+              const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de';
+              fd.append('target_language', lang);
+              fd.append('template_content', templateContent);
+              fd.append('use_cache', 'false');
+              const headers: Record<string, string> = { 'Accept': 'application/json' };
+              const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+              if (apiKey) { headers['Authorization'] = `Bearer ${apiKey}`; headers['X-Service-Token'] = apiKey; }
+              const resp = await fetch(transformerUrl, { method: 'POST', body: fd, headers });
+              const data: unknown = await resp.json().catch(() => ({}));
+              if (resp.ok && data && typeof data === 'object' && !Array.isArray(data)) {
+                const d = (data as { data?: unknown }).data as { structured_data?: unknown; text?: unknown } | undefined;
+                const normalized = normalizeStructuredData(d?.structured_data);
+                if (normalized) {
+                  metadataFromTemplate = normalized;
+                } else {
+                  metadataFromTemplate = null;
+                }
+                bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' });
+              } else {
+                bufferLog(jobId, { phase: 'transform_meta_failed', message: 'Transformer lieferte kein gültiges JSON' });
+              }
+            } else {
+              bufferLog(jobId, { phase: 'template_missing', message: 'Kein Template gefunden' });
+            }
+          } else {
+            bufferLog(jobId, { phase: 'templates_folder_missing', message: 'Ordner /templates nicht gefunden' });
+          }
+        } catch {
+          bufferLog(jobId, { phase: 'transform_meta_error', message: 'Fehler bei Template-Transformation' });
+        }
+
+        // 3) Frontmatter-Metadaten bestimmen (Template bevorzugt, sonst Worker-Metadaten)
+        const baseMeta = (body?.data?.metadata as Record<string, unknown>) || {};
+        const finalMeta: Record<string, unknown> = metadataFromTemplate ? { ...metadataFromTemplate } : { ...baseMeta };
+
+        // 4) Markdown mit Frontmatter erzeugen (Body = Originaltext)
         const markdown = typeof (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter === 'function'
-          ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, (body?.data?.metadata as Record<string, unknown>) || {})
+          ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, finalMeta)
           : extractedText;
 
         const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '');
@@ -232,8 +444,6 @@ export async function POST(
 
         const file = new File([new Blob([markdown], { type: 'text/markdown' })], uniqueName, { type: 'text/markdown' });
         const saved = await provider.uploadFile(targetParentId, file);
-        // const savedRelPath = await provider.getPathById(saved.id).catch(() => undefined);
-        // const savedAbsPath = savedRelPath && savedRelPath !== '/' ? path.join(lib.path, savedRelPath.replace(/^\//, '')) : undefined;
         bufferLog(jobId, { phase: 'stored_local', message: 'Shadow‑Twin gespeichert' });
         savedItemId = saved.id;
 

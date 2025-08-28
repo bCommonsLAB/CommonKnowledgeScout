@@ -71,9 +71,14 @@ export function ChatPanel({ libraryId }: ChatPanelProps) {
     setAnswer('')
     setResults([])
     try {
+      // Debug-Ausgabe: angewendete Parameter im Client
+      // Hinweis: Setze den Header X-Debug auf 1, um serverseitige Logs zu aktivieren
+      // (nur in Dev-Umgebungen empfohlen)
+      // eslint-disable-next-line no-console
+      console.log('[chat] sende Anfrage', { answerLength, chars: input.length })
       const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Debug': '1' },
         body: JSON.stringify({ message: input, answerLength })
       })
       const data = await res.json()

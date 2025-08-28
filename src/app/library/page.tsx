@@ -24,8 +24,9 @@ function LibraryUrlHandler() {
 
   useEffect(() => {
     const urlLibraryId = searchParams?.get('activeLibraryId');
+    const urlFolderId = searchParams?.get('folderId');
     
-    // Nur die activeLibraryId aus der URL verarbeiten
+    // activeLibraryId aus der URL verarbeiten
     if (urlLibraryId) {
       setActiveLibraryId(urlLibraryId);
       // Speichere auch im localStorage für zukünftige Seitenaufrufe
@@ -33,10 +34,15 @@ function LibraryUrlHandler() {
       
       // Auth-Status aktualisieren für die neue Library
       refreshAuthStatus();
-      
-      // Entferne den Parameter aus der URL
-      router.replace('/library');
+      // Entferne nur activeLibraryId aus der URL, folderId beibehalten
+      try {
+        const params = new URLSearchParams(searchParams ?? undefined);
+        params.delete('activeLibraryId');
+        router.replace(params.size ? `/library?${params.toString()}` : '/library');
+      } catch {}
     }
+
+    // Optional: Wenn nur folderId vorhanden ist, nichts tun – die Synchronisation erfolgt über navigateToFolder
   }, [searchParams, setActiveLibraryId, router, refreshAuthStatus]);
 
   return null;
