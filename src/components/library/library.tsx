@@ -36,6 +36,8 @@ import { NavigationLogger, StateLogger, UILogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
 import { useToast } from "@/components/ui/use-toast"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useSearchParams } from "next/navigation"
+import { useFolderNavigation } from "@/hooks/use-folder-navigation"
 export function Library() {
   // Performance-Messung für Kaltstart (nur Client)
   const startupT0Ref = React.useRef<number>(
@@ -67,6 +69,8 @@ export function Library() {
   const [isMobile, setIsMobile] = React.useState<boolean>(false);
   const [mobileView, setMobileView] = React.useState<'list' | 'preview'>('list');
   const loadInFlightRef = React.useRef<boolean>(false);
+  const searchParams = useSearchParams();
+  const navigateToFolder = useFolderNavigation();
 
   // Mobile: Tree standardmäßig ausblenden, Desktop: anzeigen
   React.useEffect(() => {
@@ -82,6 +86,41 @@ export function Library() {
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
+
+  // URL -> State: folderId aus Query anwenden, wenn Provider bereit ist
+  const urlInitAppliedRef = React.useRef(false);
+  React.useEffect(() => {
+    const folderIdFromUrl = searchParams?.get('folderId');
+
+    if (urlInitAppliedRef.current) return;
+
+    if (!folderIdFromUrl) {
+      NavigationLogger.debug('debug@init', 'No folderId in URL', {
+        currentFolderId
+      });
+      urlInitAppliedRef.current = true;
+      return;
+    }
+
+    if (!providerInstance || libraryStatus !== 'ready') {
+      NavigationLogger.debug('debug@init', 'Provider not ready, deferring URL apply', {
+        folderIdFromUrl,
+        libraryStatus,
+        hasProvider: !!providerInstance
+      });
+      return;
+    }
+
+    if (folderIdFromUrl !== currentFolderId) {
+      NavigationLogger.info('debug@init', 'Applying folderId from URL (ready)', {
+        folderIdFromUrl,
+        currentFolderId
+      });
+      void navigateToFolder(folderIdFromUrl);
+    }
+    urlInitAppliedRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, providerInstance, libraryStatus, currentFolderId]);
 
   // Mobile-View Wechsellogik: bei Dateiauswahl zur Vorschau wechseln
   React.useEffect(() => {
@@ -103,10 +142,23 @@ export function Library() {
       return;
     }
 
+    // Schutz: Wenn Provider/Context noch auf alte Library zeigt, keine Items übernehmen
+    if (currentLibrary?.id && currentLibrary.id !== activeLibraryId) {
+      NavigationLogger.debug('Library', 'Skip loadItems - library mismatch', {
+        providerLibraryId: currentLibrary.id,
+        activeLibraryId
+      });
+      return;
+    }
+
     loadInFlightRef.current = true;
     setLoadingState({ isLoading: true, loadingFolderId: currentFolderId });
 
     try {
+      // Snapshot zur Vermeidung von Race-Conditions
+      const expectedLibraryId = activeLibraryId;
+      const expectedFolderId = currentFolderId;
+
       // Prüfe Cache zuerst
       if (libraryState.folderCache?.[currentFolderId]?.children) {
         const cachedItems = libraryState.folderCache[currentFolderId].children;
@@ -115,8 +167,11 @@ export function Library() {
           itemCount: cachedItems.length,
           cacheHit: true
         });
-        setFolderItems(cachedItems);
-        setLastLoadedFolder(currentFolderId);
+        // Übernehme nur, wenn der Snapshot noch aktuell ist
+        if (expectedLibraryId === activeLibraryId && expectedFolderId === currentFolderId) {
+          setFolderItems(cachedItems);
+          setLastLoadedFolder(currentFolderId);
+        }
         return;
       }
 
@@ -126,6 +181,17 @@ export function Library() {
       });
       
       const items = await listItems(currentFolderId);
+
+      // Falls während des Ladens die Library oder der Ordner wechselte: Ergebnis verwerfen
+      if (expectedLibraryId !== activeLibraryId || expectedFolderId !== currentFolderId) {
+        NavigationLogger.debug('Library', 'Discard loaded items due to context change', {
+          expectedLibraryId,
+          activeLibraryId,
+          expectedFolderId,
+          currentFolderId
+        });
+        return;
+      }
       
       // Update Cache und State
       if (currentFolderId !== 'root') {
@@ -231,6 +297,18 @@ export function Library() {
       return;
     }
 
+    // Wenn eine folderId in der URL steht und noch nicht angewendet wurde,
+    // verhindere das initiale Laden von "root" (vermeidet Doppel-Load)
+    const folderIdFromUrl = searchParams?.get('folderId');
+    if (!urlInitAppliedRef.current && folderIdFromUrl && folderIdFromUrl !== currentFolderId) {
+      NavigationLogger.debug('debug@init', 'Skip initial root load; URL folderId pending', {
+        folderIdFromUrl,
+        currentFolderId,
+        lastLoadedFolder
+      });
+      return;
+    }
+
     // Nur laden wenn noch nicht geladen
     if (lastLoadedFolder !== currentFolderId && !loadInFlightRef.current) {
       UILogger.info('Library', 'Initial load triggered', {
@@ -243,7 +321,7 @@ export function Library() {
       });
       loadItems();
     }
-  }, [providerInstance, libraryStatus, currentFolderId, lastLoadedFolder, activeLibraryId, loadItems]);
+  }, [providerInstance, libraryStatus, currentFolderId, lastLoadedFolder, activeLibraryId, loadItems, searchParams]);
 
   // Zusätzlicher Reset bei Bibliothekswechsel (robust gegen Status-Race)
   useEffect(() => {
@@ -255,6 +333,9 @@ export function Library() {
     setLastLoadedFolder(null);
     setFolderItems([]);
     setLibraryState(state => ({ ...state, folderCache: {} }));
+    // WICHTIG: Ordnerauswahl und Shadow-Twin zurücksetzen
+    setSelectedFile(null);
+    setSelectedShadowTwin(null);
   }, [activeLibraryId, setLastLoadedFolder, setFolderItems, setLibraryState, currentFolderId]);
 
   // Reset Cache wenn sich die Library ändert
@@ -505,24 +586,29 @@ export function Library() {
                 </div>
               )
             ) : (
-              <ResizablePanelGroup direction="horizontal" className="h-full" autoSaveId="library-panels">
+              <ResizablePanelGroup
+                key={isTreeVisible ? 'with-tree' : 'no-tree'}
+                direction="horizontal"
+                className="h-full"
+                autoSaveId={isTreeVisible ? "library-panels-3" : "library-panels-2"}
+              >
                 {isTreeVisible && (
                   <>
-                    <ResizablePanel id="tree" defaultSize={20} minSize={15} className="min-h-0">
+                    <ResizablePanel key="tree-panel" id="tree" defaultSize={20} minSize={15} className="min-h-0">
                       <div className="h-full overflow-auto flex flex-col">
                         <FileTree />
                       </div>
                     </ResizablePanel>
-                    <ResizableHandle />
+                    <ResizableHandle key="tree-handle" />
                   </>
                 )}
-                <ResizablePanel id="list" defaultSize={isTreeVisible ? 40 : 50} className="min-h-0">
+                <ResizablePanel key="list-panel" id="list" defaultSize={isTreeVisible ? 40 : 50} className="min-h-0">
                   <div className="h-full overflow-auto flex flex-col">
                     <FileList />
                   </div>
                 </ResizablePanel>
-                <ResizableHandle />
-                <ResizablePanel id="preview" defaultSize={isTreeVisible ? 40 : 50} className="min-h-0">
+                <ResizableHandle key="list-preview-handle" />
+                <ResizablePanel key="preview-panel" id="preview" defaultSize={isTreeVisible ? 40 : 50} className="min-h-0">
                   <div className="h-full relative flex flex-col">
                     {selectedFile ? (
                       <FilePreviewLazy

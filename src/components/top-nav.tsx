@@ -19,7 +19,7 @@ import {
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
-import { libraryAtom } from "@/atoms/library-atom"
+import { libraryAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 
@@ -62,6 +62,7 @@ export function TopNav() {
   
   // Statt Events verwenden wir Jotai
   const [libraryContext] = useAtom(libraryAtom)
+  const [activeLibraryId] = useAtom(activeLibraryIdAtom)
   const { libraries } = libraryContext
   
 
@@ -97,6 +98,19 @@ export function TopNav() {
                     {item.name}
                   </Link>
                 ))}
+                {/* Dynamischer Chat-Link (abhängig von aktiver Bibliothek) */}
+                <Link
+                  href={activeLibraryId ? `/library/${activeLibraryId}/chat` : "/library"}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "block rounded-md px-3 py-2 text-sm",
+                    pathname?.includes('/library/') && pathname?.includes('/chat')
+                      ? "bg-muted text-primary"
+                      : "text-foreground hover:bg-muted"
+                  )}
+                >
+                  Chat
+                </Link>
                 <div className="pt-3 border-t" />
                 {/* Settings + Dark Mode im Menü */}
                 <SignedIn>
@@ -157,6 +171,19 @@ export function TopNav() {
                     {item.name}
                   </Link>
                 ))}
+                {/* Dynamischer Chat-Link */}
+                <Link
+                  key="/library/[id]/chat"
+                  href={activeLibraryId ? `/library/${activeLibraryId}/chat` : "/library"}
+                  className={cn(
+                    "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
+                    pathname?.includes('/library/') && pathname?.includes('/chat')
+                      ? "bg-muted text-primary"
+                      : "text-muted-foreground hover:text-primary"
+                  )}
+                >
+                  Chat
+                </Link>
               </SignedIn>
             </div>
             <ScrollBar orientation="horizontal" className="invisible" />

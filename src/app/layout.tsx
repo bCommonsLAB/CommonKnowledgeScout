@@ -8,6 +8,7 @@ import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
 import { DebugFooterWrapper } from "@/components/debug/debug-footer-wrapper"
 import { JobMonitorPanel } from "@/components/shared/job-monitor-panel"
+import { ChatSidePanel } from "@/components/shared/chat-panel"
 
 export const metadata = {
   title: "Knowledge Scout",
@@ -82,6 +83,7 @@ export default function RootLayout({
                     {children}
                   </div>
                   <JobMonitorPanel />
+                  <ChatSidePanel />
                   <DebugFooterWrapper />
                 </div>
                 <Toaster richColors />

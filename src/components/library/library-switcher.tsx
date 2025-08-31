@@ -68,6 +68,11 @@ export function LibrarySwitcher({
     // Aktualisiere das Atom
     setActiveLibraryId(value);
     StateLogger.info('LibrarySwitcher', 'Bibliothek geändert zu', { libraryId: value });
+
+    // URL bereinigen: vorhandene folderId aus der vorherigen Library entfernen
+    try {
+      router.replace('/library');
+    } catch {}
   }
 
   return (

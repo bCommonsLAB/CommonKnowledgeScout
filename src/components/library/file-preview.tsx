@@ -237,6 +237,19 @@ function PreviewContent({
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }) {
   const [activeTab, setActiveTab] = React.useState<string>("preview");
+  const [ragLoading, setRagLoading] = React.useState(false);
+  const [ragError, setRagError] = React.useState<string | null>(null);
+  const [ragStatus, setRagStatus] = React.useState<{
+    status: 'ok' | 'stale' | 'not_indexed';
+    fileName?: string;
+    chunkCount?: number;
+    upsertedAt?: string;
+    docModifiedAt?: string;
+    docMeta?: Record<string, unknown>;
+    toc?: Array<Record<string, unknown>>;
+    totals?: { docs: number; chunks: number };
+    analyze?: { chapters?: Array<Record<string, unknown>>; toc?: Array<Record<string, unknown>> };
+  } | null>(null);
   const setSelectedFile = useSetAtom(selectedFileAtom);
   
   // Debug-Log für PreviewContent
@@ -255,6 +268,29 @@ function PreviewContent({
   React.useEffect(() => {
     setActiveTab("preview");
   }, [item.id]);
+
+  async function loadRagStatus() {
+    try {
+      setRagLoading(true);
+      setRagError(null);
+      const docMod = (() => {
+        const d = item.metadata.modifiedAt as unknown as Date | string | number | undefined;
+        const dt = d instanceof Date ? d : (d ? new Date(d) : undefined);
+        return dt ? dt.toISOString() : undefined;
+      })();
+      const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/file-status?fileId=${encodeURIComponent(item.id)}${docMod ? `&docModifiedAt=${encodeURIComponent(docMod)}` : ''}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Status konnte nicht geladen werden');
+      // Library-Stats parallel
+      const statsRes = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/stats`, { cache: 'no-store' });
+      const stats = await statsRes.json().catch(() => ({}));
+      setRagStatus({ ...data, totals: stats?.totals });
+    } catch (e) {
+      setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler');
+    } finally {
+      setRagLoading(false);
+    }
+  }
 
   if (error) {
     FileLogger.error('PreviewContent', 'Fehler in PreviewContent', {
@@ -313,9 +349,50 @@ function PreviewContent({
             <TabsList className="mx-4 mt-2 flex-shrink-0">
               <TabsTrigger value="preview">Vorschau</TabsTrigger>
               <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
+              <TabsTrigger value="rag" onClick={() => { void loadRagStatus(); }}>RAG</TabsTrigger>
             </TabsList>
             <div className="flex-1 min-h-0">
               <TabsContent value="preview" className="h-full mt-0">
+                <div className="flex items-center gap-2 px-4 py-2">
+                  <button
+                    className="inline-flex h-8 items-center rounded-md bg-muted px-3 text-xs"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/upsert-file`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ fileId: item.id, fileName: item.metadata.name, content, mode: 'A' }),
+                        })
+                        const data = await res.json()
+                        if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Upsert (A)')
+                        console.log('[Upsert A] OK:', data)
+                      } catch (e) {
+                        console.error('[Upsert A] Fehler:', e)
+                      }
+                    }}
+                  >
+                    Upsert A
+                  </button>
+                  <button
+                    className="inline-flex h-8 items-center rounded-md bg-muted px-3 text-xs"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/upsert-file`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ fileId: item.id, fileName: item.metadata.name, content, mode: 'B' }),
+                        })
+                        const data = await res.json()
+                        if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Upsert (B)')
+                        console.log('[Upsert B] OK:', data)
+                      } catch (e) {
+                        console.error('[Upsert B] Fehler:', e)
+                      }
+                    }}
+                  >
+                    Upsert B
+                  </button>
+                </div>
                 <MarkdownPreview 
                   content={content}
                   currentFolderId={item.parentId}
@@ -324,6 +401,205 @@ function PreviewContent({
                   onTransform={() => setActiveTab("edit")}
                   onRefreshFolder={onRefreshFolder}
                 />
+              </TabsContent>
+              <TabsContent value="rag" className="h-full mt-0">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium">RAG-Status</div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="inline-flex h-8 items-center rounded-md bg-muted px-3 text-xs"
+                        onClick={() => void loadRagStatus()}
+                      >
+                        Aktualisieren
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center rounded-md bg-muted px-3 text-xs"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/analyze-chapters`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ fileId: item.id, content })
+                            })
+                            const data = await res.json()
+                            if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Kapitelanalyse fehlgeschlagen')
+                            setRagStatus(prev => ({ ...(prev ?? { status: 'not_indexed' as const }), analyze: data?.result }))
+                          } catch (e) {
+                            setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler bei Kapitelanalyse')
+                          }
+                        }}
+                      >
+                        Kapitelanalyse
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center rounded-md bg-muted px-3 text-xs"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/analyze-chapters`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ fileId: item.id, content, mode: 'llm' })
+                            })
+                            const data = await res.json()
+                            if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Kapitelanalyse (LLM) fehlgeschlagen')
+                            setRagStatus(prev => ({ ...(prev ?? { status: 'not_indexed' as const }), analyze: data?.result }))
+                          } catch (e) {
+                            setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler bei Kapitelanalyse (LLM)')
+                          }
+                        }}
+                      >
+                        Kapitelanalyse (LLM)
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center rounded-md bg-primary text-primary-foreground px-3 text-xs"
+                        onClick={async () => {
+                          try {
+                            const docMod = (() => {
+                              const d = item.metadata.modifiedAt as unknown as Date | string | number | undefined;
+                              const dt = d instanceof Date ? d : (d ? new Date(d) : undefined);
+                              return dt ? dt.toISOString() : undefined;
+                            })();
+                            const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/upsert-file`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ fileId: item.id, fileName: item.metadata.name, content, mode: 'A', docModifiedAt: docMod })
+                            });
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Upsert fehlgeschlagen');
+                            await loadRagStatus();
+                          } catch (e) {
+                            setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler beim Upsert');
+                          }
+                        }}
+                      >
+                        Upsert
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center rounded-md bg-primary/70 text-primary-foreground px-3 text-xs"
+                        onClick={async () => {
+                          try {
+                            const chaptersSrcUnknown: unknown = (ragStatus as unknown as { analyze?: { chapters?: unknown } })?.analyze?.chapters
+                            const chaptersSrc: Array<unknown> | undefined = Array.isArray(chaptersSrcUnknown) ? chaptersSrcUnknown : undefined
+                            if (!Array.isArray(chaptersSrc) || chaptersSrc.length === 0) {
+                              throw new Error('Keine Kapitelanalyse vorhanden')
+                            }
+                            const chapters = chaptersSrc
+                              .filter((c): c is { chapterId?: unknown; title?: unknown; summary: string; keywords?: unknown } => {
+                                if (!c || typeof c !== 'object') return false
+                                const s = (c as Record<string, unknown>).summary
+                                return typeof s === 'string' && s.trim().length > 0
+                              })
+                              .map((c, i) => {
+                                const obj = c as Record<string, unknown>
+                                const chapterId = typeof obj.chapterId === 'string' ? obj.chapterId : `chap-${i + 1}`
+                                const title = typeof obj.title === 'string' ? obj.title : `Kapitel ${i + 1}`
+                                const summary = (obj.summary as string).slice(0, 1200)
+                                const keywords = Array.isArray(obj.keywords) ? (obj.keywords as Array<unknown>).filter(k => typeof k === 'string').slice(0, 12) as string[] : undefined
+                                return { chapterId, title, order: i + 1, summary, keywords }
+                              })
+                            if (chapters.length === 0) throw new Error('Keine Kapitel mit Summary gefunden')
+
+                            const docMod = (() => {
+                              const d = item.metadata.modifiedAt as unknown as Date | string | number | undefined;
+                              const dt = d instanceof Date ? d : (d ? new Date(d) : undefined);
+                              return dt ? dt.toISOString() : undefined;
+                            })();
+                            const tocUnknown: unknown = (ragStatus as unknown as { analyze?: { toc?: unknown } })?.analyze?.toc
+                            const toc: Array<unknown> | undefined = Array.isArray(tocUnknown) ? tocUnknown : undefined
+                            const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/upsert-file`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ fileId: item.id, fileName: item.metadata.name, content, mode: 'A', docModifiedAt: docMod, chapters, toc })
+                            });
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Upsert (Analyse) fehlgeschlagen');
+                            await loadRagStatus();
+                          } catch (e) {
+                            setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler beim Upsert (Analyse)');
+                          }
+                        }}
+                      >
+                        Upsert (Analyse)
+                      </button>
+                    </div>
+                  </div>
+                  {ragLoading && <div className="text-sm text-muted-foreground">Lade Status…</div>}
+                  {ragError && <div className="text-sm text-destructive">{ragError}</div>}
+                  {ragStatus && (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span>Status:</span>
+                        <span className={cn(
+                          'inline-flex items-center rounded px-2 py-0.5 text-xs',
+                          ragStatus.status === 'ok' && 'bg-green-100 text-green-700',
+                          ragStatus.status === 'stale' && 'bg-amber-100 text-amber-800',
+                          ragStatus.status === 'not_indexed' && 'bg-gray-100 text-gray-700'
+                        )}>
+                          {ragStatus.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">fileId: {ragStatus?.fileName ? '' : ''}{(item.id)}</div>
+                      <div>Chunks: {ragStatus.chunkCount ?? '—'}</div>
+                      <div>Upserted: {ragStatus.upsertedAt ?? '—'}</div>
+                      <div>Dokument geändert: {ragStatus.docModifiedAt ?? '—'}</div>
+                      {ragStatus.totals && (
+                        <div className="text-xs text-muted-foreground">Index totals: {ragStatus.totals.docs} Docs, {ragStatus.totals.chunks} Chunks</div>
+                      )}
+                      {ragStatus.docMeta && (
+                        <div className="mt-2">
+                          <div className="font-medium">Dokument-Metadaten</div>
+                          <pre className="mt-1 max-h-44 overflow-auto whitespace-pre-wrap break-words text-xs bg-muted/30 p-2 rounded">{JSON.stringify(ragStatus.docMeta, null, 2)}</pre>
+                        </div>
+                      )}
+                      {ragStatus.toc && Array.isArray(ragStatus.toc) && ragStatus.toc.length > 0 && (
+                        <div className="mt-2">
+                          <div className="font-medium">Kapitel</div>
+                          <ul className="mt-1 space-y-1 list-disc pl-5">
+                            {ragStatus.toc.map((t, i: number) => {
+                              const obj = t as Record<string, unknown>
+                              const title = (typeof obj.title === 'string' ? obj.title : (typeof obj.chapterId === 'string' ? obj.chapterId : 'Kapitel')) as string
+                              const level = typeof obj.level === 'number' ? obj.level : undefined
+                              const page = typeof obj.page === 'number' ? obj.page : undefined
+                              const order = typeof obj.order === 'number' ? obj.order : undefined
+                              const startChunk = typeof obj.startChunk === 'number' ? obj.startChunk : undefined
+                              const endChunk = typeof obj.endChunk === 'number' ? obj.endChunk : undefined
+                              return (
+                                <li key={i} className="text-xs">
+                                  {title}
+                                  {typeof level === 'number' ? ` (L${level})` : ''}
+                                  {typeof page === 'number' ? ` · Seite ${page}` : ''}
+                                  {typeof order === 'number' ? ` · Reihenfolge ${order}` : ''}
+                                  {typeof startChunk === 'number' && typeof endChunk === 'number' ? ` · Chunks ${startChunk}-${endChunk}` : ''}
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                      {ragStatus?.analyze?.chapters && Array.isArray(ragStatus.analyze.chapters) && (
+                        <div className="mt-3">
+                          <div className="font-medium">Kapitel (Heuristik/LLM)</div>
+                          <ul className="mt-1 space-y-1 list-disc pl-5 text-xs max-h-56 overflow-auto">
+                            {ragStatus.analyze.chapters.map((c) => {
+                              const obj = c as Record<string, unknown>
+                              const id = typeof obj.chapterId === 'string' ? obj.chapterId : String(obj.chapterId ?? '')
+                              const level = typeof obj.level === 'number' ? obj.level : undefined
+                              const title = typeof obj.title === 'string' ? obj.title : 'Kapitel'
+                              const startPage = typeof obj.startPage === 'number' ? obj.startPage : undefined
+                              const endPage = typeof obj.endPage === 'number' ? obj.endPage : undefined
+                              return (
+                                <li key={id}>
+                                  {typeof level === 'number' ? `L${level}` : 'L?'} · {title} · Seiten {startPage ?? '—'}–{endPage ?? '—'}
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </TabsContent>
               <TabsContent value="edit" className="h-full mt-0">
                 <TextEditor 
