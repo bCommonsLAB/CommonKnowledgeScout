@@ -42,7 +42,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const [isScanning, setIsScanning] = useState(false);
   const [isEnqueuing, setIsEnqueuing] = useState(false);
   const [candidates, setCandidates] = useState<Array<{ file: StorageItem; parentId: string }>>([]);
-  const [preview, setPreview] = useState<string[]>([]);
+  const [previewItems, setPreviewItems] = useState<Array<{ id: string; name: string; relPath: string; pages?: number }>>([]);
   const [stats, setStats] = useState<ScanStats>({ totalPdfs: 0, skippedExisting: 0, toProcess: 0 });
 
   // Optionen wie im Einzel-PDF-Dialog
@@ -124,11 +124,27 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     if (!provider || !rootFolderId) return;
     setIsScanning(true);
     setCandidates([]);
-    setPreview([]);
+    setPreviewItems([]);
     try {
       const result = await scanFolder(rootFolderId);
       setCandidates(result.selected);
-      setPreview(result.previews);
+      // Vorschau-Details (max. 10) berechnen: relativer Pfad + Dateiname
+      const top = result.selected.slice(0, 10);
+      const details: Array<{ id: string; name: string; relPath: string; pages?: number }> = [];
+      for (const { file, parentId } of top) {
+        let relPath = '.';
+        try {
+          const chain = await provider.getPathItemsById(parentId);
+          const idx = chain.findIndex((it) => it.id === rootFolderId);
+          const start = idx >= 0 ? idx + 1 : 1; // nach aktuellem Root bzw. nach globalem Root
+          const parts = chain.slice(start).map((it) => it.metadata.name).filter(Boolean);
+          relPath = parts.length ? parts.join('/') : '.';
+        } catch {
+          relPath = '.';
+        }
+        details.push({ id: file.id, name: file.metadata.name, relPath });
+      }
+      setPreviewItems(details);
       setStats({ totalPdfs: result.total, skippedExisting: result.skipped, toProcess: result.selected.length });
     } finally {
       setIsScanning(false);
@@ -156,13 +172,42 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     if (candidates.length === 0) return;
     setIsEnqueuing(true);
     try {
-      // HINWEIS: Der eigentliche Enqueue erfolgt gegen die Secretary-API (/jobs/batch).
-      // Hier nur Platzhalter-Implementierung. Die konkrete API-Integration folgt im nächsten Schritt.
-      FileLogger.info('PdfBulkImportDialog', 'Enqueue planned items', {
-        libraryId: activeLibraryId,
-        count: candidates.length,
-        options: saveOptions as unknown as Record<string, unknown>,
-      });
+      // Sequenzielles Anlegen von External-Jobs über unsere API-Route
+      // Minimale Last, klare Reihenfolge (Secretary arbeitet der Reihe nach)
+      for (const { file, parentId } of candidates) {
+        try {
+          const bin = await provider?.getBinary(file.id);
+          if (!bin) continue;
+
+          const pdfFile = new File([bin.blob], file.metadata.name, { type: bin.mimeType || 'application/pdf' });
+
+          const form = new FormData();
+          form.append('file', pdfFile);
+          form.append('targetLanguage', saveOptions.targetLanguage || 'de');
+          form.append('extractionMethod', saveOptions.extractionMethod || 'native');
+          form.append('useCache', String(saveOptions.useCache ?? true));
+          form.append('includeImages', String(saveOptions.includeImages ?? false));
+          form.append('originalItemId', file.id);
+          form.append('parentId', parentId);
+
+          const res = await fetch('/api/secretary/process-pdf', {
+            method: 'POST',
+            headers: { 'X-Library-Id': activeLibraryId },
+            body: form,
+          });
+
+          if (!res.ok) {
+            const msg = await res.text().catch(() => 'unknown error');
+            FileLogger.error('PdfBulkImportDialog', 'Job enqueue failed', { name: file.metadata.name, status: res.status, msg });
+          } else {
+            FileLogger.info('PdfBulkImportDialog', 'Job enqueued', { name: file.metadata.name });
+          }
+        } catch (error) {
+          FileLogger.error('PdfBulkImportDialog', 'Fehler beim Enqueue für Datei', { fileId: file.id, error });
+          // Weiter mit nächster Datei
+        }
+      }
+
       onOpenChange(false);
     } finally {
       setIsEnqueuing(false);
@@ -220,12 +265,18 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             </div>
             <Separator className="my-3" />
             <ScrollArea className="h-40">
-              {preview.length === 0 ? (
+              {previewItems.length === 0 ? (
                 <div className="text-sm text-muted-foreground">Keine Kandidaten gefunden.</div>
               ) : (
-                <ul className="text-sm list-disc pl-5">
-                  {preview.map((n, i) => (
-                    <li key={i}>{n}</li>
+                <ul className="text-sm space-y-2">
+                  {previewItems.map((it) => (
+                    <li key={it.id} className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-muted-foreground truncate">{it.relPath}</div>
+                        <div className="font-medium break-all">{it.name}</div>
+                      </div>
+                      <div className="shrink-0 text-muted-foreground whitespace-nowrap">Seiten: —</div>
+                    </li>
                   ))}
                 </ul>
               )}

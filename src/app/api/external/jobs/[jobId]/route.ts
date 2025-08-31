@@ -10,6 +10,7 @@ import { FileLogger } from '@/lib/debug/logger';
 import type { Library } from '@/types/library';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
+import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 
 interface OneDriveAuthConfig {
   accessToken?: string;
@@ -52,24 +53,7 @@ async function onedriveUploadFile(accessToken: string, parentId: string, name: s
   return { id: (json as { id?: string }).id as string };
 }
 
-async function onedriveEnsureFolder(accessToken: string, parentId: string, name: string): Promise<{ id: string }> {
-  const url = parentId === 'root'
-    ? 'https://graph.microsoft.com/v1.0/me/drive/root/children'
-    : `https://graph.microsoft.com/v1.0/me/drive/items/${parentId}/children`;
-  const list = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!list.ok) throw new Error(`OneDrive children list fehlgeschlagen: ${list.status}`);
-  const data: unknown = await list.json();
-  const existing = (Array.isArray((data as { value?: unknown }).value) ? (data as { value: Array<{ id?: string; name?: string; folder?: unknown }> }).value : undefined)?.find((it) => it.folder && it.name === name);
-  if (existing) return { id: existing.id as string };
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, folder: {}, '@microsoft.graph.conflictBehavior': 'rename' })
-  });
-  if (!resp.ok) throw new Error(`OneDrive Ordnererstellung fehlgeschlagen: ${resp.status}`);
-  const created: unknown = await resp.json();
-  return { id: (created as { id?: string }).id as string };
-}
+// onedriveEnsureFolder wurde entfernt, da nicht verwendet
 
 export async function GET(
   _request: NextRequest,
@@ -168,9 +152,11 @@ export async function POST(
     const message = (typeof body?.message === 'string' && body.message) || (typeof body?.data?.message === 'string' && body.data.message) || undefined;
 
     const hasError = !!body?.error;
-    const hasFinalPayload = !!(body?.data?.extracted_text || body?.data?.images_archive_data || body?.status === 'completed');
+    const hasFinalPayload = !!(body?.data?.extracted_text || body?.data?.images_archive_url || body?.status === 'completed');
 
     if (!hasFinalPayload && !hasError && (progressValue !== undefined || phase || message)) {
+      // Watchdog heartbeat
+      bumpWatchdog(jobId);
       bufferLog(jobId, { phase: phase || 'progress', progress: typeof progressValue === 'number' ? Math.max(0, Math.min(100, progressValue)) : undefined, message });
       FileLogger.info('external-jobs', 'Progress-Event', {
         jobId,
@@ -194,6 +180,7 @@ export async function POST(
     }
 
     if (hasError) {
+      clearWatchdog(jobId);
       bufferLog(jobId, { phase: 'failed', details: body.error });
       // Bei Fehler: gepufferte Logs persistieren
       const buffered = drainBufferedLogs(jobId);
@@ -207,10 +194,10 @@ export async function POST(
 
     // Finale Payload
     const extractedText: string | undefined = body?.data?.extracted_text;
-    const imagesArchiveData: string | undefined = body?.data?.images_archive_data;
-    const imagesArchiveFilename: string | undefined = body?.data?.images_archive_filename;
+    const imagesArchiveUrlFromWorker: string | undefined = body?.data?.images_archive_url;
 
-    if (!extractedText && !imagesArchiveData) {
+    if (!extractedText && !imagesArchiveUrlFromWorker) {
+      bumpWatchdog(jobId);
       bufferLog(jobId, { phase: 'noop' });
       return NextResponse.json({ status: 'ok', jobId, kind: 'noop' });
     }
@@ -250,32 +237,81 @@ export async function POST(
         bufferLog(jobId, { phase: 'stored_local', message: 'Shadow‑Twin gespeichert' });
         savedItemId = saved.id;
 
-        if (imagesArchiveData) {
-          const originalItemForImages = {
-            id: sourceId || 'unknown',
-            parentId: targetParentId,
-            type: 'file' as const,
-            metadata: {
-              name: job.correlation.source?.name || 'source.pdf',
-              size: 0,
-              modifiedAt: new Date(),
-              mimeType: job.correlation.source?.mimeType || 'application/pdf',
-            },
-          };
-
-          const imageResult = await ImageExtractionService.saveZipArchive(
-            imagesArchiveData,
-            imagesArchiveFilename || 'pdf_images.zip',
-            originalItemForImages,
-            provider,
-            async () => [],
-            extractedText,
-            lang,
-            body?.data?.metadata?.text_contents
-          );
-          for (const it of imageResult.savedItems) savedItems.push(it.id);
-
-          bufferLog(jobId, { phase: 'images_extracted', message: `Bilder gespeichert (${imageResult.savedItems.length})` });
+        // Lade ZIP-Archiv bei Bedarf vom Secretary-Service und extrahiere lokal
+        if (imagesArchiveUrlFromWorker) {
+          try {
+            const baseRaw = process.env.SECRETARY_SERVICE_URL || '';
+            const isAbsolute = /^https?:\/\//i.test(imagesArchiveUrlFromWorker);
+            let archiveUrl = imagesArchiveUrlFromWorker;
+            if (!isAbsolute) {
+              try {
+                archiveUrl = new URL(imagesArchiveUrlFromWorker, baseRaw).toString();
+              } catch {
+                const base = baseRaw.replace(/\/$/, '');
+                const rel = imagesArchiveUrlFromWorker.startsWith('/') ? imagesArchiveUrlFromWorker : `/${imagesArchiveUrlFromWorker}`;
+                archiveUrl = base.endsWith('/api') && rel.startsWith('/api/')
+                  ? `${base}${rel.substring(4)}`
+                  : `${base}${rel}`;
+              }
+            }
+            const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+            const headers: Record<string, string> = {};
+            if (apiKey) {
+              headers['Authorization'] = `Bearer ${apiKey}`;
+              headers['X-Service-Token'] = apiKey;
+            }
+            const resp = await fetch(archiveUrl, { method: 'GET', headers });
+            if (!resp.ok) {
+              bufferLog(jobId, { phase: 'images_download_failed', message: `Archiv-Download fehlgeschlagen: ${resp.status}` });
+              // Markiere Job als fehlgeschlagen und beende
+              clearWatchdog(jobId);
+              const bufferedNow = drainBufferedLogs(jobId);
+              for (const entry of bufferedNow) {
+                await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
+              }
+              await repo.setStatus(jobId, 'failed', { error: { code: 'images_download_failed', message: 'Bild-Archiv konnte nicht geladen werden', details: { status: resp.status } } });
+              getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Archiv-Download fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name });
+              return NextResponse.json({ status: 'ok', jobId, kind: 'failed_images_download' });
+            } else {
+              const arrayBuf = await resp.arrayBuffer();
+              const base64Zip = Buffer.from(arrayBuf).toString('base64');
+              const originalItemForImages = {
+                id: sourceId || 'unknown',
+                parentId: targetParentId,
+                type: 'file' as const,
+                metadata: {
+                  name: job.correlation.source?.name || 'source.pdf',
+                  size: 0,
+                  modifiedAt: new Date(),
+                  mimeType: job.correlation.source?.mimeType || 'application/pdf',
+                },
+              };
+              const textContents = (body?.data?.metadata?.text_contents as Array<{ page: number; content: string }> | undefined);
+              const imageResult = await ImageExtractionService.saveZipArchive(
+                base64Zip,
+                'images.zip',
+                originalItemForImages,
+                provider,
+                async (folderId: string) => provider.listItemsById(folderId),
+                extractedText,
+                lang,
+                textContents
+              );
+              for (const it of imageResult.savedItems) savedItems.push(it.id);
+              bufferLog(jobId, { phase: 'images_extracted', message: `Bilder gespeichert (${imageResult.savedItems.length})` });
+            }
+          } catch {
+            bufferLog(jobId, { phase: 'images_extract_failed', message: 'ZIP-Extraktion fehlgeschlagen' });
+            // Markiere Job als fehlgeschlagen und beende
+            clearWatchdog(jobId);
+            const bufferedNow = drainBufferedLogs(jobId);
+            for (const entry of bufferedNow) {
+              await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
+            }
+            await repo.setStatus(jobId, 'failed', { error: { code: 'images_extract_failed', message: 'ZIP-Archiv konnte nicht extrahiert werden' } });
+            getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Bilder-Extraktion fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name });
+            return NextResponse.json({ status: 'ok', jobId, kind: 'failed_images_extract' });
+          }
         }
       } else if (lib && lib.type === 'onedrive') {
         const accessToken = await ensureOneDriveAccessToken(lib);
@@ -293,48 +329,12 @@ export async function POST(
 
         bufferLog(jobId, { phase: 'stored_cloud', message: 'Shadow‑Twin gespeichert' });
 
-        if (imagesArchiveData) {
-          const imagesFolder = await onedriveEnsureFolder(accessToken, targetParentId, `.${baseName}`);
-          const JSZip = await import('jszip');
-          const zip = await new JSZip.default().loadAsync(Buffer.from(imagesArchiveData, 'base64'));
-          const entries = Object.entries(zip.files as Record<string, unknown>);
-          let imagesSaved = 0;
-
-          const textContents: Array<{ page: number; content: string }> | undefined = (body?.data?.metadata?.text_contents as Array<{ page: number; content: string }> | undefined);
-          for (const [filePath, fileEntry] of entries) {
-            if ((fileEntry as { dir?: boolean }).dir) continue;
-            const ext = filePath.split('.').pop()?.toLowerCase();
-            if (!ext || !['png', 'jpg', 'jpeg'].includes(ext)) continue;
-            const originalFileName = filePath.split('/').pop() || `image.${ext}`;
-            const pageFileName = originalFileName.replace(/^image_(\d+)/, (_m, n) => `page_${String(n).padStart(3, '0')}`);
-            const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-            const bin = await (fileEntry as { async: (t: 'nodebuffer') => Promise<Buffer> }).async('nodebuffer');
-            const imgItem = await onedriveUploadFile(accessToken, imagesFolder.id, pageFileName, mime, bin);
-            savedItems.push(imgItem.id);
-            imagesSaved++;
-            if (textContents && textContents.length > 0) {
-              const match = pageFileName.match(/page_(\d+)/);
-              if (match) {
-                const page = Number(match[1]);
-                const tc = textContents.find(t => t.page === page);
-                if (tc) {
-                  const mdName = `${pageFileName.replace(/\.(png|jpg|jpeg)$/i, '')}.${lang}.md`;
-                  const mdBuffer = Buffer.from(
-                    `# ${pageFileName}\n\n## Quelle\n**PDF-Datei:** ${job.correlation.source?.name || ''}\n**Bild:** ${pageFileName}\n**Sprache:** ${lang}\n**Seite:** ${page}\n\n## Extrahierter Text\n${tc.content}\n`,
-                    'utf8'
-                  );
-                  const mdItem = await onedriveUploadFile(accessToken, imagesFolder.id, mdName, 'text/markdown', mdBuffer);
-                  savedItems.push(mdItem.id);
-                }
-              }
-            }
-          }
-          bufferLog(jobId, { phase: 'images_extracted', message: `Bilder gespeichert (${imagesSaved})` });
-        }
+        // Bilder nicht mehr vom Webhook-ZIP extrahieren – Link wird bereitgestellt
       }
     }
 
     await repo.setStatus(jobId, 'completed');
+    clearWatchdog(jobId);
     // gepufferte Logs persistieren
     const buffered = drainBufferedLogs(jobId);
     for (const entry of buffered) {
@@ -342,8 +342,7 @@ export async function POST(
     }
     await repo.setResult(jobId, {
       extracted_text: extractedText,
-      images_archive_data: imagesArchiveData,
-      images_archive_filename: imagesArchiveFilename,
+      images_archive_url: imagesArchiveUrlFromWorker || undefined,
       metadata: body?.data?.metadata,
     }, { savedItemId, savedItems });
 

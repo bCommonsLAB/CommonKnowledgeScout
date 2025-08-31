@@ -129,26 +129,43 @@ export function DocumentPreview({ provider, onRefreshFolder }: DocumentPreviewPr
           />
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-          <Icon className="h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">{item.metadata.name}</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Dokumentvorschau ist für diesen Dateityp nicht verfügbar
-          </p>
-          <p className="text-xs text-muted-foreground mb-6">
-            Dateigröße: {(item.metadata.size / 1024).toFixed(2)} KB
-          </p>
-          {documentUrl && !isLoading && (
-            <Button 
-              onClick={handleDownload}
-              disabled={isLoading}
-              variant="outline"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Dokument herunterladen
-            </Button>
-          )}
-        </div>
+        (() => {
+          const mime = (item.metadata.mimeType || '').toLowerCase();
+          const isPdf = mime.includes('pdf') || item.metadata.name.toLowerCase().endsWith('.pdf');
+          if (isPdf && documentUrl) {
+            return (
+              <div className="relative flex-1 min-h-0">
+                <iframe
+                  src={documentUrl}
+                  title={item.metadata.name}
+                  className="absolute inset-0 w-full h-full"
+                />
+              </div>
+            );
+          }
+          return (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+              <Icon className="h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">{item.metadata.name}</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Dokumentvorschau ist für diesen Dateityp nicht verfügbar
+              </p>
+              <p className="text-xs text-muted-foreground mb-6">
+                Dateigröße: {(item.metadata.size / 1024).toFixed(2)} KB
+              </p>
+              {documentUrl && !isLoading && (
+                <Button 
+                  onClick={handleDownload}
+                  disabled={isLoading}
+                  variant="outline"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Dokument herunterladen
+                </Button>
+              )}
+            </div>
+          );
+        })()
       )}
     </div>
   );

@@ -318,8 +318,10 @@ export function JobMonitorPanel() {
                         <HoverCardTrigger asChild>
                           <div className="truncate text-sm font-medium cursor-default" title={item.fileName || item.jobId}>{item.fileName || (item.operation || 'job')}</div>
                         </HoverCardTrigger>
-                        <HoverCardContent side="top" align="start" className="w-80 text-xs">
-                          <JobLogs jobId={item.jobId} />
+                        <HoverCardContent side="top" align="start" className="w-[36rem] p-0 max-h-[85vh]">
+                          <ScrollArea className="h-[80vh] overflow-y-auto p-2 text-xs">
+                            <JobLogs jobId={item.jobId} />
+                          </ScrollArea>
                         </HoverCardContent>
                       </HoverCard>
                     </div>

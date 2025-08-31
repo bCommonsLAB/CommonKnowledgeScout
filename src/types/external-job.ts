@@ -24,6 +24,9 @@ export interface ExternalJobCorrelation {
 export interface ExternalJobPayloadMeta {
   // secretary/process payload fields (subset)
   extracted_text?: string;
+  // Neu: Link-basiert statt große Base64-Blobs
+  images_archive_url?: string;
+  // Alt (deprecated): Wird nicht mehr persistiert
   images_archive_data?: string;
   images_archive_filename?: string;
   metadata?: Record<string, unknown>;

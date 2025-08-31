@@ -69,7 +69,7 @@ export default function EventMonitorPage() {
   const router = useRouter();
   
   // URL für API-Aufrufe erweitern
-  const buildApiUrl = (baseUrl: string, archived: boolean) => {
+  const buildApiUrl = useCallback((baseUrl: string, archived: boolean) => {
     const params = new URLSearchParams();
     params.set('archived', archived.toString());
     
@@ -78,7 +78,7 @@ export default function EventMonitorPage() {
     }
     
     return `${baseUrl}?${params.toString()}`;
-  };
+  }, [selectedEvent]);
 
   const loadCurrentTracks = useCallback(async (showLoader = true) => {
     try {

@@ -209,6 +209,9 @@ export interface SecretaryPdfResponse {
     };
     process_id: string;
     processed_at: string;
+    // Neu: Link statt großer Base64-Blobs
+    images_archive_url?: string;
+    // Alt (deprecated): verbleibt für Abwärtskompatibilität
     images_archive_data?: string; 
     images_archive_filename?: string; 
   };

@@ -12,6 +12,8 @@ class LocalStorageProvider implements StorageProvider {
   private library: ClientLibrary;
   private baseUrl: string;
   private userEmail: string | null = null;
+  // Deduplizierung paralleler Ordner-Listings pro Bibliothek/Ordner
+  private pendingRequests: Map<string, Promise<StorageItem[]>> = new Map();
 
   constructor(library: ClientLibrary, baseUrl?: string) {
     this.library = library;
@@ -53,99 +55,115 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
-    const url = this.getApiUrl(`/api/storage/filesystem?action=list&fileId=${folderId}&libraryId=${this.library.id}`);
-    console.log(`[LocalStorageProvider] Calling API:`, url);
-    
-    AuthLogger.debug('LocalStorageProvider', 'Starting listItemsById API call', {
-      folderId,
-      libraryId: this.library.id,
-      hasUserEmail: !!this.userEmail,
-      userEmail: this.userEmail ? `${this.userEmail.split('@')[0]}@...` : null,
-      url: url.replace(/email=[^&]+/, 'email=***')
-    });
-    
-    try {
-      const response = await fetch(url);
+    const requestKey = `${this.library.id}:${folderId}`;
+    const existing = this.pendingRequests.get(requestKey);
+    if (existing) {
+      // Gleichzeitige Anfragen für denselben Ordner zusammenführen
+      return existing;
+    }
+
+    const requestPromise = (async (): Promise<StorageItem[]> => {
+      const url = this.getApiUrl(`/api/storage/filesystem?action=list&fileId=${folderId}&libraryId=${this.library.id}`);
+      console.log(`[LocalStorageProvider] Calling API:`, url);
       
-      if (!response.ok) {
-        console.error(`[LocalStorageProvider] API call failed:`, {
-          status: response.status,
-          statusText: response.statusText,
-          url,
-          libraryId: this.library.id,
-          folderId,
-          userEmail: this.userEmail
-        });
-        
-        // Versuche, die spezifische Fehlermeldung aus der Response zu extrahieren
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        
-        try {
-          const errorData = await response.json();
-          if (errorData.error) {
-            errorMessage = errorData.error;
-          }
-          if (errorData.errorCode) {
-            console.error(`[LocalStorageProvider] Error code:`, errorData.errorCode);
-          }
-        } catch (parseError) {
-          console.warn(`[LocalStorageProvider] Konnte Fehlermeldung nicht parsen:`, parseError);
-        }
-        
-        // Spezifische Behandlung für verschiedene HTTP-Status-Codes
-        if (response.status === 404) {
-          throw new Error(`Bibliothek nicht gefunden. Bitte überprüfen Sie die Bibliothekskonfiguration.`);
-        } else if (response.status === 400) {
-          throw new Error(`Ungültige Anfrage: ${errorMessage}`);
-        } else if (response.status === 500) {
-          throw new Error(`Server-Fehler beim Laden der Bibliothek. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.`);
-        } else {
-          throw new Error(`Fehler beim Laden der Bibliothek: ${errorMessage}`);
-        }
-        
-        // AuthLogger für Fehler
-        AuthLogger.error('LocalStorageProvider', 'API call failed', {
-          status: response.status,
-          statusText: response.statusText,
-          errorMessage,
-          folderId,
-          libraryId: this.library.id,
-          hasUserEmail: !!this.userEmail
-        });
-      }
-      
-      const data = await response.json();
-      console.log(`[LocalStorageProvider] Successfully loaded ${data.length} items`);
-      
-      AuthLogger.info('LocalStorageProvider', 'API call successful', {
-        itemCount: data.length,
+      AuthLogger.debug('LocalStorageProvider', 'Starting listItemsById API call', {
         folderId,
-        libraryId: this.library.id
-      });
-      
-      return data;
-      
-    } catch (error) {
-      console.error(`[LocalStorageProvider] Exception in listItemsById:`, {
-        error: error instanceof Error ? {
-          message: error.message,
-          name: error.name,
-          stack: error.stack?.split('\n').slice(0, 3)
-        } : error,
         libraryId: this.library.id,
-        folderId,
-        userEmail: this.userEmail,
-        libraryPath: this.library.path
+        hasUserEmail: !!this.userEmail,
+        userEmail: this.userEmail ? `${this.userEmail.split('@')[0]}@...` : null,
+        url: url.replace(/email=[^&]+/, 'email=***')
       });
       
-      AuthLogger.error('LocalStorageProvider', 'Exception in listItemsById', error);
-      
-      // Re-throw den Fehler mit zusätzlichem Kontext
-      if (error instanceof Error) {
-        throw new Error(`Fehler beim Laden der Bibliothek "${this.library.label}": ${error.message}`);
-      } else {
-        throw new Error(`Unbekannter Fehler beim Laden der Bibliothek "${this.library.label}"`);
+      try {
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          console.error(`[LocalStorageProvider] API call failed:`, {
+            status: response.status,
+            statusText: response.statusText,
+            url,
+            libraryId: this.library.id,
+            folderId,
+            userEmail: this.userEmail
+          });
+          
+          // Versuche, die spezifische Fehlermeldung aus der Response zu extrahieren
+          let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          
+          try {
+            const errorData = await response.json();
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            }
+            if (errorData.errorCode) {
+              console.error(`[LocalStorageProvider] Error code:`, errorData.errorCode);
+            }
+          } catch (parseError) {
+            console.warn(`[LocalStorageProvider] Konnte Fehlermeldung nicht parsen:`, parseError);
+          }
+          
+          // Spezifische Behandlung für verschiedene HTTP-Status-Codes
+          if (response.status === 404) {
+            throw new Error(`Bibliothek nicht gefunden. Bitte überprüfen Sie die Bibliothekskonfiguration.`);
+          } else if (response.status === 400) {
+            throw new Error(`Ungültige Anfrage: ${errorMessage}`);
+          } else if (response.status === 500) {
+            throw new Error(`Server-Fehler beim Laden der Bibliothek. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.`);
+          } else {
+            throw new Error(`Fehler beim Laden der Bibliothek: ${errorMessage}`);
+          }
+          
+          // AuthLogger für Fehler
+          AuthLogger.error('LocalStorageProvider', 'API call failed', {
+            status: response.status,
+            statusText: response.statusText,
+            errorMessage,
+            folderId,
+            libraryId: this.library.id,
+            hasUserEmail: !!this.userEmail
+          });
+        }
+        
+        const data = await response.json();
+        console.log(`[LocalStorageProvider] Successfully loaded ${data.length} items`);
+        
+        AuthLogger.info('LocalStorageProvider', 'API call successful', {
+          itemCount: data.length,
+          folderId,
+          libraryId: this.library.id
+        });
+        
+        return data as StorageItem[];
+        
+      } catch (error) {
+        console.error(`[LocalStorageProvider] Exception in listItemsById:`, {
+          error: error instanceof Error ? {
+            message: error.message,
+            name: error.name,
+            stack: error.stack?.split('\n').slice(0, 3)
+          } : error,
+          libraryId: this.library.id,
+          folderId,
+          userEmail: this.userEmail,
+          libraryPath: this.library.path
+        });
+        
+        AuthLogger.error('LocalStorageProvider', 'Exception in listItemsById', error);
+        
+        // Re-throw den Fehler mit zusätzlichem Kontext
+        if (error instanceof Error) {
+          throw new Error(`Fehler beim Laden der Bibliothek "${this.library.label}": ${error.message}`);
+        } else {
+          throw new Error(`Unbekannter Fehler beim Laden der Bibliothek "${this.library.label}"`);
+        }
       }
+    })();
+
+    this.pendingRequests.set(requestKey, requestPromise);
+    try {
+      return await requestPromise;
+    } finally {
+      this.pendingRequests.delete(requestKey);
     }
   }
 

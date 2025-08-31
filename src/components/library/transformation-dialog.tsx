@@ -70,46 +70,38 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
     { name: "Zusammenfassung", isStandard: true }
   ];
 
-  // Templates laden wenn Provider und Library bereit sind
+  // Templates nur laden, wenn der Dialog geöffnet wird
   useEffect(() => {
+    let cancelled = false;
     async function loadTemplatesIfNeeded() {
-      if (!provider || !activeLibraryId) {
-        return;
-      }
+      if (!isOpen || !provider || !activeLibraryId) return;
 
       try {
-        // Templates-Ordner finden oder erstellen
         const rootItems = await listItems('root');
         let templatesFolder = rootItems.find(item => 
           item.type === 'folder' && item.metadata.name === 'templates'
         );
         
         if (!templatesFolder) {
-          // Templates-Ordner erstellen
           templatesFolder = await provider.createFolder('root', 'templates');
         }
 
-        // Template-Dateien laden
         const templateItems = await listItems(templatesFolder.id);
         const templateFiles = templateItems.filter(item => 
           item.type === 'file' && item.metadata.name.endsWith('.md')
         );
 
-        // Nur Template-Namen extrahieren
-        const templateNames = templateFiles.map(file => 
-          file.metadata.name.replace('.md', '')
-        );
-
-        setCustomTemplateNames(templateNames);
+        const templateNames = templateFiles.map(file => file.metadata.name.replace('.md', ''));
+        if (!cancelled) setCustomTemplateNames(templateNames);
       } catch (error) {
+        if (!cancelled) setCustomTemplateNames([]);
         console.error('Fehler beim Laden der Templates:', error);
-        // Bei Fehler leere Template-Liste setzen
-        setCustomTemplateNames([]);
       }
     }
 
     loadTemplatesIfNeeded();
-  }, [provider, activeLibraryId, listItems]);
+    return () => { cancelled = true; };
+  }, [isOpen, provider, activeLibraryId, listItems]);
 
   // Generiere Standard-Dateinamen basierend auf ausgewählten Dateien
   useEffect(() => {

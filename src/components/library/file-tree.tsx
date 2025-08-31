@@ -14,7 +14,7 @@ import {
   activeLibraryIdAtom
 } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
-import { FileLogger } from "@/lib/debug/logger"
+import { FileLogger, UILogger } from "@/lib/debug/logger"
 import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
 import { toast } from "sonner";
@@ -83,7 +83,11 @@ function TreeItem({
 
   const isExpanded = expandedFolders.has(item.id);
   const isSelected = selectedFile?.id === item.id;
-  const children = (loadedChildren[item.id] || []).filter(child => child.type === 'folder');
+  const children = (loadedChildren[item.id] || []).filter(child => {
+    if (child.type !== 'folder') return false;
+    const name = child.metadata?.name || '';
+    return !name.startsWith('.');
+  });
 
   return (
     <div className={cn(
@@ -236,6 +240,10 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   // Initial laden
   useEffect(() => {
     if (provider && !isReady) {
+      UILogger.info('FileTree', 'Starting root load', {
+        hasProvider: !!provider,
+        isReady
+      });
       loadRootItems();
     }
   }, [provider, loadRootItems, isReady]);
@@ -247,7 +255,11 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
     }
   }, [provider, setFileTreeReady]);
 
-  const items = (loadedChildren.root || []).filter(item => item.type === 'folder');
+  const items = (loadedChildren.root || []).filter(item => {
+    if (item.type !== 'folder') return false;
+    const name = item.metadata?.name || '';
+    return !name.startsWith('.');
+  });
 
   return (
     <div className="w-full flex flex-col">

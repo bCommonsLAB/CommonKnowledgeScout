@@ -337,7 +337,7 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
 
   if (!isSupported) {
     return (
-      <Button disabled variant="outline" size="sm" title="Audio-Aufnahme wird nicht unterstützt">
+      <Button disabled variant="ghost" size="icon" title="Audio-Aufnahme wird nicht unterstützt" aria-label="Audio nicht verfügbar">
         <MicOff className="h-4 w-4" />
       </Button>
     );
@@ -345,7 +345,7 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
 
   if (!isStorageReady) {
     return (
-      <Button disabled variant="outline" size="sm" title="Storage-Provider nicht verfügbar">
+      <Button disabled variant="ghost" size="icon" title="Storage-Provider nicht verfügbar" aria-label="Storage nicht verfügbar">
         <MicOff className="h-4 w-4" />
       </Button>
     );
@@ -356,13 +356,12 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
       <DialogTrigger asChild>
         <Button
           onClick={handleDialogTriggerClick}
-          variant="outline"
-          size="sm"
-          className="gap-2"
+          variant="ghost"
+          size="icon"
           title="Audio-Aufnahme starten"
+          aria-label="Audio aufnehmen"
         >
           <Mic className="h-4 w-4" />
-          Aufnahme
         </Button>
       </DialogTrigger>
       

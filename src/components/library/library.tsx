@@ -7,11 +7,18 @@ import { useAtom, useAtomValue } from "jotai"
 import { LibraryHeader } from "./library-header"
 import { FileTree } from "./file-tree"
 import { FileList } from "./file-list"
-import { FilePreview } from "./file-preview"
+import dynamic from 'next/dynamic'
+const FilePreviewLazy = dynamic(() => import('./file-preview').then(m => m.FilePreview), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full flex items-center justify-center text-muted-foreground">
+      Lade Vorschau...
+    </div>
+  )
+})
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { 
   libraryAtom, 
-  fileTreeReadyAtom, 
   folderItemsAtom,
   loadingStateAtom,
   lastLoadedFolderAtom,
@@ -20,25 +27,31 @@ import {
   selectedFileAtom,
   selectedShadowTwinAtom
 } from "@/atoms/library-atom"
+import { activeLibraryIdAtom } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
 import { TranscriptionDialog } from "./transcription-dialog"
 import { TransformationDialog } from "./transformation-dialog"
 import { StorageItem } from "@/lib/storage/types"
-import { NavigationLogger, StateLogger } from "@/lib/debug/logger"
+import { NavigationLogger, StateLogger, UILogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
 import { useToast } from "@/components/ui/use-toast"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 export function Library() {
+  // Performance-Messung für Kaltstart (nur Client)
+  const startupT0Ref = React.useRef<number>(
+    typeof performance !== 'undefined' ? performance.now() : 0
+  );
   // Globale Atoms
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const [, setLoadingState] = useAtom(loadingStateAtom);
   const [lastLoadedFolder, setLastLoadedFolder] = useAtom(lastLoadedFolderAtom);
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const [libraryState, setLibraryState] = useAtom(libraryAtom);
-  const isFileTreeReady = useAtomValue(fileTreeReadyAtom);
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   
   // Review-Mode Atoms
   const [isReviewMode] = useAtom(reviewModeAtom);
-  const [selectedFile] = useAtom(selectedFileAtom);
+  const [selectedFile, setSelectedFile] = useAtom(selectedFileAtom);
   const [selectedShadowTwin, setSelectedShadowTwin] = useAtom(selectedShadowTwinAtom);
   
   // Storage Context
@@ -50,9 +63,38 @@ export function Library() {
     currentLibrary
   } = useStorage();
   const { toast } = useToast();
+  const [isTreeVisible, setIsTreeVisible] = React.useState<boolean>(false);
+  const [isMobile, setIsMobile] = React.useState<boolean>(false);
+  const [mobileView, setMobileView] = React.useState<'list' | 'preview'>('list');
+  const loadInFlightRef = React.useRef<boolean>(false);
+
+  // Mobile: Tree standardmäßig ausblenden, Desktop: anzeigen
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // Desktop ab 1024px, Mobile darunter
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const apply = (matches: boolean) => {
+      setIsMobile(matches);
+      setIsTreeVisible(!matches);
+    };
+    apply(mq.matches);
+    const handler = (e: MediaQueryListEvent) => apply(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  // Mobile-View Wechsellogik: bei Dateiauswahl zur Vorschau wechseln
+  React.useEffect(() => {
+    if (!isMobile) return;
+    if (selectedFile) setMobileView('preview');
+  }, [isMobile, selectedFile]);
 
   // Optimierter loadItems mit Cache-Check
   const loadItems = useCallback(async () => {
+    if (loadInFlightRef.current) {
+      NavigationLogger.debug('Library', 'Skip loadItems - load already in flight');
+      return;
+    }
     if (!providerInstance || libraryStatus !== 'ready') {
       NavigationLogger.debug('Library', 'Skipping loadItems - not ready', {
         hasProvider: !!providerInstance,
@@ -61,6 +103,7 @@ export function Library() {
       return;
     }
 
+    loadInFlightRef.current = true;
     setLoadingState({ isLoading: true, loadingFolderId: currentFolderId });
 
     try {
@@ -112,7 +155,8 @@ export function Library() {
         folderId: currentFolderId,
         itemCount: items.length,
         fileCount: items.filter(i => i.type === 'file').length,
-        folderCount: items.filter(i => i.type === 'folder').length
+        folderCount: items.filter(i => i.type === 'folder').length,
+        tSinceMountMs: startupT0Ref.current ? Number((performance.now() - startupT0Ref.current).toFixed(1)) : undefined
       });
       
     } catch (error) {
@@ -158,6 +202,7 @@ export function Library() {
       setFolderItems([]);
     } finally {
       setLoadingState({ isLoading: false, loadingFolderId: null });
+      loadInFlightRef.current = false;
     }
   }, [
     currentFolderId,
@@ -174,13 +219,12 @@ export function Library() {
     currentLibrary
   ]);
 
-  // Effect für FileTree Ready
+  // Effect für Initial-Load (entkoppelt vom FileTree)
   useEffect(() => {
-    const isReady = isFileTreeReady && providerInstance && libraryStatus === 'ready';
+    const isReady = !!providerInstance && libraryStatus === 'ready';
     
     if (!isReady) {
       NavigationLogger.debug('Library', 'Waiting for initialization', {
-        isFileTreeReady,
         hasProvider: !!providerInstance,
         status: libraryStatus
       });
@@ -188,13 +232,30 @@ export function Library() {
     }
 
     // Nur laden wenn noch nicht geladen
-    if (lastLoadedFolder !== currentFolderId) {
+    if (lastLoadedFolder !== currentFolderId && !loadInFlightRef.current) {
+      UILogger.info('Library', 'Initial load triggered', {
+        currentFolderId,
+        lastLoadedFolder,
+        tSinceMountMs: startupT0Ref.current ? Number((performance.now() - startupT0Ref.current).toFixed(1)) : undefined
+      });
       NavigationLogger.info('Library', 'Loading initial items', {
         folderId: currentFolderId
       });
       loadItems();
     }
-  }, [isFileTreeReady, providerInstance, libraryStatus, currentFolderId, lastLoadedFolder, loadItems]);
+  }, [providerInstance, libraryStatus, currentFolderId, lastLoadedFolder, activeLibraryId, loadItems]);
+
+  // Zusätzlicher Reset bei Bibliothekswechsel (robust gegen Status-Race)
+  useEffect(() => {
+    if (!activeLibraryId) return;
+    StateLogger.info('Library', 'Active library changed - reset initial load state', {
+      activeLibraryId,
+      currentFolderId
+    });
+    setLastLoadedFolder(null);
+    setFolderItems([]);
+    setLibraryState(state => ({ ...state, folderCache: {} }));
+  }, [activeLibraryId, setLastLoadedFolder, setFolderItems, setLibraryState, currentFolderId]);
 
   // Reset Cache wenn sich die Library ändert
   useEffect(() => {
@@ -269,10 +330,11 @@ export function Library() {
             <ResizableHandle />
             <ResizablePanel defaultSize={37.5} minSize={30} className="min-h-0">
               <div className="h-full relative flex flex-col">
-                <FilePreview
-                  provider={providerInstance}
-                  file={selectedFile}
-                  onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
+                {selectedFile ? (
+                  <FilePreviewLazy
+                    provider={providerInstance}
+                    file={selectedFile}
+                    onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
                     StateLogger.info('Library', 'FilePreview (Basis) onRefreshFolder aufgerufen', {
                       folderId,
                       itemsCount: items.length,
@@ -306,15 +368,20 @@ export function Library() {
                         fileName: selectFileAfterRefresh.metadata.name
                       });
                     }
-                  }}
-                />
+                    }}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center text-muted-foreground">
+                    <p>Keine Datei ausgewählt</p>
+                  </div>
+                )}
               </div>
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel defaultSize={37.5} minSize={30} className="min-h-0">
               <div className="h-full relative flex flex-col">
                 {selectedShadowTwin ? (
-                  <FilePreview
+                  <FilePreviewLazy
                     provider={providerInstance}
                     file={selectedShadowTwin}
                     onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
@@ -362,63 +429,149 @@ export function Library() {
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
-          // Normal-Layout: FileTree | FileList | FilePreview
-          <ResizablePanelGroup direction="horizontal" className="h-full">
-            <ResizablePanel defaultSize={20} minSize={15} className="min-h-0">
-              <div className="h-full overflow-auto flex flex-col">
-                <FileTree />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel defaultSize={40} className="min-h-0">
-              <div className="h-full overflow-auto flex flex-col">
-                <FileList />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel defaultSize={40} className="min-h-0">
-              <div className="h-full relative flex flex-col">
-                <FilePreview
-                  provider={providerInstance}
-                  onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
-                    StateLogger.info('Library', 'FilePreview onRefreshFolder aufgerufen', {
-                      folderId,
-                      itemsCount: items.length,
-                      hasSelectFile: !!selectFileAfterRefresh
-                    });
-                    
-                    // Aktualisiere die Dateiliste
-                    setFolderItems(items);
-                    
-                    // Aktualisiere den Cache
-                    if (libraryState.folderCache?.[folderId]) {
-                      const cachedFolder = libraryState.folderCache[folderId];
-                      if (cachedFolder) {
-                        setLibraryState(state => ({
-                          ...state,
-                          folderCache: {
-                            ...(state.folderCache || {}),
-                            [folderId]: {
-                              ...cachedFolder,
-                              children: items
-                            }
+          // Normal-Layout (Desktop) oder alternierendes Mobile-Layout
+          <div className="relative h-full">
+            {/* Floating toggle handle - nur Desktop */}
+            <button
+              type="button"
+              onClick={() => setIsTreeVisible(v => !v)}
+              className="hidden lg:flex items-center justify-center absolute left-2 top-1/2 -translate-y-1/2 z-20 h-7 w-7 rounded-full border bg-background/80 shadow-sm hover:bg-background"
+              aria-label={isTreeVisible ? 'Tree ausblenden' : 'Tree einblenden'}
+              title={isTreeVisible ? 'Tree ausblenden' : 'Tree einblenden'}
+            >
+              {isTreeVisible ? (
+                <ChevronLeft className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+
+            {isMobile ? (
+              mobileView === 'list' ? (
+                <div className="h-full overflow-auto flex flex-col">
+                  <FileList />
+                </div>
+              ) : (
+                <div className="h-full flex flex-col">
+                  <div className="flex items-center gap-2 p-2 border-b bg-background">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-sm px-2 py-1 border rounded-md"
+                      onClick={() => {
+                        setMobileView('list');
+                        setSelectedShadowTwin(null);
+                        setSelectedFile(null);
+                        loadItems();
+                      }}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Zurück
+                    </button>
+                    <div className="text-sm text-muted-foreground truncate">
+                      {selectedFile?.metadata.name}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {selectedFile ? (
+                      <FilePreviewLazy
+                        provider={providerInstance}
+                        onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
+                        StateLogger.info('Library', 'FilePreview onRefreshFolder aufgerufen', {
+                          folderId,
+                          itemsCount: items.length,
+                          hasSelectFile: !!selectFileAfterRefresh
+                        });
+                        setFolderItems(items);
+                        if (libraryState.folderCache?.[folderId]) {
+                          const cachedFolder = libraryState.folderCache[folderId];
+                          if (cachedFolder) {
+                            setLibraryState(state => ({
+                              ...state,
+                              folderCache: {
+                                ...(state.folderCache || {}),
+                                [folderId]: { ...cachedFolder, children: items }
+                              }
+                            }));
                           }
-                        }));
-                      }
-                    }
-                    
-                    // Wenn eine Datei ausgewählt werden soll (nach dem Speichern)
-                    if (selectFileAfterRefresh) {
-                      StateLogger.info('Library', 'Wähle gespeicherte Datei aus', {
-                        fileId: selectFileAfterRefresh.id,
-                        fileName: selectFileAfterRefresh.metadata.name
-                      });
-                    }
-                  }}
-                />
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+                        }
+                        }}
+                      />
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-muted-foreground">
+                        <p>Keine Datei ausgewählt</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            ) : (
+              <ResizablePanelGroup direction="horizontal" className="h-full" autoSaveId="library-panels">
+                {isTreeVisible && (
+                  <>
+                    <ResizablePanel id="tree" defaultSize={20} minSize={15} className="min-h-0">
+                      <div className="h-full overflow-auto flex flex-col">
+                        <FileTree />
+                      </div>
+                    </ResizablePanel>
+                    <ResizableHandle />
+                  </>
+                )}
+                <ResizablePanel id="list" defaultSize={isTreeVisible ? 40 : 50} className="min-h-0">
+                  <div className="h-full overflow-auto flex flex-col">
+                    <FileList />
+                  </div>
+                </ResizablePanel>
+                <ResizableHandle />
+                <ResizablePanel id="preview" defaultSize={isTreeVisible ? 40 : 50} className="min-h-0">
+                  <div className="h-full relative flex flex-col">
+                    {selectedFile ? (
+                      <FilePreviewLazy
+                        provider={providerInstance}
+                        onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
+                        StateLogger.info('Library', 'FilePreview onRefreshFolder aufgerufen', {
+                          folderId,
+                          itemsCount: items.length,
+                          hasSelectFile: !!selectFileAfterRefresh
+                        });
+                        
+                        // Aktualisiere die Dateiliste
+                        setFolderItems(items);
+                        
+                        // Aktualisiere den Cache
+                        if (libraryState.folderCache?.[folderId]) {
+                          const cachedFolder = libraryState.folderCache[folderId];
+                          if (cachedFolder) {
+                            setLibraryState(state => ({
+                              ...state,
+                              folderCache: {
+                                ...(state.folderCache || {}),
+                                [folderId]: {
+                                  ...cachedFolder,
+                                  children: items
+                                }
+                              }
+                            }));
+                          }
+                        }
+                        
+                        if (selectFileAfterRefresh) {
+                          StateLogger.info('Library', 'Wähle gespeicherte Datei aus', {
+                            fileId: selectFileAfterRefresh.id,
+                            fileName: selectFileAfterRefresh.metadata.name
+                          });
+                        }
+                        }}
+                      />
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-muted-foreground">
+                        <p>Keine Datei ausgewählt</p>
+                      </div>
+                    )}
+                  </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            )}
+          </div>
         )}
       </div>
       

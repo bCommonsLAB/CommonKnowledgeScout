@@ -119,7 +119,7 @@ export default function LibraryPage() {
       <Suspense fallback={null}>
         <LibraryUrlHandler />
       </Suspense>
-      <div className="flex-1">
+      <div className="flex-1 min-h-0">
         <Library />
       </div>
     </div>
