@@ -384,7 +384,7 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
             if (!chosen) {
               // Default-Template anlegen
               const tplFile = new File([new Blob([defaultTemplateContent], { type: 'text/markdown' })], 'pdfanalyse.md', { type: 'text/markdown' });
-              const savedTpl = await provider.uploadFile(templatesFolderId, tplFile);
+              await provider.uploadFile(templatesFolderId, tplFile);
               bufferLog(jobId, { phase: 'template_created', message: 'Default-Template pdfanalyse.md angelegt' });
               // Neu laden
               const re = await provider.listItemsById(templatesFolderId);

@@ -247,14 +247,33 @@ Text (ggf. gekürzt):\n\n${text}`
       return NextResponse.json({ error: `OpenAI Chat Fehler: ${res.status} ${err.slice(0, 300)}` }, { status: 502 })
     }
     const raw = await res.text()
-    let out: any
-    try { out = JSON.parse(raw) } catch { return NextResponse.json({ error: 'OpenAI Chat Parse Fehler', details: raw.slice(0, 400) }, { status: 502 }) }
-    const contentJson = out?.choices?.[0]?.message?.content
-    let parsedJson: any
-    try { parsedJson = JSON.parse(contentJson) } catch { return NextResponse.json({ error: 'LLM JSON ungültig', details: String(contentJson).slice(0, 400) }, { status: 502 }) }
+    let outUnknown: unknown
+    try {
+      outUnknown = JSON.parse(raw)
+    } catch {
+      return NextResponse.json({ error: 'OpenAI Chat Parse Fehler', details: raw.slice(0, 400) }, { status: 502 })
+    }
+    let contentJson: string | undefined
+    if (outUnknown && typeof outUnknown === 'object') {
+      const maybe = outUnknown as { choices?: Array<{ message?: { content?: unknown } }> }
+      const c = maybe.choices?.[0]?.message?.content
+      if (typeof c === 'string') contentJson = c
+    }
+    if (!contentJson) {
+      return NextResponse.json({ error: 'LLM JSON ungültig', details: String((contentJson as unknown) ?? '').slice(0, 400) }, { status: 502 })
+    }
+    let parsedJsonUnknown: unknown
+    try {
+      parsedJsonUnknown = JSON.parse(contentJson)
+    } catch {
+      return NextResponse.json({ error: 'LLM JSON ungültig', details: String(contentJson).slice(0, 400) }, { status: 502 })
+    }
 
-    const chaptersRaw: Array<{ title?: string; level?: number; startEvidence?: string; summary?: string; keywords?: string[] }> = Array.isArray(parsedJson?.chapters) ? parsedJson.chapters : []
-    const tocRaw: Array<{ title?: string; page?: number; level?: number }> = Array.isArray(parsedJson?.toc) ? parsedJson.toc : []
+    const root = (parsedJsonUnknown && typeof parsedJsonUnknown === 'object') ? parsedJsonUnknown as Record<string, unknown> : {}
+    const chaptersRaw: Array<{ title?: string; level?: number; startEvidence?: string; summary?: string; keywords?: string[] }>
+      = Array.isArray((root as { chapters?: unknown }).chapters) ? (root as { chapters?: Array<{ title?: string; level?: number; startEvidence?: string; summary?: string; keywords?: string[] }> }).chapters! : []
+    const tocRaw: Array<{ title?: string; page?: number; level?: number }>
+      = Array.isArray((root as { toc?: unknown }).toc) ? (root as { toc?: Array<{ title?: string; page?: number; level?: number }> }).toc! : []
 
     const chapters: ChapterOut[] = []
     const findPage = (idx: number): number | undefined => {

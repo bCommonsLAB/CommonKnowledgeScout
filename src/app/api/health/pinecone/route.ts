@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const apiKey = process.env.PINECONE_API_KEY
     if (!apiKey) return NextResponse.json({ ok: false, error: 'PINECONE_API_KEY fehlt' }, { status: 500 })

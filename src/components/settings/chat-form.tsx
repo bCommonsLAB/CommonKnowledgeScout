@@ -84,7 +84,7 @@ export function ChatForm() {
 
   useEffect(() => {
     if (activeLibrary?.config?.chat) {
-      const c = activeLibrary.config.chat as Record<string, unknown>
+      const c = activeLibrary.config.chat as unknown as Record<string, unknown>
       form.reset({
         public: Boolean(c.public ?? false),
         titleAvatarSrc: typeof c.titleAvatarSrc === 'string' ? c.titleAvatarSrc : undefined,

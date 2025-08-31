@@ -24,7 +24,6 @@ function LibraryUrlHandler() {
 
   useEffect(() => {
     const urlLibraryId = searchParams?.get('activeLibraryId');
-    const urlFolderId = searchParams?.get('folderId');
     
     // activeLibraryId aus der URL verarbeiten
     if (urlLibraryId) {

@@ -34,7 +34,7 @@ export async function GET(
     const ids = [`${fileId}-meta`]
     let lookupMethod: 'id' | 'other-index' | 'filter' | 'none' = 'none'
     let foundId: string | undefined
-    let fetched = await fetchVectors(idx.host, apiKey, ids, '')
+    const fetched = await fetchVectors(idx.host, apiKey, ids, '')
     let meta = fetched[`${fileId}-meta`]?.metadata as Record<string, unknown> | undefined
     if (meta) lookupMethod = 'id'
 
@@ -90,7 +90,7 @@ export async function GET(
       toc: typeof meta?.tocJson === 'string' ? JSON.parse(meta.tocJson as string) : undefined,
       _debug: { lookupMethod, expectedId: `${fileId}-meta`, foundId }
     })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Interner Fehler' }, { status: 500 })
   }
 }

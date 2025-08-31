@@ -65,7 +65,14 @@ export async function queryVectors(indexHost: string, apiKey: string, vector: nu
   }
   const data = await parseJsonSafe(res) as { matches?: Array<{ id: string; score?: number; metadata?: Record<string, unknown> }> }
   const matches = Array.isArray(data?.matches) ? data.matches : []
-  return matches.map((m: any) => ({ id: String(m.id), score: m.score, metadata: m.metadata }))
+  return matches.map((m): QueryMatch => {
+    const id = String((m as { id?: unknown }).id ?? '')
+    const scoreVal = (m as { score?: unknown }).score
+    const score = typeof scoreVal === 'number' ? scoreVal : undefined
+    const metadata = (m as { metadata?: unknown }).metadata
+    const meta = metadata && typeof metadata === 'object' ? metadata as Record<string, unknown> : undefined
+    return { id, score, metadata: meta }
+  })
 }
 
 export async function fetchVectors(indexHost: string, apiKey: string, ids: string[], namespace: string = ''): Promise<Record<string, { id: string; metadata?: Record<string, unknown> }>> {

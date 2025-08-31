@@ -248,6 +248,7 @@ function PreviewContent({
     docMeta?: Record<string, unknown>;
     toc?: Array<Record<string, unknown>>;
     totals?: { docs: number; chunks: number };
+    analyze?: { chapters?: Array<Record<string, unknown>>; toc?: Array<Record<string, unknown>> };
   } | null>(null);
   const setSelectedFile = useSetAtom(selectedFileAtom);
   
@@ -478,19 +479,25 @@ function PreviewContent({
                         className="inline-flex h-8 items-center rounded-md bg-primary/70 text-primary-foreground px-3 text-xs"
                         onClick={async () => {
                           try {
-                            const chaptersSrc: any[] | undefined = (ragStatus as any)?.analyze?.chapters
+                            const chaptersSrcUnknown: unknown = (ragStatus as unknown as { analyze?: { chapters?: unknown } })?.analyze?.chapters
+                            const chaptersSrc: Array<unknown> | undefined = Array.isArray(chaptersSrcUnknown) ? chaptersSrcUnknown : undefined
                             if (!Array.isArray(chaptersSrc) || chaptersSrc.length === 0) {
                               throw new Error('Keine Kapitelanalyse vorhanden')
                             }
                             const chapters = chaptersSrc
-                              .filter((c) => typeof c?.summary === 'string' && c.summary.trim().length > 0)
-                              .map((c, i) => ({
-                                chapterId: typeof c.chapterId === 'string' ? c.chapterId : `chap-${i + 1}`,
-                                title: String(c.title ?? `Kapitel ${i + 1}`),
-                                order: i + 1,
-                                summary: String(c.summary).slice(0, 1200),
-                                keywords: Array.isArray(c.keywords) ? c.keywords.slice(0, 12) : undefined,
-                              }))
+                              .filter((c): c is { chapterId?: unknown; title?: unknown; summary: string; keywords?: unknown } => {
+                                if (!c || typeof c !== 'object') return false
+                                const s = (c as Record<string, unknown>).summary
+                                return typeof s === 'string' && s.trim().length > 0
+                              })
+                              .map((c, i) => {
+                                const obj = c as Record<string, unknown>
+                                const chapterId = typeof obj.chapterId === 'string' ? obj.chapterId : `chap-${i + 1}`
+                                const title = typeof obj.title === 'string' ? obj.title : `Kapitel ${i + 1}`
+                                const summary = (obj.summary as string).slice(0, 1200)
+                                const keywords = Array.isArray(obj.keywords) ? (obj.keywords as Array<unknown>).filter(k => typeof k === 'string').slice(0, 12) as string[] : undefined
+                                return { chapterId, title, order: i + 1, summary, keywords }
+                              })
                             if (chapters.length === 0) throw new Error('Keine Kapitel mit Summary gefunden')
 
                             const docMod = (() => {
@@ -498,7 +505,8 @@ function PreviewContent({
                               const dt = d instanceof Date ? d : (d ? new Date(d) : undefined);
                               return dt ? dt.toISOString() : undefined;
                             })();
-                            const toc: any[] | undefined = (ragStatus as any)?.analyze?.toc
+                            const tocUnknown: unknown = (ragStatus as unknown as { analyze?: { toc?: unknown } })?.analyze?.toc
+                            const toc: Array<unknown> | undefined = Array.isArray(tocUnknown) ? tocUnknown : undefined
                             const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/upsert-file`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
@@ -548,15 +556,24 @@ function PreviewContent({
                         <div className="mt-2">
                           <div className="font-medium">Kapitel</div>
                           <ul className="mt-1 space-y-1 list-disc pl-5">
-                            {ragStatus.toc.map((t: any, i: number) => (
-                              <li key={i} className="text-xs">
-                                {(t.title || t.chapterId) ?? 'Kapitel'}
-                                {typeof t.level === 'number' ? ` (L${t.level})` : ''}
-                                {typeof t.page === 'number' ? ` · Seite ${t.page}` : ''}
-                                {typeof t.order === 'number' ? ` · Reihenfolge ${t.order}` : ''}
-                                {typeof t.startChunk === 'number' && typeof t.endChunk === 'number' ? ` · Chunks ${t.startChunk}-${t.endChunk}` : ''}
-                              </li>
-                            ))}
+                            {ragStatus.toc.map((t, i: number) => {
+                              const obj = t as Record<string, unknown>
+                              const title = (typeof obj.title === 'string' ? obj.title : (typeof obj.chapterId === 'string' ? obj.chapterId : 'Kapitel')) as string
+                              const level = typeof obj.level === 'number' ? obj.level : undefined
+                              const page = typeof obj.page === 'number' ? obj.page : undefined
+                              const order = typeof obj.order === 'number' ? obj.order : undefined
+                              const startChunk = typeof obj.startChunk === 'number' ? obj.startChunk : undefined
+                              const endChunk = typeof obj.endChunk === 'number' ? obj.endChunk : undefined
+                              return (
+                                <li key={i} className="text-xs">
+                                  {title}
+                                  {typeof level === 'number' ? ` (L${level})` : ''}
+                                  {typeof page === 'number' ? ` · Seite ${page}` : ''}
+                                  {typeof order === 'number' ? ` · Reihenfolge ${order}` : ''}
+                                  {typeof startChunk === 'number' && typeof endChunk === 'number' ? ` · Chunks ${startChunk}-${endChunk}` : ''}
+                                </li>
+                              )
+                            })}
                           </ul>
                         </div>
                       )}
@@ -564,11 +581,19 @@ function PreviewContent({
                         <div className="mt-3">
                           <div className="font-medium">Kapitel (Heuristik/LLM)</div>
                           <ul className="mt-1 space-y-1 list-disc pl-5 text-xs max-h-56 overflow-auto">
-                            {ragStatus.analyze.chapters.map((c: any) => (
-                              <li key={c.chapterId}>
-                                L{c.level} · {c.title} · Seiten {c.startPage ?? '—'}–{c.endPage ?? '—'}
-                              </li>
-                            ))}
+                            {ragStatus.analyze.chapters.map((c) => {
+                              const obj = c as Record<string, unknown>
+                              const id = typeof obj.chapterId === 'string' ? obj.chapterId : String(obj.chapterId ?? '')
+                              const level = typeof obj.level === 'number' ? obj.level : undefined
+                              const title = typeof obj.title === 'string' ? obj.title : 'Kapitel'
+                              const startPage = typeof obj.startPage === 'number' ? obj.startPage : undefined
+                              const endPage = typeof obj.endPage === 'number' ? obj.endPage : undefined
+                              return (
+                                <li key={id}>
+                                  {typeof level === 'number' ? `L${level}` : 'L?'} · {title} · Seiten {startPage ?? '—'}–{endPage ?? '—'}
+                                </li>
+                              )
+                            })}
                           </ul>
                         </div>
                       )}

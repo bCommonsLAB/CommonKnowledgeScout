@@ -3,6 +3,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { describeIndex, upsertVectorsChunked, deleteByFilter } from '@/lib/chat/pinecone'
+import type { UpsertVector } from '@/lib/chat/pinecone'
 import { embedTexts } from '@/lib/chat/embeddings'
 
 const bodySchema = z.object({
@@ -93,7 +94,7 @@ export async function POST(
 
     const chunks = chunkText(content, 1500)
     const embeddings = await embedTexts(chunks)
-    const vectors = embeddings.map((values, i) => ({
+    const vectors: UpsertVector[] = embeddings.map((values, i) => ({
       id: `${fileId}-${i}`,
       values,
       metadata: {
@@ -137,7 +138,7 @@ export async function POST(
                   endChunk: c.endChunk,
                 })))
               : undefined)
-        }
+        } as Record<string, unknown>
       })
     }
 
@@ -165,7 +166,7 @@ export async function POST(
             keywords: c.keywords,
             upsertedAt: new Date().toISOString(),
             docModifiedAt,
-          }
+          } as Record<string, unknown>
         })
       })
     }

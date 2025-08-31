@@ -221,13 +221,17 @@ export async function POST(
       }
     }
     const raw = await chatRes.text()
-    let chatJson: any
+    let answer = ''
     try {
-      chatJson = JSON.parse(raw)
+      const parsed: unknown = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') {
+        const p = parsed as { choices?: Array<{ message?: { content?: unknown } }> }
+        const c = p.choices?.[0]?.message?.content
+        if (typeof c === 'string') answer = c
+      }
     } catch {
       return NextResponse.json({ error: 'OpenAI Chat Parse Fehler', details: raw.slice(0, 400) }, { status: 502 })
     }
-    const answer: string = chatJson?.choices?.[0]?.message?.content ?? ''
 
     return NextResponse.json({
       status: 'ok',

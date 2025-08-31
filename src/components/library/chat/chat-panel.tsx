@@ -87,7 +87,17 @@ export function ChatPanel({ libraryId }: ChatPanelProps) {
         setAnswer(data.answer)
         setResults(data.sources)
       } else if (Array.isArray(data?.results)) {
-        setResults(data.results.map((r: any) => ({ id: String(r.id), score: r.score, fileName: r.metadata?.fileName, chunkIndex: r.metadata?.chunkIndex, text: r.metadata?.text })))
+        const safe = (data.results as Array<unknown>).map((r): { id: string; score?: number; fileName?: string; chunkIndex?: number; text?: string } => {
+          const obj = (r && typeof r === 'object') ? r as Record<string, unknown> : {}
+          const id = String(obj.id ?? '')
+          const score = typeof obj.score === 'number' ? obj.score : undefined
+          const meta = (obj.metadata && typeof obj.metadata === 'object') ? obj.metadata as Record<string, unknown> : undefined
+          const fileName = meta && typeof meta.fileName === 'string' ? meta.fileName : undefined
+          const chunkIndex = meta && typeof meta.chunkIndex === 'number' ? meta.chunkIndex : undefined
+          const text = meta && typeof meta.text === 'string' ? meta.text : undefined
+          return { id, score, fileName, chunkIndex, text }
+        })
+        setResults(safe)
         setAnswer('')
       } else {
         setAnswer(typeof data.echo === 'string' ? data.echo : JSON.stringify(data))
