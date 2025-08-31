@@ -71,7 +71,8 @@ export async function POST(request: NextRequest) {
     
     // Template-Option
     if (formData.has('template')) {
-      serviceFormData.append('template', formData.get('template') as string);
+      const tpl = (formData.get('template') as string) || '';
+      serviceFormData.append('template', tpl);
     }
     
     // Extraktionsmethode
@@ -101,6 +102,10 @@ export async function POST(request: NextRequest) {
     } else {
       serviceFormData.append('force_refresh', 'false'); // Standardwert
     }
+
+    // Ingestion-Pipeline (nur intern, nicht an Secretary senden)
+    const useIngestionPipelineRaw = (formData.get('useIngestionPipeline') as string) ?? 'false';
+    const useIngestionPipeline = useIngestionPipelineRaw === 'true';
 
     // Job anlegen (per-Job-Secret)
     const repository = new ExternalJobsRepository();
@@ -154,6 +159,20 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
     await repository.create(job);
+    // Schritte initialisieren und Parameter mitschreiben (für Report-Tab)
+    await repository.initializeSteps(jobId, [
+      { name: 'extract_pdf', status: 'pending' },
+      { name: 'transform_template', status: 'pending' },
+      { name: 'store_shadow_twin', status: 'pending' },
+      { name: 'ingest_rag', status: 'pending' },
+    ], {
+      targetLanguage,
+      extractionMethod,
+      includeImages: includeImages === 'true',
+      useCache: useCache === 'true',
+      useIngestionPipeline,
+      template: (formData.get('template') as string) || undefined
+    });
     FileLogger.info('process-pdf', 'Job angelegt', {
       jobId,
       libraryId,

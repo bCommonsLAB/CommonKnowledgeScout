@@ -10,10 +10,12 @@ export interface TransformSaveOptions {
   fileExtension: string;
   useCache?: boolean; // Neu: Cache-Option für alle Transformationen
   includeImages?: boolean; // Neu: Bilder mit extrahieren und speichern
+  useIngestionPipeline?: boolean; // Neu: Auto-RAG nach Speicherung
 }
 
 export interface PdfTransformOptions extends TransformSaveOptions {
   extractionMethod: string;
+  template?: string;
 }
 
 export interface TransformResult {
@@ -428,10 +430,11 @@ export class TransformService {
       file,
       options.targetLanguage,
       libraryId,
-      undefined,
+      options.template,
       options.extractionMethod,
       options.useCache ?? true,
       options.includeImages ?? false,
+      options.useIngestionPipeline ?? false,
       {
         originalItemId: originalItem.id,
         parentId: originalItem.parentId,

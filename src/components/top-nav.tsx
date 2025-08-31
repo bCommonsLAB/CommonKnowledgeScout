@@ -42,6 +42,10 @@ const protectedNavItems = [
     href: "/library",
   },
   {
+    name: "Gallery",
+    href: "/library/gallery",
+  },
+  {
     name: "Templates",
     href: "/templates",
   },

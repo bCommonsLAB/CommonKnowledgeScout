@@ -632,6 +632,7 @@ export async function transformPdf(
   extractionMethod: string = 'native',
   useCache: boolean = true,
   includeImages: boolean = false,
+  useIngestionPipeline: boolean = false,
   context?: { originalItemId?: string; parentId?: string; originalFileName?: string }
 ): Promise<SecretaryPdfResponse> {
   try {
@@ -643,6 +644,7 @@ export async function transformPdf(
     formData.append('extractionMethod', extractionMethod);
     formData.append('useCache', useCache.toString());
     formData.append('includeImages', includeImages.toString());
+    formData.append('useIngestionPipeline', useIngestionPipeline.toString());
     
     // Template-Option
     if (template) {

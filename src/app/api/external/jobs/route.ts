@@ -17,6 +17,25 @@ export async function GET(request: NextRequest) {
     const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') || '20')));
 
     const repo = new ExternalJobsRepository();
+    const parsedUrl = new URL(request.url);
+    const bySourceItemId = parsedUrl.searchParams.get('bySourceItemId');
+    const byResultItemId = parsedUrl.searchParams.get('byResultItemId');
+    const libraryId = parsedUrl.searchParams.get('libraryId') || '';
+
+    if (bySourceItemId && libraryId) {
+      const job = await repo.findLatestBySourceItem(userEmail, libraryId, bySourceItemId);
+      return NextResponse.json({ items: job ? [job] : [], total: job ? 1 : 0, page: 1, limit: 1 });
+    }
+    if (byResultItemId) {
+      const job = await repo.findLatestByResultItem(userEmail, byResultItemId);
+      return NextResponse.json({ items: job ? [job] : [], total: job ? 1 : 0, page: 1, limit: 1 });
+    }
+    const bySourceName = parsedUrl.searchParams.get('bySourceName');
+    if (bySourceName && libraryId) {
+      const job = await repo.findLatestBySourceName(userEmail, libraryId, bySourceName);
+      return NextResponse.json({ items: job ? [job] : [], total: job ? 1 : 0, page: 1, limit: 1 });
+    }
+
     const { items, total, page: curPage, limit: curLimit } = await repo.listByUserEmail(userEmail, { page, limit });
 
     const mapped = items.map((j: ExternalJob) => {

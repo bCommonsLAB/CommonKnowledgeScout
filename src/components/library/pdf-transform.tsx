@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
@@ -25,6 +25,8 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
   const provider = useStorageProvider();
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const { refreshItems } = useStorage();
+  const [templateOptions, setTemplateOptions] = useState<string[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   
   // Referenz für den TransformResultHandler
   const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});
@@ -50,8 +52,46 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     fileExtension: "md",
     extractionMethod: "native",
     useCache: true, // Standardwert: Cache verwenden
-    includeImages: false // Standardwert: Keine Bilder
+    includeImages: false, // Standardwert: Keine Bilder
+    useIngestionPipeline: false,
+    template: undefined
   });
+
+  // Lade Templates aus /templates und setze Default (pdfanalyse.md > erstes .md)
+  const loadTemplates = async () => {
+    if (!provider) return;
+    try {
+      setIsLoadingTemplates(true);
+      const rootItems = await provider.listItemsById('root');
+      const templatesFolder = rootItems.find(it => it.type === 'folder' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'templates'));
+      if (!templatesFolder) {
+        setTemplateOptions([]);
+        return;
+      }
+      const tplItems = await provider.listItemsById(templatesFolder.id);
+      const md = tplItems
+        .filter(it => it.type === 'file' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string')
+        .map(it => ((it as { metadata: { name: string } }).metadata.name))
+        .filter(name => name.toLowerCase().endsWith('.md'))
+        .sort((a, b) => a.localeCompare(b));
+      setTemplateOptions(md);
+
+      // Default bestimmen: pdfanalyse.md > erstes .md
+      const preferred = md.find(n => n.toLowerCase() === 'pdfanalyse.md');
+      const chosen = preferred || md[0] || undefined;
+      setSaveOptions(prev => ({ ...prev, template: chosen }));
+    } catch (e) {
+      FileLogger.warn('PdfTransform', 'Templates konnten nicht geladen werden', { error: e instanceof Error ? e.message : String(e) });
+      setTemplateOptions([]);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+
+  // Templates laden bei Provider-/Library-Wechsel
+  useEffect(() => {
+    void loadTemplates();
+  }, [provider, activeLibrary?.id]);
   
   // Prüfe ob item vorhanden ist
   if (!item) {
@@ -190,6 +230,34 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
                 defaultIncludeImages={false}
                 showCreateShadowTwin={false}
               />
+
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  id="useIngestionPipeline"
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={!!saveOptions.useIngestionPipeline}
+                  onChange={(e) => setSaveOptions(prev => ({ ...prev, useIngestionPipeline: e.target.checked }))}
+                />
+                <label htmlFor="useIngestionPipeline" className="text-sm text-muted-foreground">
+                  Use Ingestion Pipeline (Template→MD→RAG automatisch)
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 mb-2">
+                <label htmlFor="templateName" className="text-sm text-muted-foreground w-40">Template (erforderlich)</label>
+                <select
+                  id="templateName"
+                  className="flex-1 h-8 rounded border bg-background px-2 text-sm"
+                  value={saveOptions.template || ''}
+                  onChange={(e) => setSaveOptions(prev => ({ ...prev, template: e.target.value || undefined }))}
+                  disabled={isLoadingTemplates}
+                >
+                  {templateOptions.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
               
               <Button 
                 onClick={handleTransform} 

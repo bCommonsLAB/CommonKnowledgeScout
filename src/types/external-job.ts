@@ -46,6 +46,23 @@ export interface ExternalJobLogEntry {
   [key: string]: unknown;
 }
 
+export interface ExternalJobStep {
+  name: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  startedAt?: Date;
+  endedAt?: Date;
+  durationMs?: number;
+  details?: Record<string, unknown>;
+  error?: { message: string; code?: string; details?: Record<string, unknown> };
+}
+
+export interface ExternalJobIngestionInfo {
+  vectorsUpserted?: number;
+  index?: string;
+  namespace?: string;
+  upsertAt?: Date;
+}
+
 export interface ExternalJob {
   jobId: string;
   jobSecretHash: string; // sha256 of secret
@@ -60,6 +77,11 @@ export interface ExternalJob {
   payload?: ExternalJobPayloadMeta;
   result?: ExternalJobResultRefs;
   logs?: ExternalJobLogEntry[];
+  steps?: ExternalJobStep[];
+  parameters?: Record<string, unknown>;
+  cumulativeMeta?: Record<string, unknown>;
+  metaHistory?: Array<{ at: Date; meta: Record<string, unknown>; source: string }>;
+  ingestion?: ExternalJobIngestionInfo;
   createdAt: Date;
   updatedAt: Date;
   error?: {

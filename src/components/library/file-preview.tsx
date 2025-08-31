@@ -17,6 +17,7 @@ import { extractFrontmatter } from './markdown-metadata';
 import { ImagePreview } from './image-preview';
 import { DocumentPreview } from './document-preview';
 import { FileLogger } from "@/lib/debug/logger"
+import { JobReportTab } from './job-report-tab';
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
@@ -350,6 +351,7 @@ function PreviewContent({
               <TabsTrigger value="preview">Vorschau</TabsTrigger>
               <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
               <TabsTrigger value="rag" onClick={() => { void loadRagStatus(); }}>RAG</TabsTrigger>
+              <TabsTrigger value="report">Report</TabsTrigger>
             </TabsList>
             <div className="flex-1 min-h-0">
               <TabsContent value="preview" className="h-full mt-0">
@@ -600,6 +602,9 @@ function PreviewContent({
                     </div>
                   )}
                 </div>
+              </TabsContent>
+              <TabsContent value="report" className="h-full mt-0">
+                <JobReportTab libraryId={activeLibraryId} fileId={item.id} fileName={item.metadata.name} provider={provider} />
               </TabsContent>
               <TabsContent value="edit" className="h-full mt-0">
                 <TextEditor 
