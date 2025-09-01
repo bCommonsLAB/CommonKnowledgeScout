@@ -69,11 +69,8 @@ export async function POST(request: NextRequest) {
       serviceFormData.append('target_language', 'de'); // Standardwert
     }
     
-    // Template-Option
-    if (formData.has('template')) {
-      const tpl = (formData.get('template') as string) || '';
-      serviceFormData.append('template', tpl);
-    }
+    // Template-Option NICHT an Secretary senden – wir transformieren serverseitig im Callback
+    // (Der Secretary erwartet ggf. einen Pfad und würde sonst '...md.md' anhängen.)
     
     // Extraktionsmethode
     if (formData.has('extractionMethod')) {
@@ -196,8 +193,8 @@ export async function POST(request: NextRequest) {
         fileName: correlation.source?.name,
       });
     } catch {}
-    // Watchdog starten (120s ohne Progress => Timeout)
-    startWatchdog({ jobId, userEmail, jobType: job.job_type, fileName: correlation.source?.name }, 120_000);
+    // Watchdog starten (600s ohne Progress => Timeout)
+    startWatchdog({ jobId, userEmail, jobType: job.job_type, fileName: correlation.source?.name }, 600_000);
 
     // Callback-Informationen (generisch) anfügen
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;

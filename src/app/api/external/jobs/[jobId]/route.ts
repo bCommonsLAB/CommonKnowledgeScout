@@ -287,6 +287,7 @@ export async function POST(
 
     let savedItemId: string | undefined;
     const savedItems: string[] = [];
+    let docMetaForIngestion: Record<string, unknown> | undefined;
 
     if (lib && extractedText) {
       // Schritt: transform_template starten
@@ -444,6 +445,7 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
         // 3) Frontmatter-Metadaten bestimmen (Template bevorzugt, sonst Worker-Metadaten)
         const baseMeta = (body?.data?.metadata as Record<string, unknown>) || {};
         const finalMeta: Record<string, unknown> = metadataFromTemplate ? { ...metadataFromTemplate } : { ...baseMeta };
+        docMetaForIngestion = finalMeta;
         await repo.appendMeta(jobId, finalMeta, 'template_transform');
         await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date() });
 
@@ -548,6 +550,7 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
         // OneDrive: Template-Metadaten analog verwenden
         await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
         const mdMeta = (body?.data?.metadata as Record<string, unknown>) || {};
+        docMetaForIngestion = mdMeta;
         await repo.appendMeta(jobId, mdMeta, 'worker_metadata');
         const md = typeof (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter === 'function'
           ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, mdMeta)
@@ -569,19 +572,35 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
     // Schritt: ingest_rag (optional automatisiert)
     try {
       await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
+      FileLogger.info('external-jobs', 'Ingestion start', { jobId, libraryId: job.libraryId })
       const useIngestion = !!(job.parameters && typeof job.parameters === 'object' && (job.parameters as Record<string, unknown>)['useIngestionPipeline']);
       if (useIngestion) {
         // Lade gespeicherten Markdown-Inhalt erneut (vereinfachend: extractedText)
-        const fileId = savedItemId || `${jobId}-md`;
+        // Stabiler Schlüssel: Original-Quell-Item (PDF) bevorzugen, sonst Shadow‑Twin, sonst Fallback
+        const fileId = (job.correlation.source?.itemId as string | undefined) || savedItemId || `${jobId}-md`;
         const fileName = `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`;
-        const res = await IngestionService.upsertMarkdown(job.userEmail, job.libraryId, fileId, fileName, extractedText || '');
-        await repo.setIngestion(jobId, { upsertAt: new Date(), vectorsUpserted: res.upserted, index: res.index });
+        const res = await IngestionService.upsertMarkdown(job.userEmail, job.libraryId, fileId, fileName, extractedText || '', docMetaForIngestion);
+        const total = res.chunksUpserted + (res.docUpserted ? 1 : 0)
+        await repo.setIngestion(jobId, { upsertAt: new Date(), vectorsUpserted: total, index: res.index });
+        // Zusammenfassung loggen
+        bufferLog(jobId, { phase: 'ingest_rag', message: `RAG-Ingestion: ${res.chunksUpserted} Chunks, ${res.docUpserted ? 1 : 0} Doc` });
+        FileLogger.info('external-jobs', 'Ingestion success', { jobId, chunks: res.chunksUpserted, doc: res.docUpserted, total })
         await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date() });
       } else {
         await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
       }
-    } catch {
-      await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'RAG Ingestion fehlgeschlagen' } });
+    } catch (err) {
+      const reason = (() => {
+        if (err && typeof err === 'object') {
+          const e = err as { message?: unknown }
+          const msg = typeof e.message === 'string' ? e.message : undefined
+          return msg || String(err)
+        }
+        return String(err)
+      })()
+      bufferLog(jobId, { phase: 'ingest_rag_failed', message: reason })
+      FileLogger.error('external-jobs', 'Ingestion failed', err)
+      await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'RAG Ingestion fehlgeschlagen', details: { reason } } });
     }
 
     await repo.setStatus(jobId, 'completed');

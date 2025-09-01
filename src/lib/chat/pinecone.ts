@@ -53,11 +53,12 @@ export interface QueryMatch {
 }
 
 export async function queryVectors(indexHost: string, apiKey: string, vector: number[], topK: number, filter?: Record<string, unknown>): Promise<QueryMatch[]> {
+  // Query-Endpunkt (Serverless): /query
   const url = `https://${indexHost}/query`
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Api-Key': apiKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ vector, topK, includeMetadata: true, filter })
+    body: JSON.stringify({ vector, topK, includeMetadata: true, filter, namespace: '' })
   })
   if (!res.ok) {
     const err = await res.text()
@@ -95,15 +96,17 @@ export async function fetchVectors(indexHost: string, apiKey: string, ids: strin
   return out
 }
 
-export async function describeIndex(indexName: string, apiKey: string): Promise<{ host: string } | null> {
+export async function describeIndex(indexName: string, apiKey: string): Promise<{ host: string; dimension?: number } | null> {
   const res = await fetch(`https://api.pinecone.io/indexes/${encodeURIComponent(indexName)}`, {
     headers: { 'Api-Key': apiKey, 'Content-Type': 'application/json' },
     cache: 'no-store'
   })
   if (!res.ok) return null
-  const data = await parseJsonSafe(res) as { host?: string }
+  const data = await parseJsonSafe(res) as { host?: string; dimension?: unknown; spec?: { pod?: { environment?: string; pods?: number; replicas?: number; shards?: number; pod_type?: string; metadata_config?: unknown; source_collection?: unknown; region?: string; dimension?: unknown }, serverless?: { cloud?: string; region?: string; capacity?: string; metadata_config?: unknown; dimension?: unknown } } }
   const host: string | undefined = data?.host
-  return host ? { host } : null
+  const dimRaw = (data?.dimension ?? data?.spec?.pod?.dimension ?? data?.spec?.serverless?.dimension) as unknown
+  const dimension = typeof dimRaw === 'number' ? dimRaw : undefined
+  return host ? { host, dimension } : null
 }
 
 export async function deleteByFilter(indexHost: string, apiKey: string, filter: Record<string, unknown>): Promise<void> {

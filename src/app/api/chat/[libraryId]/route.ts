@@ -62,7 +62,7 @@ export async function POST(
     const matches = await queryVectors(idx.host, apiKey, qVec, baseTopK, {
       user: { $eq: userEmail || '' },
       libraryId: { $eq: libraryId },
-      kind: { $eq: 'chapterSummary' }
+      kind: { $eq: 'chunk' }
     })
     const scoreMap = new Map<string, number>()
     for (const m of matches) scoreMap.set(m.id, typeof m.score === 'number' ? m.score : 0)
