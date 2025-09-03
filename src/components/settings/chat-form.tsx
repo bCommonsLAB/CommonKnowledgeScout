@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Zod-Schema für Chat-Konfiguration
 const chatFormSchema = z.object({
@@ -42,6 +43,10 @@ const chatFormSchema = z.object({
   }).optional(),
   vectorStore: z.object({
     indexOverride: z.string().optional(),
+  }).optional(),
+  gallery: z.object({
+    facets: z.array(z.enum(["authors","year","region","docType","source","tags"]))
+      .default(["authors","year","region","docType","source","tags"])
   }).optional(),
 })
 
@@ -79,6 +84,7 @@ export function ChatForm() {
       features: { citations: true, streaming: true },
       rateLimit: { windowSec: 60, max: 30 },
       vectorStore: { indexOverride: undefined },
+      gallery: { facets: ["authors","year","region","docType","source","tags"] },
     },
   })
 
@@ -107,6 +113,11 @@ export function ChatForm() {
           indexOverride: typeof (c.vectorStore as { indexOverride?: string })?.indexOverride === 'string'
             ? (c.vectorStore as { indexOverride?: string })!.indexOverride
             : undefined,
+        },
+        gallery: {
+          facets: Array.isArray((c.gallery as { facets?: unknown[] } | undefined)?.facets)
+            ? ((c.gallery as { facets?: unknown[] }).facets || []).map(v => String(v)).filter(v => ["authors","year","region","docType","source","tags"].includes(v)) as Array<"authors"|"year"|"region"|"docType"|"source"|"tags">
+            : ["authors","year","region","docType","source","tags"],
         },
       })
     }
@@ -377,6 +388,39 @@ export function ChatForm() {
               </FormItem>
             )}
           />
+        </div>
+
+        <div className="grid gap-4">
+          <FormLabel>Galerie: Facetten</FormLabel>
+          <FormDescription>Wählen Sie die Facetten für Filter/Navigation in der Galerie.</FormDescription>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {(["authors","year","region","docType","source","tags"] as const).map(key => (
+              <FormField
+                key={key}
+                control={form.control}
+                name="gallery.facets"
+                render={() => {
+                  const values = new Set(form.getValues("gallery.facets") || [])
+                  const checked = values.has(key)
+                  return (
+                    <FormItem className="flex items-center space-x-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            const next = new Set(values)
+                            if (v) next.add(key); else next.delete(key)
+                            form.setValue("gallery.facets", Array.from(next) as any, { shouldDirty: true })
+                          }}
+                        />
+                      </FormControl>
+                      <FormLabel className="!mt-0 capitalize">{key}</FormLabel>
+                    </FormItem>
+                  )
+                }}
+              />
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4">

@@ -1,16 +1,19 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
+import { useAtomValue } from 'jotai'
+import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { FileText } from 'lucide-react'
+import { FileText, MessageSquare } from 'lucide-react'
 
 interface ChatPanelProps {
   libraryId: string
+  variant?: 'default' | 'compact'
 }
 
 interface ChatConfigResponse {
@@ -30,7 +33,7 @@ interface ChatConfigResponse {
   vectorIndex: string
 }
 
-export function ChatPanel({ libraryId }: ChatPanelProps) {
+export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [cfg, setCfg] = useState<ChatConfigResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -38,7 +41,9 @@ export function ChatPanel({ libraryId }: ChatPanelProps) {
   const [answer, setAnswer] = useState<string>('')
   const [results, setResults] = useState<Array<{ id: string; score?: number; fileName?: string; chunkIndex?: number; text?: string }>>([])
   const [answerLength, setAnswerLength] = useState<'kurz' | 'mittel' | 'ausführlich'>('mittel')
+  const [retriever, setRetriever] = useState<'chunk' | 'doc'>('chunk')
   const inputRef = useRef<HTMLInputElement>(null)
+  const galleryFilters = useAtomValue(galleryFiltersAtom)
 
   useEffect(() => {
     let cancelled = false
@@ -71,12 +76,17 @@ export function ChatPanel({ libraryId }: ChatPanelProps) {
     setAnswer('')
     setResults([])
     try {
-      // Debug-Ausgabe: angewendete Parameter im Client
-      // Hinweis: Setze den Header X-Debug auf 1, um serverseitige Logs zu aktivieren
-      // (nur in Dev-Umgebungen empfohlen)
-      // eslint-disable-next-line no-console
-      console.log('[chat] sende Anfrage', { answerLength, chars: input.length })
-      const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}`, {
+      // Query aus aktiven Facetten filtern
+      const params = new URLSearchParams()
+      galleryFilters.author?.forEach(v => params.append('author', v))
+      galleryFilters.region?.forEach(v => params.append('region', v))
+      galleryFilters.year?.forEach(v => params.append('year', String(v)))
+      galleryFilters.docType?.forEach(v => params.append('docType', v))
+      galleryFilters.source?.forEach(v => params.append('source', v))
+      galleryFilters.tag?.forEach(v => params.append('tag', v))
+      params.set('retriever', retriever)
+      const url = `/api/chat/${encodeURIComponent(libraryId)}${params.toString() ? `?${params.toString()}` : ''}`
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Debug': '1' },
         body: JSON.stringify({ message: input, answerLength })
@@ -107,9 +117,85 @@ export function ChatPanel({ libraryId }: ChatPanelProps) {
     }
   }
 
-  if (loading) return <div className="p-6">Lade Chat...</div>
-  if (error) return <div className="p-6 text-destructive">{error}</div>
-  if (!cfg) return <div className="p-6">Keine Konfiguration gefunden.</div>
+  if (loading) return <div className={variant === 'compact' ? '' : 'p-6'}>Lade Chat...</div>
+  if (error) return <div className={(variant === 'compact' ? '' : 'p-6 ') + 'text-destructive'}>{error}</div>
+  if (!cfg) return <div className={variant === 'compact' ? '' : 'p-6'}>Keine Konfiguration gefunden.</div>
+
+  if (variant === 'compact') {
+    return (
+      <div className="rounded border p-3 space-y-3">
+        <div className="font-medium flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Chat‑Archiv · Beta</div>
+        {cfg.config.welcomeMessage && (
+          <div className="text-xs text-muted-foreground">{cfg.config.welcomeMessage}</div>
+        )}
+        <div>
+          <Button type="button" variant="outline" size="sm" onClick={() => {
+            setInput('Erzeuge ein Inhaltsverzeichnis der verfügbaren Dokumente: Nenne die 7 wichtigsten Themenbereiche und liste zu jedem Thema die 7 relevantesten Unterkategorien. Nutze ausschließlich die Dokument-Summaries (kind="doc") als Quelle. Antworte in einer strukturierten Liste mit Themen und Unterpunkten.')
+            setRetriever('doc')
+          }}>Inhaltsverzeichnis</Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            ref={inputRef}
+            className="flex-1 h-9"
+            placeholder={cfg.config.placeholder || 'Ihre Frage...'}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onSend() }}
+          />
+          <Button type="button" size="sm" onClick={onSend}>Senden</Button>
+        </div>
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
+          <span>Antwortlänge:</span>
+          <div className="flex gap-1">
+            {(['kurz','mittel','ausführlich'] as const).map(v => (
+              <Button key={v} type="button" size="sm" variant={answerLength===v? 'default':'outline'} onClick={() => setAnswerLength(v)} className="h-7 px-2">
+                {v}
+              </Button>
+            ))}
+          </div>
+          <span>Datenbasis:</span>
+          <div className="flex gap-1">
+            {(['chunk','doc'] as const).map(v => (
+              <Button key={v} type="button" size="sm" variant={retriever===v? 'default':'outline'} onClick={() => setRetriever(v)} className="h-7 px-2 capitalize">
+                {v === 'chunk' ? 'Chunks' : 'Summaries'}
+              </Button>
+            ))}
+          </div>
+        </div>
+        
+        {error && <div className="text-sm text-destructive">{error}</div>}
+        {answer && (
+          <div className="p-3 rounded border bg-muted/30">
+            <div className="text-xs text-muted-foreground mb-1">Antwort:</div>
+            <div className="text-sm whitespace-pre-wrap break-words">{answer}</div>
+          </div>
+        )}
+        {results.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {results.map((r, i) => (
+              <Tooltip key={`${r.id}-${i}`}>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Quelle ${i + 1}`}>
+                    <FileText className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[420px] p-3">
+                  <div className="text-xs text-muted-foreground mb-1">Quelle {i + 1}</div>
+                  <div className="text-sm font-medium break-all">{r.fileName || r.id}</div>
+                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                    {typeof r.score === 'number' && <Badge variant="secondary">Score {r.score.toFixed(3)}</Badge>}
+                    {typeof r.chunkIndex === 'number' && <Badge variant="outline">Chunk {r.chunkIndex}</Badge>}
+                  </div>
+                  {r.text && <div className="mt-2 text-sm whitespace-pre-wrap break-words">{r.text}</div>}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto w-full">

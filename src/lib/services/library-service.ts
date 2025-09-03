@@ -204,11 +204,13 @@ export class LibraryService {
     console.log('[LibraryService] === TO CLIENT LIBRARIES START ===');
     
     return libraries.map(lib => {
-      // Basis-Konfiguration für alle Bibliothekstypen
+      // Basis-Konfiguration für alle Bibliothekstypen (nur sichere Felder)
       const baseConfig = {
         transcription: lib.transcription,
-        secretaryService: lib.config?.secretaryService
-      };
+        secretaryService: lib.config?.secretaryService,
+        // Chat-/Galerie-Settings sind sicher und werden an den Client geliefert
+        chat: lib.config?.chat
+      } as Record<string, unknown>;
       
       // Zusätzliche Konfiguration basierend auf dem Bibliothekstyp
       let config: Record<string, unknown> = { ...baseConfig };

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { describeIndex, queryVectors } from '@/lib/chat/pinecone'
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
@@ -22,10 +22,25 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
     if (!idx?.host) return NextResponse.json({ error: 'Index nicht gefunden' }, { status: 404 })
     const dim = typeof idx.dimension === 'number' ? idx.dimension : Number(process.env.OPENAI_EMBEDDINGS_DIMENSION || 3072)
 
-    // Dummy-Vektor, aber Filter selektiert nur Meta-Vektoren (kind: 'doc') dieser Library/User
+    // Dummy-Vektor, aber Filter selektiert nur Meta-Vektoren (kind: 'doc') dieser Library
     const vector = Array(dim).fill(0)
-    // Zeige alle Dokumente der Library, unabhängig vom Benutzer (gemeinsamer Library-Kontext)
-    const filter = { libraryId: { $eq: libraryId }, kind: { $eq: 'doc' } }
+    // Query-Params für Facettenfilter
+    const url = new URL(req.url)
+    // Mehrfachwerte erlauben (author=...&author=...)
+    const author = url.searchParams.getAll('author')
+    const region = url.searchParams.getAll('region')
+    const year = url.searchParams.getAll('year')
+    const docType = url.searchParams.getAll('docType')
+    const source = url.searchParams.getAll('source')
+    const tag = url.searchParams.getAll('tag')
+
+    const filter: Record<string, unknown> = { libraryId: { $eq: libraryId }, kind: { $eq: 'doc' } }
+    if (author.length > 0) filter['authors'] = { $in: author }
+    if (region.length > 0) filter['region'] = { $in: region }
+    if (year.length > 0) filter['year'] = { $in: year.map(y => (isNaN(Number(y)) ? y : Number(y))) }
+    if (docType.length > 0) filter['docType'] = { $in: docType }
+    if (source.length > 0) filter['source'] = { $in: source }
+    if (tag.length > 0) filter['tags'] = { $in: tag }
     try {
       const matches = await queryVectors(idx.host, apiKey, vector, 200, filter)
       const items = matches.map(m => {
@@ -40,8 +55,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
           fileName: typeof md.fileName === 'string' ? md.fileName : undefined,
           title: typeof docMeta.title === 'string' ? docMeta.title : undefined,
           shortTitle: typeof docMeta.shortTitle === 'string' ? docMeta.shortTitle : undefined,
-          authors: Array.isArray(docMeta.authors) ? (docMeta.authors as Array<unknown>).filter(a => typeof a === 'string') as string[] : undefined,
-          year: typeof docMeta.year === 'number' || typeof docMeta.year === 'string' ? docMeta.year : undefined
+          authors: Array.isArray(md.authors) ? (md.authors as Array<unknown>).filter(a => typeof a === 'string') as string[]
+            : Array.isArray(docMeta.authors) ? (docMeta.authors as Array<unknown>).filter(a => typeof a === 'string') as string[] : undefined,
+          year: typeof md.year === 'number' || typeof md.year === 'string' ? md.year
+            : typeof docMeta.year === 'number' || typeof docMeta.year === 'string' ? docMeta.year : undefined,
+          region: typeof (docMeta as { region?: unknown })?.region === 'string' ? (docMeta as { region: string }).region : undefined,
+          upsertedAt: typeof md.upsertedAt === 'string' ? md.upsertedAt : undefined,
+          docType: typeof (docMeta as { docType?: unknown })?.docType === 'string' ? (docMeta as { docType: string }).docType : (typeof md.docType === 'string' ? md.docType : undefined),
+          source: typeof (docMeta as { source?: unknown })?.source === 'string' ? (docMeta as { source: string }).source : (typeof md.source === 'string' ? md.source : undefined),
+          tags: Array.isArray(md.tags) ? (md.tags as Array<unknown>).filter(t => typeof t === 'string') as string[] : undefined,
         }
       })
       return NextResponse.json({ items }, { status: 200 })

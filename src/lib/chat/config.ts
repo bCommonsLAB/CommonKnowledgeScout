@@ -26,6 +26,9 @@ export const chatConfigSchema = z.object({
   vectorStore: z.object({
     indexOverride: z.string().min(1).optional(),
   }).default({}),
+  gallery: z.object({
+    facets: z.array(z.enum(['authors','year','region','docType','source','tags'])).default(['authors','year','region','docType','source','tags'])
+  }).default({ facets: ['authors','year','region','docType','source','tags'] }),
 })
 
 export type NormalizedChatConfig = z.infer<typeof chatConfigSchema>

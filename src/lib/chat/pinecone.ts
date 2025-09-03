@@ -96,6 +96,57 @@ export async function fetchVectors(indexHost: string, apiKey: string, ids: strin
   return out
 }
 
+export async function listVectors(
+  indexHost: string,
+  apiKey: string,
+  filter?: Record<string, unknown>,
+  limitPerPage: number = 1000,
+): Promise<Array<{ id: string; metadata?: Record<string, unknown> }>> {
+  const url = `https://${indexHost}/vectors/list`
+  const out: Array<{ id: string; metadata?: Record<string, unknown> }> = []
+  let next: unknown = undefined
+  // Paginierte Auflistung aller Vektoren, optional gefiltert
+  // Hinweis: Serverless API akzeptiert { namespace, filter, includeMetadata, pagination }
+  for (let guard = 0; guard < 100; guard++) {
+    const body: Record<string, unknown> = {
+      namespace: '',
+      includeMetadata: true,
+      filter,
+      pagination: { limit: limitPerPage, ...(next ? { next } : {}) },
+    }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Api-Key': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Pinecone List Fehler: ${res.status} ${err}`)
+    }
+    const data = await parseJsonSafe(res) as { vectors?: unknown; pagination?: { next?: unknown } }
+    const vectorsRaw = (data as { vectors?: unknown }).vectors
+    if (Array.isArray(vectorsRaw)) {
+      for (const v of vectorsRaw) {
+        if (!v || typeof v !== 'object') continue
+        const id = String((v as { id?: unknown }).id ?? '')
+        const metaRaw = (v as { metadata?: unknown }).metadata
+        const metadata = metaRaw && typeof metaRaw === 'object' ? metaRaw as Record<string, unknown> : undefined
+        if (id) out.push({ id, metadata })
+      }
+    } else if (vectorsRaw && typeof vectorsRaw === 'object') {
+      // Manche Antworten sind als Map-Objekt { id: {metadata} }
+      for (const [k, v] of Object.entries(vectorsRaw as Record<string, unknown>)) {
+        const metaRaw = (v as { metadata?: unknown })?.metadata
+        const metadata = metaRaw && typeof metaRaw === 'object' ? metaRaw as Record<string, unknown> : undefined
+        out.push({ id: k, metadata })
+      }
+    }
+    next = (data?.pagination && typeof data.pagination === 'object') ? (data.pagination as { next?: unknown }).next : undefined
+    if (!next) break
+  }
+  return out
+}
+
 export async function describeIndex(indexName: string, apiKey: string): Promise<{ host: string; dimension?: number } | null> {
   const res = await fetch(`https://api.pinecone.io/indexes/${encodeURIComponent(indexName)}`, {
     headers: { 'Api-Key': apiKey, 'Content-Type': 'application/json' },

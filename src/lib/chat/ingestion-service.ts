@@ -118,16 +118,28 @@ export class IngestionService {
       const authors = (docMeta as { authors?: unknown }).authors
       const year = (docMeta as { year?: unknown }).year
       const shortTitle = (docMeta as { shortTitle?: unknown }).shortTitle
+      const region = (docMeta as { region?: unknown }).region
+      const docType = (docMeta as { docType?: unknown }).docType
+      const source = (docMeta as { source?: unknown }).source
+      const tags = (docMeta as { tags?: unknown }).tags
       if (typeof title === 'string' && title) docMetadata['title'] = title
       if (Array.isArray(authors)) docMetadata['authors'] = authors
       if (typeof year === 'number') docMetadata['year'] = year
       if (typeof shortTitle === 'string' && shortTitle) docMetadata['shortTitle'] = shortTitle
+      if (typeof region === 'string' && region) docMetadata['region'] = region
+      if (typeof docType === 'string' && docType) docMetadata['docType'] = docType
+      if (typeof source === 'string' && source) docMetadata['source'] = source
+      if (Array.isArray(tags)) docMetadata['tags'] = (tags as Array<unknown>).filter(t => typeof t === 'string')
 
       const compact: Record<string, unknown> = {}
       if (docMetadata['title']) compact['title'] = docMetadata['title']
       if (docMetadata['shortTitle']) compact['shortTitle'] = docMetadata['shortTitle']
       if (docMetadata['authors']) compact['authors'] = docMetadata['authors']
       if (docMetadata['year'] !== undefined) compact['year'] = docMetadata['year']
+      if (docMetadata['region']) compact['region'] = docMetadata['region']
+      if (docMetadata['docType']) compact['docType'] = docMetadata['docType']
+      if (docMetadata['source']) compact['source'] = docMetadata['source']
+      if (docMetadata['tags']) compact['tags'] = docMetadata['tags']
       try {
         docMetadata['docMetaJson'] = JSON.stringify(compact)
       } catch {

@@ -3,7 +3,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { embedTexts } from '@/lib/chat/embeddings'
-import { describeIndex, queryVectors, fetchVectors } from '@/lib/chat/pinecone'
+import { describeIndex, queryVectors, fetchVectors, listVectors } from '@/lib/chat/pinecone'
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -58,82 +58,140 @@ export async function POST(
     if (!idx?.host) return NextResponse.json({ error: 'Index nicht gefunden' }, { status: 404 })
 
     const baseTopK = 20
-    // Retriever standardmäßig auf Kapitel-Summaries umstellen
-    const matches = await queryVectors(idx.host, apiKey, qVec, baseTopK, {
+    // Optional: Filter aus Query (Facetten im Chat-Kontext wiederverwenden)
+    const parsedUrl = new URL(request.url)
+    const author = parsedUrl.searchParams.getAll('author')
+    const region = parsedUrl.searchParams.getAll('region')
+    const year = parsedUrl.searchParams.getAll('year')
+    const docType = parsedUrl.searchParams.getAll('docType')
+    const source = parsedUrl.searchParams.getAll('source')
+    const tag = parsedUrl.searchParams.getAll('tag')
+    const retriever = (parsedUrl.searchParams.get('retriever') || 'chunk').toLowerCase() === 'doc' ? 'doc' : 'chunk'
+    // Retriever: chunk (Standard) oder doc (Dokument-Summaries)
+    const baseFilter: Record<string, unknown> = {
       user: { $eq: userEmail || '' },
       libraryId: { $eq: libraryId },
-      kind: { $eq: 'chunk' }
-    })
-    const scoreMap = new Map<string, number>()
-    for (const m of matches) scoreMap.set(m.id, typeof m.score === 'number' ? m.score : 0)
-
-    // Nachbarn sammeln (±w)
-    const windowByLength = answerLength === 'ausführlich' ? 3 : answerLength === 'mittel' ? 2 : 1
-    const idSet = new Set<string>()
-    const parseId = (id: string) => {
-      const idx = id.lastIndexOf('-')
-      if (idx < 0) return { base: id, chunk: NaN }
-      return { base: id.slice(0, idx), chunk: Number(id.slice(idx+1)) }
+      kind: { $eq: retriever }
     }
-    const toId = (base: string, chunk: number) => `${base}-${chunk}`
-    for (const m of matches) {
-      const { base, chunk } = parseId(m.id)
-      if (!Number.isFinite(chunk)) { idSet.add(m.id); continue }
-      for (let d = -windowByLength; d <= windowByLength; d++) {
-        idSet.add(toId(base, chunk + d))
-      }
-    }
-    const ids = Array.from(idSet)
-    const fetched = await fetchVectors(idx.host, apiKey, ids)
-    const vectorRows = ids
-      .map(id => ({ id, score: scoreMap.get(id) ?? 0, meta: fetched[id]?.metadata }))
-      .filter(r => r.meta)
-      .sort((a, b) => (b.score - a.score))
+    if (author.length > 0) baseFilter['authors'] = { $in: author }
+    if (region.length > 0) baseFilter['region'] = { $in: region }
+    if (year.length > 0) baseFilter['year'] = { $in: year.map(y => (isNaN(Number(y)) ? y : Number(y))) }
+    if (docType.length > 0) baseFilter['docType'] = { $in: docType }
+    if (source.length > 0) baseFilter['source'] = { $in: source }
+    if (tag.length > 0) baseFilter['tags'] = { $in: tag }
 
     // Budget nach answerLength
     const baseBudget = answerLength === 'ausführlich' ? 180000 : answerLength === 'mittel' ? 90000 : 30000
     let charBudget = baseBudget
     let sources: Array<{ id: string; score?: number; fileName?: string; chunkIndex?: number; text?: string }> = []
     let used = 0
-    for (const r of vectorRows) {
-      const t = typeof r.meta!.text === 'string' ? (r.meta!.text as string) : ''
-      if (!t) continue
-      const fileName = typeof r.meta!.fileName === 'string' ? (r.meta!.fileName as string) : undefined
-      const chunkIndex = typeof r.meta!.chunkIndex === 'number' ? (r.meta!.chunkIndex as number) : undefined
-      const score = r.score
-      if (used + t.length > charBudget) break
-      sources.push({ id: r.id, score, fileName, chunkIndex, text: t })
-      used += t.length
+
+    if (retriever === 'doc') {
+      // Kein Vektor-Query: Alle Dokument-Summaries (mit Metadaten-Filter) listen
+      const docs = await listVectors(idx.host, apiKey, baseFilter as Record<string, unknown>)
+      for (const d of docs) {
+        const meta = d.metadata || {}
+        let t = typeof meta.text === 'string' ? meta.text as string : ''
+        let fileName = typeof meta.fileName === 'string' ? meta.fileName as string : undefined
+        const docMetaJson = typeof meta.docMetaJson === 'string' ? meta.docMetaJson as string : undefined
+        if (docMetaJson && !t) {
+          try {
+            const docMeta = JSON.parse(docMetaJson) as Record<string, unknown>
+            const title = typeof docMeta.title === 'string' ? docMeta.title : undefined
+            const shortTitle = typeof docMeta.shortTitle === 'string' ? docMeta.shortTitle : undefined
+            const summary = typeof docMeta.summary === 'string' ? docMeta.summary : undefined
+            const tags = Array.isArray(docMeta.tags) ? (docMeta.tags as unknown[]).filter(v => typeof v === 'string') as string[] : []
+            const authors = Array.isArray(docMeta.authors) ? (docMeta.authors as unknown[]).filter(v => typeof v === 'string') as string[] : []
+            fileName = fileName || title || shortTitle
+            const parts = [
+              title ? `Titel: ${title}` : undefined,
+              shortTitle ? `Kurz: ${shortTitle}` : undefined,
+              authors.length ? `Autoren: ${authors.join(', ')}` : undefined,
+              summary ? `Zusammenfassung: ${summary}` : undefined,
+              tags.length ? `Tags: ${tags.slice(0, 10).join(', ')}` : undefined,
+            ].filter(Boolean) as string[]
+            const composed = parts.join('\n')
+            t = composed || t
+          } catch {
+            // ignore JSON parse
+          }
+        }
+        if (!t) continue
+        if (used + t.length > charBudget) break
+        sources.push({ id: d.id, fileName, text: t })
+        used += t.length
+      }
+    } else {
+      const matches = await queryVectors(idx.host, apiKey, qVec, baseTopK, baseFilter)
+      const scoreMap = new Map<string, number>()
+      for (const m of matches) scoreMap.set(m.id, typeof m.score === 'number' ? m.score : 0)
+
+      // Nachbarn sammeln (±w)
+      const windowByLength = answerLength === 'ausführlich' ? 3 : answerLength === 'mittel' ? 2 : 1
+      const idSet = new Set<string>()
+      const parseId = (id: string) => {
+        const idx = id.lastIndexOf('-')
+        if (idx < 0) return { base: id, chunk: NaN }
+        return { base: id.slice(0, idx), chunk: Number(id.slice(idx+1)) }
+      }
+      const toId = (base: string, chunk: number) => `${base}-${chunk}`
+      for (const m of matches) {
+        const { base, chunk } = parseId(m.id)
+        if (!Number.isFinite(chunk)) { idSet.add(m.id); continue }
+        for (let d = -windowByLength; d <= windowByLength; d++) {
+          idSet.add(toId(base, chunk + d))
+        }
+      }
+      const ids = Array.from(idSet)
+      const fetched = await fetchVectors(idx.host, apiKey, ids)
+      const vectorRows = ids
+        .map(id => ({ id, score: scoreMap.get(id) ?? 0, meta: fetched[id]?.metadata as Record<string, unknown> | undefined }))
+        .filter(r => r.meta)
+        .sort((a, b) => (b.score - a.score))
+
+      for (const r of vectorRows) {
+        let t = typeof r.meta!.text === 'string' ? (r.meta!.text as string) : ''
+        let fileName = typeof r.meta!.fileName === 'string' ? (r.meta!.fileName as string) : undefined
+        const chunkIndex = typeof r.meta!.chunkIndex === 'number' ? (r.meta!.chunkIndex as number) : undefined
+        const score = r.score
+        if (!t) continue
+        if (used + t.length > charBudget) break
+        sources.push({ id: r.id, score, fileName, chunkIndex, text: t })
+        used += t.length
+      }
+
+      // Fallback: Wenn keine Quellen aus fetchVectors, versuche Matches-Metadaten zu verwenden
+      if (sources.length === 0) {
+        let acc = 0
+        const fallback: typeof sources = []
+        for (const m of matches) {
+          const meta = (m?.metadata ?? {}) as Record<string, unknown>
+          let t = typeof meta.text === 'string' ? meta.text as string : ''
+          if (!t) continue
+          const fileName = typeof meta.fileName === 'string' ? meta.fileName as string : undefined
+          const chunkIndex = typeof meta.chunkIndex === 'number' ? meta.chunkIndex as number : undefined
+          const score = m.score
+          const snippet = t.slice(0, 1000)
+          const len = snippet.length
+          if (acc + len > charBudget) break
+          fallback.push({ id: String(m.id), score, fileName, chunkIndex, text: snippet })
+          acc += len
+        }
+        if (fallback.length > 0) {
+          sources = fallback
+        }
+      }
     }
 
-    // Fallback: Wenn keine Quellen aus fetchVectors, versuche Matches-Metadaten zu verwenden
+    // Wenn weiterhin keine Quellen gefunden wurden, antworte standardisiert
     if (sources.length === 0) {
-      let acc = 0
-      const fallback: typeof sources = []
-      for (const m of matches) {
-        const meta = (m?.metadata ?? {}) as Record<string, unknown>
-        const t = typeof meta.text === 'string' ? meta.text as string : ''
-        if (!t) continue
-        const fileName = typeof meta.fileName === 'string' ? meta.fileName as string : undefined
-        const chunkIndex = typeof meta.chunkIndex === 'number' ? meta.chunkIndex as number : undefined
-        const score = m.score
-        const snippet = t.slice(0, 1000)
-        const len = snippet.length
-        if (acc + len > charBudget) break
-        fallback.push({ id: String(m.id), score, fileName, chunkIndex, text: snippet })
-        acc += len
-      }
-      if (fallback.length > 0) {
-        sources = fallback
-      } else {
-        // Als letzte Option: Nur Treffer zurückgeben (z. B. bei sehr alten Daten ohne Text)
-        return NextResponse.json({
-          status: 'ok',
-          libraryId,
-          vectorIndex: ctx.vectorIndex,
-          results: matches,
-        })
-      }
+      return NextResponse.json({
+        status: 'ok',
+        libraryId,
+        vectorIndex: ctx.vectorIndex,
+        answer: 'Keine passenden Inhalte gefunden',
+        sources: [],
+      })
     }
 
     // Kontext bauen
@@ -181,7 +239,7 @@ export async function POST(
     if (debug) {
       const usedChars = sources.reduce((sum, s) => sum + (s.text?.length ?? 0), 0)
       // eslint-disable-next-line no-console
-      console.log('[api/chat] params', { answerLength, baseBudget, windowByLength, topK: baseTopK, used: usedChars, sources: sources.length })
+      console.log('[api/chat] params', { answerLength, baseBudget, topK: baseTopK, used: usedChars, sources: sources.length, retriever })
       // eslint-disable-next-line no-console
       console.log('[api/chat] sources', sources.map(s => ({ id: s.id, fileName: s.fileName, chunkIndex: s.chunkIndex, score: s.score, textChars: s.text?.length ?? 0 })))
       // eslint-disable-next-line no-console
