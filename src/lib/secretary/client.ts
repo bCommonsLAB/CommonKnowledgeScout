@@ -214,6 +214,27 @@ export interface SecretaryPdfResponse {
     // Alt (deprecated): verbleibt für Abwärtskompatibilität
     images_archive_data?: string; 
     images_archive_filename?: string; 
+    // Neu: Rohdaten der Mistral-OCR-Ausgabe mit Seitenstruktur
+    mistral_ocr_raw?: {
+      pages: Array<{
+        index: number;
+        markdown: string;
+        images: Array<{
+          id: string;
+          top_left_x: number;
+          top_left_y: number;
+          bottom_right_x: number;
+          bottom_right_y: number;
+          image_base64: string | null;
+          image_annotation: string | null;
+        }>;
+        dimensions: {
+          dpi: number;
+          height: number;
+          width: number;
+        };
+      }>;
+    };
   };
 }
 

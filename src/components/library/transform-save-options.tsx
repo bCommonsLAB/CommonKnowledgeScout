@@ -176,10 +176,11 @@ export function TransformSaveOptions({
                   <SelectItem value="preview_and_native">Vorschaubilder + Native</SelectItem>
                   <SelectItem value="llm">LLM-basierte OCR</SelectItem>
                   <SelectItem value="llm_and_ocr">LLM + OCR</SelectItem>
+                  <SelectItem value="mistral_ocr">Mistral OCR (LLM)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Bestimmt, wie der Inhalt aus der PDF extrahiert wird. Native = Text-Extraktion, OCR = Bild-zu-Text, LLM = KI-basierte Analyse
+                Bestimmt, wie der Inhalt aus der PDF extrahiert wird. Native = Text-Extraktion, OCR = Bild-zu-Text, LLM/Mistral = KI-basierte Analyse
               </p>
             </div>
           )}
