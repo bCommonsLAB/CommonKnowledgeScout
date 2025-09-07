@@ -25,6 +25,18 @@ import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
 import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
 
+/**
+ * Fügt unsichtbare Anker vor Zeilen wie "— Seite 12 —" ein, damit Scroll‑Sync möglich ist.
+ * Der sichtbare Text bleibt erhalten; wir ergänzen nur ein Marker‑DIV vorher.
+ */
+function injectPageAnchors(content: string): string {
+  const pageLine = /^(?:\s*[–—-])\s*Seite\s+(\d+)\s*(?:[–—-])\s*$/gmi;
+  return content.replace(pageLine, (_m, pageNum: string) => {
+    const n = String(pageNum).trim();
+    return `<div data-page-marker="${n}"></div>\n— Seite ${n} —`;
+  });
+}
+
 interface MarkdownPreviewProps {
   content: string;
   currentFolderId?: string;
@@ -972,7 +984,10 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
 
     // Entferne Frontmatter nur am Anfang des Dokuments
     const frontmatterRegex = /^---\n([\s\S]*?)\n---\n?/;
-    const mainContent = content.replace(frontmatterRegex, '');
+    let mainContent = content.replace(frontmatterRegex, '');
+
+    // Seite‑Marker als Anker einfügen, z. B. "— Seite 12 —" → <div data-page-marker="12"></div>
+    mainContent = injectPageAnchors(mainContent);
 
     // Process the main content
     const processedContent = processObsidianContent(
@@ -1051,7 +1066,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
           <TabsTrigger value="transform">Transformieren</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="preview" className="flex-1 overflow-auto">
+        <TabsContent value="preview" className="flex-1 overflow-auto" data-markdown-scroll-root="true">
           <div 
             className="prose dark:prose-invert max-w-none p-4 w-full"
             dangerouslySetInnerHTML={{ __html: renderedContent }}

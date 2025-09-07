@@ -9,6 +9,13 @@ interface JobReportTabProps {
   fileId: string
   fileName?: string
   provider?: StorageProvider | null
+  // Quelle der Metadaten steuern: 'merged' = cumulativeMeta + Frontmatter (Standard),
+  // 'frontmatter' = ausschließlich Frontmatter aus Markdown anzeigen
+  sourceMode?: 'merged' | 'frontmatter'
+  // Darstellungsmodus: 'full' zeigt Kopf/Steps/Logs/Parameter; 'metaOnly' zeigt nur Metadaten/Kapitel/TOC
+  viewMode?: 'full' | 'metaOnly'
+  // Optional explizite Markdown-Datei-ID (Shadow‑Twin). Überschreibt auto-Erkennung.
+  mdFileId?: string | null
 }
 
 interface JobDto {
@@ -21,17 +28,19 @@ interface JobDto {
   createdAt: string
   correlation?: { source?: { itemId?: string; name?: string } }
   parameters?: Record<string, unknown>
-  steps?: Array<{ name: string; status: string; startedAt?: string; endedAt?: string; error?: { message: string } }>
+  steps?: Array<{ name: string; status: string; startedAt?: string; endedAt?: string; error?: { message: string }; details?: { skipped?: boolean } }>
   ingestion?: { vectorsUpserted?: number; index?: string; upsertAt?: string }
   result?: { savedItemId?: string }
   logs?: Array<{ timestamp: string; phase?: string; message?: string; progress?: number }>
+  cumulativeMeta?: Record<string, unknown>
 }
 
-export function JobReportTab({ libraryId, fileId, fileName, provider }: JobReportTabProps) {
+export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode = 'merged', viewMode = 'full', mdFileId }: JobReportTabProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [job, setJob] = useState<JobDto | null>(null)
   const [templateFields, setTemplateFields] = useState<string[] | null>(null)
+  const [frontmatterMeta, setFrontmatterMeta] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -142,33 +151,120 @@ export function JobReportTab({ libraryId, fileId, fileName, provider }: JobRepor
     void loadTemplateFields()
   }, [job, provider])
 
+  // Frontmatter aus der gespeicherten Markdown-Datei lesen (Fallback, falls cumulativeMeta unvollständig ist)
+  useEffect(() => {
+    async function loadFrontmatter() {
+      try {
+        if (!provider) return
+        const mdId = (mdFileId || (job?.result?.savedItemId as string | undefined) || fileId)
+        UILogger.info('JobReportTab', 'Frontmatter: Lade Datei', { mdId, sourceMode })
+        if (!mdId) return
+        const bin = await provider.getBinary(mdId)
+        const text = await bin.blob.text()
+        const m = text.match(/^---[\s\S]*?---/)
+        UILogger.debug('JobReportTab', 'Frontmatter: Block gefunden?', { found: !!m, length: m ? m[0].length : 0 })
+        if (!m) { setFrontmatterMeta(null); return }
+        const fm = m[0]
+        const meta: Record<string, unknown> = {}
+        // Einfache Parser-Heuristiken für häufige Felder (JSON-ähnliche Werte werden geparst)
+        const tryParse = (val: string): unknown => {
+          const trimmed = val.trim()
+          if (!trimmed) return ''
+          if (trimmed === 'true' || trimmed === 'false') return trimmed === 'true'
+          if (/^[-+]?[0-9]+(\.[0-9]+)?$/.test(trimmed)) return Number(trimmed)
+          if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+            try { return JSON.parse(trimmed) } catch { return trimmed }
+          }
+          return trimmed.replace(/^"|"$/g, '')
+        }
+        // Versuche kompakte Arrays (z. B. authors: ["..."])
+        for (const line of fm.split('\n')) {
+          const t = line.trim()
+          if (!t || t === '---') continue
+          const idx = t.indexOf(':')
+          if (idx > 0) {
+            const k = t.slice(0, idx).trim()
+            const v = t.slice(idx + 1)
+            meta[k] = tryParse(v)
+          }
+        }
+        // Spezialfälle: mehrzeilige JSON-Blöcke für chapters/toc extrahieren
+        const cap = /\nchapters:\s*(\[[\s\S]*?\])\s*\n/m.exec(fm)
+        if (cap && cap[1]) {
+          try { meta['chapters'] = JSON.parse(cap[1]) } catch { /* ignore */ }
+        }
+        const tocCap = /\ntoc:\s*(\[[\s\S]*?\])\s*\n/m.exec(fm)
+        if (tocCap && tocCap[1]) {
+          try { meta['toc'] = JSON.parse(tocCap[1]) } catch { /* ignore */ }
+        }
+        UILogger.info('JobReportTab', 'Frontmatter: Keys & Counts', {
+          keys: Object.keys(meta),
+          chapters: Array.isArray(meta['chapters']) ? (meta['chapters'] as unknown[]).length : 0,
+          toc: Array.isArray(meta['toc']) ? (meta['toc'] as unknown[]).length : 0,
+        })
+        setFrontmatterMeta(Object.keys(meta).length ? meta : null)
+      } catch {
+        setFrontmatterMeta(null)
+      }
+    }
+    void loadFrontmatter()
+  }, [provider, fileId, mdFileId, job?.result?.savedItemId, sourceMode])
+
   if (loading) return <div className="p-4 text-sm text-muted-foreground">Lade Job…</div>
   if (error) return <div className="p-4 text-sm text-destructive">{error}</div>
   if (!job) return <div className="p-4 text-sm text-muted-foreground">Kein Job zur Datei gefunden.</div>
 
   return (
     <div className="p-4 space-y-3 text-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="font-medium">Job {job.jobId}</div>
-          <div className="text-xs text-muted-foreground">{job.job_type} · {job.operation} · {new Date(job.updatedAt).toLocaleString()}</div>
+      {viewMode === 'full' && (
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium">Job {job.jobId}</div>
+            <div className="text-xs text-muted-foreground">{job.job_type} · {job.operation} · {new Date(job.updatedAt).toLocaleString()}</div>
+          </div>
+          <div className="inline-flex items-center rounded px-2 py-0.5 bg-muted text-xs">{job.status}</div>
         </div>
-        <div className="inline-flex items-center rounded px-2 py-0.5 bg-muted text-xs">{job.status}</div>
-      </div>
-
-      {/* Template Hinweis */}
-      {typeof (job as unknown as { cumulativeMeta?: { template_used?: string } }).cumulativeMeta?.template_used === 'string' && (
-        <div className="text-xs text-muted-foreground">Template: {(job as unknown as { cumulativeMeta: { template_used: string } }).cumulativeMeta.template_used}</div>
       )}
 
-      {/* Schritte kompakt mit Häkchen */}
-      {Array.isArray(job.steps) && job.steps.length > 0 && (
+      {/* Template Hinweis (im Frontmatter-only-Modus ausgeblendet) */}
+      {sourceMode !== 'frontmatter' && typeof job.cumulativeMeta?.template_used === 'string' && (
+        <div className="text-xs text-muted-foreground">Template: {String(job.cumulativeMeta.template_used)}</div>
+      )}
+
+      {/* Schritte mit Ampel-Logik */}
+      {viewMode === 'full' && Array.isArray(job.steps) && job.steps.length > 0 && (
         <div>
           <div className="font-medium mb-1">Schritte</div>
           <div className="flex flex-wrap gap-2 text-xs">
             {job.steps.map((s) => {
-              const icon = s.status === 'completed' ? '✓' : s.status === 'running' ? '•' : s.status === 'failed' ? '✕' : '○'
-              const cls = s.status === 'completed' ? 'text-green-600' : s.status === 'failed' ? 'text-red-600' : 'text-muted-foreground'
+              // Geplante Phasen ermitteln (neue Flags bevorzugt, sonst phases)
+              const p = (job.parameters || {}) as Record<string, unknown>
+              const hasNewFlags = typeof p['doExtractPDF'] === 'boolean' || typeof p['doExtractMetadata'] === 'boolean' || typeof p['doIngestRAG'] === 'boolean'
+              const phases = hasNewFlags
+                ? {
+                    extract: p['doExtractPDF'] === true,
+                    template: p['doExtractMetadata'] === true,
+                    ingest: p['doIngestRAG'] === true,
+                  }
+                : ((p['phases'] as { extract?: boolean; template?: boolean; ingest?: boolean }) || {})
+
+              const planned = (() => {
+                const n = s.name
+                if (n === 'extract_pdf') return phases.extract === true
+                if (n === 'transform_template' || n === 'store_shadow_twin') return phases.template === true
+                if (n === 'ingest_rag') return phases.ingest === true
+                return false
+              })()
+
+              // Ampel-Status ableiten
+              const skipped = !!(s as { details?: { skipped?: boolean } }).details?.skipped
+              let icon = '○'
+              let cls = 'text-muted-foreground'
+              if (s.status === 'failed') { icon = '✕'; cls = 'text-red-600' }
+              else if (s.status === 'running') { icon = '◐'; cls = 'text-yellow-600' }
+              else if (s.status === 'completed') { icon = skipped ? '○' : '✓'; cls = skipped ? 'text-gray-400' : 'text-green-600' }
+              else if (s.status === 'pending') { icon = planned ? '•' : '○'; cls = planned ? 'text-yellow-600' : 'text-muted-foreground' }
+
               const time = s.endedAt ? new Date(s.endedAt).toLocaleTimeString() : s.startedAt ? new Date(s.startedAt).toLocaleTimeString() : ''
               return (
                 <div key={s.name} className={`inline-flex items-center gap-1 px-2 py-1 rounded border ${cls}`}>
@@ -182,9 +278,12 @@ export function JobReportTab({ libraryId, fileId, fileName, provider }: JobRepor
         </div>
       )}
 
-      {/* Metadaten (flach) – nutzt Template-Felder, fällt sonst auf cumulativeMeta-Keys zurück */}
+      {/* Metadaten (flach) – je nach sourceMode: nur Frontmatter oder Merge */}
       {(() => {
-        const cm = (job.cumulativeMeta as unknown as Record<string, unknown>) || {}
+        const base: Record<string, unknown> = sourceMode === 'frontmatter'
+          ? {}
+          : ((job.cumulativeMeta as unknown as Record<string, unknown>) || {})
+        const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
         const baseKeys = Array.isArray(templateFields) && templateFields.length > 0
           ? templateFields
           : Object.keys(cm)
@@ -222,25 +321,36 @@ export function JobReportTab({ libraryId, fileId, fileName, provider }: JobRepor
       })()}
 
       {/* Kapitel (hierarchisch) */}
-      {Array.isArray((job.cumulativeMeta as unknown as { chapters?: unknown[] })?.chapters) && (
+      {(() => {
+        const chapters: Array<Record<string, unknown>> = sourceMode === 'frontmatter'
+          ? (Array.isArray(frontmatterMeta?.chapters) ? (frontmatterMeta?.chapters as Array<Record<string, unknown>>) : [])
+          : ((job.cumulativeMeta as unknown as { chapters?: Array<Record<string, unknown>> })?.chapters || [])
+        if (!Array.isArray(chapters) || chapters.length === 0) return null
+        return (
         <div>
           <div className="font-medium mb-1">Kapitel</div>
-          <div className="overflow-auto max-h-48">
+          <div className="overflow-auto max-h-64">
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-muted-foreground">
                   <th className="py-1 pr-2">#</th>
                   <th className="py-1 pr-2">Titel</th>
                   <th className="py-1 pr-2">L</th>
+                  <th className="py-1 pr-2">Start</th>
+                  <th className="py-1 pr-2">Ende</th>
+                  <th className="py-1 pr-2">Seiten</th>
                   <th className="py-1 pr-2">Summary</th>
                   <th className="py-1 pr-2">Keywords</th>
                 </tr>
               </thead>
               <tbody>
-                {((job.cumulativeMeta as unknown as { chapters: Array<Record<string, unknown>> }).chapters || []).map((c, i) => {
+                {chapters.map((c, i) => {
                   const order = typeof c.order === 'number' ? c.order : (i + 1)
                   const level = typeof c.level === 'number' ? c.level : undefined
                   const title = typeof c.title === 'string' ? c.title : ''
+                  const startPage = typeof c.startPage === 'number' ? c.startPage : (c.startPage === null ? '' : '')
+                  const endPage = typeof c.endPage === 'number' ? c.endPage : (c.endPage === null ? '' : '')
+                  const pageCount = typeof c.pageCount === 'number' ? c.pageCount : (c.pageCount === null ? '' : '')
                   const summaryVal = typeof c.summary === 'string' ? c.summary : ''
                   const summary = summaryVal.length > 160 ? `${summaryVal.slice(0, 160)}…` : summaryVal
                   const keywords = Array.isArray(c.keywords) ? (c.keywords as Array<unknown>).filter(v => typeof v === 'string') as string[] : []
@@ -251,6 +361,9 @@ export function JobReportTab({ libraryId, fileId, fileName, provider }: JobRepor
                         <span className="whitespace-pre-wrap break-words">{title}</span>
                       </td>
                       <td className="py-1 pr-2 align-top">{typeof level === 'number' ? level : ''}</td>
+                      <td className="py-1 pr-2 align-top">{startPage as string | number}</td>
+                      <td className="py-1 pr-2 align-top">{endPage as string | number}</td>
+                      <td className="py-1 pr-2 align-top">{pageCount as string | number}</td>
                       <td className="py-1 pr-2 align-top whitespace-pre-wrap break-words">{summary}</td>
                       <td className="py-1 pr-2 align-top">
                         <div className="flex flex-wrap gap-1">
@@ -264,12 +377,32 @@ export function JobReportTab({ libraryId, fileId, fileName, provider }: JobRepor
                 })}
               </tbody>
             </table>
+            {/* Evidenz separat (erste Zeichen beschränkt) */}
+            <div className="mt-1 text-xs text-muted-foreground">
+              {chapters.map((c, i) => {
+                const ev = typeof c.startEvidence === 'string' ? c.startEvidence : ''
+                if (!ev) return null
+                const title = typeof c.title === 'string' ? c.title : `Kapitel ${i+1}`
+                const preview = ev.length > 140 ? `${ev.slice(0, 140)}…` : ev
+                return (
+                  <div key={`ev-${i}`} className="truncate">
+                    <span className="font-medium">{title}:</span> <span className="opacity-80">{preview}</span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* Inhaltsverzeichnis */}
-      {Array.isArray((job.cumulativeMeta as unknown as { toc?: unknown[] })?.toc) && ((job.cumulativeMeta as unknown as { toc: unknown[] }).toc.length > 0) && (
+      {(() => {
+        const toc: Array<Record<string, unknown>> = sourceMode === 'frontmatter'
+          ? (Array.isArray(frontmatterMeta?.toc) ? (frontmatterMeta?.toc as Array<Record<string, unknown>>) : [])
+          : ((job.cumulativeMeta as unknown as { toc?: Array<Record<string, unknown>> }).toc || [])
+        if (!Array.isArray(toc) || toc.length === 0) return null
+        return (
         <div>
           <div className="font-medium mb-1">Inhaltsverzeichnis</div>
           <div className="overflow-auto max-h-40">
@@ -282,7 +415,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider }: JobRepor
                 </tr>
               </thead>
               <tbody>
-                {((job.cumulativeMeta as unknown as { toc: Array<Record<string, unknown>> }).toc || []).map((t, i) => {
+                {toc.map((t, i) => {
                   const title = typeof t.title === 'string' ? t.title : ''
                   const page = typeof t.page === 'number' ? t.page : ''
                   const level = typeof t.level === 'number' ? t.level : ''
@@ -298,16 +431,17 @@ export function JobReportTab({ libraryId, fileId, fileName, provider }: JobRepor
             </table>
           </div>
         </div>
-      )}
+        )
+      })()}
 
-      {job.ingestion && (
+      {viewMode === 'full' && job.ingestion && (
         <div>
           <div className="font-medium mb-1">Ingestion</div>
           <div className="text-xs text-muted-foreground">{job.ingestion.index || '—'} · Vektoren: {job.ingestion.vectorsUpserted ?? '—'} · {job.ingestion.upsertAt ? new Date(job.ingestion.upsertAt).toLocaleString() : '—'}</div>
         </div>
       )}
 
-      {Array.isArray(job.logs) && job.logs.length > 0 && (
+      {viewMode === 'full' && Array.isArray(job.logs) && job.logs.length > 0 && (
         <div>
           <div className="font-medium mb-1">Logs (neueste zuerst)</div>
           <ul className="space-y-0.5 max-h-48 overflow-auto">
@@ -321,7 +455,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider }: JobRepor
       )}
 
       {/* Parameter am Ende */}
-      {job.parameters && (
+      {viewMode === 'full' && job.parameters && (
         <div>
           <div className="font-medium mb-1">Parameter</div>
           <pre className="bg-muted/40 rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(job.parameters, null, 2)}</pre>

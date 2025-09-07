@@ -56,6 +56,10 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     includeImages: false,
   });
 
+  // Phasensteuerung: Standard nur Phase 1 (Extraktion)
+  const [runMetaPhase, setRunMetaPhase] = useState<boolean>(false); // Phase 2
+  const [runIngestionPhase, setRunIngestionPhase] = useState<boolean>(false); // Phase 3
+
   // Shadow-Twin Erkennung (z. B. name.de.md)
   const shadowTwinRegex = useMemo(() => /^(.+)\.(de|en|fr|es|it)\.md$/i, []);
 
@@ -189,11 +193,20 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
           form.append('includeImages', String(saveOptions.includeImages ?? false));
           form.append('originalItemId', file.id);
           form.append('parentId', parentId);
+          // Phasen: skipTemplate steuert Phase 2, useIngestionPipeline steuert Phase 3
+          form.append('skipTemplate', String(!runMetaPhase));
+          form.append('useIngestionPipeline', String(!!runIngestionPhase));
 
           const res = await fetch('/api/secretary/process-pdf', {
             method: 'POST',
             headers: { 'X-Library-Id': activeLibraryId },
-            body: form,
+            body: (() => {
+              // Nur neue, vereinfachte Flags senden
+              form.append('doExtractPDF', 'true');
+              form.append('doExtractMetadata', String(!!runMetaPhase));
+              form.append('doIngestRAG', String(!!runIngestionPhase));
+              return form;
+            })(),
           });
 
           if (!res.ok) {
@@ -229,6 +242,24 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             <div className="flex items-center gap-2">
               <Checkbox id="ignore-existing" checked={ignoreExisting} onCheckedChange={(v) => setIgnoreExisting(Boolean(v))} />
               <Label htmlFor="ignore-existing">Ignore existing transformations</Label>
+            </div>
+          </div>
+
+          <div className="rounded-md border p-3">
+            <div className="text-sm font-medium mb-2">Phasen</div>
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex items-center gap-2">
+                <Checkbox id="phase-1" checked disabled />
+                <Label htmlFor="phase-1">Phase 1: Extraktion (immer)</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="phase-2" checked={runMetaPhase} onCheckedChange={(v) => setRunMetaPhase(Boolean(v))} />
+                <Label htmlFor="phase-2">Phase 2: Metadaten (Template)</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="phase-3" checked={runIngestionPhase} onCheckedChange={(v) => setRunIngestionPhase(Boolean(v))} />
+                <Label htmlFor="phase-3">Phase 3: RAG-Ingestion</Label>
+              </div>
             </div>
           </div>
 

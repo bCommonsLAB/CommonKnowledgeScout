@@ -16,6 +16,12 @@ export interface TransformSaveOptions {
 export interface PdfTransformOptions extends TransformSaveOptions {
   extractionMethod: string;
   template?: string;
+  skipTemplate?: boolean; // Phase 1: nur Extraktion
+  // Vereinfachte Phasensteuerung
+  doExtractPDF?: boolean;
+  doExtractMetadata?: boolean;
+  doIngestRAG?: boolean;
+  forceRecreate?: boolean;
 }
 
 export interface TransformResult {
@@ -435,10 +441,17 @@ export class TransformService {
       options.useCache ?? true,
       options.includeImages ?? false,
       options.useIngestionPipeline ?? false,
+      // Skip-Template: respektiere explizite Option; sonst Standard abhängig von Ingestion-Flag
+      (typeof options.skipTemplate === 'boolean') ? options.skipTemplate : (options.useIngestionPipeline ? false : true),
       {
         originalItemId: originalItem.id,
         parentId: originalItem.parentId,
         originalFileName: originalItem.metadata.name,
+        // Neue vereinfachte Phasen-Flags durchreichen
+        doExtractPDF: options.doExtractPDF,
+        doExtractMetadata: options.doExtractMetadata,
+        doIngestRAG: options.doIngestRAG,
+        forceRecreate: options.forceRecreate,
       }
     );
     

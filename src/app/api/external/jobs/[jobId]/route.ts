@@ -12,6 +12,7 @@ import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
 import { IngestionService } from '@/lib/chat/ingestion-service';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
+import { gateExtractPdf, gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
 
 function toAsciiKebab(input: unknown, maxLen: number = 80): string | undefined {
   if (typeof input !== 'string') return undefined;
@@ -209,7 +210,7 @@ export async function POST(
 
     if (!internalBypass) {
       const tokenHash = repo.hashSecret(callbackToken as string);
-      if (tokenHash !== job.jobSecretHash) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (tokenHash !== job.jobSecretHash) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Status auf running setzen und Prozess-ID loggen
@@ -290,123 +291,68 @@ export async function POST(
     let docMetaForIngestion: Record<string, unknown> | undefined;
 
     if (lib && extractedText) {
-      // Schritt: transform_template starten
-      await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
+      const doExtractMetadata = !!(job.parameters && typeof job.parameters === 'object' && (job.parameters as Record<string, unknown>)['doExtractMetadata']);
+      const autoSkip = true;
+
       if (lib.type === 'local') {
         const provider = new FileSystemProvider(lib.path);
         const sourceId = job.correlation?.source?.itemId;
         const targetParentId = job.correlation?.source?.parentId || 'root';
-        // Pfade nur bei Bedarf auflösen (derzeit nicht benötigt)
-        // await provider.getPathById(sourceId ?? '').catch(() => undefined);
-        // await provider.getPathById(targetParentId).catch(() => '/');
-        // Pfade ermitteln (aktuell nur für Debugging/Logging nutzbar)
-        // const sourceAbsPath = sourceRelPath und targetAbsPath aktuell ungenutzt
 
-        // 1) Optionalen Template-Content laden (aus /templates oder per Chat-Setting 'transformerTemplate')
+        // Optionale Template-Verarbeitung (Phase 2)
         let metadataFromTemplate: Record<string, unknown> | null = null;
-        try {
-          // Standard-Template-Inhalt (wird angelegt, falls kein Template gefunden wird)
-          const defaultTemplateContent = `---
-title: {{title|Vollständiger Titel des Dokuments (string)}}
-shortTitle: {{shortTitle|Kurzer Titel ≤40 Zeichen, ohne abschließende Satzzeichen}}
-slug: {{slug|ASCII, lowercase, kebab-case; Umlaute/Diakritika normalisieren; max 80; keine doppelten Bindestriche}}
-summary: {{summary|1–2 Sätze, ≤120 Zeichen, neutral, nur aus Text extrahiert}}
-teaser: {{teaser|2–3 Sätze, nicht identisch zu summary, prägnant, extraktiv}}
-authors: {{authors|Array von Autoren, dedupliziert, Format "Nachname, Vorname" wenn möglich}}
-tags: {{tags|Array relevanter Tags, normalisiert: lowercase, ASCII, kebab-case, dedupliziert}}
-docType: {{docType|Eine aus: report, study, brochure, offer, contract, manual, law, guideline, other}}
-year: {{year|Vierstelliges Jahr als number; wenn unbekannt: null}}
-region: {{region|Region/Land aus Text; wenn unbekannt: ""}}
-language: {{language|Dokumentsprache, z. B. "de" oder "en"}}
-chapters: {{chapters|Array von Kapiteln mit title, level (1..3), order (int, 1-basiert), startEvidence (≤160), summary (≤1000, extraktiv), keywords (5–12)}}
-toc: {{toc|Optionales Array von { title, page?, level? }, nur wenn explizit im Text erkennbar}}
----
+        // Gate für Transform-Template (Phase 2)
+        let templateGateExists = false;
+        if (autoSkip) {
+          const g = await gateTransformTemplate({ repo, jobId, userEmail: job.userEmail, library: lib, source: job.correlation?.source, options: job.correlation?.options as { targetLanguage?: string } | undefined });
+          templateGateExists = g.exists;
+          if (g.exists) {
+            await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
+          }
+        }
+        if (!doExtractMetadata || templateGateExists) {
+          bufferLog(jobId, { phase: 'transform_meta_skipped', message: 'Template-Transformation übersprungen (Phase 1)' });
+        } else {
+          await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
+          try {
+            // Templates-Ordner vorbereiten
+            const rootItems = await provider.listItemsById('root');
+            const templatesFolder = rootItems.find(it => it.type === 'folder' && (it as { metadata?: { name?: string } }).metadata?.name?.toLowerCase() === 'templates');
+            const ensureTemplatesFolderId = async (): Promise<string> => {
+              if (templatesFolder) return templatesFolder.id;
+              const created = await provider.createFolder('root', 'templates');
+              bufferLog(jobId, { phase: 'templates_folder_created', message: 'Ordner /templates angelegt' });
+              return created.id;
+            };
+            const templatesFolderId = await ensureTemplatesFolderId();
 
-# {{title|Dokumenttitel}}
-
-## Zusammenfassung
-{{summary|Kurzfassung für Management/Vertrieb}}
-
---- systemprompt
-Rolle:
-- Du bist ein penibler, rein EXTRAKTIVER Sachbearbeiter. Du liest Kleingedrucktes genau. Abweichungen von der Norm sind preisrelevant – knapp anmerken, aber nichts erfinden.
-
-Strenge Regeln:
-- Verwende ausschließlich Inhalte, die EXPLIZIT im gelieferten Text vorkommen. Keine Halluzinationen.
-- Wenn eine geforderte Information im Text nicht sicher vorliegt: gib "" (leere Zeichenkette) bzw. null (für year) zurück.
-- Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt. Keine Kommentare, kein Markdown, keine Code-Fences.
-
-Format-/Normalisierungsregeln:
-- shortTitle: ≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen.
-- slug: ASCII, lowercase, kebab-case, max 80, Diakritika/Umlaute normalisieren (ä→ae, ö→oe, ü→ue, ß→ss), mehrere Leerzeichen/Bindestriche zu einem Bindestrich zusammenfassen.
-- summary: 1–2 Sätze, ≤120 Zeichen, neutraler Ton, extraktiv.
-- teaser: 2–3 Sätze, nicht identisch zu summary, extraktiv.
-- authors: Array von Strings, dedupliziert. Format „Nachname, Vorname“ wenn eindeutig ableitbar.
-- tags: Array von Strings; normalisieren (lowercase, ASCII, kebab-case), deduplizieren; nur, wenn klar aus Text ableitbar.
-- docType: klassifiziere streng nach Textsignalen in { report, study, brochure, offer, contract, manual, law, guideline }; wenn unklar: "other".
-- year: vierstelliges Jahr als number; nur übernehmen, wenn eindeutig (z. B. „Copyright 2024“, „Stand: 2023“).
-- region: aus Text (z. B. Länder/Bundesländer/Regionen); sonst "".
-- language: bestmögliche Schätzung (z. B. "de", "en") anhand des Textes.
-
-Kapitelanalyse (extraktiv):
-- Erkenne echte Kapitel-/Unterkapitelstarts (Level 1..3), nur wenn sie im Text vorkommen.
-- Für JEDES Kapitel liefere: title, level (1..3), order (1-basiert), startEvidence (≤160, exakter Anfangstext), summary (≤1000, extraktiv bis zum nächsten Kapitelstart), keywords (5–12, kurz und textnah).
-- toc (optional): Liste von { title, page?, level? } nur, wenn explizit als Inhaltsverzeichnis erkennbar; Titel müssen existierenden Kapiteln entsprechen.
-
-Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
-{
-  "title": string,
-  "shortTitle": string,
-  "slug": string,
-  "summary": string,
-  "teaser": string,
-  "authors": string[],
-  "tags": string[],
-  "docType": "report" | "study" | "brochure" | "offer" | "contract" | "manual" | "law" | "guideline" | "other",
-  "year": number | null,
-  "region": string,
-  "language": string,
-  "chapters": [ { "title": string, "level": 1 | 2 | 3, "order": number, "startEvidence": string, "summary": string, "keywords": string[] } ],
-  "toc": [ { "title": string, "page": number?, "level": number? } ] | []
-}`;
-
-          // Bevorzugter Template-Name aus Chat-Config (falls vorhanden)
-          const preferredTemplate = ((lib.config?.chat as unknown as { transformerTemplate?: string })?.transformerTemplate || '').trim();
-          // Templates-Ordner im Root suchen
-          const rootItems = await provider.listItemsById('root');
-          const templatesFolder = rootItems.find(it => it.type === 'folder' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'templates'));
-          const ensureTemplatesFolderId = async (): Promise<string> => {
-            if (templatesFolder) return templatesFolder.id;
-            const created = await provider.createFolder('root', 'templates');
-            bufferLog(jobId, { phase: 'templates_folder_created', message: 'Ordner /templates angelegt' });
-            return created.id;
-          };
-
-          const templatesFolderId = await ensureTemplatesFolderId();
-
-          if (templatesFolderId) {
-            const tplItems = await provider.listItemsById(templatesFolderId);
-            // Auswahllogik: bevorzugt preferredTemplate, sonst 'pdfanalyse.md', sonst erstes .md
-            const pickByName = (name: string) => tplItems.find(it => it.type === 'file' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === name.toLowerCase()));
-            const byPreferred = preferredTemplate ? pickByName(preferredTemplate.endsWith('.md') ? preferredTemplate : `${preferredTemplate}.md`) : undefined;
-            const byDefault = pickByName('pdfanalyse.md') || pickByName('pdfanalyse_default.md');
-            const anyMd = tplItems.find(it => it.type === 'file' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase().endsWith('.md')));
-            let chosen = byPreferred || byDefault || anyMd;
-            if (!chosen) {
-              // Default-Template anlegen
-              const tplFile = new File([new Blob([defaultTemplateContent], { type: 'text/markdown' })], 'pdfanalyse.md', { type: 'text/markdown' });
-              await provider.uploadFile(templatesFolderId, tplFile);
-              bufferLog(jobId, { phase: 'template_created', message: 'Default-Template pdfanalyse.md angelegt' });
-              // Neu laden
-              const re = await provider.listItemsById(templatesFolderId);
-              chosen = re.find(it => it.type === 'file' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'pdfanalyse.md'));
+            // Template-Datei wählen bzw. anlegen
+            let chosen: { id: string } | undefined;
+            if (templatesFolderId) {
+              const tplItems = await provider.listItemsById(templatesFolderId);
+              const preferredTemplate = ((lib.config?.chat as unknown as { transformerTemplate?: string })?.transformerTemplate || '').trim();
+              const pickByName = (name: string) => tplItems.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name.toLowerCase() === name.toLowerCase());
+              chosen = preferredTemplate
+                ? pickByName(preferredTemplate.endsWith('.md') ? preferredTemplate : `${preferredTemplate}.md`)
+                : (pickByName('pdfanalyse.md') || pickByName('pdfanalyse_default.md') || tplItems.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name.toLowerCase().endsWith('.md')));
+              if (!chosen) {
+                const defaultTemplateContent = '# {{title}}\n';
+                const tplFile = new File([new Blob([defaultTemplateContent], { type: 'text/markdown' })], 'pdfanalyse.md', { type: 'text/markdown' });
+                await provider.uploadFile(templatesFolderId, tplFile);
+                bufferLog(jobId, { phase: 'template_created', message: 'Default-Template pdfanalyse.md angelegt' });
+                const re = await provider.listItemsById(templatesFolderId);
+                chosen = re.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'pdfanalyse.md') as unknown as { id: string } | undefined;
+              }
+            } else {
+              bufferLog(jobId, { phase: 'templates_folder_missing', message: 'Ordner /templates nicht gefunden' });
             }
+
             if (chosen) {
               const bin = await provider.getBinary(chosen.id);
               const templateContent = await bin.blob.text();
-              // Protokolliere gewähltes Template im Job
-              await repo.appendMeta(jobId, { template_used: (chosen as { metadata: { name: string } }).metadata.name }, 'template_pick');
-              // 2) Secretary Transformer mit template_content aufrufen
+              await repo.appendMeta(jobId, { template_used: (chosen as unknown as { metadata?: { name?: string } }).metadata?.name }, 'template_pick');
+
+              // Secretary Transformer aufrufen
               const secretaryUrlRaw = process.env.SECRETARY_SERVICE_URL || '';
               const transformerUrl = secretaryUrlRaw.endsWith('/') ? `${secretaryUrlRaw}transformer/template` : `${secretaryUrlRaw}/transformer/template`;
               const fd = new FormData();
@@ -421,43 +367,32 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
               const resp = await fetch(transformerUrl, { method: 'POST', body: fd, headers });
               const data: unknown = await resp.json().catch(() => ({}));
               if (resp.ok && data && typeof data === 'object' && !Array.isArray(data)) {
-                const d = (data as { data?: unknown }).data as { structured_data?: unknown; text?: unknown } | undefined;
+                const d = (data as { data?: unknown }).data as { structured_data?: unknown } | undefined;
                 const normalized = normalizeStructuredData(d?.structured_data);
-                if (normalized) {
-                  metadataFromTemplate = normalized;
-                } else {
-                  metadataFromTemplate = null;
-                }
+                metadataFromTemplate = normalized || null;
                 bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' });
               } else {
                 bufferLog(jobId, { phase: 'transform_meta_failed', message: 'Transformer lieferte kein gültiges JSON' });
               }
-            } else {
-              bufferLog(jobId, { phase: 'template_missing', message: 'Kein Template gefunden' });
             }
-          } else {
-            bufferLog(jobId, { phase: 'templates_folder_missing', message: 'Ordner /templates nicht gefunden' });
+          } catch {
+            bufferLog(jobId, { phase: 'transform_meta_error', message: 'Fehler bei Template-Transformation' });
           }
-        } catch {
-          bufferLog(jobId, { phase: 'transform_meta_error', message: 'Fehler bei Template-Transformation' });
         }
 
-        // 3) Frontmatter-Metadaten bestimmen (Template bevorzugt, sonst Worker-Metadaten)
+        // Frontmatter bestimmen und Shadow‑Twin speichern
         const baseMeta = (body?.data?.metadata as Record<string, unknown>) || {};
         const finalMeta: Record<string, unknown> = metadataFromTemplate ? { ...metadataFromTemplate } : { ...baseMeta };
         docMetaForIngestion = finalMeta;
         await repo.appendMeta(jobId, finalMeta, 'template_transform');
         await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date() });
 
-        // 4) Markdown mit Frontmatter erzeugen (Body = Originaltext)
-        const markdown = typeof (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter === 'function'
-          ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, finalMeta)
-          : extractedText;
-
         const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '');
         const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de';
         const uniqueName = `${baseName}.${lang}.md`;
-
+        const markdown = (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter
+          ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, finalMeta)
+          : extractedText;
         const file = new File([new Blob([markdown], { type: 'text/markdown' })], uniqueName, { type: 'text/markdown' });
         await repo.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });
         const saved = await provider.uploadFile(targetParentId, file);
@@ -465,94 +400,79 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
         savedItemId = saved.id;
         await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
 
-        // Lade ZIP-Archiv bei Bedarf vom Secretary-Service und extrahiere lokal
+        // Bilder-ZIP optional verarbeiten
         if (imagesArchiveUrlFromWorker) {
           try {
             const baseRaw = process.env.SECRETARY_SERVICE_URL || '';
             const isAbsolute = /^https?:\/\//i.test(imagesArchiveUrlFromWorker);
             let archiveUrl = imagesArchiveUrlFromWorker;
             if (!isAbsolute) {
-              try {
-                archiveUrl = new URL(imagesArchiveUrlFromWorker, baseRaw).toString();
-              } catch {
-                const base = baseRaw.replace(/\/$/, '');
-                const rel = imagesArchiveUrlFromWorker.startsWith('/') ? imagesArchiveUrlFromWorker : `/${imagesArchiveUrlFromWorker}`;
-                archiveUrl = base.endsWith('/api') && rel.startsWith('/api/')
-                  ? `${base}${rel.substring(4)}`
-                  : `${base}${rel}`;
-              }
+              const base = baseRaw.replace(/\/$/, '');
+              const rel = imagesArchiveUrlFromWorker.startsWith('/') ? imagesArchiveUrlFromWorker : `/${imagesArchiveUrlFromWorker}`;
+              archiveUrl = base.endsWith('/api') && rel.startsWith('/api/') ? `${base}${rel.substring(4)}` : `${base}${rel}`;
             }
             const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
             const headers: Record<string, string> = {};
-            if (apiKey) {
-              headers['Authorization'] = `Bearer ${apiKey}`;
-              headers['X-Service-Token'] = apiKey;
-            }
+            if (apiKey) { headers['Authorization'] = `Bearer ${apiKey}`; headers['X-Service-Token'] = apiKey; }
             const resp = await fetch(archiveUrl, { method: 'GET', headers });
             if (!resp.ok) {
               bufferLog(jobId, { phase: 'images_download_failed', message: `Archiv-Download fehlgeschlagen: ${resp.status}` });
-              // Markiere Job als fehlgeschlagen und beende
               clearWatchdog(jobId);
               const bufferedNow = drainBufferedLogs(jobId);
-              for (const entry of bufferedNow) {
-                await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
-              }
+              for (const entry of bufferedNow) await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
               await repo.setStatus(jobId, 'failed', { error: { code: 'images_download_failed', message: 'Bild-Archiv konnte nicht geladen werden', details: { status: resp.status } } });
               getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Archiv-Download fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name });
               return NextResponse.json({ status: 'ok', jobId, kind: 'failed_images_download' });
-            } else {
-              const arrayBuf = await resp.arrayBuffer();
-              const base64Zip = Buffer.from(arrayBuf).toString('base64');
-              const originalItemForImages = {
-                id: sourceId || 'unknown',
-                parentId: targetParentId,
-                type: 'file' as const,
-                metadata: {
-                  name: job.correlation.source?.name || 'source.pdf',
-                  size: 0,
-                  modifiedAt: new Date(),
-                  mimeType: job.correlation.source?.mimeType || 'application/pdf',
-                },
-              };
-              const textContents = (body?.data?.metadata?.text_contents as Array<{ page: number; content: string }> | undefined);
-              const imageResult = await ImageExtractionService.saveZipArchive(
-                base64Zip,
-                'images.zip',
-                originalItemForImages,
-                provider,
-                async (folderId: string) => provider.listItemsById(folderId),
-                extractedText,
-                lang,
-                textContents
-              );
-              for (const it of imageResult.savedItems) savedItems.push(it.id);
-              bufferLog(jobId, { phase: 'images_extracted', message: `Bilder gespeichert (${imageResult.savedItems.length})` });
             }
+            const arrayBuf = await resp.arrayBuffer();
+            const base64Zip = Buffer.from(arrayBuf).toString('base64');
+            const originalItemForImages = {
+              id: sourceId || 'unknown',
+              parentId: targetParentId,
+              type: 'file' as const,
+              metadata: {
+                name: job.correlation.source?.name || 'source.pdf',
+                size: 0,
+                modifiedAt: new Date(),
+                mimeType: job.correlation.source?.mimeType || 'application/pdf',
+              },
+            };
+            const textContents = (body?.data?.metadata?.text_contents as Array<{ page: number; content: string }> | undefined);
+            const imageResult = await ImageExtractionService.saveZipArchive(
+              base64Zip,
+              'images.zip',
+              originalItemForImages,
+              provider,
+              async (folderId: string) => provider.listItemsById(folderId),
+              extractedText,
+              lang,
+              textContents
+            );
+            for (const it of imageResult.savedItems) savedItems.push(it.id);
+            bufferLog(jobId, { phase: 'images_extracted', message: `Bilder gespeichert (${imageResult.savedItems.length})` });
           } catch {
             bufferLog(jobId, { phase: 'images_extract_failed', message: 'ZIP-Extraktion fehlgeschlagen' });
-            // Markiere Job als fehlgeschlagen und beende
             clearWatchdog(jobId);
             const bufferedNow = drainBufferedLogs(jobId);
-            for (const entry of bufferedNow) {
-              await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
-            }
+            for (const entry of bufferedNow) await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
             await repo.setStatus(jobId, 'failed', { error: { code: 'images_extract_failed', message: 'ZIP-Archiv konnte nicht extrahiert werden' } });
             getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Bilder-Extraktion fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name });
             return NextResponse.json({ status: 'ok', jobId, kind: 'failed_images_extract' });
           }
         }
-      } else if (lib && lib.type === 'onedrive') {
+      } else if (lib.type === 'onedrive') {
         const accessToken = await ensureOneDriveAccessToken(lib);
         const targetParentId = job.correlation?.source?.parentId || 'root';
         const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '');
         const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de';
         const uniqueName = `${baseName}.${lang}.md`;
-        // OneDrive: Template-Metadaten analog verwenden
-        await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
+        if (true) {
+          await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
+        }
         const mdMeta = (body?.data?.metadata as Record<string, unknown>) || {};
         docMetaForIngestion = mdMeta;
         await repo.appendMeta(jobId, mdMeta, 'worker_metadata');
-        const md = typeof (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter === 'function'
+        const md = (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter
           ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, mdMeta)
           : extractedText;
         await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date() });
@@ -561,20 +481,53 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
         const saved = await onedriveUploadFile(accessToken, targetParentId, uniqueName, 'text/markdown', contentBuffer);
         savedItemId = saved.id;
         savedItems.push(saved.id);
-
         bufferLog(jobId, { phase: 'stored_cloud', message: 'Shadow‑Twin gespeichert' });
         await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
-
-        // Bilder nicht mehr vom Webhook-ZIP extrahieren – Link wird bereitgestellt
       }
     }
 
     // Schritt: ingest_rag (optional automatisiert)
     try {
-      await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
+      // Gate für Ingestion (Phase 3)
+      const autoSkip = true;
+      let ingestGateExists = false;
+      if (autoSkip) {
+        const g = await gateIngestRag({
+          repo,
+          jobId,
+          userEmail: job.userEmail,
+          library: lib,
+          source: job.correlation?.source,
+          options: job.correlation?.options as { targetLanguage?: string } | undefined,
+          ingestionCheck: async ({ userEmail, libraryId, fileId }) => {
+            // Prüfe Doc‑Vektor existiert (kind:'doc' + fileId)
+            try {
+              const ctx = await (await import('@/lib/chat/loader')).loadLibraryChatContext(userEmail, libraryId)
+              const apiKey = process.env.PINECONE_API_KEY
+              if (!ctx || !apiKey) return false
+              const idx = await (await import('@/lib/chat/pinecone')).describeIndex(ctx.vectorIndex, apiKey)
+              if (!idx?.host) return false
+              const list = await (await import('@/lib/chat/pinecone')).listVectors(idx.host, apiKey, { kind: 'doc', user: userEmail, libraryId, fileId })
+              return Array.isArray(list) && list.length > 0
+            } catch {
+              return false
+            }
+          }
+        })
+        if (g.exists) {
+          ingestGateExists = true;
+          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
+          // Wenn geskippt, keinen weiteren Ingestion-Versuch starten
+          // dennoch Abschluss unten fortsetzen
+        } else {
+          await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
+        }
+      } else {
+        await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
+      }
       FileLogger.info('external-jobs', 'Ingestion start', { jobId, libraryId: job.libraryId })
-      const useIngestion = !!(job.parameters && typeof job.parameters === 'object' && (job.parameters as Record<string, unknown>)['useIngestionPipeline']);
-      if (useIngestion) {
+      const useIngestion = !!(job.parameters && typeof job.parameters === 'object' && (job.parameters as Record<string, unknown>)['doIngestRAG']);
+      if (useIngestion && !ingestGateExists) {
         // Lade gespeicherten Markdown-Inhalt erneut (vereinfachend: extractedText)
         // Stabiler Schlüssel: Original-Quell-Item (PDF) bevorzugen, sonst Shadow‑Twin, sonst Fallback
         const fileId = (job.correlation.source?.itemId as string | undefined) || savedItemId || `${jobId}-md`;

@@ -18,6 +18,7 @@ import { ImagePreview } from './image-preview';
 import { DocumentPreview } from './document-preview';
 import { FileLogger } from "@/lib/debug/logger"
 import { JobReportTab } from './job-report-tab';
+import { PdfPhasesView } from './pdf-phases-view';
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
@@ -726,6 +727,13 @@ function PreviewContent({
         </div>
       );
     case 'pdf':
+      return (
+        <PdfPhasesView
+          item={item}
+          provider={provider}
+          markdownContent={""}
+        />
+      );
     case 'docx':
     case 'pptx':
     case 'xlsx':

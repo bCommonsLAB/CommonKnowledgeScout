@@ -6,8 +6,13 @@ import { FileLogger } from '@/lib/debug/logger';
 import crypto from 'crypto';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
-import { startWatchdog } from '@/lib/external-jobs-watchdog';
+import { startWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { ExternalJob } from '@/types/external-job';
+import { LibraryService } from '@/lib/services/library-service';
+import { FileSystemProvider } from '@/lib/storage/filesystem-provider';
+import { gateExtractPdf, gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
+import { IngestionService } from '@/lib/chat/ingestion-service';
+import { TransformService } from '@/lib/transform/transform-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,6 +76,8 @@ export async function POST(request: NextRequest) {
     
     // Template-Option NICHT an Secretary senden – wir transformieren serverseitig im Callback
     // (Der Secretary erwartet ggf. einen Pfad und würde sonst '...md.md' anhängen.)
+    // Veraltetes Feld skipTemplate wird nicht mehr verwendet
+    const skipTemplate = false;
     
     // Extraktionsmethode
     if (formData.has('extractionMethod')) {
@@ -100,9 +107,20 @@ export async function POST(request: NextRequest) {
       serviceFormData.append('force_refresh', 'false'); // Standardwert
     }
 
-    // Ingestion-Pipeline (nur intern, nicht an Secretary senden)
-    const useIngestionPipelineRaw = (formData.get('useIngestionPipeline') as string) ?? 'false';
-    const useIngestionPipeline = useIngestionPipelineRaw === 'true';
+    // Veraltetes Feld useIngestionPipeline wird nicht mehr verwendet
+    const useIngestionPipeline = false;
+
+    // Neue vereinfachte Flags aus dem Request
+    let doExtractPDF = ((formData.get('doExtractPDF') as string | null) ?? '') === 'true';
+    let doExtractMetadata = ((formData.get('doExtractMetadata') as string | null) ?? '') === 'true';
+    let doIngestRAG = ((formData.get('doIngestRAG') as string | null) ?? '') === 'true';
+    const forceRecreate = ((formData.get('forceRecreate') as string | null) ?? '') === 'true';
+    // Fallback: Wenn Flags fehlen (alle false), aus alten Parametern ableiten
+    if (!doExtractPDF && !doExtractMetadata && !doIngestRAG) {
+      doExtractPDF = true; // Phase 1 grundsätzlich erlaubt
+      doExtractMetadata = !skipTemplate; // wenn nicht Phase-1-only, dann Metadaten
+      doIngestRAG = useIngestionPipeline; // bis Alt-Flag entfernt ist
+    }
 
     // Job anlegen (per-Job-Secret)
     const repository = new ExternalJobsRepository();
@@ -157,6 +175,7 @@ export async function POST(request: NextRequest) {
     };
     await repository.create(job);
     // Schritte initialisieren und Parameter mitschreiben (für Report-Tab)
+    const phases = { extract: doExtractPDF, template: doExtractMetadata, ingest: doIngestRAG };
     await repository.initializeSteps(jobId, [
       { name: 'extract_pdf', status: 'pending' },
       { name: 'transform_template', status: 'pending' },
@@ -167,8 +186,13 @@ export async function POST(request: NextRequest) {
       extractionMethod,
       includeImages: includeImages === 'true',
       useCache: useCache === 'true',
-      useIngestionPipeline,
-      template: (formData.get('template') as string) || undefined
+      template: (formData.get('template') as string) || undefined,
+      phases,
+      // Neue vereinfachte Flags
+      doExtractPDF,
+      doExtractMetadata,
+      doIngestRAG,
+      forceRecreate
     });
     FileLogger.info('process-pdf', 'Job angelegt', {
       jobId,
@@ -260,7 +284,165 @@ export async function POST(request: NextRequest) {
       callbackUrl: appUrl ? `${appUrl.replace(/\/$/, '')}/api/external/jobs/${jobId}` : undefined
     });
 
-    // Anfrage an den Secretary Service senden
+    // Idempotenz ist immer aktiv
+    const autoSkipExisting: boolean = true;
+
+    // Extract-Gate vor dem Secretary-Call: vorhanden? → je nach Flags entscheiden
+    try {
+      if (autoSkipExisting) {
+        const libraryService = LibraryService.getInstance();
+        const libraries = await libraryService.getUserLibraries(userEmail);
+        const lib = libraries.find(l => l.id === libraryId);
+        const g = await gateExtractPdf({
+          repo: repository,
+          jobId,
+          userEmail,
+          library: lib,
+          source: { itemId: originalItemId, parentId, name: file?.name },
+          options: { targetLanguage }
+        });
+        if (g.exists && !forceRecreate) {
+          // Phase 1 überspringen
+          await repository.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
+
+          // Template-Only Pfad, wenn nicht explizit skipTemplate=true
+          if (!skipTemplate && doExtractMetadata) {
+            try {
+              const libraryService = LibraryService.getInstance();
+              const libraries2 = await libraryService.getUserLibraries(userEmail);
+              const lib2 = libraries2.find(l => l.id === libraryId);
+              if (lib2 && lib2.type === 'local' && lib2.path) {
+                const provider = new FileSystemProvider(lib2.path);
+                await repository.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
+
+                // Template-Datei finden (wie im Callback)
+                const rootItems = await provider.listItemsById('root');
+                const templatesFolder = rootItems.find(it => it.type === 'folder' && (it as { metadata?: { name?: string } }).metadata?.name?.toLowerCase() === 'templates');
+                const ensureTemplatesFolderId = async (): Promise<string> => {
+                  if (templatesFolder) return templatesFolder.id;
+                  const created = await provider.createFolder('root', 'templates');
+                  return created.id;
+                };
+                const templatesFolderId = await ensureTemplatesFolderId();
+                let chosen: { id: string } | undefined;
+                if (templatesFolderId) {
+                  const tplItems = await provider.listItemsById(templatesFolderId);
+                  const preferredTemplate = ((lib2.config?.chat as unknown as { transformerTemplate?: string })?.transformerTemplate || (formData.get('template') as string | null) || '').trim();
+                  const pickByName = (name: string) => tplItems.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name.toLowerCase() === name.toLowerCase());
+                  chosen = preferredTemplate
+                    ? pickByName(preferredTemplate.endsWith('.md') ? preferredTemplate : `${preferredTemplate}.md`)
+                    : (pickByName('pdfanalyse.md') || pickByName('pdfanalyse_default.md') || tplItems.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name.toLowerCase().endsWith('.md')));
+                }
+
+                let templateContent = '# {{title}}\n';
+                if (chosen) {
+                  const bin = await provider.getBinary(chosen.id);
+                  templateContent = await bin.blob.text();
+                }
+
+                // Shadow‑Twin laden (im Parent by Name)
+                const siblings = await provider.listItemsById(parentId || 'root');
+                const expectedName = (g.details && typeof g.details === 'object' ? (g.details as { matched?: string }).matched : undefined) || (() => {
+                  const base = (file?.name || 'output').replace(/\.[^/.]+$/, '');
+                  return `${base}.${targetLanguage}.md`;
+                })();
+                const twin = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === expectedName);
+                if (!twin) throw new Error('Shadow‑Twin nicht gefunden');
+                const twinBin = await provider.getBinary(twin.id);
+                const originalMarkdown = await twinBin.blob.text();
+                const stripped = originalMarkdown.replace(/^---[\s\S]*?---\s*/m, '');
+
+                // Transformer aufrufen
+                const secretaryUrlRaw = process.env.SECRETARY_SERVICE_URL || '';
+                const transformerUrl = secretaryUrlRaw.endsWith('/') ? `${secretaryUrlRaw}transformer/template` : `${secretaryUrlRaw}/transformer/template`;
+                const fd = new FormData();
+                fd.append('text', stripped);
+                fd.append('target_language', targetLanguage);
+                fd.append('template_content', templateContent);
+                fd.append('use_cache', 'false');
+                const headers: Record<string, string> = { 'Accept': 'application/json' };
+                const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+                if (apiKey) { headers['Authorization'] = `Bearer ${apiKey}`; headers['X-Service-Token'] = apiKey; }
+                const resp = await fetch(transformerUrl, { method: 'POST', body: fd, headers });
+                const data: unknown = await resp.json().catch(() => ({}));
+                const mdMeta = (data && typeof data === 'object' && !Array.isArray(data)) ? ((data as { data?: { structured_data?: Record<string, unknown> } }).data?.structured_data || {}) : {};
+
+                await repository.appendMeta(jobId, mdMeta as Record<string, unknown>, 'template_transform');
+                await repository.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date() });
+
+                // Markdown mit neuem Frontmatter überschreiben
+                const newMarkdown = (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter
+                  ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(stripped, mdMeta as Record<string, unknown>)
+                  : originalMarkdown;
+                const outFile = new File([new Blob([newMarkdown], { type: 'text/markdown' })], expectedName || (file?.name || 'output.md'), { type: 'text/markdown' });
+                await repository.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });
+                await provider.uploadFile(parentId || 'root', outFile);
+                await repository.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
+
+                // Ingestion je nach Flag nur markieren (kein Upsert hier)
+                if (doIngestRAG) {
+                  await repository.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
+                } else {
+                  await repository.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
+                }
+
+                clearWatchdog(jobId);
+                await repository.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen (template-only)' });
+                await repository.setStatus(jobId, 'completed');
+                try {
+                  getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed (template-only)', jobType: 'pdf', fileName: correlation.source?.name });
+                } catch {}
+                return NextResponse.json({ status: 'accepted', worker: 'secretary', process: { id: 'local-template-only', main_processor: 'template', started: new Date().toISOString(), is_from_cache: true }, job: { id: jobId }, webhook: { delivered_to: `${appUrl?.replace(/\/$/, '')}/api/external/jobs/${jobId}` }, error: null });
+              }
+            } catch {
+              // Fallback: wenn Template-Only fehlschlägt, markieren wir die Schritte als skipped und schließen
+              await repository.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
+              await repository.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
+              if (doIngestRAG) {
+                await repository.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
+              } else {
+                await repository.updateStep(jobId, ' ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
+              }
+              clearWatchdog(jobId);
+              await repository.setStatus(jobId, 'completed');
+              return NextResponse.json({ status: 'accepted', worker: 'secretary', process: { id: 'local-skip', main_processor: 'pdf', started: new Date().toISOString(), is_from_cache: true }, job: { id: jobId }, webhook: { delivered_to: `${appUrl?.replace(/\/$/, '')}/api/external/jobs/${jobId}` }, error: null });
+            }
+          } else {
+            // Kein Template‑Only gewünscht → alle übrigen Schritte überspringen
+            await repository.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
+            await repository.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
+            if (doIngestRAG) {
+              await repository.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
+            } else {
+              await repository.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
+            }
+            clearWatchdog(jobId);
+            await repository.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen (extract skipped: artifact_exists)' });
+            await repository.setStatus(jobId, 'completed');
+            try {
+              getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed (skipped extract)', jobType: job.job_type, fileName: correlation.source?.name });
+            } catch {}
+            return NextResponse.json({
+              status: 'accepted',
+              worker: 'secretary',
+              process: { id: 'local-skip', main_processor: 'pdf', started: new Date().toISOString(), is_from_cache: true },
+              job: { id: jobId },
+              webhook: { delivered_to: `${appUrl?.replace(/\/$/, '')}/api/external/jobs/${jobId}` },
+              error: null
+            });
+          }
+        }
+      }
+    } catch {}
+
+    // Anfrage an den Secretary Service senden (nur wenn doExtractPDF true oder keine Flags gesetzt)
+    if (!doExtractPDF && (doExtractMetadata || doIngestRAG)) {
+      // Kein Worker-Call notwendig, die Arbeit passiert lokal (Template‑Only) oder es ist nur Ingestion geplant (aktueller Pfad löst Ingestion erst im Callback aus, daher schließen wir hier ab)
+      // Falls nur Ingestion geplant ist, führt der Callback es später aus; hier markieren wir extract als skipped
+      await repository.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'not_requested' } });
+      return NextResponse.json({ status: 'accepted', job: { id: jobId } })
+    }
+
     const response = await fetch(normalizedUrl, {
       method: 'POST',
       body: serviceFormData,
