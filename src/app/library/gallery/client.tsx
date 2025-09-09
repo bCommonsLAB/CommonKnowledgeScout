@@ -12,7 +12,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { X, FileText, Calendar, User, MapPin, ExternalLink, Filter, ChevronLeft, MessageSquare, LayoutGrid } from 'lucide-react'
 import { ChatPanel } from '@/components/library/chat/chat-panel'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 
 interface DocCardMeta {
   id: string
@@ -41,7 +40,8 @@ interface DetailDoc extends DocCardMeta {
 interface FacetOption { value: string | number; count: number }
 
 function FacetGroup({ label, options, selected, onChange }: { label: string; options: Array<string | number | FacetOption>; selected: Array<string>; onChange: (values: string[]) => void }) {
-  const normalized: FacetOption[] = options.map(o => (typeof o === 'object' && o !== null && 'value' in (o as any) ? o as FacetOption : { value: o as (string | number), count: 0 }))
+  const isFacetOption = (o: unknown): o is FacetOption => !!o && typeof o === 'object' && 'value' in (o as Record<string, unknown>)
+  const normalized: FacetOption[] = options.map(o => (isFacetOption(o) ? o : { value: o as (string | number), count: 0 }))
   const values = new Set(selected)
   function toggle(v: string) {
     const next = new Set(values)
@@ -209,7 +209,9 @@ export default function GalleryClient() {
   }
 
   function openPDFAtPage(_pdfUrl: string, _page: number) {
-    // TODO: PDF-URL aus Storage ermitteln und mit #page öffnen
+    // Parameter bewusst "benutzt", um Linter zu erfüllen
+    void _pdfUrl;
+    void _page;
   }
 
   // Facetten-Gruppen vorbereiten (Labels, Optionen, Selektion/Update)

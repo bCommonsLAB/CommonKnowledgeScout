@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { getAuth, currentUser } from '@clerk/nextjs/server';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { LibraryService } from '@/lib/services/library-service';
 import { FileSystemProvider } from '@/lib/storage/filesystem-provider';
@@ -13,6 +13,9 @@ export async function POST(request: NextRequest) {
   try {
     const { userId } = getAuth(request);
     if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
+    const user = await currentUser();
+    const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '';
+    if (!userEmail) return NextResponse.json({ error: 'Kein Benutzer-E-Mail gefunden' }, { status: 401 });
 
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const libraryId = typeof body.libraryId === 'string' ? body.libraryId : '';
@@ -21,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (!libraryId || !fileId) return NextResponse.json({ error: 'libraryId und fileId erforderlich' }, { status: 400 });
 
     // Markdown laden (nur Local Filesystem aktuell)
-    const lib = await LibraryService.getInstance().getLibrary(libraryId).catch(() => undefined);
+    const lib = await LibraryService.getInstance().getLibrary(userEmail, libraryId).catch(() => undefined);
     if (!lib) return NextResponse.json({ error: 'Library nicht gefunden' }, { status: 404 });
 
     let markdown = '';

@@ -440,9 +440,7 @@ export class TransformService {
       options.extractionMethod,
       options.useCache ?? true,
       options.includeImages ?? false,
-      options.useIngestionPipeline ?? false,
-      // Skip-Template: respektiere explizite Option; sonst Standard abhängig von Ingestion-Flag
-      (typeof options.skipTemplate === 'boolean') ? options.skipTemplate : (options.useIngestionPipeline ? false : true),
+      undefined, // skipTemplate wird nicht mehr verwendet; Flags steuern Phasen
       {
         originalItemId: originalItem.id,
         parentId: originalItem.parentId,

@@ -150,8 +150,8 @@ export async function POST(
         .sort((a, b) => (b.score - a.score))
 
       for (const r of vectorRows) {
-        let t = typeof r.meta!.text === 'string' ? (r.meta!.text as string) : ''
-        let fileName = typeof r.meta!.fileName === 'string' ? (r.meta!.fileName as string) : undefined
+        const t = typeof r.meta!.text === 'string' ? (r.meta!.text as string) : ''
+        const fileName = typeof r.meta!.fileName === 'string' ? (r.meta!.fileName as string) : undefined
         const chunkIndex = typeof r.meta!.chunkIndex === 'number' ? (r.meta!.chunkIndex as number) : undefined
         const score = r.score
         if (!t) continue
@@ -166,7 +166,7 @@ export async function POST(
         const fallback: typeof sources = []
         for (const m of matches) {
           const meta = (m?.metadata ?? {}) as Record<string, unknown>
-          let t = typeof meta.text === 'string' ? meta.text as string : ''
+          const t = typeof meta.text === 'string' ? meta.text as string : ''
           if (!t) continue
           const fileName = typeof meta.fileName === 'string' ? meta.fileName as string : undefined
           const chunkIndex = typeof meta.chunkIndex === 'number' ? meta.chunkIndex as number : undefined

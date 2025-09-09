@@ -18,9 +18,10 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { TransformSaveOptions as SaveOptionsComponent } from '@/components/library/transform-save-options';
-import type { TransformSaveOptions as SaveOptionsType } from '@/components/library/transform-save-options';
 import { FileLogger } from '@/lib/debug/logger';
+import { loadPdfDefaults } from '@/lib/pdf-defaults';
+import { PdfPhaseSettings } from '@/components/library/pdf-phase-settings';
+import { Settings } from 'lucide-react';
 
 interface PdfBulkImportDialogProps {
   open: boolean;
@@ -38,23 +39,12 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const rootFolderId = useAtomValue(currentFolderIdAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
 
-  const [ignoreExisting, setIgnoreExisting] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [isEnqueuing, setIsEnqueuing] = useState(false);
   const [candidates, setCandidates] = useState<Array<{ file: StorageItem; parentId: string }>>([]);
   const [previewItems, setPreviewItems] = useState<Array<{ id: string; name: string; relPath: string; pages?: number }>>([]);
   const [stats, setStats] = useState<ScanStats>({ totalPdfs: 0, skippedExisting: 0, toProcess: 0 });
-
-  // Optionen wie im Einzel-PDF-Dialog
-  const [saveOptions, setSaveOptions] = useState<SaveOptionsType>({
-    targetLanguage: 'de',
-    fileName: '',
-    createShadowTwin: true,
-    fileExtension: 'md',
-    extractionMethod: 'native',
-    useCache: true,
-    includeImages: false,
-  });
 
   // Phasensteuerung: Standard nur Phase 1 (Extraktion)
   const [runMetaPhase, setRunMetaPhase] = useState<boolean>(false); // Phase 2
@@ -111,8 +101,10 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         total++;
 
         const base = getBaseName(file.metadata.name);
-        const shouldSkip = ignoreExisting && hasTwinInFolder(items, base, saveOptions.targetLanguage);
-        if (shouldSkip) {
+        const defaults = activeLibraryId ? loadPdfDefaults(activeLibraryId) : {};
+        const lang = (defaults as { targetLanguage?: string }).targetLanguage || 'de';
+        const requireTwin = runMetaPhase && !runIngestionPhase;
+        if (requireTwin && !hasTwinInFolder(items, base, lang)) {
           skipped++;
           continue;
         }
@@ -122,7 +114,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     }
 
     return { total, skipped, selected, previews };
-  }, [provider, getBaseName, ignoreExisting, hasTwinInFolder, saveOptions.targetLanguage]);
+  }, [provider, getBaseName, hasTwinInFolder, runMetaPhase, runIngestionPhase]);
 
   const handleScan = useCallback(async () => {
     if (!provider || !rootFolderId) return;
@@ -162,14 +154,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     }
   }, [open, handleScan]);
 
-  const handleOptionsChange = useCallback((opts: SaveOptionsType) => {
-    setSaveOptions({
-      ...opts,
-      extractionMethod: opts.extractionMethod || 'native',
-      useCache: opts.useCache ?? true,
-      includeImages: opts.includeImages ?? false,
-    });
-  }, []);
+  // keine lokale Optionsbearbeitung nötig; Änderungen erfolgen im Settings-Dialog
 
   const handleEnqueue = useCallback(async () => {
     if (!activeLibraryId) return;
@@ -187,24 +172,23 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
 
           const form = new FormData();
           form.append('file', pdfFile);
-          form.append('targetLanguage', saveOptions.targetLanguage || 'de');
-          form.append('extractionMethod', saveOptions.extractionMethod || 'native');
-          form.append('useCache', String(saveOptions.useCache ?? true));
-          form.append('includeImages', String(saveOptions.includeImages ?? false));
+          // form.append('targetLanguage', saveOptions.targetLanguage || 'de'); // saveOptions was removed
+          // form.append('extractionMethod', saveOptions.extractionMethod || 'native'); // saveOptions was removed
+          // form.append('useCache', String(saveOptions.useCache ?? true)); // saveOptions was removed
+          // form.append('includeImages', String(saveOptions.includeImages ?? false)); // saveOptions was removed
           form.append('originalItemId', file.id);
           form.append('parentId', parentId);
-          // Phasen: skipTemplate steuert Phase 2, useIngestionPipeline steuert Phase 3
-          form.append('skipTemplate', String(!runMetaPhase));
-          form.append('useIngestionPipeline', String(!!runIngestionPhase));
 
           const res = await fetch('/api/secretary/process-pdf', {
             method: 'POST',
             headers: { 'X-Library-Id': activeLibraryId },
             body: (() => {
-              // Nur neue, vereinfachte Flags senden
-              form.append('doExtractPDF', 'true');
+              const metaOnly = !!runMetaPhase && !runIngestionPhase;
+              // Neue Flags
+              form.append('doExtractPDF', String(!metaOnly));
               form.append('doExtractMetadata', String(!!runMetaPhase));
               form.append('doIngestRAG', String(!!runIngestionPhase));
+              if (metaOnly) form.append('onlyMetadata', 'true');
               return form;
             })(),
           });
@@ -225,32 +209,32 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     } finally {
       setIsEnqueuing(false);
     }
-  }, [activeLibraryId, candidates.length, saveOptions, onOpenChange]);
+  }, [activeLibraryId, candidates.length, runMetaPhase, runIngestionPhase, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>PDF-Verzeichnis verarbeiten</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>PDF-Verzeichnis verarbeiten</span>
+            <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} title="PDF-Standardwerte öffnen">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </DialogTitle>
           <DialogDescription>
-            Wählen Sie Optionen wie beim Einzel-PDF-Dialog. Optional bereits transformierte PDFs ignorieren.
+            Verwendet die PDF-Standardwerte der aktiven Library. Parameter können über das Zahnrad angepasst werden.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-md border p-3">
-            <div className="flex items-center gap-2">
-              <Checkbox id="ignore-existing" checked={ignoreExisting} onCheckedChange={(v) => setIgnoreExisting(Boolean(v))} />
-              <Label htmlFor="ignore-existing">Ignore existing transformations</Label>
-            </div>
-          </div>
+          {/* Hinweisblock entfernt: Idempotenz/Gates übernehmen das Überspringen automatisch */}
 
           <div className="rounded-md border p-3">
             <div className="text-sm font-medium mb-2">Phasen</div>
             <div className="flex flex-col gap-2 text-sm">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-muted-foreground">
                 <Checkbox id="phase-1" checked disabled />
-                <Label htmlFor="phase-1">Phase 1: Extraktion (immer)</Label>
+                <Label htmlFor="phase-1">Phase 1: Extraktion (durch Gates idempotent)</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="phase-2" checked={runMetaPhase} onCheckedChange={(v) => setRunMetaPhase(Boolean(v))} />
@@ -263,19 +247,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             </div>
           </div>
 
-          <div className="rounded-md border p-3">
-            <SaveOptionsComponent
-              originalFileName={''}
-              onOptionsChangeAction={handleOptionsChange}
-              className="mb-0"
-              showExtractionMethod={true}
-              defaultExtractionMethod={saveOptions.extractionMethod || 'native'}
-              showUseCache={true}
-              defaultUseCache={saveOptions.useCache ?? true}
-              showIncludeImages={true}
-              defaultIncludeImages={saveOptions.includeImages ?? false}
-            />
-          </div>
+          {/* PDF-Standardwerte werden aus der Library geladen; Anpassung über das Zahnrad oben */}
 
           <div className="rounded-md border p-3">
             <div className="flex items-center justify-between text-sm">
@@ -321,6 +293,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             {isEnqueuing ? 'Wird gestartet…' : `Jobs starten (${candidates.length})`}
           </Button>
         </DialogFooter>
+        <PdfPhaseSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
       </DialogContent>
     </Dialog>
   );

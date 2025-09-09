@@ -410,7 +410,11 @@ export function ChatForm() {
                           onCheckedChange={(v) => {
                             const next = new Set(values)
                             if (v) next.add(key); else next.delete(key)
-                            form.setValue("gallery.facets", Array.from(next) as any, { shouldDirty: true })
+                            form.setValue(
+                              "gallery.facets",
+                              Array.from(next) as Array<"authors"|"year"|"region"|"docType"|"source"|"tags">,
+                              { shouldDirty: true }
+                            )
                           }}
                         />
                       </FormControl>

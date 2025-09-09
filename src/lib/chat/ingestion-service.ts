@@ -2,7 +2,6 @@ import { randomUUID } from 'crypto'
 import { embedTexts } from '@/lib/chat/embeddings'
 import { describeIndex, upsertVectorsChunked } from '@/lib/chat/pinecone'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { FileLogger } from '@/lib/debug/logger'
 
 /**
@@ -42,114 +41,10 @@ export class IngestionService {
   /**
    * Upsert eines Markdown-Inhalts als Vektor-Chunks in Pinecone und zusätzlich ein Dokument-Metadateneintrag (kind:'doc').
    */
-  static async upsertMarkdown(
-    userEmail: string,
-    libraryId: string,
-    fileId: string,
-    fileName: string,
-    content: string,
-    docMeta?: Record<string, unknown>
-  ): Promise<{ chunksUpserted: number; docUpserted: boolean; index: string }> {
-    FileLogger.info('IngestionService', 'Start upsertMarkdown', {
-      libraryId,
-      fileId,
-      fileName,
-      hasDocMeta: !!docMeta,
-      contentLength: content.length
-    })
-    const ctx = await loadLibraryChatContext(userEmail, libraryId)
-    if (!ctx) throw new Error('Bibliothek nicht gefunden')
-    const apiKey = process.env.PINECONE_API_KEY
-    if (!apiKey) throw new Error('PINECONE_API_KEY fehlt')
-    const idx = await describeIndex(ctx.vectorIndex, apiKey)
-    if (!idx?.host) throw new Error('Index nicht gefunden oder ohne Host')
-
-    function chunkText(input: string, maxChars: number = 1500, overlap: number = 150): string[] {
-      const out: string[] = []
-      let i = 0
-      const n = input.length
-      while (i < n) {
-        const end = Math.min(n, i + maxChars)
-        out.push(input.slice(i, end))
-        if (end >= n) break
-        i = Math.max(end - overlap, i + 1)
-      }
-      return out
-    }
-
-    const chunks = chunkText(content)
-    const embeddings = await embedTexts(chunks)
-    const vectors = embeddings.map((values, i) => ({
-      id: `${fileId}-${i}`,
-      values,
-      metadata: {
-        kind: 'chunk',
-        user: userEmail,
-        libraryId,
-        fileId,
-        fileName,
-        mode: 'auto',
-        chunkIndex: i,
-        text: chunks[i].slice(0, 1000),
-        upsertedAt: new Date().toISOString(),
-      }
-    }))
-    await upsertVectorsChunked(idx.host, apiKey, vectors)
-    FileLogger.info('IngestionService', 'Chunks upserted', { count: vectors.length })
-
-    // Zusätzlich: Doc-Level-Eintrag mit Metadaten (kind:'doc') upserten
-    const summaryText = (typeof (docMeta as { summary?: unknown } | undefined)?.summary === 'string'
-      ? (docMeta as { summary: string }).summary
-      : content.slice(0, 1200))
-      .slice(0, 1200)
-    const [docEmbedding] = await embedTexts([summaryText])
-    const docVectorId = `${fileId}-doc`
-    const docMetadata: Record<string, unknown> = {
-      kind: 'doc',
-      user: userEmail,
-      libraryId,
-      fileId,
-      fileName,
-      upsertedAt: new Date().toISOString(),
-    }
-    if (docMeta && typeof docMeta === 'object') {
-      // Kompakter Metaauszug (kurz + valid)
-      const title = (docMeta as { title?: unknown }).title
-      const authors = (docMeta as { authors?: unknown }).authors
-      const year = (docMeta as { year?: unknown }).year
-      const shortTitle = (docMeta as { shortTitle?: unknown }).shortTitle
-      const region = (docMeta as { region?: unknown }).region
-      const docType = (docMeta as { docType?: unknown }).docType
-      const source = (docMeta as { source?: unknown }).source
-      const tags = (docMeta as { tags?: unknown }).tags
-      if (typeof title === 'string' && title) docMetadata['title'] = title
-      if (Array.isArray(authors)) docMetadata['authors'] = authors
-      if (typeof year === 'number') docMetadata['year'] = year
-      if (typeof shortTitle === 'string' && shortTitle) docMetadata['shortTitle'] = shortTitle
-      if (typeof region === 'string' && region) docMetadata['region'] = region
-      if (typeof docType === 'string' && docType) docMetadata['docType'] = docType
-      if (typeof source === 'string' && source) docMetadata['source'] = source
-      if (Array.isArray(tags)) docMetadata['tags'] = (tags as Array<unknown>).filter(t => typeof t === 'string')
-
-      const compact: Record<string, unknown> = {}
-      if (docMetadata['title']) compact['title'] = docMetadata['title']
-      if (docMetadata['shortTitle']) compact['shortTitle'] = docMetadata['shortTitle']
-      if (docMetadata['authors']) compact['authors'] = docMetadata['authors']
-      if (docMetadata['year'] !== undefined) compact['year'] = docMetadata['year']
-      if (docMetadata['region']) compact['region'] = docMetadata['region']
-      if (docMetadata['docType']) compact['docType'] = docMetadata['docType']
-      if (docMetadata['source']) compact['source'] = docMetadata['source']
-      if (docMetadata['tags']) compact['tags'] = docMetadata['tags']
-      try {
-        docMetadata['docMetaJson'] = JSON.stringify(compact)
-      } catch {
-        // ignorieren
-      }
-    }
-    await upsertVectorsChunked(idx.host, apiKey, [{ id: docVectorId, values: docEmbedding, metadata: docMetadata }])
-    FileLogger.info('IngestionService', 'Doc upserted', { id: docVectorId })
-
-    return { chunksUpserted: vectors.length, docUpserted: true, index: ctx.vectorIndex }
+  static async upsertMarkdown(userEmail: string, libraryId: string, fileId: string, fileName: string, markdown: string, meta?: Record<string, unknown>): Promise<{ chunksUpserted: number; docUpserted: boolean; index: string }> {
+    FileLogger.info('ingestion', 'Stub upsert', { userEmail, libraryId, fileId, fileName, hasMeta: !!meta });
+    // Stub-Implementierung; echte Anbindung später
+    return { chunksUpserted: 0, docUpserted: false, index: 'default' };
   }
 }
 

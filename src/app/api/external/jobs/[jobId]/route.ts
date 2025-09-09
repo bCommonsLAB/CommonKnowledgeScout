@@ -12,7 +12,7 @@ import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
 import { IngestionService } from '@/lib/chat/ingestion-service';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
-import { gateExtractPdf, gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
+import { gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
 
 function toAsciiKebab(input: unknown, maxLen: number = 80): string | undefined {
   if (typeof input !== 'string') return undefined;
@@ -361,6 +361,26 @@ export async function POST(
               fd.append('target_language', lang);
               fd.append('template_content', templateContent);
               fd.append('use_cache', 'false');
+              // Kontext übergeben (Dateiname/Pfad/Job)
+              try {
+                const parentId = job.correlation.source?.parentId || 'root';
+                const provider = new FileSystemProvider(lib.path);
+                const parentPath = await provider.getPathById(parentId); // z.B. /Berichte Landesämter/Bevölk.Schutz
+                const dirPath = parentPath.replace(/^\//, ''); // Berichte Landesämter/Bevölk.Schutz
+                const rawName = job.correlation.source?.name || 'document.pdf';
+                const withoutExt = rawName.replace(/\.[^./\\]+$/, '');
+                const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de';
+                const baseName = withoutExt.replace(new RegExp(`\\.${lang}$`, 'i'), '');
+                const ctx = {
+                  filename: baseName,
+                  filepath: dirPath,
+                  libraryId: job.libraryId,
+                  jobId: job.jobId,
+                  sourceItemId: job.correlation.source?.itemId,
+                  parentId: job.correlation.source?.parentId
+                } as const;
+                fd.append('context', JSON.stringify(ctx));
+              } catch {}
               const headers: Record<string, string> = { 'Accept': 'application/json' };
               const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
               if (apiKey) { headers['Authorization'] = `Bearer ${apiKey}`; headers['X-Service-Token'] = apiKey; }
@@ -499,7 +519,7 @@ export async function POST(
           library: lib,
           source: job.correlation?.source,
           options: job.correlation?.options as { targetLanguage?: string } | undefined,
-          ingestionCheck: async ({ userEmail, libraryId, fileId }) => {
+          ingestionCheck: async ({ userEmail, libraryId, fileId }: { userEmail: string; libraryId: string; fileId: string }) => {
             // Prüfe Doc‑Vektor existiert (kind:'doc' + fileId)
             try {
               const ctx = await (await import('@/lib/chat/loader')).loadLibraryChatContext(userEmail, libraryId)

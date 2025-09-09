@@ -28,20 +28,18 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
   const [twinContent, setTwinContent] = React.useState<string>(markdownContent || "");
   const [twinLoading, setTwinLoading] = React.useState<boolean>(false);
   const [twinError, setTwinError] = React.useState<string | null>(null);
-  const { provider: storageProvider, refreshItems } = useStorage();
+  const { provider: storageProvider } = useStorage();
   const [currentPage] = useAtom(currentPdfPageAtom);
   const leftRef = React.useRef<HTMLDivElement | null>(null);
   const rightRef = React.useRef<HTMLDivElement | null>(null);
   const syncingFromPdfRef = React.useRef(false);
   const syncingFromMarkdownRef = React.useRef(false);
 
-  // PDF → Markdown: Wenn die PDF-Seite sich ändert und Markdown sichtbar ist,
-  // scrolle auf den passenden Anker im Markdown.
+  // PDF → Markdown Scroll Sync
   React.useEffect(() => {
-    if (phase !== 1 && phase !== 2) return; // nur in 1 (PDF|MD) und 2 (MD|Meta)
+    if (phase !== 1 && phase !== 2) return;
     if (!rightRef.current) return;
     const container = rightRef.current;
-    // Suche nach Page‑Markern, die der Extraktor einfügt (z. B. <!-- page:12 -->)
     const marker = container.querySelector(`[data-page-marker="${currentPage}"]`) as HTMLElement | null
       || container.querySelector(`[data-page="${currentPage}"]`) as HTMLElement | null
       || container.querySelector(`comment[data-page="${currentPage}"]`) as HTMLElement | null;
@@ -50,12 +48,10 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
     container.scrollTo({ top: marker.offsetTop - 16, behavior: 'smooth' });
     window.setTimeout(() => { syncingFromPdfRef.current = false; }, 250);
   }, [currentPage, phase]);
+
   const [pdfUrl, setPdfUrl] = React.useState<string | null>(null);
 
-  const isPdf = (item?.metadata?.mimeType || "").toLowerCase().includes("pdf");
-  if (!isPdf) return null;
-
-  // Lade das Shadow‑Twin Markdown über bestehende FileList‑Logik (selectedShadowTwinAtom)
+  // Shadow‑Twin laden
   React.useEffect(() => {
     let cancelled = false;
     async function loadTwin() {
@@ -82,7 +78,7 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
     return () => { cancelled = true; };
   }, [provider, shadowTwin?.id]);
 
-  // Hole Streaming-URL für pdf.js Viewer
+  // PDF-Streaming URL laden
   React.useEffect(() => {
     let cancelled = false;
     async function loadUrl() {
@@ -98,10 +94,9 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
     return () => { cancelled = true; };
   }, [storageProvider, item?.id]);
 
-  // Markdown → PDF: Beobachte sichtbare Marker und scrolle PDF zur entsprechenden Seite
+  // Markdown → PDF Scroll Sync via IntersectionObserver
   React.useEffect(() => {
     if (phase !== 1 && phase !== 2) return;
-    // Der Markdown-Scroll-Container ist entweder rightRef (Phase 1) oder leftRef (Phase 2)
     const container = phase === 1 ? rightRef.current : leftRef.current;
     const leftContainer = leftRef.current;
     if (!container || !leftContainer) return;
@@ -110,8 +105,7 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
     if (markers.length === 0) return;
 
     const observer = new IntersectionObserver((entries) => {
-      if (syncingFromPdfRef.current) return; // von PDF getriggerte Scolls ignorieren
-
+      if (syncingFromPdfRef.current) return;
       let best: { page: number; ratio: number } | null = null;
       for (const e of entries) {
         const attr = (e.target as HTMLElement).getAttribute('data-page-marker');
@@ -121,7 +115,6 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
         if (!best || ratio > best.ratio) best = { page, ratio };
       }
       if (!best || best.ratio < 0.25) return;
-
       if (!syncingFromMarkdownRef.current) {
         syncingFromMarkdownRef.current = true;
         const targetPane = phase === 1 ? leftContainer : rightRef.current;

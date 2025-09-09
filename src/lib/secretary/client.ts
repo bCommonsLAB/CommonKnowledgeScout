@@ -653,7 +653,6 @@ export async function transformPdf(
   extractionMethod: string = 'native',
   useCache: boolean = true,
   includeImages: boolean = false,
-  useIngestionPipeline: boolean = false,
   skipTemplate?: boolean,
   context?: { originalItemId?: string; parentId?: string; originalFileName?: string; doExtractPDF?: boolean; doExtractMetadata?: boolean; doIngestRAG?: boolean; forceRecreate?: boolean }
 ): Promise<SecretaryPdfResponse> {
@@ -666,7 +665,6 @@ export async function transformPdf(
     formData.append('extractionMethod', extractionMethod);
     formData.append('useCache', useCache.toString());
     formData.append('includeImages', includeImages.toString());
-    // Alte Felder nicht mehr senden: useIngestionPipeline, skipTemplate
     // Neue vereinfachte Flags
     if (typeof context?.doExtractPDF === 'boolean') formData.append('doExtractPDF', String(context.doExtractPDF));
     if (typeof context?.doExtractMetadata === 'boolean') formData.append('doExtractMetadata', String(context.doExtractMetadata));

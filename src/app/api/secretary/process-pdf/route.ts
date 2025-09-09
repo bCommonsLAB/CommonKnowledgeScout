@@ -10,8 +10,7 @@ import { startWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { ExternalJob } from '@/types/external-job';
 import { LibraryService } from '@/lib/services/library-service';
 import { FileSystemProvider } from '@/lib/storage/filesystem-provider';
-import { gateExtractPdf, gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
-import { IngestionService } from '@/lib/chat/ingestion-service';
+import { gateExtractPdf } from '@/lib/processing/gates';
 import { TransformService } from '@/lib/transform/transform-service';
 
 export async function POST(request: NextRequest) {
@@ -360,6 +359,23 @@ export async function POST(request: NextRequest) {
                 fd.append('target_language', targetLanguage);
                 fd.append('template_content', templateContent);
                 fd.append('use_cache', 'false');
+                // Kontext für LLM-Auswertung (Dateiname/Pfad/IDs)
+                try {
+                  const parentPath = await provider.getPathById(parentId || 'root'); // z.B. /Berichte Landesämter/Bevölk.Schutz
+                  const dirPath = parentPath.replace(/^\//, ''); // Berichte Landesämter/Bevölk.Schutz
+                  const rawName = (expectedName || file?.name || 'document.md');
+                  const withoutExt = rawName.replace(/\.[^./\\]+$/, '');
+                  const baseName = withoutExt.replace(new RegExp(`\\.${targetLanguage}$`, 'i'), '');
+                  const ctx = {
+                    filename: baseName,
+                    filepath: dirPath,
+                    libraryId,
+                    jobId,
+                    sourceItemId: originalItemId,
+                    parentId
+                  } as const;
+                  fd.append('context', JSON.stringify(ctx));
+                } catch {}
                 const headers: Record<string, string> = { 'Accept': 'application/json' };
                 const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
                 if (apiKey) { headers['Authorization'] = `Bearer ${apiKey}`; headers['X-Service-Token'] = apiKey; }

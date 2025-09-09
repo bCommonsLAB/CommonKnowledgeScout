@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 // Lade pdf.js ausschließlich lokal (ESM) und setze Worker-Pfad bundler-freundlich
-async function loadPdfJs(): Promise<any> {
+interface PdfJsModule {
+  getDocument: (opts: { url: string }) => { promise: Promise<{ numPages: number; getPage: (n: number) => Promise<{ getViewport: (opts: { scale: number }) => { width: number; height: number }; render: (args: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> } }> }> };
+}
+async function loadPdfJs(): Promise<PdfJsModule | null> {
   if (typeof window === 'undefined') return null;
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore - dynamischer Import zur Laufzeit
-  const mod = await import('pdfjs-dist/build/pdf.mjs');
+  const mod = (await import('pdfjs-dist/build/pdf.mjs')) as unknown as PdfJsModule;
   return mod;
 }
 
@@ -23,7 +24,7 @@ interface PdfCanvasViewerProps {
 export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [currentPage, setCurrentPage] = useAtom(currentPdfPageAtom);
-  const pdfDocRef = React.useRef<any>(null);
+  const pdfDocRef = React.useRef<{ numPages: number; getPage: (n: number) => Promise<{ getViewport: (opts: { scale: number }) => { width: number; height: number }; render: (args: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> } }> } | null>(null);
   const [numPages, setNumPages] = React.useState<number>(0);
   const [scale, setScale] = React.useState<number>(1.25);
   const [pageInput, setPageInput] = React.useState<number>(1);

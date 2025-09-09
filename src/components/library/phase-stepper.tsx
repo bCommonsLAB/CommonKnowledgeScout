@@ -18,6 +18,8 @@ interface PhaseStepperProps {
   className?: string;
 }
 
+const PdfPhaseSettings = React.lazy(() => import('./pdf-phase-settings').then(m => ({ default: m.PdfPhaseSettings })));
+
 export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [phase, setPhase] = useAtom(activePdfPhaseAtom);
@@ -47,7 +49,6 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
       // Phasenlogik: 1 nur Extraktion; 2 Template/Meta; 3 nur Ingestion
       const options: PdfTransformOptions = {
         ...base,
-        // Alte Felder entfernt; Steuerung nur noch über neue Flags
         // Neue Flags für vereinfachte Phasensteuerung
         doExtractPDF: phase >= 1,
         doExtractMetadata: phase >= 2,
@@ -108,10 +109,8 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
         </Button>
       </div>
       {settingsOpen && (
-        // Lazy import, um bundle klein zu halten
         <React.Suspense>
-          {/** @ts-expect-error dynamic import type */}
-          {React.createElement(require('./pdf-phase-settings').PdfPhaseSettings, { open: settingsOpen, onOpenChange: setSettingsOpen })}
+          <PdfPhaseSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
         </React.Suspense>
       )}
     </div>
