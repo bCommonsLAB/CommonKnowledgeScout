@@ -103,33 +103,79 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
     return () => { cancelled = true; };
   }, [isOpen, provider, activeLibraryId, listItems]);
 
-  // Generiere Standard-Dateinamen basierend auf ausgewählten Dateien
+  // Erzeuge effektive Eingabeliste: nur Markdown; PDFs → Shadow‑Twin (Markdown) im gleichen Ordner
+  const [effectiveItems, setEffectiveItems] = useState<typeof selectedItems>([]);
+  const [skippedCount, setSkippedCount] = useState<number>(0);
   useEffect(() => {
-    if (selectedItems.length > 0) {
+    let cancelled = false;
+    async function computeEffective() {
+      try {
+        if (!provider || selectedItems.length === 0) {
+          if (!cancelled) { setEffectiveItems([]); setSkippedCount(0); }
+          return;
+        }
+        const byParent = new Map<string, StorageItem[]>();
+        const loadSiblings = async (parentId: string): Promise<StorageItem[]> => {
+          if (byParent.has(parentId)) return byParent.get(parentId)!;
+          const sibs = await listItems(parentId);
+          byParent.set(parentId, sibs);
+          return sibs;
+        };
+        const results: typeof selectedItems = [];
+        let skipped = 0;
+        for (const sel of selectedItems) {
+          const it = sel.item;
+          const name = it.metadata.name.toLowerCase();
+          const isMarkdown = name.endsWith('.md') || (it.metadata.mimeType || '').toLowerCase() === 'text/markdown';
+          if (isMarkdown) { results.push({ item: it, type: 'text' }); continue; }
+          const isPdf = name.endsWith('.pdf') || (it.metadata.mimeType || '').toLowerCase() === 'application/pdf';
+          if (!isPdf || !it.parentId) { skipped++; continue; }
+          const siblings = await loadSiblings(it.parentId);
+          const base = it.metadata.name.replace(/\.[^./]+$/,'');
+          // Bevorzugt Sprache passend auswählen
+          const preferred = `${base}.${selectedLanguage}.md`.toLowerCase();
+          let twin = siblings.find(s => s.type === 'file' && s.metadata.name.toLowerCase() === preferred);
+          if (!twin) {
+            twin = siblings.find(s => s.type === 'file' && s.metadata.name.toLowerCase().startsWith(`${base.toLowerCase()}.`) && s.metadata.name.toLowerCase().endsWith('.md'));
+          }
+          if (twin) results.push({ item: twin, type: 'text' }); else skipped++;
+        }
+        if (!cancelled) { setEffectiveItems(results); setSkippedCount(skipped); }
+      } catch {
+        if (!cancelled) { setEffectiveItems([]); setSkippedCount(0); }
+      }
+    }
+    void computeEffective();
+    return () => { cancelled = true; };
+  }, [provider, listItems, selectedItems, selectedLanguage]);
+
+  // Generiere Standard-Dateinamen basierend auf effektiven Dateien
+  useEffect(() => {
+    if (effectiveItems.length > 0) {
       const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
       const languageName = availableLanguages.find(lang => lang.code === selectedLanguage)?.name || selectedLanguage;
       
       // Erstelle einen aussagekräftigeren Namen basierend auf den ausgewählten Dateien
       let defaultName = '';
       
-      if (selectedItems.length === 1) {
+      if (effectiveItems.length === 1) {
         // Bei einer Datei: Verwende den ursprünglichen Namen + Transformation + Sprache
-        const originalName = selectedItems[0].item.metadata.name;
+        const originalName = effectiveItems[0].item.metadata.name;
         const nameWithoutExt = originalName.split('.').slice(0, -1).join('.');
         defaultName = `${nameWithoutExt}_Transformiert_${languageName}_${timestamp}`;
       } else {
         // Bei mehreren Dateien: Verwende die ersten beiden Namen + Anzahl + Sprache
-        const firstNames = selectedItems.slice(0, 2).map(item => 
+        const firstNames = effectiveItems.slice(0, 2).map(item => 
           item.item.metadata.name.split('.').slice(0, -1).join('.')
         );
-        defaultName = `${firstNames.join('_')}_und_${selectedItems.length - 2}_weitere_${languageName}_${timestamp}`;
+        defaultName = `${firstNames.join('_')}_und_${effectiveItems.length - 2}_weitere_${languageName}_${timestamp}`;
       }
       
       setCustomFileName(defaultName);
       // Validiere den generierten Namen
       setFileNameError(validateFileName(defaultName));
     }
-  }, [selectedItems, selectedLanguage]);
+  }, [effectiveItems, selectedLanguage]);
 
   // Validierung des Dateinamens
   const validateFileName = (fileName: string): string => {
@@ -190,7 +236,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
 
       // Batch-Text-Transformation starten
       const results = await BatchTransformService.transformTextBatch(
-        selectedItems,
+        effectiveItems,
         {
           ...baseOptions,
           targetLanguage: selectedLanguage,
@@ -212,13 +258,13 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
       // Erfolgs-/Fehlermeldung anzeigen
       if (results.success) {
         const successCount = results.results.filter(r => r.success).length;
-        toast.success("Batch-Text-Transformation abgeschlossen", {
-          description: `${successCount} von ${selectedItems.length} Dateien erfolgreich verarbeitet. Eine kombinierte Datei wurde erstellt.`
+        toast.success("Kombinierte Transformation abgeschlossen", {
+          description: `${successCount} von ${effectiveItems.length} Dateien erfolgreich verarbeitet. Eine kombinierte Datei wurde erstellt.`
         });
         
         // Fileliste automatisch aktualisieren
-        if (selectedItems.length > 0) {
-          const parentId = selectedItems[0].item.parentId;
+        if (effectiveItems.length > 0) {
+          const parentId = effectiveItems[0].item.parentId;
           if (parentId) {
             try {
               const updatedItems = await refreshItems(parentId);
@@ -238,23 +284,23 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
         }
       } else {
         const errorCount = results.results.filter(r => !r.success).length;
-        toast.error("Batch-Text-Transformation mit Fehlern abgeschlossen", {
-          description: `${errorCount} von ${selectedItems.length} Dateien konnten nicht verarbeitet werden.`
+        toast.error("Kombinierte Transformation mit Fehlern abgeschlossen", {
+          description: `${errorCount} von ${effectiveItems.length} Dateien konnten nicht verarbeitet werden.`
         });
       }
 
     } catch (error) {
-      console.error('Batch text transformation error:', error);
+      console.error('Combined text transformation error:', error);
       setProgressState(prev => ({
         ...prev,
         isProcessing: false
       }));
       
       toast.error("Fehler", {
-        description: `Batch-Text-Transformation fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+        description: `Kombinierte Transformation fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       });
     }
-  }, [provider, activeLibraryId, selectedItems, baseOptions, selectedTemplate, refreshItems, customFileName, selectedLanguage]);
+  }, [provider, activeLibraryId, effectiveItems, baseOptions, selectedTemplate, refreshItems, customFileName, selectedLanguage]);
 
   // Dialog schließen und State zurücksetzen
   const handleClose = useCallback(() => {
@@ -275,17 +321,20 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Batch-Text-Transformation</DialogTitle>
+          <DialogTitle>Mehrere Dateien zu einem Dokument transformieren</DialogTitle>
         </DialogHeader>
         
         <div className="py-6 space-y-6">
           {/* Ausgewählte Dateien */}
           <div>
-            <h4 className="mb-4 text-sm font-medium">
-              Ausgewählte Dateien ({selectedItems.length})
+            <h4 className="mb-1 text-sm font-medium">
+              Eingabedateien ({effectiveItems.length})
             </h4>
+            {skippedCount > 0 && (
+              <p className="text-xs text-amber-600 mb-2">{skippedCount} Elemente wurden übersprungen (keine Markdown-Quelle gefunden).</p>
+            )}
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {selectedItems.map(({ item, type }) => (
+              {effectiveItems.map(({ item, type }) => (
                 <div key={item.id} className="flex items-center gap-2 text-sm">
                   {type === 'text' ? (
                     <FileText className="h-4 w-4 text-blue-500" />
@@ -300,7 +349,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Alle ausgewählten Texte werden zu einem kombinierten Dokument zusammengeführt und mit dem ausgewählten Template transformiert.
+              Die ausgewählten Texte werden zu einem einzigen Dokument kombiniert und anschließend mit dem gewählten Template verarbeitet.
             </p>
           </div>
 
@@ -458,9 +507,9 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
           {!progressState.isProcessing && !progressState.results && (
             <Button 
               onClick={handleStartBatchTransformation}
-              disabled={selectedItems.length === 0 || !!fileNameError}
+              disabled={effectiveItems.length === 0 || !!fileNameError}
             >
-              Transformation starten ({selectedItems.length} Dateien kombinieren)
+              Kombinierte Transformation starten ({effectiveItems.length} Dateien)
             </Button>
           )}
         </div>

@@ -431,6 +431,18 @@ const FileRow = React.memo(function FileRow({
     }
   }, [fileGroup]);
 
+  // Zentraler Jobstatus (muss vor möglichen early-returns stehen, um Hook-Order zu garantieren)
+  const jobStatusMap = useAtomValue(jobStatusByItemIdAtom);
+  const jobStatus = jobStatusMap[item.id];
+  const jobStatusIcon = jobStatus ? (
+    <span title={jobStatus} className={cn('inline-block h-3 w-3 rounded-full',
+      jobStatus === 'queued' && 'bg-blue-600',
+      jobStatus === 'running' && 'bg-yellow-600',
+      jobStatus === 'completed' && 'bg-green-600',
+      jobStatus === 'failed' && 'bg-red-600'
+    )} aria-label={`job-${jobStatus}`} />
+  ) : null;
+
   // Compact-Modus: vereinfachte Darstellung
   if (compact) {
     return (
@@ -463,16 +475,6 @@ const FileRow = React.memo(function FileRow({
     );
   }
 
-  // Live-Status aus zentralem Jotai-Store beziehen (keine per-Zeile-SSE)
-  const jobStatus = useAtomValue(jobStatusByItemIdAtom)[item.id];
-  const jobStatusIcon = jobStatus ? (
-    <span title={jobStatus} className={cn('inline-block h-3 w-3 rounded-full',
-      jobStatus === 'queued' && 'bg-blue-600',
-      jobStatus === 'running' && 'bg-yellow-600',
-      jobStatus === 'completed' && 'bg-green-600',
-      jobStatus === 'failed' && 'bg-red-600'
-    )} aria-label={`job-${jobStatus}`} />
-  ) : null;
   return (
     <div
       role="button"
@@ -1154,6 +1156,35 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   };
 
+  // Bulk-Löschung für ausgewählte Dateien (unabhängig von Batch/Transformation-Selektor)
+  const handleBulkDelete = React.useCallback(async () => {
+    if (!provider) return;
+    const targets = [
+      ...selectedBatchItems.map(x => x.item),
+      ...selectedTransformationItems.map(x => x.item),
+    ];
+    if (targets.length === 0) return;
+    const confirmMsg = targets.length === 1
+      ? `"${targets[0].metadata.name}" wirklich löschen?`
+      : `${targets.length} Dateien wirklich löschen?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const parentId = targets[0].parentId || 'root';
+      for (const t of targets) {
+        try { await provider.deleteItem(t.id); } catch (err) {
+          FileLogger.error('FileList', 'Bulk Delete failed', { id: t.id, name: t.metadata.name, err });
+        }
+      }
+      const refreshed = await refreshItems(parentId);
+      setFolderItems(refreshed);
+      setSelectedBatchItems([]);
+      setSelectedTransformationItems([]);
+    } catch (error) {
+      FileLogger.error('FileList', 'Bulk Delete error', error);
+    }
+  }, [provider, selectedBatchItems, selectedTransformationItems, refreshItems, setFolderItems, setSelectedBatchItems, setSelectedTransformationItems]);
+
   // Intelligente Batch-Auswahl basierend auf Filter
   const handleSelectAll = useCallback((checked: boolean) => {
     const startTime = performance.now();
@@ -1276,6 +1307,11 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
             {selectedTransformationItems.length > 0 && (
               <Button size="icon" variant="secondary" title="Transformieren" aria-label="Transformieren" onClick={handleBatchTransformation}>
                 <Plus className="h-4 w-4" />
+              </Button>
+            )}
+            {(selectedBatchItems.length + selectedTransformationItems.length) > 0 && (
+              <Button size="icon" variant="destructive" title="Ausgewählte löschen" aria-label="Ausgewählte löschen" onClick={handleBulkDelete}>
+                <Trash2 className="h-4 w-4" />
               </Button>
             )}
           </div>

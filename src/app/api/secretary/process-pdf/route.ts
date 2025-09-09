@@ -461,14 +461,14 @@ export async function POST(request: NextRequest) {
       const timeoutMs = Number(process.env.SECRETARY_REQUEST_TIMEOUT_MS || '5000');
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       response = await fetch(normalizedUrl, {
-        method: 'POST',
-        body: serviceFormData,
-        headers: (() => {
-          const h: Record<string, string> = { 'Accept': 'application/json' };
-          const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
-          if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
-          return h;
-        })(),
+      method: 'POST',
+      body: serviceFormData,
+      headers: (() => {
+        const h: Record<string, string> = { 'Accept': 'application/json' };
+        const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+        if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
+        return h;
+      })(),
         signal: controller.signal,
       });
       clearTimeout(timer);

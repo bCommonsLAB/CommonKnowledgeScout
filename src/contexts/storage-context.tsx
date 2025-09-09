@@ -132,7 +132,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       setLibraryStatus('ready');
       setLibraryStatusAtom('ready');
     }
-  }, [providerFromHook]);
+  }, [providerFromHook, setLibraryStatusAtom]);
 
   // Zusätzlicher Effect: Provider-Cache leeren bei Library-Wechsel
   useEffect(() => {
@@ -167,7 +167,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     const found = libraries.find(lib => lib.id === activeLibraryId) || null;
     setCurrentLibrary(found);
     // Status wird in einem anderen useEffect basierend auf der Library gesetzt
-  }, [activeLibraryId, libraries]);
+  }, [activeLibraryId, libraries, setLibraryStatusAtom]);
 
   // Bibliotheken aus der API laden
   useEffect(() => {
@@ -637,7 +637,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       setIsAuthRequired(true);
       setAuthProvider(currentLibrary.type);
     }
-  }, [currentLibrary]);
+  }, [currentLibrary, setLibraryStatusAtom]);
 
   // Context-Wert
   const value = {
@@ -711,7 +711,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         console.log('[StorageContext] Unbekannter Provider-Typ, Status auf "ready" gesetzt.');
       }
     }
-  }, [currentLibrary, provider]);
+  }, [currentLibrary, provider, setLibraryStatusAtom]);
 
   // TEMP: Logging für API-Calls
   React.useEffect(() => {

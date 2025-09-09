@@ -10,6 +10,7 @@ export interface JobUpdateEvent {
   updatedAt: string;
   jobType?: string;
   fileName?: string;
+  sourceItemId?: string;
 }
 
 type UserEmail = string;

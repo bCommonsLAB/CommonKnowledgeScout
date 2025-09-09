@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { FileText, FileAudio, FileVideo, Image as ImageIcon, File as FileIcon, FileType2, RefreshCw, Ban } from "lucide-react";
 
@@ -227,7 +226,7 @@ export function JobMonitorPanel() {
       if (eventRef.current) try { eventRef.current.close(); } catch {}
       window.removeEventListener('job_update_local', onLocal as unknown as EventListener);
     };
-  }, []);
+  }, [refreshNow, upsertJobStatus]);
 
   const handleToggle = () => setIsOpen(v => !v);
   const loadMore = async () => {

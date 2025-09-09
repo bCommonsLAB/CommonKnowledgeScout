@@ -254,6 +254,7 @@ export async function POST(
         updatedAt: new Date().toISOString(),
         jobType: job.job_type,
         fileName: job.correlation?.source?.name,
+        sourceItemId: job.correlation?.source?.itemId,
       });
       return NextResponse.json({ status: 'ok', jobId, kind: 'progress' });
     }
@@ -267,7 +268,7 @@ export async function POST(
         await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
       }
       await repo.setStatus(jobId, 'failed', { error: { code: 'worker_error', message: 'Externer Worker-Fehler', details: body.error } });
-      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: body?.error?.message, jobType: job.job_type, fileName: job.correlation?.source?.name });
+      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: body?.error?.message, jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed' });
     }
 
@@ -593,7 +594,7 @@ export async function POST(
     await repo.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen' });
 
     FileLogger.info('external-jobs', 'Job completed', { jobId, savedItemId, savedItemsCount: savedItems.length });
-    getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'Job abgeschlossen', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name });
+    getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
     return NextResponse.json({ status: 'ok', jobId, kind: 'final', savedItemId, savedItemsCount: savedItems.length });
   } catch {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
