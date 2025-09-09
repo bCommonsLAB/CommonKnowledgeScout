@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
 import { useAtomValue, useAtom } from 'jotai';
+import { jobStatusByItemIdAtom } from '@/atoms/job-status';
 import { 
   activeLibraryIdAtom, 
   selectedFileAtom, 
@@ -462,7 +463,16 @@ const FileRow = React.memo(function FileRow({
     );
   }
 
-  // Standard-Modus: vollständige Tabellen-Darstellung
+  // Live-Status aus zentralem Jotai-Store beziehen (keine per-Zeile-SSE)
+  const jobStatus = useAtomValue(jobStatusByItemIdAtom)[item.id];
+  const jobStatusIcon = jobStatus ? (
+    <span title={jobStatus} className={cn('inline-block h-3 w-3 rounded-full',
+      jobStatus === 'queued' && 'bg-blue-600',
+      jobStatus === 'running' && 'bg-yellow-600',
+      jobStatus === 'completed' && 'bg-green-600',
+      jobStatus === 'failed' && 'bg-red-600'
+    )} aria-label={`job-${jobStatus}`} />
+  ) : null;
   return (
     <div
       role="button"
@@ -517,6 +527,7 @@ const FileRow = React.memo(function FileRow({
         {formatDate(metadata.modifiedAt)}
       </span>
       <div className="flex items-center justify-start gap-1">
+        {jobStatusIcon}
         {/* System-Unterordner (z. B. extrahierte Seiten) */}
         {systemFolderId && (
           <TooltipProvider>

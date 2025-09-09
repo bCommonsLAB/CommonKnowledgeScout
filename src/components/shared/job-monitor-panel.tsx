@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
+import { useSetAtom } from 'jotai';
+import { upsertJobStatusAtom } from '@/atoms/job-status';
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,7 @@ interface JobUpdateEvent {
   updatedAt: string;
   jobType?: string;
   fileName?: string;
+  sourceItemId?: string;
 }
 
 function formatRelative(dateIso?: string): string {
@@ -68,11 +71,14 @@ function formatDuration(startIso?: string, endIso?: string): string {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const variant = status === 'completed' ? 'default'
-    : status === 'running' ? 'secondary'
-    : status === 'failed' ? 'destructive'
-    : 'outline';
-  return <Badge variant={variant}>{status}</Badge>;
+  const map: Record<string, { label: string; className: string }> = {
+    queued: { label: 'Queued', className: 'bg-blue-200 text-blue-900 border-blue-300' },
+    running: { label: 'Running', className: 'bg-yellow-200 text-yellow-900 border-yellow-300' },
+    completed: { label: 'Completed', className: 'bg-green-200 text-green-900 border-green-300' },
+    failed: { label: 'Failed', className: 'bg-red-200 text-red-900 border-red-300' },
+  };
+  const entry = map[status] || { label: status, className: 'bg-muted text-muted-foreground' };
+  return <span className={cn('inline-flex items-center px-2 py-0.5 rounded border text-[11px] font-medium', entry.className)}>{entry.label}</span>;
 }
 
 export function JobMonitorPanel() {
@@ -82,6 +88,7 @@ export function JobMonitorPanel() {
   const [hasMore, setHasMore] = useState(true);
   const eventRef = useRef<EventSource | null>(null);
   const isFetchingRef = useRef(false);
+  const upsertJobStatus = useSetAtom(upsertJobStatusAtom);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
@@ -138,6 +145,9 @@ export function JobMonitorPanel() {
       const onUpdate = (e: MessageEvent) => {
         try {
           const evt: JobUpdateEvent = JSON.parse(e.data);
+          if (evt.sourceItemId && evt.status) {
+            upsertJobStatus({ itemId: evt.sourceItemId, status: evt.status });
+          }
           setItems(prev => {
             const idx = prev.findIndex(p => p.jobId === evt.jobId);
             const patch: Partial<JobListItem> = {
@@ -308,7 +318,13 @@ export function JobMonitorPanel() {
           <ScrollArea className="flex-1">
             <ul className="p-3 space-y-2">
               {items.filter(it => !hiddenIds.has(it.jobId)).map(item => (
-                <li key={item.jobId} className="border rounded-md p-3">
+                <li key={item.jobId} className={cn(
+                  "border rounded-md p-3",
+                  item.status === 'queued' && 'bg-blue-100/60',
+                  item.status === 'running' && 'bg-yellow-100/60',
+                  item.status === 'completed' && 'bg-green-100/60',
+                  item.status === 'failed' && 'bg-red-100/60'
+                )}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="shrink-0" title={item.jobType || 'job'}>

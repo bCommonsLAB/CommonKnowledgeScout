@@ -214,6 +214,7 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date().toISOString(),
         jobType: job.job_type,
         fileName: correlation.source?.name,
+        sourceItemId: originalItemId,
       });
     } catch {}
     // Watchdog starten (600s ohne Progress => Timeout)
@@ -276,12 +277,7 @@ export async function POST(request: NextRequest) {
     
     FileLogger.info('process-pdf', 'HTTP-Request an Secretary Service', { jobId, request: httpRequest });
     // Persistenter Logeintrag in DB
-    await repository.appendLog(jobId, {
-      phase: 'request_sent',
-      sourcePath: correlation.source?.itemId,
-      targetParentId: correlation.source?.parentId,
-      callbackUrl: appUrl ? `${appUrl.replace(/\/$/, '')}/api/external/jobs/${jobId}` : undefined
-    });
+    await repository.appendLog(jobId, { phase: 'request_sent', sourcePath: correlation.source?.itemId, targetParentId: correlation.source?.parentId, callbackUrl: appUrl ? `${appUrl.replace(/\/$/, '')}/api/external/jobs/${jobId}` : undefined });
 
     // Idempotenz ist immer aktiv
     const autoSkipExisting: boolean = true;
@@ -406,7 +402,7 @@ export async function POST(request: NextRequest) {
                 await repository.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen (template-only)' });
                 await repository.setStatus(jobId, 'completed');
                 try {
-                  getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed (template-only)', jobType: 'pdf', fileName: correlation.source?.name });
+                  getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed (template-only)', jobType: 'pdf', fileName: correlation.source?.name, sourceItemId: originalItemId });
                 } catch {}
                 return NextResponse.json({ status: 'accepted', worker: 'secretary', process: { id: 'local-template-only', main_processor: 'template', started: new Date().toISOString(), is_from_cache: true }, job: { id: jobId }, webhook: { delivered_to: `${appUrl?.replace(/\/$/, '')}/api/external/jobs/${jobId}` }, error: null });
               }
@@ -436,7 +432,7 @@ export async function POST(request: NextRequest) {
             await repository.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen (extract skipped: artifact_exists)' });
             await repository.setStatus(jobId, 'completed');
             try {
-              getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed (skipped extract)', jobType: job.job_type, fileName: correlation.source?.name });
+              getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed (skipped extract)', jobType: job.job_type, fileName: correlation.source?.name, sourceItemId: originalItemId });
             } catch {}
             return NextResponse.json({
               status: 'accepted',
@@ -459,16 +455,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'accepted', job: { id: jobId } })
     }
 
-    const response = await fetch(normalizedUrl, {
-      method: 'POST',
-      body: serviceFormData,
-      headers: (() => {
-        const h: Record<string, string> = { 'Accept': 'application/json' };
-        const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
-        if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
-        return h;
-      })(),
-    });
+    let response: Response;
+    try {
+      const controller = new AbortController();
+      const timeoutMs = Number(process.env.SECRETARY_REQUEST_TIMEOUT_MS || '5000');
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      response = await fetch(normalizedUrl, {
+        method: 'POST',
+        body: serviceFormData,
+        headers: (() => {
+          const h: Record<string, string> = { 'Accept': 'application/json' };
+          const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+          if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
+          return h;
+        })(),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+    } catch (err) {
+      // Secretary nicht erreichbar → Job synchron auf failed setzen
+      const message = err instanceof Error ? err.message : 'worker_unavailable';
+      await repository.updateStep(jobId, 'extract_pdf', { status: 'failed', endedAt: new Date(), details: { reason: 'worker_unavailable', message } });
+      await repository.appendLog(jobId, { phase: 'request_error', message });
+      await repository.setStatus(jobId, 'failed');
+      clearWatchdog(jobId);
+      try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'failed', progress: 0, updatedAt: new Date().toISOString(), message: 'worker_unavailable', jobType: job.job_type, fileName: correlation.source?.name, sourceItemId: originalItemId }); } catch {}
+      return NextResponse.json({ error: 'Secretary Service nicht erreichbar' }, { status: 503 });
+    }
 
     // HTTP-Response als JSON loggen
     const httpResponse = {
@@ -489,8 +502,13 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       FileLogger.error('process-pdf', 'Secretary Fehler', data);
+      await repository.updateStep(jobId, 'extract_pdf', { status: 'failed', endedAt: new Date(), details: { reason: 'worker_error', status: response.status, statusText: response.statusText } });
+      await repository.appendLog(jobId, { phase: 'request_error', status: response.status, statusText: response.statusText });
+      await repository.setStatus(jobId, 'failed');
+      clearWatchdog(jobId);
+      try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'failed', progress: 0, updatedAt: new Date().toISOString(), message: `worker_error ${response.status}`, jobType: job.job_type, fileName: correlation.source?.name, sourceItemId: originalItemId }); } catch {}
       return NextResponse.json(
-        { error: data.error || 'Fehler beim Transformieren der PDF-Datei' },
+        { error: data?.error || 'Fehler beim Transformieren der PDF-Datei' },
         { status: response.status }
       );
     }

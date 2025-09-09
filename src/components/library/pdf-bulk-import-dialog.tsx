@@ -19,6 +19,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { FileLogger } from '@/lib/debug/logger';
+import { toast } from '@/components/ui/use-toast';
 import { loadPdfDefaults } from '@/lib/pdf-defaults';
 import { PdfPhaseSettings } from '@/components/library/pdf-phase-settings';
 import { Settings } from 'lucide-react';
@@ -103,7 +104,8 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         const base = getBaseName(file.metadata.name);
         const defaults = activeLibraryId ? loadPdfDefaults(activeLibraryId) : {};
         const lang = (defaults as { targetLanguage?: string }).targetLanguage || 'de';
-        const requireTwin = runMetaPhase && !runIngestionPhase;
+        // Batch-Scan soll auch bei Phase 1+2 ohne vorhandenen Twin zulassen → kein Twin-Zwang hier
+        const requireTwin = false;
         if (requireTwin && !hasTwinInFolder(items, base, lang)) {
           skipped++;
           continue;
@@ -163,6 +165,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     try {
       // Sequenzielles Anlegen von External-Jobs über unsere API-Route
       // Minimale Last, klare Reihenfolge (Secretary arbeitet der Reihe nach)
+      let okCount = 0; let failCount = 0;
       for (const { file, parentId } of candidates) {
         try {
           const bin = await provider?.getBinary(file.id);
@@ -183,28 +186,46 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             method: 'POST',
             headers: { 'X-Library-Id': activeLibraryId },
             body: (() => {
-              const metaOnly = !!runMetaPhase && !runIngestionPhase;
-              // Neue Flags
-              form.append('doExtractPDF', String(!metaOnly));
+              // Phase 1 ist immer aktiv (idempotent via Gates) → doExtractPDF true
+              form.append('doExtractPDF', 'true');
               form.append('doExtractMetadata', String(!!runMetaPhase));
               form.append('doIngestRAG', String(!!runIngestionPhase));
-              if (metaOnly) form.append('onlyMetadata', 'true');
               return form;
             })(),
           });
 
           if (!res.ok) {
-            const msg = await res.text().catch(() => 'unknown error');
-            FileLogger.error('PdfBulkImportDialog', 'Job enqueue failed', { name: file.metadata.name, status: res.status, msg });
+            let msg = '';
+            try {
+              const ct = res.headers.get('content-type') || '';
+              if (ct.includes('application/json')) {
+                const j = await res.json();
+                msg = typeof (j as { error?: unknown })?.error === 'string' ? (j as { error: string }).error : JSON.stringify(j);
+              } else {
+                msg = await res.text();
+              }
+            } catch {
+              msg = res.statusText || 'unknown error';
+            }
+            const friendly = res.status === 503 ? 'Secretary Service nicht erreichbar' : msg || 'Unbekannter Fehler';
+            FileLogger.error('PdfBulkImportDialog', 'Job enqueue failed', { file: file.metadata.name, status: res.status, statusText: res.statusText, message: friendly });
+            failCount++;
+            toast({ title: 'Fehler beim Starten', description: `${file.metadata.name}: ${res.status} ${friendly}`, variant: 'destructive' });
           } else {
             FileLogger.info('PdfBulkImportDialog', 'Job enqueued', { name: file.metadata.name });
+            okCount++;
+            toast({ title: 'Job gestartet', description: file.metadata.name });
           }
         } catch (error) {
           FileLogger.error('PdfBulkImportDialog', 'Fehler beim Enqueue für Datei', { fileId: file.id, error });
+          failCount++;
+          const msg = error instanceof Error ? error.message : 'unbekannter Fehler';
+          toast({ title: 'Fehler beim Starten', description: `${file.metadata.name}: ${msg}`, variant: 'destructive' });
           // Weiter mit nächster Datei
         }
       }
 
+      toast({ title: 'Batch abgeschlossen', description: `Gestartet: ${okCount}, fehlgeschlagen: ${failCount}` });
       onOpenChange(false);
     } finally {
       setIsEnqueuing(false);
