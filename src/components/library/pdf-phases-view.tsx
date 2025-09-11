@@ -139,7 +139,7 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
         <div className="ml-auto flex items-center gap-2 pr-1">
           <form className="flex items-center gap-1" onSubmit={(e) => { e.preventDefault(); const input = (e.currentTarget.elements.namedItem('gpage') as HTMLInputElement | null); if (!input) return; const val = Number(input.value); if (Number.isFinite(val) && val >= 1) setCurrentPage(val); }}>
             <span className="text-xs text-muted-foreground">Seite</span>
-            <input name="gpage" defaultValue={currentPage} className="h-7 w-16 text-center border rounded text-xs" />
+            <input name="gpage" value={currentPage} onChange={(e) => setCurrentPage(Number(e.target.value) || 1)} className="h-7 w-16 text-center border rounded text-xs" />
             <button type="submit" className="h-7 px-2 border rounded text-xs">Gehe</button>
           </form>
         </div>
@@ -191,11 +191,16 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
                 viewMode="metaOnly"
                 mdFileId={shadowTwin?.id || null}
                 onJumpTo={({ page, evidence }) => {
-                  if (markdownApiRef.current) {
-                    if (typeof page === 'number' || typeof page === 'string') {
-                      markdownApiRef.current.scrollToPage(page);
-                    } else if (typeof evidence === 'string' && evidence.trim()) {
+                  if (typeof page === 'number' || typeof page === 'string') {
+                    // Setze globalen Seitenzustand – alle Paneele folgen automatisch
+                    const p = typeof page === 'string' ? Number(page) : page;
+                    if (Number.isFinite(p)) setCurrentPage(p as number);
+                  } else if (typeof evidence === 'string' && evidence.trim()) {
+                    // Evidence-Suche im Markdown, Seite aus Marker ableiten und global setzen
+                    if (markdownApiRef.current) {
                       markdownApiRef.current.setQueryAndSearch(evidence.slice(0, 80));
+                      const vis = markdownApiRef.current.getVisiblePage?.();
+                      if (vis && Number.isFinite(vis)) setCurrentPage(vis as number);
                     }
                   }
                 }}

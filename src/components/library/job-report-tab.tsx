@@ -112,7 +112,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
     }
     void run()
     return () => { cancelled = true }
-  }, [libraryId, fileId])
+  }, [libraryId, fileId, fileName])
 
   // Wenn Template benutzt wurde, lade dessen Inhalt aus /templates und extrahiere Frontmatter-Schlüssel
   useEffect(() => {
@@ -373,8 +373,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
               const numLabel = counters.slice(0, lvl).filter(n => n > 0).join('.')
               const title = typeof c.title === 'string' ? c.title : ''
               const startPage = typeof c.startPage === 'number' ? c.startPage : ''
-              const endPage = typeof c.endPage === 'number' ? c.endPage : ''
-              const pageCount = typeof c.pageCount === 'number' ? c.pageCount : ''
+              
               const summaryVal = typeof c.summary === 'string' ? c.summary : ''
               const summary = summaryVal.length > 1000 ? `${summaryVal.slice(0, 1000)}…` : summaryVal
               const keywords = Array.isArray(c.keywords) ? (c.keywords as Array<unknown>).filter(v => typeof v === 'string') as string[] : []

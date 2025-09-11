@@ -44,7 +44,7 @@ interface MarkdownPreviewProps {
   className?: string;
   onTransform?: () => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
-  onRegisterApi?: (api: { scrollToText: (q: string) => void; scrollToPage: (n: number | string) => void; setQueryAndSearch: (q: string) => void }) => void;
+  onRegisterApi?: (api: { scrollToText: (q: string) => void; scrollToPage: (n: number | string) => void; setQueryAndSearch: (q: string) => void; getVisiblePage: () => number | null }) => void;
 }
 
 /**
@@ -1079,8 +1079,25 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
 
   const setQueryAndSearch = (q: string) => { setQuery(q); scrollToText(q); };
 
+  const getVisiblePage = (): number | null => {
+    const root = containerRef.current;
+    if (!root) return null;
+    const top = root.scrollTop + 8;
+    const markers = Array.from(root.querySelectorAll('[data-page-marker]')) as HTMLElement[];
+    if (markers.length === 0) return null;
+    let candidate: { page: number; dist: number } | null = null;
+    for (const m of markers) {
+      const attr = m.getAttribute('data-page-marker');
+      const page = attr ? Number(attr) : NaN;
+      if (Number.isNaN(page)) continue;
+      const dist = Math.abs(m.offsetTop - top);
+      if (!candidate || dist < candidate.dist) candidate = { page, dist };
+    }
+    return candidate ? candidate.page : null;
+  };
+
   React.useEffect(() => {
-    onRegisterApi?.({ scrollToText, scrollToPage, setQueryAndSearch });
+    onRegisterApi?.({ scrollToText, scrollToPage, setQueryAndSearch, getVisiblePage });
   }, [onRegisterApi]);
 
   const handleTransformComplete = () => {
