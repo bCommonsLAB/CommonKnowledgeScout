@@ -50,7 +50,7 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
   }, [currentPage, phase]);
 
   const [pdfUrl, setPdfUrl] = React.useState<string | null>(null);
-  const markdownApiRef = React.useRef<{ scrollToText: (q: string) => void; scrollToPage: (n: number | string) => void; setQueryAndSearch: (q: string) => void } | null>(null);
+  const markdownApiRef = React.useRef<{ scrollToText: (q: string) => void; scrollToPage: (n: number | string) => void; setQueryAndSearch: (q: string) => void; getVisiblePage?: () => number | null } | null>(null);
 
   // Shadow‑Twin laden
   React.useEffect(() => {

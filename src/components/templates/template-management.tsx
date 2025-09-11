@@ -95,6 +95,53 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
     }
   }, [selectedTemplate, form])
 
+  // Ordner-Erstellung/Suche memoisiert, damit als Dep verwendbar
+  const ensureTemplatesFolder = useCallback(async (): Promise<string> => {
+    if (!providerInstance || !activeLibrary) {
+      throw new Error("Keine aktive Bibliothek oder Provider verfügbar");
+    }
+
+    try {
+      console.log('[TemplateManagement] Suche nach Templates-Ordner...');
+      const rootItems = await listItems('root');
+      const templatesFolder = rootItems.find(item => 
+        item.type === 'folder' && item.metadata.name === 'templates'
+      );
+      if (templatesFolder) {
+        console.log('[TemplateManagement] Templates-Ordner gefunden:', templatesFolder.id);
+        return templatesFolder.id;
+      }
+      console.log('[TemplateManagement] Templates-Ordner nicht gefunden, erstelle neuen...');
+      const newFolder = await providerInstance.createFolder('root', 'templates');
+      console.log('[TemplateManagement] Neuer Templates-Ordner erstellt:', newFolder.id);
+      return newFolder.id;
+    } catch (error) {
+      console.error('Fehler beim Erstellen des Templates-Ordners:', {
+        error: error instanceof Error ? {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.split('\n').slice(0, 3)
+        } : error,
+        libraryId: activeLibrary?.id,
+        libraryPath: activeLibrary?.path,
+        providerName: providerInstance?.name
+      });
+      let errorMessage = 'Fehler beim Erstellen des Templates-Ordners';
+      if (error instanceof Error) {
+        if (error.message.includes('Nicht authentifiziert')) {
+          errorMessage = 'Bitte authentifizieren Sie sich bei Ihrem Cloud-Speicher, um den Templates-Ordner zu erstellen.';
+        } else if (error.message.includes('Keine Berechtigung')) {
+          errorMessage = 'Keine Berechtigung zum Erstellen von Ordnern in der Bibliothek.';
+        } else if (error.message.includes('Bibliothek nicht gefunden')) {
+          errorMessage = 'Die ausgewählte Bibliothek wurde nicht gefunden.';
+        } else {
+          errorMessage = `Fehler beim Erstellen des Templates-Ordners: ${error.message}`;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+  }, [providerInstance, activeLibrary, listItems]);
+
   // Templates laden mit der gleichen Logik wie Library-Komponente
   const loadTemplates = useCallback(async () => {
     if (!providerInstance || libraryStatus !== 'ready' || !activeLibrary) {
@@ -204,7 +251,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
     } finally {
       setIsLoading(false);
     }
-  }, [providerInstance, libraryStatus, activeLibrary, listItems, setTemplates, setTemplatesFolderId, setIsLoading, setError, toast]);
+  }, [providerInstance, libraryStatus, activeLibrary, listItems, setTemplates, setTemplatesFolderId, setIsLoading, setError, toast, ensureTemplatesFolder]);
 
   // Effect für Template Loading (wie Library-Komponente)
   useEffect(() => {
@@ -227,61 +274,6 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
     setTemplates([])
     setError(null)
   }, [libraryStatus, setSelectedTemplateName, setTemplatesFolderId, setTemplates, setError])
-
-  async function ensureTemplatesFolder(): Promise<string> {
-    if (!providerInstance || !activeLibrary) {
-      throw new Error("Keine aktive Bibliothek oder Provider verfügbar");
-    }
-
-    try {
-      console.log('[TemplateManagement] Suche nach Templates-Ordner...');
-      
-      // Versuche zuerst, den Templates-Ordner zu finden
-      const rootItems = await listItems('root');
-      const templatesFolder = rootItems.find(item => 
-        item.type === 'folder' && item.metadata.name === 'templates'
-      );
-      
-      if (templatesFolder) {
-        console.log('[TemplateManagement] Templates-Ordner gefunden:', templatesFolder.id);
-        return templatesFolder.id;
-      }
-
-      console.log('[TemplateManagement] Templates-Ordner nicht gefunden, erstelle neuen...');
-      
-      // Templates-Ordner erstellen, falls er nicht existiert
-      const newFolder = await providerInstance.createFolder('root', 'templates');
-      console.log('[TemplateManagement] Neuer Templates-Ordner erstellt:', newFolder.id);
-      return newFolder.id;
-    } catch (error) {
-      console.error('Fehler beim Erstellen des Templates-Ordners:', {
-        error: error instanceof Error ? {
-          message: error.message,
-          name: error.name,
-          stack: error.stack?.split('\n').slice(0, 3)
-        } : error,
-        libraryId: activeLibrary?.id,
-        libraryPath: activeLibrary?.path,
-        providerName: providerInstance?.name
-      });
-      
-      let errorMessage = 'Fehler beim Erstellen des Templates-Ordners';
-      
-      if (error instanceof Error) {
-        if (error.message.includes('Nicht authentifiziert')) {
-          errorMessage = 'Bitte authentifizieren Sie sich bei Ihrem Cloud-Speicher, um den Templates-Ordner zu erstellen.';
-        } else if (error.message.includes('Keine Berechtigung')) {
-          errorMessage = 'Keine Berechtigung zum Erstellen von Ordnern in der Bibliothek.';
-        } else if (error.message.includes('Bibliothek nicht gefunden')) {
-          errorMessage = 'Die ausgewählte Bibliothek wurde nicht gefunden.';
-        } else {
-          errorMessage = `Fehler beim Erstellen des Templates-Ordners: ${error.message}`;
-        }
-      }
-      
-      throw new Error(errorMessage);
-    }
-  }
 
   function parseTemplateContent(content: string, fileName: string): Template {
     // Template in drei Bereiche aufteilen

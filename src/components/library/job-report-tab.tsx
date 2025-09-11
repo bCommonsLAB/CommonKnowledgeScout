@@ -392,7 +392,6 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
                         <div className="flex items-baseline gap-2">
                           <span className="text-xs text-muted-foreground tabular-nums">{numLabel}</span>
                           <span className="font-medium truncate">{title}</span>
-                          <span className="text-[10px] px-1 rounded bg-muted">L{lvl}</span>
                         </div>
                       </div>
                       <div className="text-xs tabular-nums text-muted-foreground whitespace-nowrap">
