@@ -210,13 +210,15 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
     void loadFrontmatter()
   }, [provider, fileId, mdFileId, job?.result?.savedItemId, sourceMode])
 
-  if (loading) return <div className="p-4 text-sm text-muted-foreground">Lade Job…</div>
-  if (error) return <div className="p-4 text-sm text-destructive">{error}</div>
-  if (!job) return <div className="p-4 text-sm text-muted-foreground">Kein Job zur Datei gefunden.</div>
+  if (sourceMode !== 'frontmatter') {
+    if (loading) return <div className="p-4 text-sm text-muted-foreground">Lade Job…</div>
+    if (error) return <div className="p-4 text-sm text-destructive">{error}</div>
+    if (!job) return <div className="p-4 text-sm text-muted-foreground">Kein Job zur Datei gefunden.</div>
+  }
 
   return (
     <div className="p-4 space-y-3 text-sm">
-      {viewMode === 'full' && (
+      {viewMode === 'full' && job && (
         <div className="flex items-center justify-between">
           <div>
             <div className="font-medium">Job {job.jobId}</div>
@@ -227,12 +229,12 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
       )}
 
       {/* Template Hinweis (im Frontmatter-only-Modus ausgeblendet) */}
-      {sourceMode !== 'frontmatter' && typeof job.cumulativeMeta?.template_used === 'string' && (
+      {sourceMode !== 'frontmatter' && job && typeof job.cumulativeMeta?.template_used === 'string' && (
         <div className="text-xs text-muted-foreground">Template: {String(job.cumulativeMeta.template_used)}</div>
       )}
 
       {/* Schritte mit Ampel-Logik */}
-      {viewMode === 'full' && Array.isArray(job.steps) && job.steps.length > 0 && (
+      {viewMode === 'full' && job && Array.isArray(job.steps) && job.steps.length > 0 && (
         <div>
           <div className="font-medium mb-1">Schritte</div>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -282,7 +284,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
       {(() => {
         const base: Record<string, unknown> = sourceMode === 'frontmatter'
           ? {}
-          : ((job.cumulativeMeta as unknown as Record<string, unknown>) || {})
+          : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
         const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
         const baseKeys = Array.isArray(templateFields) && templateFields.length > 0
           ? templateFields
@@ -324,7 +326,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
       {(() => {
         const chapters: Array<Record<string, unknown>> = sourceMode === 'frontmatter'
           ? (Array.isArray(frontmatterMeta?.chapters) ? (frontmatterMeta?.chapters as Array<Record<string, unknown>>) : [])
-          : ((job.cumulativeMeta as unknown as { chapters?: Array<Record<string, unknown>> })?.chapters || [])
+          : ((job?.cumulativeMeta as unknown as { chapters?: Array<Record<string, unknown>> })?.chapters || [])
         if (!Array.isArray(chapters) || chapters.length === 0) return null
         return (
         <div>
@@ -400,7 +402,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
       {(() => {
         const toc: Array<Record<string, unknown>> = sourceMode === 'frontmatter'
           ? (Array.isArray(frontmatterMeta?.toc) ? (frontmatterMeta?.toc as Array<Record<string, unknown>>) : [])
-          : ((job.cumulativeMeta as unknown as { toc?: Array<Record<string, unknown>> }).toc || [])
+          : ((job?.cumulativeMeta as unknown as { toc?: Array<Record<string, unknown>> }).toc || [])
         if (!Array.isArray(toc) || toc.length === 0) return null
         return (
         <div>
@@ -434,14 +436,14 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
         )
       })()}
 
-      {viewMode === 'full' && job.ingestion && (
+      {viewMode === 'full' && job && job.ingestion && (
         <div>
           <div className="font-medium mb-1">Ingestion</div>
           <div className="text-xs text-muted-foreground">{job.ingestion.index || '—'} · Vektoren: {job.ingestion.vectorsUpserted ?? '—'} · {job.ingestion.upsertAt ? new Date(job.ingestion.upsertAt).toLocaleString() : '—'}</div>
         </div>
       )}
 
-      {viewMode === 'full' && Array.isArray(job.logs) && job.logs.length > 0 && (
+      {viewMode === 'full' && job && Array.isArray(job.logs) && job.logs.length > 0 && (
         <div>
           <div className="font-medium mb-1">Logs (neueste zuerst)</div>
           <ul className="space-y-0.5 max-h-48 overflow-auto">
@@ -455,7 +457,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
       )}
 
       {/* Parameter am Ende */}
-      {viewMode === 'full' && job.parameters && (
+      {viewMode === 'full' && job && job.parameters && (
         <div>
           <div className="font-medium mb-1">Parameter</div>
           <pre className="bg-muted/40 rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(job.parameters, null, 2)}</pre>

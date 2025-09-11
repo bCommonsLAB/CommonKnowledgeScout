@@ -1,5 +1,5 @@
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
-import { FileSystemProvider } from '@/lib/storage/filesystem-provider';
+import { getServerProvider } from '@/lib/storage/server-provider';
 import type { Library } from '@/types/library';
 
 export interface GateContext {
@@ -26,9 +26,9 @@ function getBaseName(name: string | undefined): string | undefined {
 export async function gateExtractPdf(ctx: GateContext): Promise<GateResult> {
   const { repo, userEmail, library, source, options } = ctx;
   // 1) Shadow‑Twin per Namensschema prüfen
-  if (library?.type === 'local' && library.path && source?.parentId) {
+  if (library && source?.parentId) {
     try {
-      const provider = new FileSystemProvider(library.path);
+      const provider = await getServerProvider(userEmail, library.id);
       const siblings = await provider.listItemsById(source.parentId);
       const base = getBaseName(source.name);
       const lang = (options?.targetLanguage || 'de').toLowerCase();

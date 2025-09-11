@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
-import { FileSystemProvider } from '@/lib/storage/filesystem-provider';
+// import { FileSystemProvider } from '@/lib/storage/filesystem-provider';
 import { ImageExtractionService } from '@/lib/transform/image-extraction-service';
 import { TransformService } from '@/lib/transform/transform-service';
 import { LibraryService } from '@/lib/services/library-service';
 import { FileLogger } from '@/lib/debug/logger';
-import type { Library } from '@/types/library';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
 import { IngestionService } from '@/lib/chat/ingestion-service';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
+import { getServerProvider } from '@/lib/storage/server-provider';
+
+// OneDrive-Utilities entfernt: Provider übernimmt Token/Uploads.
 
 function toAsciiKebab(input: unknown, maxLen: number = 80): string | undefined {
   if (typeof input !== 'string') return undefined;
@@ -84,48 +86,7 @@ function normalizeStructuredData(raw: unknown): Record<string, unknown> | null {
   return out;
 }
 
-interface OneDriveAuthConfig {
-  accessToken?: string;
-  refreshToken?: string;
-  tokenExpiry?: number;
-}
-
-async function ensureOneDriveAccessToken(lib: Library): Promise<string> {
-  const cfg = lib.config as unknown as OneDriveAuthConfig | undefined;
-  const accessToken = cfg?.accessToken as string | undefined;
-  const refreshToken = cfg?.refreshToken as string | undefined;
-  const tokenExpiry = Number(cfg?.tokenExpiry || 0);
-  const isExpired = !tokenExpiry || Date.now() / 1000 > tokenExpiry - 60;
-
-  if (accessToken && !isExpired) return accessToken;
-  if (!refreshToken) throw new Error('OneDrive Refresh-Token fehlt in der Library-Konfiguration');
-
-  const resp = await fetch(`${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '')}/api/auth/onedrive/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ libraryId: lib.id, refreshToken })
-  });
-  if (!resp.ok) throw new Error(`OneDrive Token-Refresh fehlgeschlagen (${resp.status})`);
-  const data = await resp.json();
-  return data.accessToken as string;
-}
-
-async function onedriveUploadFile(accessToken: string, parentId: string, name: string, mime: string, buffer: Buffer): Promise<{ id: string }> {
-  const base = parentId === 'root'
-    ? `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(name)}:/content`
-    : `https://graph.microsoft.com/v1.0/me/drive/items/${parentId}:/${encodeURIComponent(name)}:/content`;
-  let url = `${base}?@microsoft.graph.conflictBehavior=replace`;
-  let res = await fetch(url, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': mime }, body: buffer });
-  if (res.status === 409) {
-    url = `${base}?@microsoft.graph.conflictBehavior=rename`;
-    res = await fetch(url, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': mime }, body: buffer });
-  }
-  if (!res.ok) throw new Error(`OneDrive Upload fehlgeschlagen: ${res.status}`);
-  const json: unknown = await res.json();
-  return { id: (json as { id?: string }).id as string };
-}
-
-// onedriveEnsureFolder wurde entfernt, da nicht verwendet
+// OneDrive-spezifische Upload-/Token-Utilities wurden entfernt; StorageFactory-Provider übernimmt das Speichern.
 
 export async function GET(
   _request: NextRequest,
@@ -202,15 +163,27 @@ export async function POST(
       const envToken = process.env.INTERNAL_TEST_TOKEN || '';
       return !!t && !!envToken && t === envToken;
     })();
-    if (!callbackToken && !internalBypass) return NextResponse.json({ error: 'callback_token fehlt' }, { status: 400 });
-
     const repo = new ExternalJobsRepository();
     const job = await repo.get(jobId);
     if (!job) return NextResponse.json({ error: 'Job nicht gefunden' }, { status: 404 });
 
+    if (!callbackToken && !internalBypass) {
+      bufferLog(jobId, { phase: 'failed', message: 'callback_token fehlt' });
+      await repo.appendLog(jobId, { phase: 'failed', message: 'callback_token fehlt' } as unknown as Record<string, unknown>);
+      await repo.setStatus(jobId, 'failed', { error: { code: 'callback_token_missing', message: 'callback_token fehlt' } });
+      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'callback_token fehlt', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+      return NextResponse.json({ error: 'callback_token fehlt' }, { status: 400 });
+    }
+
     if (!internalBypass) {
       const tokenHash = repo.hashSecret(callbackToken as string);
-    if (tokenHash !== job.jobSecretHash) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      if (tokenHash !== job.jobSecretHash) {
+        bufferLog(jobId, { phase: 'failed', message: 'Unauthorized callback' });
+        await repo.appendLog(jobId, { phase: 'failed', message: 'Unauthorized callback' } as unknown as Record<string, unknown>);
+        await repo.setStatus(jobId, 'failed', { error: { code: 'unauthorized', message: 'Ungültiges callback_token' } });
+        getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Unauthorized callback', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     // Status auf running setzen und Prozess-ID loggen
@@ -295,8 +268,20 @@ export async function POST(
       const doExtractMetadata = !!(job.parameters && typeof job.parameters === 'object' && (job.parameters as Record<string, unknown>)['doExtractMetadata']);
       const autoSkip = true;
 
-      if (lib.type === 'local') {
-        const provider = new FileSystemProvider(lib.path);
+      if (lib) {
+        // Einheitliche Serverinitialisierung des Providers (DB-Config, Token enthalten)
+        let provider;
+        try {
+          provider = await getServerProvider(job.userEmail, job.libraryId);
+        } catch (e) {
+          const reason = e instanceof Error ? e.message : 'Provider-Initialisierung fehlgeschlagen';
+          bufferLog(jobId, { phase: 'provider_init_failed', message: reason });
+          await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: reason } });
+          await repo.setStatus(jobId, 'failed', { error: { code: 'CONFIG_ERROR', message: reason } });
+          getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: reason, jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+          return NextResponse.json({ status: 'error', jobId, kind: 'provider_init_failed', message: reason }, { status: 400 });
+        }
+
         const sourceId = job.correlation?.source?.itemId;
         const targetParentId = job.correlation?.source?.parentId || 'root';
 
@@ -365,7 +350,6 @@ export async function POST(
               // Kontext übergeben (Dateiname/Pfad/Job)
               try {
                 const parentId = job.correlation.source?.parentId || 'root';
-                const provider = new FileSystemProvider(lib.path);
                 const parentPath = await provider.getPathById(parentId); // z.B. /Berichte Landesämter/Bevölk.Schutz
                 const dirPath = parentPath.replace(/^\//, ''); // Berichte Landesämter/Bevölk.Schutz
                 const rawName = job.correlation.source?.name || 'document.pdf';
@@ -396,8 +380,9 @@ export async function POST(
                 bufferLog(jobId, { phase: 'transform_meta_failed', message: 'Transformer lieferte kein gültiges JSON' });
               }
             }
-          } catch {
-            bufferLog(jobId, { phase: 'transform_meta_error', message: 'Fehler bei Template-Transformation' });
+          } catch(err) {
+            console.error(err);
+            bufferLog(jobId, { phase: 'transform_meta_error', message: 'Fehler bei Template-Transformation: ' + (err instanceof Error ? err.message : 'Unbekannter Fehler') });
           }
         }
 
@@ -481,122 +466,115 @@ export async function POST(
             return NextResponse.json({ status: 'ok', jobId, kind: 'failed_images_extract' });
           }
         }
-      } else if (lib.type === 'onedrive') {
-        const accessToken = await ensureOneDriveAccessToken(lib);
-        const targetParentId = job.correlation?.source?.parentId || 'root';
-        const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '');
-        const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de';
-        const uniqueName = `${baseName}.${lang}.md`;
-        if (true) {
-          await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
-        }
-        const mdMeta = (body?.data?.metadata as Record<string, unknown>) || {};
-        docMetaForIngestion = mdMeta;
-        await repo.appendMeta(jobId, mdMeta, 'worker_metadata');
-        const md = (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter
-          ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, mdMeta)
-          : extractedText;
-        await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date() });
-        const contentBuffer = Buffer.from(md, 'utf8');
-        await repo.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });
-        const saved = await onedriveUploadFile(accessToken, targetParentId, uniqueName, 'text/markdown', contentBuffer);
-        savedItemId = saved.id;
-        savedItems.push(saved.id);
-        bufferLog(jobId, { phase: 'stored_cloud', message: 'Shadow‑Twin gespeichert' });
-        await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
       }
-    }
 
-    // Schritt: ingest_rag (optional automatisiert)
-    try {
-      // Gate für Ingestion (Phase 3)
-      const autoSkip = true;
-      let ingestGateExists = false;
-      if (autoSkip) {
-        const g = await gateIngestRag({
-          repo,
-          jobId,
-          userEmail: job.userEmail,
-          library: lib,
-          source: job.correlation?.source,
-          options: job.correlation?.options as { targetLanguage?: string } | undefined,
-          ingestionCheck: async ({ userEmail, libraryId, fileId }: { userEmail: string; libraryId: string; fileId: string }) => {
-            // Prüfe Doc‑Vektor existiert (kind:'doc' + fileId)
-            try {
-              const ctx = await (await import('@/lib/chat/loader')).loadLibraryChatContext(userEmail, libraryId)
-              const apiKey = process.env.PINECONE_API_KEY
-              if (!ctx || !apiKey) return false
-              const idx = await (await import('@/lib/chat/pinecone')).describeIndex(ctx.vectorIndex, apiKey)
-              if (!idx?.host) return false
-              const list = await (await import('@/lib/chat/pinecone')).listVectors(idx.host, apiKey, { kind: 'doc', user: userEmail, libraryId, fileId })
-              return Array.isArray(list) && list.length > 0
-            } catch {
-              return false
+      // Schritt: ingest_rag (optional automatisiert)
+      try {
+        // Gate für Ingestion (Phase 3)
+        const autoSkip = true;
+        let ingestGateExists = false;
+        if (autoSkip) {
+          const g = await gateIngestRag({
+            repo,
+            jobId,
+            userEmail: job.userEmail,
+            library: lib,
+            source: job.correlation?.source,
+            options: job.correlation?.options as { targetLanguage?: string } | undefined,
+            ingestionCheck: async ({ userEmail, libraryId, fileId }: { userEmail: string; libraryId: string; fileId: string }) => {
+              // Prüfe Doc‑Vektor existiert (kind:'doc' + fileId)
+              try {
+                const ctx = await (await import('@/lib/chat/loader')).loadLibraryChatContext(userEmail, libraryId)
+                const apiKey = process.env.PINECONE_API_KEY
+                if (!ctx || !apiKey) return false
+                const idx = await (await import('@/lib/chat/pinecone')).describeIndex(ctx.vectorIndex, apiKey)
+                if (!idx?.host) return false
+                const list = await (await import('@/lib/chat/pinecone')).listVectors(idx.host, apiKey, { kind: 'doc', user: userEmail, libraryId, fileId })
+                return Array.isArray(list) && list.length > 0
+              } catch {
+                return false
+              }
             }
+          })
+          if (g.exists) {
+            ingestGateExists = true;
+            await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
+            // Wenn geskippt, keinen weiteren Ingestion-Versuch starten
+            // dennoch Abschluss unten fortsetzen
+          } else {
+            await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
           }
-        })
-        if (g.exists) {
-          ingestGateExists = true;
-          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
-          // Wenn geskippt, keinen weiteren Ingestion-Versuch starten
-          // dennoch Abschluss unten fortsetzen
         } else {
           await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
         }
-      } else {
-        await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
-      }
-      FileLogger.info('external-jobs', 'Ingestion start', { jobId, libraryId: job.libraryId })
-      const useIngestion = !!(job.parameters && typeof job.parameters === 'object' && (job.parameters as Record<string, unknown>)['doIngestRAG']);
-      if (useIngestion && !ingestGateExists) {
-        // Lade gespeicherten Markdown-Inhalt erneut (vereinfachend: extractedText)
-        // Stabiler Schlüssel: Original-Quell-Item (PDF) bevorzugen, sonst Shadow‑Twin, sonst Fallback
-        const fileId = (job.correlation.source?.itemId as string | undefined) || savedItemId || `${jobId}-md`;
-        const fileName = `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`;
-        const res = await IngestionService.upsertMarkdown(job.userEmail, job.libraryId, fileId, fileName, extractedText || '', docMetaForIngestion);
-        const total = res.chunksUpserted + (res.docUpserted ? 1 : 0)
-        await repo.setIngestion(jobId, { upsertAt: new Date(), vectorsUpserted: total, index: res.index });
-        // Zusammenfassung loggen
-        bufferLog(jobId, { phase: 'ingest_rag', message: `RAG-Ingestion: ${res.chunksUpserted} Chunks, ${res.docUpserted ? 1 : 0} Doc` });
-        FileLogger.info('external-jobs', 'Ingestion success', { jobId, chunks: res.chunksUpserted, doc: res.docUpserted, total })
-        await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date() });
-      } else {
-        await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
-      }
-    } catch (err) {
-      const reason = (() => {
-        if (err && typeof err === 'object') {
-          const e = err as { message?: unknown }
-          const msg = typeof e.message === 'string' ? e.message : undefined
-          return msg || String(err)
+        FileLogger.info('external-jobs', 'Ingestion start', { jobId, libraryId: job.libraryId })
+        const useIngestion = !!(job.parameters && typeof job.parameters === 'object' && (job.parameters as Record<string, unknown>)['doIngestRAG']);
+        if (useIngestion && !ingestGateExists) {
+          // Lade gespeicherten Markdown-Inhalt erneut (vereinfachend: extractedText)
+          // Stabiler Schlüssel: Original-Quell-Item (PDF) bevorzugen, sonst Shadow‑Twin, sonst Fallback
+          const fileId = (job.correlation.source?.itemId as string | undefined) || savedItemId || `${jobId}-md`;
+          const fileName = `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`;
+          const res = await IngestionService.upsertMarkdown(job.userEmail, job.libraryId, fileId, fileName, extractedText || '', docMetaForIngestion);
+          const total = res.chunksUpserted + (res.docUpserted ? 1 : 0)
+          await repo.setIngestion(jobId, { upsertAt: new Date(), vectorsUpserted: total, index: res.index });
+          // Zusammenfassung loggen
+          bufferLog(jobId, { phase: 'ingest_rag', message: `RAG-Ingestion: ${res.chunksUpserted} Chunks, ${res.docUpserted ? 1 : 0} Doc` });
+          FileLogger.info('external-jobs', 'Ingestion success', { jobId, chunks: res.chunksUpserted, doc: res.docUpserted, total })
+          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date() });
+        } else {
+          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
         }
-        return String(err)
-      })()
-      bufferLog(jobId, { phase: 'ingest_rag_failed', message: reason })
-      FileLogger.error('external-jobs', 'Ingestion failed', err)
-      await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'RAG Ingestion fehlgeschlagen', details: { reason } } });
+      } catch (err) {
+        const reason = (() => {
+          if (err && typeof err === 'object') {
+            const e = err as { message?: unknown }
+            const msg = typeof e.message === 'string' ? e.message : undefined
+            return msg || String(err)
+          }
+          return String(err)
+        })()
+        bufferLog(jobId, { phase: 'ingest_rag_failed', message: reason })
+        FileLogger.error('external-jobs', 'Ingestion failed', err)
+        await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'RAG Ingestion fehlgeschlagen', details: { reason } } });
+      }
+
+      await repo.setStatus(jobId, 'completed');
+      clearWatchdog(jobId);
+      // gepufferte Logs persistieren
+      const buffered = drainBufferedLogs(jobId);
+      for (const entry of buffered) {
+        await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
+      }
+      await repo.setResult(jobId, {
+        extracted_text: extractedText,
+        images_archive_url: imagesArchiveUrlFromWorker || undefined,
+        metadata: body?.data?.metadata,
+      }, { savedItemId, savedItems });
+
+      // Finalen Logeintrag für den sichtbaren Verlauf hinzufügen
+      await repo.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen' });
+
+      FileLogger.info('external-jobs', 'Job completed', { jobId, savedItemId, savedItemsCount: savedItems.length });
+      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+      return NextResponse.json({ status: 'ok', jobId, kind: 'final', savedItemId, savedItemsCount: savedItems.length });
     }
 
-    await repo.setStatus(jobId, 'completed');
-    clearWatchdog(jobId);
-    // gepufferte Logs persistieren
-    const buffered = drainBufferedLogs(jobId);
-    for (const entry of buffered) {
-      await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
+    // Sollte nicht erreicht werden
+    return NextResponse.json({ status: 'ok', jobId, kind: 'noop_final' });
+  } catch (err) {
+    try {
+      const { jobId } = await params;
+      const repo = new ExternalJobsRepository();
+      const job = await repo.get(jobId);
+      if (job) {
+        bufferLog(jobId, { phase: 'failed', message: 'Invalid payload' });
+        await repo.appendLog(jobId, { phase: 'failed', message: 'Invalid payload' } as unknown as Record<string, unknown>);
+        await repo.setStatus(jobId, 'failed', { error: { code: 'invalid_payload', message: err instanceof Error ? err.message : 'Invalid payload' } });
+        getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Invalid payload', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+      }
+    } catch {
+      // ignore secondary failures
     }
-    await repo.setResult(jobId, {
-      extracted_text: extractedText,
-      images_archive_url: imagesArchiveUrlFromWorker || undefined,
-      metadata: body?.data?.metadata,
-    }, { savedItemId, savedItems });
-
-    // Finalen Logeintrag für den sichtbaren Verlauf hinzufügen
-    await repo.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen' });
-
-    FileLogger.info('external-jobs', 'Job completed', { jobId, savedItemId, savedItemsCount: savedItems.length });
-    getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
-    return NextResponse.json({ status: 'ok', jobId, kind: 'final', savedItemId, savedItemsCount: savedItems.length });
-  } catch {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 }

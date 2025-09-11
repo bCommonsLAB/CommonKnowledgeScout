@@ -655,7 +655,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
         setTestResults([...logs]);
       };
 
-      // Hole den Provider über die StorageFactory
+      // Clientseitiger Test (bestehender Pfad)
       const factory = StorageFactory.getInstance();
       const provider = await factory.getProvider(activeLibrary.id);
 
@@ -767,6 +767,28 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
           ? errorDetails as Record<string, unknown> 
           : { error: errorDetails };
         logStep("Fehler", "error", `Test fehlgeschlagen: ${errorMessage}`, safeErrorDetails);
+      }
+
+      // Serverseitiger Test (neuer Pfad)
+      try {
+        logStep("API-Aufruf", "info", "Starte serverseitigen Storage-Test...");
+        const resp = await fetch('/api/settings/storage-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ libraryId: activeLibrary.id })
+        });
+        if (!resp.ok) {
+          const msg = await resp.text();
+          logStep("Server-Test", "error", `Server-Test fehlgeschlagen: ${resp.status}`, { body: msg.slice(0, 300) });
+        } else {
+          const data = await resp.json();
+          const serverLogs = Array.isArray(data.logs) ? data.logs as TestLogEntry[] : [];
+          for (const entry of serverLogs) logs.push(entry);
+          setTestResults([...logs]);
+          logStep("Server-Test", data.success ? "success" : "error", data.success ? "Server-Test abgeschlossen" : "Server-Test fehlgeschlagen");
+        }
+      } catch (e) {
+        logStep("Server-Test", "error", e instanceof Error ? e.message : String(e));
       }
     } catch (error) {
       console.error('[StorageForm] Fehler beim Testen:', error);

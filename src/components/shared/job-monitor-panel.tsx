@@ -92,8 +92,9 @@ export function JobMonitorPanel() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
-  // Initiale Seite laden
+  // Initiale Seite nur laden, wenn Panel geöffnet wird
   useEffect(() => {
+    if (!isOpen) return;
     let cancelled = false;
     async function load(pageNum: number, replace: boolean) {
       try {
@@ -108,9 +109,9 @@ export function JobMonitorPanel() {
         isFetchingRef.current = false;
       }
     }
-    load(1, true);
+    void load(1, true);
     return () => { cancelled = true; };
-  }, []);
+  }, [isOpen]);
 
   const refreshNow = async () => {
     if (isRefreshing) return;
@@ -127,8 +128,12 @@ export function JobMonitorPanel() {
     }
   };
 
-  // SSE verbinden (mit einfachem Reconnect und Initial-Refresh)
+  // SSE verbinden nur wenn Panel geöffnet ist; bei Schließen sofort beenden
   useEffect(() => {
+    if (!isOpen) {
+      if (eventRef.current) { try { eventRef.current.close(); } catch {} eventRef.current = null; }
+      return;
+    }
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     function connect() {
       if (eventRef.current) {
@@ -137,9 +142,7 @@ export function JobMonitorPanel() {
       const es = new EventSource('/api/external/jobs/stream');
       eventRef.current = es;
 
-      es.addEventListener('open', () => {
-        void refreshNow();
-      });
+      // kein aggressiver Refresh im open-Event; initiales Laden oben beim Öffnen
 
       const onUpdate = (e: MessageEvent) => {
         try {
@@ -183,7 +186,8 @@ export function JobMonitorPanel() {
       es.addEventListener('error', () => {
         try { es.close(); } catch {}
         if (retryTimer) clearTimeout(retryTimer);
-        retryTimer = setTimeout(connect, 3000);
+        // Nur reconnecten, wenn Panel offen bleibt
+        retryTimer = setTimeout(() => { if (isOpen) connect(); }, 1000);
       });
     }
     connect();
@@ -226,7 +230,7 @@ export function JobMonitorPanel() {
       if (eventRef.current) try { eventRef.current.close(); } catch {}
       window.removeEventListener('job_update_local', onLocal as unknown as EventListener);
     };
-  }, [refreshNow, upsertJobStatus]);
+  }, [isOpen, upsertJobStatus]);
 
   const handleToggle = () => setIsOpen(v => !v);
   const loadMore = async () => {
@@ -239,6 +243,13 @@ export function JobMonitorPanel() {
     setPage(next);
     setHasMore(json.items.length === 20);
   };
+
+  // Polling als sanfter Fallback (nur wenn Panel offen): alle 1000ms
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setInterval(() => { void refreshNow(); }, 1000);
+    return () => clearInterval(timer);
+  }, [isOpen]);
 
   function JobTypeIcon({ jobType }: { jobType?: string }) {
     const type = (jobType || '').toLowerCase();

@@ -658,6 +658,46 @@ export async function transformPdf(
 ): Promise<SecretaryPdfResponse> {
   try {
     console.log('[secretary/client] transformPdf aufgerufen mit Sprache:', targetLanguage, 'und Template:', template);
+    // OneDrive Token-Sync: Wenn der Client Tokens im localStorage hat, stelle sicher,
+    // dass der Server (DB) vor dem Jobstart aktuelle Tokens hat, damit Gates/Webhook funktionieren.
+    await (async () => {
+      try {
+        const key = `onedrive_tokens_${libraryId}`;
+        const json = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+        if (!json) return;
+        const tokens = JSON.parse(json) as { accessToken: string; refreshToken: string; expiry: number };
+        const now = Date.now();
+        const bufferMs = 120_000; // 2 Minuten Buffer
+        let accessToken = tokens.accessToken;
+        let refreshToken = tokens.refreshToken;
+        let expiryMs = Number(tokens.expiry);
+
+        // Falls abgelaufen oder kurz davor: Refresh über Serverroute
+        if (!expiryMs || expiryMs - now <= bufferMs) {
+          const resp = await fetch('/api/auth/onedrive/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ libraryId, refreshToken })
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            accessToken = data.accessToken;
+            refreshToken = data.refreshToken || refreshToken;
+            // Server liefert expiresIn in Sekunden
+            expiryMs = now + (Number(data.expiresIn || 0) * 1000);
+            // Update localStorage
+            localStorage.setItem(key, JSON.stringify({ accessToken, refreshToken, expiry: expiryMs }));
+          }
+        }
+
+        // Persistiere Tokens in DB (Server), damit Webhook/Server‑Gates Zugriff haben
+        await fetch(`/api/libraries/${libraryId}/tokens`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken, refreshToken, tokenExpiry: Math.floor(expiryMs / 1000).toString() })
+        });
+      } catch {}
+    })();
     
     const formData = new FormData();
     formData.append('file', file);

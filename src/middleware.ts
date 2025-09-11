@@ -39,6 +39,16 @@ export default clerkMiddleware(async (auth, req) => {
     if (req.method === 'POST' && isJobsPath && !isStream) {
       isPublic = true;
     }
+
+    // Interne/öffentliche Ausnahmen für Storage-Tokens & OneDrive-Refresh
+    if (
+      path === '/api/auth/onedrive/refresh' ||
+      /\/api\/libraries\/.+\/tokens$/.test(path) ||
+      path === '/api/storage/filesystem'
+    ) {
+      // Diese Routen schützen sich selbst (prüfen Header X-Internal-Request bzw. Clerk im Handler)
+      isPublic = true;
+    }
   }
 
   // console.debug(`[Middleware] isPublicRoute: ${isPublic}`);

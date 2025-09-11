@@ -9,7 +9,8 @@ import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { startWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { ExternalJob } from '@/types/external-job';
 import { LibraryService } from '@/lib/services/library-service';
-import { FileSystemProvider } from '@/lib/storage/filesystem-provider';
+// Storage: konsequent Server-Provider verwenden
+import { getServerProvider } from '@/lib/storage/server-provider';
 import { gateExtractPdf } from '@/lib/processing/gates';
 import { TransformService } from '@/lib/transform/transform-service';
 
@@ -306,8 +307,8 @@ export async function POST(request: NextRequest) {
               const libraryService = LibraryService.getInstance();
               const libraries2 = await libraryService.getUserLibraries(userEmail);
               const lib2 = libraries2.find(l => l.id === libraryId);
-              if (lib2 && lib2.type === 'local' && lib2.path) {
-                const provider = new FileSystemProvider(lib2.path);
+              if (lib2) {
+                const provider = await getServerProvider(userEmail, libraryId);
                 await repository.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
 
                 // Template-Datei finden (wie im Callback)

@@ -33,6 +33,9 @@ interface TokenResponse {
 export class OneDriveProvider implements StorageProvider {
   private library: ClientLibrary;
   private baseUrl: string;
+  private userEmail: string | null = null;
+  private baseFolderId: string | null = null;
+  private basePath: string = '';
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
   private tokenExpiry: number = 0;
@@ -69,25 +72,128 @@ export class OneDriveProvider implements StorageProvider {
    * Erstellt eine absolute oder relative API-URL je nach Kontext
    */
   private getApiUrl(path: string): string {
-    return `${this.baseUrl}${path}`;
+    const url = `${this.baseUrl}${path}`;
+    if (this.userEmail) {
+      const sep = url.includes('?') ? '&' : '?';
+      return `${url}${sep}email=${encodeURIComponent(this.userEmail)}`;
+    }
+    return url;
+  }
+
+  setUserEmail(email: string) {
+    this.userEmail = email;
+  }
+
+  private normalizeBasePath(input: string | undefined): string {
+    if (!input) return '';
+    const trimmed = input.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    return trimmed ? `/${trimmed}` : '';
+  }
+
+  private async ensureBaseFolderResolved(): Promise<void> {
+    // Resolve once per provider lifecycle
+    if (this.baseFolderId !== null) return;
+    const configured = this.normalizeBasePath(this.library.path);
+    this.basePath = configured;
+    // If no base path configured, use root
+    if (!configured) {
+      this.baseFolderId = 'root';
+      return;
+    }
+
+    const accessToken = await this.ensureAccessToken();
+    // Try to resolve the configured path to an item id
+    const tryResolve = async (): Promise<string | null> => {
+      const url = `https://graph.microsoft.com/v1.0/me/drive/root:${encodeURI(configured)}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (res.ok) {
+        const data = await res.json() as { id?: string };
+        return data.id ?? null;
+      }
+      if (res.status === 404) return null;
+      // Other errors
+      const txt = await res.text().catch(() => '');
+      throw new StorageError(`Fehler beim Auflösen des Basisordners: ${txt || res.statusText}`,'API_ERROR', this.id);
+    };
+
+    const id: string | null = await tryResolve();
+    if (id) {
+      this.baseFolderId = id;
+      return;
+    }
+
+    // Create path recursively
+    const segments = configured.split('/').filter(Boolean);
+    let parentId: string | 'root' = 'root';
+    for (const segment of segments) {
+      // Try to find child under parent
+      let childId: string | null = null;
+      const listUrl = parentId === 'root'
+        ? 'https://graph.microsoft.com/v1.0/me/drive/root/children'
+        : `https://graph.microsoft.com/v1.0/me/drive/items/${parentId}/children`;
+      const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (listRes.ok) {
+        const data = await listRes.json() as { value?: Array<{ id: string; name: string; folder?: unknown }> };
+        const match = (data.value || []).find(x => x.name === segment && x.folder);
+        if (match) childId = match.id;
+      }
+      if (!childId) {
+        const createUrl = parentId === 'root'
+          ? 'https://graph.microsoft.com/v1.0/me/drive/root/children'
+          : `https://graph.microsoft.com/v1.0/me/drive/items/${parentId}/children`;
+        const createRes = await fetch(createUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: segment, folder: {}, '@microsoft.graph.conflictBehavior': 'rename' })
+        });
+        if (!createRes.ok) {
+          const txt = await createRes.text().catch(() => '');
+          throw new StorageError(`Fehler beim Erstellen des Basisordners "${segment}": ${txt || createRes.statusText}`,'API_ERROR', this.id);
+        }
+        const created = await createRes.json() as { id: string };
+        childId = created.id;
+      }
+      parentId = childId as string;
+    }
+    this.baseFolderId = parentId;
   }
 
   private loadTokens() {
-    // NUR aus localStorage laden - NICHT aus der Datenbank
-    if (typeof window !== 'undefined') {
+    // Server-Kontext: Tokens aus der Library-Konfiguration lesen (DB)
+    if (typeof window === 'undefined') {
       try {
-        const tokensJson = localStorage.getItem(`onedrive_tokens_${this.library.id}`);
-        if (tokensJson) {
-          const tokens = JSON.parse(tokensJson);
-          this.accessToken = tokens.accessToken;
-          this.refreshToken = tokens.refreshToken;
-          this.tokenExpiry = tokens.expiry;
+        const cfg = this.library.config as unknown as {
+          accessToken?: string; refreshToken?: string; tokenExpiry?: number | string
+        } | undefined;
+        if (cfg?.accessToken && cfg?.refreshToken) {
+          this.accessToken = cfg.accessToken;
+          this.refreshToken = cfg.refreshToken;
+          this.tokenExpiry = Number(cfg.tokenExpiry || 0);
           this.authenticated = true;
-          console.log(`[OneDriveProvider] Tokens für ${this.library.id} aus localStorage geladen`);
+          console.log('[OneDriveProvider] Tokens aus Library-Konfiguration geladen (Server-Kontext)');
         }
       } catch (error) {
-        console.error('[OneDriveProvider] Fehler beim Laden der Tokens aus localStorage:', error);
+        console.error('[OneDriveProvider] Fehler beim Laden der Tokens aus Library-Konfiguration:', error);
       }
+      return;
+    }
+
+    // Client-Kontext: Tokens aus localStorage
+    try {
+      const tokensJson = localStorage.getItem(`onedrive_tokens_${this.library.id}`);
+      if (tokensJson) {
+        const tokens = JSON.parse(tokensJson);
+        this.accessToken = tokens.accessToken;
+        this.refreshToken = tokens.refreshToken;
+        this.tokenExpiry = tokens.expiry;
+        this.authenticated = true;
+        console.log(`[OneDriveProvider] Tokens für ${this.library.id} aus localStorage geladen`);
+      }
+    } catch (error) {
+      console.error('[OneDriveProvider] Fehler beim Laden der Tokens aus localStorage:', error);
     }
   }
 
@@ -99,7 +205,7 @@ export class OneDriveProvider implements StorageProvider {
     this.tokenExpiry = expiry;
     this.authenticated = true;
 
-    // Tokens NUR im localStorage speichern - NICHT in der Datenbank
+    // Client-Kontext: Tokens im localStorage persistieren
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(`onedrive_tokens_${this.library.id}`, JSON.stringify({
@@ -117,26 +223,50 @@ export class OneDriveProvider implements StorageProvider {
         console.error('[OneDriveProvider] Fehler beim Speichern der Tokens im localStorage:', error);
       }
     }
+
+    // Server-Kontext: Tokens in der Library-Konfiguration persistieren (DB)
+    if (typeof window === 'undefined') {
+      try {
+        await fetch(this.getApiUrl(`/api/libraries/${this.library.id}/tokens`), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-Internal-Request': '1' },
+          body: JSON.stringify({ accessToken, refreshToken, tokenExpiry: Math.floor(expiry / 1000).toString() })
+        });
+      } catch (error) {
+        console.error('[OneDriveProvider] Fehler beim Speichern der Tokens in der DB:', error);
+      }
+    }
   }
 
   private async clearTokens() {
-    try {
-      // Verhindere mehrfache gleichzeitige Aufrufe
-      if (this.clearingTokens) {
-        console.log('[OneDriveProvider] Token-Löschung läuft bereits, überspringe...');
-        return;
-      }
-      this.clearingTokens = true;
-      
-      // Entferne Tokens aus localStorage
-      const localStorageKey = `onedrive_tokens_${this.library.id}`;
-      localStorage.removeItem(localStorageKey);
-      console.log(`[OneDriveProvider] Tokens für ${this.library.id} aus localStorage entfernt`);
-    } catch (error) {
-      console.error('[OneDriveProvider] Fehler beim Entfernen der Tokens aus localStorage:', error);
-    } finally {
-      this.clearingTokens = false;
+    // Verhindere mehrfache gleichzeitige Aufrufe
+    if (this.clearingTokens) {
+      console.log('[OneDriveProvider] Token-Löschung läuft bereits, überspringe...');
+      return;
     }
+    this.clearingTokens = true;
+
+    // Client: localStorage räumen
+    if (typeof window !== 'undefined') {
+      try {
+        const localStorageKey = `onedrive_tokens_${this.library.id}`;
+        localStorage.removeItem(localStorageKey);
+        console.log(`[OneDriveProvider] Tokens für ${this.library.id} aus localStorage entfernt`);
+      } catch (error) {
+        console.error('[OneDriveProvider] Fehler beim Entfernen der Tokens aus localStorage:', error);
+      }
+    }
+
+    // Server: DB-Eintrag löschen
+    if (typeof window === 'undefined') {
+      try {
+        await fetch(this.getApiUrl(`/api/libraries/${this.library.id}/tokens`), { method: 'DELETE', headers: { 'X-Internal-Request': '1' } });
+      } catch (error) {
+        console.error('[OneDriveProvider] Fehler beim Entfernen der Tokens in der DB:', error);
+      }
+    }
+
+    this.clearingTokens = false;
     
     // Setze lokale Variablen zurück
     this.accessToken = null;
@@ -391,7 +521,8 @@ export class OneDriveProvider implements StorageProvider {
         const response = await fetch(this.getApiUrl('/api/auth/onedrive/refresh'), {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Internal-Request': '1'
           },
           body: JSON.stringify({
             libraryId: this.library.id,
@@ -517,10 +648,13 @@ export class OneDriveProvider implements StorageProvider {
   async listItemsById(folderId: string): Promise<StorageItem[]> {
     try {
       const accessToken = await this.ensureAccessToken();
+      await this.ensureBaseFolderResolved();
       
       // URL für den API-Aufruf
       let url = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
-      if (folderId && folderId !== 'root') {
+      if (folderId === 'root' && this.baseFolderId && this.baseFolderId !== 'root') {
+        url = `https://graph.microsoft.com/v1.0/me/drive/items/${this.baseFolderId}/children`;
+      } else if (folderId && folderId !== 'root') {
         url = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
       }
 
@@ -597,10 +731,15 @@ export class OneDriveProvider implements StorageProvider {
   async createFolder(parentId: string, name: string): Promise<StorageItem> {
     try {
       const accessToken = await this.ensureAccessToken();
+      await this.ensureBaseFolderResolved();
       
       let url;
       if (parentId === 'root') {
-        url = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
+        if (this.baseFolderId && this.baseFolderId !== 'root') {
+          url = `https://graph.microsoft.com/v1.0/me/drive/items/${this.baseFolderId}/children`;
+        } else {
+          url = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
+        }
       } else {
         url = `https://graph.microsoft.com/v1.0/me/drive/items/${parentId}/children`;
       }
@@ -803,10 +942,15 @@ export class OneDriveProvider implements StorageProvider {
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
     try {
       const accessToken = await this.ensureAccessToken();
+      await this.ensureBaseFolderResolved();
       
       let url;
       if (parentId === 'root') {
-        url = `https://graph.microsoft.com/v1.0/me/drive/root:/${file.name}:/content`;
+        if (this.baseFolderId && this.baseFolderId !== 'root') {
+          url = `https://graph.microsoft.com/v1.0/me/drive/items/${this.baseFolderId}:/${file.name}:/content`;
+        } else {
+          url = `https://graph.microsoft.com/v1.0/me/drive/root:/${file.name}:/content`;
+        }
       } else {
         url = `https://graph.microsoft.com/v1.0/me/drive/items/${parentId}:/${file.name}:/content`;
       }
@@ -922,6 +1066,7 @@ export class OneDriveProvider implements StorageProvider {
   async getPathById(itemId: string): Promise<string> {
     try {
       const accessToken = await this.ensureAccessToken();
+      await this.ensureBaseFolderResolved();
       
       if (itemId === 'root') {
         return '/';
@@ -955,8 +1100,13 @@ export class OneDriveProvider implements StorageProvider {
         
         // Formatiere den Pfad
         path = path.replace(/^\/+|\/+$/g, ''); // Entferne führende/nachfolgende Slashes
-        
-        return path || '/';
+        // Basispfad entfernen, wenn konfiguriert
+        if (this.basePath && path.startsWith(this.basePath.replace(/^\/+/, ''))) {
+          let rel = path.substring(this.basePath.replace(/^\/+/, '').length);
+          rel = rel.replace(/^\/+/, '');
+          return rel ? `/${rel}` : '/';
+        }
+        return path ? `/${path}` : '/';
       }
       
       return item.name;

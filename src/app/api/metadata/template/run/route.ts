@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, currentUser } from '@clerk/nextjs/server';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { LibraryService } from '@/lib/services/library-service';
-import { FileSystemProvider } from '@/lib/storage/filesystem-provider';
+import { StorageFactory } from '@/lib/storage/storage-factory';
 
 function stripFrontmatter(markdown: string): string {
   const fm = /^---\n([\s\S]*?)\n---\n?/;
@@ -23,18 +23,16 @@ export async function POST(request: NextRequest) {
     const ingest = Boolean(body.ingest);
     if (!libraryId || !fileId) return NextResponse.json({ error: 'libraryId und fileId erforderlich' }, { status: 400 });
 
-    // Markdown laden (nur Local Filesystem aktuell)
+    // Markdown laden (provider-agnostisch)
     const lib = await LibraryService.getInstance().getLibrary(userEmail, libraryId).catch(() => undefined);
     if (!lib) return NextResponse.json({ error: 'Library nicht gefunden' }, { status: 404 });
 
     let markdown = '';
-    if (lib.type === 'local') {
-      const provider = new FileSystemProvider(lib.path);
-      const bin = await provider.getBinary(fileId);
-      markdown = await bin.blob.text();
-    } else {
-      return NextResponse.json({ error: 'Template-Run nur für lokalen Provider implementiert' }, { status: 501 });
-    }
+    const factory = StorageFactory.getInstance();
+    factory.setLibraries([{ id: lib.id, label: lib.label, type: lib.type, path: lib.path, isEnabled: lib.isEnabled, config: (lib.config as unknown as Record<string, unknown>) || {} }]);
+    const provider = await factory.getProvider(lib.id);
+    const bin = await provider.getBinary(fileId);
+    markdown = await bin.blob.text();
 
     const extractedText = stripFrontmatter(markdown);
 
