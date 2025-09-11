@@ -177,6 +177,11 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
     }
   }
 
+  // Reagiere auf globale Seitenänderungen (z. B. Eingabe im Header)
+  React.useEffect(() => {
+    scrollToPage(currentPage || 1);
+  }, [currentPage]);
+
   function handlePrev() {
     const target = Math.max(1, currentPage - 1);
     setPageInput(target);

@@ -16,6 +16,8 @@ interface JobReportTabProps {
   viewMode?: 'full' | 'metaOnly'
   // Optional explizite Markdown-Datei-ID (Shadow‑Twin). Überschreibt auto-Erkennung.
   mdFileId?: string | null
+  // Optionaler Callback zum Scroll-Sync in die Markdown-Vorschau
+  onJumpTo?: (args: { page?: number | string; evidence?: string }) => void
 }
 
 interface JobDto {
@@ -35,12 +37,13 @@ interface JobDto {
   cumulativeMeta?: Record<string, unknown>
 }
 
-export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode = 'merged', viewMode = 'full', mdFileId }: JobReportTabProps) {
+export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode = 'merged', viewMode = 'full', mdFileId, onJumpTo }: JobReportTabProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [job, setJob] = useState<JobDto | null>(null)
   const [templateFields, setTemplateFields] = useState<string[] | null>(null)
   const [frontmatterMeta, setFrontmatterMeta] = useState<Record<string, unknown> | null>(null)
+  const [section, setSection] = useState<'meta' | 'chapters'>('meta')
 
   useEffect(() => {
     let cancelled = false
@@ -218,6 +221,26 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
 
   return (
     <div className="p-4 space-y-3 text-sm">
+      {viewMode === 'metaOnly' && (
+        <div className="inline-flex rounded border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setSection('meta')}
+            className={`px-3 py-1 text-xs ${section === 'meta' ? 'bg-primary text-primary-foreground' : 'bg-background'} border-r`}
+            aria-pressed={section === 'meta'}
+          >
+            Metadaten
+          </button>
+          <button
+            type="button"
+            onClick={() => setSection('chapters')}
+            className={`px-3 py-1 text-xs ${section === 'chapters' ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
+            aria-pressed={section === 'chapters'}
+          >
+            Kapitel
+          </button>
+        </div>
+      )}
       {viewMode === 'full' && job && (
         <div className="flex items-center justify-between">
           <div>
@@ -281,7 +304,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
       )}
 
       {/* Metadaten (flach) – je nach sourceMode: nur Frontmatter oder Merge */}
-      {(() => {
+      {section === 'meta' && (() => {
         const base: Record<string, unknown> = sourceMode === 'frontmatter'
           ? {}
           : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
@@ -322,84 +345,86 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
         )
       })()}
 
-      {/* Kapitel (hierarchisch) */}
-      {(() => {
+      {/* Kapitel (hierarchisch, TOC-Ansicht mit Einrückung & Aufklappen) */}
+      {section === 'chapters' && (() => {
         const chapters: Array<Record<string, unknown>> = sourceMode === 'frontmatter'
           ? (Array.isArray(frontmatterMeta?.chapters) ? (frontmatterMeta?.chapters as Array<Record<string, unknown>>) : [])
           : ((job?.cumulativeMeta as unknown as { chapters?: Array<Record<string, unknown>> })?.chapters || [])
         if (!Array.isArray(chapters) || chapters.length === 0) return null
+
+        const pad = (lvl: number | undefined): number => {
+          if (typeof lvl !== 'number') return 0
+          const clamped = Math.max(0, Math.min(3, lvl))
+          return (clamped - 1) * 16 // px
+        }
+
+        // Hierarchische Nummerierung 1., 1.1, 1.1.1 basierend auf level
+        const counters = [0, 0, 0]
         return (
-        <div>
+        <div className="space-y-1">
           <div className="font-medium mb-1">Kapitel</div>
-          <div className="overflow-auto max-h-64">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-muted-foreground">
-                  <th className="py-1 pr-2">#</th>
-                  <th className="py-1 pr-2">Titel</th>
-                  <th className="py-1 pr-2">L</th>
-                  <th className="py-1 pr-2">Start</th>
-                  <th className="py-1 pr-2">Ende</th>
-                  <th className="py-1 pr-2">Seiten</th>
-                  <th className="py-1 pr-2">Summary</th>
-                  <th className="py-1 pr-2">Keywords</th>
-                </tr>
-              </thead>
-              <tbody>
-                {chapters.map((c, i) => {
-                  const order = typeof c.order === 'number' ? c.order : (i + 1)
-                  const level = typeof c.level === 'number' ? c.level : undefined
-                  const title = typeof c.title === 'string' ? c.title : ''
-                  const startPage = typeof c.startPage === 'number' ? c.startPage : (c.startPage === null ? '' : '')
-                  const endPage = typeof c.endPage === 'number' ? c.endPage : (c.endPage === null ? '' : '')
-                  const pageCount = typeof c.pageCount === 'number' ? c.pageCount : (c.pageCount === null ? '' : '')
-                  const summaryVal = typeof c.summary === 'string' ? c.summary : ''
-                  const summary = summaryVal.length > 160 ? `${summaryVal.slice(0, 160)}…` : summaryVal
-                  const keywords = Array.isArray(c.keywords) ? (c.keywords as Array<unknown>).filter(v => typeof v === 'string') as string[] : []
-                  return (
-                    <tr key={`${title}-${order}`} className="border-t border-muted/40">
-                      <td className="py-1 pr-2 align-top">{order}</td>
-                      <td className="py-1 pr-2 align-top">
-                        <span className="whitespace-pre-wrap break-words">{title}</span>
-                      </td>
-                      <td className="py-1 pr-2 align-top">{typeof level === 'number' ? level : ''}</td>
-                      <td className="py-1 pr-2 align-top">{startPage as string | number}</td>
-                      <td className="py-1 pr-2 align-top">{endPage as string | number}</td>
-                      <td className="py-1 pr-2 align-top">{pageCount as string | number}</td>
-                      <td className="py-1 pr-2 align-top whitespace-pre-wrap break-words">{summary}</td>
-                      <td className="py-1 pr-2 align-top">
-                        <div className="flex flex-wrap gap-1">
-                          {keywords.map(k => (
-                            <span key={k} className="inline-flex items-center rounded px-1.5 py-0.5 bg-muted">{k}</span>
-                          ))}
+          <div>
+            {chapters.map((c, i) => {
+              const level = typeof c.level === 'number' ? c.level : 1
+              const lvl = Math.max(1, Math.min(3, level))
+              // Zähler aktualisieren
+              counters[lvl - 1] += 1
+              for (let j = lvl; j < counters.length; j++) counters[j] = 0
+              const numLabel = counters.slice(0, lvl).filter(n => n > 0).join('.')
+              const title = typeof c.title === 'string' ? c.title : ''
+              const startPage = typeof c.startPage === 'number' ? c.startPage : ''
+              const endPage = typeof c.endPage === 'number' ? c.endPage : ''
+              const pageCount = typeof c.pageCount === 'number' ? c.pageCount : ''
+              const summaryVal = typeof c.summary === 'string' ? c.summary : ''
+              const summary = summaryVal.length > 1000 ? `${summaryVal.slice(0, 1000)}…` : summaryVal
+              const keywords = Array.isArray(c.keywords) ? (c.keywords as Array<unknown>).filter(v => typeof v === 'string') as string[] : []
+              const ev = typeof c.startEvidence === 'string' ? c.startEvidence : ''
+              return (
+                <details key={`${title}-${i}`} className="group border-b py-1" open={false} onToggle={(e) => {
+                  const open = (e.currentTarget as HTMLDetailsElement).open
+                  if (open) {
+                    if (startPage !== '') onJumpTo?.({ page: startPage as number | string })
+                    else if (ev) onJumpTo?.({ evidence: ev })
+                  }
+                }}>
+                  <summary className="list-none cursor-pointer">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0" style={{ paddingLeft: `${pad(lvl)}px` }}>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-xs text-muted-foreground tabular-nums">{numLabel}</span>
+                          <span className="font-medium truncate">{title}</span>
+                          <span className="text-[10px] px-1 rounded bg-muted">L{lvl}</span>
                         </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            {/* Evidenz separat (erste Zeichen beschränkt) */}
-            <div className="mt-1 text-xs text-muted-foreground">
-              {chapters.map((c, i) => {
-                const ev = typeof c.startEvidence === 'string' ? c.startEvidence : ''
-                if (!ev) return null
-                const title = typeof c.title === 'string' ? c.title : `Kapitel ${i+1}`
-                const preview = ev.length > 140 ? `${ev.slice(0, 140)}…` : ev
-                return (
-                  <div key={`ev-${i}`} className="truncate">
-                    <span className="font-medium">{title}:</span> <span className="opacity-80">{preview}</span>
+                      </div>
+                      <div className="text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                        {String(startPage)}
+                      </div>
+                    </div>
+                  </summary>
+                  <div className="mt-1 pr-1 text-xs space-y-1" style={{ paddingLeft: `${pad(lvl) + 28}px` }}>
+                    {summary && (
+                      <div className="whitespace-pre-wrap break-words">
+                        {summary}
+                      </div>
+                    )}
+                    {Array.isArray(keywords) && keywords.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {keywords.map(k => (
+                          <span key={k} className="inline-flex items-center rounded px-1.5 py-0.5 bg-muted">{k}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )
-              })}
-            </div>
+                </details>
+              )
+            })}
           </div>
         </div>
         )
       })()}
 
       {/* Inhaltsverzeichnis */}
-      {(() => {
+      {section === 'chapters' && (() => {
         const toc: Array<Record<string, unknown>> = sourceMode === 'frontmatter'
           ? (Array.isArray(frontmatterMeta?.toc) ? (frontmatterMeta?.toc as Array<Record<string, unknown>>) : [])
           : ((job?.cumulativeMeta as unknown as { toc?: Array<Record<string, unknown>> }).toc || [])
@@ -407,7 +432,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
         return (
         <div>
           <div className="font-medium mb-1">Inhaltsverzeichnis</div>
-          <div className="overflow-auto max-h-40">
+          <div className="overflow-visible">
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-muted-foreground">

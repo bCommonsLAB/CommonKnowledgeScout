@@ -44,6 +44,7 @@ interface MarkdownPreviewProps {
   className?: string;
   onTransform?: () => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
+  onRegisterApi?: (api: { scrollToText: (q: string) => void; scrollToPage: (n: number | string) => void; setQueryAndSearch: (q: string) => void }) => void;
 }
 
 /**
@@ -951,10 +952,14 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   provider = null,
   className,
   onTransform,
-  onRefreshFolder
+  onRefreshFolder,
+  onRegisterApi
 }: MarkdownPreviewProps) {
   const currentItem = useAtomValue(selectedFileAtom);
   const [activeTab, setActiveTab] = React.useState<string>("preview");
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const [query, setQuery] = React.useState<string>("");
   
   // Logging in useEffect verschieben, um State-Updates während des Renderns zu vermeiden
   React.useEffect(() => {
@@ -1019,6 +1024,65 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     setActiveTab("transform");
   };
 
+  // Navigations-API bereitstellen
+  const removeOldHit = () => {
+    const old = contentRef.current?.querySelector('[data-search-hit="1"]') as HTMLElement | null;
+    if (old && old.parentElement) {
+      const txt = old.textContent || '';
+      const textNode = document.createTextNode(txt);
+      old.parentElement.replaceChild(textNode, old);
+    }
+  };
+
+  const scrollContainerTo = (el: HTMLElement) => {
+    const root = containerRef.current;
+    if (!root) return;
+    const top = el.offsetTop - 16;
+    root.scrollTo({ top, behavior: 'smooth' });
+  };
+
+  const scrollToPage = (n: number | string) => {
+    const el = contentRef.current?.querySelector(`[data-page-marker="${String(n)}"]`) as HTMLElement | null;
+    if (el) scrollContainerTo(el);
+  };
+
+  const scrollToText = (q: string) => {
+    const root = contentRef.current;
+    if (!root || !q) return;
+    removeOldHit();
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const lower = q.toLowerCase();
+    let node: Node | null = walker.nextNode();
+    while (node) {
+      const text = (node.textContent || '').toLowerCase();
+      const idx = text.indexOf(lower);
+      if (idx >= 0) {
+        const orig = node.textContent || '';
+        const before = orig.slice(0, idx);
+        const hit = orig.slice(idx, idx + q.length);
+        const after = orig.slice(idx + q.length);
+        const span = document.createElement('span');
+        span.setAttribute('data-search-hit', '1');
+        span.className = 'bg-yellow-200 dark:bg-yellow-600/40 rounded px-0.5';
+        span.textContent = hit;
+        const frag = document.createDocumentFragment();
+        if (before) frag.appendChild(document.createTextNode(before));
+        frag.appendChild(span);
+        if (after) frag.appendChild(document.createTextNode(after));
+        node.parentNode?.replaceChild(frag, node);
+        scrollContainerTo(span);
+        return;
+      }
+      node = walker.nextNode();
+    }
+  };
+
+  const setQueryAndSearch = (q: string) => { setQuery(q); scrollToText(q); };
+
+  React.useEffect(() => {
+    onRegisterApi?.({ scrollToText, scrollToPage, setQueryAndSearch });
+  }, [onRegisterApi]);
+
   const handleTransformComplete = () => {
     FileLogger.info('MarkdownPreview', 'Transform abgeschlossen', {
       currentTab: activeTab
@@ -1066,8 +1130,19 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
           <TabsTrigger value="transform">Transformieren</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="preview" className="flex-1 overflow-auto" data-markdown-scroll-root="true">
+        <TabsContent value="preview" className="flex-1 overflow-auto" data-markdown-scroll-root="true" ref={containerRef}>
+          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-2 px-4 pt-3 pb-2 border-b">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') scrollToText(query); }}
+              placeholder="Schnellsuche… (Enter)"
+              className="h-8 text-xs"
+            />
+            <Button variant="outline" size="sm" className="h-8" onClick={() => scrollToText(query)}>Suchen</Button>
+          </div>
           <div 
+            ref={contentRef}
             className="prose dark:prose-invert max-w-none p-4 w-full"
             dangerouslySetInnerHTML={{ __html: renderedContent }}
           />

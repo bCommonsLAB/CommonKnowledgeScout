@@ -29,17 +29,17 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
   const [twinLoading, setTwinLoading] = React.useState<boolean>(false);
   const [twinError, setTwinError] = React.useState<string | null>(null);
   const { provider: storageProvider } = useStorage();
-  const [currentPage] = useAtom(currentPdfPageAtom);
+  const [currentPage, setCurrentPage] = useAtom(currentPdfPageAtom);
   const leftRef = React.useRef<HTMLDivElement | null>(null);
   const rightRef = React.useRef<HTMLDivElement | null>(null);
   const syncingFromPdfRef = React.useRef(false);
   const syncingFromMarkdownRef = React.useRef(false);
 
-  // PDF → Markdown Scroll Sync
+  // Globaler Page→Scroll Sync (setzt die Markdown-Pane an die aktuelle Seite)
   React.useEffect(() => {
     if (phase !== 1 && phase !== 2) return;
-    if (!rightRef.current) return;
-    const container = rightRef.current;
+    const container = phase === 1 ? rightRef.current : leftRef.current;
+    if (!container) return;
     const marker = container.querySelector(`[data-page-marker="${currentPage}"]`) as HTMLElement | null
       || container.querySelector(`[data-page="${currentPage}"]`) as HTMLElement | null
       || container.querySelector(`comment[data-page="${currentPage}"]`) as HTMLElement | null;
@@ -50,6 +50,7 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
   }, [currentPage, phase]);
 
   const [pdfUrl, setPdfUrl] = React.useState<string | null>(null);
+  const markdownApiRef = React.useRef<{ scrollToText: (q: string) => void; scrollToPage: (n: number | string) => void; setQueryAndSearch: (q: string) => void } | null>(null);
 
   // Shadow‑Twin laden
   React.useEffect(() => {
@@ -94,7 +95,7 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
     return () => { cancelled = true; };
   }, [storageProvider, item?.id]);
 
-  // Markdown → PDF Scroll Sync via IntersectionObserver
+  // Markdown → PDF Scroll Sync via IntersectionObserver (bestimmte Seite aus Markdown ableiten)
   React.useEffect(() => {
     if (phase !== 1 && phase !== 2) return;
     const container = phase === 1 ? rightRef.current : leftRef.current;
@@ -121,6 +122,8 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
         const selector = phase === 1 ? `[data-page="${best.page}"]` : `[data-page-marker="${best.page}"]`;
         const el = targetPane ? targetPane.querySelector(selector) as HTMLElement | null : null;
         if (el && targetPane) targetPane.scrollTo({ top: el.offsetTop - 16, behavior: 'smooth' });
+        // Globale Seite aktualisieren, sodass auch andere Views reagieren
+        if (best.page !== currentPage) setCurrentPage(best.page);
         window.setTimeout(() => { syncingFromMarkdownRef.current = false; }, 250);
       }
     }, { root: container, threshold: [0, 0.25, 0.5, 0.75, 1] });
@@ -131,8 +134,15 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
 
   return (
     <div className="flex h-full flex-col gap-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <PhaseStepper />
+        <div className="ml-auto flex items-center gap-2 pr-1">
+          <form className="flex items-center gap-1" onSubmit={(e) => { e.preventDefault(); const input = (e.currentTarget.elements.namedItem('gpage') as HTMLInputElement | null); if (!input) return; const val = Number(input.value); if (Number.isFinite(val) && val >= 1) setCurrentPage(val); }}>
+            <span className="text-xs text-muted-foreground">Seite</span>
+            <input name="gpage" defaultValue={currentPage} className="h-7 w-16 text-center border rounded text-xs" />
+            <button type="submit" className="h-7 px-2 border rounded text-xs">Gehe</button>
+          </form>
+        </div>
       </div>
 
       {/* Split */}
@@ -148,7 +158,10 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
             ) : twinError ? (
               <div className="p-2 text-sm text-destructive">{twinError}</div>
             ) : (
-              <MarkdownPreview content={twinContent} />
+              <MarkdownPreview
+                content={twinContent}
+                onRegisterApi={(api) => { markdownApiRef.current = api; }}
+              />
             )
           )}
           {phase === 3 && (
@@ -177,6 +190,15 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
                 sourceMode="frontmatter"
                 viewMode="metaOnly"
                 mdFileId={shadowTwin?.id || null}
+                onJumpTo={({ page, evidence }) => {
+                  if (markdownApiRef.current) {
+                    if (typeof page === 'number' || typeof page === 'string') {
+                      markdownApiRef.current.scrollToPage(page);
+                    } else if (typeof evidence === 'string' && evidence.trim()) {
+                      markdownApiRef.current.setQueryAndSearch(evidence.slice(0, 80));
+                    }
+                  }
+                }}
               />
             </div>
           )}
