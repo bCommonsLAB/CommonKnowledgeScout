@@ -120,8 +120,8 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
     defaultValues,
   });
   
-  // Aktueller Storage-Typ
-  const currentType = form.watch("type");
+  // Aktueller Storage-Typ (Fallback: aktive Library für initialen Render)
+  const currentType = form.watch("type") || (activeLibrary?.type as StorageProviderType | undefined);
   
   // Logging für Mount und wichtige State-Änderungen
   useEffect(() => {
@@ -267,6 +267,32 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
     
     loadTokenStatus();
   }, [activeLibrary]);
+
+  // Sicherstellen, dass der Speichertyp im Formular nach Reload gesetzt ist
+  useEffect(() => {
+    if (!activeLibrary) return;
+    const currentValues = form.getValues() as Partial<StorageFormValues>;
+    const nextValues: Partial<StorageFormValues> = { ...currentValues };
+    let needsReset = false;
+
+    if (activeLibrary.type && currentValues.type !== activeLibrary.type) {
+      nextValues.type = activeLibrary.type as StorageProviderType;
+      needsReset = true;
+    }
+    if (typeof currentValues.path !== 'string' || currentValues.path === '') {
+      nextValues.path = activeLibrary.path || '';
+      needsReset = true;
+    }
+    if (activeLibrary.type === 'onedrive') {
+      if (!currentValues.tenantId) { nextValues.tenantId = (activeLibrary.config?.tenantId as string) || ''; needsReset = true; }
+      if (!currentValues.clientId) { nextValues.clientId = (activeLibrary.config?.clientId as string) || ''; needsReset = true; }
+      // clientSecret nie vorbefüllen; leer lassen (Maskierung über Placeholder)
+      if (currentValues.clientSecret === undefined) { nextValues.clientSecret = ''; needsReset = true; }
+    }
+    if (needsReset) {
+      form.reset(nextValues as StorageFormValues, { keepDefaultValues: false, keepDirty: false, keepTouched: false });
+    }
+  }, [activeLibrary, form]);
   
   // OAuth Erfolgs-/Fehlermeldungen aus URL-Parametern verarbeiten
   useEffect(() => {
@@ -347,22 +373,26 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
             }
           })();
           
-          // Library-Daten neu laden
-          fetch(`/api/libraries/${authenticatedLibraryId}`)
-            .then(response => response.json())
-            .then(updatedLibrary => {
-              console.log('[StorageForm] Library nach OAuth aktualisiert:', {
-                id: updatedLibrary.id,
-                label: updatedLibrary.label,
-                type: updatedLibrary.type
-              });
-              
-              // Library in der Liste aktualisieren
-              setLibraries(libraries.map(lib => lib.id === updatedLibrary.id ? updatedLibrary : lib));
-            })
-            .catch(error => {
-              console.error('[StorageForm] Fehler beim Laden der aktualisierten Library:', error);
-            });
+          // Library-Daten neu laden und Formular sofort setzen
+          (async () => {
+            try {
+              const res = await fetch(`/api/libraries/${authenticatedLibraryId}`)
+              if (res.ok) {
+                const updatedLibrary = await res.json()
+                setLibraries(libraries.map(lib => lib.id === updatedLibrary.id ? updatedLibrary : lib))
+                // Formular direkt mit neuem Typ befüllen
+                form.reset({
+                  type: updatedLibrary.type,
+                  path: updatedLibrary.path || '',
+                  tenantId: updatedLibrary.config?.tenantId || oauthDefaults.tenantId,
+                  clientId: updatedLibrary.config?.clientId || oauthDefaults.clientId,
+                  clientSecret: ''
+                })
+              }
+            } catch (error) {
+              console.error('[StorageForm] Fehler beim Laden der aktualisierten Library:', error)
+            }
+          })();
         }
       }
       
@@ -375,7 +405,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
         });
       }
       
-      // Parameter als verarbeitet markieren
+      // Parameter als verarbeitet markieren (nachdem Formular gesetzt wurde)
       setProcessedAuthParams(true);
       
       // URL bereinigen nach der Verarbeitung
@@ -390,7 +420,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
         console.log('[StorageForm] URL bereinigt nach Auth-Verarbeitung');
       }
     }
-  }, [searchParams, libraries, activeLibraryId, processedAuthParams, setLibraries, refreshAuthStatus]);
+  }, [searchParams, libraries, activeLibraryId, processedAuthParams, setLibraries, refreshAuthStatus, form, oauthDefaults]);
   
   // Formular absenden
   const onSubmit = useCallback(async (data: StorageFormValues) => {
@@ -813,7 +843,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
                 <FormItem>
                   <FormLabel>Tenant ID</FormLabel>
                   <FormControl>
-                    <Input {...field} value={field.value || ""} />
+                    <Input {...field} value={String((field.value ?? activeLibrary?.config?.tenantId) ?? '')} />
                   </FormControl>
                   <FormDescription>
                     Die Tenant ID Ihres Microsoft Azure AD-Verzeichnisses. Lassen Sie dieses Feld leer für persönliche Microsoft-Konten.
@@ -829,7 +859,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
                 <FormItem>
                   <FormLabel>Client ID</FormLabel>
                   <FormControl>
-                    <Input {...field} value={field.value || ""} />
+                    <Input {...field} value={String((field.value ?? activeLibrary?.config?.clientId) ?? '')} />
                   </FormControl>
                   <FormDescription>
                     Die Client ID Ihrer Microsoft Azure AD-Anwendung.
@@ -848,7 +878,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
                     <Input 
                       {...field} 
                       type="password" 
-                      value={field.value || ""} 
+                      value={field.value ?? ""} 
                       placeholder={
                         activeLibrary?.config?.clientSecret === '********' 
                           ? "Client Secret ist gespeichert (zum Ändern neuen Wert eingeben)" 
@@ -1061,7 +1091,8 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
                 <FormLabel>Speichertyp</FormLabel>
                 <Select
                   onValueChange={field.onChange}
-                  value={field.value}
+                  value={field.value || (activeLibrary?.type as StorageProviderType) || undefined}
+                  defaultValue={activeLibrary?.type as StorageProviderType | undefined}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -1089,7 +1120,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
               <FormItem>
                 <FormLabel>Speicherpfad</FormLabel>
                 <FormControl>
-                  <Input {...field} value={field.value || ""} />
+                  <Input {...field} value={field.value ?? (activeLibrary?.path || "")} />
                 </FormControl>
                 <FormDescription>
                   Der Pfad, unter dem die Dateien gespeichert werden sollen.

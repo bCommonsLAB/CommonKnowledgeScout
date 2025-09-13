@@ -99,6 +99,14 @@ export interface StorageConfig {
     
     /** API-Key für die Authentifizierung */
     apiKey: string;
+
+    /** PDF-Standardwerte pro Library (serverseitig wirksam) */
+    pdfDefaults?: {
+      /** Standard-Extraktionsmethode für PDF → Markdown */
+      extractionMethod?: 'native' | 'ocr' | 'both' | 'preview' | 'preview_and_native' | 'llm' | 'llm_and_ocr' | 'mistral_ocr';
+      /** Standard-Template-Name für Phase 2 (ohne .md) */
+      template?: string;
+    };
   };
 
   /** Chat-/RAG-Konfiguration pro Library (öffentlich sichere Inhalte) */
@@ -167,6 +175,12 @@ export interface ClientLibrary {
       
       /** API-Key für die Authentifizierung */
       apiKey: string;
+
+      /** PDF-Standardwerte pro Library (UI-sicher) */
+      pdfDefaults?: {
+        extractionMethod?: 'native' | 'ocr' | 'both' | 'preview' | 'preview_and_native' | 'llm' | 'llm_and_ocr' | 'mistral_ocr';
+        template?: string;
+      };
     };
     /** Chat-/RAG-Konfiguration für die UI */
     chat?: LibraryChatConfig;

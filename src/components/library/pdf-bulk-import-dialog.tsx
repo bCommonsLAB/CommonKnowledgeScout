@@ -21,6 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { FileLogger } from '@/lib/debug/logger';
 import { toast } from '@/components/ui/use-toast';
 import { loadPdfDefaults } from '@/lib/pdf-defaults';
+import { pdfOverridesAtom, getEffectivePdfDefaults } from '@/atoms/pdf-defaults';
 import { PdfPhaseSettings } from '@/components/library/pdf-phase-settings';
 import { Settings } from 'lucide-react';
 
@@ -39,6 +40,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const { provider } = useStorage();
   const rootFolderId = useAtomValue(currentFolderIdAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const pdfOverrides = useAtomValue(pdfOverridesAtom);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -175,10 +177,21 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
 
           const form = new FormData();
           form.append('file', pdfFile);
-          // form.append('targetLanguage', saveOptions.targetLanguage || 'de'); // saveOptions was removed
-          // form.append('extractionMethod', saveOptions.extractionMethod || 'native'); // saveOptions was removed
-          // form.append('useCache', String(saveOptions.useCache ?? true)); // saveOptions was removed
-          // form.append('includeImages', String(saveOptions.includeImages ?? false)); // saveOptions was removed
+          // PDF-Standardwerte aus localStorage (pro Library) anhängen
+          try {
+            const defaults = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
+            const targetLanguage = typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de';
+            const extractionMethod = typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native';
+            const useCache = defaults.useCache ?? true;
+            const includeImages = defaults.includeImages ?? false;
+            form.append('targetLanguage', targetLanguage);
+            form.append('extractionMethod', extractionMethod);
+            form.append('useCache', String(useCache));
+            form.append('includeImages', String(includeImages));
+            if (typeof defaults.template === 'string' && defaults.template) {
+              form.append('template', defaults.template);
+            }
+          } catch {}
           form.append('originalItemId', file.id);
           form.append('parentId', parentId);
 
@@ -230,7 +243,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     } finally {
       setIsEnqueuing(false);
     }
-  }, [activeLibraryId, candidates.length, runMetaPhase, runIngestionPhase, onOpenChange]);
+  }, [activeLibraryId, candidates, runMetaPhase, runIngestionPhase, onOpenChange, pdfOverrides, provider]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -255,11 +268,26 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             <div className="flex flex-col gap-2 text-sm">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Checkbox id="phase-1" checked disabled />
-                <Label htmlFor="phase-1">Phase 1: Extraktion (durch Gates idempotent)</Label>
+                <Label htmlFor="phase-1">Phase 1: Extraktion (Methode: 
+                  <span>
+                    {(() => {
+                      const eff = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
+                      return eff.extractionMethod;
+                    })()})
+                  </span>
+                </Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="phase-2" checked={runMetaPhase} onCheckedChange={(v) => setRunMetaPhase(Boolean(v))} />
-                <Label htmlFor="phase-2">Phase 2: Metadaten (Template)</Label>
+                <Label htmlFor="phase-2">Phase 2: Metadaten (Template: 
+                  <span>                    
+                    {(() => {
+                      const eff = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
+                      return eff.template;
+                    })()}
+                  )
+                  </span>
+                </Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="phase-3" checked={runIngestionPhase} onCheckedChange={(v) => setRunIngestionPhase(Boolean(v))} />

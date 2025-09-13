@@ -28,6 +28,8 @@ import { useAtomValue } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
 import { SUPPORTED_LANGUAGES } from '@/lib/secretary/constants';
 import { StorageItem } from '@/lib/storage/types';
+import { CombinedChatDialog } from '@/components/library/combined-chat-dialog'
+import { combinedChatDialogOpenAtom } from '@/atoms/combined-chat-atom'
 
 interface ProgressState {
   isProcessing: boolean;
@@ -41,6 +43,7 @@ interface TransformationDialogProps {
 
 export function TransformationDialog({ onRefreshFolder }: TransformationDialogProps) {
   const [isOpen, setIsOpen] = useAtom(transformationDialogOpenAtom);
+  const [, setCombinedOpen] = useAtom(combinedChatDialogOpenAtom);
   const [selectedItems] = useAtom(selectedTransformationItemsAtom);
   const [progressState, setProgressState] = useState<ProgressState>({
     isProcessing: false,
@@ -512,8 +515,27 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
               Kombinierte Transformation starten ({effectiveItems.length} Dateien)
             </Button>
           )}
+          {!progressState.isProcessing && !progressState.results && (
+            <Button 
+              variant="secondary"
+              onClick={() => setCombinedOpen(true)}
+              disabled={effectiveItems.length === 0}
+            >
+              Kombinierten Dialog starten
+            </Button>
+          )}
         </div>
       </DialogContent>
+      {/* Modal für Prompt-Design*/}
+      {!progressState.isProcessing && !progressState.results && (
+        <CombinedChatDialog 
+          provider={provider}
+          items={effectiveItems.map(e => e.item)}
+          selectedTemplate={selectedTemplate}
+          selectedLanguage={selectedLanguage}
+          defaultFileName={customFileName}
+        />
+      )}
     </Dialog>
   );
 } 

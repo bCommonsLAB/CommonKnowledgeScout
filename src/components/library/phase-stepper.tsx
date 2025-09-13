@@ -8,7 +8,8 @@ import { Settings2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAtomValue } from "jotai";
 import { activeLibraryIdAtom, selectedFileAtom } from "@/atoms/library-atom";
-import { loadPdfDefaults, savePdfDefaults } from "@/lib/pdf-defaults";
+import { loadPdfDefaults } from "@/lib/pdf-defaults";
+import { pdfOverridesAtom, getEffectivePdfDefaults } from "@/atoms/pdf-defaults";
 import { TransformService, type PdfTransformOptions } from "@/lib/transform/transform-service";
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
@@ -26,6 +27,7 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const item = useAtomValue(selectedFileAtom);
   const { provider, refreshItems } = useStorage();
+  const pdfOverrides = useAtomValue(pdfOverridesAtom);
 
   async function runPhase() {
     try {
@@ -35,7 +37,7 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
       }
       const bin = await provider.getBinary(item.id);
       const file = new File([bin.blob], item.metadata.name, { type: item.metadata.mimeType });
-      const defaults = loadPdfDefaults(activeLibraryId);
+      const defaults = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
       const base: PdfTransformOptions = {
         targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de',
         fileName: TransformService.generateShadowTwinName(item.metadata.name, typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de'),
@@ -54,8 +56,7 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
         doExtractMetadata: phase >= 2,
         doIngestRAG: phase >= 3,
       };
-      // Save defaults opportunistisch
-      savePdfDefaults(activeLibraryId, options);
+      // Keine Persistenz hier; Overrides bleiben bis zum Reload
       await TransformService.transformPdf(file, item, options, provider, refreshItems, activeLibraryId);
       toast.success('Gestartet', { description: `Phase ${phase} angestoßen` });
     } catch (err) {

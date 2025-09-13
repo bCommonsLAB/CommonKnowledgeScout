@@ -79,12 +79,23 @@ export async function POST(request: NextRequest) {
     // Veraltetes Feld skipTemplate wird nicht mehr verwendet
     const skipTemplate = false;
     
-    // Extraktionsmethode
-    if (formData.has('extractionMethod')) {
-      serviceFormData.append('extraction_method', formData.get('extractionMethod') as string);
-    } else {
-      serviceFormData.append('extraction_method', 'native'); // Standardwert
+    // Extraktionsmethode – Clientwert oder Library-Default
+    let effectiveExtraction: string | null = null;
+    if (formData.has('extractionMethod')) effectiveExtraction = String(formData.get('extractionMethod'));
+    if (!effectiveExtraction) {
+      try {
+        const libHeader = request.headers.get('x-library-id') || request.headers.get('X-Library-Id') || '';
+        const usr = await currentUser();
+        const email = usr?.emailAddresses?.[0]?.emailAddress || '';
+        if (libHeader && email) {
+          const svc = LibraryService.getInstance();
+          const libs = await svc.getUserLibraries(email);
+          const lib = libs.find(l => l.id === libHeader);
+          effectiveExtraction = lib?.config?.secretaryService?.pdfDefaults?.extractionMethod || null;
+        }
+      } catch {}
     }
+    serviceFormData.append('extraction_method', effectiveExtraction || 'native');
     
     // Cache-Optionen
     if (formData.has('useCache')) {
@@ -132,7 +143,8 @@ export async function POST(request: NextRequest) {
     const libraryId = request.headers.get('x-library-id') || '';
     const user = await currentUser();
     const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
-    const extractionMethod = (formData.get('extractionMethod') as string) || 'native';
+    // Korrelation: nutze die bereits ermittelte effektive Methode oben, falls vorhanden
+    const extractionMethod = (formData.get('extractionMethod') as string) || (serviceFormData.get('extraction_method') as string) || 'native';
     const includeImages = (formData.get('includeImages') as string) ?? 'false';
     const useCache = (formData.get('useCache') as string) ?? 'true';
     const targetLanguage = (formData.get('targetLanguage') as string) || 'de';
