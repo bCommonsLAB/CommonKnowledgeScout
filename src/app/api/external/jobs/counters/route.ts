@@ -12,14 +12,15 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const libraryId = url.searchParams.get('libraryId') || undefined;
+    const batchName = url.searchParams.get('batchName') || undefined;
+    const batchId = url.searchParams.get('batchId') || undefined;
 
     const repo = new ExternalJobsRepository();
-    const names = await repo.listDistinctBatchNames(userEmail, libraryId);
-    return NextResponse.json({ items: names });
+    const counters = await repo.countByStatus(userEmail, { libraryId, batchName, batchId });
+    return NextResponse.json({ counters });
   } catch {
     return NextResponse.json({ error: 'Unerwarteter Fehler' }, { status: 500 });
   }
 }
-
 
 

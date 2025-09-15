@@ -95,6 +95,7 @@ export function JobMonitorPanel() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [batchNames, setBatchNames] = useState<string[]>([]);
+  const [serverCounts, setServerCounts] = useState<{ queued: number; running: number; completed: number; failed: number; pendingStorage: number; total: number } | null>(null);
   const [liveUpdates, setLiveUpdates] = useState<boolean>(true);
 
   // Initiale Seite nur laden, wenn Panel geöffnet wird
@@ -138,6 +139,26 @@ export function JobMonitorPanel() {
     void loadBatches();
     return () => { active = false; };
   }, [isOpen]);
+
+  // Serverseitige Zähler laden (gesamt, optional gefiltert nach Batch)
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    async function loadCounts() {
+      try {
+        const params = new URLSearchParams();
+        if (batchFilter) params.set('batchName', batchFilter);
+        const res = await fetch(`/api/external/jobs/counters?${params.toString()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!active) return;
+        setServerCounts(json.counters || null);
+      } catch {}
+    }
+    void loadCounts();
+    const t = setInterval(loadCounts, 5000);
+    return () => { active = false; clearInterval(t); };
+  }, [isOpen, batchFilter]);
 
   const refreshNow = async () => {
     if (isRefreshing) return;
@@ -366,7 +387,7 @@ export function JobMonitorPanel() {
           <div className="px-4 py-3 border-b flex items-center justify-between">
             <div className="font-semibold flex items-center gap-2">
               <span>Secretary Jobs</span>
-              <span className="text-xs text-muted-foreground">Q {queuedCount} • R {runningCount} • C {completedCount} • F {failedCount}</span>
+              <span className="text-xs text-muted-foreground">Q {serverCounts?.queued ?? queuedCount} • R {serverCounts?.running ?? runningCount} • C {serverCounts?.completed ?? completedCount} • F {serverCounts?.failed ?? failedCount}</span>
               <button
                 onClick={() => setLiveUpdates(v => !v)}
                 className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
@@ -387,18 +408,18 @@ export function JobMonitorPanel() {
             <Button size="sm" variant="ghost" onClick={handleToggle} aria-label="Schließen">×</Button>
           </div>
           <div className="px-4 py-1 border-b text-xs text-muted-foreground flex items-center gap-4">
-            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-400" />Queued {queuedCount}</span>
-            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-400" />Running {runningCount}</span>
-            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-500" />Completed {completedCount}</span>
-            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Failed {failedCount}</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-400" />Queued {serverCounts?.queued ?? queuedCount}</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-400" />Running {serverCounts?.running ?? runningCount}</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-500" />Completed {serverCounts?.completed ?? completedCount}</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Failed {serverCounts?.failed ?? failedCount}</span>
           </div>
           <div className="px-4 py-2 border-b flex items-center gap-2">
             <select className="border rounded px-2 py-1 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="all">Alle ({queuedCount + runningCount + completedCount + failedCount})</option>
-              <option value="queued">Queued ({queuedCount})</option>
-              <option value="running">Running ({runningCount})</option>
-              <option value="completed">Completed ({completedCount})</option>
-              <option value="failed">Failed ({failedCount})</option>
+              <option value="all">Alle ({serverCounts?.total ?? (queuedCount + runningCount + completedCount + failedCount)})</option>
+              <option value="queued">Queued ({serverCounts?.queued ?? queuedCount})</option>
+              <option value="running">Running ({serverCounts?.running ?? runningCount})</option>
+              <option value="completed">Completed ({serverCounts?.completed ?? completedCount})</option>
+              <option value="failed">Failed ({serverCounts?.failed ?? failedCount})</option>
             </select>
             <select className="border rounded px-2 py-1 text-sm flex-1" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
               <option value="">Alle Batches</option>

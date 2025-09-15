@@ -228,6 +228,31 @@ export class ExternalJobsRepository {
     ]).toArray();
     return rows.map(r => r._id).filter((v): v is string => typeof v === 'string' && v.length > 0);
   }
+
+  async countByStatus(
+    userEmail: string,
+    filters: { libraryId?: string; batchName?: string; batchId?: string }
+  ): Promise<{ queued: number; running: number; completed: number; failed: number; pendingStorage: number; total: number }>
+  {
+    const col = await this.getCollection();
+    const match: Record<string, unknown> = { userEmail };
+    if (filters.libraryId) match['libraryId'] = filters.libraryId;
+    if (filters.batchId) match['correlation.batchId'] = filters.batchId;
+    if (filters.batchName) match['correlation.batchName'] = filters.batchName;
+
+    const rows = await col.aggregate<{ _id: string; count: number }>([
+      { $match: match },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]).toArray();
+    const by: Record<string, number> = Object.fromEntries(rows.map(r => [r._id, r.count]));
+    const queued = by['queued'] || 0;
+    const running = by['running'] || 0;
+    const completed = by['completed'] || 0;
+    const failed = by['failed'] || 0;
+    const pendingStorage = by['pending-storage'] || 0;
+    const total = queued + running + completed + failed + pendingStorage;
+    return { queued, running, completed, failed, pendingStorage, total };
+  }
 }
 
 
