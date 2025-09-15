@@ -30,6 +30,9 @@ import { SUPPORTED_LANGUAGES } from '@/lib/secretary/constants';
 import { StorageItem } from '@/lib/storage/types';
 import { CombinedChatDialog } from '@/components/library/combined-chat-dialog'
 import { combinedChatDialogOpenAtom } from '@/atoms/combined-chat-atom'
+import { templateContextDocsAtom } from '@/atoms/template-context-atom'
+import { useSetAtom } from 'jotai'
+import { useRouter } from 'next/navigation'
 
 interface ProgressState {
   isProcessing: boolean;
@@ -58,6 +61,8 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
   const { provider, refreshItems, listItems } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const baseOptions = useAtomValue(baseTransformOptionsAtom);
+  const setTemplateContext = useSetAtom(templateContextDocsAtom)
+  const router = useRouter()
   
   // Initialisiere selectedLanguage mit dem Standard-Wert
   const [selectedLanguage, setSelectedLanguage] = useState<string>(baseOptions.targetLanguage);
@@ -522,6 +527,19 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
               disabled={effectiveItems.length === 0}
             >
               Kombinierten Dialog starten
+            </Button>
+          )}
+          {!progressState.isProcessing && !progressState.results && (
+            <Button 
+              variant="secondary"
+              onClick={() => {
+                const docs = effectiveItems.map(e => ({ id: e.item.id, name: e.item.metadata.name, parentId: e.item.parentId }))
+                setTemplateContext(docs)
+                router.push('/templates')
+              }}
+              disabled={effectiveItems.length === 0}
+            >
+              Im Template‑Editor testen
             </Button>
           )}
         </div>

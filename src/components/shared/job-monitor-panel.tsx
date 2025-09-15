@@ -83,14 +83,19 @@ function StatusBadge({ status }: { status: string }) {
 export function JobMonitorPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<JobListItem[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [batchFilter, setBatchFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const eventRef = useRef<EventSource | null>(null);
+  const lastEventTsRef = useRef<number>(Date.now());
   const isFetchingRef = useRef(false);
   const upsertJobStatus = useSetAtom(upsertJobStatusAtom);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [batchNames, setBatchNames] = useState<string[]>([]);
+  const [liveUpdates, setLiveUpdates] = useState<boolean>(true);
 
   // Initiale Seite nur laden, wenn Panel geöffnet wird
   useEffect(() => {
@@ -99,7 +104,10 @@ export function JobMonitorPanel() {
     async function load(pageNum: number, replace: boolean) {
       try {
         isFetchingRef.current = true;
-        const res = await fetch(`/api/external/jobs?page=${pageNum}&limit=20`, { cache: 'no-store' });
+        const params = new URLSearchParams({ page: String(pageNum), limit: '20' });
+        if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+        if (batchFilter) params.set('batchName', batchFilter);
+        const res = await fetch(`/api/external/jobs?${params.toString()}`, { cache: 'no-store' });
         if (!res.ok) return;
         const json = await res.json();
         if (cancelled) return;
@@ -111,13 +119,34 @@ export function JobMonitorPanel() {
     }
     void load(1, true);
     return () => { cancelled = true; };
+  }, [isOpen, statusFilter, batchFilter]);
+
+  // Batch-Namen laden, wenn Panel geöffnet wird
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    async function loadBatches() {
+      try {
+        const res = await fetch('/api/external/jobs/batches', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!active) return;
+        const names = Array.isArray(json.items) ? json.items.filter((v: unknown) => typeof v === 'string') as string[] : [];
+        setBatchNames(names);
+      } catch {}
+    }
+    void loadBatches();
+    return () => { active = false; };
   }, [isOpen]);
 
   const refreshNow = async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const res = await fetch(`/api/external/jobs?page=1&limit=20`, { cache: 'no-store' });
+      const params = new URLSearchParams({ page: '1', limit: '20' });
+      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+      if (batchFilter) params.set('batchName', batchFilter);
+      const res = await fetch(`/api/external/jobs?${params.toString()}`, { cache: 'no-store' });
       if (!res.ok) return;
       const json = await res.json();
       setItems(json.items || []);
@@ -128,9 +157,9 @@ export function JobMonitorPanel() {
     }
   };
 
-  // SSE verbinden nur wenn Panel geöffnet ist; bei Schließen sofort beenden
+  // SSE verbinden nur wenn Panel geöffnet ist und Live-Updates aktiv sind; bei Schließen sofort beenden
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || !liveUpdates) {
       if (eventRef.current) { try { eventRef.current.close(); } catch {} eventRef.current = null; }
       return;
     }
@@ -147,6 +176,7 @@ export function JobMonitorPanel() {
       const onUpdate = (e: MessageEvent) => {
         try {
           const evt: JobUpdateEvent = JSON.parse(e.data);
+          lastEventTsRef.current = Date.now();
           if (evt.sourceItemId && evt.status) {
             upsertJobStatus({ itemId: evt.sourceItemId, status: evt.status });
           }
@@ -168,7 +198,14 @@ export function JobMonitorPanel() {
               next.sort((a, b) => (new Date(b.updatedAt || 0).getTime()) - (new Date(a.updatedAt || 0).getTime()));
               return next;
             }
-            // Neuer Job → vorne einfügen
+            // Neuer Job: nur einfügen wenn Filter passt; bei Batch-Filter immer via Refresh laden
+            if (statusFilter && statusFilter !== 'all' && evt.status !== statusFilter) {
+              return prev;
+            }
+            if (batchFilter) {
+              void refreshNow();
+              return prev;
+            }
             const inserted: JobListItem = {
               jobId: evt.jobId,
               status: evt.status,
@@ -187,7 +224,7 @@ export function JobMonitorPanel() {
         try { es.close(); } catch {}
         if (retryTimer) clearTimeout(retryTimer);
         // Nur reconnecten, wenn Panel offen bleibt
-        retryTimer = setTimeout(() => { if (isOpen) connect(); }, 1000);
+        retryTimer = setTimeout(() => { if (isOpen && liveUpdates) connect(); }, 1000);
       });
     }
     connect();
@@ -195,6 +232,7 @@ export function JobMonitorPanel() {
     const onLocal = (e: Event) => {
       const detail = (e as CustomEvent).detail as JobUpdateEvent;
       if (!detail?.jobId) return;
+      lastEventTsRef.current = Date.now();
       setItems(prev => {
         const idx = prev.findIndex(p => p.jobId === detail.jobId);
         const patch: Partial<JobListItem> = {
@@ -230,13 +268,29 @@ export function JobMonitorPanel() {
       if (eventRef.current) try { eventRef.current.close(); } catch {}
       window.removeEventListener('job_update_local', onLocal as unknown as EventListener);
     };
-  }, [isOpen, upsertJobStatus]);
+  }, [isOpen, liveUpdates, upsertJobStatus, statusFilter, batchFilter]);
 
   const handleToggle = () => setIsOpen(v => !v);
+  const queuedCount = items.filter(i => i.status === 'queued').length;
+  const runningCount = items.filter(i => i.status === 'running').length;
+  const completedCount = items.filter(i => i.status === 'completed').length;
+  const failedCount = items.filter(i => i.status === 'failed').length;
+
+  async function retryJob(jobId: string) {
+    try {
+      const res = await fetch(`/api/external/jobs/${jobId}/retry`, { method: 'POST' });
+      if (!res.ok) return;
+      // Nach erfolgreichem Retry frisch laden
+      await refreshNow();
+    } catch {}
+  }
   const loadMore = async () => {
     if (!hasMore || isFetchingRef.current) return;
     const next = page + 1;
-    const res = await fetch(`/api/external/jobs?page=${next}&limit=20`, { cache: 'no-store' });
+    const params = new URLSearchParams({ page: String(next), limit: '20' });
+    if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+    if (batchFilter) params.set('batchName', batchFilter);
+    const res = await fetch(`/api/external/jobs?${params.toString()}`, { cache: 'no-store' });
     if (!res.ok) return;
     const json = await res.json();
     setItems(prev => [...prev, ...json.items]);
@@ -244,12 +298,18 @@ export function JobMonitorPanel() {
     setHasMore(json.items.length === 20);
   };
 
-  // Polling als sanfter Fallback (nur wenn Panel offen): alle 1000ms
+  // Polling Fallback: nur wenn Panel offen, Live-Updates an UND keine SSE-Events für 10s
   useEffect(() => {
-    if (!isOpen) return;
-    const timer = setInterval(() => { void refreshNow(); }, 1000);
-    return () => clearInterval(timer);
-  }, [isOpen]);
+    if (!isOpen || !liveUpdates) return;
+    const onTick = () => {
+      const idleMs = Date.now() - lastEventTsRef.current;
+      if (idleMs > 10_000) void refreshNow();
+    };
+    const timer = setInterval(onTick, 2000);
+    const unsub = () => { lastEventTsRef.current = Date.now(); };
+    window.addEventListener('job_update_local', unsub as unknown as EventListener);
+    return () => { clearInterval(timer); window.removeEventListener('job_update_local', unsub as unknown as EventListener); };
+  }, [isOpen, liveUpdates]);
 
   function JobTypeIcon({ jobType }: { jobType?: string }) {
     const type = (jobType || '').toLowerCase();
@@ -295,7 +355,7 @@ export function JobMonitorPanel() {
       {/* Panel */}
       <div className={cn(
         "fixed top-0 right-0 h-screen z-30",
-        "w-[380px] md:w-[420px]",
+        "w-[420px] md:w-[520px]",
         "bg-background border-l",
         "shadow-lg",
         "transition-transform duration-300",
@@ -306,13 +366,14 @@ export function JobMonitorPanel() {
           <div className="px-4 py-3 border-b flex items-center justify-between">
             <div className="font-semibold flex items-center gap-2">
               <span>Secretary Jobs</span>
+              <span className="text-xs text-muted-foreground">Q {queuedCount} • R {runningCount} • C {completedCount} • F {failedCount}</span>
               <button
-                onClick={refreshNow}
+                onClick={() => setLiveUpdates(v => !v)}
                 className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
-                aria-label="Liste aktualisieren"
-                title="Liste aktualisieren"
+                aria-label={liveUpdates ? "Live-Updates anhalten" : "Live-Updates starten"}
+                title={liveUpdates ? "Live-Updates anhalten" : "Live-Updates starten"}
               >
-                <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                <RefreshCw className={cn("h-4 w-4", (isRefreshing || liveUpdates) && "animate-spin")} />
               </button>
               <button
                 onClick={hideAllJobs}
@@ -324,6 +385,38 @@ export function JobMonitorPanel() {
               </button>
             </div>
             <Button size="sm" variant="ghost" onClick={handleToggle} aria-label="Schließen">×</Button>
+          </div>
+          <div className="px-4 py-1 border-b text-xs text-muted-foreground flex items-center gap-4">
+            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-400" />Queued {queuedCount}</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-400" />Running {runningCount}</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-500" />Completed {completedCount}</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Failed {failedCount}</span>
+          </div>
+          <div className="px-4 py-2 border-b flex items-center gap-2">
+            <select className="border rounded px-2 py-1 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="all">Alle ({queuedCount + runningCount + completedCount + failedCount})</option>
+              <option value="queued">Queued ({queuedCount})</option>
+              <option value="running">Running ({runningCount})</option>
+              <option value="completed">Completed ({completedCount})</option>
+              <option value="failed">Failed ({failedCount})</option>
+            </select>
+            <select className="border rounded px-2 py-1 text-sm flex-1" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
+              <option value="">Alle Batches</option>
+              {batchNames.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <Button size="sm" variant="outline" onClick={refreshNow}>Filtern</Button>
+            <Button size="sm" onClick={async () => {
+              try {
+                const payload: Record<string, string> = {};
+                if (statusFilter && statusFilter !== 'all') payload.status = statusFilter;
+                if (batchFilter) payload.batchName = batchFilter;
+                const res = await fetch('/api/external/jobs/retry-batch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!res.ok) return;
+                await refreshNow();
+              } catch {}
+            }}>Neu starten (gefiltert)</Button>
           </div>
           <ScrollArea className="flex-1">
             <ul className="p-3 space-y-2">
@@ -351,7 +444,7 @@ export function JobMonitorPanel() {
                         </HoverCardContent>
                       </HoverCard>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0 w-28 justify-end">
                       <button
                         onClick={() => hideJob(item.jobId)}
                         className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
@@ -360,11 +453,26 @@ export function JobMonitorPanel() {
                       >
                         <Ban className="h-4 w-4" />
                       </button>
+                      {(item.status === 'failed' || item.status === 'queued') && (
+                        <button
+                          onClick={() => retryJob(item.jobId)}
+                          className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
+                          aria-label="Neu starten"
+                          title="Neu starten"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </button>
+                      )}
                       <StatusBadge status={item.status} />
                     </div>
                   </div>
                   <div className="mt-2 relative">
                     <Progress value={typeof item.lastProgress === 'number' ? Math.max(0, Math.min(100, item.lastProgress)) : 0} />
+                    {item.status === 'running' && (
+                      <div className="absolute inset-0 flex items-center justify-center text-[11px] text-muted-foreground">
+                        Läuft…
+                      </div>
+                    )}
                     {item.status === 'completed' && (
                       <div className="absolute inset-0 flex items-center justify-center text-[11px] text-muted-foreground">
                         {formatDuration(item.createdAt, item.updatedAt)}

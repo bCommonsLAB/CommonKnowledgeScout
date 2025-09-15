@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, currentUser } from '@clerk/nextjs/server';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
-import type { ExternalJob } from '@/types/external-job';
+import type { ExternalJob, ExternalJobStatus } from '@/types/external-job';
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,7 +36,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ items: job ? [job] : [], total: job ? 1 : 0, page: 1, limit: 1 });
     }
 
-    const { items, total, page: curPage, limit: curLimit } = await repo.listByUserEmail(userEmail, { page, limit });
+    const statusParam = parsedUrl.searchParams.get('status');
+    const batchName = parsedUrl.searchParams.get('batchName') || undefined;
+    const batchId = parsedUrl.searchParams.get('batchId') || undefined;
+    const query = parsedUrl.searchParams.get('q') || undefined;
+    const statuses: ExternalJobStatus[] | undefined = statusParam
+      ? (statusParam.split(',').map(s => s.trim()).filter(Boolean) as ExternalJobStatus[])
+      : undefined;
+
+    const { items, total, page: curPage, limit: curLimit } = await repo.listByUserWithFilters(userEmail, {
+      page,
+      limit,
+      status: statuses,
+      batchName,
+      batchId,
+      libraryId,
+      q: query,
+    });
 
     const mapped = items.map((j: ExternalJob) => {
       const last = Array.isArray(j.logs) && j.logs.length > 0 ? j.logs[j.logs.length - 1] : undefined;
@@ -47,6 +63,8 @@ export async function GET(request: NextRequest) {
         worker: j.worker,
         jobType: j.job_type,
         fileName: j.correlation?.source?.name,
+        batchName: j.correlation?.batchName,
+        batchId: j.correlation?.batchId,
         updatedAt: j.updatedAt,
         createdAt: j.createdAt,
         lastMessage: typeof last?.message === 'string' ? last.message : undefined,

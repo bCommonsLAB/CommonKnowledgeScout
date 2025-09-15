@@ -19,6 +19,7 @@ export interface ExternalJobCorrelation {
   source?: ExternalJobCorrelationSource;
   options?: Record<string, unknown>;
   batchId?: string;
+  batchName?: string;
 }
 
 export interface ExternalJobPayloadMeta {

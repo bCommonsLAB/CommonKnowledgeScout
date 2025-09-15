@@ -6,15 +6,12 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { StructuredTemplateEditor } from "@/components/templates/structured-template-editor"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Save, Plus, Trash2, Eye, Play, FolderOpen, Info } from "lucide-react"
+import { Loader2, Save, Eye, Play, FolderOpen, Info } from "lucide-react"
 import { useAtom, useAtomValue } from "jotai"
 import { activeLibraryAtom, libraryStatusAtom } from "@/atoms/library-atom"
 import { 
@@ -27,10 +24,13 @@ import {
   type Template
 } from "@/atoms/template-atom"
 import { useStorage } from "@/contexts/storage-context"
+import { templateContextDocsAtom } from '@/atoms/template-context-atom'
+import { Checkbox } from "@/components/ui/checkbox"
+import { MarkdownPreview } from "@/components/library/markdown-preview"
 
 // Schema für Template-Daten
 const templateSchema = z.object({
-  name: z.string().min(1, "Template-Name ist erforderlich"),
+  name: z.string().min(1, "Prompt-Name ist erforderlich"),
   yamlFrontmatter: z.string(),
   markdownBody: z.string(),
   systemPrompt: z.string(),
@@ -43,6 +43,8 @@ export function TemplateManagement() {
   const [isSaving, setIsSaving] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
+  const [selectedContextIds, setSelectedContextIds] = useState<string[]>([])
+  const [selectedContextMarkdown, setSelectedContextMarkdown] = useState<string>("")
   const { toast } = useToast()
 
   // Atoms
@@ -60,6 +62,7 @@ export function TemplateManagement() {
     provider: providerInstance, 
     listItems
   } = useStorage()
+  const contextDocs = useAtomValue(templateContextDocsAtom)
 
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateSchema),
@@ -82,6 +85,20 @@ date: {{date|Datum im Format yyyy-mm-dd}}
 IMPORTANT: Your response must be a valid JSON object where each key corresponds to a template variable.`,
     },
   })
+
+  // Helper zum Erzeugen von Default-Werten
+  function getDefaultTemplateValues(name: string): TemplateFormValues {
+    return {
+      name,
+      yamlFrontmatter: `---\n` +
+        `title: {{title|Titel des Dokuments}}\n` +
+        `tags: {{tags|Relevante Tags}}\n` +
+        `date: {{date|Datum im Format yyyy-mm-dd}}\n` +
+        `---`,
+      markdownBody: `# {{title}}\n\n## Zusammenfassung\n{{summary|Kurze Zusammenfassung des Inhalts}}\n\n## Details\n{{details|Detaillierte Beschreibung}}`,
+      systemPrompt: `You are a specialized assistant that processes and structures information clearly and concisely.\n\nIMPORTANT: Your response must be a valid JSON object where each key corresponds to a template variable.`,
+    }
+  }
 
   // Template-Daten laden wenn sich die Auswahl ändert
   useEffect(() => {
@@ -157,7 +174,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       setIsLoading(true);
       setError(null);
 
-      console.log('[TemplateManagement] Starte Template-Loading:', {
+      console.log('[TemplateManagement] Starte Prompt-Loading:', {
         libraryId: activeLibrary.id,
         libraryPath: activeLibrary.path,
         providerName: providerInstance.name
@@ -176,7 +193,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
         item.metadata.name.endsWith('.md')
       );
 
-      console.log('[TemplateManagement] Template-Dateien gefunden:', templateFiles.length);
+      console.log('[TemplateManagement] Prompt-Dateien gefunden:', templateFiles.length);
 
       // 3. Template-Inhalte laden
       const templatePromises = templateFiles.map(async (file) => {
@@ -205,16 +222,16 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       
       setTemplates(validTemplates);
       
-      console.log('[TemplateManagement] Templates erfolgreich geladen:', validTemplates.length);
+      console.log('[TemplateManagement] Prompts erfolgreich geladen:', validTemplates.length);
       
       if (validTemplates.length === 0) {
         toast({
-          title: "Keine Templates gefunden",
-          description: "Erstellen Sie Ihr erstes Template im Verzeichnis '/templates'.",
+          title: "Keine Prompts gefunden",
+          description: "Erstellen Sie Ihren ersten Prompt im Verzeichnis '/templates'.",
         });
       }
     } catch (error) {
-      console.error('Fehler beim Laden der Templates:', {
+      console.error('Fehler beim Laden der Prompts:', {
         error: error instanceof Error ? {
           message: error.message,
           name: error.name,
@@ -225,18 +242,18 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
         providerName: providerInstance?.name
       });
 
-      let errorMessage = 'Unbekannter Fehler beim Laden der Templates';
+      let errorMessage = 'Unbekannter Fehler beim Laden der Prompts';
       
       if (error instanceof Error) {
         errorMessage = error.message;
         
         // Spezifische Fehlermeldungen für häufige Probleme
         if (error.message.includes('Nicht authentifiziert')) {
-          errorMessage = 'Bitte authentifizieren Sie sich bei Ihrem Cloud-Speicher, um Templates zu laden.';
+          errorMessage = 'Bitte authentifizieren Sie sich bei Ihrem Cloud-Speicher, um Prompts zu laden.';
         } else if (error.message.includes('Bibliothek nicht gefunden')) {
           errorMessage = 'Die ausgewählte Bibliothek wurde nicht gefunden. Bitte überprüfen Sie die Bibliothekskonfiguration.';
         } else if (error.message.includes('Server-Fehler')) {
-          errorMessage = 'Server-Fehler beim Laden der Templates. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.';
+          errorMessage = 'Server-Fehler beim Laden der Prompts. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.';
         } else if (error.message.includes('Keine aktive Bibliothek')) {
           errorMessage = 'Keine aktive Bibliothek verfügbar. Bitte wählen Sie eine Bibliothek aus.';
         }
@@ -244,7 +261,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       
       setError(errorMessage);
       toast({
-        title: "Fehler beim Laden der Templates",
+        title: "Fehler beim Laden der Prompts",
         description: errorMessage,
         variant: "destructive",
       });
@@ -274,6 +291,28 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
     setTemplates([])
     setError(null)
   }, [libraryStatus, setSelectedTemplateName, setTemplatesFolderId, setTemplates, setError])
+
+  useEffect(() => {
+    async function loadSelectedContext() {
+      if (!providerInstance || !Array.isArray(selectedContextIds) || selectedContextIds.length === 0) {
+        setSelectedContextMarkdown("")
+        return
+      }
+      try {
+        const parts: string[] = []
+        for (const id of selectedContextIds) {
+          const { blob } = await providerInstance.getBinary(id)
+          const text = await blob.text()
+          parts.push(text)
+        }
+        setSelectedContextMarkdown(parts.join("\n\n---\n\n"))
+      } catch (e) {
+        console.error('Fehler beim Laden des Kontextes', e)
+        setSelectedContextMarkdown("")
+      }
+    }
+    void loadSelectedContext()
+  }, [providerInstance, selectedContextIds])
 
   function parseTemplateContent(content: string, fileName: string): Template {
     // Template in drei Bereiche aufteilen
@@ -378,6 +417,24 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
     }
   }
 
+  async function renameCurrentTemplate() {
+    const current = selectedTemplateName ? templates.find(t => t.name === selectedTemplateName) : null
+    if (!current || !current.fileId || !providerInstance) return
+    const newName = (window.prompt('Neuen Namen eingeben:', current.name) || '').trim()
+    if (!newName || newName === current.name) return
+    if (/[^a-zA-Z0-9._\- ]/.test(newName)) { toast({ title: 'Ungültiger Name', description: 'Nur Buchstaben, Zahlen, Leerzeichen, . _ - sind erlaubt.', variant: 'destructive' }); return }
+    if (templates.some(t => t.name.toLowerCase() === newName.toLowerCase())) { toast({ title: 'Bereits vorhanden', description: 'Bitte anderen Namen wählen.', variant: 'destructive' }); return }
+    try {
+      await providerInstance.renameItem(current.fileId, `${newName}.md`)
+      await loadTemplates()
+      setSelectedTemplateName(newName)
+      form.setValue('name', newName, { shouldDirty: false })
+      toast({ title: 'Umbenannt', description: `${current.name} → ${newName}` })
+    } catch (e) {
+      toast({ title: 'Fehler beim Umbenennen', description: e instanceof Error ? e.message : 'Unbekannter Fehler', variant: 'destructive' })
+    }
+  }
+
   async function deleteTemplate(templateName: string) {
     if (!activeLibrary || !providerInstance) return
 
@@ -412,26 +469,25 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
     }
   }
 
-  function createNewTemplate() {
-    setSelectedTemplateName(null)
-    form.reset({
-      name: "",
-      yamlFrontmatter: `---
-title: {{title|Titel des Dokuments}}
-tags: {{tags|Relevante Tags}}
-date: {{date|Datum im Format yyyy-mm-dd}}
----`,
-      markdownBody: `# {{title}}
-
-## Zusammenfassung
-{{summary|Kurze Zusammenfassung des Inhalts}}
-
-## Details
-{{details|Detaillierte Beschreibung}}`,
-      systemPrompt: `You are a specialized assistant that processes and structures information clearly and concisely.
-
-IMPORTANT: Your response must be a valid JSON object where each key corresponds to a template variable.`,
-    })
+  async function createNewTemplate() {
+    const name = (window.prompt('Neuen Template‑Namen eingeben:') || '').trim()
+    if (!name) return
+    if (/[^a-zA-Z0-9._\- ]/.test(name)) { toast({ title: 'Ungültiger Name', description: 'Nur Buchstaben, Zahlen, Leerzeichen, . _ - sind erlaubt.', variant: 'destructive' }); return }
+    if (templates.some(t => t.name.toLowerCase() === name.toLowerCase())) { toast({ title: 'Bereits vorhanden', description: 'Bitte anderen Namen wählen.', variant: 'destructive' }); return }
+    if (!providerInstance) { toast({ title: 'Kein Provider' , variant: 'destructive' }); return }
+    try {
+      const folderId = await ensureTemplatesFolder()
+      const values = getDefaultTemplateValues(name)
+      const content = (values.yamlFrontmatter ? values.yamlFrontmatter + '\n\n' : '') + values.markdownBody + '\n\n--- systemprompt\n' + values.systemPrompt
+      const file = new File([new Blob([content], { type: 'text/markdown' })], `${name}.md`, { type: 'text/markdown' })
+      await providerInstance.uploadFile(folderId, file)
+      await loadTemplates()
+      setSelectedTemplateName(name)
+      form.reset(values)
+      toast({ title: 'Template angelegt', description: `"${name}" wurde erstellt.` })
+    } catch (e) {
+      toast({ title: 'Fehler beim Anlegen', description: e instanceof Error ? e.message : 'Unbekannter Fehler', variant: 'destructive' })
+    }
   }
 
   function generatePreview(): string {
@@ -447,11 +503,8 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
     const values = form.getValues()
     const templateContent = generateTemplateContent(values)
-    
-    // Testtext aus dem Textarea lesen
-    const testTextarea = document.querySelector('textarea[placeholder="Geben Sie einen Testtext ein..."]') as HTMLTextAreaElement
-    const testText = testTextarea?.value || "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed eiusmod tempor incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquid ex ea commodi consequat. Quis aute iure reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-    
+    const testText = selectedContextMarkdown || ""
+
     try {
       const response = await fetch('/api/secretary/process-text', {
         method: 'POST',
@@ -473,23 +526,21 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       }
 
       const result = await response.json()
-      
-      // Ergebnis formatieren und anzeigen
-      const formattedResult = JSON.stringify(result, null, 2)
+      const formattedResult = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
       setTestResult(formattedResult)
-      
+
       toast({
-        title: "Template-Test erfolgreich",
-        description: "Das Template wurde erfolgreich mit dem Testtext verarbeitet.",
+        title: "Prompt-Test erfolgreich",
+        description: "Der Prompt wurde erfolgreich mit dem gewählten Kontext verarbeitet.",
       })
-      
-      console.log('Template-Test Ergebnis:', result)
+
+      console.log('Prompt-Test Ergebnis:', result)
     } catch (error) {
-      console.error('Fehler beim Template-Test:', error)
+      console.error('Fehler beim Prompt-Test:', error)
       const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler"
       setTestResult(`Fehler: ${errorMessage}`)
       toast({
-        title: "Template-Test fehlgeschlagen",
+        title: "Prompt-Test fehlgeschlagen",
         description: errorMessage,
         variant: "destructive",
       })
@@ -527,7 +578,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
   if (error) {
     return (
       <div className="text-center text-destructive">
-        <p>Fehler beim Laden der Templates:</p>
+        <p>Fehler beim Laden der Prompts:</p>
         <p className="text-sm">{error}</p>
         <Button 
           variant="outline" 
@@ -542,102 +593,52 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-4 items-center">
-            <div className="flex-1">
-              <Select
-                value={selectedTemplateName || ""}
-                onValueChange={setSelectedTemplateName}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Template auswählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map((template) => (
-                    <SelectItem key={template.name} value={template.name}>
-                      <div className="flex items-center justify-between w-full">
-                        <span>{template.name}</span>
-                        <Badge variant="secondary" className="ml-2">
-                          {template.lastModified ? 
-                            new Date(template.lastModified).toLocaleDateString('de-DE') : 
-                            'Neu'
-                          }
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Info className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <div className="flex items-center gap-2">
-                    <FolderOpen className="h-4 w-4" />
-                    <span>Templates werden im Verzeichnis &quot;/templates&quot; der Bibliothek &quot;{activeLibrary.label}&quot; gespeichert.</span>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={createNewTemplate}
-              disabled={isLoading}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Neu
-            </Button>
-            
-            {selectedTemplateName && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => deleteTemplate(selectedTemplateName)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Löschen
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+
+      {/* Kompakte Toolbar oben */}
+      <div className="flex items-center gap-2">
+        <Select value={selectedTemplateName || ''} onValueChange={(v) => { setSelectedTemplateName(v); form.setValue('name', v, { shouldDirty: false }) }} disabled={isLoading}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Prompt auswählen..." />
+          </SelectTrigger>
+          <SelectContent>
+            {templates.map((t) => (
+              <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0"><Info className="h-4 w-4" /></Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="flex items-center gap-2"><FolderOpen className="h-4 w-4" /><span>Ort: /templates in „{activeLibrary.label}“</span></div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <Button type="button" variant="outline" size="sm" onClick={createNewTemplate} disabled={isLoading}>Neu</Button>
+        <Button type="button" variant="outline" size="sm" onClick={renameCurrentTemplate} disabled={!selectedTemplateName}>Umbenennen</Button>
+        {selectedTemplateName && (
+          <Button type="button" variant="destructive" size="sm" onClick={() => deleteTemplate(selectedTemplateName!)}>Löschen</Button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Template bearbeiten</CardTitle>
+            <CardTitle>Prompt Design</CardTitle>
             <CardDescription>
-              Bearbeiten Sie die drei Hauptbereiche des Templates: Markdown Body, YAML Frontmatter und System Prompt.
+              Drei Bereiche: Aufgabe (was), Rollenanweisung (wie), Metadaten (Begleitinfos).
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Template-Name</Label>
-                <Input
-                  id="name"
-                  {...form.register("name")}
-                  placeholder="z.B. Session_en, Besprechung, Blogeintrag"
-                />
-                {form.formState.errors.name && (
-                  <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
-                )}
-              </div>
+              {/* Template-Name Feld entfernt (oben verwaltet) */}
 
               {previewMode ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">Template-Vorschau</h4>
+                    <h4 className="text-sm font-medium">Prompt-Vorschau</h4>
                     <Button
                       type="button"
                       variant="outline"
@@ -654,55 +655,16 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                   </div>
                 </div>
               ) : (
-                <Tabs defaultValue="body" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="body">Markdown Body</TabsTrigger>
-                    <TabsTrigger value="yaml">YAML Frontmatter</TabsTrigger>
-                    <TabsTrigger value="prompt">System Prompt</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="body" className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Markdown Body</Label>
-                      <Textarea
-                        {...form.register("markdownBody")}
-                        className="font-mono text-sm min-h-[300px]"
-                        placeholder="# {{title}}&#10;&#10;## Zusammenfassung&#10;{{summary|Kurze Zusammenfassung}}"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Markdown-Inhalt mit Template-Variablen. Format: variable|description
-                      </p>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="yaml" className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>YAML Frontmatter</Label>
-                      <Textarea
-                        {...form.register("yamlFrontmatter")}
-                        className="font-mono text-sm min-h-[200px]"
-                        placeholder="---&#10;title: {{title|Titel des Dokuments}}&#10;tags: {{tags|Relevante Tags}}&#10;---"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        YAML-Metadaten mit Template-Variablen. Format: key: variable|description
-                      </p>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="prompt" className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>System Prompt</Label>
-                      <Textarea
-                        {...form.register("systemPrompt")}
-                        className="font-mono text-sm min-h-[200px]"
-                        placeholder="You are a specialized assistant..."
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Anweisungen für das LLM. Wird automatisch mit JSON-Formatierung ergänzt.
-                      </p>
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                <StructuredTemplateEditor
+                  markdownBody={form.watch('markdownBody')}
+                  yamlFrontmatter={form.watch('yamlFrontmatter')}
+                  systemPrompt={form.watch('systemPrompt')}
+                  onChange={({ markdownBody, yamlFrontmatter, systemPrompt }) => {
+                    form.setValue('markdownBody', markdownBody, { shouldDirty: true })
+                    form.setValue('yamlFrontmatter', yamlFrontmatter, { shouldDirty: true })
+                    form.setValue('systemPrompt', systemPrompt, { shouldDirty: true })
+                  }}
+                />
               )}
 
               <div className="flex justify-end gap-2">
@@ -737,21 +699,52 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
         <Card>
           <CardHeader>
-            <CardTitle>Template testen</CardTitle>
+            <CardTitle>Prompt testen</CardTitle>
             <CardDescription>
-              Testen Sie das ausgewählte Template mit einem Beispieltext über den Secretary Service.
+              Test mit Beispieltext. Nutzt Rollenanweisung, Aufgabe und Metadaten des Prompts.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Test-Text</Label>
-                <Textarea
-                  placeholder="Geben Sie einen Testtext ein..."
-                  className="min-h-[100px]"
-                  defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed eiusmod tempor incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquid ex ea commodi consequat. Quis aute iure reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-                />
+                <Label>Kontext-Texte</Label>
+                <div className="border rounded p-2 max-h-40 overflow-auto text-sm">
+                  {Array.isArray(contextDocs) && contextDocs.length > 0 ? (
+                    contextDocs.map(d => {
+                      const checked = selectedContextIds.includes(d.id)
+                      return (
+                        <label key={d.id} className="flex items-center gap-2 py-1">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              const isOn = v === true
+                              setSelectedContextIds(prev => isOn ? [...prev, d.id] : prev.filter(x => x !== d.id))
+                            }}
+                          />
+                          <span className="truncate">{d.name}</span>
+                        </label>
+                      )
+                    })
+                  ) : (
+                    <div className="text-muted-foreground text-sm">Keine Kontext-Texte verfügbar</div>
+                  )}
+                </div>
               </div>
+
+              <div className="space-y-2">
+                <Label>Gewählter Kontext (Lesemodus)</Label>
+                <div className="border rounded-md">
+                  <MarkdownPreview content={selectedContextMarkdown} className="max-h-64 overflow-auto" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Prompt‑Vorschau (Aufgabe als Markdown)</Label>
+                <div className="border rounded-md">
+                  <MarkdownPreview content={form.watch('markdownBody') || ''} className="max-h-64 overflow-auto" />
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
@@ -767,7 +760,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                   ) : (
                     <>
                       <Play className="h-4 w-4 mr-2" />
-                      Template testen
+                      Prompt testen
                     </>
                   )}
                 </Button>
@@ -775,11 +768,9 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
               
               {testResult && (
                 <div className="space-y-2">
-                  <Label>Test-Ergebnis</Label>
-                  <div className="border rounded-md p-4 bg-muted/50">
-                    <pre className="text-sm whitespace-pre-wrap font-mono max-h-[300px] overflow-y-auto">
-                      {testResult}
-                    </pre>
+                  <Label>Ergebnis (Markdown)</Label>
+                  <div className="border rounded-md">
+                    <MarkdownPreview content={testResult} className="max-h-80 overflow-auto" />
                   </div>
                 </div>
               )}

@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     const jobSecretHash = repository.hashSecret(jobSecret);
 
     // Correlation aus Request ableiten
-    const libraryId = request.headers.get('x-library-id') || '';
+    const libraryId = request.headers.get('x-library-id') || request.headers.get('X-Library-Id') || '';
     const user = await currentUser();
     const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
     // Korrelation: nutze die bereits ermittelte effektive Methode oben, falls vorhanden
@@ -170,6 +170,8 @@ export async function POST(request: NextRequest) {
         includeImages: includeImages === 'true',
         useCache: useCache === 'true',
       },
+      batchId: (formData.get('batchId') as string) || undefined,
+      batchName: (formData.get('batchName') as string) || undefined,
     } satisfies ExternalJob['correlation'];
 
     const job: ExternalJob = {

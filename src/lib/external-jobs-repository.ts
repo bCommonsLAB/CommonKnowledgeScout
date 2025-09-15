@@ -141,6 +141,52 @@ export class ExternalJobsRepository {
     return { items, total, page, limit };
   }
 
+  async listByUserWithFilters(
+    userEmail: string,
+    options: {
+      page?: number;
+      limit?: number;
+      status?: ExternalJobStatus | ExternalJobStatus[];
+      batchName?: string;
+      batchId?: string;
+      libraryId?: string;
+      q?: string;
+    }
+  ): Promise<{ items: ExternalJob[]; total: number; page: number; limit: number }>
+  {
+    const col = await this.getCollection();
+    const page = Math.max(1, options.page ?? 1);
+    const limit = Math.max(1, Math.min(100, options.limit ?? 20));
+
+    const filter: Record<string, unknown> = { userEmail };
+    if (options.libraryId) filter['libraryId'] = options.libraryId;
+    if (options.batchId) filter['correlation.batchId'] = options.batchId;
+    if (options.batchName) filter['correlation.batchName'] = options.batchName;
+    if (options.status) {
+      const statuses = Array.isArray(options.status) ? options.status : [options.status];
+      filter['status'] = { $in: statuses };
+    }
+    if (options.q) {
+      const rx = new RegExp(options.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter['$or'] = [
+        { 'correlation.source.name': rx },
+        { 'correlation.source.itemId': rx },
+        { jobId: rx },
+      ];
+    }
+
+    const cursor = col
+      .find(filter)
+      .sort({ updatedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+    const [items, total] = await Promise.all([
+      cursor.toArray(),
+      col.countDocuments(filter)
+    ]);
+    return { items, total, page, limit };
+  }
+
   async findLatestBySourceItem(userEmail: string, libraryId: string, sourceItemId: string): Promise<ExternalJob | null> {
     const col = await this.getCollection();
     return col.find({ userEmail, libraryId, 'correlation.source.itemId': sourceItemId }).sort({ updatedAt: -1 }).limit(1).next();
@@ -166,6 +212,21 @@ export class ExternalJobsRepository {
   async findLatestBySourceName(userEmail: string, libraryId: string, sourceName: string): Promise<ExternalJob | null> {
     const col = await this.getCollection();
     return col.find({ userEmail, libraryId, 'correlation.source.name': sourceName }).sort({ updatedAt: -1 }).limit(1).next();
+  }
+
+  async listDistinctBatchNames(userEmail: string, libraryId?: string): Promise<string[]> {
+    const col = await this.getCollection();
+    const match: Record<string, unknown> = {
+      userEmail,
+      'correlation.batchName': { $type: 'string', $ne: '' }
+    };
+    if (libraryId) match['libraryId'] = libraryId;
+    const rows = await col.aggregate<{ _id: string }>([
+      { $match: match },
+      { $group: { _id: '$correlation.batchName' } },
+      { $sort: { _id: 1 } }
+    ]).toArray();
+    return rows.map(r => r._id).filter((v): v is string => typeof v === 'string' && v.length > 0);
   }
 }
 

@@ -48,6 +48,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const [candidates, setCandidates] = useState<Array<{ file: StorageItem; parentId: string }>>([]);
   const [previewItems, setPreviewItems] = useState<Array<{ id: string; name: string; relPath: string; pages?: number }>>([]);
   const [stats, setStats] = useState<ScanStats>({ totalPdfs: 0, skippedExisting: 0, toProcess: 0 });
+  const [batchName, setBatchName] = useState<string>('');
 
   // Phasensteuerung: Standard nur Phase 1 (Extraktion)
   const [runMetaPhase, setRunMetaPhase] = useState<boolean>(false); // Phase 2
@@ -155,6 +156,22 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     if (open) {
       // Bei Öffnen initial Scannen
       void handleScan();
+      // Batch-Name vorbelegen: relativer Pfad des aktuellen Ordners (ohne führenden '/')
+      (async () => {
+        try {
+          if (!provider || !rootFolderId) return;
+          // Inklusive aktuellem Ordnernamen
+          const chain = await provider.getPathItemsById(rootFolderId);
+          const parts = chain
+            .filter((it) => it.id !== 'root')
+            .map((it) => (it as { metadata?: { name?: string } }).metadata?.name)
+            .filter((n): n is string => typeof n === 'string' && !!n);
+          const rel = parts.join('/') || 'root';
+          setBatchName((prev) => prev && prev.trim().length > 0 ? prev : rel);
+        } catch {
+          // ignorieren
+        }
+      })();
     }
   }, [open, handleScan]);
 
@@ -165,81 +182,38 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     if (candidates.length === 0) return;
     setIsEnqueuing(true);
     try {
-      // Sequenzielles Anlegen von External-Jobs über unsere API-Route
-      // Minimale Last, klare Reihenfolge (Secretary arbeitet der Reihe nach)
-      let okCount = 0; let failCount = 0;
-      for (const { file, parentId } of candidates) {
-        try {
-          const bin = await provider?.getBinary(file.id);
-          if (!bin) continue;
-
-          const pdfFile = new File([bin.blob], file.metadata.name, { type: bin.mimeType || 'application/pdf' });
-
-          const form = new FormData();
-          form.append('file', pdfFile);
-          // PDF-Standardwerte aus localStorage (pro Library) anhängen
-          try {
-            const defaults = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
-            const targetLanguage = typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de';
-            const extractionMethod = typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native';
-            const useCache = defaults.useCache ?? true;
-            const includeImages = defaults.includeImages ?? false;
-            form.append('targetLanguage', targetLanguage);
-            form.append('extractionMethod', extractionMethod);
-            form.append('useCache', String(useCache));
-            form.append('includeImages', String(includeImages));
-            if (typeof defaults.template === 'string' && defaults.template) {
-              form.append('template', defaults.template);
-            }
-          } catch {}
-          form.append('originalItemId', file.id);
-          form.append('parentId', parentId);
-
-          const res = await fetch('/api/secretary/process-pdf', {
-            method: 'POST',
-            headers: { 'X-Library-Id': activeLibraryId },
-            body: (() => {
-              // Phase 1 ist immer aktiv (idempotent via Gates) → doExtractPDF true
-              form.append('doExtractPDF', 'true');
-              form.append('doExtractMetadata', String(!!runMetaPhase));
-              form.append('doIngestRAG', String(!!runIngestionPhase));
-              return form;
-            })(),
-          });
-
-          if (!res.ok) {
-            let msg = '';
-            try {
-              const ct = res.headers.get('content-type') || '';
-              if (ct.includes('application/json')) {
-                const j = await res.json();
-                msg = typeof (j as { error?: unknown })?.error === 'string' ? (j as { error: string }).error : JSON.stringify(j);
-              } else {
-                msg = await res.text();
-              }
-            } catch {
-              msg = res.statusText || 'unknown error';
-            }
-            const friendly = res.status === 503 ? 'Secretary Service nicht erreichbar' : msg || 'Unbekannter Fehler';
-            FileLogger.error('PdfBulkImportDialog', 'Job enqueue failed', { file: file.metadata.name, status: res.status, statusText: res.statusText, message: friendly });
-            failCount++;
-            toast({ title: 'Fehler beim Starten', description: `${file.metadata.name}: ${res.status} ${friendly}`, variant: 'destructive' });
-          } else {
-            FileLogger.info('PdfBulkImportDialog', 'Job enqueued', { name: file.metadata.name });
-            okCount++;
-            toast({ title: 'Job gestartet', description: file.metadata.name });
-          }
-        } catch (error) {
-          FileLogger.error('PdfBulkImportDialog', 'Fehler beim Enqueue für Datei', { fileId: file.id, error });
-          failCount++;
-          const msg = error instanceof Error ? error.message : 'unbekannter Fehler';
-          toast({ title: 'Fehler beim Starten', description: `${file.metadata.name}: ${msg}`, variant: 'destructive' });
-          // Weiter mit nächster Datei
-        }
-      }
-
-      toast({ title: 'Batch abgeschlossen', description: `Gestartet: ${okCount}, fehlgeschlagen: ${failCount}` });
+      const defaults = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
+      const payload = {
+        libraryId: activeLibraryId,
+        batchName: (batchName || '').trim() || undefined,
+        options: {
+          targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de',
+          extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native',
+          includeImages: defaults.includeImages ?? false,
+          useCache: defaults.useCache ?? true,
+          template: typeof defaults.template === 'string' ? defaults.template : undefined,
+          doExtractMetadata: !!runMetaPhase,
+          doIngestRAG: !!runIngestionPhase,
+        },
+        items: candidates.map(({ file, parentId }) => ({ fileId: file.id, parentId, name: file.metadata.name, mimeType: file.metadata.mimeType })),
+      };
+      const requestPromise = fetch('/api/secretary/process-pdf/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      // Dialog sofort schließen; Server arbeitet im Hintergrund
       onOpenChange(false);
+      const res = await requestPromise;
+      if (!res.ok) {
+        const msg = await res.text().catch(() => res.statusText);
+        toast({ title: 'Batch fehlgeschlagen', description: msg, variant: 'destructive' });
+      } else {
+        const json = await res.json().catch(() => ({} as Record<string, unknown>));
+        const okCount = Number((json as { okCount?: number }).okCount || 0);
+        const failCount = Number((json as { failCount?: number }).failCount || 0);
+        toast({ title: 'Batch gestartet', description: `Gestartet: ${okCount}, fehlgeschlagen: ${failCount}` });
+      }
     } finally {
       setIsEnqueuing(false);
     }
@@ -299,6 +273,10 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
           {/* PDF-Standardwerte werden aus der Library geladen; Anpassung über das Zahnrad oben */}
 
           <div className="rounded-md border p-3">
+            <div className="mb-2">
+              <Label htmlFor="batch-name">Batch-Name</Label>
+              <input id="batch-name" className="mt-1 w-full border rounded px-2 py-1 text-sm" placeholder="z.B. Ordnername" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
+            </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex gap-4">
                 <div>
