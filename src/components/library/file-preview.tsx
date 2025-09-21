@@ -92,16 +92,12 @@ function ContentLoader({
   item, 
   provider, 
   fileType, 
-  isAudioFile, 
-  isVideoFile, 
   contentCache,
   onContentLoaded 
 }: {
   item: StorageItem | null;
   provider: StorageProvider | null;
   fileType: string;
-  isAudioFile: boolean;
-  isVideoFile: boolean;
   contentCache: React.MutableRefObject<Map<string, { content: string; hasMetadata: boolean }>>;
   onContentLoaded: (content: string, hasMetadata: boolean) => void;
 }) {
@@ -197,7 +193,7 @@ function ContentLoader({
     } finally {
       loadingIdRef.current = null;
     }
-  }, [item?.id, item?.metadata?.name, provider, fileType, isAudioFile, isVideoFile, onContentLoaded, isTemplateFile, contentCache]);
+  }, [item?.id, item?.metadata?.name, provider, fileType, onContentLoaded, isTemplateFile, contentCache]);
 
   // Cleanup bei Unmount
   React.useEffect(() => {
@@ -265,7 +261,7 @@ function PreviewContent({
       hasProvider: !!provider,
       activeLibraryId
     });
-  }, [item.id, fileType, content.length, error, provider, activeLibraryId]);
+  }, [item.id, item.metadata.name, fileType, content.length, error, provider, activeLibraryId]);
   
   React.useEffect(() => {
     setActiveTab("preview");
@@ -833,8 +829,7 @@ export function FilePreview({
     [displayFile]
   );
   
-  const isAudioFile = React.useMemo(() => fileType === 'audio', [fileType]);
-  const isVideoFile = React.useMemo(() => fileType === 'video', [fileType]);
+  // Entfernt: isAudioFile und isVideoFile, da sie nicht verwendet werden
 
   // Debug-Log für computed values
   React.useEffect(() => {
@@ -844,15 +839,13 @@ export function FilePreview({
           itemId: displayFile.id,
           itemName: displayFile.metadata.name,
           fileType,
-          isAudioFile,
-          isVideoFile,
           mimeType: displayFile.metadata.mimeType
         });
       }, 0);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [displayFile, fileType, isAudioFile, isVideoFile]);
+  }, [displayFile, fileType]);
 
   // Memoize content loader callback
   const handleContentLoaded = React.useCallback((content: string, hasMetadata: boolean) => {
@@ -888,7 +881,7 @@ export function FilePreview({
       
       return () => clearTimeout(timeoutId);
     }
-  }, [displayFile?.id]);
+  }, [displayFile?.id, displayFile?.metadata.name]);
 
   if (!displayFile) {
     return (
@@ -904,8 +897,6 @@ export function FilePreview({
         item={displayFile}
         provider={provider}
         fileType={fileType}
-        isAudioFile={isAudioFile}
-        isVideoFile={isVideoFile}
         contentCache={contentCache}
         onContentLoaded={handleContentLoaded}
       />

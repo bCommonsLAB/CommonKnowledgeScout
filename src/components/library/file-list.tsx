@@ -677,11 +677,11 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   }, [allItemsInFolder]);
 
   // Hilfsfunktion zum Finden einer FileGroup in der Map
-  const findFileGroup = (map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
+  const findFileGroup = useCallback((map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
     return Array.from((map ?? new Map()).values()).find(group => 
       group.baseItem && getBaseName(group.baseItem.metadata.name) === stem
     );
-  };
+  }, []); // Stabile Utility-Funktion ohne Dependencies
 
   // NEU: Atome für Sortierung und Filter
   const items = useAtomValue(sortedFilteredFilesAtom);
@@ -931,7 +931,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       });
       setSelectedShadowTwin(null);
     }
-  }, [setSelectedFile, setSelectedShadowTwin, findFileGroup]);
+  }, [setSelectedFile, setSelectedShadowTwin]);
   
   // Erweiterte handleSelectRelatedFile Funktion für Review-Mode
   const handleSelectRelatedFile = useCallback((shadowTwin: StorageItem) => {
@@ -943,7 +943,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     // Setze das Shadow-Twin als ausgewählte Datei, damit es rechts angezeigt wird
     setSelectedFile(shadowTwin);
     setSelectedShadowTwin(null); // Kein zusätzliches Shadow-Twin im normalen Modus
-  }, [setSelectedFile, setSelectedShadowTwin, findFileGroup]);
+  }, [setSelectedFile, setSelectedShadowTwin]);
 
   // Aktualisierte handleRefresh Funktion
   const handleRefresh = useCallback(async () => {
@@ -1075,7 +1075,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
         description: `Die Datei konnte nicht gelöscht werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       });
     }
-  }, [provider, handleRefresh, fileGroups, setSelectedFile, setSelectedBatchItems]);
+  }, [provider, handleRefresh, fileGroups, setSelectedFile, setSelectedBatchItems, findFileGroup]);
 
   const handleRename = React.useCallback(async (item: StorageItem, newName: string) => {
     if (!provider) {
@@ -1142,7 +1142,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       });
       throw error;
     }
-  }, [provider, handleRefresh, fileGroups]);
+  }, [provider, handleRefresh, fileGroups, findFileGroup]);
 
   const handleBatchTranscription = () => {
     if (selectedBatchItems.length > 0) {

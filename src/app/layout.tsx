@@ -38,10 +38,14 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <div className="h-screen overflow-auto">
-              {children}
-            </div>
-            <Toaster richColors />
+            <StorageContextProvider>
+              <TooltipProvider>
+                <div className="h-screen overflow-auto">
+                  {children}
+                </div>
+                <Toaster richColors />
+              </TooltipProvider>
+            </StorageContextProvider>
           </ThemeProvider>
         </body>
       </html>
