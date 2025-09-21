@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import { useAtomValue } from "jotai";
 import { selectedFileAtom } from "@/atoms/library-atom";
 import { FileLogger } from "@/lib/debug/logger";
@@ -120,7 +121,7 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
     };
 
     loadImage();
-  }, [item?.id, provider]); // Nur item.id und provider als Dependencies
+  }, [item?.id, imageUrl, item, provider]); // Dependencies für korrekte Reaktivität
 
   // Cleanup bei Unmount
   React.useEffect(() => {
@@ -220,9 +221,11 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
         </div>
       ) : (
         <div className="flex items-start justify-center h-full p-4 overflow-auto">
-          <img
+          <Image
             src={imageUrl}
             alt={item.metadata.name}
+            width={800}
+            height={600}
             className="max-w-full max-h-full object-contain"
             onLoad={() => {
               FileLogger.info('ImagePreview', 'Bild erfolgreich geladen', {

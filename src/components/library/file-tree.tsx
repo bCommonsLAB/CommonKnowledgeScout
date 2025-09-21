@@ -207,7 +207,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
         });
       }
     }
-  }, [provider, setLoadedChildren, isReady, setFileTreeReady, toast]);
+  }, [provider, setLoadedChildren, isReady, setFileTreeReady]);
 
   // Ref-Methoden
   useImperativeHandle(forwardedRef, () => ({
@@ -235,7 +235,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
         FileLogger.error('FileTree', 'Fehler beim Expandieren zum Item', error);
       }
     }
-  }), [provider, setLoadedChildren, setExpandedFolders]);
+  }), [provider, setLoadedChildren, setExpandedFolders, loadRootItems]);
 
   // Initial laden
   useEffect(() => {

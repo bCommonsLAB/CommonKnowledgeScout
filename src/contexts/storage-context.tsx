@@ -65,12 +65,31 @@ export function isStorageError(error: unknown): error is StorageError {
 }
 
 /**
+ * Build-Zeit-sichere Hook-Wrapper
+ */
+function useSafeAuth() {
+  try {
+    return useAuth();
+  } catch {
+    return { isLoaded: true, isSignedIn: false };
+  }
+}
+
+function useSafeUser() {
+  try {
+    return useUser();
+  } catch {
+    return { user: null, isLoaded: true };
+  }
+}
+
+/**
  * Provider-Komponente für den Storage-Context
  * Verwaltet den Zustand der Bibliotheken und des aktiven Providers
  */
 export const StorageContextProvider = ({ children }: { children: React.ReactNode }) => {
-  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
-  const { user, isLoaded: isUserLoaded } = useUser();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useSafeAuth();
+  const { user, isLoaded: isUserLoaded } = useSafeUser();
 
   // Auth-Debug-Logging
   React.useEffect(() => {

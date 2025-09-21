@@ -7,6 +7,17 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { v4 as uuidv4 } from "uuid"
 import { useAtom } from "jotai"
 import { useUser } from "@clerk/nextjs"
+
+/**
+ * Build-Zeit-sichere Hook-Wrapper für useUser
+ */
+function useSafeUser() {
+  try {
+    return useUser();
+  } catch {
+    return { user: null, isLoaded: true };
+  }
+}
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
@@ -80,7 +91,7 @@ interface LibraryFormProps {
 }
 
 export function LibraryForm({ createNew = false }: LibraryFormProps) {
-  const { user } = useUser();
+  const { user } = useSafeUser();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isNew, setIsNew] = useState(false);
