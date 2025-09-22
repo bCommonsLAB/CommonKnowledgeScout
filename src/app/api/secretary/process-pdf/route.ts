@@ -397,9 +397,19 @@ export async function POST(request: NextRequest) {
                 await repository.appendMeta(jobId, mdMeta as Record<string, unknown>, 'template_transform');
                 await repository.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date() });
 
-                // Markdown mit neuem Frontmatter überschreiben
+                // Markdown mit neuem Frontmatter überschreiben (SSOT: flaches Schema ergänzen)
+                const ssotFlat: Record<string, unknown> = {
+                  job_id: jobId,
+                  source_file: correlation?.source?.name || (file?.name || 'document.pdf'),
+                  // In diesem Template-only Pfad sind extract/template abgeschlossen (Text lag bereits vor)
+                  extract_status: 'completed',
+                  template_status: 'completed',
+                  ingest_status: 'none',
+                  summary_language: targetLanguage,
+                };
+                const mergedMeta = { ...(mdMeta as Record<string, unknown>), ...ssotFlat } as Record<string, unknown>;
                 const newMarkdown = (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter
-                  ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(stripped, mdMeta as Record<string, unknown>)
+                  ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(stripped, mergedMeta)
                   : originalMarkdown;
                 const outFile = new File([new Blob([newMarkdown], { type: 'text/markdown' })], expectedName || (file?.name || 'output.md'), { type: 'text/markdown' });
                 await repository.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });

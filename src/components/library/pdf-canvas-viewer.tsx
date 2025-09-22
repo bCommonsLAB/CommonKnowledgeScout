@@ -6,6 +6,7 @@ import { currentPdfPageAtom } from "@/atoms/pdf-viewer";
 import "@/lib/pdfjs-worker-setup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Maximize2, X as CloseIcon } from "lucide-react";
 
 // Lade pdf.js ausschließlich lokal (ESM) und setze Worker-Pfad bundler-freundlich
 interface PdfJsModule {
@@ -30,6 +31,7 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
   const [pageInput, setPageInput] = React.useState<number>(1);
   const programmaticScrollRef = React.useRef<boolean>(false);
   const rafPendingRef = React.useRef<number | null>(null);
+  const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
 
   // Setze Seite aus Scroll-Position (Mitte des Viewports bestimmt die aktive Seite)
   const updatePageFromScroll = React.useCallback(() => {
@@ -166,6 +168,43 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
     void rerender();
   }, [scale]);
 
+  // Rerender beim Umschalten Vollbild (neues Container-Element)
+  React.useEffect(() => {
+    async function rerenderFullscreen() {
+      const pdfDoc = pdfDocRef.current;
+      const container = containerRef.current;
+      if (!pdfDoc || !container) return;
+      const targetPage = currentPage || 1;
+      container.innerHTML = '';
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        // eslint-disable-next-line no-await-in-loop
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+        canvas.style.display = 'block';
+        canvas.style.margin = '0 auto 8px auto';
+        canvas.setAttribute('data-page', String(pageNum));
+        container.appendChild(canvas);
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // eslint-disable-next-line no-await-in-loop
+          await page.render({ canvasContext: ctx, viewport }).promise;
+        }
+      }
+      programmaticScrollRef.current = true;
+      const el = container.querySelector(`[data-page="${targetPage}"]`) as HTMLElement | null;
+      if (el) container.scrollTo({ top: el.offsetTop - 16, behavior: 'auto' });
+      window.setTimeout(() => { programmaticScrollRef.current = false; }, 150);
+    }
+    // Wenn sich der Fullscreen-Container ändert, rendere neu
+    if (pdfDocRef.current) void rerenderFullscreen();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFullscreen]);
+
   function scrollToPage(page: number) {
     const container = containerRef.current;
     if (!container) return;
@@ -221,9 +260,36 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
         <Button variant="outline" size="icon" onClick={() => handleZoom(-0.1)} aria-label="Zoom out">−</Button>
         <Button variant="outline" size="icon" onClick={() => handleZoom(+0.1)} aria-label="Zoom in">＋</Button>
         <div className="text-xs text-muted-foreground ml-2">Zoom: {(scale * 100).toFixed(0)}%</div>
-        <div className="ml-auto text-xs text-muted-foreground">Automatischer Zoom (später)</div>
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="icon" aria-label="Vollbild" title="Vollbild" onClick={() => setIsFullscreen(true)}>
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      <div ref={containerRef} className="w-full h-full overflow-auto" />
+      <div ref={!isFullscreen ? containerRef : undefined} className="w-full h-full overflow-auto" />
+
+      {isFullscreen && (
+        <div className="fixed inset-0 z-[100] bg-background">
+          <div className="flex items-center gap-2 p-2 border-b">
+            <Button variant="outline" size="icon" onClick={handlePrev} aria-label="Vorherige Seite">‹</Button>
+            <Button variant="outline" size="icon" onClick={handleNext} aria-label="Nächste Seite">›</Button>
+            <form onSubmit={handlePageInput} className="flex items-center gap-1">
+              <Input name="page-fs" value={pageInput} onChange={(e) => setPageInput(Number(e.target.value) || 1)} className="h-8 w-16 text-center" />
+              <div className="text-xs text-muted-foreground">von {numPages || '…'}</div>
+            </form>
+            <div className="mx-2 h-4 w-px bg-border" />
+            <Button variant="outline" size="icon" onClick={() => handleZoom(-0.1)} aria-label="Zoom out">−</Button>
+            <Button variant="outline" size="icon" onClick={() => handleZoom(+0.1)} aria-label="Zoom in">＋</Button>
+            <div className="text-xs text-muted-foreground ml-2">Zoom: {(scale * 100).toFixed(0)}%</div>
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant="outline" size="icon" aria-label="Vollbild beenden" title="Vollbild beenden" onClick={() => setIsFullscreen(false)}>
+                <CloseIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div ref={containerRef} className="w-full h-[calc(100%-40px)] overflow-auto" />
+        </div>
+      )}
     </div>
   );
 }

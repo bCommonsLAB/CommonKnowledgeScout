@@ -1,7 +1,7 @@
 import * as React from "react"
 import { UILogger } from "@/lib/debug/logger"
 import { Button } from "@/components/ui/button"
-import { Upload, AlertTriangle, ArrowLeft, Eye, FileStack, Sidebar } from "lucide-react"
+import { Upload, AlertTriangle, ArrowLeft, Eye, FileStack, Sidebar, LayoutList } from "lucide-react"
 import { UploadDialog } from "./upload-dialog"
 import { StorageProvider } from "@/lib/storage/types"
 import { useCallback } from "react"
@@ -21,6 +21,8 @@ interface LibraryHeaderProps {
   onClearCache?: () => void // Cache-Invalidierung
   isTreeVisible?: boolean
   onToggleTree?: () => void
+  isCompactList?: boolean
+  onToggleCompactList?: () => void
 }
 
 export function LibraryHeader({
@@ -30,7 +32,9 @@ export function LibraryHeader({
   children,
   onClearCache,
   isTreeVisible,
-  onToggleTree
+  onToggleTree,
+  isCompactList,
+  onToggleCompactList
 }: LibraryHeaderProps) {
   const [isUploadOpen, setIsUploadOpen] = React.useState(false)
   const [isPdfBulkOpen, setIsPdfBulkOpen] = React.useState(false)
@@ -131,8 +135,25 @@ export function LibraryHeader({
               onClick={onToggleTree}
               title={isTreeVisible ? 'Tree ausblenden' : 'Tree einblenden'}
               aria-label={isTreeVisible ? 'Tree ausblenden' : 'Tree einblenden'}
+              aria-pressed={isTreeVisible}
+              className={isTreeVisible ? 'bg-muted' : ''}
             >
               <Sidebar className="h-4 w-4" />
+            </Button>
+          )}
+
+          {typeof isCompactList === 'boolean' && onToggleCompactList && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleCompactList}
+              title={isCompactList ? 'Listenansicht' : 'Kompaktansicht'}
+              aria-label={isCompactList ? 'Listenansicht' : 'Kompaktansicht'}
+              aria-pressed={isCompactList}
+              className={isCompactList ? 'bg-muted' : ''}
+            >
+              {/* Gleiches Icon; Tooltip unterscheidet */}
+              <LayoutList className="h-4 w-4" />
             </Button>
           )}
 

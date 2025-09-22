@@ -127,6 +127,7 @@ const SortableHeaderCell = React.memo(function SortableHeaderCell({
 interface FileRowProps {
   item: StorageItem;
   isSelected: boolean;
+  isActive?: boolean;
   onSelect: () => void;
   onCreateTranscript: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent<HTMLButtonElement>, item: StorageItem) => void;
@@ -140,6 +141,7 @@ interface FileRowProps {
 const FileRow = React.memo(function FileRow({ 
   item, 
   isSelected, 
+  isActive = false,
   onSelect,
   onCreateTranscript,
   onDelete,
@@ -447,36 +449,28 @@ const FileRow = React.memo(function FileRow({
   if (compact) {
     return (
       <div
+        id={`file-row-${item.id}`}
         role="button"
         tabIndex={0}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         className={cn(
-          "w-full px-2 py-1 text-sm hover:bg-muted/50 flex items-center gap-2 cursor-pointer",
-          isSelected && "bg-muted"
+          "w-full px-2 py-1 text-xs hover:bg-muted/50 grid grid-cols-[24px_minmax(0,1fr)] gap-2 items-center cursor-pointer",
+          isSelected && "bg-muted",
+          isActive && "bg-primary/10 border-l-2 border-primary"
         )}
       >
         <FileIconComponent item={item} />
-        <span className="truncate flex-1" title={metadata.name}>
+        <span className={cn("truncate", isActive && "font-medium")} title={metadata.name}>
           {metadata.name}
         </span>
-        {/* Shadow-Twin-Symbole im compact mode */}
-        {fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0 && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-4 w-4 p-0 hover:bg-muted text-muted-foreground hover:text-foreground"
-            onClick={handleTranscriptClick}
-          >
-            <ScrollText className="h-3 w-3" />
-          </Button>
-        )}
       </div>
     );
   }
 
   return (
     <div
+      id={`file-row-${item.id}`}
       role="button"
       tabIndex={0}
       onClick={handleClick}
@@ -489,7 +483,8 @@ const FileRow = React.memo(function FileRow({
       onDragEnd={handleDragEnd}
       className={cn(
         "w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)_56px_88px_auto] gap-2 items-center cursor-move",
-        isSelected && "bg-muted"
+        isSelected && "bg-muted",
+        isActive && "bg-primary/10 border-l-2 border-primary"
       )}
     >
       <div className="w-6 flex items-center justify-center">
@@ -512,12 +507,12 @@ const FileRow = React.memo(function FileRow({
         />
       ) : (
         <span 
-          className="text-left truncate cursor-pointer hover:text-primary select-none"
+          className={cn("text-left truncate cursor-pointer hover:text-primary select-none", isActive && "font-medium")}
           onClick={handleNameClick}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           onTouchMove={handleTouchMove}
-          title="Doppelklick zum Umbenennen"
+          title={metadata.name}
         >
           {metadata.name}
         </span>
@@ -662,11 +657,12 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [isInitialized, setIsInitialized] = React.useState(false);
   const initializationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   // Entkoppelt: Kein Warten mehr auf FileTree-Status
-  const [, setSelectedFile] = useAtom(selectedFileAtom);
+  const [activeFile, setSelectedFile] = useAtom(selectedFileAtom);
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const currentCategoryFilter = useAtomValue(fileCategoryFilterAtom);
   const allItemsInFolder = useAtomValue(folderItemsAtom);
   const navigateToFolder = useFolderNavigation();
+  const listContainerRef = React.useRef<HTMLDivElement | null>(null);
 
   // Kein mobiles Flag mehr notwendig
 
@@ -819,6 +815,58 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     });
     return fileGroupsMap;
   }, [items]);
+
+  // Navigationsliste: nur Hauptdateien in der aktuell sichtbaren Reihenfolge
+  const mainFileItems = React.useMemo(() => {
+    return Array.from((fileGroups ?? new Map()).values())
+      .map(g => g.baseItem)
+      .filter((it): it is StorageItem => Boolean(it));
+  }, [fileGroups]);
+
+  // Hilfsfunktion: Gruppe anhand baseItem.id finden
+  const findGroupByBaseItemId = React.useCallback((baseItemId: string) => {
+    for (const g of Array.from((fileGroups ?? new Map()).values())) {
+      if (g.baseItem && g.baseItem.id === baseItemId) return g;
+    }
+    return undefined;
+  }, [fileGroups]);
+
+  // Auswahl-Helfer für Keyboard-Navigation (dupliziert nicht die UI-spezifischen Click-Handler)
+  const selectByKeyboard = React.useCallback((item: StorageItem) => {
+    setSelectedFile(item);
+    const group = findGroupByBaseItemId(item.id);
+    if (group && group.transcriptFiles && group.transcriptFiles.length > 0) {
+      setSelectedShadowTwin(group.transcriptFiles[0]);
+    } else {
+      setSelectedShadowTwin(null);
+    }
+  }, [setSelectedFile, setSelectedShadowTwin, findGroupByBaseItemId]);
+
+  // Keyboard-Navigation: Pfeil hoch/runter wählt vorherige/nächste Datei
+  const handleKeyNav = React.useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    // Eingaben in aktiven Inputs nicht stören
+    const ae = document.activeElement as HTMLElement | null;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+    if (mainFileItems.length === 0) return;
+    e.preventDefault();
+    const currentIndex = activeFile ? mainFileItems.findIndex(it => it.id === activeFile.id) : -1;
+    const nextIndex = e.key === 'ArrowDown'
+      ? Math.min((currentIndex < 0 ? 0 : currentIndex + 1), mainFileItems.length - 1)
+      : Math.max((currentIndex < 0 ? 0 : currentIndex - 1), 0);
+    const nextItem = mainFileItems[nextIndex];
+    if (!nextItem) return;
+    selectByKeyboard(nextItem);
+    // Sichtbar scrollen
+    const rowEl = document.getElementById(`file-row-${nextItem.id}`);
+    if (rowEl) rowEl.scrollIntoView({ block: 'nearest' });
+  }, [activeFile, mainFileItems, selectByKeyboard]);
+
+  const handleContainerMouseDown = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+    listContainerRef.current?.focus();
+  }, []);
 
   // Mapping: Basename -> dot-Systemordner (z. B. ".<basename>")
   const systemFolderByBase = useMemo(() => {
@@ -1319,7 +1367,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       )}
 
       {/* File List */}
-      <div className="flex-1 overflow-auto">
+      <div ref={listContainerRef} className="flex-1 overflow-auto focus:outline-none" tabIndex={0} onKeyDown={handleKeyNav} onMouseDown={handleContainerMouseDown}>
         <div>
           {/* Table Header - versteckt im compact mode */}
           {!compact && (
@@ -1362,25 +1410,36 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
           {/* Folder Rows (oberhalb der Dateien, unabhängig von Datei-Gruppierung) */}
           {folders.length > 0 && (
             <div className="divide-y">
-              {folders.map((folder) => (
-                <div
-                  key={folder.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigateToFolder(folder.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id);
-                  }}
-                  className="w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)_56px_88px_auto] gap-2 items-center cursor-pointer"
-                >
-                  <div />
-                  <FolderIcon className="h-4 w-4" />
-                  <span className="text-left truncate select-none">{folder.metadata.name}</span>
-                  <span className="text-muted-foreground" />
-                  <span className="text-muted-foreground" />
-                  <div />
-                </div>
-              ))}
+          {folders.map((folder) => (
+            compact ? (
+              // Kompakt: ohne Einrückung, nur Icon + Name (2 Spalten)
+              <div
+                key={folder.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigateToFolder(folder.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id) }}
+                className="w-full px-2 py-1 text-xs hover:bg-muted/50 grid grid-cols-[24px_minmax(0,1fr)] gap-2 items-center cursor-pointer"
+              >
+                <FolderIcon className="h-4 w-4" />
+                <span className="text-left truncate select-none" title={folder.metadata.name}>{folder.metadata.name}</span>
+              </div>
+            ) : (
+              // Normal: behalte leichte Einrückung für Checkbox-Spalte
+              <div
+                key={folder.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigateToFolder(folder.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id) }}
+                className="w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)] gap-2 items-center cursor-pointer"
+              >
+                <div />
+                <FolderIcon className="h-4 w-4" />
+                <span className="text-left truncate select-none" title={folder.metadata.name}>{folder.metadata.name}</span>
+              </div>
+            )
+          ))}
             </div>
           )}
 
@@ -1394,11 +1453,13 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 // System-Unterordner-Id, wenn ein ".<basename>"-Folder existiert
                 const systemFolder = systemFolderByBase.get(getBaseName(item.metadata.name));
                 const systemFolderId = systemFolder?.id;
+                const isActive = !!activeFile && activeFile.id === item.id
                 return (
                   <FileRow
                     key={item.id}
                     item={item as StorageItem}
                     isSelected={isItemSelected(item)}
+                    isActive={isActive}
                     onSelect={() => handleSelect(item, group)}
                     onCreateTranscript={handleCreateTranscript}
                     onDelete={(e) => handleDeleteClick(e, item)}

@@ -38,6 +38,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useFolderNavigation } from "@/hooks/use-folder-navigation"
+import { uiPanePrefsAtom } from "@/atoms/ui-prefs-atom"
 export function Library() {
   // Performance-Messung für Kaltstart (nur Client)
   const startupT0Ref = React.useRef<number>(
@@ -65,7 +66,9 @@ export function Library() {
     currentLibrary
   } = useStorage();
   const { toast } = useToast();
-  const [isTreeVisible, setIsTreeVisible] = React.useState<boolean>(false);
+  const [uiPrefs, setUiPrefs] = useAtom(uiPanePrefsAtom)
+  const isTreeVisible = uiPrefs.treeVisible
+  const isListCompact = uiPrefs.listCompact
   const [isMobile, setIsMobile] = React.useState<boolean>(false);
   const [mobileView, setMobileView] = React.useState<'list' | 'preview'>('list');
   const loadInFlightRef = React.useRef<boolean>(false);
@@ -78,8 +81,8 @@ export function Library() {
     // Desktop ab 1024px, Mobile darunter
     const mq = window.matchMedia('(max-width: 1023px)');
     const apply = (matches: boolean) => {
+      // Nur Mobile-Flag setzen; Tree-Visibility bleibt persistent über uiPanePrefsAtom
       setIsMobile(matches);
-      setIsTreeVisible(!matches);
     };
     apply(mq.matches);
     const handler = (e: MediaQueryListEvent) => apply(e.matches);
@@ -395,6 +398,10 @@ export function Library() {
         error={storageError}
         onUploadComplete={loadItems}
         onClearCache={clearCache}
+        isTreeVisible={isTreeVisible}
+        onToggleTree={() => setUiPrefs({ treeVisible: !isTreeVisible })}
+        isCompactList={isListCompact}
+        onToggleCompactList={() => setUiPrefs({ listCompact: !isListCompact })}
       >
         <Breadcrumb />
       </LibraryHeader>
@@ -512,20 +519,7 @@ export function Library() {
         ) : (
           // Normal-Layout (Desktop) oder alternierendes Mobile-Layout
           <div className="relative h-full">
-            {/* Floating toggle handle - nur Desktop */}
-            <button
-              type="button"
-              onClick={() => setIsTreeVisible(v => !v)}
-              className="hidden lg:flex items-center justify-center absolute left-2 top-1/2 -translate-y-1/2 z-20 h-7 w-7 rounded-full border bg-background/80 shadow-sm hover:bg-background"
-              aria-label={isTreeVisible ? 'Tree ausblenden' : 'Tree einblenden'}
-              title={isTreeVisible ? 'Tree ausblenden' : 'Tree einblenden'}
-            >
-              {isTreeVisible ? (
-                <ChevronLeft className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
+            {/* Entfernt: alter Tree-Handle (ersetzt durch Header-Toggle) */}
 
             {isMobile ? (
               mobileView === 'list' ? (
@@ -587,14 +581,14 @@ export function Library() {
               )
             ) : (
               <ResizablePanelGroup
-                key={isTreeVisible ? 'with-tree' : 'no-tree'}
+                key={`layout-${isTreeVisible ? 'tree' : 'notree'}-${isListCompact ? 'compact' : 'list'}`}
                 direction="horizontal"
                 className="h-full"
-                autoSaveId={isTreeVisible ? "library-panels-3" : "library-panels-2"}
+                autoSaveId={`library-panels-${isTreeVisible ? '3' : '2'}-${isListCompact ? 'c' : 'n'}`}
               >
                 {isTreeVisible && (
                   <>
-                    <ResizablePanel key="tree-panel" id="tree" defaultSize={20} minSize={15} className="min-h-0">
+                    <ResizablePanel key={`tree-panel-${isTreeVisible ? 't' : 'nt'}`} id="tree" defaultSize={15} minSize={15} className="min-h-0">
                       <div className="h-full overflow-auto flex flex-col">
                         <FileTree />
                       </div>
@@ -602,13 +596,20 @@ export function Library() {
                     <ResizableHandle key="tree-handle" />
                   </>
                 )}
-                <ResizablePanel key="list-panel" id="list" defaultSize={isTreeVisible ? 40 : 50} className="min-h-0">
-                  <div className="h-full overflow-auto flex flex-col">
-                    <FileList />
-                  </div>
-                </ResizablePanel>
-                <ResizableHandle key="list-preview-handle" />
-                <ResizablePanel key="preview-panel" id="preview" defaultSize={isTreeVisible ? 40 : 50} className="min-h-0">
+                <>
+                  <ResizablePanel key={`list-panel-${isListCompact ? 'c' : 'n'}-${isTreeVisible ? 't' : 'nt'}`} id="list" defaultSize={isListCompact ? 15 : 30} minSize={15} className="min-h-0 transition-[flex-basis] duration-200 ease-in-out">
+                    <div className="h-full overflow-auto flex flex-col">
+                      <FileList compact={isListCompact} />
+                    </div>
+                  </ResizablePanel>
+                  <ResizableHandle key="list-preview-handle" />
+                </>
+                <ResizablePanel key={`preview-panel-${isListCompact ? 'c' : 'n'}-${isTreeVisible ? 't' : 'nt'}`} id="preview" defaultSize={(() => {
+                  const tree = isTreeVisible ? 15 : 0;
+                  const list = isListCompact ? 15 : 30;
+                  const rest = Math.max(10, 100 - (tree + list));
+                  return rest;
+                })()} className="min-h-0 transition-[flex-basis] duration-200 ease-in-out">
                   <div className="h-full relative flex flex-col">
                     {selectedFile ? (
                       <FilePreviewLazy

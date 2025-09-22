@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     console.log('[process-text] FormData Werte:', formDataValues);
 
     // Text-Parameter validieren
-    const text = formData.get('text') as string;
+    const text = (formData.get('text') as string) || '';
     if (!text || text.trim().length === 0) {
       console.error('[process-text] Kein Text-Parameter gefunden oder Text ist leer');
       return NextResponse.json(
@@ -45,18 +45,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const targetLanguage = formData.get('targetLanguage') as string || 'de';
-    const template = formData.get('template') as string || 'Besprechung';
-    const templateContent = formData.get('templateContent') as string; // Neuer Parameter für Template-Inhalt
-    const sourceLanguage = formData.get('sourceLanguage') as string;
+    // Sprachen
+    const targetLanguage = (formData.get('target_language') as string) || (formData.get('targetLanguage') as string) || 'de';
+    const sourceLanguage = (formData.get('source_language') as string) || (formData.get('sourceLanguage') as string) || '';
 
-    // Bestimme ob Template-Name oder Template-Content verwendet wird
-    const isTemplateContent = templateContent && templateContent.trim().length > 0;
+    // Template-Name und Content (beide optional, aber mindestens eins MUSS vorhanden sein)
+    const templateName = ((formData.get('template') as string) || '').trim();
+    const templateContent = ((formData.get('template_content') as string) || (formData.get('templateContent') as string) || '').trim();
+
+    if (!templateName && !templateContent) {
+      console.error('[process-text] Weder template noch template_content übergeben');
+      return NextResponse.json(
+        { error: 'Erforderlich: Entweder template (Name) ODER template_content (String) übergeben' },
+        { status: 400 }
+      );
+    }
+
+    const isTemplateContent = templateContent.length > 0;
 
     console.log('[process-text] Request-Daten für Secretary Service:', {
       textLength: text.length,
       target_language: targetLanguage,
-      template: isTemplateContent ? 'CUSTOM_CONTENT' : template,
+      template: isTemplateContent ? 'CUSTOM_CONTENT' : templateName,
       templateContentLength: isTemplateContent ? templateContent.length : 0,
       source_language: sourceLanguage || 'nicht angegeben'
     });
@@ -72,7 +82,7 @@ export async function POST(request: NextRequest) {
     if (isTemplateContent) {
       secretaryFormData.append('template_content', templateContent);
     } else {
-      secretaryFormData.append('template', template);
+      secretaryFormData.append('template', templateName);
     }
     
     secretaryFormData.append('use_cache', 'false');

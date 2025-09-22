@@ -1,32 +1,114 @@
 "use client";
 
 import * as React from 'react'
+// Hinweis: Body-Parsing erfolgt zeilenbasiert direkt in dieser Komponente
 import { parseFrontmatterKeyValues } from '@/lib/markdown/frontmatter'
-import { Input } from '@/components/ui/input'
+// Button nicht mehr benötigt
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { GripVertical, Plus } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { GripVertical, Plus, Minus, Trash2 } from 'lucide-react'
+// removed Select imports after removing Typ-Spalte
+import { MarkdownPreview } from '@/components/library/markdown-preview'
+import { Textarea } from '@/components/ui/textarea'
+// Input entfällt nach UI-Verschlankung
 
 export interface StructuredTemplateEditorProps {
   markdownBody: string
   yamlFrontmatter: string
   systemPrompt: string
   onChange: (next: { markdownBody: string; yamlFrontmatter: string; systemPrompt: string }) => void
+  magicMode?: boolean
+  magicValues?: { body: string; frontmatter: string; system: string }
+  onMagicChange?: (next: { body?: string; frontmatter?: string; system?: string }) => void
 }
 
 type LineKind = 'text' | 'h1' | 'h2' | 'h3' | 'bold' | 'variable'
 
-export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, systemPrompt, onChange }: StructuredTemplateEditorProps) {
+export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, systemPrompt, onChange, magicMode, magicValues, onMagicChange }: StructuredTemplateEditorProps) {
   const lines = React.useMemo(() => (typeof markdownBody === 'string' ? markdownBody.split('\n') : []), [markdownBody])
   const fmEntries = React.useMemo(() => parseFrontmatterKeyValues(yamlFrontmatter || ''), [yamlFrontmatter])
   const [sysPrompt, setSysPrompt] = React.useState(systemPrompt)
   const [tab, setTab] = React.useState<'body'|'frontmatter'|'system'>('body')
-  const dragFrom = React.useRef<number | null>(null)
+  const [sysEditing, setSysEditing] = React.useState(false)
 
   React.useEffect(() => { setSysPrompt(systemPrompt) }, [systemPrompt])
 
+  // Logische Zeilen: unterstützen Mehrzeilige Variable-Blöcke {{key|...}} ... }}
+  interface BodyRow { hasVariable: boolean; varKey: string; content: string; start: number; end: number; pre: string; post: string }
+
+  function parseBodyToRows(raw: string): BodyRow[] {
+    const src = typeof raw === 'string' ? raw.split('\n') : []
+    const rows: BodyRow[] = []
+    let i = 0
+    while (i < src.length) {
+      const line = src[i]
+      // Suche nach Beginn eines Tokens irgendwo in der Zeile
+      const startRe = /\{\{([^}|]+)\|/g
+      const m = startRe.exec(line)
+      if (m) {
+        const varKey = (m[1] || '').trim()
+        const pre = line.slice(0, m.index)
+        let afterStart = line.slice(m.index + m[0].length)
+        // Prüfe, ob Abschluss in derselben Zeile ist
+        const closeIdx = afterStart.indexOf('}}')
+        if (closeIdx >= 0) {
+          const content = afterStart.slice(0, closeIdx)
+          const post = afterStart.slice(closeIdx + 2)
+          rows.push({ hasVariable: true, varKey, content, pre, post, start: i, end: i })
+          i += 1
+          continue
+        }
+        // Mehrzeilig bis '}}'
+        let content = afterStart
+        let j = i + 1
+        let endFound = false
+        while (j < src.length) {
+          const l = src[j]
+          const ci = l.indexOf('}}')
+          if (ci >= 0) {
+            content += `\n${l.slice(0, ci)}`
+            const post = l.slice(ci + 2)
+            rows.push({ hasVariable: true, varKey, content, pre, post, start: i, end: j })
+            i = j + 1
+            endFound = true
+            break
+          }
+          content += `\n${l}`
+          j += 1
+        }
+        if (!endFound) {
+          // Kein Abschluss gefunden, behandle als reine Zeile
+          rows.push({ hasVariable: false, varKey: '', content: line, pre: '', post: '', start: i, end: i })
+          i += 1
+        }
+        continue
+      }
+      // Keine Variable, ganze Zeile als Content
+      rows.push({ hasVariable: false, varKey: '', content: line, pre: '', post: '', start: i, end: i })
+      i += 1
+    }
+    return rows
+  }
+
+  const rows = React.useMemo(() => parseBodyToRows(markdownBody || ''), [markdownBody])
+
+  function replaceRange(start: number, end: number, replacement: string) {
+    const before = lines.slice(0, start)
+    const repl = (replacement ?? '').split('\n')
+    const after = lines.slice(end + 1)
+    const next = before.concat(repl).concat(after)
+    onChange({ markdownBody: next.join('\n'), yamlFrontmatter, systemPrompt: sysPrompt })
+  }
+
+  function buildVariable(pre: string, varKey: string, content: string, post: string): string {
+    const text = content ?? ''
+    const key = (varKey || '').trim()
+    const token = key ? `{{${key}|${text}}}` : text
+    return `${pre}${token}${post}`
+  }
+
+  // Zeilenbasierte Platzhalter-Erkennung (nur die betrachtete Zeile)
   function parseLine(line: string): { kind: LineKind; varKey: string; content: string } {
     const mVar = /^\s*\{\{([^}|]+)\|([^}]+)\}\}\s*$/.exec(line)
     if (mVar) return { kind: 'variable', varKey: (mVar[1] || '').trim(), content: (mVar[2] || '').trim() }
@@ -65,28 +147,82 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
     return trimmed || `var_${index + 1}`
   }
 
-  function updateLineKind(lineIndex: number, nextKind: LineKind) {
-    if (lineIndex < 0 || lineIndex >= lines.length) return
-    const { content, varKey } = parseLine(lines[lineIndex])
-    if (nextKind === 'variable') {
-      const key = varKey && varKey.trim().length > 0 ? varKey : suggestVarKey(lineIndex, content)
-      updateLineByIndex(lineIndex, buildLine('variable', content, key))
-      return
+  // kein Format mehr
+
+  function updateRowVarKey(rowIndex: number, nextKey: string) {
+    const row = rows[rowIndex]
+    if (!row) return
+    if (!row.hasVariable) return
+    const key = (nextKey || '').trim() || suggestVarKey(row.start, row.content)
+    replaceRange(row.start, row.end, buildVariable(row.pre, key, row.content, row.post))
+  }
+
+  function updateRowContent(rowIndex: number, nextContent: string) {
+    const row = rows[rowIndex]
+    if (!row) return
+    if (row.hasVariable) {
+      replaceRange(row.start, row.end, buildVariable(row.pre, row.varKey, nextContent, row.post))
+    } else {
+      replaceRange(row.start, row.end, nextContent)
     }
-    updateLineByIndex(lineIndex, buildLine(nextKind, content, varKey))
   }
 
-  function updateVarKey(lineIndex: number, nextKey: string) {
-    if (lineIndex < 0 || lineIndex >= lines.length) return
-    const { content } = parseLine(lines[lineIndex])
-    const realKind: LineKind = 'variable'
-    updateLineByIndex(lineIndex, buildLine(realKind, content, nextKey))
+  function addVariableToRow(rowIndex: number) {
+    const row = rows[rowIndex]
+    if (!row || row.hasVariable) return
+    const key = suggestVarKey(row.start, row.content)
+    // Füge Token an den Anfang der Zeile ein
+    replaceRange(row.start, row.end, buildVariable('', key, row.content, ''))
   }
 
-  function updateContent(lineIndex: number, nextContent: string) {
-    if (lineIndex < 0 || lineIndex >= lines.length) return
-    const { kind, varKey } = parseLine(lines[lineIndex])
-    updateLineByIndex(lineIndex, buildLine(kind, nextContent, varKey))
+  function removeVariableFromRow(rowIndex: number) {
+    const row = rows[rowIndex]
+    if (!row || !row.hasVariable) return
+    replaceRange(row.start, row.end, `${row.pre}${row.content}${row.post}`)
+  }
+
+  function moveRow(fromRowIndex: number, toRowIndex: number) {
+    if (fromRowIndex === toRowIndex) return
+    const from = rows[fromRowIndex]
+    const to = rows[toRowIndex]
+    if (!from || !to) return
+    const blockLen = from.end - from.start + 1
+    const segment = lines.slice(from.start, from.end + 1)
+    const without = lines.slice(0, from.start).concat(lines.slice(from.end + 1))
+    // Zielindex im ohne-Array bestimmen
+    const insertAt = from.start < to.start ? Math.max(0, to.start - blockLen) : to.start
+    const next = without.slice(0, insertAt).concat(segment).concat(without.slice(insertAt))
+    onChange({ markdownBody: next.join('\n'), yamlFrontmatter, systemPrompt: sysPrompt })
+  }
+
+  // Drag & Drop für Zeilenreihenfolge
+  function handleDragStart(e: React.DragEvent, fromRowIndex: number) {
+    e.dataTransfer.setData('text/plain', String(fromRowIndex))
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+  function handleDrop(e: React.DragEvent, toRowIndex: number) {
+    e.preventDefault()
+    const fromStr = e.dataTransfer.getData('text/plain')
+    const fromRowIndex = Number.isInteger(Number(fromStr)) ? parseInt(fromStr, 10) : -1
+    if (fromRowIndex < 0 || fromRowIndex === toRowIndex) return
+    moveRow(fromRowIndex, toRowIndex)
+  }
+
+  function addLineAfter(index: number) {
+    const arr = lines.slice()
+    arr.splice(index + 1, 0, '')
+    onChange({ markdownBody: arr.join('\n'), yamlFrontmatter, systemPrompt: sysPrompt })
+  }
+
+  function deleteRow(rowIndex: number) {
+    const row = rows[rowIndex]
+    if (!row) return
+    const next = lines.slice(0, row.start).concat(lines.slice(row.end + 1))
+    onChange({ markdownBody: next.join('\n'), yamlFrontmatter, systemPrompt: sysPrompt })
   }
 
   const updateFrontmatterQuestion = (entryKey: string, question: string) => {
@@ -102,33 +238,6 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
     }
   }
 
-  function handleDragStart(e: React.DragEvent, fromIndex: number) {
-    dragFrom.current = fromIndex
-    e.dataTransfer.setData('text/plain', String(fromIndex))
-    e.dataTransfer.effectAllowed = 'move'
-  }
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
-  function handleDrop(e: React.DragEvent, toIndex: number) {
-    e.preventDefault()
-    const fromStr = e.dataTransfer.getData('text/plain')
-    const fromIndex = Number.isInteger(Number(fromStr)) ? parseInt(fromStr, 10) : dragFrom.current
-    if (fromIndex === null || isNaN(fromIndex) || fromIndex === toIndex) return
-    const arr = lines.slice()
-    const [moved] = arr.splice(fromIndex, 1)
-    arr.splice(toIndex, 0, moved)
-    onChange({ markdownBody: arr.join('\n'), yamlFrontmatter, systemPrompt: sysPrompt })
-    dragFrom.current = null
-  }
-
-  function addLineAfter(index: number) {
-    const arr = lines.slice()
-    arr.splice(index + 1, 0, '')
-    onChange({ markdownBody: arr.join('\n'), yamlFrontmatter, systemPrompt: sysPrompt })
-  }
-
   const handleSysPromptChange = (v: string) => {
     setSysPrompt(v)
     onChange({ markdownBody, yamlFrontmatter, systemPrompt: v })
@@ -139,32 +248,41 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
         <TabsList className="grid grid-cols-3 w-full">
           <TabsTrigger value="body">Aufgabe</TabsTrigger>
-          <TabsTrigger value="system">Rollenanweisung</TabsTrigger>
           <TabsTrigger value="frontmatter">Metadaten</TabsTrigger>
+          <TabsTrigger value="system">Rollenanweisung</TabsTrigger>
         </TabsList>
 
         <TabsContent value="body">
+          {magicMode ? (
+            <div className="mb-3 space-y-1">
+              <Label>Änderungswunsch (Aufgabe)</Label>
+              <Textarea
+                value={magicValues?.body ?? ''}
+                onChange={(e) => onMagicChange?.({ body: e.target.value })}
+                placeholder="Was möchtest du hier ändern?"
+                className="w-full min-h-[90px] bg-pink-50 dark:bg-pink-950/20 border-pink-300"
+              />
+            </div>
+          ) : null}
           <div className="overflow-auto">
             <Table className="text-[11px] w-full border-collapse">
               <TableHeader>
                 <TableRow className="[&>*]:py-1">
-                  <TableHead className="w-8" />
-                  <TableHead className="w-36">Typ/Variable</TableHead>
-                  <TableHead>Text / Frage</TableHead>
+                  <TableHead className="w-10 px-1" />
+                  <TableHead className="px-1">Text / Frage</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lines.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} className="text-muted-foreground">Keine Zeilen im Body.</TableCell></TableRow>
-                ) : lines.map((line, i) => {
-                  const { kind, varKey, content } = parseLine(line)
+                  <TableRow><TableCell colSpan={2} className="text-muted-foreground">Keine Zeilen im Body.</TableCell></TableRow>
+                ) : rows.map((row, i) => {
                   return (
-                    <TableRow key={`line-${i}`} className="align-top" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, i)}>
-                      <TableCell className="align-top w-8 py-1">
+                    <TableRow key={`line-${i}`} className="align-top" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, row.start)}>
+                      <TableCell className="align-top w-10 py-1 px-1">
                         <div className="flex items-center gap-1">
                           <span
                             draggable
-                            onDragStart={(e) => handleDragStart(e, i)}
+                            onDragStart={(e) => handleDragStart(e, row.start)}
                             className="inline-flex h-4 w-4 items-center justify-center text-muted-foreground cursor-grab hover:text-foreground"
                             title="Ziehen zum Verschieben"
                             aria-label="Ziehen zum Verschieben"
@@ -176,42 +294,35 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
                             className="inline-flex h-4 w-4 items-center justify-center text-muted-foreground hover:text-foreground"
                             title="Zeile darunter einfügen"
                             aria-label="Zeile darunter einfügen"
-                            onClick={() => addLineAfter(i)}
+                            onClick={() => addLineAfter(row.end)}
                           >
                             <Plus className="h-3 w-3" />
                           </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-4 w-4 items-center justify-center text-muted-foreground hover:text-destructive"
+                            title="Zeile löschen"
+                            aria-label="Zeile löschen"
+                            onClick={() => deleteRow(i)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
                         </div>
                       </TableCell>
-                      <TableCell className="align-top w-36 py-1">
-                        <div className="flex flex-col gap-1">
-                          <Select value={kind} onValueChange={(v) => updateLineKind(i, v as LineKind)}>
-                            <SelectTrigger className="h-7 text-[11px]">
-                              <SelectValue placeholder="Text" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="text">Text</SelectItem>
-                              <SelectItem value="h1">Heading 1</SelectItem>
-                              <SelectItem value="h2">Heading 2</SelectItem>
-                              <SelectItem value="h3">Heading 3</SelectItem>
-                              <SelectItem value="bold">Bold</SelectItem>
-                              <SelectItem value="variable">Variable</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {kind === 'variable' ? (
-                            <Input
-                              value={varKey}
-                              onChange={(e) => updateVarKey(i, e.target.value)}
-                              placeholder="Variablenname"
-                              className="h-7 text-[11px] font-mono"
-                            />
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell className="align-top py-1">
-                        <InlineEditableCell
-                          value={content}
-                          onChange={(val) => updateContent(i, val)}
-                          placeholder={kind === 'variable' ? 'Frage/Beschreibung' : 'Markdown-Text'}
+                      <TableCell className="align-top py-1 px-1">
+                        <RowHeader
+                          hasVariable={row.hasVariable}
+                          varKey={row.varKey}
+                          onChangeVar={(v) => updateRowVarKey(i, v)}
+                          onAdd={() => addVariableToRow(i)}
+                          onRemove={() => removeVariableFromRow(i)}
+                        />
+                        <InlineMarkdownCell
+                          displayValue={row.hasVariable ? `${row.pre}${row.content}${row.post}` : row.content}
+                          editValue={row.content}
+                          onChange={(val) => updateRowContent(i, val)}
+                          placeholder={row.hasVariable ? 'Frage/Beschreibung (Markdown)' : 'Markdown-Text'}
+                          compact
                         />
                       </TableCell>
                     </TableRow>
@@ -223,6 +334,17 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
         </TabsContent>
 
         <TabsContent value="frontmatter">
+          {magicMode ? (
+            <div className="mb-3 space-y-1">
+              <Label>Änderungswunsch (Metadaten)</Label>
+              <Textarea
+                value={magicValues?.frontmatter ?? ''}
+                onChange={(e) => onMagicChange?.({ frontmatter: e.target.value })}
+                placeholder="Was möchtest du hier ändern?"
+                className="w-full min-h-[90px] bg-pink-50 dark:bg-pink-950/20 border-pink-300"
+              />
+            </div>
+          ) : null}
           <div className="max-h-[50vh] overflow-auto rounded border">
             <table className="w-full text-[11px] border-collapse">
               <thead className="sticky top-0 bg-background">
@@ -259,9 +381,30 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
         </TabsContent>
 
         <TabsContent value="system">
-          <div className="space-y-1">
+          {magicMode ? (
+            <div className="mb-3 space-y-1">
+              <Label>Änderungswunsch (Rollenanweisung)</Label>
+              <Textarea
+                value={magicValues?.system ?? ''}
+                onChange={(e) => onMagicChange?.({ system: e.target.value })}
+                placeholder="Was möchtest du hier ändern?"
+                className="w-full min-h-[90px] bg-pink-50 dark:bg-pink-950/20 border-pink-300"
+              />
+            </div>
+          ) : null}
+          <div className="space-y-2">
             <Label>Rollenanweisung</Label>
-            <Input value={sysPrompt} onChange={(e) => handleSysPromptChange(e.target.value)} className="font-mono h-8 text-xs" />
+            {!sysEditing ? (
+              <div role="button" onClick={() => setSysEditing(true)} className="border rounded-md">
+                <MarkdownPreview content={sysPrompt || ''} />
+              </div>
+            ) : (
+              <EditableTextarea
+                value={sysPrompt}
+                onChange={handleSysPromptChange}
+                onBlur={() => setSysEditing(false)}
+              />
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -273,6 +416,7 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+// Inline-Edit Textarea, wächst dynamisch, aktiviert Edit bei Fokus/Klick
 function EditableTextarea({ value, onChange, onBlur, onKeyDown }: { value: string; onChange: (v: string) => void; onBlur?: () => void; onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void }) {
   const [local, setLocal] = React.useState(value)
   const ref = React.useRef<HTMLTextAreaElement | null>(null)
@@ -300,6 +444,7 @@ function EditableTextarea({ value, onChange, onBlur, onKeyDown }: { value: strin
   )
 }
 
+// Zelle, die erst beim Klick in den Editiermodus wechselt und Anzeige als Markdown rendert
 function InlineEditableCell({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   const [editing, setEditing] = React.useState(false)
 
@@ -322,6 +467,76 @@ function InlineEditableCell({ value, onChange, placeholder }: { value: string; o
       onBlur={() => setEditing(false)}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setEditing(false) } }}
     />
+  )
+}
+
+function InlineMarkdownCell({ displayValue, editValue, onChange, placeholder, compact }: { displayValue: string; editValue: string; onChange: (v: string) => void; placeholder?: string; compact?: boolean }) {
+  const [editing, setEditing] = React.useState(false)
+  const [local, setLocal] = React.useState(editValue)
+  React.useEffect(() => { if (!editing) setLocal(editValue) }, [editValue, editing])
+  if (!editing) {
+    const heading = /^(#{1,6})\s+(.*)$/.exec(displayValue.trim())
+    if (heading) {
+      const level = Math.min(6, Math.max(1, heading[1].length)) as 1|2|3|4|5|6
+      const text = heading[2]
+      const Tag = (`h${level}` as unknown) as keyof JSX.IntrinsicElements
+      return (
+        <div role="button" onClick={() => setEditing(true)} className="cursor-text rounded-md px-1 py-1 min-h-[2.5rem] border">
+          <div className="prose dark:prose-invert max-w-none w-full p-1">
+            <Tag className={level === 1 ? 'text-2xl font-bold' : level === 2 ? 'text-xl font-semibold' : level === 3 ? 'text-lg font-semibold' : 'text-base font-medium'}>{text}</Tag>
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div role="button" onClick={() => setEditing(true)} className="cursor-text rounded-md px-1 py-1 min-h-[2.5rem] border">
+        {displayValue ? <MarkdownPreview content={displayValue} compact={compact} /> : <span className="text-muted-foreground">{placeholder || 'Klicken zum Bearbeiten'}</span>}
+      </div>
+    )
+  }
+  return (
+    <EditableTextarea
+      value={local}
+      onChange={(v) => { setLocal(v); onChange(v) }}
+      onBlur={() => setEditing(false)}
+      onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setEditing(false) } }}
+    />
+  )
+}
+
+// Sehr dezenter Zeilen-Header mit Variablenname und Plus/Minus als kleine Buttons
+function RowHeader({ hasVariable, varKey, onChangeVar, onAdd, onRemove }: { hasVariable: boolean; varKey: string; onChangeVar: (v: string) => void; onAdd: () => void; onRemove: () => void }) {
+  return (
+    <div className="flex items-center justify-between bg-muted/40 text-[10px] text-muted-foreground rounded-sm px-1 py-0.5 mb-1">
+      <div className="flex items-center gap-2">
+        <span className="font-mono truncate max-w-[12rem]" title={hasVariable ? varKey : 'keine Variable'}>
+          {hasVariable ? varKey || 'variable' : '—'}
+        </span>
+      </div>
+      <div className="flex items-center gap-1">
+        {hasVariable ? (
+          <button
+            type="button"
+            className="inline-flex h-4 w-4 items-center justify-center rounded-sm hover:bg-muted text-muted-foreground border"
+            aria-label="Variable entfernen"
+            title="Variable entfernen"
+            onClick={onRemove}
+          >
+            <Minus className="h-3 w-3" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="inline-flex h-4 w-4 items-center justify-center rounded-sm hover:bg-muted text-muted-foreground border"
+            aria-label="Variable hinzufügen"
+            title="Variable hinzufügen"
+            onClick={onAdd}
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 

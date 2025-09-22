@@ -352,51 +352,12 @@ function PreviewContent({
             </TabsList>
             <div className="flex-1 min-h-0">
               <TabsContent value="preview" className="h-full mt-0">
-                <div className="flex items-center gap-2 px-4 py-2">
-                  <button
-                    className="inline-flex h-8 items-center rounded-md bg-muted px-3 text-xs"
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/upsert-file`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ fileId: item.id, fileName: item.metadata.name, content, mode: 'A' }),
-                        })
-                        const data = await res.json()
-                        if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Upsert (A)')
-                        console.log('[Upsert A] OK:', data)
-                      } catch (e) {
-                        console.error('[Upsert A] Fehler:', e)
-                      }
-                    }}
-                  >
-                    Upsert A
-                  </button>
-                  <button
-                    className="inline-flex h-8 items-center rounded-md bg-muted px-3 text-xs"
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/upsert-file`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ fileId: item.id, fileName: item.metadata.name, content, mode: 'B' }),
-                        })
-                        const data = await res.json()
-                        if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Upsert (B)')
-                        console.log('[Upsert B] OK:', data)
-                      } catch (e) {
-                        console.error('[Upsert B] Fehler:', e)
-                      }
-                    }}
-                  >
-                    Upsert B
-                  </button>
-                </div>
                 <MarkdownPreview 
                   content={content}
                   currentFolderId={item.parentId}
                   provider={provider}
                   className="h-full"
+                  compact
                   onTransform={() => setActiveTab("edit")}
                   onRefreshFolder={onRefreshFolder}
                 />

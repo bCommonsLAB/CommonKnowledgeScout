@@ -6,7 +6,9 @@ export interface FrontmatterEntry {
 
 export function extractFrontmatterBlock(markdown: string): string | null {
   if (typeof markdown !== 'string' || markdown.length === 0) return null;
-  const m = markdown.match(/^---[\s\S]*?---/);
+  // Nur Frontmatter am Dokumentanfang akzeptieren und Abschluss-Delimiter auf eigener Zeile erzwingen.
+  // Dadurch kollidieren wir nicht mit '---' in Tabellen oder Texten innerhalb des Frontmatters (z. B. in JSON-Strings).
+  const m = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   return m ? m[0] : null;
 }
 
@@ -46,6 +48,14 @@ export function parseFrontmatter(frontmatter: string): Record<string, unknown> {
   }
   return meta;
 }
+
+
+
+
+
+
+
+
 
 
 

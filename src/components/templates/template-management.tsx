@@ -27,6 +27,10 @@ import { useStorage } from "@/contexts/storage-context"
 import { templateContextDocsAtom } from '@/atoms/template-context-atom'
 import { Checkbox } from "@/components/ui/checkbox"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { JobReportTab } from "@/components/library/job-report-tab"
+import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
 
 // Schema für Template-Daten
 const templateSchema = z.object({
@@ -45,6 +49,17 @@ export function TemplateManagement() {
   const [testResult, setTestResult] = useState<string | null>(null)
   const [selectedContextIds, setSelectedContextIds] = useState<string[]>([])
   const [selectedContextMarkdown, setSelectedContextMarkdown] = useState<string>("")
+  const [rightTab, setRightTab] = useState<'kontext'|'preview'|'testen'>('kontext')
+  const [resultSavedItemId, setResultSavedItemId] = useState<string | null>(null)
+  const [freeText, setFreeText] = useState<string>("")
+  // Magic Design
+  const [magicMode, setMagicMode] = useState<boolean>(false)
+  const [magicBody, setMagicBody] = useState<string>("")
+  const [magicFrontmatter, setMagicFrontmatter] = useState<string>("")
+  const [magicSystem, setMagicSystem] = useState<string>("")
+  const [magicRunning, setMagicRunning] = useState<boolean>(false)
+  const [magicLastDiff, setMagicLastDiff] = useState<string>("")
+  const [magicSavedItemId, setMagicSavedItemId] = useState<string | null>(null)
   const { toast } = useToast()
 
   // Atoms
@@ -303,16 +318,18 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
         for (const id of selectedContextIds) {
           const { blob } = await providerInstance.getBinary(id)
           const text = await blob.text()
-          parts.push(text)
+          const name = Array.isArray(contextDocs) ? (contextDocs.find(d => d.id === id)?.name || id) : id
+          const section = `\n\n---\nDatei: ${name}\n---\n\n${text}\n\n---\nEnde Datei: ${name}\n---\n`
+          parts.push(section)
         }
-        setSelectedContextMarkdown(parts.join("\n\n---\n\n"))
+        setSelectedContextMarkdown(parts.join("\n\n"))
       } catch (e) {
         console.error('Fehler beim Laden des Kontextes', e)
         setSelectedContextMarkdown("")
       }
     }
     void loadSelectedContext()
-  }, [providerInstance, selectedContextIds])
+  }, [providerInstance, selectedContextIds, contextDocs])
 
   function parseTemplateContent(content: string, fileName: string): Template {
     // Template in drei Bereiche aufteilen
@@ -327,7 +344,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       systemPrompt = parts[1].trim()
       
       // YAML Frontmatter extrahieren
-      const yamlMatch = mainContent.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
+      const yamlMatch = mainContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
       if (yamlMatch) {
         yamlFrontmatter = `---\n${yamlMatch[1]}\n---`
         markdownBody = yamlMatch[2].trim()
@@ -337,7 +354,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       }
     } else {
       // Kein Systemprompt gefunden
-      const yamlMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
+      const yamlMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
       if (yamlMatch) {
         yamlFrontmatter = `---\n${yamlMatch[1]}\n---`
         markdownBody = yamlMatch[2].trim()
@@ -388,23 +405,67 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       const templateContent = generateTemplateContent(data)
       const fileName = `${data.name}.md`
       
-      // Datei als Blob erstellen
+      console.group('[TemplateManagement] Speichern')
+      console.log('Library', { id: activeLibrary.id, label: activeLibrary.label, path: activeLibrary.path })
+      console.log('TemplatesFolderId', templatesFolderId)
+      console.log('Datei', { fileName, contentLen: templateContent.length })
+      
+      // Falls Datei mit gleichem Namen existiert: erst löschen, dann neu schreiben
+      const existing = templates.find(t => t.name.toLowerCase() === data.name.toLowerCase())
+      if (existing?.fileId) {
+        console.log('Bestehende Datei gefunden, lösche', { fileId: existing.fileId })
+        try {
+          await providerInstance.deleteItem(existing.fileId)
+          console.log('Löschen OK')
+        } catch (e) {
+          console.error('Löschen fehlgeschlagen', e)
+          toast({ title: 'Löschen fehlgeschlagen', description: e instanceof Error ? e.message : String(e), variant: 'destructive' })
+        }
+      } else {
+        console.log('Keine bestehende Datei mit gleichem Namen gefunden')
+      }
+      
+      // Datei als Blob erstellen und hochladen (Neu-Anlage / Ersetzen)
       const blob = new Blob([templateContent], { type: 'text/markdown' })
       const file = new File([blob], fileName, { type: 'text/markdown' })
+      const uploaded = await providerInstance.uploadFile(templatesFolderId, file)
+      console.log('Upload Ergebnis', uploaded)
       
-      // Datei hochladen
-      await providerInstance.uploadFile(templatesFolderId, file)
+      // Direkt nach Upload erneut lesen (Bypass-Stale) und lokalen State aktualisieren
+      try {
+        const { blob: rbBlob } = await providerInstance.getBinary(uploaded.id)
+        const rbText = await rbBlob.text()
+        console.log('Read-Back Länge', rbText.length, 'Auszug', rbText.slice(0, 120))
+        const parsed = parseTemplateContent(rbText, data.name)
+        const updated: Template = {
+          ...parsed,
+          fileId: uploaded.id,
+          lastModified: new Date().toISOString()
+        }
+        const nextTemplates = templates
+          .filter((t) => t.name.toLowerCase() !== data.name.toLowerCase())
+          .concat(updated)
+        setTemplates(nextTemplates)
+      } catch (e) {
+        console.warn('Read-Back nach Upload fehlgeschlagen', e)
+      }
       
-      // Templates neu laden
+      // Kurze Wartezeit, damit Remote-Provider (OneDrive) Index/Cache aktualisiert
+      await new Promise(r => setTimeout(r, 500))
+      
+      // Templates neu laden (finaler Sync mit Remote)
       await loadTemplates()
+      console.log('Templates neu geladen')
       
       // Auswahl auf das neue Template setzen
       setSelectedTemplateName(data.name)
+      console.log('Auswahl gesetzt', data.name)
       
       toast({
-        title: "Template gespeichert",
-        description: `Template "${data.name}" wurde erfolgreich im Verzeichnis "/templates" gespeichert.`,
+        title: "Prompt gespeichert",
+        description: `"${data.name}" wurde aktualisiert.`,
       })
+      console.groupEnd()
     } catch (error) {
       console.error('Fehler beim Speichern des Templates:', error)
       toast({
@@ -503,7 +564,42 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
     const values = form.getValues()
     const templateContent = generateTemplateContent(values)
-    const testText = selectedContextMarkdown || ""
+    const sections: string[] = []
+    if (selectedContextMarkdown.trim()) sections.push(selectedContextMarkdown.trim())
+    if (freeText.trim()) sections.push(`---\nDatei: Freitext\n---\n\n${freeText.trim()}\n\n---\nEnde Datei: Freitext\n---`)
+    const testText = sections.join("\n\n")
+
+    if (!testText || testText.trim().length === 0) {
+      setIsTesting(false)
+      toast({
+        title: 'Kein Testtext vorhanden',
+        description: 'Bitte wählen Sie Kontextdateien oder geben Sie Freitext ein.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const pickMarkdown = (result: unknown): string => {
+      if (typeof result === 'string') return result
+      if (result && typeof result === 'object') {
+        const obj = result as Record<string, unknown>
+        const directCandidates = ['text','markdown','content','output'] as const
+        for (const k of directCandidates) {
+          const v = obj[k]
+          if (typeof v === 'string') return v
+        }
+        // verschachtelte Felder prüfen
+        const nested = obj['data']
+        if (nested && typeof nested === 'object') {
+          const nobj = nested as Record<string, unknown>
+          for (const k of directCandidates) {
+            const v = nobj[k]
+            if (typeof v === 'string') return v
+          }
+        }
+      }
+      return JSON.stringify(result, null, 2)
+    }
 
     try {
       const response = await fetch('/api/secretary/process-text', {
@@ -517,6 +613,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
           template_content: templateContent,
           source_language: 'de',
           target_language: 'de',
+          use_cache: 'false',
         }),
       })
 
@@ -526,19 +623,23 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       }
 
       const result = await response.json()
-      const formattedResult = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+      const formattedResult = pickMarkdown(result)
+      console.log('Prompt-Test Ergebnis:', formattedResult)
+      
       setTestResult(formattedResult)
+      setRightTab('testen')
 
       toast({
         title: "Prompt-Test erfolgreich",
         description: "Der Prompt wurde erfolgreich mit dem gewählten Kontext verarbeitet.",
       })
 
-      console.log('Prompt-Test Ergebnis:', result)
+      console.log('Prompt-Test Ergebnis (roh):', result)
     } catch (error) {
       console.error('Fehler beim Prompt-Test:', error)
       const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler"
       setTestResult(`Fehler: ${errorMessage}`)
+      setRightTab('testen')
       toast({
         title: "Prompt-Test fehlgeschlagen",
         description: errorMessage,
@@ -546,6 +647,155 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       })
     } finally {
       setIsTesting(false)
+    }
+  }
+
+  async function ensurePromptTestsFolder(): Promise<string> {
+    if (!providerInstance) throw new Error('Kein Provider verfügbar')
+    const roots = await listItems('root')
+    const found = roots.find(it => it.type === 'folder' && it.metadata.name === 'prompt-tests')
+    if (found) return found.id
+    const created = await providerInstance.createFolder('root', 'prompt-tests')
+    return created.id
+  }
+
+  async function saveTestResult() {
+    try {
+      if (!providerInstance || !activeLibrary || !testResult) return
+      const folderId = await ensurePromptTestsFolder()
+      const name = `${selectedTemplateName || 'prompt'}-test-${new Date().toISOString().replace(/[:.]/g,'-')}.md`
+      const blob = new Blob([testResult], { type: 'text/markdown' })
+      const file = new File([blob], name, { type: 'text/markdown' })
+      const item = await providerInstance.uploadFile(folderId, file)
+      setResultSavedItemId(item.id)
+      toast({ title: 'Ergebnis gespeichert', description: name })
+    } catch (e) {
+      toast({ title: 'Speichern fehlgeschlagen', description: e instanceof Error ? e.message : 'Unbekannter Fehler', variant: 'destructive' })
+    }
+  }
+
+  async function runMagicDesign() {
+    if (!selectedTemplateName || !providerInstance || !activeLibrary) {
+      toast({ title: 'Kein Prompt ausgewählt', description: 'Bitte wählen Sie zuerst einen Prompt.', variant: 'destructive' })
+      return
+    }
+    const scopeParts: string[] = []
+    if (magicFrontmatter.trim()) scopeParts.push('frontmatter')
+    if (magicBody.trim()) scopeParts.push('body')
+    if (magicSystem.trim()) scopeParts.push('systemprompt')
+    const allowedScope = scopeParts.length === 0 ? 'all' : (scopeParts.length === 1 ? scopeParts[0] : 'all')
+
+    try {
+      setMagicRunning(true)
+      // 1) Magic-Template laden (magicpromptdesign.md)
+      const folderId = await ensureTemplatesFolder()
+      const items = await listItems(folderId)
+      const magicItem = items.find(it => it.type === 'file' && (it.metadata.name.toLowerCase() === 'magicpromptdesign.md'))
+      let magicTemplateContent: string
+      if (!magicItem) {
+        // Fallback: aus /public/templates laden
+        try {
+          const res = await fetch('/templates/magicpromptdesign.md', { cache: 'no-store' })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          magicTemplateContent = await res.text()
+          console.log('[Magic] Fallback magicpromptdesign.md aus /public/templates verwendet')
+        } catch (e) {
+          toast({ title: 'Magic-Template fehlt', description: 'magicpromptdesign.md weder in /templates noch in /public/templates gefunden.', variant: 'destructive' })
+          return
+        }
+      } else {
+        const { blob } = await providerInstance.getBinary(magicItem.id)
+        magicTemplateContent = await blob.text()
+      }
+
+      // 2) Inputtext zusammenstellen
+      const currentTemplate = generateTemplateContent(form.getValues())
+      const inputText = [
+        'INPUT_TEMPLATE:',
+        currentTemplate,
+        '',
+        'CHANGES:',
+        'Aufgabe:',
+        magicBody || '(keine)',
+        '',
+        'Metadaten:',
+        magicFrontmatter || '(keine)',
+        '',
+        'Rollenanweisung:',
+        magicSystem || '(keine)',
+        '',
+        'CONFIG:',
+        `allowed_scope: ${allowedScope}`,
+        'diff_mode: diff',
+        'preserve_comments: ja'
+      ].join('\n')
+
+      // 3) Secretary-Service aufrufen
+      const response = await fetch('/api/secretary/process-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Library-Id': activeLibrary.id },
+        body: new URLSearchParams({
+          text: inputText,
+          template_content: magicTemplateContent,
+          source_language: 'de',
+          target_language: 'de'
+        })
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err?.error || `HTTP ${response.status}`)
+      }
+      const data = await response.json()
+      // data kann string (JSON) oder object sein
+      let corrected: string | undefined
+      let diff: string = ''
+      try {
+        const obj = typeof data === 'string' ? JSON.parse(data) : (typeof data === 'object' ? data : {})
+        corrected = typeof obj?.corrected_template === 'string' ? obj.corrected_template : undefined
+        diff = typeof obj?.diff_preview === 'string' ? obj.diff_preview : ''
+      } catch (e) {
+        // Fallback: Wenn data.text existiert
+        const maybe = (data && typeof data.text === 'string') ? JSON.parse(data.text) : null
+        corrected = maybe?.corrected_template
+        diff = maybe?.diff_preview || ''
+      }
+      if (!corrected) throw new Error('Antwort ohne corrected_template')
+
+      // 4) Template parsen und Formular übernehmen
+      const parsed = parseTemplateContent(corrected, selectedTemplateName)
+      form.setValue('yamlFrontmatter', parsed.yamlFrontmatter, { shouldDirty: true })
+      form.setValue('markdownBody', parsed.markdownBody, { shouldDirty: true })
+      form.setValue('systemPrompt', parsed.systemPrompt, { shouldDirty: true })
+      setMagicLastDiff(diff || '')
+      toast({ title: 'Magic Design angewendet', description: 'Änderungen übernommen (nicht gespeichert).' })
+
+      // 5) Korrigiertes Template im Ordner prompt-tests ablegen (Debug/Verfolgung)
+      try {
+        const testsFolderId = await ensurePromptTestsFolder()
+        const ts = new Date().toISOString().replace(/[:.]/g, '-')
+        const baseName = `${selectedTemplateName}-magic-${ts}.md`
+        const blobCorrected = new Blob([corrected], { type: 'text/markdown' })
+        const fileCorrected = new File([blobCorrected], baseName, { type: 'text/markdown' })
+        const savedItem = await providerInstance.uploadFile(testsFolderId, fileCorrected)
+        setMagicSavedItemId(savedItem.id)
+        toast({ title: 'Magic-Ergebnis gespeichert', description: baseName })
+
+        if (diff && diff.trim().length > 0) {
+          const diffName = `${selectedTemplateName}-magic-diff-${ts}.md`
+          const blobDiff = new Blob([diff], { type: 'text/markdown' })
+          const fileDiff = new File([blobDiff], diffName, { type: 'text/markdown' })
+          await providerInstance.uploadFile(testsFolderId, fileDiff)
+          console.log('[Magic] Diff gespeichert', diffName)
+        }
+      } catch (saveErr) {
+        console.warn('Magic-Ergebnis konnte nicht gespeichert werden:', saveErr)
+        const msg = saveErr instanceof Error ? saveErr.message : 'Unbekannter Fehler'
+        toast({ title: 'Magic-Ergebnis NICHT gespeichert', description: msg, variant: 'destructive' })
+      }
+    } catch (e) {
+      toast({ title: 'Magic fehlgeschlagen', description: e instanceof Error ? e.message : 'Unbekannter Fehler', variant: 'destructive' })
+    } finally {
+      setMagicRunning(false)
     }
   }
 
@@ -635,7 +885,11 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {/* Template-Name Feld entfernt (oben verwaltet) */}
 
-              {previewMode ? (
+              {!selectedTemplateName ? (
+                <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+                  Bitte oben einen Prompt auswählen oder Neu anlegen.
+                </div>
+              ) : previewMode ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium">Prompt-Vorschau</h4>
@@ -655,30 +909,53 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                   </div>
                 </div>
               ) : (
-                <StructuredTemplateEditor
-                  markdownBody={form.watch('markdownBody')}
-                  yamlFrontmatter={form.watch('yamlFrontmatter')}
-                  systemPrompt={form.watch('systemPrompt')}
-                  onChange={({ markdownBody, yamlFrontmatter, systemPrompt }) => {
-                    form.setValue('markdownBody', markdownBody, { shouldDirty: true })
-                    form.setValue('yamlFrontmatter', yamlFrontmatter, { shouldDirty: true })
-                    form.setValue('systemPrompt', systemPrompt, { shouldDirty: true })
-                  }}
-                />
+                <>
+                  <StructuredTemplateEditor
+                    markdownBody={form.watch('markdownBody')}
+                    yamlFrontmatter={form.watch('yamlFrontmatter')}
+                    systemPrompt={form.watch('systemPrompt')}
+                    magicMode={magicMode}
+                    magicValues={{ body: magicBody, frontmatter: magicFrontmatter, system: magicSystem }}
+                    onMagicChange={(next) => {
+                      if (next.body !== undefined) setMagicBody(next.body)
+                      if (next.frontmatter !== undefined) setMagicFrontmatter(next.frontmatter)
+                      if (next.system !== undefined) setMagicSystem(next.system)
+                    }}
+                    onChange={({ markdownBody, yamlFrontmatter, systemPrompt }) => {
+                      form.setValue('markdownBody', markdownBody, { shouldDirty: true })
+                      form.setValue('yamlFrontmatter', yamlFrontmatter, { shouldDirty: true })
+                      form.setValue('systemPrompt', systemPrompt, { shouldDirty: true })
+                    }}
+                  />
+                </>
               )}
 
               <div className="flex justify-end gap-2">
+                {selectedTemplateName && (
+                  <Button type="button" variant={magicMode ? 'secondary' : 'outline'} onClick={() => setMagicMode(v => !v)}>
+                    {magicMode ? 'Magic Design ausblenden' : 'Magic Design'}
+                  </Button>
+                )}
+                {magicMode && (
+                  <>
+                    <Button type="button" variant="secondary" onClick={() => { setMagicBody(''); setMagicFrontmatter(''); setMagicSystem(''); setMagicLastDiff('') }} disabled={magicRunning}>Magic zurücksetzen</Button>
+                    <Button type="button" onClick={runMagicDesign} disabled={magicRunning || (!magicBody && !magicFrontmatter && !magicSystem)}>
+                      {magicRunning ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Magic läuft…</>) : 'Magic absenden'}
+                    </Button>
+                  </>
+                )}
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setPreviewMode(!previewMode)}
+                  disabled={!selectedTemplateName}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   {previewMode ? "Bearbeiten" : "Vorschau"}
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSaving || !form.formState.isDirty}
+                  disabled={!selectedTemplateName || isSaving || !form.formState.isDirty}
                 >
                   {isSaving ? (
                     <>
@@ -705,76 +982,131 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Kontext-Texte</Label>
-                <div className="border rounded p-2 max-h-40 overflow-auto text-sm">
-                  {Array.isArray(contextDocs) && contextDocs.length > 0 ? (
-                    contextDocs.map(d => {
-                      const checked = selectedContextIds.includes(d.id)
-                      return (
-                        <label key={d.id} className="flex items-center gap-2 py-1">
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(v) => {
-                              const isOn = v === true
-                              setSelectedContextIds(prev => isOn ? [...prev, d.id] : prev.filter(x => x !== d.id))
-                            }}
-                          />
-                          <span className="truncate">{d.name}</span>
-                        </label>
-                      )
-                    })
-                  ) : (
-                    <div className="text-muted-foreground text-sm">Keine Kontext-Texte verfügbar</div>
-                  )}
-                </div>
+            {!selectedTemplateName ? (
+              <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+                Bitte oben einen Prompt auswählen. Die Vorschau und Test‑Funktionen werden erst danach aktiviert.
               </div>
+            ) : (
+              <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as typeof rightTab)}>
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger value="kontext">Daten‑Kontext</TabsTrigger>
+                  <TabsTrigger value="preview">Prompt‑Vorschau</TabsTrigger>
+                  <TabsTrigger value="testen">Testen</TabsTrigger>
+                </TabsList>
 
-              <div className="space-y-2">
-                <Label>Gewählter Kontext (Lesemodus)</Label>
-                <div className="border rounded-md">
-                  <MarkdownPreview content={selectedContextMarkdown} className="max-h-64 overflow-auto" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Prompt‑Vorschau (Aufgabe als Markdown)</Label>
-                <div className="border rounded-md">
-                  <MarkdownPreview content={form.watch('markdownBody') || ''} className="max-h-64 overflow-auto" />
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={testTemplate}
-                  disabled={!selectedTemplateName || isTesting}
-                >
-                  {isTesting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Teste...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Prompt testen
-                    </>
-                  )}
-                </Button>
-              </div>
-              
-              {testResult && (
-                <div className="space-y-2">
-                  <Label>Ergebnis (Markdown)</Label>
-                  <div className="border rounded-md">
-                    <MarkdownPreview content={testResult} className="max-h-80 overflow-auto" />
+                <TabsContent value="kontext" className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label>Kontext-Texte</Label>
+                    <div className="border rounded p-2 text-sm">
+                      {Array.isArray(contextDocs) && contextDocs.length > 0 ? (
+                        contextDocs.map(d => {
+                          const checked = selectedContextIds.includes(d.id)
+                          return (
+                            <label key={d.id} className="flex items-center gap-2 py-1">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  const isOn = v === true
+                                  setSelectedContextIds(prev => isOn ? [...prev, d.id] : prev.filter(x => x !== d.id))
+                                }}
+                              />
+                              <span className="truncate">{d.name}</span>
+                            </label>
+                          )
+                        })
+                      ) : (
+                        <div className="text-muted-foreground text-sm">Keine Kontext-Texte verfügbar</div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+
+                  <div className="space-y-2">
+                    <Label>Gewählter Kontext (Lesemodus)</Label>
+                    <div className="border rounded-md">
+                      <MarkdownPreview content={selectedContextMarkdown} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Freitext (optional)</Label>
+                    <Textarea
+                      value={freeText}
+                      onChange={(e) => setFreeText(e.target.value)}
+                      placeholder="Hier Text einkleben, um schnell zu testen"
+                      className="min-h-[120px] font-mono text-sm"
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="preview" className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label>Generierter Prompt (Markdown)</Label>
+                    <div className="border rounded-md">
+                      <MarkdownPreview content={generatePreview()} />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={testTemplate}
+                      disabled={!selectedTemplateName || isTesting}
+                    >
+                      {isTesting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Teste...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-2" />
+                          Prompt testen
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="testen" className="space-y-4 mt-4">
+                  <div className="flex gap-2 justify-end">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={testTemplate}
+                      disabled={!selectedTemplateName || isTesting}
+                    >
+                      {isTesting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Teste...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-2" />
+                          Prompt testen
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {activeLibrary && providerInstance && (testResult || resultSavedItemId) ? (
+                    <JobReportTab
+                      libraryId={activeLibrary.id}
+                      fileId={resultSavedItemId || 'preview'}
+                      provider={providerInstance}
+                      sourceMode="frontmatter"
+                      viewMode="metaOnly"
+                      mdFileId={resultSavedItemId || undefined}
+                      rawContent={testResult || undefined}
+                    />
+                  ) : (
+                    <div className="text-sm text-muted-foreground">Kein Ergebnis vorhanden.</div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button type="button" onClick={saveTestResult} disabled={!testResult}>Speichern</Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
           </CardContent>
         </Card>
       </div>

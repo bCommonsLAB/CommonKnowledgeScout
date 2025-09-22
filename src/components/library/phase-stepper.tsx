@@ -23,56 +23,70 @@ const PdfPhaseSettings = React.lazy(() => import('./pdf-phase-settings').then(m 
 
 export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [forceRecreate, setForceRecreate] = React.useState<boolean>(false);
   const [phase, setPhase] = useAtom(activePdfPhaseAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const item = useAtomValue(selectedFileAtom);
   const { provider, refreshItems } = useStorage();
   const pdfOverrides = useAtomValue(pdfOverridesAtom);
 
-  async function runPhase() {
+  function canRun(): boolean {
+    return Boolean(provider && activeLibraryId && item && item.type === 'file');
+  }
+
+  function buildOptions(targetPhase: PdfPhase): PdfTransformOptions | null {
+    if (!provider || !activeLibraryId || !item || item.type !== 'file') return null;
+    const defaults = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
+    const base: PdfTransformOptions = {
+      targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de',
+      fileName: TransformService.generateShadowTwinName(item.metadata.name, typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de'),
+      createShadowTwin: true,
+      fileExtension: 'md',
+      extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native',
+      useCache: defaults.useCache ?? true,
+      includeImages: defaults.includeImages ?? false,
+      template: typeof defaults.template === 'string' ? defaults.template : undefined,
+    };
+    return {
+      ...base,
+      doExtractPDF: targetPhase >= 1,
+      doExtractMetadata: targetPhase >= 2,
+      doIngestRAG: targetPhase >= 3,
+      // Erzwingen: nur für Extraktion relevant (Phase 1)
+      forceRecreate: forceRecreate && targetPhase >= 1 ? true : false,
+    };
+  }
+
+  async function runPhase(targetPhase: PdfPhase = phase) {
     try {
-      if (!provider || !activeLibraryId || !item || item.type !== 'file') {
+      if (!canRun()) {
         toast.error('Fehler', { description: 'Kein Dokument/Provider verfügbar' });
         return;
       }
-      const bin = await provider.getBinary(item.id);
-      const file = new File([bin.blob], item.metadata.name, { type: item.metadata.mimeType });
-      const defaults = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
-      const base: PdfTransformOptions = {
-        targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de',
-        fileName: TransformService.generateShadowTwinName(item.metadata.name, typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de'),
-        createShadowTwin: true,
-        fileExtension: 'md',
-        extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native',
-        useCache: defaults.useCache ?? true,
-        includeImages: defaults.includeImages ?? false,
-        template: typeof defaults.template === 'string' ? defaults.template : undefined,
-      };
-      // Phasenlogik: 1 nur Extraktion; 2 Template/Meta; 3 nur Ingestion
-      const options: PdfTransformOptions = {
-        ...base,
-        // Neue Flags für vereinfachte Phasensteuerung
-        doExtractPDF: phase >= 1,
-        doExtractMetadata: phase >= 2,
-        doIngestRAG: phase >= 3,
-      };
+      const bin = await provider!.getBinary(item!.id);
+      const file = new File([bin.blob], item!.metadata.name, { type: item!.metadata.mimeType });
+      const options = buildOptions(targetPhase);
+      if (!options) {
+        toast.error('Fehler', { description: 'Optionen konnten nicht erstellt werden' });
+        return;
+      }
       // Keine Persistenz hier; Overrides bleiben bis zum Reload
-      await TransformService.transformPdf(file, item, options, provider, refreshItems, activeLibraryId);
-      toast.success('Gestartet', { description: `Phase ${phase} angestoßen` });
+      await TransformService.transformPdf(file, item!, options, provider!, refreshItems, activeLibraryId!);
+      toast.success('Gestartet', { description: `Bis Phase ${targetPhase} angestoßen` });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unbekannter Fehler';
       toast.error('Start fehlgeschlagen', { description: msg });
     }
   }
 
-  function badge(status?: "completed" | "in_progress" | "failed" | "pending") {
-    if (status === "completed") return "●";
-    if (status === "in_progress") return "◐";
-    if (status === "failed") return "✕";
-    return "○";
+  function badgeColor(status?: "completed" | "in_progress" | "failed" | "pending") {
+    if (status === 'completed') return 'bg-green-500';
+    if (status === 'in_progress') return 'bg-amber-500';
+    if (status === 'failed') return 'bg-red-500';
+    return 'bg-muted-foreground/40';
   }
 
-  function buttonStyle(isActive: boolean) {
+  function buttonStyle(isActive: boolean, _status?: "completed" | "in_progress" | "failed" | "pending") {
     return cn(
       "px-2 py-1 text-xs rounded border",
       isActive ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/70",
@@ -82,17 +96,31 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
   function renderButton(id: PdfPhase, label: string, status?: "completed" | "in_progress" | "failed" | "pending") {
     const isActive = phase === id;
     return (
-      <button
-        key={id}
-        type="button"
-        className={buttonStyle(isActive)}
-        onClick={() => setPhase(id)}
-        aria-pressed={isActive}
-        aria-label={`Phase ${id}: ${label}`}
-      >
-        <span className="mr-2">{label}</span>
-        <span className="opacity-80">{badge(status)}</span>
-      </button>
+      <div key={id} className="flex items-center gap-1">
+        <button
+          type="button"
+          className={buttonStyle(isActive, status)}
+          onClick={() => setPhase(id)}
+          aria-pressed={isActive}
+          aria-label={`Phase ${id}: ${label}`}
+          title={`${label} auswählen`}
+        >
+          <span className="mr-2 hidden sm:inline">{label}</span>
+          <span className="inline-flex items-center justify-center h-2.5 w-2.5 rounded-full ml-0.5">
+            <span className={`inline-block h-2.5 w-2.5 rounded-full ${badgeColor(status)}`} />
+          </span>
+        </button>
+        <button
+          type="button"
+          className="inline-flex h-6 w-6 items-center justify-center rounded border bg-background hover:bg-muted text-muted-foreground"
+          onClick={() => void runPhase(id)}
+          title={`Bis ${label} ausführen`}
+          aria-label={`Bis ${label} ausführen`}
+          disabled={!canRun()}
+        >
+          <Play className="h-3.5 w-3.5" />
+        </button>
+      </div>
     );
   }
 
@@ -102,7 +130,16 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
       {renderButton(2, "Metadaten", statuses?.p2)}
       {renderButton(3, "Ingestion", statuses?.p3)}
       <div className="ml-auto flex items-center gap-2">
-        <Button size="sm" variant="secondary" onClick={() => void runPhase()}>
+        <label className="flex items-center gap-2 text-xs select-none">
+          <input
+            type="checkbox"
+            className="h-3.5 w-3.5 accent-foreground"
+            checked={forceRecreate}
+            onChange={(e) => setForceRecreate(e.target.checked)}
+          />
+          Erzwingen
+        </label>
+        <Button size="sm" variant="secondary" onClick={() => void runPhase()} disabled={!canRun()} title="Ausgewählte Phase starten">
           <Play className="h-3.5 w-3.5 mr-1" /> Starten
         </Button>
         <Button size="icon" variant="ghost" title="Standardwerte anpassen" onClick={() => setSettingsOpen(true)}>

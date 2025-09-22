@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, FileText, File } from "lucide-react";
+import { CheckCircle, XCircle, FileText, File, X } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -114,6 +114,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
   // Erzeuge effektive Eingabeliste: nur Markdown; PDFs → Shadow‑Twin (Markdown) im gleichen Ordner
   const [effectiveItems, setEffectiveItems] = useState<typeof selectedItems>([]);
   const [skippedCount, setSkippedCount] = useState<number>(0);
+  const [excludedItemIds, setExcludedItemIds] = useState<string[]>([]);
   useEffect(() => {
     let cancelled = false;
     async function computeEffective() {
@@ -148,14 +149,25 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
           }
           if (twin) results.push({ item: twin, type: 'text' }); else skipped++;
         }
-        if (!cancelled) { setEffectiveItems(results); setSkippedCount(skipped); }
+        // Anwender-entfernte IDs ausfiltern
+        const filtered = results.filter(entry => !excludedItemIds.includes(entry.item.id));
+        // Deduplizieren nach item.id
+        const dedupMap = new Map<string, (typeof selectedItems)[number]>()
+        for (const entry of filtered) dedupMap.set(entry.item.id, entry)
+        const dedup = Array.from(dedupMap.values())
+        if (!cancelled) { setEffectiveItems(dedup); setSkippedCount(skipped); }
       } catch {
         if (!cancelled) { setEffectiveItems([]); setSkippedCount(0); }
       }
     }
     void computeEffective();
     return () => { cancelled = true; };
-  }, [provider, listItems, selectedItems, selectedLanguage]);
+  }, [provider, listItems, selectedItems, selectedLanguage, excludedItemIds]);
+
+  const handleRemoveEffectiveItem = (id: string) => {
+    setEffectiveItems(prev => prev.filter(entry => entry.item.id !== id));
+    setExcludedItemIds(prev => (prev.includes(id) ? prev : [...prev, id]));
+  };
 
   // Generiere Standard-Dateinamen basierend auf effektiven Dateien
   useEffect(() => {
@@ -318,6 +330,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
       currentProgress: null,
       results: null
     });
+    setExcludedItemIds([]);
   }, [setIsOpen]);
 
   // Fortschrittsanzeige berechnen
@@ -353,6 +366,15 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
                   <Badge variant="outline" className="text-xs">
                     {type}
                   </Badge>
+                  <button
+                    type="button"
+                    className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded hover:bg-muted text-muted-foreground"
+                    title="Aus Liste entfernen"
+                    aria-label="Aus Liste entfernen"
+                    onClick={() => handleRemoveEffectiveItem(item.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -516,17 +538,9 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
             <Button 
               onClick={handleStartBatchTransformation}
               disabled={effectiveItems.length === 0 || !!fileNameError}
+              className="min-w-[280px]"
             >
-              Kombinierte Transformation starten ({effectiveItems.length} Dateien)
-            </Button>
-          )}
-          {!progressState.isProcessing && !progressState.results && (
-            <Button 
-              variant="secondary"
-              onClick={() => setCombinedOpen(true)}
-              disabled={effectiveItems.length === 0}
-            >
-              Kombinierten Dialog starten
+              Kombinierte Transformation starten
             </Button>
           )}
           {!progressState.isProcessing && !progressState.results && (

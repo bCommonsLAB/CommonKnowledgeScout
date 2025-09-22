@@ -13,6 +13,7 @@ import { IngestionService } from '@/lib/chat/ingestion-service';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
 import { getServerProvider } from '@/lib/storage/server-provider';
+import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
 
 // OneDrive-Utilities entfernt: Provider übernimmt Token/Uploads.
 
@@ -287,6 +288,7 @@ export async function POST(
 
         // Optionale Template-Verarbeitung (Phase 2)
         let metadataFromTemplate: Record<string, unknown> | null = null;
+        let templateStatus: 'completed' | 'failed' | 'skipped' = 'completed';
         // Gate für Transform-Template (Phase 2)
         let templateGateExists = false;
         if (autoSkip) {
@@ -294,6 +296,7 @@ export async function POST(
           templateGateExists = g.exists;
           if (g.exists) {
             await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
+            templateStatus = 'skipped';
           }
         }
         if (!doExtractMetadata || templateGateExists) {
@@ -378,11 +381,13 @@ export async function POST(
                 bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' });
               } else {
                 bufferLog(jobId, { phase: 'transform_meta_failed', message: 'Transformer lieferte kein gültiges JSON' });
+                templateStatus = 'failed';
               }
             }
           } catch(err) {
             console.error(err);
             bufferLog(jobId, { phase: 'transform_meta_error', message: 'Fehler bei Template-Transformation: ' + (err instanceof Error ? err.message : 'Unbekannter Fehler') });
+            templateStatus = 'failed';
           }
         }
 
@@ -391,13 +396,43 @@ export async function POST(
         const finalMeta: Record<string, unknown> = metadataFromTemplate ? { ...metadataFromTemplate } : { ...baseMeta };
         docMetaForIngestion = finalMeta;
         await repo.appendMeta(jobId, finalMeta, 'template_transform');
-        await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date() });
+        await repo.updateStep(jobId, 'transform_template', { status: templateStatus === 'failed' ? 'failed' : 'completed', endedAt: new Date(), ...(templateStatus === 'skipped' ? { details: { skipped: true } } : {}) });
+
+        // Fatal: Wenn Template-Transformation gestartet wurde, aber fehlgeschlagen ist, abbrechen
+        if (templateStatus === 'failed') {
+          clearWatchdog(jobId);
+          bufferLog(jobId, { phase: 'failed', message: 'Template-Transformation fehlgeschlagen (fatal)' });
+          const bufferedTpl = drainBufferedLogs(jobId);
+          for (const entry of bufferedTpl) {
+            await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
+          }
+          await repo.setStatus(jobId, 'failed', { error: { code: 'template_failed', message: 'Template-Transformation fehlgeschlagen' } });
+          getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Template-Transformation fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+          return NextResponse.json({ status: 'ok', jobId, kind: 'failed_template' });
+        }
 
         const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '');
         const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de';
         const uniqueName = `${baseName}.${lang}.md`;
+
+        // SSOT: Flache, UI-taugliche Metafelder ergänzen (nur auf stabilem Meilenstein)
+        const ssotFlat: Record<string, unknown> = {
+          job_id: jobId,
+          source_file: job.correlation.source?.name || baseName,
+          extract_status: 'completed',
+          template_status: templateStatus,
+          // Ingestion-Status wird später ggf. separat ermittelt; hier neutral
+          ingest_status: 'none',
+        };
+        // optionale Summary-Werte aus bereits vorhandenen Metadaten übernehmen, wenn vorhanden
+        if (typeof (finalMeta as Record<string, unknown>)['summary_pages'] === 'number') ssotFlat['summary_pages'] = (finalMeta as Record<string, unknown>)['summary_pages'];
+        if (typeof (finalMeta as Record<string, unknown>)['summary_chunks'] === 'number') ssotFlat['summary_chunks'] = (finalMeta as Record<string, unknown>)['summary_chunks'];
+        ssotFlat['summary_language'] = lang;
+
+        const mergedMeta = { ...finalMeta, ...ssotFlat } as Record<string, unknown>;
+
         const markdown = (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter
-          ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, finalMeta)
+          ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, mergedMeta)
           : extractedText;
         const file = new File([new Blob([markdown], { type: 'text/markdown' })], uniqueName, { type: 'text/markdown' });
         await repo.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });

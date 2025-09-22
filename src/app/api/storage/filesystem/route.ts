@@ -636,14 +636,16 @@ export async function DELETE(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
+  const action = searchParams.get('action');
   const fileId = searchParams.get('fileId');
   const newParentId = searchParams.get('newParentId');
   const libraryId = searchParams.get('libraryId') || '';
 
   vLog(`[API] PATCH fileId=${fileId}, newParentId=${newParentId}, libraryId=${libraryId}`);
 
-  if (!fileId || !newParentId || fileId === 'root') {
-    return NextResponse.json({ error: 'Invalid file or parent ID' }, { status: 400 });
+  // Validierung erfolgt abhängig von der Aktion
+  if (!fileId || fileId === 'root') {
+    return NextResponse.json({ error: 'Invalid file ID' }, { status: 400 });
   }
 
   // E-Mail aus Authentifizierung oder Parameter ermitteln
@@ -659,6 +661,38 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
+    // Aktion: Umbenennen
+    if (action === 'rename') {
+      const body = await request.json().catch(() => ({}));
+      const newName = (body as { name?: string }).name;
+      if (!newName || typeof newName !== 'string') {
+        return NextResponse.json({ error: 'Invalid new name' }, { status: 400 });
+      }
+
+      const sourcePath = getPathFromId(library, fileId);
+      const parentPath = pathLib.dirname(sourcePath);
+      const targetPath = pathLib.join(parentPath, newName);
+
+      // Prüfe auf bestehende Datei/Ordner mit gleichem Namen
+      try {
+        await fs.stat(targetPath);
+        return NextResponse.json({ error: `Eine Datei mit dem Namen "${newName}" existiert bereits` }, { status: 409 });
+      } catch (e) {
+        // ENOENT ist erwartbar (Ziel existiert nicht) → fortfahren
+      }
+
+      await fs.rename(sourcePath, targetPath);
+
+      const stats = await fs.stat(targetPath);
+      const item = await statsToStorageItem(library, targetPath, stats);
+      return NextResponse.json(item);
+    }
+
+    // Aktion: Verschieben (Fallback, wenn action != 'rename')
+    if (!newParentId) {
+      return NextResponse.json({ error: 'Invalid parent ID' }, { status: 400 });
+    }
+
     const sourcePath = getPathFromId(library, fileId);
     const targetParentPath = getPathFromId(library, newParentId);
     const fileName = pathLib.basename(sourcePath);

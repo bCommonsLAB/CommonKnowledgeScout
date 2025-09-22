@@ -253,6 +253,23 @@ export class ExternalJobsRepository {
     const total = queued + running + completed + failed + pendingStorage;
     return { queued, running, completed, failed, pendingStorage, total };
   }
+
+  // ---- Worker-Unterstützung ----
+  async claimNextQueuedJob(): Promise<ExternalJob | null> {
+    const col = await this.getCollection();
+    const now = new Date();
+    const res = await col.findOneAndUpdate(
+      { status: 'queued' },
+      { $set: { status: 'running', updatedAt: now } },
+      { sort: { updatedAt: 1 }, returnDocument: 'after' }
+    );
+    return (res && (res as { value?: ExternalJob }).value) || null;
+  }
+
+  async listQueued(limit: number = 50): Promise<ExternalJob[]> {
+    const col = await this.getCollection();
+    return col.find({ status: 'queued' }).sort({ updatedAt: 1 }).limit(Math.max(1, Math.min(500, limit)) ).toArray();
+  }
 }
 
 

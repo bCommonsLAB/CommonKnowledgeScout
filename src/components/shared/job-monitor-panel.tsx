@@ -98,6 +98,24 @@ export function JobMonitorPanel() {
   const [serverCounts, setServerCounts] = useState<{ queued: number; running: number; completed: number; failed: number; pendingStorage: number; total: number } | null>(null);
   const [liveUpdates, setLiveUpdates] = useState<boolean>(true);
 
+  // Auto-start worker when panel opens
+  useEffect(() => {
+    let aborted = false;
+    async function startWorker() {
+      try {
+        if (!isOpen) return;
+        const res = await fetch('/api/external/jobs/worker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'start' })
+        });
+        if (!res.ok || aborted) return;
+      } catch { /* ignore */ }
+    }
+    void startWorker();
+    return () => { aborted = true; };
+  }, [isOpen]);
+
   // Initiale Seite nur laden, wenn Panel geöffnet wird
   useEffect(() => {
     if (!isOpen) return;
@@ -412,6 +430,7 @@ export function JobMonitorPanel() {
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-400" />Running {serverCounts?.running ?? runningCount}</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-500" />Completed {serverCounts?.completed ?? completedCount}</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Failed {serverCounts?.failed ?? failedCount}</span>
+            <WorkerControls />
           </div>
           <div className="px-4 py-2 border-b flex items-center gap-2">
             <select className="border rounded px-2 py-1 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -564,6 +583,35 @@ function JobLogs({ jobId }: { jobId: string }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function WorkerControls() {
+  const [status, setStatus] = useState<{ state: 'running'|'stopped'; stats?: { processed?: number; errors?: number } } | null>(null);
+  const load = async () => {
+    try {
+      const res = await fetch('/api/external/jobs/worker', { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      setStatus(json);
+    } catch {}
+  };
+  useEffect(() => { void load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, []);
+  const act = async (action: 'start'|'stop') => {
+    try {
+      const res = await fetch('/api/external/jobs/worker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
+      if (!res.ok) return;
+      const json = await res.json();
+      setStatus(json);
+    } catch {}
+  };
+  const running = status?.state === 'running';
+  return (
+    <span className="ml-auto inline-flex items-center gap-2">
+      <button className="pointer-events-auto inline-flex items-center justify-center rounded px-2 py-0.5 border hover:bg-muted" onClick={() => void act('start')} aria-label="Worker starten" title="Worker starten">▶</button>
+      <button className="pointer-events-auto inline-flex items-center justify-center rounded px-2 py-0.5 border hover:bg-muted" onClick={() => void act('stop')} aria-label="Worker stoppen" title="Worker stoppen">■</button>
+      <span className="text-muted-foreground">{running ? 'läuft' : 'gestoppt'}</span>
+    </span>
   );
 }
 

@@ -5,7 +5,7 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css';
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { Button } from '@/components/ui/button';
-import { Wand2 } from 'lucide-react';
+import { Wand2, Search, Maximize2, X as CloseIcon } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import 'highlight.js/styles/github-dark.css';
@@ -45,6 +45,7 @@ interface MarkdownPreviewProps {
   onTransform?: () => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
   onRegisterApi?: (api: { scrollToText: (q: string) => void; scrollToPage: (n: number | string) => void; setQueryAndSearch: (q: string) => void; getVisiblePage: () => number | null }) => void;
+  compact?: boolean; // Kompakte Ansicht: ohne Schnellsuche, minimale Ränder
 }
 
 /**
@@ -953,13 +954,17 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   className,
   onTransform,
   onRefreshFolder,
-  onRegisterApi
+  onRegisterApi,
+  compact = false
 }: MarkdownPreviewProps) {
   const currentItem = useAtomValue(selectedFileAtom);
   const [activeTab, setActiveTab] = React.useState<string>("preview");
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = React.useState<string>("");
+  const [showSearch, setShowSearch] = React.useState<boolean>(false);
+  const [hoverTop, setHoverTop] = React.useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
   
   // Logging in useEffect verschieben, um State-Updates während des Renderns zu vermeiden
   React.useEffect(() => {
@@ -1115,7 +1120,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      {currentItem && (
+      {currentItem && !compact && (
         <div className="flex items-center justify-between mx-4 mt-4 mb-2 flex-shrink-0">
           <div className="text-xs text-muted-foreground">
             {currentItem.metadata.name}
@@ -1147,23 +1152,136 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
           <TabsTrigger value="transform">Transformieren</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="preview" className="flex-1 overflow-auto" data-markdown-scroll-root="true" ref={containerRef}>
-          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-2 px-4 pt-3 pb-2 border-b">
+        <TabsContent value="preview" className="flex-1 overflow-auto relative" data-markdown-scroll-root="true" ref={!isFullscreen ? containerRef : undefined}>
+          {/* Hover-Zone und Suchleiste (immer verfügbar, nimmt verborgen keinen Platz ein) */}
+          <div
+            className="sticky top-0 z-20 h-3 w-full"
+            onMouseEnter={() => setHoverTop(true)}
+            onMouseLeave={() => setHoverTop(false)}
+          />
+          <div
+            className={cn(
+              "sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-2 transition-all",
+              (showSearch || hoverTop)
+                ? "px-4 pt-3 pb-2 border-b opacity-100 translate-y-0 pointer-events-auto"
+                : "h-0 p-0 border-0 opacity-0 -translate-y-2 pointer-events-none overflow-hidden"
+            )}
+          >
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') scrollToText(query); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') scrollToText(query); if (e.key === 'Escape') setShowSearch(false); }}
               placeholder="Schnellsuche… (Enter)"
               className="h-8 text-xs"
             />
             <Button variant="outline" size="sm" className="h-8" onClick={() => scrollToText(query)}>Suchen</Button>
           </div>
+          {/* Schwebende Icon-Leiste rechts oben */}
+          <div className="absolute top-2 right-2 z-20">
+            <div className="hidden md:flex flex-col gap-2">
+              {onTransform && (
+                <button
+                  type="button"
+                  aria-label="Transformieren"
+                  title="Transformieren"
+                  onClick={handleTransformButtonClick}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+                >
+                  <Wand2 className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label="Vollbild"
+                title="Vollbild"
+                onClick={() => setIsFullscreen(true)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="Schnellsuche"
+                title="Schnellsuche"
+                onClick={() => setShowSearch(v => !v)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
           <div 
-            ref={contentRef}
-            className="prose dark:prose-invert max-w-none p-4 w-full"
+            ref={!isFullscreen ? contentRef : undefined}
+            className={cn("prose dark:prose-invert max-w-none w-full", compact ? "p-1" : "p-4")}
             dangerouslySetInnerHTML={{ __html: renderedContent }}
           />
         </TabsContent>
+        {isFullscreen && (
+          <div className="fixed inset-0 z-[100] bg-background">
+            <div className="h-full overflow-auto relative" data-markdown-scroll-root="true" ref={containerRef}>
+              <div
+                className="sticky top-0 z-20 h-3 w-full"
+                onMouseEnter={() => setHoverTop(true)}
+                onMouseLeave={() => setHoverTop(false)}
+              />
+              <div
+                className={cn(
+                  "sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-2 transition-all",
+                  (showSearch || hoverTop)
+                    ? "px-4 pt-3 pb-2 border-b opacity-100 translate-y-0 pointer-events-auto"
+                    : "h-0 p-0 border-0 opacity-0 -translate-y-2 pointer-events-none overflow-hidden"
+                )}
+              >
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') scrollToText(query); if (e.key === 'Escape') setShowSearch(false); }}
+                  placeholder="Schnellsuche… (Enter)"
+                  className="h-8 text-xs"
+                />
+                <Button variant="outline" size="sm" className="h-8" onClick={() => scrollToText(query)}>Suchen</Button>
+              </div>
+              <div className="absolute top-2 right-2 z-20">
+                <div className="hidden md:flex flex-col gap-2">
+                  {onTransform && (
+                    <button
+                      type="button"
+                      aria-label="Vollbild beenden und transformieren"
+                      title="Transformieren"
+                      onClick={handleTransformButtonClick}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+                    >
+                      <Wand2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="Vollbild beenden"
+                    title="Vollbild beenden"
+                    onClick={() => setIsFullscreen(false)}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+                  >
+                    <CloseIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Schnellsuche"
+                    title="Schnellsuche"
+                    onClick={() => setShowSearch(v => !v)}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+                  >
+                    <Search className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div 
+                ref={contentRef}
+                className={cn("prose dark:prose-invert max-w-none w-full", compact ? "p-1" : "p-4")}
+                dangerouslySetInnerHTML={{ __html: renderedContent }}
+              />
+            </div>
+          </div>
+        )}
         
         <TabsContent value="transform" className="flex-1 overflow-auto">
           <TextTransform 

@@ -53,6 +53,9 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   // Phasensteuerung: Standard nur Phase 1 (Extraktion)
   const [runMetaPhase, setRunMetaPhase] = useState<boolean>(false); // Phase 2
   const [runIngestionPhase, setRunIngestionPhase] = useState<boolean>(false); // Phase 3
+  // Erzwingen pro Phase
+  const [forceExtract, setForceExtract] = useState<boolean>(false);
+  const [forceMeta, setForceMeta] = useState<boolean>(false);
 
   // Shadow-Twin Erkennung (z. B. name.de.md)
   const shadowTwinRegex = useMemo(() => /^(.+)\.(de|en|fr|es|it)\.md$/i, []);
@@ -194,6 +197,9 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
           template: typeof defaults.template === 'string' ? defaults.template : undefined,
           doExtractMetadata: !!runMetaPhase,
           doIngestRAG: !!runIngestionPhase,
+          // Erzwingen-Logik: forceRecreate gilt nur für Phase 1; für Phase 2 erzwingen wir immer Template, auch wenn Extraktion übersprungen wird
+          forceRecreate: !!forceExtract,
+          forceTemplate: !!forceMeta,
         },
         items: candidates.map(({ file, parentId }) => ({ fileId: file.id, parentId, name: file.metadata.name, mimeType: file.metadata.mimeType })),
       };
@@ -250,6 +256,10 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                     })()})
                   </span>
                 </Label>
+                <div className="ml-auto flex items-center gap-2">
+                  <Checkbox id="force-extract" checked={forceExtract} onCheckedChange={(v) => setForceExtract(Boolean(v))} />
+                  <Label htmlFor="force-extract">Erzwingen</Label>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="phase-2" checked={runMetaPhase} onCheckedChange={(v) => setRunMetaPhase(Boolean(v))} />
@@ -262,6 +272,10 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                   )
                   </span>
                 </Label>
+                <div className="ml-auto flex items-center gap-2">
+                  <Checkbox id="force-meta" checked={forceMeta} onCheckedChange={(v) => setForceMeta(Boolean(v))} disabled={!runMetaPhase} />
+                  <Label htmlFor="force-meta" className={runMetaPhase ? '' : 'text-muted-foreground'}>Erzwingen</Label>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="phase-3" checked={runIngestionPhase} onCheckedChange={(v) => setRunIngestionPhase(Boolean(v))} />
