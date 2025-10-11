@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
             batchId,
             batchName,
           }
-        } as any);
+        } as unknown as Parameters<ExternalJobsRepository['create']>[0]);
         createdJobIds.push(jobId);
       } catch (e) {
         FileLogger.error('process-pdf-batch', 'Job-Anlage fehlgeschlagen', { error: e instanceof Error ? e.message : String(e) });

@@ -30,7 +30,7 @@ import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { JobReportTab } from "@/components/library/job-report-tab"
 import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
+// Separator ungenutzt entfernt
 
 // Schema für Template-Daten
 const templateSchema = z.object({
@@ -58,8 +58,9 @@ export function TemplateManagement() {
   const [magicFrontmatter, setMagicFrontmatter] = useState<string>("")
   const [magicSystem, setMagicSystem] = useState<string>("")
   const [magicRunning, setMagicRunning] = useState<boolean>(false)
-  const [magicLastDiff, setMagicLastDiff] = useState<string>("")
-  const [magicSavedItemId, setMagicSavedItemId] = useState<string | null>(null)
+  // Magic-Diff/SavedId aktuell ungenutzt im UI – wir speichern nur per Setter
+  const [, setMagicLastDiff] = useState<string>("")
+  const [, setMagicSavedItemId] = useState<string | null>(null)
   const { toast } = useToast()
 
   // Atoms
@@ -491,8 +492,9 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       setSelectedTemplateName(newName)
       form.setValue('name', newName, { shouldDirty: false })
       toast({ title: 'Umbenannt', description: `${current.name} → ${newName}` })
-    } catch (e) {
-      toast({ title: 'Fehler beim Umbenennen', description: e instanceof Error ? e.message : 'Unbekannter Fehler', variant: 'destructive' })
+      } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'
+      toast({ title: 'Fehler beim Umbenennen', description: msg, variant: 'destructive' })
     }
   }
 
@@ -546,8 +548,9 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       setSelectedTemplateName(name)
       form.reset(values)
       toast({ title: 'Template angelegt', description: `"${name}" wurde erstellt.` })
-    } catch (e) {
-      toast({ title: 'Fehler beim Anlegen', description: e instanceof Error ? e.message : 'Unbekannter Fehler', variant: 'destructive' })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'
+      toast({ title: 'Fehler beim Anlegen', description: msg, variant: 'destructive' })
     }
   }
 
@@ -699,7 +702,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
           magicTemplateContent = await res.text()
           console.log('[Magic] Fallback magicpromptdesign.md aus /public/templates verwendet')
-        } catch (e) {
+        } catch {
           toast({ title: 'Magic-Template fehlt', description: 'magicpromptdesign.md weder in /templates noch in /public/templates gefunden.', variant: 'destructive' })
           return
         }
@@ -753,7 +756,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
         const obj = typeof data === 'string' ? JSON.parse(data) : (typeof data === 'object' ? data : {})
         corrected = typeof obj?.corrected_template === 'string' ? obj.corrected_template : undefined
         diff = typeof obj?.diff_preview === 'string' ? obj.diff_preview : ''
-      } catch (e) {
+      } catch {
         // Fallback: Wenn data.text existiert
         const maybe = (data && typeof data.text === 'string') ? JSON.parse(data.text) : null
         corrected = maybe?.corrected_template

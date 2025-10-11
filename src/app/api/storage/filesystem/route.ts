@@ -677,7 +677,7 @@ export async function PATCH(request: NextRequest) {
       try {
         await fs.stat(targetPath);
         return NextResponse.json({ error: `Eine Datei mit dem Namen "${newName}" existiert bereits` }, { status: 409 });
-      } catch (e) {
+      } catch {
         // ENOENT ist erwartbar (Ziel existiert nicht) → fortfahren
       }
 

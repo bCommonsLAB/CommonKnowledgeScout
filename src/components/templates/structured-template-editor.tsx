@@ -23,7 +23,7 @@ export interface StructuredTemplateEditorProps {
   onMagicChange?: (next: { body?: string; frontmatter?: string; system?: string }) => void
 }
 
-type LineKind = 'text' | 'h1' | 'h2' | 'h3' | 'bold' | 'variable'
+// LineKind nicht mehr verwendet
 
 export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, systemPrompt, onChange, magicMode, magicValues, onMagicChange }: StructuredTemplateEditorProps) {
   const lines = React.useMemo(() => (typeof markdownBody === 'string' ? markdownBody.split('\n') : []), [markdownBody])
@@ -37,7 +37,7 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
   // Logische Zeilen: unterstützen Mehrzeilige Variable-Blöcke {{key|...}} ... }}
   interface BodyRow { hasVariable: boolean; varKey: string; content: string; start: number; end: number; pre: string; post: string }
 
-  function parseBodyToRows(raw: string): BodyRow[] {
+  const parseBodyToRows = React.useCallback((raw: string): BodyRow[] => {
     const src = typeof raw === 'string' ? raw.split('\n') : []
     const rows: BodyRow[] = []
     let i = 0
@@ -49,7 +49,7 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
       if (m) {
         const varKey = (m[1] || '').trim()
         const pre = line.slice(0, m.index)
-        let afterStart = line.slice(m.index + m[0].length)
+        const afterStart = line.slice(m.index + m[0].length)
         // Prüfe, ob Abschluss in derselben Zeile ist
         const closeIdx = afterStart.indexOf('}}')
         if (closeIdx >= 0) {
@@ -89,9 +89,9 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
       i += 1
     }
     return rows
-  }
+  }, [])
 
-  const rows = React.useMemo(() => parseBodyToRows(markdownBody || ''), [markdownBody])
+  const rows = React.useMemo(() => parseBodyToRows(markdownBody || ''), [markdownBody, parseBodyToRows])
 
   function replaceRange(start: number, end: number, replacement: string) {
     const before = lines.slice(0, start)
@@ -109,37 +109,11 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
   }
 
   // Zeilenbasierte Platzhalter-Erkennung (nur die betrachtete Zeile)
-  function parseLine(line: string): { kind: LineKind; varKey: string; content: string } {
-    const mVar = /^\s*\{\{([^}|]+)\|([^}]+)\}\}\s*$/.exec(line)
-    if (mVar) return { kind: 'variable', varKey: (mVar[1] || '').trim(), content: (mVar[2] || '').trim() }
-    if (/^\s*###\s+/.test(line)) return { kind: 'h3', varKey: '', content: line.replace(/^\s*###\s+/, '') }
-    if (/^\s*##\s+/.test(line)) return { kind: 'h2', varKey: '', content: line.replace(/^\s*##\s+/, '') }
-    if (/^\s*#\s+/.test(line)) return { kind: 'h1', varKey: '', content: line.replace(/^\s*#\s+/, '') }
-    const mBold = /^\s*\*\*([\s\S]*?)\*\*\s*$/.exec(line)
-    if (mBold) return { kind: 'bold', varKey: '', content: (mBold[1] || '') }
-    return { kind: 'text', varKey: '', content: line }
-  }
+  // parseLine, buildLine, updateLineByIndex werden nicht mehr verwendet; bewusst entfernt
 
-  function buildLine(kind: LineKind, content: string, varKey?: string): string {
-    const text = content ?? ''
-    switch (kind) {
-      case 'variable': {
-        const k = (varKey || '').trim()
-        return k ? `{{${k}|${text}}}` : text
-      }
-      case 'h1': return `# ${text}`
-      case 'h2': return `## ${text}`
-      case 'h3': return `### ${text}`
-      case 'bold': return `**${text}**`
-      case 'text': default: return text
-    }
-  }
+  
 
-  function updateLineByIndex(lineIndex: number, nextLine: string) {
-    const copy = lines.slice()
-    if (lineIndex >= 0 && lineIndex < copy.length) copy[lineIndex] = nextLine
-    onChange({ markdownBody: copy.join('\n'), yamlFrontmatter, systemPrompt: sysPrompt })
-  }
+  
 
   function suggestVarKey(index: number, content: string): string {
     const base = (content || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
@@ -149,13 +123,7 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
 
   // kein Format mehr
 
-  function updateRowVarKey(rowIndex: number, nextKey: string) {
-    const row = rows[rowIndex]
-    if (!row) return
-    if (!row.hasVariable) return
-    const key = (nextKey || '').trim() || suggestVarKey(row.start, row.content)
-    replaceRange(row.start, row.end, buildVariable(row.pre, key, row.content, row.post))
-  }
+  // updateRowVarKey wird aktuell nicht verwendet
 
   function updateRowContent(rowIndex: number, nextContent: string) {
     const row = rows[rowIndex]
@@ -313,7 +281,6 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
                         <RowHeader
                           hasVariable={row.hasVariable}
                           varKey={row.varKey}
-                          onChangeVar={(v) => updateRowVarKey(i, v)}
                           onAdd={() => addVariableToRow(i)}
                           onRemove={() => removeVariableFromRow(i)}
                         />
@@ -505,7 +472,7 @@ function InlineMarkdownCell({ displayValue, editValue, onChange, placeholder, co
 }
 
 // Sehr dezenter Zeilen-Header mit Variablenname und Plus/Minus als kleine Buttons
-function RowHeader({ hasVariable, varKey, onChangeVar, onAdd, onRemove }: { hasVariable: boolean; varKey: string; onChangeVar: (v: string) => void; onAdd: () => void; onRemove: () => void }) {
+function RowHeader({ hasVariable, varKey, onAdd, onRemove }: { hasVariable: boolean; varKey: string; onAdd: () => void; onRemove: () => void }) {
   return (
     <div className="flex items-center justify-between bg-muted/40 text-[10px] text-muted-foreground rounded-sm px-1 py-0.5 mb-1">
       <div className="flex items-center gap-2">

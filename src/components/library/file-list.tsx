@@ -193,13 +193,7 @@ const FileRow = React.memo(function FileRow({
     }
   }, [onSelect, isEditing]);
 
-  // Handler für Transkript-Icon Click
-  const handleTranscriptClick = React.useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (fileGroup?.transcriptFiles && onSelectRelatedFile) {
-      onSelectRelatedFile(fileGroup.transcriptFiles[0]); // Nur das erste Transkript anzeigen
-    }
-  }, [fileGroup, onSelectRelatedFile]);
+  // Entfernt: ungenutzter Handler handleTranscriptClick
 
   // Handler für Transformierte-Datei-Icon Click
   const handleTransformedClick = React.useCallback((e: React.MouseEvent) => {

@@ -14,7 +14,7 @@ import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
 import { getPolicies, shouldRunWithGate } from '@/lib/processing/phase-policy';
 import { getServerProvider } from '@/lib/storage/server-provider';
-import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
+// parseSecretaryMarkdownStrict ungenutzt entfernt
 
 // OneDrive-Utilities entfernt: Provider übernimmt Token/Uploads.
 
@@ -268,7 +268,6 @@ export async function POST(
 
     if (lib && extractedText) {
       const policies = getPolicies({ parameters: job.parameters || {} });
-      const doExtractMetadata = policies.metadata !== 'ignore';
       const autoSkip = true;
 
       if (lib) {

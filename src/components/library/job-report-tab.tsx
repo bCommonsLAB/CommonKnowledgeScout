@@ -50,7 +50,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
   const [job, setJob] = useState<JobDto | null>(null)
   const [templateFields, setTemplateFields] = useState<string[] | null>(null)
   const [frontmatterMeta, setFrontmatterMeta] = useState<Record<string, unknown> | null>(null)
-  const [section, setSection] = useState<'meta' | 'chapters'>('meta')
+  const [section] = useState<'meta' | 'chapters'>('meta')
   const [parseErrors, setParseErrors] = useState<string[]>([])
   const [fullContent, setFullContent] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'markdown' | 'meta' | 'chapters' | 'process'>(forcedTab || 'markdown')
@@ -182,7 +182,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
   }, [job, provider])
 
   // Gemeinsamer strikter Parser
-  const strictParseFrontmatter = (fm: string) => parseSecretaryMarkdownStrict(fm)
+  // Hinweis: Parser wird direkt über parseSecretaryMarkdownStrict in Effekten genutzt
 
   // Frontmatter aus der gespeicherten Markdown-Datei lesen (oder aus rawContent)
   const effectiveMdId = (() => {
@@ -456,7 +456,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
                       const summaryVal = typeof c.summary === 'string' ? c.summary : ''
                       const summary = summaryVal.length > 1000 ? `${summaryVal.slice(0, 1000)}…` : summaryVal
                       const keywords = Array.isArray(c.keywords) ? (c.keywords as Array<unknown>).filter(v => typeof v === 'string') as string[] : []
-                      const ev = typeof c.startEvidence === 'string' ? c.startEvidence : ''
+                      // startEvidence in dieser Ansicht ungenutzt
                       return (
                         <details key={`${title}-${i}`} className="group border-b py-1" open={false}>
                           <summary className="list-none cursor-pointer">
