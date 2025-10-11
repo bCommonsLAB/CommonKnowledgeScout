@@ -12,9 +12,9 @@ import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
 import { IngestionService } from '@/lib/chat/ingestion-service';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
-// import { getPolicies } from '@/lib/processing/phase-policy';
+import { getPolicies, shouldRunWithGate } from '@/lib/processing/phase-policy';
 import { getServerProvider } from '@/lib/storage/server-provider';
-// import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
+import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
 
 // OneDrive-Utilities entfernt: Provider übernimmt Token/Uploads.
 
@@ -267,7 +267,8 @@ export async function POST(
     let docMetaForIngestion: Record<string, unknown> | undefined;
 
     if (lib && extractedText) {
-      /* const policies = getPolicies({ parameters: job.parameters || {} }); */
+      const policies = getPolicies({ parameters: job.parameters || {} });
+      const doExtractMetadata = policies.metadata !== 'ignore';
       const autoSkip = true;
 
       if (lib) {
@@ -290,15 +291,17 @@ export async function POST(
         // Optionale Template-Verarbeitung (Phase 2)
         let metadataFromTemplate: Record<string, unknown> | null = null;
         let templateStatus: 'completed' | 'failed' | 'skipped' = 'completed';
-        /* templateGateExists entfernt: Gate-Existenz wird nicht verwendet */
+        // Gate für Transform-Template (Phase 2)
+        let templateGateExists = false;
         if (autoSkip) {
           const g = await gateTransformTemplate({ repo, jobId, userEmail: job.userEmail, library: lib, source: job.correlation?.source, options: job.correlation?.options as { targetLanguage?: string } | undefined });
+          templateGateExists = g.exists;
           if (g.exists) {
             await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
             templateStatus = 'skipped';
           }
         }
-        const shouldRunTemplate = true; // Always run template if not skipped
+        const shouldRunTemplate = shouldRunWithGate(templateGateExists, policies.metadata);
         if (!shouldRunTemplate) {
           bufferLog(jobId, { phase: 'transform_meta_skipped', message: 'Template-Transformation übersprungen (Phase 1)' });
         } else {

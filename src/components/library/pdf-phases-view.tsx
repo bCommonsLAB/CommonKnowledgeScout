@@ -5,7 +5,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { activePdfPhaseAtom } from "@/atoms/pdf-phases";
 import type { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { DocumentPreview } from "./document-preview";
-// import { MarkdownPreview } from "./markdown-preview";
+import { MarkdownPreview } from "./markdown-preview";
 import { JobReportTab } from "./job-report-tab";
 import { PhaseStepper } from "./phase-stepper";
 import { activeLibraryIdAtom, selectedShadowTwinAtom } from "@/atoms/library-atom";
@@ -27,8 +27,8 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const shadowTwin = useAtomValue(selectedShadowTwinAtom);
   const [twinContent, setTwinContent] = React.useState<string>(markdownContent || "");
-  // const [twinLoading, setTwinLoading] = React.useState<boolean>(false);
-  // const [twinError, setTwinError] = React.useState<string | null>(null);
+  const [twinLoading, setTwinLoading] = React.useState<boolean>(false);
+  const [twinError, setTwinError] = React.useState<string | null>(null);
   const { provider: storageProvider } = useStorage();
   const [currentPage, setCurrentPage] = useAtom(currentPdfPageAtom);
   const [isPdfCollapsed, setIsPdfCollapsed] = React.useState(false);
@@ -60,8 +60,8 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
     let cancelled = false;
     async function loadTwin() {
       try {
-        // setTwinLoading(true);
-        // setTwinError(null);
+        setTwinLoading(true);
+        setTwinError(null);
         if (!provider || !shadowTwin?.id) {
           setTwinContent("");
           return;
@@ -73,9 +73,9 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unbekannter Fehler';
         FileLogger.error('PdfPhasesView', 'Fehler beim Laden des Shadow‑Twin', { error: message });
-        // if (!cancelled) setTwinError(message);
+        if (!cancelled) setTwinError(message);
       } finally {
-        // if (!cancelled) setTwinLoading(false);
+        if (!cancelled) setTwinLoading(false);
       }
     }
     void loadTwin();

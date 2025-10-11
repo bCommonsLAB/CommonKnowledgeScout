@@ -49,7 +49,7 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
       if (m) {
         const varKey = (m[1] || '').trim()
         const pre = line.slice(0, m.index)
-        const afterStart = line.slice(m.index + m[0].length)
+        let afterStart = line.slice(m.index + m[0].length)
         // Prüfe, ob Abschluss in derselben Zeile ist
         const closeIdx = afterStart.indexOf('}}')
         if (closeIdx >= 0) {
@@ -109,10 +109,15 @@ export function StructuredTemplateEditor({ markdownBody, yamlFrontmatter, system
   }
 
   // Zeilenbasierte Platzhalter-Erkennung (nur die betrachtete Zeile)
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  function parseLine(_line: string): { kind: LineKind; varKey: string; content: string } {
-    // Funktion aktuell ungenutzt; behalten für zukünftige Einzelzeilen-Bearbeitung
-    return { kind: 'text', varKey: '', content: '' }
+  function parseLine(line: string): { kind: LineKind; varKey: string; content: string } {
+    const mVar = /^\s*\{\{([^}|]+)\|([^}]+)\}\}\s*$/.exec(line)
+    if (mVar) return { kind: 'variable', varKey: (mVar[1] || '').trim(), content: (mVar[2] || '').trim() }
+    if (/^\s*###\s+/.test(line)) return { kind: 'h3', varKey: '', content: line.replace(/^\s*###\s+/, '') }
+    if (/^\s*##\s+/.test(line)) return { kind: 'h2', varKey: '', content: line.replace(/^\s*##\s+/, '') }
+    if (/^\s*#\s+/.test(line)) return { kind: 'h1', varKey: '', content: line.replace(/^\s*#\s+/, '') }
+    const mBold = /^\s*\*\*([\s\S]*?)\*\*\s*$/.exec(line)
+    if (mBold) return { kind: 'bold', varKey: '', content: (mBold[1] || '') }
+    return { kind: 'text', varKey: '', content: line }
   }
 
   function buildLine(kind: LineKind, content: string, varKey?: string): string {

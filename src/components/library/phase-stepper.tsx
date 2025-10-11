@@ -57,7 +57,7 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
       },
       // Keine Legacy-Flags mehr
       forceRecreate: undefined as unknown as never,
-    } as PdfTransformOptions & { policies: { extract: 'force' | 'do' | 'ignore'; metadata: 'force' | 'do' | 'ignore'; ingest: 'force' | 'do' | 'ignore' } };
+    } as any;
   }
 
   async function runPhase(targetPhase: PdfPhase = phase) {
@@ -89,7 +89,7 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
     return 'bg-muted-foreground/40';
   }
 
-  function buttonStyle(isActive: boolean) {
+  function buttonStyle(isActive: boolean, _status?: "completed" | "in_progress" | "failed" | "pending") {
     return cn(
       "px-2 py-1 text-xs rounded border",
       isActive ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/70",
@@ -102,7 +102,7 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
       <div key={id} className="flex items-center gap-1">
         <button
           type="button"
-          className={buttonStyle(isActive)}
+          className={buttonStyle(isActive, status)}
           onClick={() => setPhase(id)}
           aria-pressed={isActive}
           aria-label={`Phase ${id}: ${label}`}

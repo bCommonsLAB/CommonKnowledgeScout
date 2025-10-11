@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { startWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { gateExtractPdf } from '@/lib/processing/gates';
-import { getPolicies, shouldRunExtract } from '@/lib/processing/phase-policy';
+import { getPolicies, shouldRunExtract, shouldRunWithGate } from '@/lib/processing/phase-policy';
 import { LibraryService } from '@/lib/services/library-service';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import { TransformService } from '@/lib/transform/transform-service';

@@ -4,7 +4,6 @@ import { FileLogger } from '@/lib/debug/logger';
 import crypto from 'crypto';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { legacyToPolicies } from '@/lib/processing/phase-policy';
-import { ExternalJob } from '@/types/external-job';
 
 // Batch-Submit: Erwartet JSON mit items[] (each: { fileId, parentId, name, mimeType }) und optionalen Optionen/Batch-Metadaten
 // Server lädt Binärdaten per Server-Storage, reicht an die bestehende process-pdf Route weiter.
@@ -81,20 +80,30 @@ export async function POST(request: NextRequest) {
               extractionMethod: options?.extractionMethod || 'native',
               includeImages: options?.includeImages ?? false,
               useCache: options?.useCache ?? true,
-              template: options?.template,
-              // Nur neue Policies
-              policies: options?.policies || legacyToPolicies({ doExtractPDF: true }),
-              batchId,
-              batchName,
-            }
-          } as ExternalJob['correlation'],
+            },
+            batchId,
+            batchName,
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
           steps: [
             { name: 'extract_pdf', status: 'pending' },
             { name: 'transform_template', status: 'pending' },
             { name: 'store_shadow_twin', status: 'pending' },
-            { name: 'ingest_rag', status: 'pending' }
-          ]
-        } as Omit<ExternalJob, 'createdAt' | 'updatedAt'>);
+            { name: 'ingest_rag', status: 'pending' },
+          ],
+          parameters: {
+            targetLanguage: options?.targetLanguage || 'de',
+            extractionMethod: options?.extractionMethod || 'native',
+            includeImages: options?.includeImages ?? false,
+            useCache: options?.useCache ?? true,
+            template: options?.template,
+            // Nur neue Policies
+            policies: options?.policies || legacyToPolicies({ doExtractPDF: true }),
+            batchId,
+            batchName,
+          }
+        } as any);
         createdJobIds.push(jobId);
       } catch (e) {
         FileLogger.error('process-pdf-batch', 'Job-Anlage fehlgeschlagen', { error: e instanceof Error ? e.message : String(e) });

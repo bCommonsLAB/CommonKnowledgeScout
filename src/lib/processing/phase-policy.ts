@@ -1,4 +1,4 @@
-import type { ExternalJob } from '@/types/external-job';
+import type { ExternalJob } from '@/types/external-jobs';
 
 // Zentrale, typisierte Steuerung je Phase
 export type PhaseDirective = 'ignore' | 'do' | 'force';
