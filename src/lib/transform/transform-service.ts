@@ -607,7 +607,7 @@ export class TransformService {
           const payload: Record<string, unknown> = {
             fileId: saved.id,
             fileName: saved.metadata.name,
-            docModifiedAt: (saved.metadata.modifiedAt || saved.metadata.createdAt) || new Date().toISOString(),
+            docModifiedAt: saved.metadata.modifiedAt || new Date().toISOString(),
             docMeta: metadata,
             // Statusfelder (falls im Metadata vorhanden)
             extract_status: (metadata as unknown as { extract_status?: string }).extract_status,
