@@ -12,8 +12,9 @@ import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
 import { IngestionService } from '@/lib/chat/ingestion-service';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
+// import { getPolicies } from '@/lib/processing/phase-policy';
 import { getServerProvider } from '@/lib/storage/server-provider';
-import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
+// import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
 
 // OneDrive-Utilities entfernt: Provider übernimmt Token/Uploads.
 
@@ -266,7 +267,7 @@ export async function POST(
     let docMetaForIngestion: Record<string, unknown> | undefined;
 
     if (lib && extractedText) {
-      const doExtractMetadata = !!(job.parameters && typeof job.parameters === 'object' && (job.parameters as Record<string, unknown>)['doExtractMetadata']);
+      /* const policies = getPolicies({ parameters: job.parameters || {} }); */
       const autoSkip = true;
 
       if (lib) {
@@ -289,17 +290,16 @@ export async function POST(
         // Optionale Template-Verarbeitung (Phase 2)
         let metadataFromTemplate: Record<string, unknown> | null = null;
         let templateStatus: 'completed' | 'failed' | 'skipped' = 'completed';
-        // Gate für Transform-Template (Phase 2)
-        let templateGateExists = false;
+        /* templateGateExists entfernt: Gate-Existenz wird nicht verwendet */
         if (autoSkip) {
           const g = await gateTransformTemplate({ repo, jobId, userEmail: job.userEmail, library: lib, source: job.correlation?.source, options: job.correlation?.options as { targetLanguage?: string } | undefined });
-          templateGateExists = g.exists;
           if (g.exists) {
             await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
             templateStatus = 'skipped';
           }
         }
-        if (!doExtractMetadata || templateGateExists) {
+        const shouldRunTemplate = true; // Always run template if not skipped
+        if (!shouldRunTemplate) {
           bufferLog(jobId, { phase: 'transform_meta_skipped', message: 'Template-Transformation übersprungen (Phase 1)' });
         } else {
           await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
@@ -437,9 +437,78 @@ export async function POST(
         const file = new File([new Blob([markdown], { type: 'text/markdown' })], uniqueName, { type: 'text/markdown' });
         await repo.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });
         const saved = await provider.uploadFile(targetParentId, file);
+        FileLogger.info('external-jobs', 'Shadow‑Twin gespeichert', { jobId, savedItemId: saved.id, name: saved.metadata?.name })
         bufferLog(jobId, { phase: 'stored_local', message: 'Shadow‑Twin gespeichert' });
         savedItemId = saved.id;
         await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
+
+        // NEU: Doc‑Meta in Pinecone upserten (Statuscache) – für Shadow‑Twin UND Quelle (falls vorhanden)
+        try {
+          const apiKey = process.env.PINECONE_API_KEY
+          if (apiKey) {
+            const { loadLibraryChatContext } = await import('@/lib/chat/loader')
+            const { describeIndex, upsertVectorsChunked } = await import('@/lib/chat/pinecone')
+            const ctx = await loadLibraryChatContext(job.userEmail, job.libraryId)
+            if (ctx) {
+              const idx = await describeIndex(ctx.vectorIndex, apiKey)
+              if (idx?.host) {
+                const dim = typeof idx.dimension === 'number' ? idx.dimension : Number(process.env.OPENAI_EMBEDDINGS_DIMENSION || 3072)
+                const zero = new Array<number>(dim).fill(0)
+                zero[0] = 1
+
+                // Kanonische ID: bevorzugt die Quell‑PDF
+                const canonicalFileId = sourceId || saved.id
+                // Bestehende Einträge zu dieser Quelle vorab löschen (Idempotenz)
+                try {
+                  const { deleteByFilter } = await import('@/lib/chat/pinecone')
+                  await deleteByFilter(idx.host, apiKey, { sourceFileId: { $eq: canonicalFileId } })
+                  // Zusätzlich evtl. alte fileId-basierte Einträge entfernen
+                  await deleteByFilter(idx.host, apiKey, { fileId: { $eq: canonicalFileId } })
+                } catch { /* ignore */ }
+
+                // Statusflachfelder
+                const statusFlat: Record<string, unknown> = {
+                  extract_status: 'completed',
+                  template_status: templateStatus,
+                  ingest_status: 'none',
+                }
+                // Metadatenquellen
+                const docMeta = mergedMeta
+                const baseMeta = {
+                  kind: 'doc',
+                  user: job.userEmail,
+                  libraryId: job.libraryId,
+                  upsertedAt: new Date().toISOString(),
+                  docMetaJson: JSON.stringify(docMeta || {}),
+                  sourceFileId: canonicalFileId,
+                } as Record<string, unknown>
+
+                const targets: Array<{ id: string; fileId: string; fileName: string }> = [
+                  // Nur EIN kanonischer Doc‑Meta‑Vektor pro Quelle
+                  { id: `${canonicalFileId}-meta`, fileId: canonicalFileId, fileName: sourceId ? (job.correlation?.source?.name || saved.metadata.name) : saved.metadata.name },
+                ]
+
+                const vectors = targets.map(t => ({
+                  id: t.id,
+                  values: zero,
+                  metadata: {
+                    ...baseMeta,
+                    ...statusFlat,
+                    fileId: t.fileId,
+                    fileName: t.fileName,
+                  } as Record<string, unknown>
+                }))
+                FileLogger.info('external-jobs', 'Doc‑Meta Upsert vorbereiten', { jobId, targets: targets.length, index: ctx.vectorIndex })
+                await upsertVectorsChunked(idx.host, apiKey, vectors)
+                FileLogger.info('external-jobs', 'Doc‑Meta Upsert erfolgreich', { jobId, count: targets.length })
+                bufferLog(jobId, { phase: 'doc_meta_upsert', message: `Pinecone Doc‑Meta upserted (${targets.length})` })
+              }
+            }
+          }
+        } catch (err) {
+          FileLogger.error('external-jobs', 'Doc‑Meta Upsert fehlgeschlagen', err)
+          bufferLog(jobId, { phase: 'doc_meta_upsert_failed', message: 'Doc‑Meta Upsert fehlgeschlagen' })
+        }
 
         // Bilder-ZIP optional verarbeiten
         if (imagesArchiveUrlFromWorker) {

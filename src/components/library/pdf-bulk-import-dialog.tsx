@@ -195,11 +195,14 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
           includeImages: defaults.includeImages ?? false,
           useCache: defaults.useCache ?? true,
           template: typeof defaults.template === 'string' ? defaults.template : undefined,
-          doExtractMetadata: !!runMetaPhase,
-          doIngestRAG: !!runIngestionPhase,
-          // Erzwingen-Logik: forceRecreate gilt nur für Phase 1; für Phase 2 erzwingen wir immer Template, auch wenn Extraktion übersprungen wird
-          forceRecreate: !!forceExtract,
-          forceTemplate: !!forceMeta,
+          // Neue Policies (explizit)
+          // Phase 1 ist immer 'do' im Batch; force via Checkbox
+          // Phase 2 abhängig von runMetaPhase und forceMeta, Phase 3 abhängig von runIngestionPhase
+          policies: {
+            extract: !!forceExtract ? 'force' : 'do',
+            metadata: !!runMetaPhase ? (forceMeta ? 'force' : 'do') : 'ignore',
+            ingest: !!runIngestionPhase ? 'do' : 'ignore',
+          },
         },
         items: candidates.map(({ file, parentId }) => ({ fileId: file.id, parentId, name: file.metadata.name, mimeType: file.metadata.mimeType })),
       };

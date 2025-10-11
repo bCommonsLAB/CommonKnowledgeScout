@@ -70,6 +70,10 @@ export function getVectorIndexForLibrary(
   chatConfig?: LibraryChatConfig,
   userEmail?: string
 ): string {
+  // Globale Override-Möglichkeit für schnelle Fehleranalyse/Dev
+  const envOverride = (process.env.PINECONE_INDEX_OVERRIDE || '').trim()
+  if (envOverride.length > 0) return envOverride
+
   const override = chatConfig?.vectorStore?.indexOverride
   const base = (() => {
     if (override && override.trim().length > 0) return slugifyIndexName(override)

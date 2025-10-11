@@ -49,12 +49,15 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
     };
     return {
       ...base,
-      doExtractPDF: targetPhase >= 1,
-      doExtractMetadata: targetPhase >= 2,
-      doIngestRAG: targetPhase >= 3,
-      // Erzwingen: nur für Extraktion relevant (Phase 1)
-      forceRecreate: forceRecreate && targetPhase >= 1 ? true : false,
-    };
+      // Policies: "Erzwingen" wirkt auf die aktuell gewählte Ziel‑Phase
+      policies: {
+        extract: targetPhase >= 1 ? ((forceRecreate && targetPhase === 1) ? 'force' : 'do') : 'ignore',
+        metadata: targetPhase >= 2 ? ((forceRecreate && targetPhase === 2) ? 'force' : 'do') : 'ignore',
+        ingest: targetPhase >= 3 ? ((forceRecreate && targetPhase === 3) ? 'force' : 'do') : 'ignore',
+      },
+      // Keine Legacy-Flags mehr
+      forceRecreate: undefined as unknown as never,
+    } as PdfTransformOptions & { policies: { extract: 'force' | 'do' | 'ignore'; metadata: 'force' | 'do' | 'ignore'; ingest: 'force' | 'do' | 'ignore' } };
   }
 
   async function runPhase(targetPhase: PdfPhase = phase) {
@@ -86,7 +89,7 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
     return 'bg-muted-foreground/40';
   }
 
-  function buttonStyle(isActive: boolean, _status?: "completed" | "in_progress" | "failed" | "pending") {
+  function buttonStyle(isActive: boolean) {
     return cn(
       "px-2 py-1 text-xs rounded border",
       isActive ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/70",
@@ -99,7 +102,7 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
       <div key={id} className="flex items-center gap-1">
         <button
           type="button"
-          className={buttonStyle(isActive, status)}
+          className={buttonStyle(isActive)}
           onClick={() => setPhase(id)}
           aria-pressed={isActive}
           aria-label={`Phase ${id}: ${label}`}

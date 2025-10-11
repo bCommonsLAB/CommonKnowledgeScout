@@ -4,6 +4,7 @@ import { describeIndex, fetchVectors, queryVectors } from '@/lib/chat/pinecone'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { LibraryService } from '@/lib/services/library-service'
 import { getVectorIndexForLibrary } from '@/lib/chat/config'
+import { FileLogger } from '@/lib/debug/logger'
 
 export async function GET(
   request: NextRequest,
@@ -25,10 +26,16 @@ export async function GET(
     const noFallback = url.searchParams.get('noFallback') === '1'
     if (!fileId) return NextResponse.json({ error: 'fileId erforderlich' }, { status: 400 })
 
+    FileLogger.info('file-status', 'Request', { libraryId, fileId, user: userEmail })
+
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
+    FileLogger.info('file-status', 'Kontext', { libraryId, vectorIndex: ctx.vectorIndex })
     const idx = await describeIndex(ctx.vectorIndex, apiKey)
-    if (!idx?.host) return NextResponse.json({ status: 'not_indexed' })
+    if (!idx?.host) {
+      FileLogger.warn('file-status', 'Index nicht gefunden', { libraryId, index: ctx.vectorIndex })
+      return NextResponse.json({ status: 'not_indexed' })
+    }
 
     // Hole Meta-Vektor (doc)
     const ids = [`${fileId}-meta`]
@@ -55,7 +62,7 @@ export async function GET(
       }
     }
     // Zweiter Fallback: gefilterte Query nach fileId/kind='doc' (falls ID-Bildung abweicht)
-    if (!meta && !noFallback) {
+    if (!meta) {
       try {
         const zero = new Array<number>(3072).fill(0)
         const byFilter = await queryVectors(idx.host, apiKey, zero, 1, {
@@ -70,6 +77,7 @@ export async function GET(
       } catch { /* ignore */ }
     }
     if (!meta) {
+      FileLogger.info('file-status', 'Not indexed', { libraryId, fileId })
       return NextResponse.json({ status: 'not_indexed' })
     }
 
@@ -79,7 +87,7 @@ export async function GET(
     const storedDocMod = typeof meta?.docModifiedAt === 'string' ? meta.docModifiedAt : undefined
     const isStale = !!(docModifiedAt && storedDocMod && new Date(storedDocMod).getTime() < new Date(docModifiedAt).getTime())
 
-    return NextResponse.json({
+    const payload = {
       status: isStale ? 'stale' : 'ok',
       fileId,
       fileName,
@@ -88,8 +96,18 @@ export async function GET(
       docModifiedAt: storedDocMod,
       docMeta: typeof meta?.docMetaJson === 'string' ? JSON.parse(meta.docMetaJson as string) : undefined,
       toc: typeof meta?.tocJson === 'string' ? JSON.parse(meta.tocJson as string) : undefined,
+      // Statusfelder (Tooltip)
+      extract_status: typeof meta?.extract_status === 'string' ? meta.extract_status : undefined,
+      template_status: typeof meta?.template_status === 'string' ? meta.template_status : undefined,
+      ingest_status: typeof meta?.ingest_status === 'string' ? meta.ingest_status : undefined,
+      process_status: typeof meta?.process_status === 'string' ? meta.process_status : undefined,
+      hasError: typeof meta?.hasError === 'boolean' ? meta.hasError : undefined,
+      errorCode: typeof meta?.errorCode === 'string' ? meta.errorCode : undefined,
+      errorMessage: typeof meta?.errorMessage === 'string' ? meta.errorMessage : undefined,
       _debug: { lookupMethod, expectedId: `${fileId}-meta`, foundId }
-    })
+    }
+    FileLogger.info('file-status', 'Response', { libraryId, fileId, status: payload.status, lookupMethod })
+    return NextResponse.json(payload)
   } catch {
     return NextResponse.json({ error: 'Interner Fehler' }, { status: 500 })
   }

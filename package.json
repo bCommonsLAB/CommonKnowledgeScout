@@ -39,7 +39,12 @@
     "lint": "next lint",
     "test": "node --import tsx --test \"tests/**/*.test.ts\" --test-reporter=spec",
     "test:watch": "node --import tsx --test \"tests/**/*.test.ts\" --watch --test-reporter=spec",
-    "test:package": "node test-package.js"
+    "test:package": "node test-package.js",
+    "export:cursor-chats": "node --import tsx scripts/export-cursor-chats.ts",
+    "docs:history:merge": "node --import tsx scripts/merge-history.ts",
+    "docs:history": "pnpm run docs:history:merge",
+    "docs:history:monthly": "node --import tsx scripts/merge-history-monthly.ts",
+    "docs:history:mon": "pnpm run docs:history:monthly"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.21.0",
@@ -134,6 +139,8 @@
     "tailwindcss": "^3.3.0",
     "ts-node": "^10.9.2",
     "tsx": "4.19.2",
+    "better-sqlite3": "11.7.0",
+    "@types/better-sqlite3": "7.6.11",
     "typescript": "^5.8.3"
   }
 }

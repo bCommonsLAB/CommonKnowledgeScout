@@ -48,6 +48,7 @@ class ExternalJobsWorkerSingleton {
     try {
       const repo = new ExternalJobsRepository();
       const queued = await repo.listQueued(this.concurrency);
+      if (this.state !== 'running') return; // Hard gate: erneut prüfen
       if (queued.length === 0) return;
 
       await Promise.all(
@@ -56,6 +57,7 @@ class ExternalJobsWorkerSingleton {
             // Nutze bestehende Retry-Route, damit die Ausführung zentral bleibt
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
             if (!appUrl) return;
+            if (this.state !== 'running') return; // Hard gate kurze Zeit vor dem Call
             await fetch(`${appUrl.replace(/\/$/, '')}/api/external/jobs/${job.jobId}/retry`, { method: 'POST' });
             this.stats.processed += 1;
           } catch (err) {
@@ -72,6 +74,17 @@ class ExternalJobsWorkerSingleton {
 }
 
 export const ExternalJobsWorker = ExternalJobsWorkerSingleton.getInstance();
+
+
+
+
+
+
+
+
+
+
+
 
 
 

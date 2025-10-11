@@ -69,6 +69,14 @@ function formatDuration(startIso?: string, endIso?: string): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function truncateMiddle(input?: string, max: number = 40): string {
+  if (!input) return '';
+  if (input.length <= max) return input;
+  const head = Math.ceil((max - 1) / 2);
+  const tail = Math.floor((max - 1) / 2);
+  return `${input.slice(0, head)}…${input.slice(input.length - tail)}`;
+}
+
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; className: string }> = {
     queued: { label: 'Queued', className: 'bg-blue-200 text-blue-900 border-blue-300' },
@@ -98,23 +106,7 @@ export function JobMonitorPanel() {
   const [serverCounts, setServerCounts] = useState<{ queued: number; running: number; completed: number; failed: number; pendingStorage: number; total: number } | null>(null);
   const [liveUpdates, setLiveUpdates] = useState<boolean>(true);
 
-  // Auto-start worker when panel opens
-  useEffect(() => {
-    let aborted = false;
-    async function startWorker() {
-      try {
-        if (!isOpen) return;
-        const res = await fetch('/api/external/jobs/worker', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'start' })
-        });
-        if (!res.ok || aborted) return;
-      } catch { /* ignore */ }
-    }
-    void startWorker();
-    return () => { aborted = true; };
-  }, [isOpen]);
+  // Worker wird nicht mehr automatisch gestartet; nur noch über die Controls
 
   // Initiale Seite nur laden, wenn Panel geöffnet wird
   useEffect(() => {
@@ -160,7 +152,7 @@ export function JobMonitorPanel() {
 
   // Serverseitige Zähler laden (gesamt, optional gefiltert nach Batch)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !liveUpdates) return;
     let active = true;
     async function loadCounts() {
       try {
@@ -176,7 +168,7 @@ export function JobMonitorPanel() {
     void loadCounts();
     const t = setInterval(loadCounts, 5000);
     return () => { active = false; clearInterval(t); };
-  }, [isOpen, batchFilter]);
+  }, [isOpen, batchFilter, liveUpdates]);
 
   const refreshNow = async () => {
     if (isRefreshing) return;
@@ -430,7 +422,7 @@ export function JobMonitorPanel() {
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-400" />Running {serverCounts?.running ?? runningCount}</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-500" />Completed {serverCounts?.completed ?? completedCount}</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Failed {serverCounts?.failed ?? failedCount}</span>
-            <WorkerControls />
+            <WorkerControls live={liveUpdates} />
           </div>
           <div className="px-4 py-2 border-b flex items-center gap-2">
             <select className="border rounded px-2 py-1 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -475,7 +467,9 @@ export function JobMonitorPanel() {
                       </div>
                       <HoverCard openDelay={200} closeDelay={100}>
                         <HoverCardTrigger asChild>
-                          <div className="truncate text-sm font-medium cursor-default" title={item.fileName || item.jobId}>{item.fileName || (item.operation || 'job')}</div>
+                          <div className="truncate text-sm font-medium cursor-default" title={item.fileName || item.jobId}>
+                            {item.fileName ? truncateMiddle(item.fileName, 40) : (item.operation || 'job')}
+                          </div>
                         </HoverCardTrigger>
                         <HoverCardContent side="top" align="start" className="w-[36rem] p-0 max-h-[85vh]">
                           <ScrollArea className="h-[80vh] overflow-y-auto p-2 text-xs">
@@ -493,7 +487,7 @@ export function JobMonitorPanel() {
                       >
                         <Ban className="h-4 w-4" />
                       </button>
-                      {(item.status === 'failed' || item.status === 'queued') && (
+                      {item.status !== 'running' && (
                         <button
                           onClick={() => retryJob(item.jobId)}
                           className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
@@ -586,17 +580,18 @@ function JobLogs({ jobId }: { jobId: string }) {
   );
 }
 
-function WorkerControls() {
+function WorkerControls({ live }: { live?: boolean }) {
   const [status, setStatus] = useState<{ state: 'running'|'stopped'; stats?: { processed?: number; errors?: number } } | null>(null);
   const load = async () => {
     try {
+      if (!live) return;
       const res = await fetch('/api/external/jobs/worker', { cache: 'no-store' });
       if (!res.ok) return;
       const json = await res.json();
       setStatus(json);
     } catch {}
   };
-  useEffect(() => { void load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, []);
+  useEffect(() => { if (live) { void load(); const t = setInterval(load, 5000); return () => clearInterval(t); } }, [live]);
   const act = async (action: 'start'|'stop') => {
     try {
       const res = await fetch('/api/external/jobs/worker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });

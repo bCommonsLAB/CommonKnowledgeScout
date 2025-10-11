@@ -30,7 +30,7 @@ import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { JobReportTab } from "@/components/library/job-report-tab"
 import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
+// import { Separator } from "@/components/ui/separator"
 
 // Schema für Template-Daten
 const templateSchema = z.object({
@@ -58,8 +58,6 @@ export function TemplateManagement() {
   const [magicFrontmatter, setMagicFrontmatter] = useState<string>("")
   const [magicSystem, setMagicSystem] = useState<string>("")
   const [magicRunning, setMagicRunning] = useState<boolean>(false)
-  const [magicLastDiff, setMagicLastDiff] = useState<string>("")
-  const [magicSavedItemId, setMagicSavedItemId] = useState<string | null>(null)
   const { toast } = useToast()
 
   // Atoms
@@ -84,9 +82,9 @@ export function TemplateManagement() {
     defaultValues: {
       name: "",
       yamlFrontmatter: `---
-title: {{title|Titel des Dokuments}}
-tags: {{tags|Relevante Tags}}
-date: {{date|Datum im Format yyyy-mm-dd}}
+:title: {{title|Titel des Dokuments}}
+:tags: {{tags|Relevante Tags}}
+:date: {{date|Datum im Format yyyy-mm-dd}}
 ---`,
       markdownBody: `# {{title}}
 
@@ -98,7 +96,7 @@ date: {{date|Datum im Format yyyy-mm-dd}}
       systemPrompt: `You are a specialized assistant that processes and structures information clearly and concisely.
 
 IMPORTANT: Your response must be a valid JSON object where each key corresponds to a template variable.`,
-    },
+    }
   })
 
   // Helper zum Erzeugen von Default-Werten
@@ -699,7 +697,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
           magicTemplateContent = await res.text()
           console.log('[Magic] Fallback magicpromptdesign.md aus /public/templates verwendet')
-        } catch (e) {
+        } catch {
           toast({ title: 'Magic-Template fehlt', description: 'magicpromptdesign.md weder in /templates noch in /public/templates gefunden.', variant: 'destructive' })
           return
         }
@@ -753,7 +751,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
         const obj = typeof data === 'string' ? JSON.parse(data) : (typeof data === 'object' ? data : {})
         corrected = typeof obj?.corrected_template === 'string' ? obj.corrected_template : undefined
         diff = typeof obj?.diff_preview === 'string' ? obj.diff_preview : ''
-      } catch (e) {
+      } catch {
         // Fallback: Wenn data.text existiert
         const maybe = (data && typeof data.text === 'string') ? JSON.parse(data.text) : null
         corrected = maybe?.corrected_template
@@ -766,7 +764,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       form.setValue('yamlFrontmatter', parsed.yamlFrontmatter, { shouldDirty: true })
       form.setValue('markdownBody', parsed.markdownBody, { shouldDirty: true })
       form.setValue('systemPrompt', parsed.systemPrompt, { shouldDirty: true })
-      setMagicLastDiff(diff || '')
+      // Entfernt: magicLastDiff ungenutzt
       toast({ title: 'Magic Design angewendet', description: 'Änderungen übernommen (nicht gespeichert).' })
 
       // 5) Korrigiertes Template im Ordner prompt-tests ablegen (Debug/Verfolgung)
@@ -776,8 +774,8 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
         const baseName = `${selectedTemplateName}-magic-${ts}.md`
         const blobCorrected = new Blob([corrected], { type: 'text/markdown' })
         const fileCorrected = new File([blobCorrected], baseName, { type: 'text/markdown' })
-        const savedItem = await providerInstance.uploadFile(testsFolderId, fileCorrected)
-        setMagicSavedItemId(savedItem.id)
+        await providerInstance.uploadFile(testsFolderId, fileCorrected)
+        // Entfernt: magicSavedItemId ungenutzt
         toast({ title: 'Magic-Ergebnis gespeichert', description: baseName })
 
         if (diff && diff.trim().length > 0) {
@@ -787,10 +785,9 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
           await providerInstance.uploadFile(testsFolderId, fileDiff)
           console.log('[Magic] Diff gespeichert', diffName)
         }
-      } catch (saveErr) {
-        console.warn('Magic-Ergebnis konnte nicht gespeichert werden:', saveErr)
-        const msg = saveErr instanceof Error ? saveErr.message : 'Unbekannter Fehler'
-        toast({ title: 'Magic-Ergebnis NICHT gespeichert', description: msg, variant: 'destructive' })
+      } catch {
+        console.warn('Magic-Ergebnis konnte nicht gespeichert werden')
+        toast({ title: 'Magic-Ergebnis NICHT gespeichert', description: 'Fehler beim Speichern', variant: 'destructive' })
       }
     } catch (e) {
       toast({ title: 'Magic fehlgeschlagen', description: e instanceof Error ? e.message : 'Unbekannter Fehler', variant: 'destructive' })
@@ -938,7 +935,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                 )}
                 {magicMode && (
                   <>
-                    <Button type="button" variant="secondary" onClick={() => { setMagicBody(''); setMagicFrontmatter(''); setMagicSystem(''); setMagicLastDiff('') }} disabled={magicRunning}>Magic zurücksetzen</Button>
+                    <Button type="button" variant="secondary" onClick={() => { setMagicBody(''); setMagicFrontmatter(''); setMagicSystem(''); }} disabled={magicRunning}>Magic zurücksetzen</Button>
                     <Button type="button" onClick={runMagicDesign} disabled={magicRunning || (!magicBody && !magicFrontmatter && !magicSystem)}>
                       {magicRunning ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Magic läuft…</>) : 'Magic absenden'}
                     </Button>

@@ -193,14 +193,6 @@ const FileRow = React.memo(function FileRow({
     }
   }, [onSelect, isEditing]);
 
-  // Handler für Transkript-Icon Click
-  const handleTranscriptClick = React.useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (fileGroup?.transcriptFiles && onSelectRelatedFile) {
-      onSelectRelatedFile(fileGroup.transcriptFiles[0]); // Nur das erste Transkript anzeigen
-    }
-  }, [fileGroup, onSelectRelatedFile]);
-
   // Handler für Transformierte-Datei-Icon Click
   const handleTransformedClick = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -445,6 +437,72 @@ const FileRow = React.memo(function FileRow({
     )} aria-label={`job-${jobStatus}`} />
   ) : null;
 
+  // Pinecone-Doc-Status (kind:'doc') für Shadow‑Twins/Markdowns anzeigen
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const [docStatus, setDocStatus] = React.useState<{
+    status?: 'ok' | 'stale' | 'not_indexed';
+    extract_status?: string;
+    template_status?: string;
+    ingest_status?: string;
+    hasError?: boolean;
+  } | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        // Für Markdown/Shadow‑Twins und auch PDFs (Basisdateien)
+        const mt = (item.metadata.mimeType || '').toLowerCase();
+        const isMd = mt.startsWith('text/') || item.metadata.name.toLowerCase().endsWith('.md');
+        const isPdf = mt === 'application/pdf' || item.metadata.name.toLowerCase().endsWith('.pdf');
+        if (!isMd && !isPdf) return;
+
+        // Wenn Basisdatei (PDF), versuche Twin (.md) zu verwenden
+        let targetId = item.id;
+        if (!isMd && isPdf && (metadata as unknown as { transcriptionTwin?: { id?: string } }).transcriptionTwin?.id) {
+          targetId = (metadata as unknown as { transcriptionTwin: { id: string } }).transcriptionTwin.id;
+          FileLogger.info('FileRow', 'Nutze Twin für Doc-Status', { pdfId: item.id, mdId: targetId });
+        }
+
+        FileLogger.info('FileRow', 'Lade Doc-Status', { fileId: targetId, name: item.metadata.name });
+        const res = await fetch(`/api/chat/${activeLibraryId}/file-status?fileId=${encodeURIComponent(targetId)}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelled) return;
+        setDocStatus({
+          status: json.status,
+          extract_status: json.extract_status,
+          template_status: json.template_status,
+          ingest_status: json.ingest_status,
+          hasError: json.hasError,
+        });
+        FileLogger.info('FileRow', 'Doc-Status geladen', { fileId: targetId, status: json.status });
+      } catch {
+        // ignore
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [item.id, item.metadata.mimeType, item.metadata.name, (metadata as unknown as { transcriptionTwin?: { id?: string } }).transcriptionTwin?.id, activeLibraryId]);
+
+  const docStatusIcon = React.useMemo(() => {
+    if (!docStatus) return null;
+    const norm = (v?: string) => (v || '').toLowerCase();
+    const s = norm(docStatus.status);
+    const ext = norm(docStatus.extract_status);
+    const tpl = norm(docStatus.template_status);
+    const ing = norm(docStatus.ingest_status);
+
+    const noIndex = s === '' || s === 'not_indexed';
+    const failed = !!docStatus.hasError || ext === 'failed' || tpl === 'failed' || ing === 'failed';
+    // Grün NUR wenn alle drei Schritte completed und keine Fehlermeldung
+    const allDone = ext === 'completed' && tpl === 'completed' && ing === 'completed' && !failed;
+    const partial = !noIndex && !failed && !allDone; // z.B. stale, pending, none
+
+    const color = noIndex ? 'bg-gray-400' : failed ? 'bg-red-600' : partial ? 'bg-yellow-600' : 'bg-green-600';
+    const tt = `Ingestion: ${docStatus.status || '—'} | extract: ${docStatus.extract_status || '—'} | template: ${docStatus.template_status || '—'} | ingest: ${docStatus.ingest_status || '—'}`;
+    return <span title={tt} className={cn('inline-block h-3 w-3 rounded-full', color)} aria-label={`doc-${docStatus.status || 'unknown'}`} />
+  }, [docStatus]);
+
   // Compact-Modus: vereinfachte Darstellung
   if (compact) {
     return (
@@ -525,6 +583,7 @@ const FileRow = React.memo(function FileRow({
       </span>
       <div className="flex items-center justify-start gap-1">
         {jobStatusIcon}
+        {docStatusIcon}
         {/* System-Unterordner (z. B. extrahierte Seiten) */}
         {systemFolderId && (
           <TooltipProvider>

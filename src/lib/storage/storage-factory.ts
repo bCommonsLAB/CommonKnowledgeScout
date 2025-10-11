@@ -33,7 +33,7 @@ class LocalStorageProvider implements StorageProvider {
   // Setzt die Benutzer-E-Mail für Server-zu-Server API-Calls
   setUserEmail(email: string) {
     this.userEmail = email;
-    console.log(`[LocalStorageProvider] User E-Mail gesetzt: ${email}`);
+    //console.log(`[LocalStorageProvider] User E-Mail gesetzt: ${email}`);
   }
 
   get name() {
@@ -64,8 +64,8 @@ class LocalStorageProvider implements StorageProvider {
 
     const requestPromise = (async (): Promise<StorageItem[]> => {
       const url = this.getApiUrl(`/api/storage/filesystem?action=list&fileId=${folderId}&libraryId=${this.library.id}`);
-      console.log(`[LocalStorageProvider] Calling API:`, url);
-      
+      //console.log(`[LocalStorageProvider] Calling API:`, url);
+      /*
       AuthLogger.debug('LocalStorageProvider', 'Starting listItemsById API call', {
         folderId,
         libraryId: this.library.id,
@@ -73,7 +73,7 @@ class LocalStorageProvider implements StorageProvider {
         userEmail: this.userEmail ? `${this.userEmail.split('@')[0]}@...` : null,
         url: url.replace(/email=[^&]+/, 'email=***')
       });
-      
+      */
       try {
         const response = await fetch(url);
         
@@ -125,7 +125,7 @@ class LocalStorageProvider implements StorageProvider {
         }
         
         const data = await response.json();
-        console.log(`[LocalStorageProvider] Successfully loaded ${data.length} items`);
+        //console.log(`[LocalStorageProvider] Successfully loaded ${data.length} items`);
         
         AuthLogger.info('LocalStorageProvider', 'API call successful', {
           itemCount: data.length,
@@ -481,20 +481,20 @@ export class StorageFactory {
     switch (library.type) {
       case 'local':
         provider = new LocalStorageProvider(library, this.apiBaseUrl || undefined);
-        console.log(`StorageFactory: LocalStorageProvider erstellt für "${library.path}"`);
+        //console.log(`StorageFactory: LocalStorageProvider erstellt für "${library.path}"`);
         // Set user email if available
         if (this.userEmail && 'setUserEmail' in (provider as unknown as { setUserEmail?: (e: string) => void })) {
           (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(this.userEmail);
-          console.log(`StorageFactory: User-Email an LocalStorageProvider gesetzt`);
+          //console.log(`StorageFactory: User-Email an LocalStorageProvider gesetzt`);
         }
         break;
       case 'onedrive':
         provider = new OneDriveProvider(library, this.apiBaseUrl || undefined);
-        console.log(`StorageFactory: OneDriveProvider erstellt`);
+        //console.log(`StorageFactory: OneDriveProvider erstellt`);
         // Set user email if available
         if (this.userEmail && 'setUserEmail' in (provider as unknown as { setUserEmail?: (e: string) => void })) {
           (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(this.userEmail);
-          console.log(`StorageFactory: User-Email an OneDriveProvider gesetzt`);
+          //console.log(`StorageFactory: User-Email an OneDriveProvider gesetzt`);
         }
         break;
       // Add more provider types here

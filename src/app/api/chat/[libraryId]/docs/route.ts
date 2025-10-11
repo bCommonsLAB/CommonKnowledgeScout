@@ -64,6 +64,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
           docType: typeof (docMeta as { docType?: unknown })?.docType === 'string' ? (docMeta as { docType: string }).docType : (typeof md.docType === 'string' ? md.docType : undefined),
           source: typeof (docMeta as { source?: unknown })?.source === 'string' ? (docMeta as { source: string }).source : (typeof md.source === 'string' ? md.source : undefined),
           tags: Array.isArray(md.tags) ? (md.tags as Array<unknown>).filter(t => typeof t === 'string') as string[] : undefined,
+          // Statusfelder für UI (Tooltip)
+          extract_status: typeof md.extract_status === 'string' ? md.extract_status : undefined,
+          template_status: typeof md.template_status === 'string' ? md.template_status : undefined,
+          ingest_status: typeof md.ingest_status === 'string' ? md.ingest_status : undefined,
+          process_status: typeof md.process_status === 'string' ? md.process_status : undefined,
+          hasError: typeof md.hasError === 'boolean' ? md.hasError : undefined,
+          errorCode: typeof md.errorCode === 'string' ? md.errorCode : undefined,
+          errorMessage: typeof md.errorMessage === 'string' ? md.errorMessage : undefined,
         }
       })
       return NextResponse.json({ items }, { status: 200 })

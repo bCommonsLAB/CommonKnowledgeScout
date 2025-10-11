@@ -47,6 +47,32 @@ pnpm dev
 Die Anwendung ist nun unter `http://localhost:3000` verfügbar.
 
 
+### Cursor‑IDE Chats exportieren (Utility)
+
+Zur Bequemlichkeit liegt ein optionales Skript bei, das lokale Cursor‑Chats aus der SQLite‑DB exportiert.
+
+Voraussetzungen:
+- Windows, Cursor geschlossen
+
+Schritte (PowerShell):
+
+```powershell
+$env:CURSOR_DB="$env:APPDATA\Cursor\User\globalStorage\state.vscdb"
+pnpm install
+pnpm run export:cursor-chats -- --out "@cursor-chats" --only-md --messages-only
+```
+
+CLI‑Optionen:
+- `--out <pfad>`: Zielordner (Standard: `exports/cursor-chats`). Tipp: `"@cursor-chats"`.
+- `--only-md`: Keine Rohdateien speichern, nur Markdown.
+- `--messages-only`: Nur Einträge exportieren, die als Nachrichten erkennbar sind.
+- `--pattern <teilstring>`: Zusätzliche Key‑Filter, mehrfach nutzbar (Default: chat, conversation, history, messages, session, cursor).
+
+Ergebnis:
+- `<out>/*.md`: Eine Markdown‑Datei pro erkannten Chat inkl. Frontmatter (`source`, `key`, `createdAt`).
+- `<out>/raw/*`: Nur ohne `--only-md` – Rohdaten (JSON/TXT/BIN).
+
+
 ## Package deployen
 1. Githuvb Token setzen
 $env:GITHUB_TOKEN="ghp_YOUR_TOKEN_HERE"

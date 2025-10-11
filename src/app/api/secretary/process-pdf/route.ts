@@ -12,6 +12,7 @@ import { LibraryService } from '@/lib/services/library-service';
 // Storage: konsequent Server-Provider verwenden
 import { getServerProvider } from '@/lib/storage/server-provider';
 import { gateExtractPdf } from '@/lib/processing/gates';
+import { legacyToPolicies, PhasePolicies, shouldRunWithGate } from '@/lib/processing/phase-policy';
 import { TransformService } from '@/lib/transform/transform-service';
 
 export async function POST(request: NextRequest) {
@@ -118,20 +119,16 @@ export async function POST(request: NextRequest) {
       serviceFormData.append('force_refresh', 'false'); // Standardwert
     }
 
-    // Veraltetes Feld useIngestionPipeline wird nicht mehr verwendet
-    const useIngestionPipeline = false;
-
-    // Neue vereinfachte Flags aus dem Request
-    let doExtractPDF = ((formData.get('doExtractPDF') as string | null) ?? '') === 'true';
-    let doExtractMetadata = ((formData.get('doExtractMetadata') as string | null) ?? '') === 'true';
-    let doIngestRAG = ((formData.get('doIngestRAG') as string | null) ?? '') === 'true';
-    const forceRecreate = ((formData.get('forceRecreate') as string | null) ?? '') === 'true';
-    // Fallback: Wenn Flags fehlen (alle false), aus alten Parametern ableiten
-    if (!doExtractPDF && !doExtractMetadata && !doIngestRAG) {
-      doExtractPDF = true; // Phase 1 grundsätzlich erlaubt
-      doExtractMetadata = !skipTemplate; // wenn nicht Phase-1-only, dann Metadaten
-      doIngestRAG = useIngestionPipeline; // bis Alt-Flag entfernt ist
-    }
+    // Policies optional aus Client übernehmen
+    const policiesFromClient: PhasePolicies | undefined = (() => {
+      try {
+        const raw = formData.get('policies') as string | null;
+        return raw ? JSON.parse(raw) as PhasePolicies : undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    const policies = policiesFromClient || legacyToPolicies({ doExtractPDF: true });
 
     // Job anlegen (per-Job-Secret)
     const repository = new ExternalJobsRepository();
@@ -189,7 +186,7 @@ export async function POST(request: NextRequest) {
     };
     await repository.create(job);
     // Schritte initialisieren und Parameter mitschreiben (für Report-Tab)
-    const phases = { extract: doExtractPDF, template: doExtractMetadata, ingest: doIngestRAG };
+    const phases = { extract: policies.extract !== 'ignore', template: policies.metadata !== 'ignore', ingest: policies.ingest !== 'ignore' };
     await repository.initializeSteps(jobId, [
       { name: 'extract_pdf', status: 'pending' },
       { name: 'transform_template', status: 'pending' },
@@ -203,10 +200,7 @@ export async function POST(request: NextRequest) {
       template: (formData.get('template') as string) || undefined,
       phases,
       // Neue vereinfachte Flags
-      doExtractPDF,
-      doExtractMetadata,
-      doIngestRAG,
-      forceRecreate
+      policies
     });
     FileLogger.info('process-pdf', 'Job angelegt', {
       jobId,
@@ -311,12 +305,13 @@ export async function POST(request: NextRequest) {
           source: { itemId: originalItemId, parentId, name: file?.name },
           options: { targetLanguage }
         });
-        if (g.exists && !forceRecreate) {
+        const runExtract = shouldRunWithGate(g.exists, policies.extract);
+        if (!runExtract) {
           // Phase 1 überspringen
           await repository.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
 
           // Template-Only Pfad, wenn nicht explizit skipTemplate=true
-          if (!skipTemplate && doExtractMetadata) {
+          if (!skipTemplate && (policies.metadata !== 'ignore')) {
             try {
               const libraryService = LibraryService.getInstance();
               const libraries2 = await libraryService.getUserLibraries(userEmail);
@@ -417,7 +412,7 @@ export async function POST(request: NextRequest) {
                 await repository.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
 
                 // Ingestion je nach Flag nur markieren (kein Upsert hier)
-                if (doIngestRAG) {
+                if (policies.ingest !== 'ignore') {
                   await repository.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
                 } else {
                   await repository.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
@@ -435,7 +430,7 @@ export async function POST(request: NextRequest) {
               // Fallback: wenn Template-Only fehlschlägt, markieren wir die Schritte als skipped und schließen
               await repository.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
               await repository.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
-              if (doIngestRAG) {
+              if (policies.ingest !== 'ignore') {
                 await repository.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
               } else {
                 await repository.updateStep(jobId, ' ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
@@ -448,7 +443,7 @@ export async function POST(request: NextRequest) {
             // Kein Template‑Only gewünscht → alle übrigen Schritte überspringen
             await repository.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
             await repository.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
-            if (doIngestRAG) {
+            if (policies.ingest !== 'ignore') {
               await repository.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'artifact_exists' } });
             } else {
               await repository.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
@@ -473,7 +468,7 @@ export async function POST(request: NextRequest) {
     } catch {}
 
     // Anfrage an den Secretary Service senden (nur wenn doExtractPDF true oder keine Flags gesetzt)
-    if (!doExtractPDF && (doExtractMetadata || doIngestRAG)) {
+    if (!(policies.extract !== 'ignore') && ((policies.metadata !== 'ignore') || (policies.ingest !== 'ignore'))) {
       // Kein Worker-Call notwendig, die Arbeit passiert lokal (Template‑Only) oder es ist nur Ingestion geplant (aktueller Pfad löst Ingestion erst im Callback aus, daher schließen wir hier ab)
       // Falls nur Ingestion geplant ist, führt der Callback es später aus; hier markieren wir extract als skipped
       await repository.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'not_requested' } });

@@ -3,6 +3,8 @@ import { getAuth, currentUser } from '@clerk/nextjs/server';
 import { FileLogger } from '@/lib/debug/logger';
 import crypto from 'crypto';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
+import { legacyToPolicies } from '@/lib/processing/phase-policy';
+import { ExternalJob } from '@/types/external-job';
 
 // Batch-Submit: Erwartet JSON mit items[] (each: { fileId, parentId, name, mimeType }) und optionalen Optionen/Batch-Metadaten
 // Server lädt Binärdaten per Server-Storage, reicht an die bestehende process-pdf Route weiter.
@@ -23,10 +25,7 @@ interface BatchRequestBody {
     includeImages?: boolean;
     useCache?: boolean;
     template?: string;
-    doExtractMetadata?: boolean;
-    doIngestRAG?: boolean;
-    forceRecreate?: boolean;
-    forceTemplate?: boolean;
+    policies?: import('@/lib/processing/phase-policy').PhasePolicies;
   };
   items: BatchItemInput[];
 }
@@ -82,33 +81,20 @@ export async function POST(request: NextRequest) {
               extractionMethod: options?.extractionMethod || 'native',
               includeImages: options?.includeImages ?? false,
               useCache: options?.useCache ?? true,
-            },
-            batchId,
-            batchName,
-          },
-          createdAt: new Date(),
-          updatedAt: new Date(),
+              template: options?.template,
+              // Nur neue Policies
+              policies: options?.policies || legacyToPolicies({ doExtractPDF: true }),
+              batchId,
+              batchName,
+            }
+          } as ExternalJob['correlation'],
           steps: [
             { name: 'extract_pdf', status: 'pending' },
             { name: 'transform_template', status: 'pending' },
             { name: 'store_shadow_twin', status: 'pending' },
-            { name: 'ingest_rag', status: 'pending' },
-          ],
-          parameters: {
-            targetLanguage: options?.targetLanguage || 'de',
-            extractionMethod: options?.extractionMethod || 'native',
-            includeImages: options?.includeImages ?? false,
-            useCache: options?.useCache ?? true,
-            template: options?.template,
-            doExtractPDF: true,
-            doExtractMetadata: !!options?.doExtractMetadata,
-            doIngestRAG: !!options?.doIngestRAG,
-            forceRecreate: !!options?.forceRecreate,
-            forceTemplate: !!options?.forceTemplate,
-            batchId,
-            batchName,
-          }
-        } as any);
+            { name: 'ingest_rag', status: 'pending' }
+          ]
+        } as Omit<ExternalJob, 'createdAt' | 'updatedAt'>);
         createdJobIds.push(jobId);
       } catch (e) {
         FileLogger.error('process-pdf-batch', 'Job-Anlage fehlgeschlagen', { error: e instanceof Error ? e.message : String(e) });

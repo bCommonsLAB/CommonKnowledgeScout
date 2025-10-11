@@ -654,7 +654,7 @@ export async function transformPdf(
   useCache: boolean = true,
   includeImages: boolean = false,
   skipTemplate?: boolean,
-  context?: { originalItemId?: string; parentId?: string; originalFileName?: string; doExtractPDF?: boolean; doExtractMetadata?: boolean; doIngestRAG?: boolean; forceRecreate?: boolean }
+  context?: { originalItemId?: string; parentId?: string; originalFileName?: string; policies?: import('@/lib/processing/phase-policy').PhasePolicies }
 ): Promise<SecretaryPdfResponse> {
   try {
     console.log('[secretary/client] transformPdf aufgerufen mit Sprache:', targetLanguage, 'und Template:', template);
@@ -705,11 +705,10 @@ export async function transformPdf(
     formData.append('extractionMethod', extractionMethod);
     formData.append('useCache', useCache.toString());
     formData.append('includeImages', includeImages.toString());
-    // Neue vereinfachte Flags
-    if (typeof context?.doExtractPDF === 'boolean') formData.append('doExtractPDF', String(context.doExtractPDF));
-    if (typeof context?.doExtractMetadata === 'boolean') formData.append('doExtractMetadata', String(context.doExtractMetadata));
-    if (typeof context?.doIngestRAG === 'boolean') formData.append('doIngestRAG', String(context.doIngestRAG));
-    if (typeof context?.forceRecreate === 'boolean') formData.append('forceRecreate', String(context.forceRecreate));
+    // Policies als JSON übergeben (neues Format)
+    if (context?.policies) {
+      formData.append('policies', JSON.stringify(context.policies));
+    }
     
     // Template-Option
     if (template) {

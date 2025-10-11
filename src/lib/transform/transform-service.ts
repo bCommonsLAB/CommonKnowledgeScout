@@ -17,11 +17,8 @@ export interface PdfTransformOptions extends TransformSaveOptions {
   extractionMethod: string;
   template?: string;
   skipTemplate?: boolean; // Phase 1: nur Extraktion
-  // Vereinfachte Phasensteuerung
-  doExtractPDF?: boolean;
-  doExtractMetadata?: boolean;
-  doIngestRAG?: boolean;
-  forceRecreate?: boolean;
+  // Policies steuern die Phasen klar typisiert
+  policies?: import('@/lib/processing/phase-policy').PhasePolicies;
 }
 
 export interface TransformResult {
@@ -445,11 +442,7 @@ export class TransformService {
         originalItemId: originalItem.id,
         parentId: originalItem.parentId,
         originalFileName: originalItem.metadata.name,
-        // Neue vereinfachte Phasen-Flags durchreichen
-        doExtractPDF: options.doExtractPDF,
-        doExtractMetadata: options.doExtractMetadata,
-        doIngestRAG: options.doIngestRAG,
-        forceRecreate: options.forceRecreate,
+          policies: options.policies,
       }
     );
     
@@ -605,6 +598,51 @@ export class TransformService {
         savedItemName: result.savedItem?.metadata.name,
         updatedItemsCount: result.updatedItems.length
       });
+
+      // Nach dem Speichern: Doc-Meta in Pinecone upserten (Statuscache)
+      try {
+        const saved = result.savedItem
+        if (saved && saved.type === 'file') {
+          // Metadaten an API weiterreichen
+          const payload: Record<string, unknown> = {
+            fileId: saved.id,
+            fileName: saved.metadata.name,
+            docModifiedAt: (saved.metadata.modifiedAt instanceof Date
+              ? saved.metadata.modifiedAt.toISOString()
+              : new Date().toISOString()),
+            docMeta: metadata,
+            // Statusfelder (falls im Metadata vorhanden)
+            extract_status: (metadata as unknown as { extract_status?: string }).extract_status,
+            template_status: (metadata as unknown as { template_status?: string }).template_status,
+            ingest_status: (metadata as unknown as { ingest_status?: string }).ingest_status,
+            process_status: (metadata as unknown as { process_status?: string }).process_status,
+            hasError: (metadata as unknown as { hasError?: boolean }).hasError,
+            errorCode: (metadata as unknown as { errorCode?: string }).errorCode,
+            errorMessage: (metadata as unknown as { errorMessage?: string }).errorMessage,
+            lastErrorAt: (metadata as unknown as { lastErrorAt?: string }).lastErrorAt,
+            year: (metadata as unknown as { year?: number | string }).year,
+            language: (metadata as unknown as { language?: string }).language,
+            region: (metadata as unknown as { region?: string }).region,
+            docType: (metadata as unknown as { docType?: string }).docType,
+            source: (metadata as unknown as { source?: string }).source,
+            isScan: (metadata as unknown as { isScan?: boolean }).isScan,
+            pageCount: (metadata as unknown as { pageCount?: number | string }).pageCount,
+            authors: (metadata as unknown as { authors?: string[] }).authors,
+            tags: (metadata as unknown as { tags?: string[] }).tags,
+          }
+          FileLogger.info('TransformService', 'Doc-Meta Upsert call', { libraryId, fileId: saved.id })
+          // Fire-and-forget; Fehler loggen, Prozess nicht blockieren
+          fetch(`/api/chat/${libraryId}/upsert-doc-meta`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }).catch(err => {
+            FileLogger.warn('TransformService', 'Doc-Meta Upsert fehlgeschlagen (non-blocking)', { err: String(err) })
+          })
+        }
+      } catch (e) {
+        FileLogger.warn('TransformService', 'Doc-Meta Upsert übersprungen', { err: String(e) })
+      }
       
       return {
         text: transformedText, // Gebe nur den Text zurück, nicht das Markdown mit Frontmatter

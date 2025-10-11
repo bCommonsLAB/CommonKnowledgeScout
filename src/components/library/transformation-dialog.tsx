@@ -29,7 +29,6 @@ import { activeLibraryIdAtom } from '@/atoms/library-atom';
 import { SUPPORTED_LANGUAGES } from '@/lib/secretary/constants';
 import { StorageItem } from '@/lib/storage/types';
 import { CombinedChatDialog } from '@/components/library/combined-chat-dialog'
-import { combinedChatDialogOpenAtom } from '@/atoms/combined-chat-atom'
 import { templateContextDocsAtom } from '@/atoms/template-context-atom'
 import { useSetAtom } from 'jotai'
 import { useRouter } from 'next/navigation'
@@ -46,7 +45,6 @@ interface TransformationDialogProps {
 
 export function TransformationDialog({ onRefreshFolder }: TransformationDialogProps) {
   const [isOpen, setIsOpen] = useAtom(transformationDialogOpenAtom);
-  const [, setCombinedOpen] = useAtom(combinedChatDialogOpenAtom);
   const [selectedItems] = useAtom(selectedTransformationItemsAtom);
   const [progressState, setProgressState] = useState<ProgressState>({
     isProcessing: false,
