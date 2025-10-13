@@ -34,6 +34,7 @@ interface JobUpdateEvent {
   jobType?: string;
   fileName?: string;
   sourceItemId?: string;
+  refreshFolderId?: string;
 }
 
 function formatRelative(dateIso?: string): string {
@@ -208,8 +209,28 @@ export function JobMonitorPanel() {
         try {
           const evt: JobUpdateEvent = JSON.parse(e.data);
           lastEventTsRef.current = Date.now();
+          // Terminal: failed sofort anwenden und weitere Progress-Events für diesen Job ignorieren (durch Statusüberschreibung)
+          if (evt.status === 'failed' || evt.phase === 'failed') {
+            setItems(prev => {
+              const idx = prev.findIndex(p => p.jobId === evt.jobId);
+              if (idx < 0) return prev;
+              const updated = { ...prev[idx], status: 'failed', lastMessage: evt.message ?? prev[idx].lastMessage, updatedAt: evt.updatedAt };
+              const next = [...prev];
+              next[idx] = updated;
+              next.sort((a, b) => (new Date(b.updatedAt || 0).getTime()) - (new Date(a.updatedAt || 0).getTime()));
+              return next;
+            });
+            if (evt.sourceItemId && evt.status) {
+              upsertJobStatus({ itemId: evt.sourceItemId, status: 'failed' });
+            }
+            return;
+          }
           if (evt.sourceItemId && evt.status) {
             upsertJobStatus({ itemId: evt.sourceItemId, status: evt.status });
+          }
+          // Refresh der Dateiliste triggern, falls serverseitig Ordner-ID mitgeliefert wird
+          if (evt.refreshFolderId && (evt.status === 'completed' || evt.message === 'stored_local')) {
+            try { window.dispatchEvent(new CustomEvent('library_refresh', { detail: { folderId: evt.refreshFolderId } })); } catch {}
           }
           setItems(prev => {
             const idx = prev.findIndex(p => p.jobId === evt.jobId);
@@ -422,7 +443,7 @@ export function JobMonitorPanel() {
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-400" />Running {serverCounts?.running ?? runningCount}</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-500" />Completed {serverCounts?.completed ?? completedCount}</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Failed {serverCounts?.failed ?? failedCount}</span>
-            <WorkerControls live={liveUpdates} />
+            {/* Workersteuerung entfernt: Worker läuft automatisch */}
           </div>
           <div className="px-4 py-2 border-b flex items-center gap-2">
             <select className="border rounded px-2 py-1 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -577,36 +598,6 @@ function JobLogs({ jobId }: { jobId: string }) {
         </div>
       ))}
     </div>
-  );
-}
-
-function WorkerControls({ live }: { live?: boolean }) {
-  const [status, setStatus] = useState<{ state: 'running'|'stopped'; stats?: { processed?: number; errors?: number } } | null>(null);
-  const load = async () => {
-    try {
-      if (!live) return;
-      const res = await fetch('/api/external/jobs/worker', { cache: 'no-store' });
-      if (!res.ok) return;
-      const json = await res.json();
-      setStatus(json);
-    } catch {}
-  };
-  useEffect(() => { if (live) { void load(); const t = setInterval(load, 5000); return () => clearInterval(t); } }, [live]);
-  const act = async (action: 'start'|'stop') => {
-    try {
-      const res = await fetch('/api/external/jobs/worker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
-      if (!res.ok) return;
-      const json = await res.json();
-      setStatus(json);
-    } catch {}
-  };
-  const running = status?.state === 'running';
-  return (
-    <span className="ml-auto inline-flex items-center gap-2">
-      <button className="pointer-events-auto inline-flex items-center justify-center rounded px-2 py-0.5 border hover:bg-muted" onClick={() => void act('start')} aria-label="Worker starten" title="Worker starten">▶</button>
-      <button className="pointer-events-auto inline-flex items-center justify-center rounded px-2 py-0.5 border hover:bg-muted" onClick={() => void act('stop')} aria-label="Worker stoppen" title="Worker stoppen">■</button>
-      <span className="text-muted-foreground">{running ? 'läuft' : 'gestoppt'}</span>
-    </span>
   );
 }
 

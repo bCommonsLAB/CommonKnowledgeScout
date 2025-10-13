@@ -170,20 +170,19 @@ export async function POST(
     if (!job) return NextResponse.json({ error: 'Job nicht gefunden' }, { status: 404 });
 
     if (!callbackToken && !internalBypass) {
-      bufferLog(jobId, { phase: 'failed', message: 'callback_token fehlt' });
-      await repo.appendLog(jobId, { phase: 'failed', message: 'callback_token fehlt' } as unknown as Record<string, unknown>);
-      await repo.setStatus(jobId, 'failed', { error: { code: 'callback_token_missing', message: 'callback_token fehlt' } });
-      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'callback_token fehlt', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
-      return NextResponse.json({ error: 'callback_token fehlt' }, { status: 400 });
+      const incomingProcessId = (body?.process && typeof body.process.id === 'string') ? body.process.id : (typeof body?.data?.processId === 'string' ? body.data.processId : undefined);
+      bufferLog(jobId, { phase: 'unauthorized_callback', message: 'callback_token fehlt', details: { incomingProcessId, reason: 'missing' } });
+      await repo.appendLog(jobId, { phase: 'unauthorized_callback', message: 'callback_token fehlt', details: { incomingProcessId, reason: 'missing' } } as unknown as Record<string, unknown>);
+      return NextResponse.json({ error: 'callback_token fehlt' }, { status: 401 });
     }
 
     if (!internalBypass) {
       const tokenHash = repo.hashSecret(callbackToken as string);
       if (tokenHash !== job.jobSecretHash) {
-        bufferLog(jobId, { phase: 'failed', message: 'Unauthorized callback' });
-        await repo.appendLog(jobId, { phase: 'failed', message: 'Unauthorized callback' } as unknown as Record<string, unknown>);
-        await repo.setStatus(jobId, 'failed', { error: { code: 'unauthorized', message: 'Ungültiges callback_token' } });
-        getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Unauthorized callback', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+        const incomingProcessId = (body?.process && typeof body.process.id === 'string') ? body.process.id : (typeof body?.data?.processId === 'string' ? body.data.processId : undefined);
+        const safe = (s?: string) => (s ? s.slice(0, 12) : undefined);
+        bufferLog(jobId, { phase: 'unauthorized_callback', message: 'Unauthorized callback', details: { incomingProcessId, reason: 'hash_mismatch', expected: safe(job.jobSecretHash), got: safe(tokenHash) } });
+        await repo.appendLog(jobId, { phase: 'unauthorized_callback', message: 'Unauthorized callback', details: { incomingProcessId, reason: 'hash_mismatch', expected: safe(job.jobSecretHash), got: safe(tokenHash) } } as unknown as Record<string, unknown>);
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
     }
@@ -191,6 +190,15 @@ export async function POST(
     // Status auf running setzen und Prozess-ID loggen
     await repo.setStatus(jobId, 'running');
     if (body?.process?.id) await repo.setProcess(jobId, body.process.id);
+    // Prozess‑Guard: Nur Events mit übereinstimmender processId akzeptieren (außer interner Bypass/Template-Callback)
+    try {
+      const incomingProcessId: string | undefined = (body?.process && typeof body.process.id === 'string') ? body.process.id : (typeof body?.data?.processId === 'string' ? body.data.processId : undefined);
+      if (!internalBypass && job.processId && incomingProcessId && incomingProcessId !== job.processId) {
+        bufferLog(jobId, { phase: 'ignored_mismatched_process', message: `Ereignis ignoriert (incoming ${incomingProcessId} != job ${job.processId})` });
+        await repo.appendLog(jobId, { phase: 'ignored_mismatched_process', message: `Ereignis ignoriert (incoming ${incomingProcessId} != job ${job.processId})` } as unknown as Record<string, unknown>);
+        return NextResponse.json({ status: 'ignored', reason: 'mismatched_process' });
+      }
+    } catch {}
 
     // Progress-Handling
     const progressValue = typeof body?.progress === 'number'
@@ -206,7 +214,21 @@ export async function POST(
     const message = (typeof body?.message === 'string' && body.message) || (typeof body?.data?.message === 'string' && body.data.message) || undefined;
 
     const hasError = !!body?.error;
-    const hasFinalPayload = !!(body?.data?.extracted_text || body?.data?.images_archive_url || body?.status === 'completed');
+    // Erweiterung: template_completed liefert extracted_text als Markdown
+    const hasFinalPayload = !!(body?.data?.extracted_text || body?.data?.images_archive_url || body?.status === 'completed' || body?.phase === 'template_completed');
+
+    // Terminal: "failed"-Phase immer sofort abbrechen
+    if (!hasFinalPayload && !hasError && phase === 'failed') {
+      clearWatchdog(jobId);
+      bufferLog(jobId, { phase: 'failed', message });
+      try { await repo.updateStep(jobId, 'extract_pdf', { status: 'failed', endedAt: new Date(), error: { message: message || 'Worker meldete failed' } }); } catch {}
+      // gepufferte Logs persistieren
+      const bufferedNow = drainBufferedLogs(jobId);
+      for (const entry of bufferedNow) await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
+      await repo.setStatus(jobId, 'failed', { error: { code: 'worker_failed_phase', message: message || 'Worker meldete failed' } });
+      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: message || 'failed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+      return NextResponse.json({ status: 'ok', jobId, kind: 'failed_phase' });
+    }
 
     if (!hasFinalPayload && !hasError && (progressValue !== undefined || phase || message)) {
       // Watchdog heartbeat
@@ -251,7 +273,7 @@ export async function POST(
     const extractedText: string | undefined = body?.data?.extracted_text;
     const imagesArchiveUrlFromWorker: string | undefined = body?.data?.images_archive_url;
 
-    if (!extractedText && !imagesArchiveUrlFromWorker) {
+    if (!extractedText && !imagesArchiveUrlFromWorker && body?.phase !== 'template_completed') {
       bumpWatchdog(jobId);
       bufferLog(jobId, { phase: 'noop' });
       return NextResponse.json({ status: 'ok', jobId, kind: 'noop' });
@@ -265,6 +287,11 @@ export async function POST(
     let savedItemId: string | undefined;
     const savedItems: string[] = [];
     let docMetaForIngestion: Record<string, unknown> | undefined;
+
+    // Schrittstatus extract_pdf auf completed setzen, sobald OCR-Ergebnis vorliegt
+    if (extractedText) {
+      try { await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date() }); } catch {}
+    }
 
     if (lib && extractedText) {
       const policies = getPolicies({ parameters: job.parameters || {} });
@@ -297,7 +324,10 @@ export async function POST(
           templateGateExists = g.exists;
           if (g.exists) {
             await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
+            bufferLog(jobId, { phase: 'transform_gate_skip', message: g.reason || 'artifact_exists' });
             templateStatus = 'skipped';
+          } else {
+            bufferLog(jobId, { phase: 'transform_gate_plan', message: 'Template-Transformation wird ausgeführt' });
           }
         }
         const shouldRunTemplate = shouldRunWithGate(templateGateExists, policies.metadata);
@@ -423,8 +453,6 @@ export async function POST(
           source_file: job.correlation.source?.name || baseName,
           extract_status: 'completed',
           template_status: templateStatus,
-          // Ingestion-Status wird später ggf. separat ermittelt; hier neutral
-          ingest_status: 'none',
         };
         // optionale Summary-Werte aus bereits vorhandenen Metadaten übernehmen, wenn vorhanden
         if (typeof (finalMeta as Record<string, unknown>)['summary_pages'] === 'number') ssotFlat['summary_pages'] = (finalMeta as Record<string, unknown>)['summary_pages'];
@@ -437,12 +465,27 @@ export async function POST(
           ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, mergedMeta)
           : extractedText;
         const file = new File([new Blob([markdown], { type: 'text/markdown' })], uniqueName, { type: 'text/markdown' });
+        // Zielordner verifizieren (Pfad abrufbar?)
+        try { await provider.getPathById(targetParentId); }
+        catch (e) {
+          bufferLog(jobId, { phase: 'store_folder_missing', message: 'Zielordner nicht gefunden' });
+          await repo.updateStep(jobId, 'store_shadow_twin', { status: 'failed', endedAt: new Date(), error: { message: 'Zielordner nicht gefunden' } });
+          await repo.setStatus(jobId, 'failed', { error: { code: 'STORE_FOLDER_NOT_FOUND', message: 'Zielordner nicht gefunden' } });
+          getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'store_folder_missing', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+          return NextResponse.json({ status: 'error', jobId, kind: 'store_folder_missing' }, { status: 500 });
+        }
         await repo.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });
         const saved = await provider.uploadFile(targetParentId, file);
         FileLogger.info('external-jobs', 'Shadow‑Twin gespeichert', { jobId, savedItemId: saved.id, name: saved.metadata?.name })
         bufferLog(jobId, { phase: 'stored_local', message: 'Shadow‑Twin gespeichert' });
         savedItemId = saved.id;
         await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
+        try {
+          const p = await provider.getPathById(targetParentId);
+          await repo.appendLog(jobId, { phase: 'stored_path', message: `${p}/${uniqueName}` } as unknown as Record<string, unknown>);
+          // @ts-expect-error custom field for UI refresh
+          getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 98, updatedAt: new Date().toISOString(), message: 'stored_local', jobType: job.job_type, fileName: uniqueName, sourceItemId: job.correlation?.source?.itemId, refreshFolderId: targetParentId });
+        } catch {}
 
         // NEU: Doc‑Meta in Pinecone upserten (Statuscache) – für Shadow‑Twin UND Quelle (falls vorhanden)
         try {
@@ -496,6 +539,9 @@ export async function POST(
                   metadata: {
                     ...baseMeta,
                     ...statusFlat,
+                    // provisorisch: Zähler auf 0 setzen; Ingestion aktualisiert später nach Chunking
+                    chunkCount: 0,
+                    chaptersCount: 0,
                     fileId: t.fileId,
                     fileName: t.fileName,
                   } as Record<string, unknown>
@@ -602,31 +648,74 @@ export async function POST(
               }
             }
           })
-          if (g.exists) {
+              if (g.exists) {
             ingestGateExists = true;
             await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
+                bufferLog(jobId, { phase: 'ingest_gate_skip', message: g.reason || 'artifact_exists' });
             // Wenn geskippt, keinen weiteren Ingestion-Versuch starten
             // dennoch Abschluss unten fortsetzen
           } else {
             await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
+                bufferLog(jobId, { phase: 'ingest_gate_plan', message: 'Ingestion wird ausgeführt' });
           }
         } else {
           await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
         }
         FileLogger.info('external-jobs', 'Ingestion start', { jobId, libraryId: job.libraryId })
-        const useIngestion = !!(job.parameters && typeof job.parameters === 'object' && (job.parameters as Record<string, unknown>)['doIngestRAG']);
+        // Kompakte Progress-Events (SSE) für Ingestion
+        try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 10, updatedAt: new Date().toISOString(), message: 'ingest_start', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
+        const paramsObj = job.parameters && typeof job.parameters === 'object' ? job.parameters as Record<string, unknown> : undefined
+        // Neue, einfache Policy: 'do' | 'force' | 'skip'
+        const rawPolicy = (paramsObj?.['ingestPolicy'] as unknown)
+        const legacyPolicies = paramsObj && typeof paramsObj['policies'] === 'object' ? paramsObj['policies'] as { ingest?: unknown } : undefined
+        const legacyPhases = paramsObj && typeof paramsObj['phases'] === 'object' ? paramsObj['phases'] as { ingest?: unknown } : undefined
+        const legacyFlag = paramsObj ? (paramsObj['doIngestRAG'] as unknown) : undefined
+        const ingestPolicy: 'do' | 'force' | 'skip' = ((): 'do' | 'force' | 'skip' => {
+          if (rawPolicy === 'force' || rawPolicy === 'skip' || rawPolicy === 'do') return rawPolicy
+          if (legacyPolicies?.ingest === true || legacyPhases?.ingest === true || typeof legacyFlag === 'boolean' && legacyFlag) return 'do'
+          if (legacyPolicies?.ingest === false) return 'skip'
+          return 'do'
+        })()
+        const useIngestion = ingestPolicy !== 'skip'
+        bufferLog(jobId, { phase: 'ingest_rag', message: `Ingestion decision: ${useIngestion ? 'do' : 'skip'}` })
+        FileLogger.info('external-jobs', 'Ingestion decision', {
+          jobId,
+          useIngestion,
+          doIngestRAG: typeof legacyFlag === 'boolean' ? legacyFlag : undefined,
+          policiesIngest: legacyPolicies?.ingest,
+          phasesIngest: legacyPhases?.ingest
+        })
         if (useIngestion && !ingestGateExists) {
           // Lade gespeicherten Markdown-Inhalt erneut (vereinfachend: extractedText)
           // Stabiler Schlüssel: Original-Quell-Item (PDF) bevorzugen, sonst Shadow‑Twin, sonst Fallback
           const fileId = (job.correlation.source?.itemId as string | undefined) || savedItemId || `${jobId}-md`;
           const fileName = `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`;
-          const res = await IngestionService.upsertMarkdown(job.userEmail, job.libraryId, fileId, fileName, extractedText || '', docMetaForIngestion);
+          // Fallback: Wenn kein extractedText, versuche Markdown aus Storage zu laden
+          let markdownForIngestion = extractedText || ''
+          if (!markdownForIngestion) {
+            try {
+              const provider = await getServerProvider(job.userEmail, job.libraryId)
+              // Suche Datei im Parent anhand erwarteten Namens
+              const parentId = job.correlation.source?.parentId || 'root'
+              const siblings = await provider.listItemsById(parentId)
+              const twin = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === fileName) as { id: string } | undefined
+              if (twin) {
+                const bin = await provider.getBinary(twin.id)
+                markdownForIngestion = await bin.blob.text()
+              }
+            } catch {}
+          }
+          const res = await IngestionService.upsertMarkdown(job.userEmail, job.libraryId, fileId, fileName, markdownForIngestion, docMetaForIngestion, jobId);
+          // Nach Chunking (50-70%)
+          try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 60, updatedAt: new Date().toISOString(), message: 'ingest_chunking_done', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
           const total = res.chunksUpserted + (res.docUpserted ? 1 : 0)
           await repo.setIngestion(jobId, { upsertAt: new Date(), vectorsUpserted: total, index: res.index });
           // Zusammenfassung loggen
           bufferLog(jobId, { phase: 'ingest_rag', message: `RAG-Ingestion: ${res.chunksUpserted} Chunks, ${res.docUpserted ? 1 : 0} Doc` });
           FileLogger.info('external-jobs', 'Ingestion success', { jobId, chunks: res.chunksUpserted, doc: res.docUpserted, total })
+          try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 90, updatedAt: new Date().toISOString(), message: 'ingest_pinecone_upserted', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
           await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date() });
+          try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 95, updatedAt: new Date().toISOString(), message: 'ingest_rag_finished', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
         } else {
           await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
         }
@@ -661,7 +750,8 @@ export async function POST(
       await repo.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen' });
 
       FileLogger.info('external-jobs', 'Job completed', { jobId, savedItemId, savedItemsCount: savedItems.length });
-      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+      // @ts-expect-error custom field for UI refresh
+      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, refreshFolderId: (job.correlation?.source?.parentId || 'root') });
       return NextResponse.json({ status: 'ok', jobId, kind: 'final', savedItemId, savedItemsCount: savedItems.length });
     }
 

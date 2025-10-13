@@ -18,19 +18,28 @@ export async function POST(
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
+    // Interner Bypass für Worker-Aufrufe
+    const internalBypass = (() => {
+      const t = request.headers.get('x-internal-token') || request.headers.get('X-Internal-Token');
+      const envToken = process.env.INTERNAL_TEST_TOKEN || '';
+      return !!t && !!envToken && t === envToken;
+    })();
+
     const { userId } = getAuth(request);
-    if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
-    const user = await currentUser();
-    const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
+    if (!internalBypass && !userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
+    const user = internalBypass ? null : await currentUser();
+    const requestedUserEmail = user?.emailAddresses?.[0]?.emailAddress || '';
     const { jobId } = await params;
     if (!jobId) return NextResponse.json({ error: 'jobId erforderlich' }, { status: 400 });
 
     const repo = new ExternalJobsRepository();
     const job = await repo.get(jobId);
     if (!job) return NextResponse.json({ error: 'Job nicht gefunden' }, { status: 404 });
-    if (job.userEmail !== userEmail) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const userEmail = internalBypass ? job.userEmail : requestedUserEmail;
+    if (!internalBypass && job.userEmail !== userEmail) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     if (job.status === 'running') {
-      return NextResponse.json({ error: 'Job läuft bereits' }, { status: 409 });
+      await repo.appendLog(jobId, { phase: 'requeue_blocked_already_active', message: `Status=${job.status}` } as unknown as Record<string, unknown>);
+      return NextResponse.json({ error: 'Job bereits aktiv' }, { status: 409 });
     }
 
     // In-Place Requeue: Bestehenden Job zurücksetzen und mit gleicher jobId erneut an Secretary senden
@@ -94,6 +103,11 @@ export async function POST(
         // Template-Only Pfad ausführen, falls Policy es verlangt
         if (policies.metadata !== 'ignore') {
           await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
+          // Kompaktes Live-Logging + SSE
+          await repo.appendLog(jobId, { phase: 'initializing', progress: 5, message: 'Job initialisiert' });
+          try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 5, updatedAt: new Date().toISOString(), message: 'initializing', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
+          await repo.appendLog(jobId, { phase: 'transform_template', progress: 10, message: 'Template-Transformation gestartet' });
+          try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 10, updatedAt: new Date().toISOString(), message: 'transform_template', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
           try {
             // Template bestimmen
             const libraries = await LibraryService.getInstance().getUserLibraries(userEmail);
@@ -141,12 +155,25 @@ export async function POST(
             const headers: Record<string, string> = { 'Accept': 'application/json' };
             const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
             if (apiKey) { headers['Authorization'] = `Bearer ${apiKey}`; headers['X-Service-Token'] = apiKey; }
+            await repo.appendLog(jobId, { phase: 'template_request_sent', message: 'Template-Anfrage gesendet', details: { url: transformerUrl, method: 'POST' } as unknown as Record<string, unknown> });
+            try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 30, updatedAt: new Date().toISOString(), message: 'template_request_sent', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
             const resp = await fetch(transformerUrl, { method: 'POST', body: fd, headers });
             const data: unknown = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+              await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: (data && typeof data === 'object' && (data as { error?: { message?: string } }).error?.message) || `${resp.status} ${resp.statusText}` } });
+              await repo.setStatus(jobId, 'failed');
+              getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'template_failed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+              return NextResponse.json({ error: 'template_failed' }, { status: 500 });
+            }
             const mdMeta = (data && typeof data === 'object' && !Array.isArray(data)) ? ((data as { data?: { structured_data?: Record<string, unknown> } }).data?.structured_data || {}) : {};
+            await repo.appendLog(jobId, { phase: 'template_request_ack', status: resp.status, statusText: resp.statusText } as unknown as Record<string, unknown>);
+            try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 60, updatedAt: new Date().toISOString(), message: 'template_request_ack', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
 
             await repo.appendMeta(jobId, mdMeta as Record<string, unknown>, 'template_transform');
             await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date() });
+            const metaKeysCount = typeof mdMeta === 'object' && mdMeta ? Object.keys(mdMeta as Record<string, unknown>).length : 0;
+            await repo.appendLog(jobId, { phase: 'transform_meta_completed', progress: 90, message: `Template-Transformation abgeschlossen (${metaKeysCount} Schlüssel)` });
+            try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 90, updatedAt: new Date().toISOString(), message: 'transform_meta_completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
 
             // Markdown mit neuem Frontmatter erzeugen und als neue Datei speichern
             const ssotFlat: Record<string, unknown> = {
@@ -154,7 +181,6 @@ export async function POST(
               source_file: source.name || 'document.pdf',
               extract_status: 'completed',
               template_status: 'completed',
-              ingest_status: policies.ingest !== 'ignore' ? 'pending' : 'none',
               summary_language: targetLanguage,
             };
             const mergedMeta = { ...(mdMeta as Record<string, unknown>), ...ssotFlat } as Record<string, unknown>;
@@ -162,10 +188,14 @@ export async function POST(
               ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(stripped, mergedMeta)
               : stripped;
             await repo.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });
+            await repo.appendLog(jobId, { phase: 'postprocessing_save', progress: 95, message: 'Ergebnisse werden gespeichert' });
+            try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 95, updatedAt: new Date().toISOString(), message: 'postprocessing_save', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
             const outFile = new File([new Blob([newMarkdown], { type: 'text/markdown' })], expectedName, { type: 'text/markdown' });
             const saved = await provider.uploadFile(source.parentId, outFile);
             await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
             FileLogger.info('external-jobs-retry', 'Shadow‑Twin gespeichert (template-only)', { jobId, fileId: saved.id, name: expectedName })
+            await repo.appendLog(jobId, { phase: 'stored_local', progress: 98, message: 'Shadow‑Twin gespeichert' });
+            try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 98, updatedAt: new Date().toISOString(), message: 'stored_local', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
 
             // Doc‑Meta in Pinecone upserten (Zero‑Vektor) – template-only Pfad
             try {
@@ -210,10 +240,26 @@ export async function POST(
           await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'policy_ignore' } });
           await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'policy_ignore' } });
         }
-        if (policies.ingest === 'ignore') {
-          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'policy_ignore' } });
-        }
-        await repo.setStatus(jobId, 'completed');
+        // Neu: statt lokalem Abschluss → interner Callback, damit Ingestion zentral läuft
+        try {
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
+          if (internalToken) headers['X-Internal-Token'] = internalToken;
+          const callbackUrl = `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/external/jobs/${jobId}`;
+          await fetch(callbackUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              phase: 'template_completed',
+              data: {
+                extracted_text: newMarkdown,
+                metadata: mergedMeta,
+                file_name: expectedName,
+                parent_id: source.parentId
+              }
+            })
+          });
+        } catch {}
         return NextResponse.json({ ok: true, jobId, worker: 'secretary', skipped: { extract: true }, mode: 'template_only' });
       }
     } catch {

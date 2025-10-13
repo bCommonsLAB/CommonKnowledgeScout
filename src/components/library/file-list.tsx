@@ -447,6 +447,8 @@ const FileRow = React.memo(function FileRow({
     template_status?: string;
     ingest_status?: string;
     hasError?: boolean;
+    chunkCount?: number;
+    chaptersCount?: number;
   } | null>(null);
   React.useEffect(() => {
     let cancelled = false;
@@ -458,17 +460,20 @@ const FileRow = React.memo(function FileRow({
         const isPdf = mt === 'application/pdf' || item.metadata.name.toLowerCase().endsWith('.pdf');
         if (!isMd && !isPdf) return;
 
-        // Wenn Basisdatei (PDF), versuche Twin (.md) zu verwenden
+        // Canonical: Wir verwenden IMMER die Basis‑PDF‑ID als fileId in Pinecone
+        // - Für PDF‑Zeilen: die eigene ID
+        // - Für MD‑Zeilen: die ID der Basisdatei aus der FileGroup, falls vorhanden; fallback: eigene ID
         let targetId = item.id;
-        if (!isMd && isPdf && (metadata as unknown as { transcriptionTwin?: { id?: string } }).transcriptionTwin?.id) {
-          targetId = (metadata as unknown as { transcriptionTwin: { id: string } }).transcriptionTwin.id;
-          FileLogger.info('FileRow', 'Nutze Twin für Doc-Status', { pdfId: item.id, mdId: targetId });
+        if (isMd && fileGroup?.baseItem?.id) {
+          targetId = fileGroup.baseItem.id;
+          FileLogger.info('FileRow', 'Doc-Status via Basis-PDF', { mdId: item.id, pdfId: targetId });
         }
 
         FileLogger.info('FileRow', 'Lade Doc-Status', { fileId: targetId, name: item.metadata.name });
         const res = await fetch(`/api/chat/${activeLibraryId}/file-status?fileId=${encodeURIComponent(targetId)}`, { cache: 'no-store' });
         if (!res.ok) return;
         const json = await res.json();
+        try { console.log('[file-status]', { fileId: targetId, response: json }); } catch {}
         if (cancelled) return;
         setDocStatus({
           status: json.status,
@@ -476,6 +481,8 @@ const FileRow = React.memo(function FileRow({
           template_status: json.template_status,
           ingest_status: json.ingest_status,
           hasError: json.hasError,
+          chunkCount: typeof json.chunkCount === 'number' ? json.chunkCount : undefined,
+          chaptersCount: typeof json.chaptersCount === 'number' ? json.chaptersCount : undefined,
         });
         FileLogger.info('FileRow', 'Doc-Status geladen', { fileId: targetId, status: json.status });
       } catch {
@@ -484,24 +491,24 @@ const FileRow = React.memo(function FileRow({
     }
     void load();
     return () => { cancelled = true; };
-  }, [item.id, item.metadata.mimeType, item.metadata.name, (metadata as unknown as { transcriptionTwin?: { id?: string } }).transcriptionTwin?.id, activeLibraryId]);
+  }, [item.id, item.metadata.mimeType, item.metadata.name, fileGroup?.baseItem?.id, activeLibraryId]);
 
   const docStatusIcon = React.useMemo(() => {
     if (!docStatus) return null;
-    const norm = (v?: string) => (v || '').toLowerCase();
-    const s = norm(docStatus.status);
-    const ext = norm(docStatus.extract_status);
-    const tpl = norm(docStatus.template_status);
-    const ing = norm(docStatus.ingest_status);
-
+    const s = (docStatus.status || '').toLowerCase();
     const noIndex = s === '' || s === 'not_indexed';
-    const failed = !!docStatus.hasError || ext === 'failed' || tpl === 'failed' || ing === 'failed';
-    // Grün NUR wenn alle drei Schritte completed und keine Fehlermeldung
-    const allDone = ext === 'completed' && tpl === 'completed' && ing === 'completed' && !failed;
-    const partial = !noIndex && !failed && !allDone; // z.B. stale, pending, none
-
-    const color = noIndex ? 'bg-gray-400' : failed ? 'bg-red-600' : partial ? 'bg-yellow-600' : 'bg-green-600';
-    const tt = `Ingestion: ${docStatus.status || '—'} | extract: ${docStatus.extract_status || '—'} | template: ${docStatus.template_status || '—'} | ingest: ${docStatus.ingest_status || '—'}`;
+    const chunks = typeof docStatus.chunkCount === 'number' ? docStatus.chunkCount : undefined;
+    // Farbe:
+    // - grau: not_indexed
+    // - gelb: stale ODER (ok und chunks <= 1 bzw. unbekannt) → Teilpipeline
+    // - grün: ok und chunks >= 2 → Vollingestion
+    const isPartial = s === 'ok' && (typeof chunks !== 'number' || chunks <= 1);
+    const isStale = s === 'stale' || isPartial;
+    const color = noIndex ? 'bg-gray-400' : isStale ? 'bg-yellow-600' : 'bg-green-600';
+    const ttParts: string[] = [`Ingestion: ${docStatus.status || '—'}`];
+    if (typeof chunks === 'number') ttParts.push(`chunks=${chunks}`);
+    if (typeof docStatus.chaptersCount === 'number') ttParts.push(`chapters=${docStatus.chaptersCount}`);
+    const tt = ttParts.join(' • ');
     return <span title={tt} className={cn('inline-block h-3 w-3 rounded-full', color)} aria-label={`doc-${docStatus.status || 'unknown'}`} />
   }, [docStatus]);
 
@@ -1072,6 +1079,22 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       setIsRefreshing(false);
     }
   }, [items, refreshItems, setFolderItems]);
+
+  // Globales Ordner-Refresh-Ereignis (z. B. nach Shadow‑Twin Speicherung)
+  React.useEffect(() => {
+    const onRefresh = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent).detail as { folderId?: string } | undefined;
+        const folderId = detail?.folderId;
+        const currentParentId = items && items[0] ? items[0].parentId : undefined;
+        if (folderId && currentParentId && folderId === currentParentId) {
+          void handleRefresh();
+        }
+      } catch {}
+    };
+    window.addEventListener('library_refresh', onRefresh as unknown as EventListener);
+    return () => window.removeEventListener('library_refresh', onRefresh as unknown as EventListener);
+  }, [items, handleRefresh]);
 
   const handleCreateTranscript = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

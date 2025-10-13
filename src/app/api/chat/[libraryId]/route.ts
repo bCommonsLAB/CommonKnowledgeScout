@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
+import { queryVectors } from '@/lib/chat/pinecone'
 import { embedTexts } from '@/lib/chat/embeddings'
 import { describeIndex, queryVectors, fetchVectors, listVectors } from '@/lib/chat/pinecone'
 
@@ -123,6 +124,27 @@ export async function POST(
       }
     } else {
       const matches = await queryVectors(idx.host, apiKey, qVec, baseTopK, baseFilter)
+
+      // Kapitel-Summaries abfragen und als Boost verwenden
+      let chapterBoost = new Map<string, number>()
+      try {
+        const chapterMatches = await queryVectors(idx.host, apiKey, qVec, 10, {
+          ...baseFilter,
+          kind: { $eq: 'chapterSummary' }
+        })
+        // Rank-basiert: 1.0, 0.95, 0.9, ...
+        const base = 1.0
+        const step = 0.05
+        chapterMatches.forEach((m, i) => {
+          const meta = (m.metadata ?? {}) as Record<string, unknown>
+          const chapterId = typeof meta.chapterId === 'string' ? meta.chapterId : undefined
+          if (!chapterId) return
+          const score = base - i * step
+          if (!chapterBoost.has(chapterId)) chapterBoost.set(chapterId, Math.max(0, score))
+        })
+      } catch {
+        // optional
+      }
       const scoreMap = new Map<string, number>()
       for (const m of matches) scoreMap.set(m.id, typeof m.score === 'number' ? m.score : 0)
 
@@ -144,9 +166,30 @@ export async function POST(
       }
       const ids = Array.from(idSet)
       const fetched = await fetchVectors(idx.host, apiKey, ids)
+      const chapterAlpha = Number(process.env.CHAT_CHAPTER_BOOST ?? 0.15)
       const vectorRows = ids
         .map(id => ({ id, score: scoreMap.get(id) ?? 0, meta: fetched[id]?.metadata as Record<string, unknown> | undefined }))
         .filter(r => r.meta)
+        .map(r => {
+          const meta = r.meta!
+          const chapterId = typeof meta.chapterId === 'string' ? meta.chapterId : undefined
+          let boosted = r.score
+          if (chapterId && chapterBoost.size > 0) {
+            const b = chapterBoost.get(chapterId)
+            if (typeof b === 'number') boosted = boosted + chapterAlpha * b
+          }
+          // kleiner lexikalischer Boost auf Titel/Keywords
+          try {
+            const q = message.toLowerCase()
+            const title = typeof meta.chapterTitle === 'string' ? meta.chapterTitle.toLowerCase() : ''
+            const kws = Array.isArray(meta.keywords) ? (meta.keywords as unknown[]).filter(v => typeof v === 'string').map(v => (v as string).toLowerCase()) : []
+            let lex = 0
+            if (title && q && title.includes(q)) lex += 0.02
+            for (const kw of kws) if (kw && q.includes(kw)) { lex += 0.02; if (lex > 0.06) break }
+            boosted += lex
+          } catch { /* noop */ }
+          return { ...r, score: boosted }
+        })
         .sort((a, b) => (b.score - a.score))
 
       for (const r of vectorRows) {
@@ -156,7 +199,15 @@ export async function POST(
         const score = r.score
         if (!t) continue
         if (used + t.length > charBudget) break
-        sources.push({ id: r.id, score, fileName, chunkIndex, text: t })
+        // Optional Kapitel-Meta in den Snippets voranstellen
+        if (process.env.CHAT_INCLUDE_CHAPTER_META === '1') {
+          const chapterTitle = typeof r.meta!.chapterTitle === 'string' ? r.meta!.chapterTitle : undefined
+          const summaryShort = typeof r.meta!.summaryShort === 'string' ? r.meta!.summaryShort : undefined
+          const pre = `${chapterTitle ? `Kapitel: ${chapterTitle}\n` : ''}${summaryShort ? `Summary: ${summaryShort.slice(0, 240)}\n\n` : ''}`
+          sources.push({ id: r.id, score, fileName, chunkIndex, text: pre + t })
+        } else {
+          sources.push({ id: r.id, score, fileName, chunkIndex, text: t })
+        }
         used += t.length
       }
 

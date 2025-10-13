@@ -186,7 +186,12 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
 
   // Frontmatter aus der gespeicherten Markdown-Datei lesen (oder aus rawContent)
   const effectiveMdId = (() => {
-    // Bevorzugt explizite mdFileId; sonst Ergebnis des Jobs; fallback auf fileId
+    // WICHTIG: Im Frontmatter-Modus NIEMALS auf fileId (PDF) zurückfallen,
+    // sonst wird der PDF‑Blob als Text gelesen und die UI kippt.
+    if (sourceMode === 'frontmatter') {
+      return (mdFileId && typeof mdFileId === 'string' && mdFileId.length > 0) ? mdFileId : null
+    }
+    // Außerhalb des Frontmatter-Modus weiterhin Job‑Ergebnis oder fileId (historisches Verhalten)
     return (mdFileId && typeof mdFileId === 'string' && mdFileId.length > 0)
       ? mdFileId
       : ((job?.result?.savedItemId as string | undefined) || fileId)
@@ -211,7 +216,8 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
         if (!provider) return
         const mdId = effectiveMdId
         UILogger.info('JobReportTab', 'Frontmatter: Lade Datei', { mdId, sourceMode })
-        if (!mdId) return
+        // Wenn kein Shadow‑Twin vorhanden ist: nichts laden/anzeigen
+        if (!mdId) { setFullContent(''); setFrontmatterMeta(null); return }
         const bin = await provider.getBinary(mdId)
         const text = await bin.blob.text()
         setFullContent(text)
@@ -256,7 +262,9 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
 
           <TabsContent value="markdown" className="mt-3">
             <div className="border rounded-md">
-              <MarkdownPreview content={stripFrontmatter(fullContent || '')} />
+              {fullContent && fullContent.trim().length > 0 ? (
+                <MarkdownPreview content={stripFrontmatter(fullContent)} />
+              ) : null}
             </div>
           </TabsContent>
 

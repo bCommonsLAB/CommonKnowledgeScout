@@ -58,7 +58,10 @@ class ExternalJobsWorkerSingleton {
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
             if (!appUrl) return;
             if (this.state !== 'running') return; // Hard gate kurze Zeit vor dem Call
-            await fetch(`${appUrl.replace(/\/$/, '')}/api/external/jobs/${job.jobId}/retry`, { method: 'POST' });
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
+            if (internalToken) headers['X-Internal-Token'] = internalToken;
+            await fetch(`${appUrl.replace(/\/$/, '')}/api/external/jobs/${job.jobId}/retry`, { method: 'POST', headers });
             this.stats.processed += 1;
           } catch (err) {
             this.stats.errors += 1;
@@ -74,6 +77,12 @@ class ExternalJobsWorkerSingleton {
 }
 
 export const ExternalJobsWorker = ExternalJobsWorkerSingleton.getInstance();
+
+// Auto‑Start: Standardmäßig läuft der Worker immer, außer explizit deaktiviert
+try {
+  const auto = String(process.env.JOBS_WORKER_AUTOSTART || 'true').toLowerCase();
+  if (auto !== 'false') ExternalJobsWorker.start();
+} catch {}
 
 
 

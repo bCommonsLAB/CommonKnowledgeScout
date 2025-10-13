@@ -248,6 +248,23 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
     }
   }, [provider, loadRootItems, isReady]);
 
+  // Nach externem Refresh betroffene Ordner neu laden
+  useEffect(() => {
+    if (!provider) return;
+    const onRefresh = async (e: Event) => {
+      try {
+        const detail = (e as CustomEvent).detail as { folderId?: string } | undefined;
+        const folderId = detail?.folderId || 'root';
+        const items = await provider.listItemsById(folderId);
+        setLoadedChildren(prev => ({ ...prev, [folderId]: items }));
+      } catch (err) {
+        FileLogger.warn('FileTree', 'library_refresh handling failed', { err: String(err) });
+      }
+    };
+    window.addEventListener('library_refresh', onRefresh as unknown as EventListener);
+    return () => window.removeEventListener('library_refresh', onRefresh as unknown as EventListener);
+  }, [provider, setLoadedChildren]);
+
   // Reset wenn sich die Library ändert
   useEffect(() => {
     if (!provider) {

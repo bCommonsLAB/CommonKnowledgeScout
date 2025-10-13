@@ -5,6 +5,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { describeIndex, upsertVectorsChunked, deleteByFilter } from '@/lib/chat/pinecone'
 import type { UpsertVector } from '@/lib/chat/pinecone'
 import { embedTexts } from '@/lib/chat/embeddings'
+import { chunkText } from '@/lib/text/chunk'
 
 const bodySchema = z.object({
   fileId: z.string().min(1),
@@ -32,38 +33,7 @@ const bodySchema = z.object({
   })).optional()
 })
 
-function chunkText(input: string, maxChars: number = 1000, overlap: number = 100): string[] {
-  const chunks: string[] = []
-
-  // Sicherheitsgrenzen
-  const maxC = Math.max(200, Math.min(maxChars, 2000))
-  const ov = Math.max(0, Math.min(overlap, Math.floor(maxC / 2)))
-
-  let i = 0
-  const n = input.length
-  while (i < n) {
-    const sliceEnd = Math.min(i + maxC, n)
-    // Bevorzugt an Zeilenumbruch schneiden
-    let cut = input.lastIndexOf('\n', sliceEnd)
-    if (cut < i + Math.floor(maxC * 0.6)) {
-      // Falls kein sinnvoller Zeilenumbruch, nach Leerzeichen/Punkt suchen
-      const spaceCut = input.lastIndexOf(' ', sliceEnd)
-      const dotCut = input.lastIndexOf('.', sliceEnd)
-      cut = Math.max(cut, spaceCut, dotCut)
-    }
-    if (cut < i + Math.floor(maxC * 0.5)) {
-      // Notfall: harte Kante
-      cut = sliceEnd
-    }
-
-    const part = input.slice(i, cut)
-    if (part.trim().length > 0) chunks.push(part)
-
-    // Overlap anwenden
-    i = Math.max(cut - ov, i + maxC)
-  }
-  return chunks
-}
+// ersetzt durch Shared-Utility chunkText()
 
 export async function POST(
   request: NextRequest,

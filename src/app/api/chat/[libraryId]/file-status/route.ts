@@ -83,6 +83,7 @@ export async function GET(
 
     const upsertedAt = typeof meta?.upsertedAt === 'string' ? meta.upsertedAt : undefined
     const chunkCount = typeof meta?.chunkCount === 'number' ? meta.chunkCount : undefined
+    const chaptersCount = typeof meta?.chaptersCount === 'number' ? meta.chaptersCount : undefined
     const fileName = typeof meta?.fileName === 'string' ? meta.fileName : undefined
     const storedDocMod = typeof meta?.docModifiedAt === 'string' ? meta.docModifiedAt : undefined
     const isStale = !!(docModifiedAt && storedDocMod && new Date(storedDocMod).getTime() < new Date(docModifiedAt).getTime())
@@ -91,11 +92,12 @@ export async function GET(
       status: isStale ? 'stale' : 'ok',
       fileId,
       fileName,
-      chunkCount,
       upsertedAt,
       docModifiedAt: storedDocMod,
       docMeta: typeof meta?.docMetaJson === 'string' ? JSON.parse(meta.docMetaJson as string) : undefined,
       toc: typeof meta?.tocJson === 'string' ? JSON.parse(meta.tocJson as string) : undefined,
+      chunkCount,
+      chaptersCount,
       // Statusfelder (Tooltip)
       extract_status: typeof meta?.extract_status === 'string' ? meta.extract_status : undefined,
       template_status: typeof meta?.template_status === 'string' ? meta.template_status : undefined,
