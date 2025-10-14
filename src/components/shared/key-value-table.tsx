@@ -65,3 +65,4 @@ export function KeyValueTable({ rows, emptyLabel = 'Keine Einträge' }: KeyValue
 
 
 
+

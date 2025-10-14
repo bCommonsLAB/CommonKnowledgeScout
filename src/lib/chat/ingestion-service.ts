@@ -70,13 +70,17 @@ export class IngestionService {
       const m = markdown.match(/^---[\s\S]*?---\s*/m)
       return m ? markdown.slice(m[0].length) : markdown
     })()
-    const pages = splitByPages(body)
-    const totalPages = pages.length
-    FileLogger.info('ingestion', 'Start kapitelgeführte Ingestion', { libraryId, fileId, pages: pages.length })
-    if (jobId) bufferLog(jobId, { phase: 'ingest_start', message: `Ingestion start (pages=${pages.length})` })
+    let pages = splitByPages(body)
+    if (!Array.isArray(pages) || pages.length === 0) {
+      // Fallback: Gesamten Body als eine Seite behandeln
+      pages = [{ page: 1, startIdx: 0, endIdx: body.length }]
+    }
+    let totalPages = pages.length
+    FileLogger.info('ingestion', 'Start kapitelgeführte Ingestion', { libraryId, fileId, pages: totalPages })
+    if (jobId) bufferLog(jobId, { phase: 'ingest_start', message: `Ingestion start (pages=${totalPages})` })
     // Kapitel aus Meta lesen
     const chaptersRaw = meta && typeof meta === 'object' ? (meta as { chapters?: unknown }).chapters : undefined
-    const chapters = Array.isArray(chaptersRaw) ? chaptersRaw as Array<Record<string, unknown>> : []
+    const chaptersInput = Array.isArray(chaptersRaw) ? chaptersRaw as Array<Record<string, unknown>> : []
 
     // Idempotenz: Alte Vektoren dieses Dokuments löschen
     await deleteByFilter(idx.host, apiKey, { user: { $eq: userEmail }, libraryId: { $eq: libraryId }, fileId: { $eq: fileId } })
@@ -126,7 +130,7 @@ export class IngestionService {
       FileLogger.warn('ingestion', 'Doc‑Meta Vektor konnte nicht vorbereitet werden', { fileId, err: String(err) })
     }
 
-    // Hilfsfunktionen für tolerantens Evidence‑Match
+    // Hilfsfunktionen für tolerantes Evidence‑Match
     const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const firstWords = (s: string, n: number) => s.split(/\s+/).filter(Boolean).slice(0, n).join(' ')
     const buildEvidenceRegex = (snippet: string) => {
@@ -142,37 +146,64 @@ export class IngestionService {
       const pattern = words.join('\\W+')
       return new RegExp(pattern, 'i')
     }
+    // Keine Reparaturlogik mehr hier: Ingestion erwartet normalisierte Kapitel aus Analyze‑Endpoint
+    const chapters = chaptersInput
+    if (jobId) {
+      const stats = (() => {
+        let missingStart = 0, missingEnd = 0, okRangeHint = 0
+        for (const c of chapters) {
+          const sp = typeof (c as { startPage?: unknown }).startPage === 'number'
+          const ep = typeof (c as { endPage?: unknown }).endPage === 'number'
+          if (!sp) missingStart += 1
+          if (!ep) missingEnd += 1
+          if (sp && ep) okRangeHint += 1
+        }
+        return { total: chapters.length, missingStart, missingEnd, okRangeHint }
+      })()
+      bufferLog(jobId, { phase: 'chapters_input', message: `Kapitel übergeben: ${chapters.length}`, details: stats as unknown as Record<string, unknown> })
+    }
 
-    // Coverage‑Tracking pro Seite (0..n-1)
+    // Coverage‑Tracking (nur für Diagnose)
     const pageCovered: boolean[] = new Array<boolean>(totalPages).fill(false)
 
     for (const ch of chapters) {
-      const title = typeof ch.title === 'string' ? ch.title : 'Kapitel'
-      const level = typeof ch.level === 'number' ? ch.level : undefined
-      const order = typeof ch.order === 'number' ? ch.order : undefined
-      let startPage = typeof ch.startPage === 'number' ? ch.startPage : undefined
-      let endPage = typeof ch.endPage === 'number' ? ch.endPage : undefined
-      const pageCount = typeof ch.pageCount === 'number' ? ch.pageCount : undefined
+      const title = typeof (ch as { title?: unknown }).title === 'string' ? (ch as { title: string }).title : 'Kapitel'
+      const level = typeof (ch as { level?: unknown }).level === 'number' ? (ch as { level: number }).level : undefined
+      const order = typeof (ch as { order?: unknown }).order === 'number' ? (ch as { order: number }).order : undefined
+      let startPage = typeof (ch as { startPage?: unknown }).startPage === 'number' ? (ch as { startPage: number }).startPage : undefined
+      let endPage = typeof (ch as { endPage?: unknown }).endPage === 'number' ? (ch as { endPage: number }).endPage : undefined
+      const pageCount = typeof (ch as { pageCount?: unknown }).pageCount === 'number' ? (ch as { pageCount: number }).pageCount : undefined
       const startEvidence = typeof (ch as { startEvidence?: unknown }).startEvidence === 'string' ? (ch as { startEvidence: string }).startEvidence : ''
-      const summary = typeof ch.summary === 'string' ? ch.summary : ''
+      const summary = typeof (ch as { summary?: unknown }).summary === 'string' ? (ch as { summary: string }).summary : ''
       const keywords = toStrArr((ch as { keywords?: unknown }).keywords)
 
-      // Fallback: wenn endPage fehlt, setze auf startPage (Single‑Page‑Kapitel)
+      // Minimaler Fallback: Single‑Page, ansonsten strikt skippen
       if (startPage && !endPage) endPage = startPage
-      if (!(startPage && endPage && startPage <= endPage)) {
-        if (jobId) bufferLog(jobId, { phase: 'chapters_invalid_range', message: `Kapitel ${order ?? '-'}: ungültiger Bereich (${String(startPage)}-${String(endPage)})` })
+      if (!(startPage && endPage && startPage >= 1 && endPage >= startPage && endPage <= totalPages)) {
+        if (jobId) {
+          const det: Record<string, unknown> = {
+            title,
+            level,
+            order,
+            startPage: startPage ?? null,
+            endPage: endPage ?? null,
+            pageCount: pageCount ?? null,
+            pagesDetected: totalPages,
+            hasPagesAnchors: totalPages > 0,
+            keys: Object.keys(ch || {})
+          }
+          bufferLog(jobId, { phase: 'chapters_invalid_range', message: `Kapitel ${order ?? '-'}: ungültiger Bereich (${String(startPage)}-${String(endPage)})`, details: det as unknown as Record<string, unknown> })
+        }
         continue
       }
-
-      // Seitenbereich zusammensetzen
       const segs = pages.filter(p => p.page >= startPage && p.page <= endPage)
       if (segs.length === 0) {
-        if (jobId) bufferLog(jobId, { phase: 'chapters_page_not_found', message: `Kapitel ${order ?? '-'}: Seitenbereich fehlt (${startPage}-${endPage})` })
+        if (jobId) {
+          const available = pages.length > 0 ? `${pages[0].page}-${pages[pages.length - 1].page}` : 'none'
+          bufferLog(jobId, { phase: 'chapters_page_not_found', message: `Kapitel ${order ?? '-'}: Seitenbereich fehlt (${startPage}-${endPage})`, details: { availablePages: available } as unknown as Record<string, unknown> })
+        }
         continue
       }
-      // Tolerantes Evidence‑Matching am Start der ersten Seite
-      // Evidence nur zur Validierung verwenden; immer die ganze Startseite nehmen,
-      // damit vorangestellte Überschriften erhalten bleiben.
       if (startEvidence) {
         const pageText = body.slice(segs[0].startIdx, segs[0].endIdx)
         const rx = buildEvidenceRegex(startEvidence)
@@ -201,93 +232,32 @@ export class IngestionService {
       embeds.forEach((values, localIdx) => {
         const id = `${fileId}-${globalChunkIndex}`
         const metadata: Record<string, unknown> = {
-          kind: 'chunk',
-          user: userEmail,
-          libraryId,
-          fileId,
-          fileName,
-          chunkIndex: globalChunkIndex,
-          text: safeText(chunkTexts[localIdx], 1200),
-          upsertedAt,
-          chapterId,
-          chapterOrder: order,
-          chapterTitle: title,
-          level,
-          startPage,
-          endPage,
-          pageCount,
-          summaryShort: safeText(summary, 320),
-          keywords,
+          kind: 'chunk', user: userEmail, libraryId, fileId, fileName,
+          chunkIndex: globalChunkIndex, text: safeText(chunkTexts[localIdx], 1200), upsertedAt,
+          chapterId, chapterOrder: order, chapterTitle: title, level,
+          startPage, endPage, pageCount, summaryShort: safeText(summary, 320), keywords,
         }
         vectors.push({ id, values, metadata })
         globalChunkIndex += 1
       })
 
-      // Coverage markieren
       for (let p = startPage; p <= endPage; p++) pageCovered[p - 1] = true
 
-      // Optional: Kapitel-Summary als eigener Vektor (für Reranking)
       if (summary) {
         const [sv] = await embedTexts([summary])
         vectors.push({
           id: `${fileId}-chap-${chapterId}`,
           values: sv,
           metadata: {
-            kind: 'chapterSummary',
-            user: userEmail,
-            libraryId,
-            fileId,
-            fileName,
-            chapterId,
-            chapterTitle: title,
-            order,
-            startPage,
-            endPage,
-            text: safeText(summary, 1200),
-            keywords,
-            upsertedAt,
+            kind: 'chapterSummary', user: userEmail, libraryId, fileId, fileName,
+            chapterId, chapterTitle: title, order, startPage, endPage,
+            text: safeText(summary, 1200), keywords, upsertedAt,
           } as Record<string, unknown>
         })
         FileLogger.info('ingestion', 'Kapitel-Summary vektorisiert', { fileId, order, title })
         if (jobId) bufferLog(jobId, { phase: 'chapters', message: `Kapitel ${order ?? '-'}: Summary vektorisiert` })
       }
     }
-
-    // Orphan‑Seiten: alle nicht abgedeckten Seiten in sinnvoller Sequenz hinzufügen
-    const orphanRanges: Array<{ from: number; to: number }> = []
-    let runStart: number | null = null
-    for (let i = 0; i < totalPages; i++) {
-      if (!pageCovered[i]) {
-        if (runStart === null) runStart = i
-      } else if (runStart !== null) {
-        orphanRanges.push({ from: runStart, to: i - 1 })
-        runStart = null
-      }
-    }
-    if (runStart !== null) orphanRanges.push({ from: runStart, to: totalPages - 1 })
-
-    let orphanChunksTotal = 0
-    for (let rIdx = 0; rIdx < orphanRanges.length; rIdx++) {
-      const r = orphanRanges[rIdx]
-      const text = body.slice(pages[r.from].startIdx, pages[r.to].endIdx)
-      const chunks = chunkText(text, 1500, 100)
-      if (chunks.length === 0) continue
-      const embeds = await embedTexts(chunks)
-      const upsertedAt = new Date().toISOString()
-      embeds.forEach((values, localIdx) => {
-        const id = `${fileId}-${globalChunkIndex}`
-        const metadata: Record<string, unknown> = {
-          kind: 'chunk', user: userEmail, libraryId, fileId, fileName,
-          chunkIndex: globalChunkIndex, text: chunks[localIdx].slice(0, 1200), upsertedAt,
-          chapterId: `orphan-${rIdx}`, chapterOrder: 10_000 + rIdx, chapterTitle: 'Sonstige Texte',
-          startPage: pages[r.from].page, endPage: pages[r.to].page,
-        }
-        vectors.push({ id, values, metadata })
-        globalChunkIndex += 1
-      })
-      orphanChunksTotal += chunks.length
-    }
-    if (jobId && orphanRanges.length > 0) bufferLog(jobId, { phase: 'orphan_pages_chunked', message: `Orphan‑Seiten gruppiert: ${orphanRanges.length} Bereiche, ${orphanChunksTotal} Chunks` })
 
     // Kompakter Fortschritt nach dem Chunking
     const chunksPlanned = vectors.filter(v => (v.metadata?.kind === 'chunk')).length
@@ -298,7 +268,7 @@ export class IngestionService {
     // Doc‑Meta nachtragen/aktualisieren: chunkCount, chaptersCount
     try {
       if (docMetaVector) {
-        const chaptersCount = chapters.filter(ch => typeof ch === 'object').length
+        const chaptersCount = chapters.length
         docMetaVector.metadata = { ...docMetaVector.metadata, chunkCount: chunksUpserted, chaptersCount }
         await upsertVectorsChunked(idx.host, apiKey, [docMetaVector], 1)
       }

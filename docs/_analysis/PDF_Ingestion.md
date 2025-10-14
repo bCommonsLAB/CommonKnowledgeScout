@@ -121,4 +121,190 @@ flowchart TD
 - P3 start: Shadow‑Twin existiert (lesbar). Kapitel optional.
 - P3 end: Chunks + Doc‑Meta aktualisiert (Counter>0 bei Vollingestion).
 
+---
+
+### Log‑Referenz: Zuordnung der Phasen und Bedeutung
+Die folgenden Log‑Phasen stammen aus einem realen Joblauf und sind dem obigen Flow zugeordnet. Ziel ist eine eindeutige Interpretation im UI und bei der Fehlersuche.
+
+#### Orchestrierung/Allgemein
+- request_sent: Aufruf an den Worker/Transformer wurde abgesetzt (mit Quelle/Ziel/Callback).
+- request_ack (202 ACCEPTED): Backend hat den Auftrag entgegengenommen.
+- completed: Gesamtjob abgeschlossen (alle geplanten Phasen fertig oder übersprungen).
+- stored_path: Pfad/Dateiname des gespeicherten Shadow‑Twins (Transparenz/Verifikation).
+
+#### Phase 1 – extract_pdf
+- extract_gate_plan: Gate‑Entscheidung für Extraktion → „wird ausgeführt“ (nicht geskippt).
+- initializing (progress ~5): Jobkontext im Worker angelegt.
+- running (progress 10): Upload startet.
+- running (progress 30): Upload abgeschlossen.
+- running (progress 60): OCR‑Anfrage an Mistral gesendet.
+- running (progress 75): OCR‑Antwort empfangen (keine Erfolgs‑Garantie, nur Zwischenstand).
+- running (progress 85): Ergebnis geparst (Seitenanzahl erkannt).
+- running (progress 90): Verarbeitung abgeschlossen (Worker‑intern, noch kein Endstatus).
+- postprocessing (progress 95): Ergebnisse werden gespeichert (neutraler Post‑Processing‑Schritt; kein Erfolgsbeweis).
+
+Hinweis zur Fehlersemantik: Ein finales Fehlerereignis kommt als phase:"failed" bzw. status:"error" im Callback. Nach einem „failed“ dürfen keine „running“‑Events mehr als heilend interpretiert werden.
+
+#### Phase 2 – transform_template
+- transform_gate_plan: Gate‑Entscheidung → Transformation wird ausgeführt.
+- transform_meta: Metadaten aus Template berechnet (Frontmatter generiert/aktualisiert).
+- stored_local: Shadow‑Twin (Markdown) gespeichert/überschrieben.
+- doc_meta_upsert: Provisorisches Doc‑Meta (kind:'doc') upserted (Counter bleiben 0).
+
+Interpretation: Nach `stored_local` muss der Shadow‑Twin im Storage lesbar sein (Write‑Commit). `doc_meta_upsert` bestätigt die Aktualisierung der Dokument‑Metadaten in Pinecone (meist 1 Vektor = Doc‑Meta).
+
+#### Phase 3 – ingest_rag
+- ingest_gate_plan: Gate‑Entscheidung → Ingestion wird ausgeführt.
+- ingest_rag: Ingestion‑Policy/Entscheidung geloggt (z. B. "do").
+- ingest_start: Ingestion startet; Zusatzinfo (z. B. pages=0) beschreibt Quelle/Erkennung.
+- indextidy: Alte Vektoren gelöscht (Bereinigung vor Upsert), der Doc‑Meta‑Vektor wird danach erneut upserted.
+- chapters_page_not_found: Kapitel mit unvollständigem Seitenbereich erkannt (z. B. `endPage=null`); Fallback setzt intern `endPage=startPage`.
+- ingest_chunking_done: Chunking abgeschlossen (z. B. 0 Chunks, 1 Vektoren = nur Doc‑Meta).
+- ingest_pinecone_upserted: Upsert abgeschlossen (Zählwerte spiegeln tatsächliche Einfügungen).
+- ingest_rag (finale Zusammenfassung): Ergebnis der Ingestion (Chunks, Doc‑Meta).
+
+Interpretation: Die Ingestion aktualisiert am Ende das Doc‑Meta mit `chunkCount` und `chaptersCount`. Skip ist nur zulässig, wenn Doc existiert UND `chunkCount ≥ 1`.
+
+---
+
+### Beispielauswertung der vorliegenden Logs (gekürzt)
+- Extract‑Pfad: Erfolgreich bis Post‑Processing, keine Fehler‑Events → Phase 2 startet.
+- Template‑Pfad: `transform_meta` + `stored_local` belegen, dass Frontmatter erzeugt und Shadow‑Twin gespeichert wurde; anschl. Doc‑Meta upsert.
+- Ingestion‑Pfad: Gate/Policy "do" → Start; `chapters_page_not_found` zeigt ein Kapitel mit unklarem Seitenbereich; Chunking ergibt 0 Chunks, aber Doc‑Meta bleibt bestehen (1 Vektor). Dies ist konsistent, wenn z. B. ein Einseiten‑Dokument vorliegt oder Kapitel/Seiten nicht matchen. Mit den implementierten Fallbacks (endPage=startPage, Orphan‑Pages) sollten künftig mehr Chunks entstehen; mindestens aber bleibt Doc‑Meta korrekt.
+
+---
+
+## Job‑Dokument: Schema und Fülllogik
+
+Das Job‑Dokument bündelt Orchestrierungs‑, Status‑ und Diagnosedaten. Unten eine typisierte Sicht mit kurzer Erläuterung, wann welches Feld gesetzt/aktualisiert wird.
+
+```ts
+interface ExternalJob {
+  _id: string;                       // MongoDB ID (bei Erstellung)
+  jobId: string;                     // UUID (bei Erstellung)
+  jobSecretHash: string;             // Secret‑Hash für Callback‑Auth (bei Erstellung, bei Requeue erneuert)
+  job_type: 'pdf';                   // Jobtyp (bei Erstellung)
+  operation: 'extract';              // Startoperation (bei Erstellung)
+  worker: 'secretary' | 'internal';  // initial 'secretary' (OCR), intern für Template‑Only/Retry (Callback‑Bypass)
+  status: 'queued' | 'running' | 'completed' | 'failed'; // Phasen‑übergreifender Gesamtstatus
+  libraryId: string;                 // Zielbibliothek (bei Erstellung)
+  userEmail: string;                 // Initiator (bei Erstellung)
+
+  correlation: {
+    jobId: string;                   // Spiegel des jobId für Fremdsysteme
+    libraryId: string;               // Spiegel
+    source: {
+      mediaType: 'pdf';
+      mimeType: string;
+      name: string;                  // Ursprungsdateiname
+      itemId: string;                // Kanonischer PDF‑FileId (Base64 Pfad); wichtig für Pinecone IDs
+      parentId: string;              // Zielordner
+    };
+    options: {
+      targetLanguage: string;
+      extractionMethod: string;      // z. B. 'mistral_ocr'
+      includeImages: boolean;
+      useCache: boolean;
+    };
+    batchId?: string | null;         // Batch‑Kontext
+    batchName?: string | null;
+  };
+
+  createdAt: Date;                   // bei Erstellung
+  updatedAt: Date;                   // bei jeder Mutation
+
+  parameters: {
+    targetLanguage: string;
+    extractionMethod: string;
+    includeImages: boolean;
+    useCache: boolean;
+    template?: string;               // Template‑Name (z. B. 'pdfanalyse')
+    phases: { extract: boolean; template: boolean; ingest: boolean };
+    policies: {                      // Orchestrierungs‑Policies (vereinheitlicht zu ingestPolicy im Callback)
+      extract: 'do' | 'force' | 'ignore';
+      metadata: 'do' | 'force' | 'ignore';
+      ingest: 'do' | 'force' | 'ignore';
+    };
+  };
+
+  steps: Array<{
+    name: 'extract_pdf' | 'transform_template' | 'store_shadow_twin' | 'ingest_rag';
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    startedAt?: Date;
+    endedAt?: Date;
+    skipped?: boolean;               // wenn Gate skippt
+  }>;                                 // wird phasenweise aktualisiert (Callback)
+
+  logs: Array<{
+    timestamp: Date;
+    phase: string;                   // siehe Log‑Referenz oben
+    message?: string;
+    progress?: number;
+    status?: number;                 // HTTP Status z. B. 202
+    [k: string]: unknown;
+  }>;                                 // nur Anfügen (append‑only)
+
+  processId?: string;                // Lauf‑Korrelation; wechselt bei Requeue; Guard gegen alte Events
+
+  metaHistory?: Array<{              // Historie signifikanter Metadatenstände
+    at: Date;
+    meta: Record<string, unknown>;
+    source: 'template_pick' | 'template_transform' | 'ingestion' | 'manual';
+  }>;
+
+  cumulativeMeta?: Record<string, unknown>; // letztes konsolidiertes Metaset (nur Markdown‑/Template‑relevant)
+
+  ingestion?: {                      // Ingestion‑Ergebnis (Dokumentebene)
+    upsertAt?: Date;
+    vectorsUpserted?: number;        // Anzahl upserteter Vektoren in der letzten Ingestion‑Runde
+    index?: string;                  // Pinecone‑Indexname
+  };
+
+  payload?: {                        // Nur für kurzfristige Übergaben; keine Orchestrations‑Quelle
+    extracted_text?: string;         // vom Worker; wird NICHT für Ingestion bevorzugt gelesen
+    images_archive_url?: string | null;
+    metadata?: { text_contents: string[] };
+  };
+
+  result?: {                         // Artefakt‑Ergebnis
+    savedItemId?: string;            // Shadow‑Twin ID (Markdown)
+    savedItems?: string[];           // ggf. weitere Artefakte
+  };
+}
+```
+
+### Fülllogik je Bereich (wann/wo gesetzt)
+- Erstellung (API `secretary/process-pdf`)
+  - Setzt: `jobId`, `jobSecretHash`, `job_type`, `operation`, `worker='secretary'`, `status='queued'|'running'`, `libraryId`, `userEmail`, `correlation`, `parameters`, `steps` (alle `pending`), `createdAt`, `updatedAt`.
+  - Logs: `request_sent`, `extract_gate_plan`, `request_ack`.
+  - `processId` initial vergeben.
+
+- Worker‑Callback (`/api/external/jobs/[jobId]`)
+  - Aktualisiert phasenweise `steps[*]` inkl. `startedAt`/`endedAt`, setzt bei Fehlern `status='failed'` (terminal).
+  - Logs: `initializing`/`running`/`postprocessing` (Phase 1), Gate‑Logs, Abschluss‑Logs; `stored_local`/`stored_path` (nach Speichern).
+  - Setzt/aktualisiert `payload.extracted_text` (bei Phase 1), löst Folgephasen (2/3) aus.
+  - Schreibt `metaHistory`/`cumulativeMeta` bei Template‑Ergebnissen (Phase 2).
+  - Schreibt `ingestion` bei Phase 3 (Zeitpunkt, Vektoranzahl, Indexname).
+
+- Template‑Only/Retry (interner Callback)
+  - Führt lokale Transformation aus, schreibt Shadow‑Twin, ruft internen Callback (mit `X-Internal-Token`), damit zentrale Route identisch orchestriert.
+  - Logs analog: `transform_gate_plan`, `transform_meta`, `stored_local`, `doc_meta_upsert`.
+
+- Ingestion (Service)
+  - Liest Shadow‑Twin ausschließlich aus Storage (Determinismus), erzeugt Chunks/Embeddings.
+  - Logs: `ingest_gate_plan`, `ingest_start`, `indextidy`, `ingest_chunking_done`, `ingest_pinecone_upserted`, finale `ingest_rag` Zusammenfassung.
+  - Aktualisiert: `ingestion.upsertAt`, `ingestion.vectorsUpserted`, `ingestion.index`.
+  - Achtung: Pinecone Doc‑Meta (`kind:'doc'`) wird außerhalb des Jobdokuments gepflegt; Zähler stehen dort, nicht im Jobdokument.
+
+### Wiederholte/überschriebene Felder
+- `updatedAt`: bei jeder Mutation.
+- `steps[*]`: Statusübergänge (pending→running→completed|failed); Zeitstempel gesetzt/überschrieben pro Phase.
+- `logs`: append‑only; nie überschreiben.
+- `jobSecretHash`: kann bei Requeue erneuert werden (alte Worker‑Events werden dann abgewiesen; `processId`‑Guard zusätzlich aktiv).
+- `result.savedItemId`: wird bei erneutem Speichern des Shadow‑Twins konsistent gesetzt (identisch, wenn gleicher Pfad/Name).
+- `cumulativeMeta`: wird bei jeder Template‑Aktualisierung überschrieben (Quelle: `metaHistory` letzter Stand).
+
+### Quellen‑IDs (Kanonisierung)
+- Pinecone verwendet stets `correlation.source.itemId` (PDF‑ID) als kanonische `fileId` – auch wenn die Inhalte aus dem Shadow‑Twin stammen. Dadurch ist Lookup in `file-status` konsistent.
+
 

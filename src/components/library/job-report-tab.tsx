@@ -40,7 +40,7 @@ interface JobDto {
   steps?: Array<{ name: string; status: string; startedAt?: string; endedAt?: string; error?: { message: string }; details?: { skipped?: boolean } }>
   ingestion?: { vectorsUpserted?: number; index?: string; upsertAt?: string }
   result?: { savedItemId?: string }
-  logs?: Array<{ timestamp: string; phase?: string; message?: string; progress?: number }>
+  logs?: Array<{ timestamp: string; phase?: string; message?: string; progress?: number; details?: Record<string, unknown> }>
   cumulativeMeta?: Record<string, unknown>
 }
 
@@ -802,6 +802,9 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
             {[...job.logs].reverse().slice(0, 30).map((l, i) => (
               <li key={i} className="text-xs">
                 {new Date(l.timestamp).toLocaleTimeString()} · {l.phase || '—'} · {typeof l.progress === 'number' ? `${l.progress}% · ` : ''}{l.message || ''}
+                {l && typeof (l as { details?: unknown }).details === 'object' && (l as { details?: Record<string, unknown> }).details !== null && Object.keys(((l as { details: Record<string, unknown> }).details) || {}).length > 0 ? (
+                  <pre className="mt-0.5 whitespace-pre-wrap break-words bg-muted/30 rounded p-1 text-[10px]">{JSON.stringify((l as { details: Record<string, unknown> }).details, null, 2)}</pre>
+                ) : null}
               </li>
             ))}
           </ul>

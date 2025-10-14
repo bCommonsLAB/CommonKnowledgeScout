@@ -10,6 +10,7 @@ import { FileLogger } from '@/lib/debug/logger';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
 import { IngestionService } from '@/lib/chat/ingestion-service';
+import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
 import { getPolicies, shouldRunWithGate } from '@/lib/processing/phase-policy';
@@ -293,7 +294,7 @@ export async function POST(
       try { await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date() }); } catch {}
     }
 
-    if (lib && extractedText) {
+    if (lib) {
       const policies = getPolicies({ parameters: job.parameters || {} });
       const autoSkip = true;
 
@@ -423,7 +424,7 @@ export async function POST(
           }
         }
 
-        // Frontmatter bestimmen und Shadow‑Twin speichern
+        // Frontmatter bestimmen (bestehendes FM als Basis, nur Kapitel-Seiten reparieren)
         const baseMeta = (body?.data?.metadata as Record<string, unknown>) || {};
         const finalMeta: Record<string, unknown> = metadataFromTemplate ? { ...metadataFromTemplate } : { ...baseMeta };
         docMetaForIngestion = finalMeta;
@@ -459,11 +460,192 @@ export async function POST(
         if (typeof (finalMeta as Record<string, unknown>)['summary_chunks'] === 'number') ssotFlat['summary_chunks'] = (finalMeta as Record<string, unknown>)['summary_chunks'];
         ssotFlat['summary_language'] = lang;
 
-        const mergedMeta = { ...finalMeta, ...ssotFlat } as Record<string, unknown>;
+        // Kapitel zentral normalisieren (Analyze-Endpoint), Ergebnis in Frontmatter mergen
+        // Bestehendes Frontmatter laden (falls Datei existiert) und als Basis verwenden
+        let existingMeta: Record<string, unknown> | null = null;
+        try {
+          const siblings = await provider.listItemsById(targetParentId);
+          const existing = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === uniqueName) as { id: string } | undefined;
+          if (existing) {
+            const bin = await provider.getBinary(existing.id);
+            const text = await bin.blob.text();
+            const parsed = parseSecretaryMarkdownStrict(text);
+            existingMeta = parsed?.meta && typeof parsed.meta === 'object' ? parsed.meta as Record<string, unknown> : null;
+          }
+        } catch {}
+        // Basis-Merge: bevorzugt Template-Felder, aber Kapitel stammen standardmäßig aus bestehendem Frontmatter
+        const existingChaptersPref: unknown = existingMeta && typeof existingMeta === 'object' ? (existingMeta as Record<string, unknown>)['chapters'] : undefined
+        const templateChaptersPref: unknown = finalMeta && typeof finalMeta === 'object' ? (finalMeta as Record<string, unknown>)['chapters'] : undefined
+        const initialChapters: Array<Record<string, unknown>> | undefined = Array.isArray(existingChaptersPref)
+          ? existingChaptersPref as Array<Record<string, unknown>>
+          : (Array.isArray(templateChaptersPref) ? templateChaptersPref as Array<Record<string, unknown>> : undefined)
+        let mergedMeta = { ...(existingMeta || {}), ...finalMeta, ...ssotFlat } as Record<string, unknown>
+        if (initialChapters) (mergedMeta as { chapters: Array<Record<string, unknown>> }).chapters = initialChapters
+        // Quelle für die Kapitelanalyse: bevorzugt frisch geliefertes extractedText, sonst Shadow‑Twin aus Storage
+        let textSource: string = extractedText || ''
+        if (!textSource) {
+          try {
+            const siblings = await provider.listItemsById(targetParentId)
+            const existing = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === uniqueName) as { id: string } | undefined
+            if (existing) {
+              const bin = await provider.getBinary(existing.id)
+              textSource = await bin.blob.text()
+            }
+          } catch { /* ignore */ }
+        }
+        try {
+          const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
+          const origin = (() => { try { return new URL(request.url).origin } catch { return (process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3000') } })();
+          // Vorhandene Kapitel (Frontmatter/Template) an den Analyzer mitgeben
+          const existingChaptersUnknownForApi = (mergedMeta as { chapters?: unknown }).chapters
+          const chaptersInForApi: Array<Record<string, unknown>> | undefined = Array.isArray(existingChaptersUnknownForApi) ? existingChaptersUnknownForApi as Array<Record<string, unknown>> : undefined
+          const res = await fetch(`${origin}/api/chat/${encodeURIComponent(job.libraryId)}/analyze-chapters`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-External-Job': jobId, ...(internalToken ? { 'X-Internal-Token': internalToken } : {}) },
+            body: JSON.stringify({ fileId: job.correlation?.source?.itemId || job.jobId, content: textSource, mode: 'heuristic', chaptersIn: chaptersInForApi })
+          })
+          if (res.ok) {
+            const data = await res.json().catch(() => ({})) as { result?: { chapters?: Array<Record<string, unknown>>; toc?: Array<Record<string, unknown>>; stats?: { chapterCount?: number; pages?: number } } }
+            const chap = Array.isArray(data?.result?.chapters) ? data!.result!.chapters! : []
+            const toc = Array.isArray(data?.result?.toc) ? data!.result!.toc! : []
+            const pages = typeof data?.result?.stats?.pages === 'number' ? data!.result!.stats!.pages : undefined
+            if (chap.length > 0) {
+              // Nur Seitenzahlen in bestehenden Kapiteln reparieren; übrige Felder erhalten; keine zusätzlichen Kapitel hinzufügen
+              const existingChaptersUnknown = (mergedMeta as { chapters?: unknown }).chapters
+              const existingChapters: Array<Record<string, unknown>> = Array.isArray(existingChaptersUnknown) ? (existingChaptersUnknown as Array<Record<string, unknown>>) : []
+              const norm = chap as Array<Record<string, unknown>>
+              const normalizeTitle = (s: string) => s
+                .replace(/[\*`_#>\[\]]+/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase()
+              const findMatch = (ec: Record<string, unknown>): Record<string, unknown> | undefined => {
+                const o = typeof ec.order === 'number' ? (ec.order as number) : undefined
+                const tRaw = typeof ec.title === 'string' ? (ec.title as string) : ''
+                const t = normalizeTitle(tRaw)
+                // 1) Match per order
+                let hit = typeof o === 'number' ? norm.find(nc => typeof (nc as { order?: unknown }).order === 'number' && (nc as { order: number }).order === o) : undefined
+                // 2) Fallback per normalisiertem Titel (startsWith / includes)
+                if (!hit && t) {
+                  hit = norm.find(nc => {
+                    const nt = typeof (nc as { title?: unknown }).title === 'string' ? normalizeTitle((nc as { title: string }).title) : ''
+                    return nt === t || nt.startsWith(t) || t.startsWith(nt) || nt.includes(t) || t.includes(nt)
+                  })
+                }
+                return hit
+              }
+              const patched = existingChapters.map(ec => {
+                const nc = findMatch(ec)
+                if (nc) {
+                  const sp = typeof (nc as { startPage?: unknown }).startPage === 'number' ? (nc as { startPage: number }).startPage : undefined
+                  const ep = typeof (nc as { endPage?: unknown }).endPage === 'number' ? (nc as { endPage: number }).endPage : undefined
+                  const next = { ...ec } as Record<string, unknown>
+                  // Startseite: nur ergänzen, nie überschreiben
+                  const hasStart = typeof (next as { startPage?: unknown }).startPage === 'number'
+                  if (!hasStart && typeof sp === 'number') next.startPage = sp
+                  // Endseite: übernehmen, wenn fehlend ODER eine Erweiterung nach rechts (z. B. Lücke schließen)
+                  const currentEnd = typeof (next as { endPage?: unknown }).endPage === 'number' ? (next as { endPage: number }).endPage : undefined
+                  if (typeof ep === 'number' && (currentEnd === undefined || ep > currentEnd)) (next as { endPage: number }).endPage = ep
+                  // pageCount aus finalen Seiten neu berechnen
+                  const ns = typeof (next as { startPage?: unknown }).startPage === 'number' ? (next as { startPage: number }).startPage : undefined
+                  const ne = typeof (next as { endPage?: unknown }).endPage === 'number' ? (next as { endPage: number }).endPage : undefined
+                  if (typeof ns === 'number' && typeof ne === 'number') (next as { pageCount: number }).pageCount = Math.max(1, ne - ns + 1)
+                  return next
+                }
+                return ec
+              })
+              mergedMeta = { ...mergedMeta, chapters: patched, toc }
+            }
+            const msg = `Kapitel normalisiert: ${chap.length}${pages ? ` · Seiten ${pages}` : ''}`
+            bufferLog(jobId, { phase: 'chapters_normalized', message: msg })
+            try { await repo.appendLog(jobId, { phase: 'chapters_normalized', message: msg } as unknown as Record<string, unknown>) } catch {}
+            try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 45, updatedAt: new Date().toISOString(), message: 'chapters_normalized', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
+          } else {
+            bufferLog(jobId, { phase: 'chapters_normalize_failed', message: `Analyze-Endpoint ${res.status}` })
+            try { await repo.appendLog(jobId, { phase: 'chapters_normalize_failed', message: `Analyze-Endpoint ${res.status}` } as unknown as Record<string, unknown>) } catch {}
+            // Abbruch, wenn Ingestion geplant war – Kapitel nicht verlässlich → Prozess stoppen
+            const ingestPlanned = ((): boolean => {
+              try {
+                const p = getPolicies({ parameters: job.parameters || {} })
+                return p.ingest !== 'ignore'
+              } catch { return true }
+            })()
+            if (ingestPlanned) {
+              clearWatchdog(jobId)
+              await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: 'Kapitel-Normalisierung fehlgeschlagen' } })
+              const bufferedNow = drainBufferedLogs(jobId)
+              for (const entry of bufferedNow) await repo.appendLog(jobId, entry as unknown as Record<string, unknown>)
+              await repo.setStatus(jobId, 'failed', { error: { code: 'chapters_normalize_failed', message: 'Analyze-Endpoint nicht erreichbar/404' } })
+              getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'chapters_normalize_failed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId })
+              return NextResponse.json({ status: 'error', jobId, kind: 'chapters_normalize_failed' }, { status: 500 })
+            }
+          }
+        } catch (e) {
+          bufferLog(jobId, { phase: 'chapters_normalize_error', message: e instanceof Error ? e.message : String(e) })
+          try { await repo.appendLog(jobId, { phase: 'chapters_normalize_error', message: e instanceof Error ? e.message : String(e) } as unknown as Record<string, unknown>) } catch {}
+          // analoger Abbruch bei geplantem Ingest
+          const ingestPlanned = ((): boolean => {
+            try {
+              const p = getPolicies({ parameters: job.parameters || {} })
+              return p.ingest !== 'ignore'
+            } catch { return true }
+          })()
+          if (ingestPlanned) {
+            clearWatchdog(jobId)
+            await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: 'Kapitel-Normalisierung Fehler' } })
+            const bufferedNow = drainBufferedLogs(jobId)
+            for (const entry of bufferedNow) await repo.appendLog(jobId, entry as unknown as Record<string, unknown>)
+            await repo.setStatus(jobId, 'failed', { error: { code: 'chapters_normalize_error', message: 'Analyze-Endpoint Fehler' } })
+            getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'chapters_normalize_error', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId })
+            return NextResponse.json({ status: 'error', jobId, kind: 'chapters_normalize_error' }, { status: 500 })
+          }
+        }
 
+        // WICHTIG: Ingestion muss mit den final normalisierten Metadaten arbeiten
+        docMetaForIngestion = mergedMeta
+
+        // Zusätzliche Sicherung: interne Lücken im bestehenden Kapitel-Array auch dann schließen,
+        // wenn die Analyse keine Kapitel geliefert hat (chap.length === 0)
+        try {
+          const exUnknown = (mergedMeta as { chapters?: unknown }).chapters
+          const chs: Array<Record<string, unknown>> = Array.isArray(exUnknown) ? (exUnknown as Array<Record<string, unknown>>) : []
+          if (chs.length >= 2) {
+            // sortiere stabil nach order, fallback: ursprüngliche Reihenfolge
+            const withIdx = chs.map((c, i) => ({ c, i }))
+            withIdx.sort((a, b) => {
+              const ao = typeof (a.c as { order?: unknown }).order === 'number' ? (a.c as { order: number }).order : Number.MAX_SAFE_INTEGER
+              const bo = typeof (b.c as { order?: unknown }).order === 'number' ? (b.c as { order: number }).order : Number.MAX_SAFE_INTEGER
+              return ao === bo ? a.i - b.i : ao - bo
+            })
+            for (let i = 0; i < withIdx.length - 1; i++) {
+              const cur = withIdx[i].c as Record<string, unknown>
+              const nxt = withIdx[i + 1].c as Record<string, unknown>
+              const curEnd = typeof (cur as { endPage?: unknown }).endPage === 'number' ? (cur as { endPage: number }).endPage : undefined
+              const nxtStart = typeof (nxt as { startPage?: unknown }).startPage === 'number' ? (nxt as { startPage: number }).startPage : undefined
+              if (typeof curEnd === 'number' && typeof nxtStart === 'number' && curEnd < (nxtStart - 1)) {
+                (cur as { endPage: number }).endPage = nxtStart - 1
+              }
+              // pageCount ergänzen, wenn beide Seiten vorhanden
+              const curStart = typeof (cur as { startPage?: unknown }).startPage === 'number' ? (cur as { startPage: number }).startPage : undefined
+              const hasCount = typeof (cur as { pageCount?: unknown }).pageCount === 'number'
+              if (!hasCount && typeof curStart === 'number' && typeof (cur as { endPage?: unknown }).endPage === 'number') {
+                (cur as { pageCount: number }).pageCount = Math.max(1, ((cur as { endPage: number }).endPage) - curStart + 1)
+              }
+            }
+          }
+        } catch { /* ignore */ }
+
+        // Doppelte Frontmatter vermeiden: bestehenden Block am Anfang entfernen (auch mehrfach)
+        const stripAllFrontmatter = (text: string): string => {
+          let out = text
+          const re = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/m
+          while (re.test(out)) out = out.replace(re, '')
+          return out
+        }
+        const bodyOnly = stripAllFrontmatter(textSource)
         const markdown = (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter
-          ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(extractedText, mergedMeta)
-          : extractedText;
+          ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(bodyOnly, mergedMeta)
+          : bodyOnly;
         const file = new File([new Blob([markdown], { type: 'text/markdown' })], uniqueName, { type: 'text/markdown' });
         // Zielordner verifizieren (Pfad abrufbar?)
         try { await provider.getPathById(targetParentId); }
@@ -648,7 +830,7 @@ export async function POST(
               }
             }
           })
-              if (g.exists) {
+          if (g.exists) {
             ingestGateExists = true;
             await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
                 bufferLog(jobId, { phase: 'ingest_gate_skip', message: g.reason || 'artifact_exists' });
