@@ -966,11 +966,39 @@ export class TransformService {
       return content;
     }
     
+    // Normalisiere eingehende Metadaten (entferne doppelte Serialisierung/Quotes)
+    const normalizedMeta: Record<string, unknown> = {}
+    const maybeJsonParse = (val: string): unknown => {
+      let s = val.trim()
+      // Entferne mehrfach gesetzte umschließende Quotes und unescape \" → "
+      for (let i = 0; i < 3; i++) {
+        const startsQ = s.startsWith('"') && s.endsWith('"')
+        if (startsQ) s = s.slice(1, -1)
+        s = s.replace(/\\\"/g, '"') // \" → "
+        s = s.replace(/\\\\/g, '\\') // \\ → \
+      }
+      // Versuche JSON zu parsen, wenn wie JSON aussieht
+      const looksJson = s.startsWith('[') || s.startsWith('{') || (s.startsWith('"') && s.endsWith('"'))
+      if (looksJson) {
+        try { return JSON.parse(s) } catch { /* ignore */ }
+      }
+      return s
+    }
+    for (const [k, v] of Object.entries(metadata)) {
+      if (v === undefined) continue
+      if (typeof v === 'string') {
+        const parsed = maybeJsonParse(v)
+        normalizedMeta[k] = parsed
+      } else {
+        normalizedMeta[k] = v
+      }
+    }
+
     // Erstelle YAML-Frontmatter
     let frontmatter = '---\n';
     
     // Sortiere die Metadaten für bessere Lesbarkeit
-    const sortedKeys = Object.keys(metadata).sort((a, b) => {
+    const sortedKeys = Object.keys(normalizedMeta).sort((a, b) => {
       // Gruppiere nach Kategorien
       const categoryOrder = ['source_', 'transformation_', 'audio_', 'process', 'secretary_', 'cache_'];
       const getCategoryIndex = (key: string) => {
@@ -991,7 +1019,7 @@ export class TransformService {
     
     // Füge Metadaten zum Frontmatter hinzu
     for (const key of sortedKeys) {
-      const value = metadata[key];
+      const value = normalizedMeta[key];
       
       // Überspringe undefined-Werte
       if (value === undefined) {
@@ -1006,7 +1034,7 @@ export class TransformService {
       } else if (typeof value === 'number' || typeof value === 'boolean') {
         frontmatter += `${key}: ${value}\n`;
       } else {
-        // Für komplexe Objekte verwende JSON (sollte nicht vorkommen)
+        // Für Arrays/Objekte: als JSON einbetten (kompakt)
         frontmatter += `${key}: ${JSON.stringify(value)}\n`;
       }
     }

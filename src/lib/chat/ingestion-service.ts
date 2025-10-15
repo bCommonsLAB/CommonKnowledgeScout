@@ -274,8 +274,11 @@ export class IngestionService {
         const unit = new Array<number>(dim).fill(0); unit[0] = 1
         await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values: unit, metadata: finalMeta }], 1)
       }
+      FileLogger.info('ingestion', 'Doc‑Meta finalisiert', { fileId, chunks: chunksUpserted, chapters: chaptersCount })
+      if (jobId) bufferLog(jobId, { phase: 'doc_meta_final', message: `Doc‑Meta finalisiert: chunks=${chunksUpserted}, chapters=${chaptersCount}` })
     } catch (err) {
       FileLogger.warn('ingestion', 'Doc‑Meta finales Update fehlgeschlagen', { fileId, err: String(err) })
+      if (jobId) bufferLog(jobId, { phase: 'doc_meta_final_failed', message: 'Doc‑Meta finales Update fehlgeschlagen' })
     }
     FileLogger.info('ingestion', 'Upsert abgeschlossen', { fileId, chunks: chunksUpserted, vectors: vectors.length })
     if (jobId) bufferLog(jobId, { phase: 'ingest_pinecone_upserted', message: `Upsert abgeschlossen: ${chunksUpserted} Chunks (${vectors.length} Vektoren)` })
