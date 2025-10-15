@@ -470,7 +470,7 @@ const FileRow = React.memo(function FileRow({
         }
 
         FileLogger.info('FileRow', 'Lade Doc-Status', { fileId: targetId, name: item.metadata.name });
-        const res = await fetch(`/api/chat/${activeLibraryId}/file-status?fileId=${encodeURIComponent(targetId)}`, { cache: 'no-store' });
+        const res = await fetch(`/api/chat/${activeLibraryId}/file-status?fileId=${encodeURIComponent(targetId)}&noFallback=1`, { cache: 'no-store' });
         if (!res.ok) return;
         const json = await res.json();
         try { console.log('[file-status]', { fileId: targetId, response: json }); } catch {}
@@ -498,17 +498,43 @@ const FileRow = React.memo(function FileRow({
     const s = (docStatus.status || '').toLowerCase();
     const noIndex = s === '' || s === 'not_indexed';
     const chunks = typeof docStatus.chunkCount === 'number' ? docStatus.chunkCount : undefined;
+    const chapters = typeof docStatus.chaptersCount === 'number' ? docStatus.chaptersCount : undefined;
     // Farbe:
     // - grau: not_indexed
     // - gelb: stale ODER (ok und chunks <= 1 bzw. unbekannt) → Teilpipeline
     // - grün: ok und chunks >= 2 → Vollingestion
     const isPartial = s === 'ok' && (typeof chunks !== 'number' || chunks <= 1);
-    const isStale = s === 'stale' || isPartial;
-    const color = noIndex ? 'bg-gray-400' : isStale ? 'bg-yellow-600' : 'bg-green-600';
-    const ttParts: string[] = [`Ingestion: ${docStatus.status || '—'}`];
-    if (typeof chunks === 'number') ttParts.push(`chunks=${chunks}`);
-    if (typeof docStatus.chaptersCount === 'number') ttParts.push(`chapters=${docStatus.chaptersCount}`);
-    const tt = ttParts.join(' • ');
+    const isStale = s === 'stale';
+    const isWarn = isStale || isPartial;
+    const color = noIndex ? 'bg-gray-400' : isWarn ? 'bg-yellow-600' : 'bg-green-600';
+
+    // Tooltip mit Begründung + Handlungsempfehlung
+    const lines: string[] = [];
+    lines.push(`Ingestion-Status: ${docStatus.status || '—'}`);
+    if (typeof chunks === 'number' || typeof chapters === 'number') {
+      const parts: string[] = [];
+      if (typeof chunks === 'number') parts.push(`Chunks=${chunks}`);
+      if (typeof chapters === 'number') parts.push(`Kapitel=${chapters}`);
+      if (parts.length) lines.push(parts.join(' • '));
+    }
+    if (noIndex) {
+      lines.push('Nicht im Index.');
+      lines.push('Aktion: Ingestion/Upsert starten.');
+    } else if (isStale) {
+      lines.push('Index ist veraltet gegenüber der Datei.');
+      lines.push('Aktion: Datei erneut upserten (Re-Ingestion).');
+    } else if (isPartial) {
+      lines.push('Dokument-Metadaten vorhanden, aber keine/zu wenige Chunks.');
+      lines.push('Aktion: Ingestion abschließen (Chunks erzeugen/upserten).');
+    }
+    // Zusatzfelder (falls vorhanden) für Diagnose
+    const extra: string[] = [];
+    if (typeof (docStatus as { extract_status?: unknown }).extract_status === 'string') extra.push(`extract=${(docStatus as { extract_status: string }).extract_status}`);
+    if (typeof (docStatus as { template_status?: unknown }).template_status === 'string') extra.push(`template=${(docStatus as { template_status: string }).template_status}`);
+    if (typeof (docStatus as { ingest_status?: unknown }).ingest_status === 'string') extra.push(`ingest=${(docStatus as { ingest_status: string }).ingest_status}`);
+    if (extra.length) lines.push(extra.join(' • '));
+
+    const tt = lines.join('\n');
     return <span title={tt} className={cn('inline-block h-3 w-3 rounded-full', color)} aria-label={`doc-${docStatus.status || 'unknown'}`} />
   }, [docStatus]);
 

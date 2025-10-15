@@ -51,8 +51,8 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const [batchName, setBatchName] = useState<string>('');
 
   // Phasensteuerung: Standard nur Phase 1 (Extraktion)
-  const [runMetaPhase, setRunMetaPhase] = useState<boolean>(false); // Phase 2
-  const [runIngestionPhase, setRunIngestionPhase] = useState<boolean>(false); // Phase 3
+  const [runMetaPhase, setRunMetaPhase] = useState<boolean>(true); // Phase 2 standardmäßig aktiv
+  const [runIngestionPhase, setRunIngestionPhase] = useState<boolean>(true); // Phase 3 standardmäßig aktiv
   // Erzwingen pro Phase
   const [forceExtract, setForceExtract] = useState<boolean>(false);
   const [forceMeta, setForceMeta] = useState<boolean>(false);
@@ -157,6 +157,11 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
 
   useEffect(() => {
     if (open) {
+      // Beim Öffnen immer Standard setzen: alle Phasen an, Erzwingen aus
+      setRunMetaPhase(true);
+      setRunIngestionPhase(true);
+      setForceExtract(false);
+      setForceMeta(false);
       // Bei Öffnen initial Scannen
       void handleScan();
       // Batch-Name vorbelegen: relativer Pfad des aktuellen Ordners (ohne führenden '/')
@@ -226,7 +231,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     } finally {
       setIsEnqueuing(false);
     }
-  }, [activeLibraryId, candidates, runMetaPhase, runIngestionPhase, onOpenChange, pdfOverrides, provider]);
+  }, [activeLibraryId, candidates, runMetaPhase, runIngestionPhase, forceExtract, forceMeta, batchName, onOpenChange, pdfOverrides, provider]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

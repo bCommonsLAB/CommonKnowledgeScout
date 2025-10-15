@@ -217,6 +217,16 @@ export async function POST(
     const hasError = !!body?.error;
     // Erweiterung: template_completed liefert extracted_text als Markdown
     const hasFinalPayload = !!(body?.data?.extracted_text || body?.data?.images_archive_url || body?.status === 'completed' || body?.phase === 'template_completed');
+    // Diagnose: Eingang loggen (minimal, aber ausreichend zur Nachverfolgung)
+    try {
+      await repo.appendLog(jobId, { phase: 'callback_received', details: {
+        internalBypass,
+        hasToken: !!callbackToken,
+        phaseInBody: body?.phase || body?.data?.phase || null,
+        hasFinalPayload,
+        keys: typeof body === 'object' && body ? Object.keys(body as Record<string, unknown>) : [],
+      } } as unknown as Record<string, unknown>);
+    } catch {}
 
     // Terminal: "failed"-Phase immer sofort abbrechen
     if (!hasFinalPayload && !hasError && phase === 'failed') {
@@ -335,8 +345,19 @@ export async function POST(
         if (!shouldRunTemplate) {
           bufferLog(jobId, { phase: 'transform_meta_skipped', message: 'Template-Transformation übersprungen (Phase 1)' });
         } else {
-          await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
+          // Idempotenz: Bereits abgeschlossenen Step nicht erneut ausführen (außer 'force')
+          let templateAlreadyCompleted = false;
           try {
+            const latest = await repo.get(jobId);
+            const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === 'transform_template') : undefined;
+            templateAlreadyCompleted = !!st && st.status === 'completed';
+          } catch {}
+          if (templateAlreadyCompleted && policies.metadata !== 'force') {
+            bufferLog(jobId, { phase: 'transform_gate_skip', message: 'already_completed' });
+            templateStatus = 'skipped';
+          } else {
+            await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
+            try {
             // Templates-Ordner vorbereiten
             const rootItems = await provider.listItemsById('root');
             const templatesFolder = rootItems.find(it => it.type === 'folder' && (it as { metadata?: { name?: string } }).metadata?.name?.toLowerCase() === 'templates');
@@ -378,7 +399,7 @@ export async function POST(
               const secretaryUrlRaw = process.env.SECRETARY_SERVICE_URL || '';
               const transformerUrl = secretaryUrlRaw.endsWith('/') ? `${secretaryUrlRaw}transformer/template` : `${secretaryUrlRaw}/transformer/template`;
               const fd = new FormData();
-              fd.append('text', extractedText);
+              fd.append('text', extractedText || '');
               const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de';
               fd.append('target_language', lang);
               fd.append('template_content', templateContent);
@@ -421,6 +442,7 @@ export async function POST(
             console.error(err);
             bufferLog(jobId, { phase: 'transform_meta_error', message: 'Fehler bei Template-Transformation: ' + (err instanceof Error ? err.message : 'Unbekannter Fehler') });
             templateStatus = 'failed';
+          }
           }
         }
 
@@ -556,13 +578,17 @@ export async function POST(
               })
               mergedMeta = { ...mergedMeta, chapters: patched, toc }
             }
+            // Seitenzahl aus Kapitelanalyse ins Frontmatter übernehmen (Schlüssel: "pages"),
+            // aber nur ergänzen, nicht überschreiben, falls bereits vorhanden
+            if (typeof pages === 'number') {
+              const hasPagesField = typeof (mergedMeta as { pages?: unknown }).pages === 'number'
+              if (!hasPagesField) (mergedMeta as { pages: number }).pages = pages
+            }
             const msg = `Kapitel normalisiert: ${chap.length}${pages ? ` · Seiten ${pages}` : ''}`
             bufferLog(jobId, { phase: 'chapters_normalized', message: msg })
-            try { await repo.appendLog(jobId, { phase: 'chapters_normalized', message: msg } as unknown as Record<string, unknown>) } catch {}
             try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 45, updatedAt: new Date().toISOString(), message: 'chapters_normalized', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
           } else {
             bufferLog(jobId, { phase: 'chapters_normalize_failed', message: `Analyze-Endpoint ${res.status}` })
-            try { await repo.appendLog(jobId, { phase: 'chapters_normalize_failed', message: `Analyze-Endpoint ${res.status}` } as unknown as Record<string, unknown>) } catch {}
             // Abbruch, wenn Ingestion geplant war – Kapitel nicht verlässlich → Prozess stoppen
             const ingestPlanned = ((): boolean => {
               try {
@@ -582,7 +608,6 @@ export async function POST(
           }
         } catch (e) {
           bufferLog(jobId, { phase: 'chapters_normalize_error', message: e instanceof Error ? e.message : String(e) })
-          try { await repo.appendLog(jobId, { phase: 'chapters_normalize_error', message: e instanceof Error ? e.message : String(e) } as unknown as Record<string, unknown>) } catch {}
           // analoger Abbruch bei geplantem Ingest
           const ingestPlanned = ((): boolean => {
             try {
@@ -697,7 +722,7 @@ export async function POST(
                 const statusFlat: Record<string, unknown> = {
                   extract_status: 'completed',
                   template_status: templateStatus,
-                  ingest_status: 'none',
+                  ingest_status: 'preparing',
                 }
                 // Metadatenquellen
                 const docMeta = mergedMeta
@@ -721,9 +746,7 @@ export async function POST(
                   metadata: {
                     ...baseMeta,
                     ...statusFlat,
-                    // provisorisch: Zähler auf 0 setzen; Ingestion aktualisiert später nach Chunking
-                    chunkCount: 0,
-                    chaptersCount: 0,
+                    // Keine Zähler mehr zu früh setzen – finale Zahlen kommen nach Chunking
                     fileId: t.fileId,
                     fileName: t.fileName,
                   } as Record<string, unknown>

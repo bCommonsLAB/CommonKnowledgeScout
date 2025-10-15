@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { X, FileText, Calendar, User, MapPin, ExternalLink, Filter, ChevronLeft, MessageSquare, LayoutGrid } from 'lucide-react'
 import { ChatPanel } from '@/components/library/chat/chat-panel'
+import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 
 interface DocCardMeta {
   id: string
@@ -404,8 +405,11 @@ export default function GalleryClient() {
                   ))}
                   </div>
                   {selected && (
-                    <div className='lg:relative fixed inset-0 lg:inset-auto lg:h-0 lg:w-0 bg-black/50 lg:bg-transparent z-50 lg:z-auto lg:flex lg:justify-end'>
-                      <div className='w-full max-w-2xl lg:absolute lg:right-0 lg:top-0 lg:h-full bg-background shadow-2xl animate-in slide-in-from-right duration-300'>
+                    <div className='fixed inset-0 z-50'>
+                      {/* Overlay mobil */}
+                      <div className='absolute inset-0 bg-black/50 lg:bg-transparent' onClick={() => setSelected(null)} />
+                      {/* Panel stets rechts fixiert */}
+                      <div className='absolute right-0 top-0 h-full w-full max-w-2xl bg-background shadow-2xl animate-in slide-in-from-right duration-300'>
                         <div className='flex items-center justify-between p-6 border-b'>
                           <h2 className='text-xl font-semibold'>Dokumentdetails</h2>
                           <div className='flex items-center gap-2'>
@@ -424,73 +428,9 @@ export default function GalleryClient() {
                           </div>
                         </div>
 
-                        <ScrollArea className='h-[calc(100vh-80px)]'>
-                          <div className='p-6'>
-                            <article className='prose prose-gray max-w-none dark:prose-invert'>
-                              <header className='mb-8'>
-                                <h1 className='text-3xl font-bold text-foreground mb-2 leading-tight'>{selected.title || selected.fileName || 'Dokument'}</h1>
-                                {selected.shortTitle ? <p className='text-xl text-muted-foreground mb-4'>{selected.shortTitle}</p> : null}
-                                <div className='flex flex-wrap gap-4 text-sm text-muted-foreground mb-6'>
-                                  {Array.isArray(selected.authors) && selected.authors.length > 0 ? (
-                                    <div className='flex items-center'>
-                                      <User className='h-4 w-4 mr-2' />
-                                      <span>{selected.authors.join(', ')}</span>
-                                    </div>
-                                  ) : null}
-                                  {selected.year ? (
-                                    <div className='flex items-center'>
-                                      <Calendar className='h-4 w-4 mr-2' />
-                                      <span>{String(selected.year)}</span>
-                                    </div>
-                                  ) : null}
-                                  {selected.region ? (
-                                    <div className='flex items-center'>
-                                      <MapPin className='h-4 w-4 mr-2' />
-                                      <span>{selected.region}</span>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </header>
-
-                              <Separator className='my-8' />
-
-                              {Array.isArray(selected.chapters) && selected.chapters.length > 0 ? (
-                                <section>
-                                  <h2 className='text-xl font-semibold text-foreground mb-4'>Kapitel</h2>
-                                  <div className='space-y-4'>
-                                    {selected.chapters.map((chapter, index) => (
-                                      <div key={index} className='border-l-2 border-l-muted pl-4 py-2'>
-                                        <div className='flex items-center justify-between mb-2'>
-                                          <h3
-                                            className='font-medium text-foreground hover:text-primary cursor-pointer transition-colors'
-                                            onClick={() => openPDFAtPage('', chapter.pageStart || 1)}
-                                          >
-                                            {chapter.title}
-                                          </h3>
-                                          {(chapter.pageStart && chapter.pageEnd) ? (
-                                            <span className='text-xs text-muted-foreground bg-muted px-2 py-1 rounded'>
-                                              S. {chapter.pageStart}-{chapter.pageEnd}
-                                            </span>
-                                          ) : null}
-                                        </div>
-                                        {chapter.summary ? <p className='text-sm text-muted-foreground leading-relaxed'>{chapter.summary}</p> : null}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </section>
-                              ) : null}
-
-                              <Separator className='my-8' />
-
-                              <section>
-                                <h3 className='text-lg font-semibold text-foreground mb-4'>Dokumentinformationen</h3>
-                                <div className='bg-muted/50 rounded-lg p-4 space-y-2 text-sm'>
-                                  {selected.fileName ? <div><strong>Dateiname:</strong> {selected.fileName}</div> : null}
-                                  {selected.upsertedAt ? <div><strong>Hochgeladen:</strong> {new Date(selected.upsertedAt).toLocaleString('de-DE')}</div> : null}
-                                  {selected.fileId ? <div><strong>Dokument-ID:</strong> <code className='text-xs bg-muted px-1 py-0.5 rounded'>{selected.fileId}</code></div> : null}
-                                </div>
-                              </section>
-                            </article>
+                        <ScrollArea className='h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)]'>
+                          <div className='p-0'>
+                            <IngestionBookDetail libraryId={libraryId} fileId={selected.fileId || selected.id} />
                           </div>
                         </ScrollArea>
                       </div>

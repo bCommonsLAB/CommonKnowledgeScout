@@ -308,3 +308,20 @@ interface ExternalJob {
 - Pinecone verwendet stets `correlation.source.itemId` (PDF‑ID) als kanonische `fileId` – auch wenn die Inhalte aus dem Shadow‑Twin stammen. Dadurch ist Lookup in `file-status` konsistent.
 
 
+### Kapitel: Chunker‑Logik und Toleranz (Ingestion)
+
+Ziel: Die Ingestion soll bereits normalisierte Kapitel (aus dem Analyze‑Endpoint) robust verwenden und nicht erneut scheitern, wenn Seitenanker im Body unvollständig sind.
+
+- Body‑Extraktion: Frontmatter wird entfernt; der verbleibende Text wird mit `splitByPages` an `--- Seite N ---` Ankern in Seitenbereiche geteilt.
+- Seitenanzahl: Wenn im Frontmatter `pages` gesetzt ist, wird dieser Wert für Statistiken und Clamping bevorzugt. Fehlen Seitenanker, behandelt der Chunker den gesamten Body als eine Seite.
+- Toleranzregeln je Kapitel:
+  - Fehlende `endPage` → auf `startPage` setzen.
+  - Fehlende `startPage` → auf 1 setzen.
+  - Unterlauf/Überlauf → auf [1, maxAvailablePage] clampen; `maxAvailablePage` ist `meta.pages` oder der letzte erkannte Seitenanker.
+  - Keine Segmente gefunden → kein harter Abbruch; Kapitel kann trotzdem eine Summary‑Vektorisierung bekommen.
+- Evidence‑Prüfung: Es wird eine einfache Regex ohne Unicode‑Property Escapes verwendet, um Start‑Snippets tolerant zu matchen; sie dient nur der Diagnose (Logs), nicht als Gate.
+- Ergebnis: Kapiteltexte werden nach den korrigierten Bereichen zusammengesetzt, in Chunks geteilt, Embeddings erzeugt und upsertet. Zusätzlich wird ein Doc‑Meta‑Vektor gepflegt (Counter: `chunkCount`, `chaptersCount`).
+
+Rationale: Die Kapitelstruktur wurde zuvor bereits analysiert und repariert. In der Ingestion validieren wir daher nicht hart erneut, sondern sorgen dafür, dass die Injektion in den Vektor‑Store möglichst deterministisch gelingt.
+
+

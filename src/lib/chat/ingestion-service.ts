@@ -67,15 +67,19 @@ export class IngestionService {
 
     // Frontmatter nicht chunken – nur Dokumentkörper
     const body = (() => {
-      const m = markdown.match(/^---[\s\S]*?---\s*/m)
-      return m ? markdown.slice(m[0].length) : markdown
+      // Strenger Frontmatter-Block nur am Dokumentanfang: ---\n ... \n---\n
+      const re = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/m
+      return re.test(markdown) ? markdown.replace(re, '') : markdown
     })()
-    let pages = splitByPages(body)
-    if (!Array.isArray(pages) || pages.length === 0) {
+    let spans = splitByPages(body)
+    if (!Array.isArray(spans) || spans.length === 0) {
       // Fallback: Gesamten Body als eine Seite behandeln
-      pages = [{ page: 1, startIdx: 0, endIdx: body.length }]
+      spans = [{ page: 1, startIdx: 0, endIdx: body.length }]
     }
-    let totalPages = pages.length
+    // Bevorzugt deklarierte Seitenzahl aus Meta (Frontmatter)
+    const declaredPagesRaw = meta && typeof meta === 'object' ? (meta as { pages?: unknown }).pages : undefined
+    const declaredPages = typeof declaredPagesRaw === 'number' && declaredPagesRaw > 0 ? declaredPagesRaw : undefined
+    const totalPages = declaredPages || spans.length
     FileLogger.info('ingestion', 'Start kapitelgeführte Ingestion', { libraryId, fileId, pages: totalPages })
     if (jobId) bufferLog(jobId, { phase: 'ingest_start', message: `Ingestion start (pages=${totalPages})` })
     // Kapitel aus Meta lesen
@@ -135,8 +139,8 @@ export class IngestionService {
     const firstWords = (s: string, n: number) => s.split(/\s+/).filter(Boolean).slice(0, n).join(' ')
     const buildEvidenceRegex = (snippet: string) => {
       const words = firstWords(snippet, 10)
-        .normalize('NFKD')
-        .replace(/[\p{P}\p{S}]+/gu, ' ')
+        // Entferne grob Satz- und Sonderzeichen ohne Unicode-Property Escapes
+        .replace(/[\u2000-\u206F\u2E00-\u2E7F'".,!?;:()\[\]{}<>@#$%^&*_+=~`|\\/\-]+/g, ' ')
         .trim()
         .split(/\s+/)
         .filter(Boolean)
@@ -164,7 +168,7 @@ export class IngestionService {
     }
 
     // Coverage‑Tracking (nur für Diagnose)
-    const pageCovered: boolean[] = new Array<boolean>(totalPages).fill(false)
+    const pageCovered: boolean[] = new Array<boolean>(Math.max(1, totalPages)).fill(false)
 
     for (const ch of chapters) {
       const title = typeof (ch as { title?: unknown }).title === 'string' ? (ch as { title: string }).title : 'Kapitel'
@@ -177,35 +181,22 @@ export class IngestionService {
       const summary = typeof (ch as { summary?: unknown }).summary === 'string' ? (ch as { summary: string }).summary : ''
       const keywords = toStrArr((ch as { keywords?: unknown }).keywords)
 
-      // Minimaler Fallback: Single‑Page, ansonsten strikt skippen
-      if (startPage && !endPage) endPage = startPage
-      if (!(startPage && endPage && startPage >= 1 && endPage >= startPage && endPage <= totalPages)) {
-        if (jobId) {
-          const det: Record<string, unknown> = {
-            title,
-            level,
-            order,
-            startPage: startPage ?? null,
-            endPage: endPage ?? null,
-            pageCount: pageCount ?? null,
-            pagesDetected: totalPages,
-            hasPagesAnchors: totalPages > 0,
-            keys: Object.keys(ch || {})
-          }
-          bufferLog(jobId, { phase: 'chapters_invalid_range', message: `Kapitel ${order ?? '-'}: ungültiger Bereich (${String(startPage)}-${String(endPage)})`, details: det as unknown as Record<string, unknown> })
-        }
-        continue
-      }
-      const segs = pages.filter(p => p.page >= startPage && p.page <= endPage)
+      // Toleranter Fallback: Single‑Page setzen, ansonsten clamping auf bekannte Grenzen
+      if (!startPage) startPage = 1
+      if (!endPage) endPage = startPage
+      if (startPage < 1) startPage = 1
+      if (endPage < startPage) endPage = startPage
+      const maxAvailablePage = declaredPages || (spans.length > 0 ? spans[spans.length - 1].page : 1)
+      if (endPage > maxAvailablePage) endPage = maxAvailablePage
+      const segs = spans.filter(p => p.page >= startPage! && p.page <= endPage!)
       if (segs.length === 0) {
         if (jobId) {
-          const available = pages.length > 0 ? `${pages[0].page}-${pages[pages.length - 1].page}` : 'none'
+          const available = spans.length > 0 ? `${spans[0].page}-${spans[spans.length - 1].page}` : 'none'
           bufferLog(jobId, { phase: 'chapters_page_not_found', message: `Kapitel ${order ?? '-'}: Seitenbereich fehlt (${startPage}-${endPage})`, details: { availablePages: available } as unknown as Record<string, unknown> })
         }
-        continue
       }
       if (startEvidence) {
-        const pageText = body.slice(segs[0].startIdx, segs[0].endIdx)
+        const pageText = segs.length > 0 ? body.slice(segs[0].startIdx, segs[0].endIdx) : ''
         const rx = buildEvidenceRegex(startEvidence)
         if (rx) {
           const found = pageText.search(rx)
@@ -215,7 +206,7 @@ export class IngestionService {
           }
         }
       }
-      const firstSlice = body.slice(segs[0].startIdx, segs[0].endIdx)
+      const firstSlice = segs.length > 0 ? body.slice(segs[0].startIdx, segs[0].endIdx) : ''
       const rest = segs.slice(1).map(s => body.slice(s.startIdx, s.endIdx)).join('')
       const chapterText = firstSlice + rest
 
@@ -265,15 +256,26 @@ export class IngestionService {
 
     await upsertVectorsChunked(idx.host, apiKey, vectors, 8)
     const chunksUpserted = vectors.filter(v => (v.metadata?.kind === 'chunk')).length
-    // Doc‑Meta nachtragen/aktualisieren: chunkCount, chaptersCount
+    // Doc‑Meta finalisieren: counts + ingest_status + upsertedAt
     try {
+      const chaptersCount = chapters.length
+      const finalMeta: Record<string, unknown> = {
+        kind: 'doc', user: userEmail, libraryId, fileId, fileName,
+        chunkCount: chunksUpserted, chaptersCount,
+        ingest_status: 'completed',
+        upsertedAt: new Date().toISOString(),
+      }
       if (docMetaVector) {
-        const chaptersCount = chapters.length
-        docMetaVector.metadata = { ...docMetaVector.metadata, chunkCount: chunksUpserted, chaptersCount }
+        docMetaVector.metadata = { ...docMetaVector.metadata, ...finalMeta }
         await upsertVectorsChunked(idx.host, apiKey, [docMetaVector], 1)
+      } else {
+        // Falls kein früheres docMetaVector vorhanden war: lege eines an
+        const dim = typeof (idx as unknown as { dimension?: unknown }).dimension === 'number' ? (idx as unknown as { dimension: number }).dimension : 3072
+        const unit = new Array<number>(dim).fill(0); unit[0] = 1
+        await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values: unit, metadata: finalMeta }], 1)
       }
     } catch (err) {
-      FileLogger.warn('ingestion', 'Doc‑Meta Update (chunkCount) fehlgeschlagen', { fileId, err: String(err) })
+      FileLogger.warn('ingestion', 'Doc‑Meta finales Update fehlgeschlagen', { fileId, err: String(err) })
     }
     FileLogger.info('ingestion', 'Upsert abgeschlossen', { fileId, chunks: chunksUpserted, vectors: vectors.length })
     if (jobId) bufferLog(jobId, { phase: 'ingest_pinecone_upserted', message: `Upsert abgeschlossen: ${chunksUpserted} Chunks (${vectors.length} Vektoren)` })

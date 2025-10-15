@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react'
+import { IngestionBookDetail } from './ingestion-book-detail'
 import { UILogger } from '@/lib/debug/logger'
 import type { StorageProvider } from '@/lib/storage/types'
 import { MarkdownPreview } from '@/components/library/markdown-preview'
@@ -24,7 +25,7 @@ interface JobReportTabProps {
   onJumpTo?: (args: { page?: number | string; evidence?: string }) => void
   // NEU: Rohinhalt (Markdown). Wenn gesetzt und sourceMode='frontmatter', wird direkt dieser Text geparst (ohne Datei/JOB).
   rawContent?: string
-  forcedTab?: 'markdown' | 'meta' | 'chapters' | 'process'
+  forcedTab?: 'markdown' | 'meta' | 'chapters' | 'ingestion' | 'process'
 }
 
 interface JobDto {
@@ -53,7 +54,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
   const [section] = useState<'meta' | 'chapters'>('meta')
   const [parseErrors, setParseErrors] = useState<string[]>([])
   const [fullContent, setFullContent] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<'markdown' | 'meta' | 'chapters' | 'process'>(forcedTab || 'markdown')
+  const [activeTab, setActiveTab] = useState<'markdown' | 'meta' | 'chapters' | 'ingestion' | 'process'>(forcedTab || 'markdown')
 
   useEffect(() => {
     if (forcedTab) setActiveTab(forcedTab)
@@ -243,10 +244,11 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
     <div className="p-4 space-y-3 text-sm">
       {viewMode === 'metaOnly' && (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-          <TabsList className="grid grid-cols-4 w-full gap-1">
+          <TabsList className="grid grid-cols-5 w-full gap-1">
             <TabsTrigger value="markdown" className="px-2 py-1 text-xs">Markdown</TabsTrigger>
             <TabsTrigger value="meta" className="px-2 py-1 text-xs">Metadaten</TabsTrigger>
             <TabsTrigger value="chapters" className="px-2 py-1 text-xs">Kapitel</TabsTrigger>
+            <TabsTrigger value="ingestion" className="px-2 py-1 text-xs">Ingestion-Status</TabsTrigger>
             {(() => {
               const base: Record<string, unknown> = sourceMode === 'frontmatter' ? {} : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
               const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
@@ -380,6 +382,23 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )
+            })()}
+          </TabsContent>
+
+          <TabsContent value="ingestion" className="mt-3">
+            {(() => {
+              const effectiveFileId = fileId
+              const modifiedAt = (() => {
+                const d = (job?.cumulativeMeta as unknown as { source_file_modified?: unknown })?.source_file_modified
+                if (d instanceof Date) return d.toISOString()
+                if (typeof d === 'string') { const dt = new Date(d); return Number.isNaN(dt.getTime()) ? undefined : dt.toISOString() }
+                return undefined
+              })()
+              return (
+                <div className="border rounded-md p-3">
+                  <IngestionBookDetail libraryId={libraryId} fileId={effectiveFileId} docModifiedAt={modifiedAt} />
                 </div>
               )
             })()}

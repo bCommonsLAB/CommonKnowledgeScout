@@ -12,6 +12,7 @@ import { TransformService } from '@/lib/transform/transform-service';
 import { FileLogger } from '@/lib/debug/logger';
 import { describeIndex, upsertVectorsChunked } from '@/lib/chat/pinecone';
 import { loadLibraryChatContext } from '@/lib/chat/loader';
+import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
 
 export async function POST(
   request: NextRequest,
@@ -96,17 +97,60 @@ export async function POST(
       const lib = libraries.find(l => l.id === libraryId);
       const g = await gateExtractPdf({ repo, jobId, userEmail, library: lib, source, options: { targetLanguage: String(serviceFormData.get('target_language') || 'de') } });
       const runExtract = shouldRunExtract(g.exists, policies.extract);
+      await repo.appendLog(jobId, { phase: 'retry_template_gate', details: { runExtract, gateExists: g.exists, gateReason: g.reason || null, policies, sourceName: source.name, parentId: source.parentId } } as unknown as Record<string, unknown>);
       if (!runExtract) {
         // Phase 1 überspringen → Schritte markieren
         await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.exists ? (g.reason || 'artifact_exists') : 'policy_ignore' } });
 
         // Template-Only Pfad ausführen, falls Policy es verlangt
         if (policies.metadata !== 'ignore') {
+          // Idempotenz-Gate für Template: Shadow‑Twin laden und Frontmatter prüfen
+          try {
+            const siblings = await provider.listItemsById(source.parentId);
+            const targetLanguage = String(serviceFormData.get('target_language') || 'de');
+            const base = (source.name || 'output').replace(/\.[^/.]+$/, '');
+            const expectedName = `${base}.${targetLanguage}.md`;
+            const twin = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === expectedName) as { id: string } | undefined;
+            if (twin) {
+              const twinBin = await provider.getBinary(twin.id);
+              const originalMarkdown = await twinBin.blob.text();
+              const parsed = parseSecretaryMarkdownStrict(originalMarkdown);
+              const meta = parsed?.meta && typeof parsed.meta === 'object' ? parsed.meta as Record<string, unknown> : {};
+              const hasChapters = Array.isArray((meta as { chapters?: unknown }).chapters) && ((meta as { chapters: unknown[] }).chapters as unknown[]).length > 0;
+              const pagesRaw = (meta as { pages?: unknown }).pages as unknown;
+              const pagesNum = typeof pagesRaw === 'number' ? pagesRaw : (typeof pagesRaw === 'string' ? Number(pagesRaw) : NaN);
+              const hasPages = Number.isFinite(pagesNum) && (pagesNum as number) > 0;
+              const isComplete = hasChapters && hasPages;
+              await repo.appendLog(jobId, { phase: 'retry_template_idempotency', details: { foundTwin: true, expectedName, hasChapters, hasPages, pagesRaw: pagesRaw ?? null, isComplete } } as unknown as Record<string, unknown>);
+              if (isComplete && policies.metadata !== 'force') {
+                await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'frontmatter_complete' } });
+                await repo.appendLog(jobId, { phase: 'transform_gate_skip', message: 'frontmatter_complete' } as unknown as Record<string, unknown>);
+                // Interner Callback mit vorhandenem Markdown, um zentrale Ingestion zu starten
+                try {
+                  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                  const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
+                  if (internalToken) headers['X-Internal-Token'] = internalToken;
+                  const callbackUrl = `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/external/jobs/${jobId}`;
+                  const payload = { phase: 'template_completed', data: { extracted_text: originalMarkdown, metadata: meta, file_name: expectedName, parent_id: source.parentId } } as const;
+                  await repo.appendLog(jobId, { phase: 'retry_internal_callback', details: { url: callbackUrl, hasToken: !!internalToken, bodyPreview: JSON.stringify(payload).slice(0, 512) } } as unknown as Record<string, unknown>);
+                  const cbResp = await fetch(callbackUrl, { method: 'POST', headers, body: JSON.stringify(payload) });
+                  await repo.appendLog(jobId, { phase: 'retry_internal_callback_result', details: { status: cbResp.status, statusText: cbResp.statusText } } as unknown as Record<string, unknown>);
+                } catch (e) {
+                  await repo.appendLog(jobId, { phase: 'retry_internal_callback_error', details: { error: e instanceof Error ? e.message : String(e) } } as unknown as Record<string, unknown>);
+                }
+                return NextResponse.json({ ok: true, jobId, worker: 'secretary', skipped: { extract: true, template: true }, mode: 'template_skip' });
+              }
+            } else {
+              await repo.appendLog(jobId, { phase: 'retry_template_idempotency', details: { foundTwin: false, expectedName } } as unknown as Record<string, unknown>);
+            }
+          } catch { /* ignore idempotency gate errors */ }
+
           await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
           // Kompaktes Live-Logging + SSE
           await repo.appendLog(jobId, { phase: 'initializing', progress: 5, message: 'Job initialisiert' });
           try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 5, updatedAt: new Date().toISOString(), message: 'initializing', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
           await repo.appendLog(jobId, { phase: 'transform_template', progress: 10, message: 'Template-Transformation gestartet' });
+          await repo.appendLog(jobId, { phase: 'retry_template_run_start', details: { reason: 'policy_do', hasTwin: true, templatePolicy: policies.metadata, expectedLanguage: String(serviceFormData.get('target_language') || 'de') } } as unknown as Record<string, unknown>);
           try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 10, updatedAt: new Date().toISOString(), message: 'transform_template', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
           try {
             // Template bestimmen
@@ -158,9 +202,17 @@ export async function POST(
             await repo.appendLog(jobId, { phase: 'template_request_sent', message: 'Template-Anfrage gesendet', details: { url: transformerUrl, method: 'POST' } as unknown as Record<string, unknown> });
             try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 30, updatedAt: new Date().toISOString(), message: 'template_request_sent', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
             const resp = await fetch(transformerUrl, { method: 'POST', body: fd, headers });
-            const data: unknown = await resp.json().catch(() => ({}));
+            const data: unknown = await resp.json().catch(() => ({ error: 'invalid_json' }));
+            await repo.appendLog(jobId, { phase: 'retry_template_response', details: { ok: resp.ok, status: resp.status, statusText: resp.statusText, keys: (data && typeof data === 'object') ? Object.keys(data as Record<string, unknown>) : [], length: JSON.stringify(data || {}).length } } as unknown as Record<string, unknown>);
             if (!resp.ok) {
-              await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: (data && typeof data === 'object' && (data as { error?: { message?: string } }).error?.message) || `${resp.status} ${resp.statusText}` } });
+              const errMsg = (() => {
+                if (data && typeof data === 'object') {
+                  const d = data as { error?: { message?: unknown } }
+                  if (d.error && typeof d.error.message === 'string') return d.error.message as string
+                }
+                return `${resp.status} ${resp.statusText}`
+              })()
+              await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: errMsg } });
               await repo.setStatus(jobId, 'failed');
               getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'template_failed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
               return NextResponse.json({ error: 'template_failed' }, { status: 500 });
@@ -195,6 +247,20 @@ export async function POST(
             await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
             FileLogger.info('external-jobs-retry', 'Shadow‑Twin gespeichert (template-only)', { jobId, fileId: saved.id, name: expectedName })
             await repo.appendLog(jobId, { phase: 'stored_local', progress: 98, message: 'Shadow‑Twin gespeichert' });
+
+            // Interner Callback an zentralen Handler, um Ingestion zu starten
+            try {
+              const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+              const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
+              if (internalToken) headers['X-Internal-Token'] = internalToken;
+              const callbackUrl = `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/external/jobs/${jobId}`;
+              const payload = { phase: 'template_completed', data: { extracted_text: newMarkdown, metadata: mergedMeta, file_name: expectedName, parent_id: source.parentId } } as const;
+              await repo.appendLog(jobId, { phase: 'retry_internal_callback', details: { url: callbackUrl, hasToken: !!internalToken, bodyPreview: JSON.stringify(payload).slice(0, 512) } } as unknown as Record<string, unknown>);
+              const cbResp = await fetch(callbackUrl, { method: 'POST', headers, body: JSON.stringify(payload) });
+              await repo.appendLog(jobId, { phase: 'retry_internal_callback_result', details: { status: cbResp.status, statusText: cbResp.statusText } } as unknown as Record<string, unknown>);
+            } catch (e) {
+              await repo.appendLog(jobId, { phase: 'retry_internal_callback_error', details: { error: e instanceof Error ? e.message : String(e) } } as unknown as Record<string, unknown>);
+            }
             try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 98, updatedAt: new Date().toISOString(), message: 'stored_local', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
 
             // Doc‑Meta in Pinecone upserten (Zero‑Vektor) – template-only Pfad
@@ -240,26 +306,7 @@ export async function POST(
           await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'policy_ignore' } });
           await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'policy_ignore' } });
         }
-        // Neu: statt lokalem Abschluss → interner Callback, damit Ingestion zentral läuft
-        try {
-          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-          const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
-          if (internalToken) headers['X-Internal-Token'] = internalToken;
-          const callbackUrl = `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/external/jobs/${jobId}`;
-          await fetch(callbackUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              phase: 'template_completed',
-              data: {
-                extracted_text: newMarkdown,
-                metadata: mergedMeta,
-                file_name: expectedName,
-                parent_id: source.parentId
-              }
-            })
-          });
-        } catch {}
+        // Hinweis: Interner Callback erfolgt im Template-Only Block (siehe oben)
         return NextResponse.json({ ok: true, jobId, worker: 'secretary', skipped: { extract: true }, mode: 'template_only' });
       }
     } catch {

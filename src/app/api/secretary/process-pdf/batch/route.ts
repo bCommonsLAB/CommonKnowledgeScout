@@ -47,6 +47,8 @@ export async function POST(request: NextRequest) {
     const items = Array.isArray(body?.items) ? body.items : [];
     const batchName = typeof body?.batchName === 'string' ? body.batchName : undefined;
     const options = body?.options || {};
+    // Diagnose: Eingehende Policies loggen (einmal pro Batch)
+    FileLogger.info('process-pdf-batch', 'Incoming batch options', { libraryId, batchName, policiesIn: options?.policies });
     if (!libraryId || items.length === 0) {
       return NextResponse.json({ error: 'libraryId und items erforderlich' }, { status: 400 });
     }
@@ -62,6 +64,7 @@ export async function POST(request: NextRequest) {
         const jobId = crypto.randomUUID();
         const jobSecret = crypto.randomBytes(24).toString('base64url');
         const jobSecretHash = repo.hashSecret(jobSecret);
+        const policiesEffective = options?.policies || legacyToPolicies({ doExtractPDF: true });
         await repo.create({
           jobId,
           jobSecretHash,
@@ -99,11 +102,13 @@ export async function POST(request: NextRequest) {
             useCache: options?.useCache ?? true,
             template: options?.template,
             // Nur neue Policies
-            policies: options?.policies || legacyToPolicies({ doExtractPDF: true }),
+            policies: policiesEffective,
             batchId,
             batchName,
           }
         } as unknown as Parameters<ExternalJobsRepository['create']>[0]);
+        // Diagnose: Übernommene Policies protokollieren
+        await repo.appendLog(jobId, { phase: 'batch_job_created', details: { policies: policiesEffective } } as unknown as Record<string, unknown>);
         createdJobIds.push(jobId);
       } catch (e) {
         FileLogger.error('process-pdf-batch', 'Job-Anlage fehlgeschlagen', { error: e instanceof Error ? e.message : String(e) });
