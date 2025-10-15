@@ -235,19 +235,20 @@ function PreviewContent({
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }) {
   const [activeTab, setActiveTab] = React.useState<string>("preview");
-  const [ragLoading, setRagLoading] = React.useState(false);
-  const [ragError, setRagError] = React.useState<string | null>(null);
-  const [ragStatus, setRagStatus] = React.useState<{
-    status: 'ok' | 'stale' | 'not_indexed';
-    fileName?: string;
-    chunkCount?: number;
-    upsertedAt?: string;
-    docModifiedAt?: string;
-    docMeta?: Record<string, unknown>;
-    toc?: Array<Record<string, unknown>>;
-    totals?: { docs: number; chunks: number };
-    analyze?: { chapters?: Array<Record<string, unknown>>; toc?: Array<Record<string, unknown>> };
-  } | null>(null);
+  // Statusabfrage-States (derzeit nicht genutzt – bei Bedarf aktivieren)
+  // const [ragLoading, setRagLoading] = React.useState(false);
+  // const [ragError, setRagError] = React.useState<string | null>(null);
+  // const [ragStatus, setRagStatus] = React.useState<{
+  //   status: 'ok' | 'stale' | 'not_indexed';
+  //   fileName?: string;
+  //   chunkCount?: number;
+  //   upsertedAt?: string;
+  //   docModifiedAt?: string;
+  //   docMeta?: Record<string, unknown>;
+  //   toc?: Array<Record<string, unknown>>;
+  //   totals?: { docs: number; chunks: number };
+  //   analyze?: { chapters?: Array<Record<string, unknown>>; toc?: Array<Record<string, unknown>> };
+  // } | null>(null);
   const setSelectedFile = useSetAtom(selectedFileAtom);
   
   // Debug-Log für PreviewContent
@@ -267,28 +268,28 @@ function PreviewContent({
     setActiveTab("preview");
   }, [item.id]);
 
-  async function loadRagStatus() {
-    try {
-      setRagLoading(true);
-      setRagError(null);
-      const docMod = (() => {
-        const d = item.metadata.modifiedAt as unknown as Date | string | number | undefined;
-        const dt = d instanceof Date ? d : (d ? new Date(d) : undefined);
-        return dt ? dt.toISOString() : undefined;
-      })();
-      const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/file-status?fileId=${encodeURIComponent(item.id)}${docMod ? `&docModifiedAt=${encodeURIComponent(docMod)}` : ''}`, { cache: 'no-store' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Status konnte nicht geladen werden');
-      // Library-Stats parallel
-      const statsRes = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/stats`, { cache: 'no-store' });
-      const stats = await statsRes.json().catch(() => ({}));
-      setRagStatus({ ...data, totals: stats?.totals });
-    } catch (e) {
-      setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler');
-    } finally {
-      setRagLoading(false);
-    }
-  }
+  // async function loadRagStatus() {
+  //   try {
+  //     setRagLoading(true);
+  //     setRagError(null);
+  //     const docMod = (() => {
+  //       const d = item.metadata.modifiedAt as unknown as Date | string | number | undefined;
+  //       const dt = d instanceof Date ? d : (d ? new Date(d) : undefined);
+  //       return dt ? dt.toISOString() : undefined;
+  //     })();
+  //     const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/file-status?fileId=${encodeURIComponent(item.id)}${docMod ? `&docModifiedAt=${encodeURIComponent(docMod)}` : ''}`, { cache: 'no-store' });
+  //     const data = await res.json();
+  //     if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Status konnte nicht geladen werden');
+  //     // Library-Stats parallel
+  //     const statsRes = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/stats`, { cache: 'no-store' });
+  //     const stats = await statsRes.json().catch(() => ({}));
+  //     setRagStatus({ ...data, totals: stats?.totals });
+  //   } catch (e) {
+  //     setRagError(e instanceof Error ? e.message : 'Unbekannter Fehler');
+  //   } finally {
+  //     setRagLoading(false);
+  //   }
+  // }
 
   if (error) {
     FileLogger.error('PreviewContent', 'Fehler in PreviewContent', {

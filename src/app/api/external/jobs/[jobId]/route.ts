@@ -674,7 +674,7 @@ export async function POST(
         const file = new File([new Blob([markdown], { type: 'text/markdown' })], uniqueName, { type: 'text/markdown' });
         // Zielordner verifizieren (Pfad abrufbar?)
         try { await provider.getPathById(targetParentId); }
-        catch (e) {
+        catch {
           bufferLog(jobId, { phase: 'store_folder_missing', message: 'Zielordner nicht gefunden' });
           await repo.updateStep(jobId, 'store_shadow_twin', { status: 'failed', endedAt: new Date(), error: { message: 'Zielordner nicht gefunden' } });
           await repo.setStatus(jobId, 'failed', { error: { code: 'STORE_FOLDER_NOT_FOUND', message: 'Zielordner nicht gefunden' } });

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EventJobRepository } from '@/lib/event-job-repository';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const repository = new EventJobRepository();
 
 /**

@@ -397,7 +397,10 @@ export async function POST(request: NextRequest) {
                 const resp = await fetch(transformerUrl, { method: 'POST', body: fd, headers });
                 const data: unknown = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
-                  await repository.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: (data && typeof data === 'object' && (data as { error?: { message?: string } }).error?.message) || `${resp.status} ${resp.statusText}` } });
+                  const errMsg: string = (data && typeof data === 'object' && (data as { error?: { message?: unknown } }).error?.message && typeof (data as { error?: { message?: unknown } }).error!.message === 'string')
+                    ? (data as { error: { message: string } }).error.message
+                    : `${resp.status} ${resp.statusText}`;
+                  await repository.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: errMsg } });
                   await repository.setStatus(jobId, 'failed');
                   try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'template_failed', jobType: job.job_type, fileName: correlation.source?.name, sourceItemId: originalItemId }); } catch {}
                   return NextResponse.json({ error: 'template_failed' }, { status: 500 });

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { queryVectors } from '@/lib/chat/pinecone'
 import { embedTexts } from '@/lib/chat/embeddings'
 import { describeIndex, queryVectors, fetchVectors, listVectors } from '@/lib/chat/pinecone'
 
@@ -126,7 +125,7 @@ export async function POST(
       const matches = await queryVectors(idx.host, apiKey, qVec, baseTopK, baseFilter)
 
       // Kapitel-Summaries abfragen und als Boost verwenden
-      let chapterBoost = new Map<string, number>()
+      const chapterBoost = new Map<string, number>()
       try {
         const chapterMatches = await queryVectors(idx.host, apiKey, qVec, 10, {
           ...baseFilter,

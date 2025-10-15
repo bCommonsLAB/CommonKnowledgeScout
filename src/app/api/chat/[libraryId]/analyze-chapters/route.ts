@@ -211,11 +211,11 @@ export async function POST(
     const { fileId, content, mode, chaptersIn } = parsed.data
 
     // Gemeinsame Normalisierung: Kapitelseiten lückenlos, führende Lücken → "Inhalt", interne Lücken → vorheriges Kapitel verlängern
-    function normalizeChaptersByPages(
+    const normalizeChaptersByPages = (
       markdownAll: string,
       chaptersIn: ChapterOut[],
       pageAnchors: Array<{ idx: number; page: number }>
-    ): { chapters: ChapterOut[]; totalPages: number } {
+    ): { chapters: ChapterOut[]; totalPages: number } => {
       const anchors = [...pageAnchors].sort((a, b) => a.idx - b.idx)
       const totalPages = anchors.length > 0 ? anchors[anchors.length - 1].page : 1
       type PageSeg = { page: number; start: number; end: number }

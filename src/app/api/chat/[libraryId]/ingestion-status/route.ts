@@ -8,6 +8,7 @@ interface ChapterDto {
   chapterId: string
   title?: string
   order?: number
+  level?: number
   startChunk?: number
   endChunk?: number
   chunkCount?: number
