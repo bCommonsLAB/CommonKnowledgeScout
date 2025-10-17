@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { JobTrace } from '@/components/shared/job-trace';
 import { FileText, FileAudio, FileVideo, Image as ImageIcon, File as FileIcon, FileType2, RefreshCw, Ban } from "lucide-react";
 
 interface JobListItem {
@@ -106,6 +107,8 @@ export function JobMonitorPanel() {
   const [batchNames, setBatchNames] = useState<string[]>([]);
   const [serverCounts, setServerCounts] = useState<{ queued: number; running: number; completed: number; failed: number; pendingStorage: number; total: number } | null>(null);
   const [liveUpdates, setLiveUpdates] = useState<boolean>(true);
+  const [traceJobId, setTraceJobId] = useState<string | null>(null);
+  const [workerStatus, setWorkerStatus] = useState<{ state: 'running' | 'stopped'; stats?: { processed?: number; errors?: number; lastTickAt?: number }; concurrency?: number; intervalMs?: number } | null>(null);
 
   // Worker wird nicht mehr automatisch gestartet; nur noch über die Controls
 
@@ -170,6 +173,24 @@ export function JobMonitorPanel() {
     const t = setInterval(loadCounts, 5000);
     return () => { active = false; clearInterval(t); };
   }, [isOpen, batchFilter, liveUpdates]);
+
+  // Worker-Status laden
+  useEffect(() => {
+    if (!isOpen || !liveUpdates) return;
+    let active = true;
+    async function loadWorker() {
+      try {
+        const res = await fetch('/api/external/jobs/worker', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!active) return;
+        setWorkerStatus(json);
+      } catch {}
+    }
+    void loadWorker();
+    const t = setInterval(loadWorker, 5000);
+    return () => { active = false; clearInterval(t); };
+  }, [isOpen, liveUpdates]);
 
   const refreshNow = async () => {
     if (isRefreshing) return;
@@ -444,6 +465,16 @@ export function JobMonitorPanel() {
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-500" />Completed {serverCounts?.completed ?? completedCount}</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Failed {serverCounts?.failed ?? failedCount}</span>
             {/* Workersteuerung entfernt: Worker läuft automatisch */}
+            <span className="ml-auto inline-flex items-center gap-2" title={workerStatus ? `Interval ${workerStatus.intervalMs}ms • Concurrency ${workerStatus.concurrency}` : ''}>
+              <span className={cn("inline-block h-2 w-2 rounded-full", (workerStatus?.state === 'running') ? 'bg-emerald-500' : 'bg-gray-400')} />
+              <span>{workerStatus?.state === 'running' ? 'Worker läuft' : 'Worker gestoppt'}</span>
+              {typeof workerStatus?.stats?.processed === 'number' && (
+                <span>• processed {workerStatus.stats.processed}</span>
+              )}
+              {typeof workerStatus?.stats?.errors === 'number' && workerStatus.stats.errors > 0 && (
+                <span className="text-red-600">• errors {workerStatus.stats.errors}</span>
+              )}
+            </span>
           </div>
           <div className="px-4 py-2 border-b flex items-center gap-2">
             <select className="border rounded px-2 py-1 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -471,6 +502,17 @@ export function JobMonitorPanel() {
               } catch {}
             }}>Neu starten (gefiltert)</Button>
           </div>
+          {traceJobId ? (
+            <div className="px-4 py-2 border-b">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium">Trace: {traceJobId}</div>
+                <Button size="sm" variant="ghost" onClick={() => setTraceJobId(null)}>Schließen</Button>
+              </div>
+              <div className="max-h-[50vh] overflow-auto">
+                <JobTrace jobId={traceJobId} />
+              </div>
+            </div>
+          ) : null}
           <ScrollArea className="flex-1">
             <ul className="p-3 space-y-2">
               {items.filter(it => !hiddenIds.has(it.jobId)).map(item => (
@@ -500,6 +542,14 @@ export function JobMonitorPanel() {
                       </HoverCard>
                     </div>
                     <div className="flex items-center gap-1 shrink-0 w-28 justify-end">
+                      <button
+                        onClick={() => setTraceJobId(item.jobId)}
+                        className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
+                        aria-label="Trace anzeigen"
+                        title="Trace anzeigen"
+                      >
+                        Trace
+                      </button>
                       <button
                         onClick={() => hideJob(item.jobId)}
                         className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"

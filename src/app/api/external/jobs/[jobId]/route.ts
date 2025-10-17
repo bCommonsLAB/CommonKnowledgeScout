@@ -190,13 +190,13 @@ export async function POST(
 
     // Status auf running setzen und Prozess-ID loggen
     await repo.setStatus(jobId, 'running');
+    try { await repo.traceAddEvent(jobId, { name: 'callback_received', attributes: { keys: Object.keys(body || {}), hasData: !!body?.data, hasProcess: !!body?.process } }); } catch {}
     if (body?.process?.id) await repo.setProcess(jobId, body.process.id);
     // Prozess‑Guard: Nur Events mit übereinstimmender processId akzeptieren (außer interner Bypass/Template-Callback)
     try {
       const incomingProcessId: string | undefined = (body?.process && typeof body.process.id === 'string') ? body.process.id : (typeof body?.data?.processId === 'string' ? body.data.processId : undefined);
       if (!internalBypass && job.processId && incomingProcessId && incomingProcessId !== job.processId) {
-        bufferLog(jobId, { phase: 'ignored_mismatched_process', message: `Ereignis ignoriert (incoming ${incomingProcessId} != job ${job.processId})` });
-        await repo.appendLog(jobId, { phase: 'ignored_mismatched_process', message: `Ereignis ignoriert (incoming ${incomingProcessId} != job ${job.processId})` } as unknown as Record<string, unknown>);
+        try { await repo.traceAddEvent(jobId, { name: 'ignored_mismatched_process', level: 'warn', attributes: { incomingProcessId, jobProcessId: job.processId } }); } catch {}
         return NextResponse.json({ status: 'ignored', reason: 'mismatched_process' });
       }
     } catch {}

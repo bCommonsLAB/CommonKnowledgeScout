@@ -1,6 +1,7 @@
 import { Collection } from 'mongodb';
 import crypto from 'crypto';
 import { getCollection } from '@/lib/mongodb-service';
+import { FileLogger } from '@/lib/debug/logger';
 import { ExternalJob, ExternalJobStatus, ExternalJobStep, ExternalJobIngestionInfo } from '@/types/external-job';
 
 export class ExternalJobsRepository {
@@ -78,10 +79,29 @@ export class ExternalJobsRepository {
     const col = await this.getCollection();
     const now = new Date();
     const setObj = Object.fromEntries(Object.entries(patch).map(([k, v]) => ([`steps.$.${k}`, v])));
+    const spanId = mapStepToSpanId(name);
+    const setBase: Record<string, unknown> = { ...setObj, updatedAt: now };
+    if (patch.status === 'running' && spanId) setBase['trace.currentSpanId'] = spanId;
     await col.updateOne(
       { jobId, 'steps.name': name },
-      { $set: { ...setObj, updatedAt: now } }
+      { $set: setBase }
     );
+    // Trace: Spans/Events automatisch synchronisieren
+    try {
+      const spanId = mapStepToSpanId(name);
+      if (spanId && patch.status) {
+        if (patch.status === 'running') {
+          await this.traceStartSpan(jobId, { spanId, parentSpanId: 'job', name });
+          await this.traceAddEvent(jobId, { spanId, name: 'step_running', attributes: { step: name } });
+        } else if (patch.status === 'completed') {
+          await this.traceEndSpan(jobId, spanId, 'completed', {});
+          await this.traceAddEvent(jobId, { spanId, name: 'step_completed', attributes: { step: name } });
+        } else if (patch.status === 'failed') {
+          await this.traceEndSpan(jobId, spanId, 'failed', { reason: (patch as { error?: unknown })?.error });
+          await this.traceAddEvent(jobId, { spanId, name: 'step_failed', attributes: { step: name, error: (patch as { error?: unknown })?.error } });
+        }
+      }
+    } catch {}
   }
 
   async appendMeta(jobId: string, meta: Record<string, unknown>, source: string): Promise<void> {
@@ -258,18 +278,99 @@ export class ExternalJobsRepository {
   async claimNextQueuedJob(): Promise<ExternalJob | null> {
     const col = await this.getCollection();
     const now = new Date();
-    const res = await col.findOneAndUpdate(
-      { status: 'queued' },
-      { $set: { status: 'running', updatedAt: now } },
-      { sort: { updatedAt: 1 }, returnDocument: 'after' }
+    FileLogger.info('external-jobs-repo', 'claim_attempt_start', {} as unknown as Record<string, unknown>);
+    // Phase 1: Kandidaten lesen (stabilste Reihenfolge via updatedAt)
+    const candidate = await col.find({ status: 'queued' }).sort({ updatedAt: 1 }).limit(1).next();
+    if (!candidate) {
+      FileLogger.info('external-jobs-repo', 'claim_none', {} as unknown as Record<string, unknown>);
+      return null;
+    }
+    // Phase 2: Guarded Update auf genau diesen Job
+    const upd = await col.updateOne(
+      { jobId: candidate.jobId, status: 'queued' },
+      { $set: { status: 'running', updatedAt: now } }
     );
-    return (res && (res as { value?: ExternalJob }).value) || null;
+    if (upd.modifiedCount === 1) {
+      const doc = await col.findOne({ jobId: candidate.jobId });
+      if (doc) FileLogger.info('external-jobs-repo', 'claim_success', { jobId: doc.jobId });
+      return doc as ExternalJob | null;
+    }
+    FileLogger.info('external-jobs-repo', 'claim_race_lost', { jobId: candidate.jobId } as unknown as Record<string, unknown>);
+    return null;
   }
 
   async listQueued(limit: number = 50): Promise<ExternalJob[]> {
     const col = await this.getCollection();
     return col.find({ status: 'queued' }).sort({ updatedAt: 1 }).limit(Math.max(1, Math.min(500, limit)) ).toArray();
   }
+
+  async countRunning(): Promise<number> {
+    const col = await this.getCollection();
+    return col.countDocuments({ status: 'running' });
+  }
+
+  // ---- Trace-Unterstützung ----
+  async initializeTrace(jobId: string): Promise<void> {
+    const col = await this.getCollection();
+    const now = new Date();
+    await col.updateOne(
+      { jobId },
+      { $set: { 'trace.spans': [ { spanId: 'job', name: 'job', status: 'running', startedAt: now } ], 'trace.events': [] } }
+    );
+  }
+
+  async traceStartSpan(jobId: string, span: { spanId: string; parentSpanId?: string; name: string; phase?: number; attributes?: Record<string, unknown> }): Promise<void> {
+    const col = await this.getCollection();
+    const now = new Date();
+    await col.updateOne(
+      { jobId },
+      { $push: { 'trace.spans': { spanId: span.spanId, parentSpanId: span.parentSpanId, name: span.name, phase: span.phase, status: 'running', startedAt: now, attributes: span.attributes || {} } }, $set: { updatedAt: now } }
+    );
+  }
+
+  async traceEndSpan(jobId: string, spanId: string, status: 'completed' | 'failed' | 'skipped', attrs?: Record<string, unknown>): Promise<void> {
+    const col = await this.getCollection();
+    const now = new Date();
+    await col.updateOne(
+      { jobId },
+      { $set: { 'trace.spans.$[s].endedAt': now, 'trace.spans.$[s].status': status, 'trace.spans.$[s].attributes': attrs || {} } },
+      { arrayFilters: [ { 's.spanId': spanId, 's.endedAt': { $exists: false } } ] as unknown as Record<string, unknown> }
+    );
+  }
+
+  async traceAddEvent(jobId: string, evt: { spanId?: string; name: string; level?: 'info' | 'warn' | 'error'; message?: string; attributes?: Record<string, unknown> }): Promise<void> {
+    const col = await this.getCollection();
+    let spanId = evt.spanId;
+    if (!spanId) {
+      const doc = await col.findOne({ jobId }, { projection: { 'trace.currentSpanId': 1 } });
+      const cur = ((doc as unknown as { trace?: { currentSpanId?: string } })?.trace?.currentSpanId) || undefined;
+      if (cur) spanId = cur;
+    }
+    await col.updateOne(
+      { jobId },
+      { $push: { 'trace.events': { ts: new Date(), spanId, name: evt.name, level: evt.level || 'info', message: evt.message, attributes: evt.attributes || {} } } }
+    );
+  }
+
+  // DEPRECATED: Alte Logs in trace.events umlenken (Single-Source)
+  async appendLog(jobId: string, entry: Record<string, unknown>): Promise<void> {
+    try {
+      const name = typeof (entry as { phase?: unknown }).phase === 'string' ? String((entry as { phase: unknown }).phase) : (typeof (entry as { message?: unknown }).message === 'string' ? String((entry as { message: unknown }).message) : 'log');
+      const msg = typeof (entry as { message?: unknown }).message === 'string' ? String((entry as { message: unknown }).message) : undefined;
+      const attrs = entry;
+      await this.traceAddEvent(jobId, { name, message: msg, attributes: attrs });
+    } catch {
+      // fallback: nichts
+    }
+  }
+}
+
+function mapStepToSpanId(name: string): 'extract' | 'template' | 'store' | 'ingest' | undefined {
+  if (name === 'extract_pdf') return 'extract';
+  if (name === 'transform_template') return 'template';
+  if (name === 'store_shadow_twin') return 'store';
+  if (name === 'ingest_rag') return 'ingest';
+  return undefined;
 }
 
 

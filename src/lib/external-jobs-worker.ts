@@ -46,29 +46,49 @@ class ExternalJobsWorkerSingleton {
     if (this.state !== 'running') return;
     this.stats.lastTickAt = Date.now();
     try {
+      FileLogger.info('jobs-worker', 'tick_start', { at: new Date().toISOString() });
       const repo = new ExternalJobsRepository();
-      const queued = await repo.listQueued(this.concurrency);
-      if (this.state !== 'running') return; // Hard gate: erneut prüfen
-      if (queued.length === 0) return;
+      const appUrlPreferred = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
+      const port = String(process.env.PORT || '3000');
+      const localBase = `http://127.0.0.1:${port}`;
+      const baseUrl = appUrlPreferred || localBase;
+      FileLogger.info('jobs-worker', 'dispatch_base_url', { baseUrl });
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Worker': 'true' };
+      const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
+      if (internalToken) headers['X-Internal-Token'] = internalToken;
 
-      await Promise.all(
-        queued.map(async (job) => {
-          try {
-            // Nutze bestehende Retry-Route, damit die Ausführung zentral bleibt
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-            if (!appUrl) return;
-            if (this.state !== 'running') return; // Hard gate kurze Zeit vor dem Call
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
-            if (internalToken) headers['X-Internal-Token'] = internalToken;
-            await fetch(`${appUrl.replace(/\/$/, '')}/api/external/jobs/${job.jobId}/retry`, { method: 'POST', headers });
-            this.stats.processed += 1;
-          } catch (err) {
-            this.stats.errors += 1;
-            FileLogger.error('jobs-worker', 'Tick-Fehler', { jobId: job.jobId, err: err instanceof Error ? err.message : String(err) });
-          }
-        })
-      );
+      // Diagnose: momentanen Queue-Snapshot protokollieren (ohne zu claimen)
+      try {
+        const snapshot = await repo.listQueued(5);
+        FileLogger.info('jobs-worker', 'queued_snapshot', { count: snapshot.length, jobIds: snapshot.map(j => j.jobId) });
+      } catch {}
+
+      // Globale Concurrency erzwingen: Anzahl currently running respektieren
+      const runningNow = await repo.countRunning();
+      const availableSlots = Math.max(0, this.concurrency - runningNow);
+      if (availableSlots <= 0) {
+        FileLogger.info('jobs-worker', 'concurrency_saturated', { runningNow, concurrency: this.concurrency });
+        return;
+      }
+
+      // Atomare Claims in Concurrency-Schleifen vermeiden Doppelstarts
+      const workers = Array.from({ length: availableSlots }).map(async () => {
+        try {
+          const claimed = await repo.claimNextQueuedJob();
+          if (!claimed) return;
+          FileLogger.info('jobs-worker', 'claimed_job', { jobId: claimed.jobId });
+          // Retry-Route triggert die zentrale Ausführung
+          await fetch(`${baseUrl}/api/external/jobs/${claimed.jobId}/retry`, { method: 'POST', headers });
+          FileLogger.info('jobs-worker', 'dispatched_retry', { jobId: claimed.jobId });
+          this.stats.processed += 1;
+        } catch (err) {
+          this.stats.errors += 1;
+          FileLogger.error('jobs-worker', 'Tick-Fehler', { err: err instanceof Error ? err.message : String(err) });
+        }
+      });
+
+      await Promise.all(workers);
+      FileLogger.info('jobs-worker', 'tick_end', { processed: this.stats.processed, errors: this.stats.errors });
     } catch (err) {
       this.stats.errors += 1;
       FileLogger.error('jobs-worker', 'Tick-Ausnahme', { err: err instanceof Error ? err.message : String(err) });

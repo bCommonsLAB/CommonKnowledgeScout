@@ -115,32 +115,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Phase 2: Verarbeitung asynchron starten (Concurrency 5) via Retry‑Route
-    const concurrency = 5;
-    (async () => {
-      let idx = 0;
-      const runner = async () => {
-        while (true) {
-          const i = idx++;
-          if (i >= createdJobIds.length) break;
-          const jobId = createdJobIds[i];
-          try {
-            const res = await fetch(new URL(`/api/external/jobs/${jobId}/retry`, request.url).toString(), {
-              method: 'POST',
-              headers: { 'Cookie': request.headers.get('cookie') || '' }
-            });
-            if (!res.ok) {
-              const msg = await res.text().catch(() => res.statusText);
-              FileLogger.error('process-pdf-batch', 'Retry-Start fehlgeschlagen', { jobId, msg });
-            }
-          } catch (err) {
-            FileLogger.error('process-pdf-batch', 'Retry-Start Exception', { jobId, err: err instanceof Error ? err.message : String(err) });
-          }
-        }
-      };
-      await Promise.all(Array.from({ length: Math.min(concurrency, createdJobIds.length) }, () => runner()));
-      FileLogger.info('process-pdf-batch', 'Asynchroner Start abgeschlossen', { count: createdJobIds.length, batchId, batchName });
-    })().catch(() => {});
+    // Phase 2 entfällt: Der zentrale Worker claimt und startet die Jobs.
+    FileLogger.info('process-pdf-batch', 'Jobs enqueued; Worker übernimmt Start', { count: createdJobIds.length, batchId, batchName });
 
     // Sofortige Antwort: Anzahl angelegter Jobs
     return NextResponse.json({ ok: true, batchId, batchName, created: createdJobIds.length });
