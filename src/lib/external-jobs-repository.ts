@@ -1,4 +1,5 @@
 import { Collection } from 'mongodb';
+import type { UpdateOptions } from 'mongodb';
 import crypto from 'crypto';
 import { getCollection } from '@/lib/mongodb-service';
 import { FileLogger } from '@/lib/debug/logger';
@@ -33,14 +34,6 @@ export class ExternalJobsRepository {
   async setProcess(jobId: string, processId: string): Promise<void> {
     const col = await this.getCollection();
     await col.updateOne({ jobId }, { $set: { processId, updatedAt: new Date() } });
-  }
-
-  async appendLog(jobId: string, entry: Record<string, unknown>): Promise<void> {
-    const col = await this.getCollection();
-    await col.updateOne(
-      { jobId },
-      { $push: { logs: { timestamp: new Date(), ...entry } } }
-    );
   }
 
   async setResult(jobId: string, payload: ExternalJob['payload'], result: ExternalJob['result']): Promise<void> {
@@ -334,7 +327,7 @@ export class ExternalJobsRepository {
     await col.updateOne(
       { jobId },
       { $set: { 'trace.spans.$[s].endedAt': now, 'trace.spans.$[s].status': status, 'trace.spans.$[s].attributes': attrs || {} } },
-      { arrayFilters: [ { 's.spanId': spanId, 's.endedAt': { $exists: false } } ] as unknown as Record<string, unknown> }
+      { arrayFilters: [ { 's.spanId': spanId, 's.endedAt': { $exists: false } } ] } as unknown as UpdateOptions
     );
   }
 
