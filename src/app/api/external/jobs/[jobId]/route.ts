@@ -96,6 +96,7 @@ export async function GET(
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
+    const workerId = _request.headers.get('x-worker-id') || _request.headers.get('X-Worker-Id') || undefined;
     const { userId } = getAuth(_request);
     if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
 
@@ -190,7 +191,7 @@ export async function POST(
 
     // Status auf running setzen und Prozess-ID loggen
     await repo.setStatus(jobId, 'running');
-    try { await repo.traceAddEvent(jobId, { name: 'callback_received', attributes: { keys: Object.keys(body || {}), hasData: !!body?.data, hasProcess: !!body?.process } }); } catch {}
+    try { await repo.traceAddEvent(jobId, { name: 'callback_received', attributes: { keys: Object.keys(body || {}), hasData: !!body?.data, hasProcess: !!body?.process, workerId } }); } catch {}
     if (body?.process?.id) await repo.setProcess(jobId, body.process.id);
     // Prozess‑Guard: Nur Events mit übereinstimmender processId akzeptieren (außer interner Bypass/Template-Callback)
     try {
@@ -226,6 +227,7 @@ export async function POST(
         hasFinalPayload,
         keys: typeof body === 'object' && body ? Object.keys(body as Record<string, unknown>) : [],
       } } as unknown as Record<string, unknown>);
+      await repo.traceAddEvent(jobId, { name: 'callback_received_detail', attributes: { hasFinalPayload, phase, progress: progressValue, message, workerId } });
     } catch {}
 
     // Terminal: "failed"-Phase immer sofort abbrechen
@@ -245,12 +247,7 @@ export async function POST(
       // Watchdog heartbeat
       bumpWatchdog(jobId);
       bufferLog(jobId, { phase: phase || 'progress', progress: typeof progressValue === 'number' ? Math.max(0, Math.min(100, progressValue)) : undefined, message });
-      FileLogger.info('external-jobs', 'Progress-Event', {
-        jobId,
-        phase: phase || 'progress',
-        progress: progressValue,
-        message
-      });
+      try { await repo.traceAddEvent(jobId, { name: 'progress', attributes: { phase: phase || 'progress', progress: progressValue, message } }); } catch {}
       // Push-Event für UI (SSE)
       getJobEventBus().emitUpdate(job.userEmail, {
         type: 'job_update',
@@ -683,7 +680,7 @@ export async function POST(
         }
         await repo.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });
         const saved = await provider.uploadFile(targetParentId, file);
-        FileLogger.info('external-jobs', 'Shadow‑Twin gespeichert', { jobId, savedItemId: saved.id, name: saved.metadata?.name })
+        try { await repo.traceAddEvent(jobId, { spanId: 'store', name: 'stored_local', attributes: { savedItemId: saved.id, name: saved.metadata?.name } }); } catch {}
         bufferLog(jobId, { phase: 'stored_local', message: 'Shadow‑Twin gespeichert' });
         savedItemId = saved.id;
         await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
@@ -751,9 +748,9 @@ export async function POST(
                     fileName: t.fileName,
                   } as Record<string, unknown>
                 }))
-                FileLogger.info('external-jobs', 'Doc‑Meta Upsert vorbereiten', { jobId, targets: targets.length, index: ctx.vectorIndex })
+                try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'doc_meta_upsert_prepare', attributes: { targets: targets.length, index: ctx.vectorIndex } }); } catch {}
                 await upsertVectorsChunked(idx.host, apiKey, vectors)
-                FileLogger.info('external-jobs', 'Doc‑Meta Upsert erfolgreich', { jobId, count: targets.length })
+                try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'doc_meta_upserted', attributes: { count: targets.length } }); } catch {}
                 bufferLog(jobId, { phase: 'doc_meta_upsert', message: `Pinecone Doc‑Meta upserted (${targets.length})` })
               }
             }
@@ -866,7 +863,7 @@ export async function POST(
         } else {
           await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
         }
-        FileLogger.info('external-jobs', 'Ingestion start', { jobId, libraryId: job.libraryId })
+        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_start', attributes: { libraryId: job.libraryId } }); } catch {}
         // Kompakte Progress-Events (SSE) für Ingestion
         try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 10, updatedAt: new Date().toISOString(), message: 'ingest_start', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
         const paramsObj = job.parameters && typeof job.parameters === 'object' ? job.parameters as Record<string, unknown> : undefined
@@ -883,13 +880,7 @@ export async function POST(
         })()
         const useIngestion = ingestPolicy !== 'skip'
         bufferLog(jobId, { phase: 'ingest_rag', message: `Ingestion decision: ${useIngestion ? 'do' : 'skip'}` })
-        FileLogger.info('external-jobs', 'Ingestion decision', {
-          jobId,
-          useIngestion,
-          doIngestRAG: typeof legacyFlag === 'boolean' ? legacyFlag : undefined,
-          policiesIngest: legacyPolicies?.ingest,
-          phasesIngest: legacyPhases?.ingest
-        })
+        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_decision', attributes: { useIngestion, doIngestRAG: typeof legacyFlag === 'boolean' ? legacyFlag : undefined, policiesIngest: legacyPolicies?.ingest, phasesIngest: legacyPhases?.ingest } }); } catch {}
         if (useIngestion && !ingestGateExists) {
           // Lade gespeicherten Markdown-Inhalt erneut (vereinfachend: extractedText)
           // Stabiler Schlüssel: Original-Quell-Item (PDF) bevorzugen, sonst Shadow‑Twin, sonst Fallback
@@ -917,7 +908,7 @@ export async function POST(
           await repo.setIngestion(jobId, { upsertAt: new Date(), vectorsUpserted: total, index: res.index });
           // Zusammenfassung loggen
           bufferLog(jobId, { phase: 'ingest_rag', message: `RAG-Ingestion: ${res.chunksUpserted} Chunks, ${res.docUpserted ? 1 : 0} Doc` });
-          FileLogger.info('external-jobs', 'Ingestion success', { jobId, chunks: res.chunksUpserted, doc: res.docUpserted, total })
+          try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_pinecone_upserted', attributes: { chunks: res.chunksUpserted, doc: res.docUpserted, total } }); } catch {}
           try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 90, updatedAt: new Date().toISOString(), message: 'ingest_pinecone_upserted', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
           await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date() });
           try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 95, updatedAt: new Date().toISOString(), message: 'ingest_rag_finished', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
@@ -954,7 +945,7 @@ export async function POST(
       // Finalen Logeintrag für den sichtbaren Verlauf hinzufügen
       await repo.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen' });
 
-      FileLogger.info('external-jobs', 'Job completed', { jobId, savedItemId, savedItemsCount: savedItems.length });
+      try { await repo.traceAddEvent(jobId, { name: 'completed', attributes: { savedItemId, savedItemsCount: savedItems.length } }); } catch {}
       // @ts-expect-error custom field for UI refresh
       getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, refreshFolderId: (job.correlation?.source?.parentId || 'root') });
       return NextResponse.json({ status: 'ok', jobId, kind: 'final', savedItemId, savedItemsCount: savedItems.length });

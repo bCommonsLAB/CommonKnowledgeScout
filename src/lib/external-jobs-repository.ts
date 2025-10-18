@@ -271,11 +271,10 @@ export class ExternalJobsRepository {
   async claimNextQueuedJob(): Promise<ExternalJob | null> {
     const col = await this.getCollection();
     const now = new Date();
-    FileLogger.info('external-jobs-repo', 'claim_attempt_start', {} as unknown as Record<string, unknown>);
+    // Ruhiger: keine lauten Info-Logs hier
     // Phase 1: Kandidaten lesen (stabilste Reihenfolge via updatedAt)
     const candidate = await col.find({ status: 'queued' }).sort({ updatedAt: 1 }).limit(1).next();
     if (!candidate) {
-      FileLogger.info('external-jobs-repo', 'claim_none', {} as unknown as Record<string, unknown>);
       return null;
     }
     // Phase 2: Guarded Update auf genau diesen Job
@@ -285,10 +284,8 @@ export class ExternalJobsRepository {
     );
     if (upd.modifiedCount === 1) {
       const doc = await col.findOne({ jobId: candidate.jobId });
-      if (doc) FileLogger.info('external-jobs-repo', 'claim_success', { jobId: doc.jobId });
       return doc as ExternalJob | null;
     }
-    FileLogger.info('external-jobs-repo', 'claim_race_lost', { jobId: candidate.jobId } as unknown as Record<string, unknown>);
     return null;
   }
 
@@ -331,7 +328,7 @@ export class ExternalJobsRepository {
     );
   }
 
-  async traceAddEvent(jobId: string, evt: { spanId?: string; name: string; level?: 'info' | 'warn' | 'error'; message?: string; attributes?: Record<string, unknown> }): Promise<void> {
+  async traceAddEvent(jobId: string, evt: { spanId?: string; name: string; level?: 'info' | 'warn' | 'error'; message?: string; attributes?: Record<string, unknown>; eventId?: string }): Promise<void> {
     const col = await this.getCollection();
     let spanId = evt.spanId;
     if (!spanId) {
@@ -339,9 +336,12 @@ export class ExternalJobsRepository {
       const cur = ((doc as unknown as { trace?: { currentSpanId?: string } })?.trace?.currentSpanId) || undefined;
       if (cur) spanId = cur;
     }
+    const now = new Date();
+    // eindeutige, nicht-deterministische ID je Auftreten (keine De-Dupe!)
+    const eventId = (evt.eventId && String(evt.eventId)) || `${now.getTime()}-${Math.random().toString(36).slice(2, 10)}`;
     await col.updateOne(
       { jobId },
-      { $push: { 'trace.events': { ts: new Date(), spanId, name: evt.name, level: evt.level || 'info', message: evt.message, attributes: evt.attributes || {} } } }
+      { $push: { 'trace.events': { eventId, ts: now, spanId, name: evt.name, level: evt.level || 'info', message: evt.message, attributes: evt.attributes || {} } }, $set: { updatedAt: now } }
     );
   }
 

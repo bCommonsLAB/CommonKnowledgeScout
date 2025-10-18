@@ -8,8 +8,9 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { JobTrace } from '@/components/shared/job-trace';
-import { FileText, FileAudio, FileVideo, Image as ImageIcon, File as FileIcon, FileType2, RefreshCw, Ban } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TraceViewer } from '@/components/shared/trace-viewer';
+import { FileText, FileAudio, FileVideo, Image as ImageIcon, File as FileIcon, FileType2, RefreshCw, Ban, Activity, Copy } from "lucide-react";
 
 interface JobListItem {
   jobId: string;
@@ -109,6 +110,14 @@ export function JobMonitorPanel() {
   const [liveUpdates, setLiveUpdates] = useState<boolean>(true);
   const [traceJobId, setTraceJobId] = useState<string | null>(null);
   const [workerStatus, setWorkerStatus] = useState<{ state: 'running' | 'stopped'; stats?: { processed?: number; errors?: number; lastTickAt?: number }; concurrency?: number; intervalMs?: number } | null>(null);
+  const [openTraces, setOpenTraces] = useState<Set<string>>(new Set());
+  const toggleTrace = (jobId: string) => {
+    setOpenTraces(prev => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId); else next.add(jobId);
+      return next;
+    });
+  };
 
   // Worker wird nicht mehr automatisch gestartet; nur noch über die Controls
 
@@ -502,17 +511,7 @@ export function JobMonitorPanel() {
               } catch {}
             }}>Neu starten (gefiltert)</Button>
           </div>
-          {traceJobId ? (
-            <div className="px-4 py-2 border-b">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm font-medium">Trace: {traceJobId}</div>
-                <Button size="sm" variant="ghost" onClick={() => setTraceJobId(null)}>Schließen</Button>
-              </div>
-              <div className="max-h-[50vh] overflow-auto">
-                <JobTrace jobId={traceJobId} />
-              </div>
-            </div>
-          ) : null}
+          {/* Globale Trace-Anzeige entfernt; Traces erscheinen inline pro Job */}
           <ScrollArea className="flex-1">
             <ul className="p-3 space-y-2">
               {items.filter(it => !hiddenIds.has(it.jobId)).map(item => (
@@ -541,15 +540,44 @@ export function JobMonitorPanel() {
                         </HoverCardContent>
                       </HoverCard>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0 w-28 justify-end">
-                      <button
-                        onClick={() => setTraceJobId(item.jobId)}
-                        className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
-                        aria-label="Trace anzeigen"
-                        title="Trace anzeigen"
-                      >
-                        Trace
-                      </button>
+                    <div className="flex items-center gap-1 shrink-0 w-40 justify-end">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => toggleTrace(item.jobId)}
+                              className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
+                              aria-label={openTraces.has(item.jobId) ? "Trace ausblenden" : "Trace anzeigen"}
+                              title={openTraces.has(item.jobId) ? "Trace ausblenden" : "Trace anzeigen"}
+                            >
+                              <Activity className={cn("h-4 w-4", openTraces.has(item.jobId) ? "text-primary" : "text-muted-foreground")} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">{openTraces.has(item.jobId) ? "Trace ausblenden" : "Trace anzeigen"}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/external/jobs/${encodeURIComponent(item.jobId)}/markdown`, { cache: 'no-store' });
+                                  if (!res.ok) return;
+                                  const text = await res.text();
+                                  await navigator.clipboard.writeText(text);
+                                } catch {}
+                              }}
+                              className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
+                              aria-label="Als Markdown kopieren"
+                              title="Als Markdown kopieren"
+                            >
+                              <Copy className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">Als Markdown kopieren</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <button
                         onClick={() => hideJob(item.jobId)}
                         className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
@@ -588,6 +616,13 @@ export function JobMonitorPanel() {
                     <div className="truncate" title={item.lastMessage}>{item.lastMessage || '—'}</div>
                     <div>{formatRelative(item.updatedAt)}</div>
                   </div>
+                  {openTraces.has(item.jobId) ? (
+                    <div className="mt-3 border-t pt-3">
+                      <div className="max-h-[50vh] overflow-auto">
+                        <TraceViewer jobId={item.jobId} />
+                      </div>
+                    </div>
+                  ) : null}
                 </li>
               ))}
               {items.length === 0 && (

@@ -30,6 +30,7 @@ export async function POST(
     })();
 
     const { userId } = getAuth(request);
+    const workerId = request.headers.get('x-worker-id') || request.headers.get('X-Worker-Id') || undefined;
     if (!internalBypass && !userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
     const user = internalBypass ? null : await currentUser();
     const requestedUserEmail = user?.emailAddresses?.[0]?.emailAddress || '';
@@ -46,7 +47,7 @@ export async function POST(
         await repo.appendLog(jobId, { phase: 'requeue_blocked_already_active', message: `Status=${job.status}` } as unknown as Record<string, unknown>);
         return NextResponse.json({ error: 'Job bereits aktiv' }, { status: 409 });
       }
-      FileLogger.info('external-jobs-retry', 'already_running_continue_internal', { jobId });
+      try { await repo.traceAddEvent(jobId, { name: 'already_running_continue_internal', attributes: { workerId } }); } catch {}
     }
 
     // In-Place Requeue: Bestehenden Job zurücksetzen und mit gleicher jobId erneut an Secretary senden
@@ -56,12 +57,12 @@ export async function POST(
       return NextResponse.json({ error: 'Quelle für Retry unvollständig' }, { status: 400 });
     }
 
-    FileLogger.info('external-jobs-retry', 'build_provider_start', { jobId, libraryId, userEmail });
+    try { await repo.traceAddEvent(jobId, { name: 'build_provider_start', attributes: { libraryId, userEmail, workerId } }); } catch {}
     const provider = await getServerProvider(userEmail, libraryId);
     const bin = await provider.getBinary(source.itemId);
     const filename = source.name || 'document.pdf';
     const file = new File([bin.blob], filename, { type: source.mimeType || bin.mimeType || 'application/pdf' });
-    FileLogger.info('external-jobs-retry', 'build_formdata', { jobId, filename, mime: source.mimeType || bin.mimeType });
+    try { await repo.traceAddEvent(jobId, { name: 'build_formdata', attributes: { filename, mime: source.mimeType || bin.mimeType, workerId } }); } catch {}
 
     // Secretary-FormData aufbauen (wie in process-pdf für den Worker-Call)
     const serviceFormData = new FormData();
@@ -89,9 +90,9 @@ export async function POST(
     await repo.setStatus(jobId, 'running', { jobSecretHash: newHash });
     try { await repo.initializeTrace(jobId); await repo.traceAddEvent(jobId, { name: 'retry_start' }); } catch {}
     await repo.updateStep(jobId, 'extract_pdf', { status: 'running', startedAt: new Date() });
-    FileLogger.info('external-jobs-retry', 'step_extract_running', { jobId });
+    try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'step_running', attributes: { workerId } }); } catch {}
     await repo.appendLog(jobId, { phase: 'request_sent_requeue', callbackUrl });
-    FileLogger.info('external-jobs-retry', 'Requeue gestartet', { jobId, callbackUrl })
+    try { await repo.traceAddEvent(jobId, { name: 'requeue_started', attributes: { callbackUrl, workerId } }); } catch {}
     // Live-Event + Watchdog
     getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 0, updatedAt: new Date().toISOString(), message: 'started', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
     startWatchdog({ jobId, userEmail, jobType: job.job_type, fileName: job.correlation?.source?.name }, 600_000);
@@ -328,7 +329,7 @@ export async function POST(
     // Secretary aufrufen
     const baseUrl = process.env.SECRETARY_SERVICE_URL || '';
     const normalizedUrl = baseUrl.endsWith('/') ? `${baseUrl}pdf/process` : `${baseUrl}/pdf/process`;
-    FileLogger.info('external-jobs-retry', 'secretary_request_start', { jobId, url: normalizedUrl });
+    try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'secretary_request_start', attributes: { url: normalizedUrl, workerId } }); } catch {}
     try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'secretary_request_start', attributes: { url: normalizedUrl } }); } catch {}
     let response: Response;
     try {
@@ -347,7 +348,7 @@ export async function POST(
 
     await repo.appendLog(jobId, { phase: 'request_ack', status: response.status, statusText: response.statusText });
     try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'secretary_request_ack', attributes: { status: response.status } }); } catch {}
-    FileLogger.info('external-jobs-retry', 'secretary_request_ack', { jobId, status: response.status, statusText: response.statusText });
+    try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'secretary_request_ack', attributes: { status: response.status, statusText: response.statusText, workerId } }); } catch {}
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       await repo.updateStep(jobId, 'extract_pdf', { status: 'failed', endedAt: new Date(), details: { reason: 'worker_error', status: response.status, statusText: response.statusText } });
@@ -357,7 +358,7 @@ export async function POST(
     }
 
     const data = await response.json().catch(() => ({}));
-    FileLogger.info('external-jobs-retry', 'Secretary Request akzeptiert', { jobId, status: response.status })
+    try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'secretary_request_accepted', attributes: { status: response.status, workerId } }); } catch {}
     return NextResponse.json({ ok: true, jobId, worker: 'secretary', data });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Unerwarteter Fehler' }, { status: 500 });

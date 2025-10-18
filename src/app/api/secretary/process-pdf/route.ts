@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     await repo.appendLog(jobId, { phase: 'enqueued', message: 'Job enqueued; worker will start it' } as unknown as Record<string, unknown>);
     return NextResponse.json({ status: 'accepted', job: { id: jobId } });
-  } catch {
+            } catch {
     return NextResponse.json({ error: 'Unerwarteter Fehler' }, { status: 500 });
   }
 } 

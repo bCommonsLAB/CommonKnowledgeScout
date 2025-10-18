@@ -18,6 +18,11 @@ interface EventOut {
   level?: 'info' | 'warn' | 'error' | string;
   message?: string;
   attributes?: Record<string, unknown>;
+  eventId?: string;
+  sequenceNo?: number;
+  isDuplicate?: boolean;
+  duplicateIndex?: number;
+  duplicateCount?: number;
 }
 
 export async function GET(
@@ -63,8 +68,50 @@ export async function GET(
           level: String((e as { level?: unknown }).level ?? 'info'),
           message: (e as { message?: unknown }).message ? String((e as { message?: unknown }).message) : undefined,
           attributes: (e as { attributes?: unknown }).attributes && typeof (e as { attributes?: unknown }).attributes === 'object' ? ((e as { attributes: Record<string, unknown> }).attributes) : undefined,
+          eventId: (e as { eventId?: unknown }).eventId ? String((e as { eventId?: unknown }).eventId) : undefined,
         }))
       : [];
+
+    // Analyse: Sequenznummern und Duplikate pro Span, sowie Lücken zwischen Spans (Root-Kinder)
+    const bySpan = new Map<string, EventOut[]>();
+    for (const ev of events) {
+      const key = ev.spanId || 'root';
+      const arr = bySpan.get(key) || [];
+      arr.push(ev);
+      bySpan.set(key, arr);
+    }
+    for (const [key, arr] of bySpan.entries()) {
+      arr.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+      // Sequenznummern
+      arr.forEach((e, i) => { e.sequenceNo = i + 1; });
+      // Duplikate nach Name innerhalb desselben Spans erkennen
+      const counts = new Map<string, number>();
+      for (const e of arr) counts.set(e.name, (counts.get(e.name) || 0) + 1);
+      const seenIndex = new Map<string, number>();
+      for (const e of arr) {
+        const c = counts.get(e.name) || 0;
+        if (c > 1) {
+          const idx = (seenIndex.get(e.name) || 0) + 1;
+          seenIndex.set(e.name, idx);
+          e.isDuplicate = true;
+          e.duplicateIndex = idx;
+          e.duplicateCount = c;
+        }
+      }
+    }
+
+    // Gaps: nur Kinder des Root-Spans ('job') betrachten
+    const rootChildren = spans
+      .filter((s) => (s as unknown as { parentSpanId?: string }).parentSpanId === 'job' || s.spanId === 'extract' || s.spanId === 'template' || s.spanId === 'store' || s.spanId === 'ingest')
+      .sort((a, b) => (Date.parse(a.startedAt || '0') - Date.parse(b.startedAt || '0')));
+    const gaps: Array<{ afterSpanId: string; beforeSpanId: string; gapMs: number; from: string; to: string }> = [];
+    for (let i = 0; i < rootChildren.length - 1; i++) {
+      const a = rootChildren[i];
+      const b = rootChildren[i + 1];
+      if (!a.endedAt || !b.startedAt) continue;
+      const gap = Date.parse(b.startedAt) - Date.parse(a.endedAt);
+      if (gap > 0) gaps.push({ afterSpanId: a.spanId, beforeSpanId: b.spanId, gapMs: gap, from: a.endedAt, to: b.startedAt });
+    }
 
     // Mermaid Gantt generieren (nur 4 Hauptspans)
     const byId = Object.fromEntries(spans.map((s) => [s.spanId, s] as const));
@@ -108,6 +155,9 @@ export async function GET(
       jobId,
       spans,
       events,
+      analysis: {
+        gaps,
+      },
       mermaid: { gantt: mermaidLines.join('\n') },
     });
   } catch {
