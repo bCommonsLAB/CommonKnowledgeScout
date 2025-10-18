@@ -109,8 +109,17 @@ export function TraceViewer({ jobId }: { jobId: string }) {
 
   const getSpanWidth = (span: SpanOut) => {
     if (!span.startedAt) return 0;
+    const endVisible = (() => {
+      // Wenn Events mit ts zwischen span.startedAt und späterem Zeitpunkt existieren, dehnen wir den Balken bis zum letzten Event
+      const lastEventTs = Math.max(
+        0,
+        ...((trace?.events || []).filter(e => (e.spanId ?? undefined) === span.spanId).map(e => Date.parse(e.ts))).filter(n => Number.isFinite(n))
+      );
+      const spanEnd = span.endedAt ? Date.parse(span.endedAt) : lastEventTs || Date.now();
+      return Math.max(spanEnd, lastEventTs || spanEnd);
+    })();
     const start = Date.parse(span.startedAt);
-    const end = span.endedAt ? Date.parse(span.endedAt) : Date.now();
+    const end = endVisible;
     return Math.max(0, Math.min(100, ((end - start) / timeRange) * 100));
   };
 
@@ -123,7 +132,7 @@ export function TraceViewer({ jobId }: { jobId: string }) {
   };
 
   const hasError = (spanId: string | null | undefined) => trace?.events.some((e) => (e.spanId ?? null) === (spanId ?? null) && (e.level === "error")) || false;
-  const getSpanEvents = (spanId: string) => (trace?.events.filter((e) => (e.spanId ?? undefined) === spanId) || []);
+  const getSpanEvents = (spanId: string) => (trace?.events.filter((e) => (e.spanId ?? undefined) === spanId && e.name !== 'callback_received') || []);
 
   const buildSpanTree = useMemo(() => {
     const spanMap = new Map<string, SpanOut>();
@@ -146,6 +155,13 @@ export function TraceViewer({ jobId }: { jobId: string }) {
     const position = getTimePosition(event.ts);
     // Sichere, stabile Keys: eventId bevorzugen
     const key = event.eventId || `${event.ts}-${event.name}-${depth}-${event.spanId ?? 'root'}-${event.message ? event.message.length : 0}`;
+    const attrMessage = event.attributes && typeof event.attributes === 'object' ? String((event.attributes as Record<string, unknown>)['message'] || '') : '';
+    const displayTextRaw = (event.message && event.message.trim().length > 0)
+      ? event.message
+      : (attrMessage && attrMessage.trim().length > 0)
+        ? attrMessage
+        : event.name;
+    const displayText = sanitizeForInlineDisplay(displayTextRaw);
     return (
       <TooltipProvider key={key}>
         <Tooltip>
@@ -168,7 +184,7 @@ export function TraceViewer({ jobId }: { jobId: string }) {
               {event.sequenceNo ? (
                 <span className="text-[10px] font-mono text-muted-foreground min-w-[20px] text-right">#{event.sequenceNo}</span>
               ) : null}
-              <span className={cn("text-xs font-mono flex-1 min-w-0 truncate max-w-[22rem]", isError ? "text-destructive" : "text-foreground")}>{event.name}
+              <span className={cn("text-xs font-mono flex-1 min-w-0 truncate max-w-[22rem]", isError ? "text-destructive" : "text-foreground")}>{displayText}
                 {event.isDuplicate && typeof event.duplicateIndex === 'number' && typeof event.duplicateCount === 'number' ? (
                   <span className="ml-2 inline-flex items-center rounded px-1 py-0.5 text-[10px] bg-amber-200 text-amber-900 border border-amber-300">{event.duplicateIndex}/{event.duplicateCount}</span>
                 ) : null}
@@ -276,7 +292,7 @@ export function TraceViewer({ jobId }: { jobId: string }) {
               <div className="space-y-0">
             {/* Zuerst Child-Spans, dann Events, damit die 3. Ebene kompakt bleibt */}
             {children.map((c) => renderSpan(c, depth + 1))}
-            {events.map((e, idx) => renderEvent(e, depth + 1))}
+            {events.map((e) => renderEvent(e, depth + 1))}
           </div>
         ) : null}
       </div>
@@ -324,6 +340,11 @@ export function TraceViewer({ jobId }: { jobId: string }) {
       </div>
     </div>
   );
+}
+
+function sanitizeForInlineDisplay(text?: string | null): string {
+  if (!text) return "";
+  return String(text).replace(/\s+/g, " ").trim();
 }
 
 

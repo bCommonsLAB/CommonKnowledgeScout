@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TraceViewer } from '@/components/shared/trace-viewer';
-import { FileText, FileAudio, FileVideo, Image as ImageIcon, File as FileIcon, FileType2, RefreshCw, Ban, Activity, Copy } from "lucide-react";
+import { FileText, FileAudio, FileVideo, Image as ImageIcon, File as FileIcon, FileType2, RefreshCw, Ban, Activity, Copy, Trash2 } from "lucide-react";
 
 interface JobListItem {
   jobId: string;
@@ -108,7 +108,6 @@ export function JobMonitorPanel() {
   const [batchNames, setBatchNames] = useState<string[]>([]);
   const [serverCounts, setServerCounts] = useState<{ queued: number; running: number; completed: number; failed: number; pendingStorage: number; total: number } | null>(null);
   const [liveUpdates, setLiveUpdates] = useState<boolean>(true);
-  const [traceJobId, setTraceJobId] = useState<string | null>(null);
   const [workerStatus, setWorkerStatus] = useState<{ state: 'running' | 'stopped'; stats?: { processed?: number; errors?: number; lastTickAt?: number }; concurrency?: number; intervalMs?: number } | null>(null);
   const [openTraces, setOpenTraces] = useState<Set<string>>(new Set());
   const toggleTrace = (jobId: string) => {
@@ -412,6 +411,24 @@ export function JobMonitorPanel() {
     setHiddenIds(new Set(items.map(i => i.jobId)));
   }
 
+  async function deleteJob(jobId: string) {
+    try {
+      const confirmed = window.confirm('Diesen Job endgültig löschen?');
+      if (!confirmed) return;
+      const res = await fetch(`/api/external/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => res.statusText);
+        alert(`Löschen fehlgeschlagen: ${msg}`);
+        return;
+      }
+      setItems(prev => prev.filter(i => i.jobId !== jobId));
+      setHiddenIds(prev => { const next = new Set(prev); next.delete(jobId); return next; });
+      if (openTraces.has(jobId)) setOpenTraces(prev => { const next = new Set(prev); next.delete(jobId); return next; });
+    } catch {
+      alert(`Löschen fehlgeschlagen`);
+    }
+  }
+
   return (
     <div className="pointer-events-none">
       {/* Handle */}
@@ -554,6 +571,21 @@ export function JobMonitorPanel() {
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">{openTraces.has(item.jobId) ? "Trace ausblenden" : "Trace anzeigen"}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => deleteJob(item.jobId)}
+                              className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
+                              aria-label="Job löschen"
+                              title="Job löschen"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">Job löschen</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                       <TooltipProvider>

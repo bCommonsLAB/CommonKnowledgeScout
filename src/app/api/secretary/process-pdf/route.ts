@@ -82,7 +82,6 @@ export async function POST(request: NextRequest) {
     await repo.initializeSteps(jobId, [
       { name: 'extract_pdf', status: 'pending' },
       { name: 'transform_template', status: 'pending' },
-      { name: 'store_shadow_twin', status: 'pending' },
       { name: 'ingest_rag', status: 'pending' },
     ], {
       targetLanguage,
@@ -93,6 +92,24 @@ export async function POST(request: NextRequest) {
       phases,
       policies,
     });
+
+    // Trace initialisieren und Eingangsparameter protokollieren
+    try {
+      await repo.initializeTrace(jobId);
+      await repo.traceAddEvent(jobId, {
+        name: 'process_pdf_submit',
+        attributes: {
+          libraryId,
+          fileName: correlation.source?.name,
+          extractionMethod,
+          targetLanguage,
+          includeImages: includeImages === 'true',
+          useCache: useCache === 'true',
+          template: (formData.get('template') as string) || undefined,
+          phases,
+        }
+      });
+    } catch {}
 
     FileLogger.info('process-pdf', 'Job angelegt (queued, worker übernimmt)', { jobId, libraryId, userEmail });
 

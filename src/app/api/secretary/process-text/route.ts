@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
       secretaryFormData.append('source_language', sourceLanguage);
     }
     
+    // Trace: Eingehende Client-Parameter in Job-Trace gibt es hier nicht (kein jobId). Wir loggen Server-seitig minimal per Console und Response-Felder
     // Anfrage an den Secretary Service senden
     const response = await fetch(`${secretaryServiceUrl}/transformer/template`, {
       method: 'POST',
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
     });
 
     const data = await response.json();
+    console.log('[process-text] secretary_request_ack+', { status: response.status, hasData: !!data, keys: data && typeof data === 'object' ? Object.keys(data) : [] });
     console.log('[process-text] Antwortdaten:', JSON.stringify(data).substring(0, 100) + '...');
 
     if (!response.ok) {

@@ -4,6 +4,7 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 
 interface SpanOut {
   spanId: string;
+  parentSpanId?: string;
   name: string;
   status: 'running' | 'completed' | 'failed' | 'skipped' | string;
   startedAt?: string;
@@ -49,6 +50,7 @@ export async function GET(
     const spans: SpanOut[] = Array.isArray(spansRaw)
       ? spansRaw.map((s) => ({
           spanId: String((s as { spanId?: unknown }).spanId ?? ''),
+          parentSpanId: (s as { parentSpanId?: unknown }).parentSpanId ? String((s as { parentSpanId?: unknown }).parentSpanId) : undefined,
           name: String((s as { name?: unknown }).name ?? ''),
           status: String((s as { status?: unknown }).status ?? ''),
           startedAt: (s as { startedAt?: unknown }).startedAt ? new Date(String((s as { startedAt?: unknown }).startedAt)).toISOString() : undefined,
@@ -60,6 +62,11 @@ export async function GET(
           })(),
         }))
       : [];
+
+    // Normalisierung: store als Kind von template anzeigen, falls parentSpanId fehlt
+    for (const s of spans) {
+      if (s.spanId === 'store' && !s.parentSpanId) s.parentSpanId = 'template';
+    }
     const events: EventOut[] = Array.isArray(eventsRaw)
       ? eventsRaw.map((e) => ({
           ts: (e as { ts?: unknown }).ts ? new Date(String((e as { ts?: unknown }).ts)).toISOString() : new Date().toISOString(),
@@ -72,37 +79,38 @@ export async function GET(
         }))
       : [];
 
-    // Analyse: Sequenznummern und Duplikate pro Span, sowie Lücken zwischen Spans (Root-Kinder)
-    const bySpan = new Map<string, EventOut[]>();
-    for (const ev of events) {
-      const key = ev.spanId || 'root';
-      const arr = bySpan.get(key) || [];
-      arr.push(ev);
-      bySpan.set(key, arr);
+    // Analyse: Globale Sequenznummern und robuste Duplikat‑Erkennung (inkl. message/attributes)
+    events.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+    const occurrences = new Map<string, number>();
+    const groups = new Map<string, EventOut[]>();
+    let seq = 0;
+    for (const e of events) {
+      seq += 1;
+      e.sequenceNo = seq;
+      const msg = e.name === 'callback_received' ? '' : (e.message || (typeof e.attributes?.message === 'string' ? String(e.attributes?.message) : ''));
+      const progRaw = (e.attributes && typeof e.attributes === 'object') ? (e.attributes as Record<string, unknown>)['progress'] : undefined;
+      const prog = typeof progRaw === 'number' ? progRaw : (typeof progRaw === 'string' ? Number(progRaw) : undefined);
+      const key = `${e.spanId || 'root'}|${e.name}|${msg}|${Number.isFinite(prog as number) ? prog : ''}`;
+      const count = (occurrences.get(key) || 0) + 1;
+      occurrences.set(key, count);
+      if (count > 1) {
+        if (e.name === 'callback_received') continue; // Heartbeats/Callbacks nicht als Duplikate markieren
+        const arr = groups.get(key) || [];
+        arr.push(e);
+        groups.set(key, arr);
+      }
     }
-    for (const [key, arr] of bySpan.entries()) {
-      arr.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
-      // Sequenznummern
-      arr.forEach((e, i) => { e.sequenceNo = i + 1; });
-      // Duplikate nach Name innerhalb desselben Spans erkennen
-      const counts = new Map<string, number>();
-      for (const e of arr) counts.set(e.name, (counts.get(e.name) || 0) + 1);
-      const seenIndex = new Map<string, number>();
-      for (const e of arr) {
-        const c = counts.get(e.name) || 0;
-        if (c > 1) {
-          const idx = (seenIndex.get(e.name) || 0) + 1;
-          seenIndex.set(e.name, idx);
-          e.isDuplicate = true;
-          e.duplicateIndex = idx;
-          e.duplicateCount = c;
-        }
+    for (const arr of groups.values()) {
+      for (let i = 0; i < arr.length; i++) {
+        arr[i].isDuplicate = true;
+        arr[i].duplicateIndex = i + 1;
+        arr[i].duplicateCount = arr.length;
       }
     }
 
     // Gaps: nur Kinder des Root-Spans ('job') betrachten
     const rootChildren = spans
-      .filter((s) => (s as unknown as { parentSpanId?: string }).parentSpanId === 'job' || s.spanId === 'extract' || s.spanId === 'template' || s.spanId === 'store' || s.spanId === 'ingest')
+      .filter((s) => (s as unknown as { parentSpanId?: string }).parentSpanId === 'job')
       .sort((a, b) => (Date.parse(a.startedAt || '0') - Date.parse(b.startedAt || '0')));
     const gaps: Array<{ afterSpanId: string; beforeSpanId: string; gapMs: number; from: string; to: string }> = [];
     for (let i = 0; i < rootChildren.length - 1; i++) {

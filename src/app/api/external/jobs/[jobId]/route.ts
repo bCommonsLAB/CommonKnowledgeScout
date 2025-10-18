@@ -11,6 +11,7 @@ import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
 import { IngestionService } from '@/lib/chat/ingestion-service';
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
+import { callTemplateTransform } from '@/lib/secretary/adapter';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 import { gateTransformTemplate, gateIngestRag } from '@/lib/processing/gates';
 import { getPolicies, shouldRunWithGate } from '@/lib/processing/phase-policy';
@@ -96,7 +97,6 @@ export async function GET(
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
-    const workerId = _request.headers.get('x-worker-id') || _request.headers.get('X-Worker-Id') || undefined;
     const { userId } = getAuth(_request);
     if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
 
@@ -147,6 +147,7 @@ export async function POST(
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
+    const workerId = request.headers.get('x-worker-id') || request.headers.get('X-Worker-Id') || undefined;
     const { jobId } = await params;
     if (!jobId) return NextResponse.json({ error: 'jobId erforderlich' }, { status: 400 });
 
@@ -236,8 +237,8 @@ export async function POST(
       bufferLog(jobId, { phase: 'failed', message });
       try { await repo.updateStep(jobId, 'extract_pdf', { status: 'failed', endedAt: new Date(), error: { message: message || 'Worker meldete failed' } }); } catch {}
       // gepufferte Logs persistieren
-      const bufferedNow = drainBufferedLogs(jobId);
-      for (const entry of bufferedNow) await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
+      // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
+      void drainBufferedLogs(jobId);
       await repo.setStatus(jobId, 'failed', { error: { code: 'worker_failed_phase', message: message || 'Worker meldete failed' } });
       getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: message || 'failed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed_phase' });
@@ -247,7 +248,7 @@ export async function POST(
       // Watchdog heartbeat
       bumpWatchdog(jobId);
       bufferLog(jobId, { phase: phase || 'progress', progress: typeof progressValue === 'number' ? Math.max(0, Math.min(100, progressValue)) : undefined, message });
-      try { await repo.traceAddEvent(jobId, { name: 'progress', attributes: { phase: phase || 'progress', progress: progressValue, message } }); } catch {}
+      try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'progress', attributes: { phase: phase || 'progress', progress: progressValue, message } }); } catch {}
       // Push-Event für UI (SSE)
       getJobEventBus().emitUpdate(job.userEmail, {
         type: 'job_update',
@@ -268,10 +269,8 @@ export async function POST(
       clearWatchdog(jobId);
       bufferLog(jobId, { phase: 'failed', details: body.error });
       // Bei Fehler: gepufferte Logs persistieren
-      const buffered = drainBufferedLogs(jobId);
-      for (const entry of buffered) {
-        await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
-      }
+      // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
+      void drainBufferedLogs(jobId);
       await repo.setStatus(jobId, 'failed', { error: { code: 'worker_error', message: 'Externer Worker-Fehler', details: body.error } });
       getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: body?.error?.message, jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed' });
@@ -285,6 +284,28 @@ export async function POST(
       bumpWatchdog(jobId);
       bufferLog(jobId, { phase: 'noop' });
       return NextResponse.json({ status: 'ok', jobId, kind: 'noop' });
+    }
+
+    // Phasen-Flags aus Parametern lesen (zur harten Deaktivierung von Teilphasen)
+    const phasesParam = (job.parameters && typeof job.parameters === 'object') ? (job.parameters as { phases?: { template?: boolean; ingest?: boolean } }).phases : undefined;
+    const templatePhaseEnabled = phasesParam?.template !== false;
+    const ingestPhaseEnabled = phasesParam?.ingest !== false;
+
+    // Kurzschluss: Extract‑Only (Template und Ingest deaktiviert)
+    if (!templatePhaseEnabled && !ingestPhaseEnabled) {
+      try { await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'phase_disabled' } }); } catch {}
+      try { await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'phase_disabled' } }); } catch {}
+      await repo.setStatus(jobId, 'completed');
+      clearWatchdog(jobId);
+      // Ergebnis sichern (nur OCR‑Text, keine gespeicherten Items)
+      await repo.setResult(jobId, {
+        extracted_text: extractedText,
+        images_archive_url: imagesArchiveUrlFromWorker || undefined,
+        metadata: body?.data?.metadata,
+      }, { savedItemId: undefined, savedItems: [] });
+      await repo.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen (extract only: phases disabled)' } as unknown as Record<string, unknown>);
+      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+      return NextResponse.json({ status: 'ok', jobId, kind: 'extract_only' });
     }
 
     // Bibliothek laden (um Typ zu bestimmen)
@@ -331,9 +352,8 @@ export async function POST(
           const g = await gateTransformTemplate({ repo, jobId, userEmail: job.userEmail, library: lib, source: job.correlation?.source, options: job.correlation?.options as { targetLanguage?: string } | undefined });
           templateGateExists = g.exists;
           if (g.exists) {
-            await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
+            // Kein vorzeitiges Completed mehr – Completion erfolgt erst nach Speichern
             bufferLog(jobId, { phase: 'transform_gate_skip', message: g.reason || 'artifact_exists' });
-            templateStatus = 'skipped';
           } else {
             bufferLog(jobId, { phase: 'transform_gate_plan', message: 'Template-Transformation wird ausgeführt' });
           }
@@ -350,6 +370,7 @@ export async function POST(
             templateAlreadyCompleted = !!st && st.status === 'completed';
           } catch {}
           if (templateAlreadyCompleted && policies.metadata !== 'force') {
+            // Kein Completed-Event mehr erzeugen; späterer Flow setzt completed nach Speichern
             bufferLog(jobId, { phase: 'transform_gate_skip', message: 'already_completed' });
             templateStatus = 'skipped';
           } else {
@@ -375,6 +396,7 @@ export async function POST(
               chosen = preferredTemplate
                 ? pickByName(preferredTemplate.endsWith('.md') ? preferredTemplate : `${preferredTemplate}.md`)
                 : (pickByName('pdfanalyse.md') || pickByName('pdfanalyse_default.md') || tplItems.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name.toLowerCase().endsWith('.md')));
+              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_selected', attributes: { preferred: preferredTemplate, picked: !!chosen, templateName: (preferredTemplate || ((chosen as unknown as { metadata?: { name?: string } })?.metadata?.name) || 'pdfanalyse.md') } }); } catch {}
               if (!chosen) {
                 const defaultTemplateContent = '# {{title}}\n';
                 const tplFile = new File([new Blob([defaultTemplateContent], { type: 'text/markdown' })], 'pdfanalyse.md', { type: 'text/markdown' });
@@ -423,7 +445,8 @@ export async function POST(
               const headers: Record<string, string> = { 'Accept': 'application/json' };
               const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
               if (apiKey) { headers['Authorization'] = `Bearer ${apiKey}`; headers['X-Service-Token'] = apiKey; }
-              const resp = await fetch(transformerUrl, { method: 'POST', body: fd, headers });
+              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_request_start', attributes: { url: transformerUrl, method: 'POST', targetLanguage: lang, templateContentLen: templateContent.length } }); } catch {}
+              const resp = await callTemplateTransform({ url: transformerUrl, text: extractedText || '', targetLanguage: lang, templateContent, apiKey: process.env.SECRETARY_SERVICE_API_KEY, timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000) });
               const data: unknown = await resp.json().catch(() => ({}));
               if (resp.ok && data && typeof data === 'object' && !Array.isArray(data)) {
                 const d = (data as { data?: unknown }).data as { structured_data?: unknown } | undefined;
@@ -448,16 +471,17 @@ export async function POST(
         const finalMeta: Record<string, unknown> = metadataFromTemplate ? { ...metadataFromTemplate } : { ...baseMeta };
         docMetaForIngestion = finalMeta;
         await repo.appendMeta(jobId, finalMeta, 'template_transform');
-        await repo.updateStep(jobId, 'transform_template', { status: templateStatus === 'failed' ? 'failed' : 'completed', endedAt: new Date(), ...(templateStatus === 'skipped' ? { details: { skipped: true } } : {}) });
+        // WICHTIG: Completion erst NACH dem Speichern (siehe unten)
+        if (templateStatus === 'failed') {
+          await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date() });
+        }
 
         // Fatal: Wenn Template-Transformation gestartet wurde, aber fehlgeschlagen ist, abbrechen
         if (templateStatus === 'failed') {
           clearWatchdog(jobId);
           bufferLog(jobId, { phase: 'failed', message: 'Template-Transformation fehlgeschlagen (fatal)' });
-          const bufferedTpl = drainBufferedLogs(jobId);
-          for (const entry of bufferedTpl) {
-            await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
-          }
+          // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
+          void drainBufferedLogs(jobId);
           await repo.setStatus(jobId, 'failed', { error: { code: 'template_failed', message: 'Template-Transformation fehlgeschlagen' } });
           getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Template-Transformation fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
           return NextResponse.json({ status: 'ok', jobId, kind: 'failed_template' });
@@ -596,8 +620,8 @@ export async function POST(
             if (ingestPlanned) {
               clearWatchdog(jobId)
               await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: 'Kapitel-Normalisierung fehlgeschlagen' } })
-              const bufferedNow = drainBufferedLogs(jobId)
-              for (const entry of bufferedNow) await repo.appendLog(jobId, entry as unknown as Record<string, unknown>)
+              // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
+              void drainBufferedLogs(jobId)
               await repo.setStatus(jobId, 'failed', { error: { code: 'chapters_normalize_failed', message: 'Analyze-Endpoint nicht erreichbar/404' } })
               getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'chapters_normalize_failed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId })
               return NextResponse.json({ status: 'error', jobId, kind: 'chapters_normalize_failed' }, { status: 500 })
@@ -615,8 +639,8 @@ export async function POST(
           if (ingestPlanned) {
             clearWatchdog(jobId)
             await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: 'Kapitel-Normalisierung Fehler' } })
-            const bufferedNow = drainBufferedLogs(jobId)
-            for (const entry of bufferedNow) await repo.appendLog(jobId, entry as unknown as Record<string, unknown>)
+            // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
+            void drainBufferedLogs(jobId)
             await repo.setStatus(jobId, 'failed', { error: { code: 'chapters_normalize_error', message: 'Analyze-Endpoint Fehler' } })
             getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'chapters_normalize_error', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId })
             return NextResponse.json({ status: 'error', jobId, kind: 'chapters_normalize_error' }, { status: 500 })
@@ -673,23 +697,34 @@ export async function POST(
         try { await provider.getPathById(targetParentId); }
         catch {
           bufferLog(jobId, { phase: 'store_folder_missing', message: 'Zielordner nicht gefunden' });
-          await repo.updateStep(jobId, 'store_shadow_twin', { status: 'failed', endedAt: new Date(), error: { message: 'Zielordner nicht gefunden' } });
+        await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: 'Zielordner nicht gefunden (store)' } });
           await repo.setStatus(jobId, 'failed', { error: { code: 'STORE_FOLDER_NOT_FOUND', message: 'Zielordner nicht gefunden' } });
           getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'store_folder_missing', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
           return NextResponse.json({ status: 'error', jobId, kind: 'store_folder_missing' }, { status: 500 });
         }
-        await repo.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });
+        // Speichern gehört fachlich zur Template-Phase
+        // Kein erneutes Starten des Template‑Steps, wenn bereits completed
+        try {
+          const latest = await repo.get(jobId)
+          const tpl = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === 'transform_template') : undefined
+          if (tpl?.status !== 'completed') {
+            // nichts tun: Template bleibt im bisherigen Status; Speichern gehört zur laufenden Phase
+          }
+        } catch {}
         const saved = await provider.uploadFile(targetParentId, file);
-        try { await repo.traceAddEvent(jobId, { spanId: 'store', name: 'stored_local', attributes: { savedItemId: saved.id, name: saved.metadata?.name } }); } catch {}
+        try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'stored_local', attributes: { savedItemId: saved.id, name: saved.metadata?.name } }); } catch {}
         bufferLog(jobId, { phase: 'stored_local', message: 'Shadow‑Twin gespeichert' });
         savedItemId = saved.id;
-        await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
+        // Pfad festschreiben
         try {
           const p = await provider.getPathById(targetParentId);
           await repo.appendLog(jobId, { phase: 'stored_path', message: `${p}/${uniqueName}` } as unknown as Record<string, unknown>);
           // @ts-expect-error custom field for UI refresh
           getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 98, updatedAt: new Date().toISOString(), message: 'stored_local', jobType: job.job_type, fileName: uniqueName, sourceItemId: job.correlation?.source?.itemId, refreshFolderId: targetParentId });
         } catch {}
+        // Final: Template erst jetzt (nach erfolgreichem Speichern inkl. Pfad) auf completed setzen
+        await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date() })
+        try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_done' }); } catch {}
 
         // NEU: Doc‑Meta in Pinecone upserten (Statuscache) – für Shadow‑Twin UND Quelle (falls vorhanden)
         try {
@@ -778,8 +813,8 @@ export async function POST(
             if (!resp.ok) {
               bufferLog(jobId, { phase: 'images_download_failed', message: `Archiv-Download fehlgeschlagen: ${resp.status}` });
               clearWatchdog(jobId);
-              const bufferedNow = drainBufferedLogs(jobId);
-              for (const entry of bufferedNow) await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
+              // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
+              void drainBufferedLogs(jobId);
               await repo.setStatus(jobId, 'failed', { error: { code: 'images_download_failed', message: 'Bild-Archiv konnte nicht geladen werden', details: { status: resp.status } } });
               getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Archiv-Download fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name });
               return NextResponse.json({ status: 'ok', jobId, kind: 'failed_images_download' });
@@ -813,8 +848,8 @@ export async function POST(
           } catch {
             bufferLog(jobId, { phase: 'images_extract_failed', message: 'ZIP-Extraktion fehlgeschlagen' });
             clearWatchdog(jobId);
-            const bufferedNow = drainBufferedLogs(jobId);
-            for (const entry of bufferedNow) await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
+            // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
+            void drainBufferedLogs(jobId);
             await repo.setStatus(jobId, 'failed', { error: { code: 'images_extract_failed', message: 'ZIP-Archiv konnte nicht extrahiert werden' } });
             getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Bilder-Extraktion fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name });
             return NextResponse.json({ status: 'ok', jobId, kind: 'failed_images_extract' });
@@ -824,6 +859,9 @@ export async function POST(
 
       // Schritt: ingest_rag (optional automatisiert)
       try {
+        const phasesParam = (job.parameters && typeof job.parameters === 'object') ? (job.parameters as { phases?: { ingest?: boolean } }).phases : undefined;
+        const hardDisableIngest = phasesParam?.ingest === false;
+        if (!hardDisableIngest) {
         // Gate für Ingestion (Phase 3)
         const autoSkip = true;
         let ingestGateExists = false;
@@ -874,8 +912,9 @@ export async function POST(
         const legacyFlag = paramsObj ? (paramsObj['doIngestRAG'] as unknown) : undefined
         const ingestPolicy: 'do' | 'force' | 'skip' = ((): 'do' | 'force' | 'skip' => {
           if (rawPolicy === 'force' || rawPolicy === 'skip' || rawPolicy === 'do') return rawPolicy
-          if (legacyPolicies?.ingest === true || legacyPhases?.ingest === true || typeof legacyFlag === 'boolean' && legacyFlag) return 'do'
+          if (legacyPhases?.ingest === false) return 'skip'
           if (legacyPolicies?.ingest === false) return 'skip'
+          if (legacyPolicies?.ingest === true || legacyPhases?.ingest === true || (typeof legacyFlag === 'boolean' && legacyFlag)) return 'do'
           return 'do'
         })()
         const useIngestion = ingestPolicy !== 'skip'
@@ -915,6 +954,7 @@ export async function POST(
         } else {
           await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
         }
+        } // end !hardDisableIngest
       } catch (err) {
         const reason = (() => {
           if (err && typeof err === 'object') {
@@ -932,10 +972,8 @@ export async function POST(
       await repo.setStatus(jobId, 'completed');
       clearWatchdog(jobId);
       // gepufferte Logs persistieren
-      const buffered = drainBufferedLogs(jobId);
-      for (const entry of buffered) {
-        await repo.appendLog(jobId, entry as unknown as Record<string, unknown>);
-      }
+      // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
+      void drainBufferedLogs(jobId);
       await repo.setResult(jobId, {
         extracted_text: extractedText,
         images_archive_url: imagesArchiveUrlFromWorker || undefined,
@@ -968,6 +1006,36 @@ export async function POST(
       // ignore secondary failures
     }
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ jobId: string }> }
+) {
+  try {
+    const { userId } = getAuth(request);
+    if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
+
+    const user = await currentUser();
+    const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
+    if (!userEmail) return NextResponse.json({ error: 'Benutzer-E-Mail nicht verfügbar' }, { status: 403 });
+
+    const { jobId } = await params;
+    if (!jobId) return NextResponse.json({ error: 'jobId erforderlich' }, { status: 400 });
+
+    const repo = new ExternalJobsRepository();
+    const job = await repo.get(jobId);
+    if (!job) return NextResponse.json({ error: 'Job nicht gefunden' }, { status: 404 });
+    if (job.userEmail !== userEmail) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Sicherheit: Laufende Jobs nicht löschen
+    if (job.status === 'running') return NextResponse.json({ error: 'Job läuft noch' }, { status: 409 });
+
+    const ok = await repo.delete(jobId);
+    if (!ok) return NextResponse.json({ error: 'Löschen fehlgeschlagen' }, { status: 500 });
+    return NextResponse.json({ status: 'deleted', jobId });
+  } catch {
+    return NextResponse.json({ error: 'Unerwarteter Fehler' }, { status: 500 });
   }
 }
 

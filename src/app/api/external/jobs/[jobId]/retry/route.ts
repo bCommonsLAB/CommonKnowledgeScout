@@ -10,8 +10,7 @@ import { LibraryService } from '@/lib/services/library-service';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import { TransformService } from '@/lib/transform/transform-service';
 import { FileLogger } from '@/lib/debug/logger';
-import { describeIndex, upsertVectorsChunked } from '@/lib/chat/pinecone';
-import { loadLibraryChatContext } from '@/lib/chat/loader';
+import { callPdfProcess, callTemplateTransform } from '@/lib/secretary/adapter';
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
 
 export async function POST(
@@ -83,14 +82,12 @@ export async function POST(
     await repo.initializeSteps(jobId, [
       { name: 'extract_pdf', status: 'pending' },
       { name: 'transform_template', status: 'pending' },
-      { name: 'store_shadow_twin', status: 'pending' },
       { name: 'ingest_rag', status: 'pending' },
     ], job.parameters);
     // Markiere Job sofort als running und die erste Phase als running
     await repo.setStatus(jobId, 'running', { jobSecretHash: newHash });
     try { await repo.initializeTrace(jobId); await repo.traceAddEvent(jobId, { name: 'retry_start' }); } catch {}
     await repo.updateStep(jobId, 'extract_pdf', { status: 'running', startedAt: new Date() });
-    try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'step_running', attributes: { workerId } }); } catch {}
     await repo.appendLog(jobId, { phase: 'request_sent_requeue', callbackUrl });
     try { await repo.traceAddEvent(jobId, { name: 'requeue_started', attributes: { callbackUrl, workerId } }); } catch {}
     // Live-Event + Watchdog
@@ -136,7 +133,7 @@ export async function POST(
               const isComplete = hasChapters && hasPages;
               await repo.appendLog(jobId, { phase: 'retry_template_idempotency', details: { foundTwin: true, expectedName, hasChapters, hasPages, pagesRaw: pagesRaw ?? null, isComplete } } as unknown as Record<string, unknown>);
               if (isComplete && policies.metadata !== 'force') {
-                await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'frontmatter_complete' } });
+                // Kein vorzeitiges Completed – nur Gate-Info loggen
                 await repo.appendLog(jobId, { phase: 'transform_gate_skip', message: 'frontmatter_complete' } as unknown as Record<string, unknown>);
                 // Interner Callback mit vorhandenem Markdown, um zentrale Ingestion zu starten
                 try {
@@ -178,11 +175,15 @@ export async function POST(
             };
             const templatesFolderId = await ensureTemplatesFolderId();
             let chosen: { id: string } | undefined;
+            let selectedTemplateName = 'pdfanalyse.md';
             if (templatesFolderId) {
               const tplItems = await provider.listItemsById(templatesFolderId);
               const preferredTemplate = ((lib?.config?.chat as unknown as { transformerTemplate?: string })?.transformerTemplate || 'pdfanalyse').trim();
               const pickByName = (name: string) => tplItems.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name.toLowerCase() === name.toLowerCase());
-              chosen = pickByName(preferredTemplate.endsWith('.md') ? preferredTemplate : `${preferredTemplate}.md`) || pickByName('pdfanalyse.md') || pickByName('pdfanalyse_default.md') || tplItems.find(it => it.type === 'file') as { id: string } | undefined;
+              const chosenName = (preferredTemplate.endsWith('.md') ? preferredTemplate : `${preferredTemplate}.md`);
+              chosen = pickByName(chosenName) || pickByName('pdfanalyse.md') || pickByName('pdfanalyse_default.md') || tplItems.find(it => it.type === 'file') as { id: string } | undefined;
+              selectedTemplateName = chosenName;
+              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_selected', attributes: { preferred: chosenName, picked: chosen ? 'yes' : 'fallback', templateName: chosenName } }); } catch {}
             }
             let templateContent = '# {{title}}\n';
             if (chosen) {
@@ -201,44 +202,43 @@ export async function POST(
             const originalMarkdown = await twinBin.blob.text();
             const stripped = originalMarkdown.replace(/^---[\s\S]*?---\s*/m, '');
 
-            // Template-Transform aufrufen
+            // Secretary Transformer aufrufen
             const secretaryUrlRaw = process.env.SECRETARY_SERVICE_URL || '';
             const transformerUrl = secretaryUrlRaw.endsWith('/') ? `${secretaryUrlRaw}transformer/template` : `${secretaryUrlRaw}/transformer/template`;
-            const fd = new FormData();
-            fd.append('text', stripped);
-            fd.append('target_language', targetLanguage);
-            fd.append('template_content', templateContent);
-            fd.append('use_cache', 'false');
-            const headers: Record<string, string> = { 'Accept': 'application/json' };
-            const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
-            if (apiKey) { headers['Authorization'] = `Bearer ${apiKey}`; headers['X-Service-Token'] = apiKey; }
-            await repo.appendLog(jobId, { phase: 'template_request_sent', message: 'Template-Anfrage gesendet', details: { url: transformerUrl, method: 'POST' } as unknown as Record<string, unknown> });
-            try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 30, updatedAt: new Date().toISOString(), message: 'template_request_sent', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
-            const resp = await fetch(transformerUrl, { method: 'POST', body: fd, headers });
-            const data: unknown = await resp.json().catch(() => ({ error: 'invalid_json' }));
-            await repo.appendLog(jobId, { phase: 'retry_template_response', details: { ok: resp.ok, status: resp.status, statusText: resp.statusText, keys: (data && typeof data === 'object') ? Object.keys(data as Record<string, unknown>) : [], length: JSON.stringify(data || {}).length } } as unknown as Record<string, unknown>);
-            if (!resp.ok) {
-              const errMsg = (() => {
-                if (data && typeof data === 'object') {
-                  const d = data as { error?: { message?: unknown } }
-                  if (d.error && typeof d.error.message === 'string') return d.error.message as string
-                }
-                return `${resp.status} ${resp.statusText}`
-              })()
-              await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: errMsg } });
-              await repo.setStatus(jobId, 'failed');
-              getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'template_failed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
-              return NextResponse.json({ error: 'template_failed' }, { status: 500 });
-            }
-            const mdMeta = (data && typeof data === 'object' && !Array.isArray(data)) ? ((data as { data?: { structured_data?: Record<string, unknown> } }).data?.structured_data || {}) : {};
-            await repo.appendLog(jobId, { phase: 'template_request_ack', status: resp.status, statusText: resp.statusText } as unknown as Record<string, unknown>);
-            try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 60, updatedAt: new Date().toISOString(), message: 'template_request_ack', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
+            let mdMetaLocal: Record<string, unknown> = {};
+            await repo.appendLog(jobId, { phase: 'template_request_sent', message: 'Template-Anfrage gesendet', details: { url: transformerUrl, method: 'POST' } } as unknown as Record<string, unknown> );
+            try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_request_start', attributes: { url: transformerUrl, method: 'POST', targetLanguage, preferred: selectedTemplateName, picked: !!chosen, templateContentLen: templateContent.length } }); } catch {}
+            try {
+              const resp = await callTemplateTransform({ url: transformerUrl, text: stripped, targetLanguage, templateContent, apiKey: process.env.SECRETARY_SERVICE_API_KEY, timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000) });
+              const data: unknown = await resp.json().catch(() => ({ error: 'invalid_json' }));
+              await repo.appendLog(jobId, { phase: 'retry_template_response', details: { ok: resp.ok, status: resp.status, statusText: resp.statusText, keys: (data && typeof data === 'object') ? Object.keys(data as Record<string, unknown>) : [], length: JSON.stringify(data || {}).length } } as unknown as Record<string, unknown>);
+              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_request_ack', attributes: { status: resp.status, statusText: resp.statusText } }); } catch {}
+              if (!resp.ok) {
+                const errMsg = (() => {
+                  if (data && typeof data === 'object') {
+                    const d = data as { error?: { message?: unknown } };
+                    if (d.error && typeof d.error.message === 'string') return d.error.message as string;
+                  }
+                  return `${resp.status} ${resp.statusText}`;
+                })();
+                await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: errMsg } });
+                await repo.setStatus(jobId, 'failed');
+                return NextResponse.json({ error: 'template_failed' }, { status: 500 });
+              }
+              mdMetaLocal = (data && typeof data === 'object' && !Array.isArray(data)) ? (((data as { data?: { structured_data?: Record<string, unknown> } }).data?.structured_data || {}) as Record<string, unknown>) : {};
+              try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 60, updatedAt: new Date().toISOString(), message: 'template_request_ack', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
 
-            await repo.appendMeta(jobId, mdMeta as Record<string, unknown>, 'template_transform');
-            await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date() });
-            const metaKeysCount = typeof mdMeta === 'object' && mdMeta ? Object.keys(mdMeta as Record<string, unknown>).length : 0;
-            await repo.appendLog(jobId, { phase: 'transform_meta_completed', progress: 90, message: `Template-Transformation abgeschlossen (${metaKeysCount} Schlüssel)` });
-            try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 90, updatedAt: new Date().toISOString(), message: 'transform_meta_completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
+              await repo.appendMeta(jobId, mdMetaLocal, 'template_transform');
+              const metaKeysCount = Object.keys(mdMetaLocal || {}).length;
+              await repo.appendLog(jobId, { phase: 'transform_meta_completed', progress: 90, message: `Template-Transformation abgeschlossen (${metaKeysCount} Schlüssel)` });
+              try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 90, updatedAt: new Date().toISOString(), message: 'transform_meta_completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : String(e);
+              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_failed_network', level: 'error', attributes: { error: msg } }); } catch {}
+              await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: msg } });
+              await repo.setStatus(jobId, 'failed');
+              return NextResponse.json({ error: 'template_unreachable' }, { status: 503 });
+            }
 
             // Markdown mit neuem Frontmatter erzeugen und als neue Datei speichern
             const ssotFlat: Record<string, unknown> = {
@@ -248,18 +248,10 @@ export async function POST(
               template_status: 'completed',
               summary_language: targetLanguage,
             };
-            const mergedMeta = { ...(mdMeta as Record<string, unknown>), ...ssotFlat } as Record<string, unknown>;
+            const mergedMeta = { ...(mdMetaLocal || {}), ...ssotFlat } as Record<string, unknown>;
             const newMarkdown = (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter
               ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(stripped, mergedMeta)
               : stripped;
-            await repo.updateStep(jobId, 'store_shadow_twin', { status: 'running', startedAt: new Date() });
-            await repo.appendLog(jobId, { phase: 'postprocessing_save', progress: 95, message: 'Ergebnisse werden gespeichert' });
-            try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 95, updatedAt: new Date().toISOString(), message: 'postprocessing_save', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
-            const outFile = new File([new Blob([newMarkdown], { type: 'text/markdown' })], expectedName, { type: 'text/markdown' });
-            const saved = await provider.uploadFile(source.parentId, outFile);
-            await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date() });
-            FileLogger.info('external-jobs-retry', 'Shadow‑Twin gespeichert (template-only)', { jobId, fileId: saved.id, name: expectedName })
-            await repo.appendLog(jobId, { phase: 'stored_local', progress: 98, message: 'Shadow‑Twin gespeichert' });
 
             // Interner Callback an zentralen Handler, um Ingestion zu starten
             try {
@@ -276,40 +268,7 @@ export async function POST(
             }
             try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 98, updatedAt: new Date().toISOString(), message: 'stored_local', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
 
-            // Doc‑Meta in Pinecone upserten (Zero‑Vektor) – template-only Pfad
-            try {
-              const apiKey = process.env.PINECONE_API_KEY
-              if (apiKey) {
-                const ctx = await loadLibraryChatContext(userEmail, libraryId)
-                if (ctx) {
-                  const idx = await describeIndex(ctx.vectorIndex, apiKey)
-                  if (idx?.host) {
-                    const dim = typeof idx.dimension === 'number' ? idx.dimension : Number(process.env.OPENAI_EMBEDDINGS_DIMENSION || 3072)
-                    const zero = new Array<number>(dim).fill(0)
-                    zero[0] = 1
-                    const canonicalFileId = source.itemId || saved.id
-                    // Idempotenz: alle Doc‑Meta zu dieser Quelle vorab entfernen
-                    try {
-                      const { deleteByFilter } = await import('@/lib/chat/pinecone')
-                      await deleteByFilter(idx.host, apiKey, { sourceFileId: { $eq: canonicalFileId } })
-                      await deleteByFilter(idx.host, apiKey, { fileId: { $eq: canonicalFileId } })
-                    } catch { /* ignore */ }
-
-                    const meta: Record<string, unknown> = {
-                      kind: 'doc', user: userEmail, libraryId, fileId: canonicalFileId, fileName: source.itemId ? (source.name || expectedName) : expectedName,
-                      upsertedAt: new Date().toISOString(),
-                      docMetaJson: JSON.stringify(mergedMeta || {}),
-                      extract_status: 'completed', template_status: 'completed', ingest_status: 'none',
-                      sourceFileId: canonicalFileId,
-                    }
-                    await upsertVectorsChunked(idx.host, apiKey, [{ id: `${canonicalFileId}-meta`, values: zero, metadata: meta }])
-                    FileLogger.info('external-jobs-retry', 'Doc‑Meta upserted (template-only)', { jobId, fileId: saved.id })
-                  }
-                }
-              }
-            } catch (e) {
-              FileLogger.warn('external-jobs-retry', 'Doc‑Meta Upsert fehlgeschlagen (template-only)', { err: String(e) })
-            }
+            // Doc‑Meta Upsert entfällt hier – erfolgt zentral im Callback/Ingester
           } catch (err) {
             await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: err instanceof Error ? err.message : String(err) } });
             await repo.setStatus(jobId, 'failed');
@@ -317,7 +276,14 @@ export async function POST(
           }
         } else {
           await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'policy_ignore' } });
-          await repo.updateStep(jobId, 'store_shadow_twin', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'policy_ignore' } });
+          // Ingestion für diesen Use-Case ebenfalls überspringen
+          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'policy_ignore' } });
+          // Job abschließen (keine weiteren Phasen)
+          await repo.setStatus(jobId, 'completed');
+          clearWatchdog(jobId);
+          await repo.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen (extract only)' } as unknown as Record<string, unknown>);
+          try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
+          return NextResponse.json({ ok: true, jobId, worker: 'secretary', skipped: { extract: true, template: true, ingest: true }, mode: 'extract_only' });
         }
         // Hinweis: Interner Callback erfolgt im Template-Only Block (siehe oben)
         return NextResponse.json({ ok: true, jobId, worker: 'secretary', skipped: { extract: true }, mode: 'template_only' });
@@ -329,17 +295,28 @@ export async function POST(
     // Secretary aufrufen
     const baseUrl = process.env.SECRETARY_SERVICE_URL || '';
     const normalizedUrl = baseUrl.endsWith('/') ? `${baseUrl}pdf/process` : `${baseUrl}/pdf/process`;
-    try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'secretary_request_start', attributes: { url: normalizedUrl, workerId } }); } catch {}
-    try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'secretary_request_start', attributes: { url: normalizedUrl } }); } catch {}
+    // Zusätzliche Parameter für Audit/Debug
+    const px = (job.parameters || {}) as Record<string, unknown>;
+    const attrsPdf: Record<string, unknown> = {
+      url: normalizedUrl,
+      method: 'POST',
+      workerId,
+      extractionMethod: px['extractionMethod'] ?? job.correlation?.options?.extractionMethod ?? undefined,
+      targetLanguage: px['targetLanguage'] ?? job.correlation?.options?.targetLanguage ?? undefined,
+      useCache: px['useCache'] ?? job.correlation?.options?.useCache ?? undefined,
+      includeImages: px['includeImages'] ?? job.correlation?.options?.includeImages ?? undefined,
+      template: px['template'] ?? undefined,
+      fileName: job.correlation?.source?.name,
+      libraryId,
+    };
+    try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'secretary_request_start', attributes: attrsPdf }); } catch {}
     let response: Response;
     try {
-      const headers: Record<string, string> = { 'Accept': 'application/json' };
-      const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
-      if (apiKey) { headers['Authorization'] = `Bearer ${apiKey}`; headers['X-Service-Token'] = apiKey; }
-      response = await fetch(normalizedUrl, { method: 'POST', body: serviceFormData, headers });
+      response = await callPdfProcess({ url: normalizedUrl, formData: serviceFormData, apiKey: process.env.SECRETARY_SERVICE_API_KEY, timeoutMs: Number(process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 15000) });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'worker_unavailable';
       FileLogger.error('external-jobs-retry', 'secretary_request_error', { jobId, message });
+      try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'extract_failed_network', level: 'error', attributes: { error: message } }); } catch {}
       await repo.updateStep(jobId, 'extract_pdf', { status: 'failed', endedAt: new Date(), details: { reason: 'worker_unavailable', message } });
       await repo.setStatus(jobId, 'failed');
       clearWatchdog(jobId);
@@ -347,7 +324,6 @@ export async function POST(
     }
 
     await repo.appendLog(jobId, { phase: 'request_ack', status: response.status, statusText: response.statusText });
-    try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'secretary_request_ack', attributes: { status: response.status } }); } catch {}
     try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'secretary_request_ack', attributes: { status: response.status, statusText: response.statusText, workerId } }); } catch {}
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));

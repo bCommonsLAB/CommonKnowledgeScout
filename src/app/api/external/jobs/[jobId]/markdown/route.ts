@@ -35,7 +35,17 @@ export async function GET(
 
     const status = String(safe(job, 'status') ?? 'unknown');
     const jobType = String(safe(job, 'job_type') ?? safe(job, 'jobType') ?? '');
-    const fileName = String(safe(job, 'correlation')?.['source']?.['name'] ?? safe(job, 'fileName') ?? '');
+    const fileName = (() => {
+      const corr = safe(job, 'correlation');
+      if (corr && typeof corr === 'object') {
+        const src = (corr as Record<string, unknown>)['source'];
+        if (src && typeof src === 'object') {
+          const n = (src as Record<string, unknown>)['name'];
+          if (typeof n === 'string') return n;
+        }
+      }
+      return String(safe(job, 'fileName') ?? '');
+    })();
     const batchName = String(safe(job, 'batchName') ?? '');
     const createdAt = fmtIso(String(safe(job, 'createdAt') ?? ''));
     const updatedAt = fmtIso(String(safe(job, 'updatedAt') ?? ''));
@@ -53,28 +63,27 @@ export async function GET(
       attributes: (e as { attributes?: unknown }).attributes && typeof (e as { attributes?: unknown }).attributes === 'object' ? ((e as { attributes: Record<string, unknown> }).attributes) : undefined,
       eventId: (e as { eventId?: unknown }).eventId ? String((e as { eventId?: unknown }).eventId) : undefined,
     }));
-    const bySpan = new Map<string, typeof evs>();
-    for (const ev of evs) {
-      const key = ev.spanId || 'root';
-      const arr = bySpan.get(key) || [];
-      arr.push(ev);
-      bySpan.set(key, arr);
+    // Robuste Sequenz + Duplikate (Name+Message+Attributes)
+    evs.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+    let seq = 0; const occ = new Map<string, number>(); const groups = new Map<string, typeof evs>();
+    for (const e of evs) {
+      seq += 1; (e as { sequenceNo?: number }).sequenceNo = seq;
+      const msg = e.name === 'callback_received' ? '' : (e.message || (typeof e.attributes?.message === 'string' ? String(e.attributes?.message) : ''));
+      const progRaw = (e.attributes && typeof e.attributes === 'object') ? (e.attributes as Record<string, unknown>)['progress'] : undefined;
+      const prog = typeof progRaw === 'number' ? progRaw : (typeof progRaw === 'string' ? Number(progRaw) : undefined);
+      const key = `${e.spanId || 'root'}|${e.name}|${msg}|${Number.isFinite(prog as number) ? prog : ''}`;
+      const c = (occ.get(key) || 0) + 1; occ.set(key, c);
+      if (c > 1) {
+        if (e.name === 'callback_received') continue; // nicht als Duplikat zählen
+        const arr = groups.get(key) || []; arr.push(e as unknown as never); groups.set(key, arr);
+      }
     }
-    for (const [, arr] of bySpan.entries()) {
-      arr.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
-      const counts = new Map<string, number>();
-      arr.forEach((e) => counts.set(e.name, (counts.get(e.name) || 0) + 1));
-      let seq = 0; const seen = new Map<string, number>();
-      arr.forEach((e) => {
-        seq += 1; (e as { sequenceNo?: number }).sequenceNo = seq;
-        const c = counts.get(e.name) || 0;
-        if (c > 1) {
-          const idx = (seen.get(e.name) || 0) + 1; seen.set(e.name, idx);
-          (e as { isDuplicate?: boolean }).isDuplicate = true;
-          (e as { duplicateIndex?: number }).duplicateIndex = idx;
-          (e as { duplicateCount?: number }).duplicateCount = c;
-        }
-      });
+    for (const arr of groups.values()) {
+      for (let i = 0; i < arr.length; i++) {
+        (arr[i] as { isDuplicate?: boolean }).isDuplicate = true;
+        (arr[i] as { duplicateIndex?: number }).duplicateIndex = i + 1;
+        (arr[i] as { duplicateCount?: number }).duplicateCount = arr.length;
+      }
     }
 
     function durationMs(a?: string, b?: string): number | null {
@@ -129,11 +138,16 @@ export async function GET(
     mdLines.push('## Events');
     for (const e of evs) {
       const sid = e.spanId || '';
-      const seq = typeof (e as { sequenceNo?: number }).sequenceNo === 'number' ? (e as { sequenceNo: number }).sequenceNo : undefined;
+      const seqRaw = (e as { sequenceNo?: unknown }).sequenceNo;
+      const seq = typeof seqRaw === 'number' ? seqRaw : undefined;
       const seqStr = seq ? `#${seq} ` : '';
       const base = `- ${seqStr}[${e.level}] ${e.ts}${sid ? ` · ${sid}` : ''} · ${e.name}`;
-      const dup = (e as { isDuplicate?: boolean }).isDuplicate && typeof (e as { duplicateIndex?: number }).duplicateIndex === 'number' && typeof (e as { duplicateCount?: number }).duplicateCount === 'number'
-        ? ` (dup ${(e as { duplicateIndex: number }).duplicateIndex}/${(e as { duplicateCount: number }).duplicateCount})` : '';
+      const isDup = (e as { isDuplicate?: unknown }).isDuplicate === true;
+      const dupIdxRaw = (e as { duplicateIndex?: unknown }).duplicateIndex;
+      const dupCntRaw = (e as { duplicateCount?: unknown }).duplicateCount;
+      const dup = (isDup && typeof dupIdxRaw === 'number' && typeof dupCntRaw === 'number')
+        ? ` (dup ${dupIdxRaw}/${dupCntRaw})`
+        : '';
       const msg = e.message ? `: ${e.message}` : '';
       mdLines.push(base + dup + msg);
       // Tooltip-Details: Attribute vollständig (z. B. workerId, status etc.)
@@ -161,11 +175,19 @@ export async function GET(
       const gap = Date.parse(b.startedAt) - Date.parse(a.endedAt);
       if (gap > 0) gaps.push({ after: a.spanId, before: b.spanId, gapSec: (gap/1000).toFixed(2) });
     }
-    if (gaps.length) {
-      mdLines.push('');
-      mdLines.push('## Analyse');
-      for (const g of gaps) mdLines.push(`- Gap ${g.after} → ${g.before}: ${g.gapSec} s`);
-    }
+    mdLines.push('');
+    mdLines.push('## Analyse');
+    if (gaps.length) for (const g of gaps) mdLines.push(`- Gap ${g.after} → ${g.before}: ${g.gapSec} s`);
+    else mdLines.push('- Keine Gaps erkannt');
+    // Kompakte Zusammenfassung
+    const dupBySpan: Record<string, number> = {};
+    for (const e of evs) if ((e as { isDuplicate?: boolean }).isDuplicate) dupBySpan[e.spanId || 'root'] = (dupBySpan[e.spanId || 'root'] || 0) + 1;
+    const biggest = gaps.slice().sort((a, b) => Number(b.gapSec) - Number(a.gapSec))[0];
+    mdLines.push('');
+    mdLines.push('### Zusammenfassung');
+    if (Object.keys(dupBySpan).length === 0) mdLines.push('- Duplikate: keine');
+    else for (const [span, cnt] of Object.entries(dupBySpan)) mdLines.push(`- Duplikate in ${span}: ${cnt}`);
+    if (biggest) mdLines.push(`- Größte Gap: ${biggest.after} → ${biggest.before} ${biggest.gapSec} s`);
 
     const body = mdLines.join('\n');
     return new NextResponse(body, { status: 200, headers: { 'Content-Type': 'text/markdown; charset=utf-8', 'Cache-Control': 'no-store' } });

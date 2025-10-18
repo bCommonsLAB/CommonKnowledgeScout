@@ -2,7 +2,6 @@ import { Collection } from 'mongodb';
 import type { UpdateOptions } from 'mongodb';
 import crypto from 'crypto';
 import { getCollection } from '@/lib/mongodb-service';
-import { FileLogger } from '@/lib/debug/logger';
 import { ExternalJob, ExternalJobStatus, ExternalJobStep, ExternalJobIngestionInfo } from '@/types/external-job';
 
 export class ExternalJobsRepository {
@@ -28,6 +27,17 @@ export class ExternalJobsRepository {
       { jobId },
       { $set: { status, updatedAt: new Date(), ...extra } }
     );
+    // Job-Root-Span automatisch beenden
+    if (status === 'completed' || status === 'failed') {
+      try {
+        const now = new Date();
+        await col.updateOne(
+          { jobId },
+          { $set: { 'trace.spans.$[s].endedAt': now, 'trace.spans.$[s].status': status } },
+          { arrayFilters: [ { 's.spanId': 'job', 's.endedAt': { $exists: false } } ] } as unknown as UpdateOptions
+        );
+      } catch {}
+    }
     return res.modifiedCount > 0;
   }
 
@@ -84,7 +94,8 @@ export class ExternalJobsRepository {
       const spanId = mapStepToSpanId(name);
       if (spanId && patch.status) {
         if (patch.status === 'running') {
-          await this.traceStartSpan(jobId, { spanId, parentSpanId: 'job', name });
+          const parentSpanId = 'job';
+          await this.traceStartSpan(jobId, { spanId, parentSpanId, name });
           await this.traceAddEvent(jobId, { spanId, name: 'step_running', attributes: { step: name } });
         } else if (patch.status === 'completed') {
           await this.traceEndSpan(jobId, spanId, 'completed', {});
@@ -132,6 +143,12 @@ export class ExternalJobsRepository {
   async get(jobId: string): Promise<ExternalJob | null> {
     const col = await this.getCollection();
     return col.findOne({ jobId });
+  }
+
+  async delete(jobId: string): Promise<boolean> {
+    const col = await this.getCollection();
+    const res = await col.deleteOne({ jobId });
+    return res.deletedCount === 1;
   }
 
   async listByUserEmail(
@@ -348,21 +365,37 @@ export class ExternalJobsRepository {
   // DEPRECATED: Alte Logs in trace.events umlenken (Single-Source)
   async appendLog(jobId: string, entry: Record<string, unknown>): Promise<void> {
     try {
+      // Replays aus dem Log-Puffer enthalten ein eigenes timestamp-Feld → nicht erneut in trace schreiben
+      if (typeof (entry as { timestamp?: unknown }).timestamp === 'string') return;
       const name = typeof (entry as { phase?: unknown }).phase === 'string' ? String((entry as { phase: unknown }).phase) : (typeof (entry as { message?: unknown }).message === 'string' ? String((entry as { message: unknown }).message) : 'log');
       const msg = typeof (entry as { message?: unknown }).message === 'string' ? String((entry as { message: unknown }).message) : undefined;
       const attrs = entry;
-      await this.traceAddEvent(jobId, { name, message: msg, attributes: attrs });
+      // Versuche, anhand der Phase den korrekten Span zu bestimmen
+      const phase = typeof (entry as { phase?: unknown }).phase === 'string' ? String((entry as { phase?: unknown }).phase) : undefined;
+      const spanId = mapPhaseToSpanId(phase);
+      await this.traceAddEvent(jobId, { spanId, name, message: msg, attributes: attrs });
     } catch {
       // fallback: nichts
     }
   }
 }
 
-function mapStepToSpanId(name: string): 'extract' | 'template' | 'store' | 'ingest' | undefined {
+function mapStepToSpanId(name: string): 'extract' | 'template' | 'ingest' | undefined {
   if (name === 'extract_pdf') return 'extract';
   if (name === 'transform_template') return 'template';
-  if (name === 'store_shadow_twin') return 'store';
   if (name === 'ingest_rag') return 'ingest';
+  return undefined;
+}
+
+function mapPhaseToSpanId(phase?: string): 'extract' | 'template' | 'ingest' | undefined {
+  if (!phase) return undefined;
+  const p = phase.toLowerCase();
+  // Extract callbacks
+  if (['callback_received', 'progress', 'request_ack', 'secretary_request_start', 'secretary_request_ack', 'secretary_request_accepted', 'postprocessing', 'initializing', 'running'].includes(p)) return 'extract';
+  // Template
+  if (p.startsWith('template') || p.startsWith('transform_') || ['transform_gate_plan', 'transform_meta', 'transform_meta_completed', 'transform_meta_failed', 'template_request_sent', 'template_request_ack', 'postprocessing_save', 'stored_local', 'stored_path'].includes(p)) return 'template';
+  // Ingest
+  if (p.startsWith('ingest') || p.startsWith('chapters') || p.startsWith('doc_meta') || p === 'indextidy') return 'ingest';
   return undefined;
 }
 
