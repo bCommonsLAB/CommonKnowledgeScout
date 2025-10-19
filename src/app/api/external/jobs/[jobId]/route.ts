@@ -538,11 +538,22 @@ export async function POST(
         }
         try {
           const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
-          const origin = (() => { try { return new URL(request.url).origin } catch { return (process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3000') } })();
+          // Self-Call Basis: bevorzugt INTERNAL_SELF_BASE_URL, sonst Origin aus Request, dann NEXT_PUBLIC_APP_URL, zuletzt 127.0.0.1:PORT
+          const selfBase = (() => {
+            const explicit = (process.env.INTERNAL_SELF_BASE_URL || '').replace(/\/$/, '')
+            if (explicit) return explicit
+            try { return new URL(request.url).origin } catch {}
+            const base = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
+            if (base) return base
+            const port = String(process.env.PORT || '3000')
+            return `http://127.0.0.1:${port}`
+          })();
+          // Diagnose-Logging der verwendeten Base und Library
+          try { bufferLog(jobId, { phase: 'chapters_analyze_call', details: { base: selfBase, libraryId: job.libraryId } }) } catch {}
           // Vorhandene Kapitel (Frontmatter/Template) an den Analyzer mitgeben
           const existingChaptersUnknownForApi = (mergedMeta as { chapters?: unknown }).chapters
           const chaptersInForApi: Array<Record<string, unknown>> | undefined = Array.isArray(existingChaptersUnknownForApi) ? existingChaptersUnknownForApi as Array<Record<string, unknown>> : undefined
-          const res = await fetch(`${origin}/api/chat/${encodeURIComponent(job.libraryId)}/analyze-chapters`, {
+          const res = await fetch(`${selfBase}/api/chat/${encodeURIComponent(job.libraryId)}/analyze-chapters`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-External-Job': jobId, ...(internalToken ? { 'X-Internal-Token': internalToken } : {}) },
             body: JSON.stringify({ fileId: job.correlation?.source?.itemId || job.jobId, content: textSource, mode: 'heuristic', chaptersIn: chaptersInForApi })

@@ -47,6 +47,98 @@ pnpm dev
 Die Anwendung ist nun unter `http://localhost:3000` verfügbar.
 
 
+## ⚙️ Umgebungsvariablen (.env)
+
+Lege eine `.env.local` (Entwicklung) bzw. `.env` (Produktion) an. Eine Vorlage findest du in `.env.example`.
+
+Wichtige Variablen (Auszug, siehe Beispiel unten):
+- Anwendung
+  - `NEXT_PUBLIC_APP_URL` (erforderlich, z. B. `http://localhost:3000` oder Produktions‑URL)
+- (entfällt) `NEXT_PUBLIC_BASE_URL` → verwende `NEXT_PUBLIC_APP_URL`
+  - `PORT` (optional; Next.js Port)
+- Interner Bypass/Callbacks
+  - `INTERNAL_TEST_TOKEN` (empfohlen): Shared Secret für interne Server‑zu‑Server‑Aufrufe. Wird als `X-Internal-Token` gesetzt und auf `/api/external/jobs/[jobId]` geprüft. Fehlt diese Variable, schlagen interne Callbacks mit 401 fehl (z. B. Meldung „callback_token fehlt“), und Jobs bleiben u. U. im Status „running“.
+  - `INTERNAL_SELF_BASE_URL` (optional, empfohlen in Prod): Basis‑URL für interne Self‑Calls (z. B. `http://127.0.0.1:3000` oder interne Service‑URL). Fallbacks: Request‑Origin → `NEXT_PUBLIC_BASE_URL` → `http://127.0.0.1:${PORT||3000}`. Wird u. a. für den Analyze‑Endpoint genutzt.
+- Secretary Service
+  - `SECRETARY_SERVICE_URL` (erforderlich)
+  - `SECRETARY_SERVICE_API_KEY` (erforderlich)
+  - `EXTERNAL_REQUEST_TIMEOUT_MS` (optional; Default 600000 empfohlen)
+  - `EXTERNAL_TEMPLATE_TIMEOUT_MS` (optional; überschreibt Template‑Timeout)
+- MongoDB
+  - `MONGODB_URI` (erforderlich)
+  - `MONGODB_DATABASE_NAME` (erforderlich)
+  - `MONGODB_COLLECTION_NAME` (optional; Default: `libraries`)
+- Pinecone / Embeddings
+  - `PINECONE_API_KEY` (falls RAG genutzt wird)
+  - `OPENAI_EMBEDDINGS_DIMENSION` (optional; Default 3072)
+- OpenAI Chat (optional)
+  - `OPENAI_API_KEY`
+  - `OPENAI_CHAT_MODEL_NAME` (Default: `gpt-4o-mini`)
+  - `OPENAI_CHAT_TEMPERATURE` (Default: `0.2`)
+- Worker Steuerung (optional)
+  - `JOBS_WORKER_INTERVAL_MS` (Default: `2000`)
+  - `JOBS_WORKER_CONCURRENCY` (Default: `3`)
+  - `JOBS_WORKER_AUTOSTART` (Default: `true`)
+- Auth (Clerk)
+  - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+  - `CLERK_SECRET_KEY`
+  - `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL`
+- Debug (optional)
+  - `DEBUG_FILESYSTEM` (Default: `false`)
+
+Beispiel:
+
+```bash
+# Anwendung
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+# (entfällt) NEXT_PUBLIC_BASE_URL=
+PORT=3000
+
+# Interner Bypass für interne Callbacks (Server‑zu‑Server)
+INTERNAL_TEST_TOKEN=change_me_for_prod
+# Interne Self‑Calls (optional; überschreibt Origin)
+INTERNAL_SELF_BASE_URL=http://127.0.0.1:3000
+
+# Secretary Service
+SECRETARY_SERVICE_URL=http://127.0.0.1:5001/api
+SECRETARY_SERVICE_API_KEY=your_secretary_key
+EXTERNAL_REQUEST_TIMEOUT_MS=600000
+EXTERNAL_TEMPLATE_TIMEOUT_MS=600000
+
+# MongoDB
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/your-db
+MONGODB_DATABASE_NAME=your-db
+MONGODB_COLLECTION_NAME=libraries
+
+# Pinecone / Embeddings
+PINECONE_API_KEY=
+OPENAI_EMBEDDINGS_DIMENSION=3072
+
+# OpenAI Chat (optional)
+OPENAI_API_KEY=
+OPENAI_CHAT_MODEL_NAME=gpt-4o-mini
+OPENAI_CHAT_TEMPERATURE=0.2
+
+# Worker
+JOBS_WORKER_INTERVAL_MS=2000
+JOBS_WORKER_CONCURRENCY=3
+JOBS_WORKER_AUTOSTART=true
+
+# Clerk (optional, falls Login aktiviert ist)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+
+# Debug
+DEBUG_FILESYSTEM=false
+```
+
+Hinweis zur Fehlermeldung „callback_token fehlt“: In der Template‑Only/Idempotenz‑Pfadführung wird ein interner Callback an `/api/external/jobs/[jobId]` gesendet. Ist `INTERNAL_TEST_TOKEN` nicht gesetzt, wird kein `X-Internal-Token` Header mitgesendet, der Callback wird mit 401 abgewiesen und der Job kann im Status „running“ verbleiben. Setze daher in Produktion unbedingt `INTERNAL_TEST_TOKEN` (gleich auf Sender‑ und Empfängerseite; hier derselbe Server) und starte die App neu.
+
+
 ### Cursor‑IDE Chats exportieren (Utility)
 
 Zur Bequemlichkeit liegt ein optionales Skript bei, das lokale Cursor‑Chats aus der SQLite‑DB exportiert.
