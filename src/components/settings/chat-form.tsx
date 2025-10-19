@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
-import { Checkbox } from "@/components/ui/checkbox"
+import { FacetDefsEditor } from '@/components/settings/FacetDefsEditor'
 
 // Zod-Schema für Chat-Konfiguration
 const chatFormSchema = z.object({
@@ -45,8 +45,20 @@ const chatFormSchema = z.object({
     indexOverride: z.string().optional(),
   }).optional(),
   gallery: z.object({
-    facets: z.array(z.enum(["authors","year","region","docType","source","tags"]))
-      .default(["authors","year","region","docType","source","tags"])
+    facets: z.array(z.object({
+      metaKey: z.string().min(1),
+      label: z.string().optional(),
+      type: z.enum(["string","number","boolean","string[]","date","integer-range"]).default("string"),
+      multi: z.boolean().default(true),
+      visible: z.boolean().default(true),
+    })).default([
+      { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
+      { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
+      { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
+      { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
+      { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
+      { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
+    ])
   }).optional(),
 })
 
@@ -84,7 +96,14 @@ export function ChatForm() {
       features: { citations: true, streaming: true },
       rateLimit: { windowSec: 60, max: 30 },
       vectorStore: { indexOverride: undefined },
-      gallery: { facets: ["authors","year","region","docType","source","tags"] },
+      gallery: { facets: [
+        { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
+        { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
+        { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
+        { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
+        { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
+        { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
+      ] },
     },
   })
 
@@ -115,9 +134,25 @@ export function ChatForm() {
             : undefined,
         },
         gallery: {
-          facets: Array.isArray((c.gallery as { facets?: unknown[] } | undefined)?.facets)
-            ? ((c.gallery as { facets?: unknown[] }).facets || []).map(v => String(v)).filter(v => ["authors","year","region","docType","source","tags"].includes(v)) as Array<"authors"|"year"|"region"|"docType"|"source"|"tags">
-            : ["authors","year","region","docType","source","tags"],
+          facets: (() => {
+            const raw = (c.gallery as { facets?: unknown } | undefined)?.facets
+            if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'object') return raw as Array<any>
+            if (Array.isArray(raw)) {
+              return (raw as Array<unknown>).map(v => String(v)).filter(Boolean).map((k) => (
+                k === 'authors' ? { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true }
+                : k === 'year' ? { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true }
+                : { metaKey: k, label: k, type: 'string', multi: true, visible: true }
+              ))
+            }
+            return [
+              { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
+              { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
+              { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
+              { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
+              { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
+              { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
+            ]
+          })(),
         },
       })
     }
@@ -128,30 +163,27 @@ export function ChatForm() {
     try {
       if (!activeLibrary) throw new Error("Keine Bibliothek ausgewählt")
 
-      const updatedLibrary = {
-        ...activeLibrary,
-        config: {
-          ...activeLibrary.config,
-          chat: data,
-        }
-      }
+      // Debug-Output vor dem Speichern
+      // eslint-disable-next-line no-console
+      console.log('[ChatForm] Speichere Chat-Config …', { libraryId: activeLibrary.id, facets: data.gallery?.facets?.length || 0 })
 
-      const response = await fetch('/api/libraries', {
-        method: 'POST',
+      // Nur Chat-Config mergen, Server behält restliche Config sicher bei
+      const response = await fetch(`/api/libraries/${encodeURIComponent(activeLibrary.id)}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedLibrary),
+        body: JSON.stringify({ id: activeLibrary.id, config: { chat: data } }),
       })
-      if (!response.ok) throw new Error(`Fehler beim Speichern: ${response.statusText}`)
+      const respJson = await response.json().catch(() => ({}))
+      // eslint-disable-next-line no-console
+      console.log('[ChatForm] PATCH response', { status: response.status, body: respJson })
+      if (!response.ok) throw new Error(`Fehler beim Speichern: ${respJson?.error || response.statusText}`)
 
       const updatedLibraries = libraries.map(lib => lib.id === activeLibrary.id
         ? { ...lib, config: { ...lib.config, chat: data } }
         : lib)
       setLibraries(updatedLibraries)
 
-      toast({
-        title: "Chat-Einstellungen gespeichert",
-        description: `Die Chat-Einstellungen für "${activeLibrary.label}" wurden aktualisiert.`,
-      })
+      toast({ title: "Chat-Einstellungen gespeichert", description: `Library: ${activeLibrary.label}` })
     } catch (error) {
       console.error('Fehler beim Speichern der Chat-Einstellungen:', error)
       toast({
@@ -390,41 +422,10 @@ export function ChatForm() {
           />
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           <FormLabel>Galerie: Facetten</FormLabel>
-          <FormDescription>Wählen Sie die Facetten für Filter/Navigation in der Galerie.</FormDescription>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {(["authors","year","region","docType","source","tags"] as const).map(key => (
-              <FormField
-                key={key}
-                control={form.control}
-                name="gallery.facets"
-                render={() => {
-                  const values = new Set(form.getValues("gallery.facets") || [])
-                  const checked = values.has(key)
-                  return (
-                    <FormItem className="flex items-center space-x-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(v) => {
-                            const next = new Set(values)
-                            if (v) next.add(key); else next.delete(key)
-                            form.setValue(
-                              "gallery.facets",
-                              Array.from(next) as Array<"authors"|"year"|"region"|"docType"|"source"|"tags">,
-                              { shouldDirty: true }
-                            )
-                          }}
-                        />
-                      </FormControl>
-                      <FormLabel className="!mt-0 capitalize">{key}</FormLabel>
-                    </FormItem>
-                  )
-                }}
-              />
-            ))}
-          </div>
+          <FormDescription>Definieren Sie beliebige Facetten.</FormDescription>
+          <FacetDefsEditor value={form.watch("gallery.facets") || []} onChange={(v) => form.setValue("gallery.facets", v, { shouldDirty: true })} />
         </div>
 
         <div className="flex items-center justify-between gap-4">

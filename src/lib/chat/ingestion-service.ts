@@ -128,6 +128,16 @@ export class IngestionService {
         upsertedAt: upsertedAtDoc,
         docMetaJson: JSON.stringify(meta || {}),
       }
+      // Facetten-Promotion auf Top-Level
+      try {
+        const { parseFacetDefs, getTopLevelValue } = await import('@/lib/chat/dynamic-facets')
+        const defs = parseFacetDefs(ctx.library)
+        const src = (meta || {}) as Record<string, unknown>
+        for (const d of defs) {
+          const val = getTopLevelValue(src, d)
+          if (val !== undefined) (docMeta as Record<string, unknown>)[d.metaKey] = val
+        }
+      } catch {}
       docMetaVector = { id: `${fileId}-meta`, values: zero, metadata: docMeta }
       vectors.push(docMetaVector)
     } catch (err) {
@@ -267,12 +277,38 @@ export class IngestionService {
       }
       if (docMetaVector) {
         docMetaVector.metadata = { ...docMetaVector.metadata, ...finalMeta }
+        // Doc-Vektorwerte mit Summary-Embedding füllen (statt Einheitsvektor), wenn möglich
+        try {
+          const metaObj = typeof docMetaVector.metadata?.docMetaJson === 'string'
+            ? JSON.parse(String(docMetaVector.metadata.docMetaJson)) as Record<string, unknown>
+            : (meta || {})
+          const { composeDocSummaryText } = await import('@/lib/chat/facets')
+          const summaryText = composeDocSummaryText(metaObj)
+          if (summaryText && summaryText.length > 0) {
+            const { embedTexts } = await import('@/lib/chat/embeddings')
+            const [docEmbed] = await embedTexts([summaryText])
+            docMetaVector.values = docEmbed
+          }
+        } catch {}
         await upsertVectorsChunked(idx.host, apiKey, [docMetaVector], 1)
       } else {
         // Falls kein früheres docMetaVector vorhanden war: lege eines an
         const dim = typeof (idx as unknown as { dimension?: unknown }).dimension === 'number' ? (idx as unknown as { dimension: number }).dimension : 3072
         const unit = new Array<number>(dim).fill(0); unit[0] = 1
-        await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values: unit, metadata: finalMeta }], 1)
+        try {
+          const { composeDocSummaryText } = await import('@/lib/chat/facets')
+          const summaryText = composeDocSummaryText(meta as Record<string, unknown>)
+          if (summaryText && summaryText.length > 0) {
+            const { embedTexts } = await import('@/lib/chat/embeddings')
+            const [docEmbed] = await embedTexts([summaryText])
+            await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values: docEmbed, metadata: finalMeta }], 1)
+            FileLogger.info('ingestion', 'Doc‑Meta Vektor mit Summary‑Embedding gespeichert', { fileId })
+          } else {
+            await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values: unit, metadata: finalMeta }], 1)
+          }
+        } catch {
+          await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values: unit, metadata: finalMeta }], 1)
+        }
       }
       FileLogger.info('ingestion', 'Doc‑Meta finalisiert', { fileId, chunks: chunksUpserted, chapters: chaptersCount })
       if (jobId) bufferLog(jobId, { phase: 'doc_meta_final', message: `Doc‑Meta finalisiert: chunks=${chunksUpserted}, chapters=${chaptersCount}` })

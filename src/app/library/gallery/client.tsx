@@ -82,13 +82,9 @@ export default function GalleryClient() {
   const [showChatPanel, setShowChatPanel] = useState(true)
   const [showGalleryPanel, setShowGalleryPanel] = useState(true)
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
-  const [facets, setFacets] = useState<{ authors: Array<{value:string,count:number}>; regions: Array<{value:string,count:number}>; years: Array<{value:string|number,count:number}>; docTypes: Array<{value:string,count:number}>; sources: Array<{value:string,count:number}>; tags: Array<{value:string,count:number}> }>({ authors: [], regions: [], years: [], docTypes: [], sources: [], tags: [] })
+  const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }>>([])
 
   const activeLibrary = libraries.find(l => l.id === libraryId)
-  const enabledFacetKeys = Array.isArray((activeLibrary?.config?.chat as { gallery?: { facets?: unknown[] } } | undefined)?.gallery?.facets)
-    ? ((activeLibrary!.config!.chat as { gallery?: { facets?: unknown[] } }).gallery!.facets as unknown[]).map(v => String(v))
-    : ['authors','year','region','docType','source','tags']
-  const facetOrder = enabledFacetKeys as Array<'authors'|'year'|'region'|'docType'|'source'|'tags'>
 
   useEffect(() => {
     let cancelled = false
@@ -98,12 +94,9 @@ export default function GalleryClient() {
       setError(null)
       try {
         const params = new URLSearchParams()
-        filters.author?.forEach(v => params.append('author', v))
-        filters.region?.forEach(v => params.append('region', v))
-        filters.year?.forEach(v => params.append('year', String(v)))
-        filters.docType?.forEach(v => params.append('docType', v))
-        filters.source?.forEach(v => params.append('source', v))
-        filters.tag?.forEach(v => params.append('tag', v))
+        Object.entries(filters as Record<string, string[] | undefined>).forEach(([k, arr]) => {
+          if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
+        })
         const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
         const res = await fetch(url, { cache: 'no-store' })
         const data = await res.json()
@@ -121,7 +114,7 @@ export default function GalleryClient() {
     return () => { cancelled = true }
   }, [libraryId, filters])
 
-  // Facetten laden (separat), bei Librarywechsel oder Filteränderung (leichtgewichtiger: nur bei Librarywechsel)
+  // Facetten-Definitionen + Optionen laden
   useEffect(() => {
     let cancelled = false
     async function loadFacets() {
@@ -130,18 +123,7 @@ export default function GalleryClient() {
         const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/facets`, { cache: 'no-store' })
         const data = await res.json()
         if (!res.ok) return
-        if (!cancelled) {
-          setFacets({
-            authors: Array.isArray(data?.authors) ? data.authors as Array<{value:string,count:number}> : [],
-            regions: Array.isArray(data?.regions) ? data.regions as Array<{value:string,count:number}> : [],
-            years: Array.isArray(data?.years) ? data.years as Array<{value:string|number,count:number}> : [],
-            docTypes: Array.isArray(data?.docTypes) ? data.docTypes as Array<{value:string,count:number}> : [],
-            sources: Array.isArray(data?.sources) ? data.sources as Array<{value:string,count:number}> : [],
-            tags: Array.isArray(data?.tags) ? data.tags as Array<{value:string,count:number}> : [],
-          })
-          // Optional: Library Facettenreihenfolge aus Config lesen (wenn exposed)
-          // Hier könnte per API eine Reihenfolge geliefert werden; vorerst statisch
-        }
+        if (!cancelled) setFacetDefs(Array.isArray(data?.facets) ? data.facets as Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }> : [])
       } catch {
         // ignorieren
       }
@@ -214,45 +196,14 @@ export default function GalleryClient() {
     void _page;
   }
 
-  // Facetten-Gruppen vorbereiten (Labels, Optionen, Selektion/Update)
-  const facetGroups = {
-    authors: {
-      label: 'Autor',
-      options: facets.authors,
-      selected: filters.author || [],
-      onChange: (vals: string[]) => setFilters(f => ({ ...f, author: vals.length ? vals : undefined })),
-    },
-    region: {
-      label: 'Region',
-      options: facets.regions,
-      selected: filters.region || [],
-      onChange: (vals: string[]) => setFilters(f => ({ ...f, region: vals.length ? vals : undefined })),
-    },
-    year: {
-      label: 'Jahr',
-      options: facets.years,
-      selected: (filters.year || []).map(String),
-      onChange: (vals: string[]) => setFilters(f => ({ ...f, year: vals.length ? vals : undefined })),
-    },
-    docType: {
-      label: 'Dokumenttyp',
-      options: facets.docTypes,
-      selected: filters.docType || [],
-      onChange: (vals: string[]) => setFilters(f => ({ ...f, docType: vals.length ? vals : undefined })),
-    },
-    source: {
-      label: 'Quelle',
-      options: facets.sources,
-      selected: filters.source || [],
-      onChange: (vals: string[]) => setFilters(f => ({ ...f, source: vals.length ? vals : undefined })),
-    },
-    tags: {
-      label: 'Tag',
-      options: facets.tags,
-      selected: filters.tag || [],
-      onChange: (vals: string[]) => setFilters(f => ({ ...f, tag: vals.length ? vals : undefined })),
-    },
-  } as const
+  // Dynamische Facettensteuerung
+  function setFacet(name: string, values: string[]) {
+    setFilters(f => {
+      const next = { ...(f as Record<string, string[] | undefined>) }
+      next[name] = values.length ? values : undefined
+      return next as typeof f
+    })
+  }
 
   if (!libraryId) return <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
   if (loading) return <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
@@ -319,13 +270,13 @@ export default function GalleryClient() {
             <div className='rounded border p-3 space-y-3'>
               <div className='font-medium flex items-center gap-2'><Filter className='h-4 w-4' /> Filter</div>
               <div className='grid gap-2'>
-                {facetOrder.map(key => (
+                {facetDefs.filter(d => d).map(def => (
                   <FacetGroup
-                    key={key}
-                    label={facetGroups[key].label}
-                    options={facetGroups[key].options}
-                    selected={facetGroups[key].selected}
-                    onChange={facetGroups[key].onChange}
+                    key={def.metaKey}
+                    label={def.label || def.metaKey}
+                    options={def.options}
+                    selected={(filters as Record<string, string[] | undefined>)[def.metaKey] || []}
+                    onChange={(vals: string[]) => setFacet(def.metaKey, vals)}
                   />
                 ))}
               </div>
@@ -452,13 +403,13 @@ export default function GalleryClient() {
               <div className='font-medium'>Filter</div>
             </div>
             <div className='p-4 space-y-3 overflow-auto'>
-              {facetOrder.map(key => (
+              {facetDefs.filter(d => d).map(def => (
                 <FacetGroup
-                  key={key}
-                  label={facetGroups[key].label}
-                  options={facetGroups[key].options}
-                  selected={facetGroups[key].selected}
-                  onChange={facetGroups[key].onChange}
+                  key={def.metaKey}
+                  label={def.label || def.metaKey}
+                  options={def.options}
+                  selected={(filters as Record<string, string[] | undefined>)[def.metaKey] || []}
+                  onChange={(vals: string[]) => setFacet(def.metaKey, vals)}
                 />
               ))}
               <Button variant='secondary' className='w-full' onClick={() => setShowFilters(false)}>Fertig</Button>

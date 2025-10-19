@@ -80,11 +80,31 @@ export async function POST(
         docModifiedAt
       }
     }))
-    // Zusätzlich: Meta-Vektor für Dokument-Status (nutzt erstes Embedding als Vektor)
+    // Zusätzlich: Meta-Vektor für Dokument-Status (nutzt Summary-Embedding, falls verfügbar)
     if (embeddings.length > 0) {
+      let docVectorValues = embeddings[0]
+      try {
+        const { composeDocSummaryText } = await import('@/lib/chat/facets')
+        const { parseFacetDefs, getTopLevelValue } = await import('@/lib/chat/dynamic-facets')
+        const summaryText = composeDocSummaryText(docMeta as Record<string, unknown>)
+        if (summaryText && summaryText.length > 0) {
+          const [docEmbed] = await embedTexts([summaryText])
+          docVectorValues = docEmbed
+        }
+        // Facetten-Promotion auf Top-Level durch defs bei metadata unten
+        const defs = parseFacetDefs(ctx.library)
+        const src = (docMeta || {}) as Record<string, unknown>
+        const promoted: Record<string, unknown> = {}
+        for (const d of defs) {
+          const val = getTopLevelValue(src, d)
+          if (val !== undefined) promoted[d.metaKey] = val
+        }
+        // Wir hängen promoted im Metadata-Objekt unten an
+        ;(promoted as unknown)
+      } catch {}
       vectors.push({
         id: `${fileId}-meta`,
-        values: embeddings[0],
+        values: docVectorValues,
         metadata: {
           user: userEmail,
           libraryId,

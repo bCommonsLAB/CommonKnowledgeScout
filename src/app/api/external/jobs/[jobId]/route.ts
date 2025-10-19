@@ -795,6 +795,17 @@ export async function POST(
                 }
                 // Metadatenquellen
                 const docMeta = mergedMeta
+                // Facetten-Promotion auf Top-Level: authors, year, region, docType, source, tags, topics, language, commercialStatus
+                const facetsTopLevel: Record<string, unknown> = {}
+                try {
+                  const { parseFacetDefs, getTopLevelValue } = await import('@/lib/chat/dynamic-facets')
+                  const defs = parseFacetDefs(ctx.library)
+                  const src = (docMeta || {}) as Record<string, unknown>
+                  for (const d of defs) {
+                    const val = getTopLevelValue(src, d)
+                    if (val !== undefined) facetsTopLevel[d.metaKey] = val
+                  }
+                } catch {}
                 const baseMeta = {
                   kind: 'doc',
                   user: job.userEmail,
@@ -815,6 +826,7 @@ export async function POST(
                   metadata: {
                     ...baseMeta,
                     ...statusFlat,
+                    ...facetsTopLevel,
                     // Keine Zähler mehr zu früh setzen – finale Zahlen kommen nach Chunking
                     fileId: t.fileId,
                     fileName: t.fileName,

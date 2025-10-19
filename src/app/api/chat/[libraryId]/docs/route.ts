@@ -2,6 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { describeIndex, queryVectors } from '@/lib/chat/pinecone'
+import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -24,23 +25,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
 
     // Dummy-Vektor, aber Filter selektiert nur Meta-Vektoren (kind: 'doc') dieser Library
     const vector = Array(dim).fill(0)
-    // Query-Params für Facettenfilter
     const url = new URL(req.url)
-    // Mehrfachwerte erlauben (author=...&author=...)
-    const author = url.searchParams.getAll('author')
-    const region = url.searchParams.getAll('region')
-    const year = url.searchParams.getAll('year')
-    const docType = url.searchParams.getAll('docType')
-    const source = url.searchParams.getAll('source')
-    const tag = url.searchParams.getAll('tag')
-
-    const filter: Record<string, unknown> = { libraryId: { $eq: libraryId }, kind: { $eq: 'doc' } }
-    if (author.length > 0) filter['authors'] = { $in: author }
-    if (region.length > 0) filter['region'] = { $in: region }
-    if (year.length > 0) filter['year'] = { $in: year.map(y => (isNaN(Number(y)) ? y : Number(y))) }
-    if (docType.length > 0) filter['docType'] = { $in: docType }
-    if (source.length > 0) filter['source'] = { $in: source }
-    if (tag.length > 0) filter['tags'] = { $in: tag }
+    const defs = parseFacetDefs(ctx.library)
+    const filter: Record<string, unknown> = { libraryId: { $eq: libraryId }, kind: { $eq: 'doc' }, ...buildFilterFromQuery(url, defs) }
     try {
       const matches = await queryVectors(idx.host, apiKey, vector, 200, filter)
       const items = matches.map(m => {

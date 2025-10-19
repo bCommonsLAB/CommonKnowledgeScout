@@ -75,12 +75,9 @@ export default function DebugFooter() {
       params.set('scope', 'library');
       // Facetten nur im Galerie-Modul anhängen, um Zählung identisch zu machen
       if (moduleKey === 'gallery' && galleryFilters) {
-        galleryFilters.author?.forEach((v: string) => params.append('author', v));
-        galleryFilters.region?.forEach((v: string) => params.append('region', v));
-        galleryFilters.year?.forEach((v: string | number) => params.append('year', String(v)));
-        galleryFilters.docType?.forEach((v: string) => params.append('docType', v));
-        galleryFilters.source?.forEach((v: string) => params.append('source', v));
-        galleryFilters.tag?.forEach((v: string) => params.append('tag', v));
+        Object.entries(galleryFilters as Record<string, string[] | undefined>).forEach(([k, arr]) => {
+          if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v));
+        });
       }
       const url = `/api/chat/${encodeURIComponent(activeLibraryId)}/stats${params.toString() ? `?${params.toString()}` : ''}`;
       const res = await fetch(url, { cache: 'no-store' });

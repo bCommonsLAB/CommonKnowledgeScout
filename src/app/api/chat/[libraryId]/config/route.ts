@@ -7,10 +7,14 @@ export async function GET(
   { params }: { params: Promise<{ libraryId: string }> }
 ) {
   try {
+    const t0 = Date.now()
     const { libraryId } = await params
     const { userId } = await auth()
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
+    // Debug-Logging
+    // eslint-disable-next-line no-console
+    console.log('[chat/config] GET', { libraryId, hasUserId: !!userId, userEmail })
 
     // Chat-Kontext laden (nutzt userEmail für nicht-öffentliche Bibliotheken)
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
@@ -21,7 +25,7 @@ export async function GET(
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
 
-    return NextResponse.json({
+    const response = {
       library: { id: ctx.library.id, label: ctx.library.label },
       config: {
         public: ctx.chat.public,
@@ -36,9 +40,15 @@ export async function GET(
         features: ctx.chat.features,
       },
       vectorIndex: ctx.vectorIndex,
-    })
-  } catch {
-    return NextResponse.json({ error: 'Interner Fehler' }, { status: 500 })
+    }
+    // eslint-disable-next-line no-console
+    console.log('[chat/config] OK', { ms: Date.now() - t0, facets: Array.isArray((ctx.chat as { gallery?: { facets?: unknown[] } } | undefined)?.gallery?.facets) ? (ctx.chat as { gallery?: { facets?: unknown[] } }).gallery!.facets!.length : 0 })
+    return NextResponse.json(response)
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[chat/config] ERROR', err)
+    const msg = err instanceof Error ? err.message : 'Interner Fehler'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 

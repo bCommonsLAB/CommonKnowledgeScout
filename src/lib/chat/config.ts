@@ -27,8 +27,37 @@ export const chatConfigSchema = z.object({
     indexOverride: z.string().min(1).optional(),
   }).default({}),
   gallery: z.object({
-    facets: z.array(z.enum(['authors','year','region','docType','source','tags'])).default(['authors','year','region','docType','source','tags'])
-  }).default({ facets: ['authors','year','region','docType','source','tags'] }),
+    facets: z.array(z.object({
+      metaKey: z.string().min(1), // Top‑Level Feld in docMetaJson (gleichzeitig Query-Param-Name)
+      label: z.string().min(1).optional(),
+      type: z.enum(['string','number','boolean','string[]','date','integer-range']).default('string'),
+      multi: z.boolean().default(true),
+      visible: z.boolean().default(true),
+      buckets: z.array(z.object({ label: z.string(), min: z.number().int(), max: z.number().int() })).optional(),
+    })).default([
+      { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
+      { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
+      { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
+      { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
+      { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
+      { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
+      { metaKey: 'topics', label: 'Topics', type: 'string[]', multi: true, visible: false },
+      { metaKey: 'language', label: 'Language', type: 'string', multi: true, visible: false },
+      { metaKey: 'commercialStatus', label: 'Commercial', type: 'string', multi: true, visible: false },
+    ])
+  }).default({
+    facets: [
+      { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
+      { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
+      { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
+      { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
+      { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
+      { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
+      { metaKey: 'topics', label: 'Topics', type: 'string[]', multi: true, visible: false },
+      { metaKey: 'language', label: 'Language', type: 'string', multi: true, visible: false },
+      { metaKey: 'commercialStatus', label: 'Commercial', type: 'string', multi: true, visible: false },
+    ]
+  }),
 })
 
 export type NormalizedChatConfig = z.infer<typeof chatConfigSchema>
@@ -37,7 +66,25 @@ export type NormalizedChatConfig = z.infer<typeof chatConfigSchema>
  * Validiert und setzt Defaults für die Chat-Konfiguration.
  */
 export function normalizeChatConfig(config: unknown): NormalizedChatConfig {
-  return chatConfigSchema.parse(config ?? {})
+  // Tolerantes Normalisieren: Strings (JSON) akzeptieren und migrieren
+  let cfg: unknown = config
+  if (typeof cfg === 'string') {
+    try { cfg = JSON.parse(cfg) as unknown } catch { cfg = {} }
+  }
+  // Migration: gallery.facets als Array<string> → Array<{metaKey,...}>
+  if (cfg && typeof cfg === 'object') {
+    const c = cfg as { gallery?: { facets?: unknown } }
+    const raw = c?.gallery?.facets
+    if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] !== 'object') {
+      const mapped = (raw as unknown[]).map(v => {
+        const k = typeof v === 'string' ? v : String(v)
+        if (!k) return null
+        return { metaKey: k, label: k, type: 'string', multi: true, visible: true }
+      }).filter(Boolean) as Array<unknown>
+      if (c.gallery) c.gallery.facets = mapped
+    }
+  }
+  return chatConfigSchema.parse(cfg ?? {})
 }
 
 /**

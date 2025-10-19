@@ -42,9 +42,16 @@ export class LibraryService {
         return [];
       }
       
-      // Alle Bibliotheken aus allen gefundenen Einträgen sammeln
+      // Neu: Einträge nach lastUpdated (DESC) sortieren, damit jüngste Werte bevorzugt werden
+      const sortedEntries = [...userEntries].sort((a, b) => {
+        const ta = a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0;
+        const tb = b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0;
+        return tb - ta;
+      });
+
+      // Alle Bibliotheken aus allen gefundenen (sortierten) Einträgen sammeln
       const allLibraries: Library[] = [];
-      userEntries.forEach(entry => {
+      sortedEntries.forEach(entry => {
         if (entry.libraries && Array.isArray(entry.libraries)) {
           allLibraries.push(...entry.libraries);
         }

@@ -132,6 +132,17 @@ export async function POST(
       ...flat,
     }
 
+    // Facetten-Promotion basierend auf Config-Defs
+    try {
+      const { parseFacetDefs, getTopLevelValue } = await import('@/lib/chat/dynamic-facets')
+      const defs = parseFacetDefs(ctx.library)
+      const src = (docMeta || {}) as Record<string, unknown>
+      for (const d of defs) {
+        const val = getTopLevelValue(src, d)
+        if (val !== undefined) (metadata as Record<string, unknown>)[d.metaKey] = val
+      }
+    } catch {}
+
     // Merge: existing → new (neue Felder überschreiben alte), aber upsertedAt/ docMetaJson immer aus neuem
     const merged = { ...(existingMeta || {}), ...metadata }
 

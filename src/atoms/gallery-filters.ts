@@ -1,13 +1,6 @@
 import { atom } from 'jotai'
 
-export interface GalleryFilters {
-  author?: string[]
-  region?: string[]
-  year?: Array<string | number>
-  docType?: string[]
-  source?: string[]
-  tag?: string[]
-}
+export type GalleryFilters = Record<string, string[]>
 
 export const galleryFiltersAtom = atom<GalleryFilters>({})
 

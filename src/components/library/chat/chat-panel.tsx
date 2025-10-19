@@ -78,12 +78,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     try {
       // Query aus aktiven Facetten filtern
       const params = new URLSearchParams()
-      galleryFilters.author?.forEach(v => params.append('author', v))
-      galleryFilters.region?.forEach(v => params.append('region', v))
-      galleryFilters.year?.forEach(v => params.append('year', String(v)))
-      galleryFilters.docType?.forEach(v => params.append('docType', v))
-      galleryFilters.source?.forEach(v => params.append('source', v))
-      galleryFilters.tag?.forEach(v => params.append('tag', v))
+      Object.entries(galleryFilters || {}).forEach(([k, arr]) => {
+        if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
+      })
       params.set('retriever', retriever)
       const url = `/api/chat/${encodeURIComponent(libraryId)}${params.toString() ? `?${params.toString()}` : ''}`
       const res = await fetch(url, {
