@@ -29,9 +29,9 @@ export async function GET(request: NextRequest) {
 
   // Helper-Funktion um die korrekte Base-URL zu ermitteln
   const getBaseUrl = () => {
-    // Prüfe zuerst Umgebungsvariable
-    if (process.env.NEXT_PUBLIC_BASE_URL) {
-      return process.env.NEXT_PUBLIC_BASE_URL;
+    // Prüfe zuerst Umgebungsvariable (vereinheitlicht)
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      return process.env.NEXT_PUBLIC_APP_URL;
     }
     
     // Extrahiere Base-URL aus MS_REDIRECT_URI

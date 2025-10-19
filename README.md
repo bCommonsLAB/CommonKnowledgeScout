@@ -54,11 +54,10 @@ Lege eine `.env.local` (Entwicklung) bzw. `.env` (Produktion) an. Eine Vorlage f
 Wichtige Variablen (Auszug, siehe Beispiel unten):
 - Anwendung
   - `NEXT_PUBLIC_APP_URL` (erforderlich, z. B. `http://localhost:3000` oder Produktions‑URL)
-- (entfällt) `NEXT_PUBLIC_BASE_URL` → verwende `NEXT_PUBLIC_APP_URL`
   - `PORT` (optional; Next.js Port)
 - Interner Bypass/Callbacks
   - `INTERNAL_TEST_TOKEN` (empfohlen): Shared Secret für interne Server‑zu‑Server‑Aufrufe. Wird als `X-Internal-Token` gesetzt und auf `/api/external/jobs/[jobId]` geprüft. Fehlt diese Variable, schlagen interne Callbacks mit 401 fehl (z. B. Meldung „callback_token fehlt“), und Jobs bleiben u. U. im Status „running“.
-  - `INTERNAL_SELF_BASE_URL` (optional, empfohlen in Prod): Basis‑URL für interne Self‑Calls (z. B. `http://127.0.0.1:3000` oder interne Service‑URL). Fallbacks: Request‑Origin → `NEXT_PUBLIC_BASE_URL` → `http://127.0.0.1:${PORT||3000}`. Wird u. a. für den Analyze‑Endpoint genutzt.
+  - `INTERNAL_SELF_BASE_URL` (optional, empfohlen in Prod): Basis‑URL für interne Self‑Calls (z. B. `http://127.0.0.1:3000` oder interne Service‑URL). Fallbacks: Request‑Origin → `NEXT_PUBLIC_APP_URL` → `http://127.0.0.1:${PORT||3000}`. Wird u. a. für den Analyze‑Endpoint genutzt.
 - Secretary Service
   - `SECRETARY_SERVICE_URL` (erforderlich)
   - `SECRETARY_SERVICE_API_KEY` (erforderlich)
@@ -91,7 +90,6 @@ Beispiel:
 ```bash
 # Anwendung
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-# (entfällt) NEXT_PUBLIC_BASE_URL=
 PORT=3000
 
 # Interner Bypass für interne Callbacks (Server‑zu‑Server)
