@@ -639,7 +639,7 @@ export async function POST(
             }
           }
         } catch (e) {
-          const errMsg = e instanceof Error ? e.message : String(e)
+          const errMsg = "Kapitel-Normalisierung Fehler: " + (e instanceof Error ? e.message : String(e))
           bufferLog(jobId, { phase: 'chapters_normalize_error', message: errMsg })
           // Immer Step-Event mit Original-Fehlermeldung senden
           try { await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: errMsg } }) } catch {}
