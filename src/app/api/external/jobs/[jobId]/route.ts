@@ -6,6 +6,7 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { ImageExtractionService } from '@/lib/transform/image-extraction-service';
 import { TransformService } from '@/lib/transform/transform-service';
 import { LibraryService } from '@/lib/services/library-service';
+import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout';
 import { FileLogger } from '@/lib/debug/logger';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
@@ -553,11 +554,34 @@ export async function POST(
           // Vorhandene Kapitel (Frontmatter/Template) an den Analyzer mitgeben
           const existingChaptersUnknownForApi = (mergedMeta as { chapters?: unknown }).chapters
           const chaptersInForApi: Array<Record<string, unknown>> | undefined = Array.isArray(existingChaptersUnknownForApi) ? existingChaptersUnknownForApi as Array<Record<string, unknown>> : undefined
-          const res = await fetch(`${selfBase}/api/chat/${encodeURIComponent(job.libraryId)}/analyze-chapters`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-External-Job': jobId, ...(internalToken ? { 'X-Internal-Token': internalToken } : {}) },
-            body: JSON.stringify({ fileId: job.correlation?.source?.itemId || job.jobId, content: textSource, mode: 'heuristic', chaptersIn: chaptersInForApi })
-          })
+          // Fallback-Kandidaten für die Basis-URL und robuster Timeout (Standard 120s)
+          const port = String(process.env.PORT || '3000')
+          const analyzeTimeoutMs = Number(process.env.ANALYZE_REQUEST_TIMEOUT_MS || 120000)
+          const reqBody = JSON.stringify({ fileId: job.correlation?.source?.itemId || job.jobId, content: textSource, mode: 'heuristic', chaptersIn: chaptersInForApi })
+          const candidates = Array.from(new Set([
+            selfBase.replace(/\/$/, ''),
+            (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, ''),
+            `http://127.0.0.1:${port}`,
+            `http://localhost:${port}`
+          ])).filter(Boolean)
+          let res: Response | null = null
+          let lastErr: string | undefined
+          for (const base of candidates) {
+            try {
+              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'chapters_analyze_attempt', attributes: { base, timeoutMs: analyzeTimeoutMs } }) } catch {}
+              res = await fetchWithTimeout(`${base}/api/chat/${encodeURIComponent(job.libraryId)}/analyze-chapters`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-External-Job': jobId, ...(internalToken ? { 'X-Internal-Token': internalToken } : {}) },
+                body: reqBody,
+                timeoutMs: analyzeTimeoutMs
+              })
+              if (res.ok || res.status >= 400) break
+            } catch (err) {
+              lastErr = err instanceof Error ? err.message : String(err)
+              try { bufferLog(jobId, { phase: 'chapters_analyze_attempt_failed', details: { base, error: lastErr } }) } catch {}
+            }
+          }
+          if (!res) throw new Error(lastErr || 'Analyze-Endpoint unerreichbar')
           if (res.ok) {
             const data = await res.json().catch(() => ({})) as { result?: { chapters?: Array<Record<string, unknown>>; toc?: Array<Record<string, unknown>>; stats?: { chapterCount?: number; pages?: number } } }
             const chap = Array.isArray(data?.result?.chapters) ? data!.result!.chapters! : []

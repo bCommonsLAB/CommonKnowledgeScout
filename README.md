@@ -63,6 +63,7 @@ Wichtige Variablen (Auszug, siehe Beispiel unten):
   - `SECRETARY_SERVICE_API_KEY` (erforderlich)
   - `EXTERNAL_REQUEST_TIMEOUT_MS` (optional; Default 600000 empfohlen)
   - `EXTERNAL_TEMPLATE_TIMEOUT_MS` (optional; überschreibt Template‑Timeout)
+  - `ANALYZE_REQUEST_TIMEOUT_MS` (optional; Timeout für internen Analyze‑Self‑Call, Default 120000)
 - MongoDB
   - `MONGODB_URI` (erforderlich)
   - `MONGODB_DATABASE_NAME` (erforderlich)

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -14,11 +14,37 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { toast } from 'sonner';
 import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
+import { galleryFiltersAtom } from '@/atoms/gallery-filters';
+import { usePathname } from 'next/navigation';
+
+interface IngestionBreakdown {
+  doc: number;
+  chapterSummary: number;
+  chunk: number;
+  uniqueDocs: number;
+}
+
+interface IngestionStatsResponse {
+  ok?: boolean;
+  indexExists?: boolean;
+  totals?: { docs?: number; chunks?: number };
+  breakdown?: IngestionBreakdown;
+  error?: string;
+}
 
 export default function DebugFooter() {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isFullHeight, setIsFullHeight] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<'performance' | 'system'>('performance');
+  const pathname = usePathname();
+
+  // Modul-Erkennung: grobe Heuristik per Route
+  const moduleKey = React.useMemo<"gallery" | "library" | "other">(() => {
+    if (!pathname) return 'other';
+    if (pathname.startsWith('/library/gallery')) return 'gallery';
+    if (pathname.startsWith('/library')) return 'library';
+    return 'other';
+  }, [pathname]);
 
   // Atoms
   const [debugState] = useAtom(debugStateAtom);
@@ -32,6 +58,50 @@ export default function DebugFooter() {
   const [activeLibraryId] = useAtom(activeLibraryIdAtom);
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const { provider, libraryStatus } = useStorage();
+
+  // Ingestion-Stats (nur relevant für Galerie-Modul)
+  const [statsLoading, setStatsLoading] = React.useState(false);
+  const [statsError, setStatsError] = React.useState<string | null>(null);
+  const [stats, setStats] = React.useState<IngestionStatsResponse | null>(null);
+  const galleryFilters = useAtomValue(galleryFiltersAtom);
+
+  const loadIngestionStats = React.useCallback(async () => {
+    if (!activeLibraryId) return;
+    setStatsLoading(true);
+    setStatsError(null);
+    try {
+      const params = new URLSearchParams();
+      // Scope: library (Default)
+      params.set('scope', 'library');
+      // Facetten nur im Galerie-Modul anhängen, um Zählung identisch zu machen
+      if (moduleKey === 'gallery' && galleryFilters) {
+        galleryFilters.author?.forEach((v: string) => params.append('author', v));
+        galleryFilters.region?.forEach((v: string) => params.append('region', v));
+        galleryFilters.year?.forEach((v: string | number) => params.append('year', String(v)));
+        galleryFilters.docType?.forEach((v: string) => params.append('docType', v));
+        galleryFilters.source?.forEach((v: string) => params.append('source', v));
+        galleryFilters.tag?.forEach((v: string) => params.append('tag', v));
+      }
+      const url = `/api/chat/${encodeURIComponent(activeLibraryId)}/stats${params.toString() ? `?${params.toString()}` : ''}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      const data = (await res.json()) as unknown;
+      if (!res.ok) throw new Error(typeof (data as { error?: unknown })?.error === 'string' ? (data as { error?: string }).error : 'Fehler beim Laden der Ingestion-Stats');
+      setStats(data as IngestionStatsResponse);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unbekannter Fehler';
+      setStatsError(msg);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [activeLibraryId, moduleKey, galleryFilters]);
+
+  // Nur laden, wenn Panel sichtbar und System-Tab aktiv und im Galerie-Modul
+  React.useEffect(() => {
+    if (!isExpanded) return;
+    if (activeTab !== 'system') return;
+    if (moduleKey !== 'gallery') return;
+    void loadIngestionStats();
+  }, [isExpanded, activeTab, moduleKey, loadIngestionStats]);
 
   // Debug Info für System Tab
   const debugInfo = React.useMemo(() => [
@@ -62,6 +132,24 @@ export default function DebugFooter() {
     debugState.logs.forEach(log => componentSet.add(log.component));
     return Array.from(componentSet).sort();
   }, [debugState.logs]);
+
+  // Presets für Komponenten/Areas
+  const applyPreset = React.useCallback((preset: { components: string[]; areas: Array<'nav' | 'state' | 'file' | 'ui'> }) => {
+    // Komponenten: gewünschte Menge auf verfügbare beschränken
+    const desired = new Set(preset.components.filter(c => components.includes(c)));
+    // Aktuelle Sichtbarkeit auf gewünschte Menge bringen
+    components.forEach((c) => {
+      const isVisible = debugState.visibleComponents.has(c);
+      const shouldBeVisible = desired.has(c);
+      if (isVisible !== shouldBeVisible) setToggleComponent(c);
+    });
+    // Areas anpassen
+    (['nav','state','file','ui'] as const).forEach((a) => {
+      const isVisible = debugState.visibleAreas.has(a);
+      const shouldBeVisible = preset.areas.includes(a);
+      if (isVisible !== shouldBeVisible) setToggleArea(a);
+    });
+  }, [components, debugState.visibleComponents, debugState.visibleAreas, setToggleComponent, setToggleArea]);
 
   // Gefilterte und sortierte Logs
   const filteredLogs = React.useMemo(() => {
@@ -260,6 +348,22 @@ export default function DebugFooter() {
         </div>
         {isExpanded && (
           <div className="flex items-center space-x-2">
+            {/* Preset-Buttons modulabhängig */}
+            {moduleKey !== 'other' && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6"
+                  onClick={() => applyPreset(moduleKey === 'gallery'
+                    ? { components: ['Gallery', 'ChatPanel', 'IngestionBookDetail', 'FileList'], areas: ['nav','state','file'] }
+                    : { components: ['FileTree', 'Breadcrumb', 'FileList', 'FilePreview'], areas: ['nav','state','file'] }
+                  )}
+                >
+                  Preset: {moduleKey === 'gallery' ? 'Gallery' : 'Library'}
+                </Button>
+              </>
+            )}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -420,6 +524,62 @@ export default function DebugFooter() {
                             ))}
                           </div>
                         </div>
+
+                        {/* Ingestion (Pinecone) – nur für Galerie-Modul sichtbar */}
+                        {moduleKey === 'gallery' ? (
+                          <div className="mt-6">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-sm font-medium">Ingestion (Pinecone)</h3>
+                              <Button variant="ghost" size="sm" className="h-6" onClick={() => void loadIngestionStats()} disabled={statsLoading}>
+                                Aktualisieren
+                              </Button>
+                            </div>
+                            <div className="mt-2 text-xs">
+                              {statsLoading ? (
+                                <div className="text-muted-foreground">Lade...</div>
+                              ) : statsError ? (
+                                <div className="text-red-600">Fehler: {statsError}</div>
+                              ) : stats ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                    <div className="text-muted-foreground">Index</div>
+                                    <div className="font-medium">{stats.indexExists ? 'vorhanden' : 'nicht vorhanden'}</div>
+                                  </div>
+                                  <div className="space-y-1 col-span-2">
+                                    <div className="text-muted-foreground">Index Name</div>
+                                    <div className="font-medium break-all">{(stats as { info?: { indexName?: string } }).info?.indexName || '—'}</div>
+                                  </div>
+                                  <div className="space-y-1 col-span-2">
+                                    <div className="text-muted-foreground">Index Host</div>
+                                    <div className="font-medium break-all">{(stats as { info?: { indexHost?: string } }).info?.indexHost || '—'}</div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="text-muted-foreground">Scope</div>
+                                    <div className="font-medium">{(stats as { info?: { scope?: string } }).info?.scope || 'library'}</div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="text-muted-foreground">Docs (unique)</div>
+                                    <div className="font-medium">{stats.breakdown?.uniqueDocs ?? stats.totals?.docs ?? '—'}</div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="text-muted-foreground">Doc‑Meta</div>
+                                    <div className="font-medium">{stats.breakdown?.doc ?? '—'}</div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="text-muted-foreground">Chapters</div>
+                                    <div className="font-medium">{stats.breakdown?.chapterSummary ?? '—'}</div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="text-muted-foreground">Chunks</div>
+                                    <div className="font-medium">{stats.breakdown?.chunk ?? stats.totals?.chunks ?? '—'}</div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-muted-foreground">Keine Daten</div>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                       <ScrollBar orientation="vertical" />
                     </ScrollArea>
