@@ -639,7 +639,10 @@ export async function POST(
             }
           }
         } catch (e) {
-          bufferLog(jobId, { phase: 'chapters_normalize_error', message: e instanceof Error ? e.message : String(e) })
+          const errMsg = e instanceof Error ? e.message : String(e)
+          bufferLog(jobId, { phase: 'chapters_normalize_error', message: errMsg })
+          // Immer Step-Event mit Original-Fehlermeldung senden
+          try { await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: errMsg } }) } catch {}
           // analoger Abbruch bei geplantem Ingest
           const ingestPlanned = ((): boolean => {
             try {
@@ -649,7 +652,6 @@ export async function POST(
           })()
           if (ingestPlanned) {
             clearWatchdog(jobId)
-            await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: 'Kapitel-Normalisierung Fehler' } })
             // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
             void drainBufferedLogs(jobId)
             await repo.setStatus(jobId, 'failed', { error: { code: 'chapters_normalize_error', message: 'Analyze-Endpoint Fehler' } })
