@@ -1,8 +1,8 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { describeIndex, queryVectors } from '@/lib/chat/pinecone'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
+import { findDocs, computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -17,55 +17,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 
-    const apiKey = process.env.PINECONE_API_KEY
-    if (!apiKey) return NextResponse.json({ error: 'PINECONE_API_KEY fehlt' }, { status: 500 })
-    const idx = await describeIndex(ctx.vectorIndex, apiKey)
-    if (!idx?.host) return NextResponse.json({ error: 'Index nicht gefunden' }, { status: 404 })
-    const dim = typeof idx.dimension === 'number' ? idx.dimension : Number(process.env.OPENAI_EMBEDDINGS_DIMENSION || 3072)
-
-    // Dummy-Vektor, aber Filter selektiert nur Meta-Vektoren (kind: 'doc') dieser Library
-    const vector = Array(dim).fill(0)
     const url = new URL(req.url)
     const defs = parseFacetDefs(ctx.library)
-    const filter: Record<string, unknown> = { libraryId: { $eq: libraryId }, kind: { $eq: 'doc' }, ...buildFilterFromQuery(url, defs) }
-    try {
-      const matches = await queryVectors(idx.host, apiKey, vector, 200, filter)
-      const items = matches.map(m => {
-        const md = (m.metadata || {}) as Record<string, unknown>
-        let docMeta: Record<string, unknown> = {}
-        if (typeof md.docMetaJson === 'string') {
-          try { docMeta = JSON.parse(md.docMetaJson) as Record<string, unknown> } catch {}
-        }
-        return {
-          id: m.id,
-          fileId: typeof md.fileId === 'string' ? md.fileId : undefined,
-          fileName: typeof md.fileName === 'string' ? md.fileName : undefined,
-          title: typeof docMeta.title === 'string' ? docMeta.title : undefined,
-          shortTitle: typeof docMeta.shortTitle === 'string' ? docMeta.shortTitle : undefined,
-          authors: Array.isArray(md.authors) ? (md.authors as Array<unknown>).filter(a => typeof a === 'string') as string[]
-            : Array.isArray(docMeta.authors) ? (docMeta.authors as Array<unknown>).filter(a => typeof a === 'string') as string[] : undefined,
-          year: typeof md.year === 'number' || typeof md.year === 'string' ? md.year
-            : typeof docMeta.year === 'number' || typeof docMeta.year === 'string' ? docMeta.year : undefined,
-          region: typeof (docMeta as { region?: unknown })?.region === 'string' ? (docMeta as { region: string }).region : undefined,
-          upsertedAt: typeof md.upsertedAt === 'string' ? md.upsertedAt : undefined,
-          docType: typeof (docMeta as { docType?: unknown })?.docType === 'string' ? (docMeta as { docType: string }).docType : (typeof md.docType === 'string' ? md.docType : undefined),
-          source: typeof (docMeta as { source?: unknown })?.source === 'string' ? (docMeta as { source: string }).source : (typeof md.source === 'string' ? md.source : undefined),
-          tags: Array.isArray(md.tags) ? (md.tags as Array<unknown>).filter(t => typeof t === 'string') as string[] : undefined,
-          // Statusfelder für UI (Tooltip)
-          extract_status: typeof md.extract_status === 'string' ? md.extract_status : undefined,
-          template_status: typeof md.template_status === 'string' ? md.template_status : undefined,
-          ingest_status: typeof md.ingest_status === 'string' ? md.ingest_status : undefined,
-          process_status: typeof md.process_status === 'string' ? md.process_status : undefined,
-          hasError: typeof md.hasError === 'boolean' ? md.hasError : undefined,
-          errorCode: typeof md.errorCode === 'string' ? md.errorCode : undefined,
-          errorMessage: typeof md.errorMessage === 'string' ? md.errorMessage : undefined,
-        }
-      })
-      return NextResponse.json({ items }, { status: 200 })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Query fehlgeschlagen'
-      return NextResponse.json({ error: msg }, { status: 502 })
-    }
+    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
+    const libraryKey = computeDocMetaCollectionName(userEmail, libraryId, strategy)
+    const builtin = buildFilterFromQuery(url, defs)
+    // buildFilterFromQuery liefert Pinecone-Filter-Form; auf Mongo-Form abbilden
+    const filter: Record<string, unknown> = { }
+    if (builtin['authors']) filter['authors'] = builtin['authors']
+    if (builtin['region']) filter['region'] = builtin['region']
+    if (builtin['year']) filter['year'] = builtin['year']
+    if (builtin['docType']) filter['docType'] = builtin['docType']
+    if (builtin['source']) filter['source'] = builtin['source']
+    if (builtin['tags']) filter['tags'] = builtin['tags']
+
+    const items = await findDocs(libraryKey, libraryId, filter, { limit: 200, sort: { upsertedAt: -1 } })
+    return NextResponse.json({ items }, { status: 200 })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'
     return NextResponse.json({ error: msg }, { status: 500 })

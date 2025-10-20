@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { embedTexts } from '@/lib/chat/embeddings'
 import { describeIndex, queryVectors, fetchVectors, listVectors } from '@/lib/chat/pinecone'
+import { getByFileIds, computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -87,35 +88,34 @@ export async function POST(
     let used = 0
 
     if (retriever === 'doc') {
-      // Kein Vektor-Query: Alle Dokument-Summaries (mit Metadaten-Filter) listen
+      const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
+      const libraryKey = computeDocMetaCollectionName(userEmail || '', libraryId, strategy)
+      // Doc-Retriever: Kandidaten (doc) aus Pinecone listen, Inhalte aus Mongo hydrieren
       const docs = await listVectors(idx.host, apiKey, baseFilter as Record<string, unknown>)
+      const fileIds = docs
+        .map(d => (d.metadata && typeof d.metadata === 'object' ? (d.metadata as { fileId?: unknown }).fileId : undefined))
+        .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      const metaMap = await getByFileIds(libraryKey, libraryId, fileIds)
       for (const d of docs) {
-        const meta = d.metadata || {}
-        let t = typeof meta.text === 'string' ? meta.text as string : ''
-        let fileName = typeof meta.fileName === 'string' ? meta.fileName as string : undefined
-        const docMetaJson = typeof meta.docMetaJson === 'string' ? meta.docMetaJson as string : undefined
-        if (docMetaJson && !t) {
-          try {
-            const docMeta = JSON.parse(docMetaJson) as Record<string, unknown>
-            const title = typeof docMeta.title === 'string' ? docMeta.title : undefined
-            const shortTitle = typeof docMeta.shortTitle === 'string' ? docMeta.shortTitle : undefined
-            const summary = typeof docMeta.summary === 'string' ? docMeta.summary : undefined
-            const tags = Array.isArray(docMeta.tags) ? (docMeta.tags as unknown[]).filter(v => typeof v === 'string') as string[] : []
-            const authors = Array.isArray(docMeta.authors) ? (docMeta.authors as unknown[]).filter(v => typeof v === 'string') as string[] : []
-            fileName = fileName || title || shortTitle
-            const parts = [
-              title ? `Titel: ${title}` : undefined,
-              shortTitle ? `Kurz: ${shortTitle}` : undefined,
-              authors.length ? `Autoren: ${authors.join(', ')}` : undefined,
-              summary ? `Zusammenfassung: ${summary}` : undefined,
-              tags.length ? `Tags: ${tags.slice(0, 10).join(', ')}` : undefined,
-            ].filter(Boolean) as string[]
-            const composed = parts.join('\n')
-            t = composed || t
-          } catch {
-            // ignore JSON parse
-          }
-        }
+        const meta = (d.metadata || {}) as Record<string, unknown>
+        const fileId = typeof (meta as { fileId?: unknown }).fileId === 'string' ? (meta as { fileId: string }).fileId : undefined
+        if (!fileId) continue
+        const m = metaMap.get(fileId)
+        if (!m) continue
+        // Komponieren eines kurzen Teaser-Texts aus Mongo-Metadaten
+        const docMeta = (m.docMetaJson || {}) as Record<string, unknown>
+        const title = typeof (docMeta as { title?: unknown }).title === 'string' ? (docMeta as { title: string }).title : undefined
+        const shortTitle = typeof (docMeta as { shortTitle?: unknown }).shortTitle === 'string' ? (docMeta as { shortTitle: string }).shortTitle : undefined
+        const summary = typeof (docMeta as { summary?: unknown }).summary === 'string' ? (docMeta as { summary: string }).summary : undefined
+        const authors = Array.isArray((docMeta as { authors?: unknown }).authors) ? ((docMeta as { authors?: unknown[] }).authors as string[]) : []
+        const parts = [
+          title ? `Titel: ${title}` : undefined,
+          shortTitle ? `Kurz: ${shortTitle}` : undefined,
+          authors.length ? `Autoren: ${authors.join(', ')}` : undefined,
+          summary ? `Zusammenfassung: ${String(summary).slice(0, 600)}` : undefined,
+        ].filter(Boolean) as string[]
+        const t = parts.join('\n')
+        const fileName = m.fileName || title || shortTitle
         if (!t) continue
         if (used + t.length > charBudget) break
         sources.push({ id: d.id, fileName, text: t })

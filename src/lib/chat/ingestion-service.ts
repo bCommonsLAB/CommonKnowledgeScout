@@ -8,6 +8,8 @@ import { chunkText } from '@/lib/text/chunk'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { parseFacetDefs, getTopLevelValue } from '@/lib/chat/dynamic-facets'
+import { upsertDocMeta, ensureFacetIndexes, computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
+import type { DocMeta, ChapterMetaEntry } from '@/types/doc-meta'
 
 /**
  * Stub-Service zum Enqueue einer Ingestion.
@@ -215,6 +217,7 @@ export class IngestionService {
     // Coverage‑Tracking (nur für Diagnose)
     const pageCovered: boolean[] = new Array<boolean>(Math.max(1, totalPages)).fill(false)
 
+    const chaptersForMongo: ChapterMetaEntry[] = []
     for (const ch of chaptersInput) {
       const title = typeof (ch as { title?: unknown }).title === 'string' ? (ch as { title: string }).title : 'Kapitel'
       const level = typeof (ch as { level?: unknown }).level === 'number' ? (ch as { level: number }).level : undefined
@@ -267,6 +270,14 @@ export class IngestionService {
 
       const chapterId = hashId(`${fileId}|${order ?? 0}|${title}`)
       const upsertedAt = new Date().toISOString()
+      // Für Mongo Kapitelübersicht erfassen
+      chaptersForMongo.push({
+        index: typeof order === 'number' ? order : chaptersForMongo.length,
+        id: chapterId,
+        title,
+        summary: summary || undefined,
+        chunkCount: chunkTexts.length,
+      })
 
       embeds.forEach((values, localIdx) => {
         const id = `${fileId}-${globalChunkIndex}`
@@ -307,23 +318,61 @@ export class IngestionService {
     // Doc‑Meta finalisieren: counts + ingest_status + upsertedAt (ein finales Upsert)
     try {
       const chaptersCount = chaptersInput.length
+      // Mongo-Dokument vorbereiten (vollständige Metadaten)
+      const docMetaJsonObj = (((metaEffective as Record<string, unknown>)['__jsonClean'] as Record<string, unknown>) || ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || metaEffective || {}) as Record<string, unknown>
+      const mongoDoc: DocMeta = {
+        user: userEmail,
+        libraryId,
+        fileId,
+        fileName,
+        authors: Array.isArray((docMetaJsonObj as { authors?: unknown }).authors) ? ((docMetaJsonObj as { authors?: unknown[] }).authors as string[]) : undefined,
+        year: typeof (docMetaJsonObj as { year?: unknown }).year === 'number' ? (docMetaJsonObj as { year: number }).year : (typeof (docMetaJsonObj as { year?: unknown }).year === 'string' ? Number((docMetaJsonObj as { year: string }).year) : undefined),
+        region: typeof (docMetaJsonObj as { region?: unknown }).region === 'string' ? (docMetaJsonObj as { region: string }).region : undefined,
+        docType: typeof (docMetaJsonObj as { docType?: unknown }).docType === 'string' ? (docMetaJsonObj as { docType: string }).docType : undefined,
+        source: typeof (docMetaJsonObj as { source?: unknown }).source === 'string' ? (docMetaJsonObj as { source: string }).source : undefined,
+        tags: Array.isArray((docMetaJsonObj as { tags?: unknown }).tags) ? ((docMetaJsonObj as { tags?: unknown[] }).tags as string[]) : undefined,
+        chunkCount: chunksUpserted,
+        chaptersCount,
+        upsertedAt: new Date().toISOString(),
+        docMetaJson: docMetaJsonObj,
+        chapters: chaptersForMongo,
+      }
+      // In Mongo speichern (Upsert) – dynamische Indizes je Library sicherstellen
+      const defs = parseFacetDefs(ctx.library)
+      const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
+      const libraryKey = computeDocMetaCollectionName(userEmail, libraryId, strategy)
+      try { await ensureFacetIndexes(libraryKey, defs) } catch {}
+      // Facettenwerte dynamisch zusätzlich in mongoDoc spiegeln
+      try {
+        const sanitized = ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || (metaEffective || {}) as Record<string, unknown>
+        for (const d of defs) {
+          const v = getTopLevelValue(sanitized, d)
+          if (v !== undefined && v !== null) (mongoDoc as Record<string, unknown>)[d.metaKey] = v
+        }
+      } catch {}
+      // Events für Mongo-Upsert
+      if (jobId) {
+        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'doc_meta_mongo_upsert_start', attributes: { libraryKey, fileId, fileName } }) } catch {}
+      }
+      try {
+        await upsertDocMeta(libraryKey, mongoDoc)
+        if (jobId) {
+          try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'doc_meta_mongo_upsert_done', attributes: { libraryKey, fileId } }) } catch {}
+        }
+      } catch (e) {
+        if (jobId) {
+          try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'doc_meta_mongo_upsert_failed', attributes: { libraryKey, fileId, error: String(e) } }) } catch {}
+        }
+        throw e
+      }
+      // Schlankes Pinecone Doc-Meta vorbereiten (nur minimale Felder)
       const finalMeta: Record<string, unknown> = {
         kind: 'doc', user: userEmail, libraryId, fileId, fileName,
         chunkCount: chunksUpserted, chaptersCount,
         ingest_status: 'completed',
-        upsertedAt: new Date().toISOString(),
-        docMetaJson: JSON.stringify(((metaEffective as Record<string, unknown>)['__jsonClean'] as Record<string, unknown>) || ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || metaEffective || {}),
+        upsertedAt: mongoDoc.upsertedAt,
       }
-      // Facetten auf Top‑Level spiegeln (sanitisiert), nur gültige Typen/finite Zahlen
-      try {
-        const defs = parseFacetDefs(ctx.library)
-        const src = ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || (metaEffective || {}) as Record<string, unknown>
-        for (const d of defs) {
-          let val = getTopLevelValue(src, d)
-          if ((d.type === 'number' || d.type === 'integer-range') && typeof val === 'number' && !Number.isFinite(val)) val = undefined
-          if (val !== undefined && val !== null) (finalMeta as Record<string, unknown>)[d.metaKey] = val
-        }
-      } catch {}
+      // WICHTIG: Keine Facetten-Metadaten mehr nach Pinecone spiegeln (nur Minimal-Set)
       // Values aus summary oder Fallback Einheitsvektor
       const { composeDocSummaryText } = await import('@/lib/chat/facets')
       const summaryText = composeDocSummaryText((((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || metaEffective || {}) as Record<string, unknown>)
@@ -354,7 +403,6 @@ export class IngestionService {
           sanitizedMeta[k] = t === 'string' ? (v as string).trim() : v
           continue
         }
-        // alle anderen Typen verwerfen
       }
       await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values, metadata: sanitizedMeta }], 1)
       FileLogger.info('ingestion', 'Doc‑Meta finalisiert', { fileId, chunks: chunksUpserted, chapters: chaptersCount })
