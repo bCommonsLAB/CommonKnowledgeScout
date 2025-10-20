@@ -6,6 +6,8 @@ import { FileLogger } from '@/lib/debug/logger'
 import { splitByPages } from '@/lib/ingestion/page-split'
 import { chunkText } from '@/lib/text/chunk'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
+import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
+import { parseFacetDefs, getTopLevelValue } from '@/lib/chat/dynamic-facets'
 
 /**
  * Stub-Service zum Enqueue einer Ingestion.
@@ -56,6 +58,7 @@ export class IngestionService {
     meta?: Record<string, unknown>,
     jobId?: string,
   ): Promise<{ chunksUpserted: number; docUpserted: boolean; index: string }> {
+    const repo = new ExternalJobsRepository()
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) throw new Error('Bibliothek nicht gefunden')
 
@@ -65,25 +68,111 @@ export class IngestionService {
     const idx = await describeIndex(ctx.vectorIndex, apiKey)
     if (!idx?.host) throw new Error('Index nicht gefunden oder ohne Host')
 
-    // Frontmatter nicht chunken – nur Dokumentkörper
-    const body = (() => {
-      // Strenger Frontmatter-Block nur am Dokumentanfang: ---\n ... \n---\n
-      const re = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/m
-      return re.test(markdown) ? markdown.replace(re, '') : markdown
+    // Frontmatter strikt parsen: Meta als Single Source, Body zum Chunken
+    const { meta: metaFromMarkdown, body } = await (async () => {
+      try {
+        const fm = await import('@/lib/markdown/frontmatter')
+        const parsed = typeof fm.parseFrontmatter === 'function' ? fm.parseFrontmatter(markdown) : { meta: meta || {}, body: markdown }
+        return parsed
+      } catch {
+        return { meta: meta || {}, body: markdown }
+      }
     })()
+    const metaEffective: Record<string, unknown> = { ...(metaFromMarkdown || {}), ...(meta || {}) }
+    // Facetten-validierung und Parsing: fehlende Felder warnen, Typen parse/prüfen
+    try {
+      const defs = parseFacetDefs(ctx.library)
+      const sanitized: Record<string, unknown> = { ...metaEffective }
+      const stripWrappingQuotes = (s: string): string => {
+        const t = s.trim()
+        if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) return t.slice(1, -1).trim()
+        return t
+      }
+      const toStringArray = (val: unknown): string[] | undefined => {
+        if (Array.isArray(val)) return val.map(v => stripWrappingQuotes(typeof v === 'string' ? v : String(v))).filter(Boolean)
+        if (typeof val === 'string') {
+          const t = val.trim()
+          try {
+            if (t.startsWith('[') && t.endsWith(']')) {
+              const arr = JSON.parse(t)
+              if (Array.isArray(arr)) return arr.map(v => stripWrappingQuotes(typeof v === 'string' ? v : String(v))).filter(Boolean)
+            }
+          } catch {}
+          // Fallback: Komma-separiert
+          return t.split(',').map(s => stripWrappingQuotes(s)).filter(Boolean)
+        }
+        return undefined
+      }
+      const deepClean = (val: unknown): unknown => {
+        if (val === null || val === undefined) return undefined
+        if (typeof val === 'string') {
+          const trimmed = val.trim()
+          // JSON-Array als String → Array of strings
+          if ((trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+            try {
+              const arr = JSON.parse(trimmed)
+              if (Array.isArray(arr)) return arr.map(x => stripWrappingQuotes(typeof x === 'string' ? x : String(x))).filter(Boolean)
+            } catch {}
+          }
+          return stripWrappingQuotes(trimmed)
+        }
+        if (Array.isArray(val)) return val.map(x => deepClean(x)).filter(v => v !== undefined)
+        if (typeof val === 'object') {
+          const out: Record<string, unknown> = {}
+          for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+            const cleaned = deepClean(v)
+            if (cleaned !== undefined) out[k] = cleaned
+          }
+          return out
+        }
+        return val
+      }
+      for (const def of defs) {
+        const raw = (metaEffective as Record<string, unknown>)[def.metaKey]
+        let parsed = getTopLevelValue(metaEffective, def)
+        if ((def.type === 'number' || def.type === 'integer-range') && typeof parsed === 'number') {
+          if (!Number.isFinite(parsed)) parsed = undefined
+        }
+        if (def.type === 'string' && typeof parsed === 'string') {
+          parsed = stripWrappingQuotes(parsed)
+        }
+        if (def.type === 'string[]') {
+          const arr = toStringArray(parsed === undefined ? raw : parsed)
+          parsed = Array.isArray(arr) ? arr : undefined
+        }
+        if (parsed === undefined) {
+          if (raw === undefined) {
+            if (jobId) bufferLog(jobId, { phase: 'facet_missing', message: `Meta fehlt: ${def.metaKey}` })
+          } else {
+            if (jobId) bufferLog(jobId, { phase: 'facet_type_mismatch', message: `Typfehler: ${def.metaKey}`, details: { expected: def.type, actual: typeof raw } as unknown as Record<string, unknown> })
+          }
+          // nichts setzen → Feld bleibt ggf. unverändert/entfällt später beim Sanitize
+        } else {
+          sanitized[def.metaKey] = parsed
+        }
+      }
+      // null/undefined entfernen für docMetaJson
+      for (const k of Object.keys(sanitized)) if (sanitized[k] === null || sanitized[k] === undefined) delete sanitized[k]
+      ;(metaEffective as Record<string, unknown>)['__sanitized'] = sanitized // intern; später für docMetaJson genutzt
+      // Zusätzlich: vollständige, bereinigte Kopie für docMetaJson (auch Keys außerhalb der Facetten)
+      const mergedForJson: Record<string, unknown> = { ...(metaEffective as Record<string, unknown>) }
+      delete mergedForJson['__sanitized']
+      for (const [k, v] of Object.entries(sanitized)) mergedForJson[k] = v
+      ;(metaEffective as Record<string, unknown>)['__jsonClean'] = deepClean(mergedForJson)
+    } catch {}
     let spans = splitByPages(body)
     if (!Array.isArray(spans) || spans.length === 0) {
       // Fallback: Gesamten Body als eine Seite behandeln
       spans = [{ page: 1, startIdx: 0, endIdx: body.length }]
     }
     // Bevorzugt deklarierte Seitenzahl aus Meta (Frontmatter)
-    const declaredPagesRaw = meta && typeof meta === 'object' ? (meta as { pages?: unknown }).pages : undefined
+    const declaredPagesRaw = metaEffective && typeof metaEffective === 'object' ? (metaEffective as { pages?: unknown }).pages : undefined
     const declaredPages = typeof declaredPagesRaw === 'number' && declaredPagesRaw > 0 ? declaredPagesRaw : undefined
     const totalPages = declaredPages || spans.length
     FileLogger.info('ingestion', 'Start kapitelgeführte Ingestion', { libraryId, fileId, pages: totalPages })
     if (jobId) bufferLog(jobId, { phase: 'ingest_start', message: `Ingestion start (pages=${totalPages})` })
     // Kapitel aus Meta lesen
-    const chaptersRaw = meta && typeof meta === 'object' ? (meta as { chapters?: unknown }).chapters : undefined
+    const chaptersRaw = metaEffective && typeof metaEffective === 'object' ? (metaEffective as { chapters?: unknown }).chapters : undefined
     const chaptersInput = Array.isArray(chaptersRaw) ? chaptersRaw as Array<Record<string, unknown>> : []
 
     // Idempotenz: Alte Vektoren dieses Dokuments löschen
@@ -110,77 +199,23 @@ export class IngestionService {
       return Math.abs(h).toString(36)
     }
 
-    // Doc‑Meta als eigener Vektor erneut upserten (nach indextidy)
-    const upsertedAtDoc = new Date().toISOString()
-    let docMetaVector: { id: string; values: number[]; metadata: Record<string, unknown> } | null = null
+    // Vorab-Checks aus Frontmatter (Warnungen, aber kein Abbruch)
     try {
-      const dim = typeof (idx as unknown as { dimension?: unknown }).dimension === 'number'
-        ? Number((idx as unknown as { dimension: number }).dimension)
-        : Number(process.env.OPENAI_EMBEDDINGS_DIMENSION || 3072)
-      const zero = new Array<number>(dim).fill(0)
-      zero[0] = 1
-      const docMeta: Record<string, unknown> = {
-        kind: 'doc',
-        user: userEmail,
-        libraryId,
-        fileId,
-        fileName,
-        upsertedAt: upsertedAtDoc,
-        docMetaJson: JSON.stringify(meta || {}),
+      const summaryRaw = meta && typeof meta === 'object' ? (meta as { summary?: unknown }).summary : undefined
+      if (!(typeof summaryRaw === 'string' && summaryRaw.trim().length > 0)) {
+        FileLogger.warn('ingestion', 'Frontmatter summary fehlt oder leer', { fileId })
+        if (jobId) bufferLog(jobId, { phase: 'frontmatter_missing', message: 'summary fehlt' })
       }
-      // Facetten-Promotion auf Top-Level
-      try {
-        const { parseFacetDefs, getTopLevelValue } = await import('@/lib/chat/dynamic-facets')
-        const defs = parseFacetDefs(ctx.library)
-        const src = (meta || {}) as Record<string, unknown>
-        for (const d of defs) {
-          const val = getTopLevelValue(src, d)
-          if (val !== undefined) (docMeta as Record<string, unknown>)[d.metaKey] = val
-        }
-      } catch {}
-      docMetaVector = { id: `${fileId}-meta`, values: zero, metadata: docMeta }
-      vectors.push(docMetaVector)
-    } catch (err) {
-      FileLogger.warn('ingestion', 'Doc‑Meta Vektor konnte nicht vorbereitet werden', { fileId, err: String(err) })
-    }
-
-    // Hilfsfunktionen für tolerantes Evidence‑Match
-    const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const firstWords = (s: string, n: number) => s.split(/\s+/).filter(Boolean).slice(0, n).join(' ')
-    const buildEvidenceRegex = (snippet: string) => {
-      const words = firstWords(snippet, 10)
-        // Entferne grob Satz- und Sonderzeichen ohne Unicode-Property Escapes
-        .replace(/[\u2000-\u206F\u2E00-\u2E7F'".,!?;:()\[\]{}<>@#$%^&*_+=~`|\\/\-]+/g, ' ')
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .map(escapeRegExp)
-      if (words.length === 0) return null
-      // Erlaube beliebige Nicht‑Wort‑Trenner zwischen den Wörtern
-      const pattern = words.join('\\W+')
-      return new RegExp(pattern, 'i')
-    }
-    // Keine Reparaturlogik mehr hier: Ingestion erwartet normalisierte Kapitel aus Analyze‑Endpoint
-    const chapters = chaptersInput
-    if (jobId) {
-      const stats = (() => {
-        let missingStart = 0, missingEnd = 0, okRangeHint = 0
-        for (const c of chapters) {
-          const sp = typeof (c as { startPage?: unknown }).startPage === 'number'
-          const ep = typeof (c as { endPage?: unknown }).endPage === 'number'
-          if (!sp) missingStart += 1
-          if (!ep) missingEnd += 1
-          if (sp && ep) okRangeHint += 1
-        }
-        return { total: chapters.length, missingStart, missingEnd, okRangeHint }
-      })()
-      bufferLog(jobId, { phase: 'chapters_input', message: `Kapitel übergeben: ${chapters.length}`, details: stats as unknown as Record<string, unknown> })
-    }
+      if (!Array.isArray(chaptersInput) || chaptersInput.length === 0) {
+        FileLogger.warn('ingestion', 'Frontmatter chapters fehlen oder leer', { fileId })
+        if (jobId) bufferLog(jobId, { phase: 'frontmatter_missing', message: 'chapters fehlen' })
+      }
+    } catch {}
 
     // Coverage‑Tracking (nur für Diagnose)
     const pageCovered: boolean[] = new Array<boolean>(Math.max(1, totalPages)).fill(false)
 
-    for (const ch of chapters) {
+    for (const ch of chaptersInput) {
       const title = typeof (ch as { title?: unknown }).title === 'string' ? (ch as { title: string }).title : 'Kapitel'
       const level = typeof (ch as { level?: unknown }).level === 'number' ? (ch as { level: number }).level : undefined
       const order = typeof (ch as { order?: unknown }).order === 'number' ? (ch as { order: number }).order : undefined
@@ -191,7 +226,6 @@ export class IngestionService {
       const summary = typeof (ch as { summary?: unknown }).summary === 'string' ? (ch as { summary: string }).summary : ''
       const keywords = toStrArr((ch as { keywords?: unknown }).keywords)
 
-      // Toleranter Fallback: Single‑Page setzen, ansonsten clamping auf bekannte Grenzen
       if (!startPage) startPage = 1
       if (!endPage) endPage = startPage
       if (startPage < 1) startPage = 1
@@ -207,7 +241,11 @@ export class IngestionService {
       }
       if (startEvidence) {
         const pageText = segs.length > 0 ? body.slice(segs[0].startIdx, segs[0].endIdx) : ''
-        const rx = buildEvidenceRegex(startEvidence)
+        const rx = (() => {
+          const words = (startEvidence.split(/\s+/).filter(Boolean).slice(0, 10) || [])
+            .map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+          return words.length === 0 ? null : new RegExp(words.join('\\W+'), 'i')
+        })()
         if (rx) {
           const found = pageText.search(rx)
           if (jobId) {
@@ -266,55 +304,72 @@ export class IngestionService {
 
     await upsertVectorsChunked(idx.host, apiKey, vectors, 8)
     const chunksUpserted = vectors.filter(v => (v.metadata?.kind === 'chunk')).length
-    // Doc‑Meta finalisieren: counts + ingest_status + upsertedAt
+    // Doc‑Meta finalisieren: counts + ingest_status + upsertedAt (ein finales Upsert)
     try {
-      const chaptersCount = chapters.length
+      const chaptersCount = chaptersInput.length
       const finalMeta: Record<string, unknown> = {
         kind: 'doc', user: userEmail, libraryId, fileId, fileName,
         chunkCount: chunksUpserted, chaptersCount,
         ingest_status: 'completed',
         upsertedAt: new Date().toISOString(),
+        docMetaJson: JSON.stringify(((metaEffective as Record<string, unknown>)['__jsonClean'] as Record<string, unknown>) || ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || metaEffective || {}),
       }
-      if (docMetaVector) {
-        docMetaVector.metadata = { ...docMetaVector.metadata, ...finalMeta }
-        // Doc-Vektorwerte mit Summary-Embedding füllen (statt Einheitsvektor), wenn möglich
-        try {
-          const metaObj = typeof docMetaVector.metadata?.docMetaJson === 'string'
-            ? JSON.parse(String(docMetaVector.metadata.docMetaJson)) as Record<string, unknown>
-            : (meta || {})
-          const { composeDocSummaryText } = await import('@/lib/chat/facets')
-          const summaryText = composeDocSummaryText(metaObj)
-          if (summaryText && summaryText.length > 0) {
-            const { embedTexts } = await import('@/lib/chat/embeddings')
-            const [docEmbed] = await embedTexts([summaryText])
-            docMetaVector.values = docEmbed
-          }
-        } catch {}
-        await upsertVectorsChunked(idx.host, apiKey, [docMetaVector], 1)
-      } else {
-        // Falls kein früheres docMetaVector vorhanden war: lege eines an
-        const dim = typeof (idx as unknown as { dimension?: unknown }).dimension === 'number' ? (idx as unknown as { dimension: number }).dimension : 3072
-        const unit = new Array<number>(dim).fill(0); unit[0] = 1
-        try {
-          const { composeDocSummaryText } = await import('@/lib/chat/facets')
-          const summaryText = composeDocSummaryText(meta as Record<string, unknown>)
-          if (summaryText && summaryText.length > 0) {
-            const { embedTexts } = await import('@/lib/chat/embeddings')
-            const [docEmbed] = await embedTexts([summaryText])
-            await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values: docEmbed, metadata: finalMeta }], 1)
-            FileLogger.info('ingestion', 'Doc‑Meta Vektor mit Summary‑Embedding gespeichert', { fileId })
-          } else {
-            await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values: unit, metadata: finalMeta }], 1)
-          }
-        } catch {
-          await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values: unit, metadata: finalMeta }], 1)
+      // Facetten auf Top‑Level spiegeln (sanitisiert), nur gültige Typen/finite Zahlen
+      try {
+        const defs = parseFacetDefs(ctx.library)
+        const src = ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || (metaEffective || {}) as Record<string, unknown>
+        for (const d of defs) {
+          let val = getTopLevelValue(src, d)
+          if ((d.type === 'number' || d.type === 'integer-range') && typeof val === 'number' && !Number.isFinite(val)) val = undefined
+          if (val !== undefined && val !== null) (finalMeta as Record<string, unknown>)[d.metaKey] = val
         }
+      } catch {}
+      // Values aus summary oder Fallback Einheitsvektor
+      const { composeDocSummaryText } = await import('@/lib/chat/facets')
+      const summaryText = composeDocSummaryText((((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || metaEffective || {}) as Record<string, unknown>)
+      const dim = typeof (idx as unknown as { dimension?: unknown }).dimension === 'number' ? (idx as unknown as { dimension: number }).dimension : 3072
+      let values: number[] = new Array<number>(dim).fill(0); values[0] = 1
+      try {
+        if (summaryText && summaryText.length > 0) {
+          const { embedTexts } = await import('@/lib/chat/embeddings')
+          const [docEmbed] = await embedTexts([summaryText])
+          values = docEmbed
+        }
+      } catch {}
+      if (jobId) {
+        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'doc_meta_upsert_start', attributes: { vectorFileId: fileId, fileName } }) } catch {}
       }
+      // Pinecone erlaubt nur string | number | boolean | string[]
+      // Null/Undefined entfernen, Arrays zu string[] normalisieren, Nicht-primitive entfernen
+      const sanitizedMeta: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(finalMeta)) {
+        if (v === null || v === undefined) continue
+        if (Array.isArray(v)) {
+          const arr = v.filter(x => x !== null && x !== undefined).map(x => (typeof x === 'string' ? x : String(x)))
+          sanitizedMeta[k] = arr
+          continue
+        }
+        const t = typeof v
+        if (t === 'string' || t === 'number' || t === 'boolean') {
+          sanitizedMeta[k] = t === 'string' ? (v as string).trim() : v
+          continue
+        }
+        // alle anderen Typen verwerfen
+      }
+      await upsertVectorsChunked(idx.host, apiKey, [{ id: `${fileId}-meta`, values, metadata: sanitizedMeta }], 1)
       FileLogger.info('ingestion', 'Doc‑Meta finalisiert', { fileId, chunks: chunksUpserted, chapters: chaptersCount })
-      if (jobId) bufferLog(jobId, { phase: 'doc_meta_final', message: `Doc‑Meta finalisiert: chunks=${chunksUpserted}, chapters=${chaptersCount}` })
+      if (jobId) {
+        bufferLog(jobId, { phase: 'doc_meta_final', message: `Doc‑Meta finalisiert: chunks=${chunksUpserted}, chapters=${chaptersCount}` })
+        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'doc_meta_upsert_done', attributes: { vectorFileId: fileId, id: `${fileId}-meta`, chunks: chunksUpserted, chapters: chaptersCount } }) } catch {}
+      }
     } catch (err) {
       FileLogger.warn('ingestion', 'Doc‑Meta finales Update fehlgeschlagen', { fileId, err: String(err) })
-      if (jobId) bufferLog(jobId, { phase: 'doc_meta_final_failed', message: 'Doc‑Meta finales Update fehlgeschlagen' })
+      if (jobId) {
+        bufferLog(jobId, { phase: 'doc_meta_final_failed', message: 'Doc‑Meta finales Update fehlgeschlagen' })
+        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'doc_meta_upsert_failed', attributes: { vectorFileId: fileId, error: String(err) } }) } catch {}
+      }
+      // Kritisch: Fehler weiterwerfen, damit Orchestrator den Step/Job als failed markiert
+      throw err instanceof Error ? err : new Error(String(err))
     }
     FileLogger.info('ingestion', 'Upsert abgeschlossen', { fileId, chunks: chunksUpserted, vectors: vectors.length })
     if (jobId) bufferLog(jobId, { phase: 'ingest_pinecone_upserted', message: `Upsert abgeschlossen: ${chunksUpserted} Chunks (${vectors.length} Vektoren)` })

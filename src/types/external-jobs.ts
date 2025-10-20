@@ -1,0 +1,168 @@
+// Zentrale Typen für modulare External-Job-Orchestrierung
+// Beachte: Bestehende DB-Typen leben in `src/types/external-job.ts`.
+// Diese Datei ergänzt modul-spezifische Schnittstellen und strengere Signaturen.
+
+import type { NextRequest } from 'next/server'
+import type { ExternalJob } from '@/types/external-job'
+
+// --- Frontmatter & Kapitel ---
+export interface ChapterMeta {
+  title?: string
+  order?: number
+  level?: number
+  startPage?: number
+  endPage?: number
+  pageCount?: number
+  summary?: string
+  keywords?: string[]
+}
+
+export interface Frontmatter {
+  pages?: number
+  chapters?: ChapterMeta[]
+  [key: string]: unknown
+}
+
+// --- Context & Body ---
+export interface ExternalCallbackBody {
+  phase?: string
+  data?: Record<string, unknown>
+  process?: { id?: string } | undefined
+  callback_token?: string | undefined
+}
+
+export interface RequestContext {
+  request: NextRequest
+  jobId: string
+  job: ExternalJob
+  body: ExternalCallbackBody
+  callbackToken?: string
+  internalBypass: boolean
+}
+
+// --- Fehler ---
+export interface ExternalJobError extends Error {
+  code: string
+  status: number
+  details?: Record<string, unknown>
+}
+
+export function createExternalJobError(code: string, message: string, status: number, details?: Record<string, unknown>): ExternalJobError {
+  const err = new Error(message) as ExternalJobError
+  err.code = code
+  err.status = status
+  if (details) err.details = details
+  return err
+}
+
+// --- Policies ---
+export interface PhasePolicies {
+  // metadata: 'force' | 'skip' | 'auto'
+  metadata: string
+  // ingest: 'ignore' | 'enqueue' | 'upsert'
+  ingest: string
+}
+
+// --- Decisions ---
+export interface TemplateDecisionArgs {
+  ctx: RequestContext
+  policies: PhasePolicies
+  isFrontmatterCompleteFromBody: boolean
+  templateGateExists: boolean
+  autoSkip: boolean
+  isTemplateCompletedCallback: boolean
+}
+
+export interface TemplateDecisionResult {
+  shouldRun: boolean
+  gateExists: boolean
+  isCallback: boolean
+  needsRepair: boolean
+  reason: string
+}
+
+// --- Template Run ---
+export interface TemplateRunArgs {
+  ctx: RequestContext
+  extractedText: string
+  templateContent: string
+  targetLanguage: string
+}
+
+export interface TemplateRunResult {
+  meta: Frontmatter | null
+}
+
+// --- Kapitelanalyse ---
+export interface ChaptersArgs {
+  ctx: RequestContext
+  baseMeta: Frontmatter
+  textForAnalysis: string
+  existingChapters?: ChapterMeta[]
+}
+
+export interface ChaptersResult {
+  mergedMeta: Frontmatter
+}
+
+// --- Storage ---
+export interface SaveMarkdownArgs {
+  ctx: RequestContext
+  parentId: string
+  fileName: string
+  markdown: string
+}
+
+export interface SaveMarkdownResult {
+  savedItemId: string
+}
+
+// --- Images ---
+export interface ImagesArgs {
+  ctx: RequestContext
+  parentId: string
+  imagesZipUrl?: string
+  extractedText?: string
+  lang: string
+}
+
+export interface ImagesResult {
+  savedItemIds: string[]
+}
+
+// --- Ingestion ---
+export interface IngestArgs {
+  ctx: RequestContext
+  savedItemId: string
+  fileName: string
+  markdown: string
+  meta?: Frontmatter
+}
+
+export interface IngestResult {
+  chunksUpserted: number
+  docUpserted: boolean
+  index: string
+}
+
+// --- Completion ---
+export interface CompleteArgs {
+  ctx: RequestContext
+  result: { savedItemId?: string }
+}
+
+export interface JobResult {
+  status: 'ok'
+  jobId: string
+}
+
+// --- Utilities ---
+export function isFrontmatterComplete(meta: Frontmatter): boolean {
+  if (!meta || typeof meta !== 'object') return false
+  const hasPages = typeof meta.pages === 'number' && meta.pages > 0
+  const chapters = Array.isArray(meta.chapters) ? meta.chapters : []
+  const hasChapters = chapters.length > 0
+  return hasPages && hasChapters
+}
+
+

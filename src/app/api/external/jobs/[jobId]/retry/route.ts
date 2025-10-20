@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { RequestContext } from '@/types/external-jobs'
 import { getAuth, currentUser } from '@clerk/nextjs/server';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import crypto from 'crypto';
@@ -8,9 +9,11 @@ import { gateExtractPdf } from '@/lib/processing/gates';
 import { getPolicies, shouldRunExtract } from '@/lib/processing/phase-policy';
 import { LibraryService } from '@/lib/services/library-service';
 import { getServerProvider } from '@/lib/storage/server-provider';
-import { TransformService } from '@/lib/transform/transform-service';
+import { pickTemplate } from '@/lib/external-jobs/template-files'
+import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
+import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
 import { FileLogger } from '@/lib/debug/logger';
-import { callPdfProcess, callTemplateTransform } from '@/lib/secretary/adapter';
+import { callPdfProcess } from '@/lib/secretary/adapter';
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
 
 export async function POST(
@@ -163,34 +166,11 @@ export async function POST(
           await repo.appendLog(jobId, { phase: 'retry_template_run_start', details: { reason: 'policy_do', hasTwin: true, templatePolicy: policies.metadata, expectedLanguage: String(serviceFormData.get('target_language') || 'de') } } as unknown as Record<string, unknown>);
           try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 10, updatedAt: new Date().toISOString(), message: 'transform_template', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
           try {
-            // Template bestimmen
+            // Template bestimmen (modular)
             const libraries = await LibraryService.getInstance().getUserLibraries(userEmail);
             const lib = libraries.find(l => l.id === libraryId);
-            const rootItems = await provider.listItemsById('root');
-            const templatesFolder = rootItems.find(it => it.type === 'folder' && (it as { metadata?: { name?: string } }).metadata?.name?.toLowerCase() === 'templates');
-            const ensureTemplatesFolderId = async (): Promise<string> => {
-              if (templatesFolder) return (templatesFolder as { id: string }).id;
-              const created = await provider.createFolder('root', 'templates');
-              return created.id;
-            };
-            const templatesFolderId = await ensureTemplatesFolderId();
-            let chosen: { id: string } | undefined;
-            let selectedTemplateName = 'pdfanalyse.md';
-            if (templatesFolderId) {
-              const tplItems = await provider.listItemsById(templatesFolderId);
-              const preferredTemplate = ((lib?.config?.chat as unknown as { transformerTemplate?: string })?.transformerTemplate || 'pdfanalyse').trim();
-              const pickByName = (name: string) => tplItems.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name.toLowerCase() === name.toLowerCase());
-              const chosenName = (preferredTemplate.endsWith('.md') ? preferredTemplate : `${preferredTemplate}.md`);
-              chosen = pickByName(chosenName) || pickByName('pdfanalyse.md') || pickByName('pdfanalyse_default.md') || tplItems.find(it => it.type === 'file') as { id: string } | undefined;
-              selectedTemplateName = chosenName;
-              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_selected', attributes: { preferred: chosenName, picked: chosen ? 'yes' : 'fallback', templateName: chosenName } }); } catch {}
-            }
-            let templateContent = '# {{title}}\n';
-            if (chosen) {
-              const binTpl = await provider.getBinary(chosen.id);
-              templateContent = await binTpl.blob.text();
-            }
-
+            const preferredTemplate = ((lib?.config?.chat as unknown as { transformerTemplate?: string })?.transformerTemplate || 'pdfanalyse').trim();
+            const { templateContent } = await pickTemplate({ provider, repo, jobId, preferredTemplateName: preferredTemplate })
             // Shadow‑Twin finden und laden
             const siblings = await provider.listItemsById(source.parentId);
             const targetLanguage = String(serviceFormData.get('target_language') || 'de');
@@ -200,59 +180,19 @@ export async function POST(
             if (!twin) throw new Error('Shadow‑Twin nicht gefunden');
             const twinBin = await provider.getBinary(twin.id);
             const originalMarkdown = await twinBin.blob.text();
-            const stripped = originalMarkdown.replace(/^---[\s\S]*?---\s*/m, '');
-
-            // Secretary Transformer aufrufen
-            const secretaryUrlRaw = process.env.SECRETARY_SERVICE_URL || '';
-            const transformerUrl = secretaryUrlRaw.endsWith('/') ? `${secretaryUrlRaw}transformer/template` : `${secretaryUrlRaw}/transformer/template`;
-            let mdMetaLocal: Record<string, unknown> = {};
-            await repo.appendLog(jobId, { phase: 'template_request_sent', message: 'Template-Anfrage gesendet', details: { url: transformerUrl, method: 'POST' } } as unknown as Record<string, unknown> );
-            try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_request_start', attributes: { url: transformerUrl, method: 'POST', targetLanguage, preferred: selectedTemplateName, picked: !!chosen, templateContentLen: templateContent.length } }); } catch {}
-            try {
-              const resp = await callTemplateTransform({ url: transformerUrl, text: stripped, targetLanguage, templateContent, apiKey: process.env.SECRETARY_SERVICE_API_KEY, timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000) });
-              const data: unknown = await resp.json().catch(() => ({ error: 'invalid_json' }));
-              await repo.appendLog(jobId, { phase: 'retry_template_response', details: { ok: resp.ok, status: resp.status, statusText: resp.statusText, keys: (data && typeof data === 'object') ? Object.keys(data as Record<string, unknown>) : [], length: JSON.stringify(data || {}).length } } as unknown as Record<string, unknown>);
-              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_request_ack', attributes: { status: resp.status, statusText: resp.statusText } }); } catch {}
-              if (!resp.ok) {
-                const errMsg = (() => {
-                  if (data && typeof data === 'object') {
-                    const d = data as { error?: { message?: unknown } };
-                    if (d.error && typeof d.error.message === 'string') return d.error.message as string;
-                  }
-                  return `${resp.status} ${resp.statusText}`;
-                })();
-                await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: errMsg } });
-                await repo.setStatus(jobId, 'failed');
-                return NextResponse.json({ error: 'template_failed' }, { status: 500 });
-              }
-              mdMetaLocal = (data && typeof data === 'object' && !Array.isArray(data)) ? (((data as { data?: { structured_data?: Record<string, unknown> } }).data?.structured_data || {}) as Record<string, unknown>) : {};
-              try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 60, updatedAt: new Date().toISOString(), message: 'template_request_ack', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
-
-              await repo.appendMeta(jobId, mdMetaLocal, 'template_transform');
-              const metaKeysCount = Object.keys(mdMetaLocal || {}).length;
-              await repo.appendLog(jobId, { phase: 'transform_meta_completed', progress: 90, message: `Template-Transformation abgeschlossen (${metaKeysCount} Schlüssel)` });
-              try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 90, updatedAt: new Date().toISOString(), message: 'transform_meta_completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : String(e);
-              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_failed_network', level: 'error', attributes: { error: msg } }); } catch {}
-              await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: msg } });
-              await repo.setStatus(jobId, 'failed');
-              return NextResponse.json({ error: 'template_unreachable' }, { status: 503 });
-            }
-
-            // Markdown mit neuem Frontmatter erzeugen und als neue Datei speichern
-            const ssotFlat: Record<string, unknown> = {
-              job_id: jobId,
-              source_file: source.name || 'document.pdf',
-              extract_status: 'completed',
-              template_status: 'completed',
-              summary_language: targetLanguage,
-            };
-            const mergedMeta = { ...(mdMetaLocal || {}), ...ssotFlat } as Record<string, unknown>;
-            const newMarkdown = (TransformService as unknown as { createMarkdownWithFrontmatter?: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter
-              ? (TransformService as unknown as { createMarkdownWithFrontmatter: (c: string, m: Record<string, unknown>) => string }).createMarkdownWithFrontmatter(stripped, mergedMeta)
-              : stripped;
-
+            const stripped = stripAllFrontmatter(originalMarkdown)
+            // Secretary Transformer via Modul
+            const { runTemplateTransform } = await import('@/lib/external-jobs/template-run')
+            const ctxForRun: RequestContext = { request, jobId, job, body: {}, internalBypass: true }
+            const tr = await runTemplateTransform({ ctx: ctxForRun, extractedText: stripped, templateContent, targetLanguage })
+            const mdMetaLocal: Record<string, unknown> = (tr.meta || {}) as Record<string, unknown>
+            await repo.appendMeta(jobId, mdMetaLocal, 'template_transform');
+            const metaKeysCount = Object.keys(mdMetaLocal || {}).length;
+            await repo.appendLog(jobId, { phase: 'transform_meta_completed', progress: 90, message: `Template-Transformation abgeschlossen (${metaKeysCount} Schlüssel)` });
+            try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 90, updatedAt: new Date().toISOString(), message: 'transform_meta_completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
+            // Markdown neu zusammensetzen (modular)
+            const mergedMeta = { ...(mdMetaLocal || {}), job_id: jobId, source_file: source.name || 'document.pdf', extract_status: 'completed', template_status: 'completed', summary_language: targetLanguage }
+            const newMarkdown = createMarkdownWithFrontmatter(originalMarkdown, mergedMeta)
             // Interner Callback an zentralen Handler, um Ingestion zu starten
             try {
               const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -267,7 +207,6 @@ export async function POST(
               await repo.appendLog(jobId, { phase: 'retry_internal_callback_error', details: { error: e instanceof Error ? e.message : String(e) } } as unknown as Record<string, unknown>);
             }
             try { getJobEventBus().emitUpdate(userEmail, { type: 'job_update', jobId, status: 'running', progress: 98, updatedAt: new Date().toISOString(), message: 'stored_local', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
-
             // Doc‑Meta Upsert entfällt hier – erfolgt zentral im Callback/Ingester
           } catch (err) {
             await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: err instanceof Error ? err.message : String(err) } });

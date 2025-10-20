@@ -81,7 +81,7 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
       const fm = extractFrontmatterBlock(twinContent || "");
       if (!fm) { setStepStatuses({}); return; }
       const meta = parseFrontmatter(fm);
-      const m = meta as Record<string, unknown>;
+      const m = (meta as unknown) as Record<string, unknown>;
       const to = (v: unknown): "completed"|"in_progress"|"failed"|"pending" => {
         const s = typeof v === 'string' ? v.toLowerCase() : '';
         if (s.includes('complete')) return 'completed';

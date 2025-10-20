@@ -84,7 +84,8 @@ export default function GalleryClient() {
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }>>([])
 
-  const activeLibrary = libraries.find(l => l.id === libraryId)
+  // Hinweis: activeLibrary derzeit ungenutzt
+  void libraries
 
   useEffect(() => {
     let cancelled = false

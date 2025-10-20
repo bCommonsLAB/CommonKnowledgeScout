@@ -1,3 +1,35 @@
+import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
+
+export interface ParsedFrontmatter {
+  meta: Record<string, unknown>
+  body: string
+}
+
+/**
+ * Liest YAML‑Frontmatter am Dokumentanfang strikt und gibt Meta + Body zurück.
+ * Nutzt den bestehenden Secretary‑Parser als Single Source of Truth.
+ */
+export function parseFrontmatter(markdown: string): ParsedFrontmatter {
+  const parsed = parseSecretaryMarkdownStrict(markdown)
+  const meta: Record<string, unknown> = parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta)
+    ? (parsed.meta as Record<string, unknown>)
+    : {}
+  // Frontmatter‑Block am Anfang entfernen
+  const re = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/m
+  const body = re.test(markdown) ? markdown.replace(re, '') : markdown
+  return { meta, body }
+}
+
+/**
+ * Entfernt ALLE Frontmatter-Blöcke am Dokumentanfang (robust gegen mehrfaches Präfixen).
+ */
+export function stripAllFrontmatter(text: string): string {
+  let out = text
+  const re = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/m
+  while (re.test(out)) out = out.replace(re, '')
+  return out
+}
+
 export interface FrontmatterEntry {
   key: string;
   rawValue: string;
@@ -40,7 +72,7 @@ export function tryParseFrontmatterValue(rawValue: string): unknown {
   return unquoted;
 }
 
-export function parseFrontmatter(frontmatter: string): Record<string, unknown> {
+export function parseFrontmatterObjectFromBlock(frontmatter: string): Record<string, unknown> {
   const entries = parseFrontmatterKeyValues(frontmatter);
   const meta: Record<string, unknown> = {};
   for (const e of entries) {

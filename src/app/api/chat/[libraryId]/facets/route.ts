@@ -1,7 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { describeIndex, queryVectors, listVectors } from '@/lib/chat/pinecone'
+import { describeIndex, listVectors } from '@/lib/chat/pinecone'
 import { parseFacetDefs, aggregateFacetCounts } from '@/lib/chat/dynamic-facets'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
     if (!apiKey) return NextResponse.json({ error: 'PINECONE_API_KEY fehlt' }, { status: 500 })
     const idx = await describeIndex(ctx.vectorIndex, apiKey)
     if (!idx?.host) return NextResponse.json({ error: 'Index nicht gefunden' }, { status: 404 })
-    const dim = typeof idx.dimension === 'number' ? idx.dimension : Number(process.env.OPENAI_EMBEDDINGS_DIMENSION || 3072)
+    // Dimension wird hier nicht benötigt
 
     const defs = parseFacetDefs(ctx.library)
     const vectors = await listVectors(idx.host, apiKey, { libraryId: { $eq: libraryId }, kind: { $eq: 'doc' } }, 1000)

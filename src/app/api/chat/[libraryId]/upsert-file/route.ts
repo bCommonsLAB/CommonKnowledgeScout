@@ -99,8 +99,7 @@ export async function POST(
           const val = getTopLevelValue(src, d)
           if (val !== undefined) promoted[d.metaKey] = val
         }
-        // Wir hängen promoted im Metadata-Objekt unten an
-        ;(promoted as unknown)
+        // Wir hängen promoted im Metadata-Objekt unten an (bereits durch docMetaJson serialisiert)
       } catch {}
       vectors.push({
         id: `${fileId}-meta`,

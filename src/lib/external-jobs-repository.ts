@@ -99,7 +99,13 @@ export class ExternalJobsRepository {
           await this.traceAddEvent(jobId, { spanId, name: 'step_running', attributes: { step: name } });
         } else if (patch.status === 'completed') {
           await this.traceEndSpan(jobId, spanId, 'completed', {});
-          await this.traceAddEvent(jobId, { spanId, name: 'step_completed', attributes: { step: name } });
+          const sourceAttr = (() => {
+            try {
+              const src = (patch as { details?: { source?: unknown } })?.details?.source
+              return typeof src === 'string' ? src : undefined
+            } catch { return undefined }
+          })()
+          await this.traceAddEvent(jobId, { spanId, name: 'step_completed', attributes: { step: name, ...(sourceAttr ? { source: sourceAttr } : {}) } });
         } else if (patch.status === 'failed') {
           await this.traceEndSpan(jobId, spanId, 'failed', { reason: (patch as { error?: unknown })?.error });
           await this.traceAddEvent(jobId, { spanId, name: 'step_failed', attributes: { step: name, error: (patch as { error?: unknown })?.error } });
@@ -326,12 +332,13 @@ export class ExternalJobsRepository {
     );
   }
 
-  async traceStartSpan(jobId: string, span: { spanId: string; parentSpanId?: string; name: string; phase?: number; attributes?: Record<string, unknown> }): Promise<void> {
+  async traceStartSpan(jobId: string, span: { spanId: string; parentSpanId?: string; name: string; phase?: number; attributes?: Record<string, unknown>; startedAt?: Date }): Promise<void> {
     const col = await this.getCollection();
     const now = new Date();
+    const startedAt = span.startedAt instanceof Date ? span.startedAt : now;
     await col.updateOne(
       { jobId },
-      { $push: { 'trace.spans': { spanId: span.spanId, parentSpanId: span.parentSpanId, name: span.name, phase: span.phase, status: 'running', startedAt: now, attributes: span.attributes || {} } }, $set: { updatedAt: now } }
+      { $push: { 'trace.spans': { spanId: span.spanId, parentSpanId: span.parentSpanId, name: span.name, phase: span.phase, status: 'running', startedAt, attributes: span.attributes || {} } }, $set: { updatedAt: now } }
     );
   }
 

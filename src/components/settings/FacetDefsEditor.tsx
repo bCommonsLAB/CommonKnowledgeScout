@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+// useState wird hier nicht benötigt
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,7 +15,12 @@ export interface FacetDefUi {
 }
 
 export function FacetDefsEditor({ value, onChange }: { value: FacetDefUi[]; onChange: (v: FacetDefUi[]) => void }) {
-  const defs = (value || []).map(d => ({ multi: true, visible: true, type: 'string', ...d }))
+  const defs = (value || []).map(d => ({
+    ...d,
+    multi: d?.multi ?? true,
+    visible: d?.visible ?? true,
+    type: d?.type ?? 'string',
+  }))
   const types: FacetDefUi['type'][] = ['string','number','boolean','string[]','date','integer-range']
 
   function update(index: number, patch: Partial<FacetDefUi>) {

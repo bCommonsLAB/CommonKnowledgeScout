@@ -136,7 +136,7 @@ export function ChatForm() {
         gallery: {
           facets: (() => {
             const raw = (c.gallery as { facets?: unknown } | undefined)?.facets
-            if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'object') return raw as Array<any>
+            if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'object') return raw as Array<Record<string, unknown>>
             if (Array.isArray(raw)) {
               return (raw as Array<unknown>).map(v => String(v)).filter(Boolean).map((k) => (
                 k === 'authors' ? { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true }
