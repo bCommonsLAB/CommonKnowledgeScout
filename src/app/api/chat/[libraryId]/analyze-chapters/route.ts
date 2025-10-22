@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
+import { isInternalOrExternalJobBypass } from '@/lib/external-jobs/auth'
 import * as z from 'zod'
 
 // Einfache Heuristik-basierte Kapitelanalyse auf Markdown-Basis.
@@ -190,15 +191,8 @@ export async function POST(
 ) {
   try {
     const { libraryId } = await params
-    const internalBypass = (() => {
-      const t = request.headers.get('x-internal-token') || request.headers.get('X-Internal-Token')
-      const env = process.env.INTERNAL_TEST_TOKEN || ''
-      if (t && env && t === env) return true
-      // Zusätzlicher Bypass für interne Job-Aufrufe
-      const jobHdr = request.headers.get('x-external-job') || request.headers.get('X-External-Job')
-      return typeof jobHdr === 'string' && jobHdr.length > 0
-    })()
-    if (!internalBypass) {
+    const bypass = isInternalOrExternalJobBypass(request)
+    if (!bypass.bypass) {
       const { userId } = await auth()
       const user = await currentUser()
       const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''

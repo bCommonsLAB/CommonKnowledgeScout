@@ -18,7 +18,7 @@ export function IngestionBookDetail({ libraryId, fileId, docModifiedAt }: Ingest
     try {
       setLoading(true);
       setError(null);
-      const url = `/api/chat/${encodeURIComponent(libraryId)}/ingestion-status?fileId=${encodeURIComponent(fileId)}${docModifiedAt ? `&docModifiedAt=${encodeURIComponent(docModifiedAt)}` : ''}`;
+      const url = `/api/chat/${encodeURIComponent(libraryId)}/document-status?fileId=${encodeURIComponent(fileId)}${docModifiedAt ? `&docModifiedAt=${encodeURIComponent(docModifiedAt)}` : ''}&stats=1`;
       const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Ingestion-Status konnte nicht geladen werden');
@@ -68,9 +68,13 @@ function mapToBookDetail(input: unknown): BookDetailData {
     })(),
     language: toStr(doc.language),
     docType: toStr(doc.docType),
+    commercialStatus: toStr((doc as { commercialStatus?: unknown }).commercialStatus),
     topics: toStrArr(doc.topics) || [],
     chunkCount: typeof doc.chunkCount === 'number' ? (doc.chunkCount as number) : undefined,
     chaptersCount: typeof doc.chaptersCount === 'number' ? (doc.chaptersCount as number) : undefined,
+    fileId: toStr((doc as { fileId?: unknown }).fileId) || toStr((root as { fileId?: unknown }).fileId),
+    fileName: toStr(doc.fileName),
+    upsertedAt: toStr((doc as { upsertedAt?: unknown }).upsertedAt),
     chapters: chaptersIn.map((c, i) => {
       const ch = (c && typeof c === 'object') ? c as Record<string, unknown> : {};
       const order = toNum(ch.order) ?? (i + 1);

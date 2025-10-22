@@ -5,6 +5,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { embedTexts } from '@/lib/chat/embeddings'
 import { describeIndex, queryVectors, fetchVectors, listVectors } from '@/lib/chat/pinecone'
 import { getByFileIds, computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
+import { startQueryLog, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog, failQueryLog } from '@/lib/logging/query-logger'
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -81,17 +82,47 @@ export async function POST(
     if (source.length > 0) baseFilter['source'] = { $in: source }
     if (tag.length > 0) baseFilter['tags'] = { $in: tag }
 
+    // Query-Logging initialisieren
+    const facetsSelected: Record<string, unknown> = {}
+    parsedUrl.searchParams.forEach((v, k) => {
+      if (!facetsSelected[k]) facetsSelected[k] = [] as unknown[]
+      ;(facetsSelected[k] as unknown[]).push(v)
+    })
+    const mode = retriever === 'doc' ? 'summaries' : 'chunks' as const
+    const queryId = await startQueryLog({
+      libraryId,
+      userEmail: emailForLoad,
+      question: message,
+      mode,
+      facetsSelected,
+      filtersNormalized: { ...baseFilter },
+      filtersPinecone: { ...baseFilter },
+    })
+
     // Budget nach answerLength
     const baseBudget = answerLength === 'ausführlich' ? 180000 : answerLength === 'mittel' ? 90000 : 30000
     let charBudget = baseBudget
     let sources: Array<{ id: string; score?: number; fileName?: string; chunkIndex?: number; text?: string }> = []
     let used = 0
 
+    const retrievalStartAll = Date.now()
     if (retriever === 'doc') {
       const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
       const libraryKey = computeDocMetaCollectionName(userEmail || '', libraryId, strategy)
       // Doc-Retriever: Kandidaten (doc) aus Pinecone listen, Inhalte aus Mongo hydrieren
+      const t0 = Date.now()
       const docs = await listVectors(idx.host, apiKey, baseFilter as Record<string, unknown>)
+      const t1 = Date.now()
+      await logAppend(queryId, {
+        indexName: ctx.vectorIndex,
+        namespace: '',
+        stage: 'list',
+        level: 'summary',
+        filtersEffective: { normalized: { ...baseFilter }, pinecone: { ...baseFilter } },
+        topKReturned: docs.length,
+        timingMs: t1 - t0,
+        results: docs.slice(0, 20).map((d) => ({ id: d.id, type: 'summary', metadata: d.metadata })),
+      })
       const fileIds = docs
         .map(d => (d.metadata && typeof d.metadata === 'object' ? (d.metadata as { fileId?: unknown }).fileId : undefined))
         .filter((v): v is string => typeof v === 'string' && v.length > 0)
@@ -122,14 +153,42 @@ export async function POST(
         used += t.length
       }
     } else {
+      const tQ0 = Date.now()
       const matches = await queryVectors(idx.host, apiKey, qVec, baseTopK, baseFilter)
+      const tQ1 = Date.now()
+      await logAppend(queryId, {
+        indexName: ctx.vectorIndex,
+        namespace: '',
+        stage: 'query',
+        level: 'chunk',
+        topKRequested: baseTopK,
+        topKReturned: matches.length,
+        filtersEffective: { normalized: { ...baseFilter }, pinecone: { ...baseFilter } },
+        queryVectorInfo: { source: 'question' },
+        timingMs: tQ1 - tQ0,
+        results: matches.slice(0, 20).map(m => ({ id: m.id, type: 'chunk', score: m.score, metadata: m.metadata })),
+      })
 
       // Kapitel-Summaries abfragen und als Boost verwenden
       const chapterBoost = new Map<string, number>()
       try {
+        const tC0 = Date.now()
         const chapterMatches = await queryVectors(idx.host, apiKey, qVec, 10, {
           ...baseFilter,
           kind: { $eq: 'chapterSummary' }
+        })
+        const tC1 = Date.now()
+        await logAppend(queryId, {
+          indexName: ctx.vectorIndex,
+          namespace: '',
+          stage: 'query',
+          level: 'summary',
+          topKRequested: 10,
+          topKReturned: chapterMatches.length,
+          filtersEffective: { normalized: { ...baseFilter, kind: { $eq: 'chapterSummary' } }, pinecone: { ...baseFilter, kind: { $eq: 'chapterSummary' } } },
+          queryVectorInfo: { source: 'question' },
+          timingMs: tC1 - tC0,
+          results: chapterMatches.slice(0, 20).map(m => ({ id: m.id, type: 'summary', score: m.score, metadata: m.metadata })),
         })
         // Rank-basiert: 1.0, 0.95, 0.9, ...
         const base = 1.0
@@ -164,7 +223,18 @@ export async function POST(
         }
       }
       const ids = Array.from(idSet)
+      const tF0 = Date.now()
       const fetched = await fetchVectors(idx.host, apiKey, ids)
+      const tF1 = Date.now()
+      await logAppend(queryId, {
+        indexName: ctx.vectorIndex,
+        namespace: '',
+        stage: 'fetchNeighbors',
+        level: 'chunk',
+        topKRequested: ids.length,
+        topKReturned: Object.keys(fetched).length,
+        timingMs: tF1 - tF0,
+      })
       const chapterAlpha = Number(process.env.CHAT_CHAPTER_BOOST ?? 0.15)
       const vectorRows = ids
         .map(id => ({ id, score: scoreMap.get(id) ?? 0, meta: fetched[id]?.metadata as Record<string, unknown> | undefined }))
@@ -232,6 +302,7 @@ export async function POST(
         }
       }
     }
+    const retrievalMs = Date.now() - retrievalStartAll
 
     // Wenn weiterhin keine Quellen gefunden wurden, antworte standardisiert
     if (sources.length === 0) {
@@ -264,6 +335,7 @@ export async function POST(
       : 'Schreibe eine knappe Antwort (1–3 Sätze, max. 120 Wörter). Keine Einleitung, direkt die Kernaussage.'
 
     const prompt = `Du bist ein präziser Assistent. Beantworte die Frage ausschließlich auf Basis der bereitgestellten Quellen.\n\nFrage:\n${message}\n\nQuellen:\n${context}\n\nAnforderungen:\n- ${styleInstruction}\n- Fachlich korrekt, ohne Spekulationen.\n- Zitiere am Ende die verwendeten Quellen als [n] (Dateiname, Chunk).\n- Antworte auf Deutsch.`
+    await logSetPrompt(queryId, { provider: 'openai', model, temperature, prompt })
 
     const callChat = async (currPrompt: string) => {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -296,6 +368,7 @@ export async function POST(
       console.log('[api/chat] openai request', { model, temperature, promptChars: prompt.length, contextChars: context.length, style: answerLength })
     }
 
+    const tL0 = Date.now()
     let chatRes = await callChat(prompt)
     if (!chatRes.ok) {
       const text = await chatRes.text()
@@ -341,12 +414,19 @@ export async function POST(
       return NextResponse.json({ error: 'OpenAI Chat Parse Fehler', details: raw.slice(0, 400) }, { status: 502 })
     }
 
+    await finalizeQueryLog(queryId, {
+      answer,
+      sources: sources.map(s => ({ id: s.id, fileName: s.fileName, chunkIndex: s.chunkIndex, score: s.score })),
+      timing: { retrievalMs, llmMs: Date.now() - tL0, totalMs: undefined },
+    })
+
     return NextResponse.json({
       status: 'ok',
       libraryId,
       vectorIndex: ctx.vectorIndex,
       answer,
       sources,
+      queryId,
     })
   } catch (error) {
     // Detailliertes Logging und dev-Details zurückgeben
@@ -356,6 +436,13 @@ export async function POST(
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : undefined,
     })
+    try {
+      // Wenn queryId im Scope war, Fehler persistieren (best-effort)
+      const maybe = (error as unknown) as { queryId?: string }
+      if (maybe && typeof maybe.queryId === 'string') {
+        await failQueryLog(maybe.queryId, { message: error instanceof Error ? error.message : String(error) })
+      }
+    } catch {}
     const dev = process.env.NODE_ENV !== 'production'
     return NextResponse.json({ error: 'Interner Fehler', ...(dev ? { details: error instanceof Error ? error.message : String(error) } : {}) }, { status: 500 })
   }

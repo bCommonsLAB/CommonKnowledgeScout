@@ -365,7 +365,7 @@ export class ExternalJobsRepository {
     const eventId = (evt.eventId && String(evt.eventId)) || `${now.getTime()}-${Math.random().toString(36).slice(2, 10)}`;
     await col.updateOne(
       { jobId },
-      { $push: { 'trace.events': { eventId, ts: now, spanId, name: evt.name, level: evt.level || 'info', message: evt.message, attributes: evt.attributes || {} } }, $set: { updatedAt: now } }
+      { $push: { 'trace.events': { eventId, ts: now, spanId, name: evt.name, level: evt.level || 'info', message: evt.message, attributes: evt.attributes || {} } }, $set: { updatedAt: now, ...(spanId ? { 'trace.currentSpanId': spanId } : {}) } }
     );
   }
 

@@ -54,10 +54,10 @@ export default clerkMiddleware(async (auth, req) => {
     if (!isPublic) {
       const isAnalyze = /^\/api\/chat\/[^/]+\/analyze-chapters$/.test(path)
       if (isAnalyze && req.method === 'POST') {
-        const t = req.headers.get('x-internal-token') || req.headers.get('X-Internal-Token') || ''
-        const ext = req.headers.get('x-external-job') || req.headers.get('X-External-Job') || ''
+        const token = req.headers.get('x-internal-token') || req.headers.get('X-Internal-Token') || ''
+        const jobHdr = req.headers.get('x-external-job') || req.headers.get('X-External-Job') || ''
         const env = process.env.INTERNAL_TEST_TOKEN || ''
-        if ((t && env && t === env) || !!ext) {
+        if ((token && env && token === env) || (!!jobHdr && jobHdr.length > 0)) {
           isPublic = true
         }
       }

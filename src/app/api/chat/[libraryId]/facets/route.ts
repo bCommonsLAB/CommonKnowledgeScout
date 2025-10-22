@@ -37,7 +37,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
     if (tag.length > 0) filter['tags'] = { $in: tag }
 
     const counts = await aggregateFacets(libraryKey, libraryId, filter, defs.map(d => ({ metaKey: d.metaKey, type: d.type, label: d.label })))
-    const out = defs.map(d => ({ metaKey: d.metaKey, label: d.label || d.metaKey, type: d.type, options: counts[d.metaKey] || [] }))
+    const out = defs.map(d => {
+      const options = counts[d.metaKey] || []
+      const sorted = (d.sort === 'count')
+        ? options.slice().sort((a, b) => b.count - a.count || String(a.value).localeCompare(String(b.value)))
+        : options.slice().sort((a, b) => String(a.value).localeCompare(String(b.value)))
+      const limited = typeof d.max === 'number' ? sorted.slice(0, d.max) : sorted
+      return { metaKey: d.metaKey, label: d.label || d.metaKey, type: d.type, options: limited, columns: d.columns || 1 }
+    })
     return NextResponse.json({ facets: out }, { status: 200 })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'

@@ -28,6 +28,14 @@ export async function handleProgressIfAny(
   const hasFinalPayload = !!((body?.data as { extracted_text?: unknown })?.extracted_text || (body?.data as { images_archive_url?: unknown })?.images_archive_url || (body as { status?: unknown })?.status === 'completed' || body?.phase === 'template_completed')
 
   if (!hasFinalPayload && !hasError && (progressValue !== undefined || phase || message)) {
+    // Sicherstellen, dass die Extract-Phase als running markiert ist (Span-Erzeugung)
+    try {
+      const latest = await repo.get(jobId)
+      const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === 'extract_pdf') : undefined
+      if (!st || (st.status !== 'running' && st.status !== 'completed' && st.status !== 'failed')) {
+        await repo.updateStep(jobId, 'extract_pdf', { status: 'running', startedAt: new Date() })
+      }
+    } catch {}
     bumpWatchdog(jobId)
     bufferLog(jobId, { phase: phase || 'progress', progress: typeof progressValue === 'number' ? Math.max(0, Math.min(100, progressValue)) : undefined, message })
     try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'progress', attributes: { phase: phase || 'progress', progress: progressValue, message, workerId } }) } catch {}

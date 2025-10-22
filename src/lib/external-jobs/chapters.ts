@@ -5,6 +5,7 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getPolicies } from '@/lib/processing/phase-policy'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
+import { getSelfBaseUrl } from '@/lib/env'
 
 // Frontmatter-Stripper zentralisiert in markdown/frontmatter
 
@@ -14,30 +15,16 @@ export async function analyzeAndMergeChapters(args: ChaptersArgs): Promise<Chapt
   const jobId = ctx.jobId
 
   const internalToken = process.env.INTERNAL_TEST_TOKEN || ''
-  const selfBase = (() => {
-    const explicit = (process.env.INTERNAL_SELF_BASE_URL || '').replace(/\/$/, '')
-    if (explicit) return explicit
-    try { return new URL(ctx.request.url).origin } catch {}
-    const base = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
-    if (base) return base
-    const port = String(process.env.PORT || '3000')
-    return `http://127.0.0.1:${port}`
-  })()
+  const selfBase = getSelfBaseUrl()
 
   const content = stripAllFrontmatter(textForAnalysis)
   const hadFrontmatterBefore = textForAnalysis.trimStart().startsWith('---')
   try { await repo.appendLog(jobId, { phase: 'chapters_analyze_call', details: { base: selfBase, libraryId: ctx.job.libraryId, textLen: content.length, stripped: hadFrontmatterBefore } } as unknown as Record<string, unknown>) } catch {}
 
   const chapterInForApi: Array<Record<string, unknown>> | undefined = Array.isArray(existingChapters) ? existingChapters as Array<Record<string, unknown>> : undefined
-  const port = String(process.env.PORT || '3000')
   const analyzeTimeoutMs = Number(process.env.ANALYZE_REQUEST_TIMEOUT_MS || 120000)
   const reqBody = JSON.stringify({ fileId: ctx.job.correlation?.source?.itemId || ctx.job.jobId, content, mode: 'heuristic', chaptersIn: chapterInForApi })
-  const candidates = Array.from(new Set([
-    selfBase.replace(/\/$/, ''),
-    (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, ''),
-    `http://127.0.0.1:${port}`,
-    `http://localhost:${port}`
-  ])).filter(Boolean)
+  const candidates = [selfBase.replace(/\/$/, '')]
   let res: Response | null = null
   let lastErr: string | undefined
   for (const base of candidates) {

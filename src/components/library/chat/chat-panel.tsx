@@ -40,6 +40,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [input, setInput] = useState('')
   const [answer, setAnswer] = useState<string>('')
   const [results, setResults] = useState<Array<{ id: string; score?: number; fileName?: string; chunkIndex?: number; text?: string }>>([])
+  const [queryId, setQueryId] = useState<string | null>(null)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [debugJson, setDebugJson] = useState<unknown | null>(null)
   const [answerLength, setAnswerLength] = useState<'kurz' | 'mittel' | 'ausführlich'>('mittel')
   const [retriever, setRetriever] = useState<'chunk' | 'doc'>('chunk')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -93,6 +96,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       if (typeof data?.answer === 'string' && Array.isArray(data?.sources)) {
         setAnswer(data.answer)
         setResults(data.sources)
+        setQueryId(typeof data?.queryId === 'string' ? data.queryId : null)
       } else if (Array.isArray(data?.results)) {
         const safe = (data.results as Array<unknown>).map((r): { id: string; score?: number; fileName?: string; chunkIndex?: number; text?: string } => {
           const obj = (r && typeof r === 'object') ? r as Record<string, unknown> : {}
@@ -106,6 +110,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         })
         setResults(safe)
         setAnswer('')
+        setQueryId(typeof (data as { queryId?: unknown }).queryId === 'string' ? (data as { queryId: string }).queryId : null)
       } else {
         setAnswer(typeof data.echo === 'string' ? data.echo : JSON.stringify(data))
       }
@@ -119,7 +124,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   if (!cfg) return <div className={variant === 'compact' ? '' : 'p-6'}>Keine Konfiguration gefunden.</div>
 
   if (variant === 'compact') {
-    return (
+    return (<>
       <div className="rounded border p-3 space-y-3">
         <div className="font-medium flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Chat‑Archiv · Beta</div>
         {cfg.config.welcomeMessage && (
@@ -166,6 +171,22 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           <div className="p-3 rounded border bg-muted/30">
             <div className="text-xs text-muted-foreground mb-1">Antwort:</div>
             <div className="text-sm whitespace-pre-wrap break-words">{answer}</div>
+            {queryId ? (
+              <div className="mt-2">
+                <Button type="button" variant="outline" size="sm" onClick={async () => {
+                  try {
+                    setDebugOpen(true)
+                    setDebugJson(null)
+                    const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`, { cache: 'no-store' })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data?.error || 'Debug laden fehlgeschlagen')
+                    setDebugJson(data)
+                  } catch (e) {
+                    setDebugJson({ error: e instanceof Error ? e.message : 'Unbekannter Fehler' })
+                  }
+                }}>Debug</Button>
+              </div>
+            ) : null}
           </div>
         )}
         {results.length > 0 && (
@@ -191,7 +212,22 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           </div>
         )}
       </div>
-    )
+
+      {debugOpen ? (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDebugOpen(false)} />
+          <div className="absolute right-0 top-0 h-full w-full max-w-2xl bg-background shadow-2xl">
+            <div className="p-4 border-b flex items-center justify-between">
+              <div className="font-medium">Debug Query</div>
+              <Button variant="ghost" size="sm" onClick={() => setDebugOpen(false)}>Schließen</Button>
+            </div>
+            <div className="p-4 h-[calc(100vh-56px)] overflow-auto">
+              <pre className="text-xs whitespace-pre-wrap break-words">{debugJson !== null ? (typeof debugJson === 'string' ? debugJson : JSON.stringify(debugJson, null, 2)) : 'Lade…'}</pre>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>)
   }
 
   return (

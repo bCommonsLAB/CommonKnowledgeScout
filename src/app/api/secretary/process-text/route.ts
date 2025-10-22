@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { env } from 'process';
+// env ungenutzt
+import { getSecretaryConfig } from '@/lib/env'
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       source_language: sourceLanguage || 'nicht angegeben'
     });
 
-    const secretaryServiceUrl = env.SECRETARY_SERVICE_URL;
+    const { baseUrl: secretaryServiceUrl } = getSecretaryConfig();
     
     // FormData für Secretary Service erstellen
     const secretaryFormData = new FormData();
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
       body: secretaryFormData,
       headers: (() => {
         const h: Record<string, string> = { 'Accept': 'application/json' };
-        const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+        const { apiKey } = getSecretaryConfig();
         if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
         return h;
       })(),

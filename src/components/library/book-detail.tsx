@@ -27,10 +27,14 @@ export interface BookDetailData {
   issue?: string | number;
   language?: string;
   docType?: string;
+  commercialStatus?: string;
   topics?: string[];
   chapters?: Chapter[];
   chunkCount?: number;
   chaptersCount?: number;
+  fileId?: string;
+  fileName?: string;
+  upsertedAt?: string;
 }
 
 interface BookDetailProps {
@@ -73,6 +77,9 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
               {data.region && (
                 <Badge variant="outline" className="text-xs"><MapPin className="w-3 h-3 mr-1" />{data.region}</Badge>
               )}
+              {data.docType && (
+                <Badge variant="outline" className="text-xs">{String(data.docType)}</Badge>
+              )}
             </div>
           </div>
         </div>
@@ -88,29 +95,13 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
       <div className="grid grid-cols-2 gap-3 mb-6">
         <section className="bg-card border border-border rounded-lg p-4">
           <h2 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wide">Metadaten</h2>
-          <dl className="space-y-1.5">
-            {typeof data.chunkCount === 'number' || typeof data.chaptersCount === 'number' ? (
-              <div className="flex items-baseline gap-2">
-                <dt className="text-xs text-muted-foreground flex-shrink-0">Index:</dt>
-                <dd className="text-xs text-foreground">
-                  {typeof data.chunkCount === 'number' ? `Chunks: ${data.chunkCount}` : ''}
-                  {typeof data.chaptersCount === 'number' ? `${typeof data.chunkCount === 'number' ? ' · ' : ''}Kapitel: ${data.chaptersCount}` : ''}
-                </dd>
-              </div>
-            ) : null}
-            {data.source && (
-              <div className="flex items-baseline gap-2"><dt className="text-xs text-muted-foreground flex-shrink-0">Quelle:</dt><dd className="text-xs text-foreground">{data.source}</dd></div>
-            )}
-            {data.issue && (
-              <div className="flex items-baseline gap-2"><dt className="text-xs text-muted-foreground flex-shrink-0">Ausgabe:</dt><dd className="text-xs text-foreground">{String(data.issue)}</dd></div>
-            )}
-            {data.language && (
-              <div className="flex items-baseline gap-2"><dt className="text-xs text-muted-foreground flex-shrink-0">Sprache:</dt><dd className="text-xs text-foreground uppercase">{data.language}</dd></div>
-            )}
-            {data.docType && (
-              <div className="flex items-baseline gap-2"><dt className="text-xs text-muted-foreground flex-shrink-0">Typ:</dt><dd className="text-xs text-foreground capitalize">{data.docType}</dd></div>
-            )}
-          </dl>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {data.commercialStatus && (<span>Status: {data.commercialStatus}</span>)}
+            {data.source && (<span>Quelle: {data.source}</span>)}
+            {data.issue && (<span>Ausgabe: {String(data.issue)}</span>)}
+            {data.language && (<span>Sprache: {String(data.language).toUpperCase()}</span>)}
+            {data.docType && (<span>Typ: {data.docType}</span>)}
+          </div>
         </section>
         {Array.isArray(data.topics) && data.topics.length > 0 && (
           <section className="bg-card border border-border rounded-lg p-4">
@@ -128,6 +119,17 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
           <ChapterAccordion chapters={data.chapters} />
         </section>
       )}
+
+      {/* Fußzeile mit technischen Infos */}
+      <div className="mt-6 text-xs text-muted-foreground border-t pt-2">
+        <div className="flex flex-wrap gap-1">
+          {data.fileName ? <span>Dateiname: {data.fileName}</span> : null}
+          {typeof data.chunkCount === 'number' ? <span>Chunks: {data.chunkCount}</span> : null}
+          {typeof data.chaptersCount === 'number' ? <span>Kapitel: {data.chaptersCount}</span> : null}
+          {data.fileId ? <span>fileId: {data.fileId}</span> : null}
+          {data.upsertedAt ? <span>upsertedAt: {new Date(data.upsertedAt).toLocaleString('de-DE')}</span> : null}
+        </div>
+      </div>
     </div>
   )
 }

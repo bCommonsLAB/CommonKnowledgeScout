@@ -4,6 +4,11 @@ export interface ChapterMetaEntry {
   title?: string;
   summary?: string;
   chunkCount?: number;
+  level?: number;
+  startPage?: number;
+  endPage?: number;
+  pageCount?: number;
+  keywords?: string[];
 }
 
 export interface DocMeta {

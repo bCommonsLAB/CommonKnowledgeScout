@@ -50,18 +50,23 @@ function FacetGroup({ label, options, selected, onChange }: { label: string; opt
   }
   return (
     <div className='border rounded p-2'>
-      <div className='flex items-center justify-between mb-2'>
-        <div className='text-sm font-medium'>{label}</div>
-        <button className='text-xs text-muted-foreground hover:underline' onClick={() => onChange([])}>Zurücksetzen</button>
+      <div className='flex items-center gap-2 mb-2 min-w-0'>
+        <div className='text-sm font-medium truncate flex-1 min-w-0'>{label}</div>
+        <button className='text-xs text-muted-foreground hover:underline shrink-0' onClick={() => onChange([])}>Zurücksetzen</button>
       </div>
       <div className='max-h-40 overflow-auto space-y-1'>
         {normalized.map((o) => {
           const v = String(o.value)
           const active = values.has(v)
           return (
-            <button key={v} type='button' onClick={() => toggle(v)} className={`w-full flex items-center justify-between rounded px-2 py-1 text-left text-sm ${active ? 'bg-primary/10' : 'hover:bg-muted'}`}>
-              <span className='truncate'>{v}</span>
-              <span className='text-xs text-muted-foreground'>{o.count > 0 ? o.count : ''}</span>
+            <button
+              key={v}
+              type='button'
+              onClick={() => toggle(v)}
+              className={`w-full grid grid-cols-[1fr_auto] items-center rounded px-2 py-1 text-left text-sm ${active ? 'bg-primary/10' : 'hover:bg-muted'} min-w-0`}
+            >
+              <span title={v} className='truncate min-w-0 pr-2'>{v}</span>
+              <span className='text-xs text-muted-foreground justify-self-end ml-2 min-w-[2.5rem] text-right tabular-nums'>{o.count > 0 ? o.count : ''}</span>
             </button>
           )
         })}
@@ -265,21 +270,25 @@ export default function GalleryClient() {
         </div>
       </div>
 
-      <div className='grid grid-cols-1 lg:grid-cols-12 gap-6'>
+      <div className='grid grid-cols-1 lg:grid-cols-12 gap-6 items-start'>
         {showFilterPanel ? (
-          <aside className='hidden lg:block lg:col-span-2'>
-            <div className='rounded border p-3 space-y-3'>
+          <aside className='hidden lg:block lg:col-span-2 relative z-0'>
+            <div className='rounded border p-3 space-y-3 sticky top-20 max-h-[calc(100vh-140px)] overflow-y-auto overflow-x-hidden bg-background'>
               <div className='font-medium flex items-center gap-2'><Filter className='h-4 w-4' /> Filter</div>
               <div className='grid gap-2'>
-                {facetDefs.filter(d => d).map(def => (
-                  <FacetGroup
-                    key={def.metaKey}
-                    label={def.label || def.metaKey}
-                    options={def.options}
-                    selected={(filters as Record<string, string[] | undefined>)[def.metaKey] || []}
-                    onChange={(vals: string[]) => setFacet(def.metaKey, vals)}
-                  />
-                ))}
+                {facetDefs.filter(d => d).map(def => {
+                  const cols = (def as { columns?: number })?.columns || 1
+                  return (
+                    <div key={def.metaKey} className={cols === 2 ? 'grid grid-cols-2 gap-2' : ''}>
+                      <FacetGroup
+                        label={def.label || def.metaKey}
+                        options={def.options}
+                        selected={(filters as Record<string, string[] | undefined>)[def.metaKey] || []}
+                        onChange={(vals: string[]) => setFacet(def.metaKey, vals)}
+                      />
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </aside>
@@ -305,13 +314,13 @@ export default function GalleryClient() {
           return (
             <>
               {chatSpan > 0 ? (
-                <section className={`${spanClass(chatSpan)} space-y-3`}>
+                <section className={`${spanClass(chatSpan)} space-y-3 relative z-10`}>
                   <ChatPanel libraryId={libraryId} variant='compact' />
                 </section>
               ) : null}
 
               {gallerySpan > 0 ? (
-                <section className={`${spanClass(gallerySpan)} relative`}>
+                <section className={`${spanClass(gallerySpan)} relative z-0`}>
                   <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'>
                   {docs.map((pdf) => (
                     <Card

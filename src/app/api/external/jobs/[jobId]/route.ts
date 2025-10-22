@@ -27,6 +27,7 @@ import { setJobCompleted } from '@/lib/external-jobs/complete'
 import { handleProgressIfAny } from '@/lib/external-jobs/progress'
 import { buildProvider } from '@/lib/external-jobs/provider'
 import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
+import { preprocess } from '@/lib/external-jobs/preprocess'
 // parseSecretaryMarkdownStrict ungenutzt entfernt
 
 // OneDrive-Utilities entfernt: Provider übernimmt Token/Uploads.
@@ -90,6 +91,8 @@ export async function POST(
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
+    // Repo-Instanz erst bei Bedarf initialisieren (vorher ungenutzt)
+    // Entfernt: lärmarme Callback-Header-Events – nur minimal notwendige Logs
     const workerId = request.headers.get('x-worker-id') || request.headers.get('X-Worker-Id') || undefined;
     const { jobId } = await params;
     if (!jobId) return NextResponse.json({ error: 'jobId erforderlich' }, { status: 400 });
@@ -99,24 +102,28 @@ export async function POST(
     const { job, body, internalBypass } = ctx
     const repo = new ExternalJobsRepository();
 
+    // entfernt
+
     // Authorization and token guard
     await authorizeCallback(ctx)
+    // entfernt
 
     // Status auf running setzen und Prozess-ID loggen
     await repo.setStatus(jobId, 'running');
-    try { await repo.traceAddEvent(jobId, { name: 'callback_received', attributes: { keys: Object.keys(body || {}), hasData: !!body?.data, hasProcess: !!body?.process, workerId } }); } catch {}
+    // entfernt: doppeltes callback_received-Event (wir loggen unten via appendLog ausreichend Details)
     if (body?.process?.id) await repo.setProcess(jobId, body.process.id);
     // Prozess‑Guard: Nur Events mit übereinstimmender processId akzeptieren (außer interner Bypass/Template-Callback)
     try {
       const incomingProcessId: string | undefined = (body?.process && typeof body.process.id === 'string') ? body.process.id : (typeof body?.data?.processId === 'string' ? body.data.processId : undefined);
       if (!internalBypass && job.processId && incomingProcessId && incomingProcessId !== job.processId) {
-        try { await repo.traceAddEvent(jobId, { name: 'ignored_mismatched_process', level: 'warn', attributes: { incomingProcessId, jobProcessId: job.processId } }); } catch {}
+        try { await repo.traceAddEvent(jobId, { spanId: 'job', name: 'ignored_mismatched_process', level: 'warn', attributes: { incomingProcessId, jobProcessId: job.processId } }); } catch {}
         return NextResponse.json({ status: 'ignored', reason: 'mismatched_process' });
       }
     } catch {}
 
     // Progress-Handling (Short-Circuit)
     const short = await handleProgressIfAny(ctx, repo, workerId)
+    // entfernt
     const phase = (typeof body?.phase === 'string' && body.phase) || (typeof (body?.data as { phase?: unknown })?.phase === 'string' && (body!.data as { phase: string }).phase) || undefined;
     const hasError = !!(body as { error?: unknown })?.error;
     const hasFinalPayload = !!((body?.data as { extracted_text?: unknown })?.extracted_text || (body?.data as { images_archive_url?: unknown })?.images_archive_url || (body as { status?: unknown })?.status === 'completed' || body?.phase === 'template_completed');
@@ -171,6 +178,7 @@ export async function POST(
     const phasesParam = (job.parameters && typeof job.parameters === 'object') ? (job.parameters as { phases?: { template?: boolean; ingest?: boolean } }).phases : undefined;
     const templatePhaseEnabled = phasesParam?.template !== false;
     const ingestPhaseEnabled = phasesParam?.ingest !== false;
+    const imagesPhaseEnabled = (job.parameters && typeof job.parameters === 'object' && (job.parameters as { phases?: { images?: boolean } }).phases) ? ((job.parameters as { phases?: { images?: boolean } }).phases!.images !== false) : true
 
     // Kurzschluss: Extract‑Only (Template und Ingest deaktiviert)
     if (!templatePhaseEnabled && !ingestPhaseEnabled) {
@@ -220,6 +228,8 @@ export async function POST(
     const libraries = await libraryService.getUserLibraries(job.userEmail);
     const lib = libraries.find(l => l.id === job.libraryId);
 
+    try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'callback_before_library' }) } catch {}
+
     let savedItemId: string | undefined;
     const savedItems: string[] = [];
     let docMetaForIngestion: Record<string, unknown> | undefined;
@@ -236,6 +246,21 @@ export async function POST(
     }
 
     if (lib) {
+      // NEU: PreProcessAnalyzer – bestimmt vorhandene Artefakte und FM-Qualität
+      // PreProcess als eigener Span zur besseren Übersicht – nur wenn noch nicht gelaufen
+      let pre: Awaited<ReturnType<typeof preprocess>> | null = null
+      let hasPreSpan = false
+      try {
+        const latest = await repo.get(jobId)
+        const spans = (latest as unknown as { trace?: { spans?: Array<{ spanId?: string }> } })?.trace?.spans || []
+        hasPreSpan = Array.isArray(spans) && spans.some(s => (s?.spanId || '') === 'preprocess')
+      } catch {}
+      if (!hasPreSpan) {
+        try { await repo.traceStartSpan(jobId, { spanId: 'preprocess', parentSpanId: 'job', name: 'preprocess' }) } catch {}
+        pre = await preprocess(ctx)
+        try { await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: 'preprocess_summary', attributes: { hasMarkdown: pre.hasMarkdown, hasFrontmatter: pre.hasFrontmatter, frontmatterValid: pre.frontmatterValid } }) } catch {}
+        try { await repo.traceEndSpan(jobId, 'preprocess', 'completed', {}) } catch {}
+      }
       const policies = readPhasesAndPolicies(ctx);
       const autoSkip = true;
 
@@ -271,10 +296,18 @@ export async function POST(
         const decision = await decideTemplateRun({
           ctx,
           policies,
-          isFrontmatterCompleteFromBody,
+              isFrontmatterCompleteFromBody,
           templateGateExists,
           autoSkip,
           isTemplateCompletedCallback,
+          // Vereinfachung: Preprocess-Ergebnis als primärer Trigger
+          // @ts-expect-error - zusätzliche Info, interne Nutzung
+          preNeedTemplate: ((): boolean => {
+            if (policies.metadata === 'force') return true
+            if (policies.metadata === 'skip') return false
+            if (pre && typeof pre.frontmatterValid === 'boolean') return !pre.frontmatterValid
+            return !isFrontmatterCompleteFromBody
+          })(),
         })
         const shouldRunTemplate = decision.shouldRun
         if (!shouldRunTemplate) {
@@ -316,11 +349,12 @@ export async function POST(
             bufferLog(jobId, { phase: 'transform_gate_skip', message: 'already_completed' });
             templateStatus = 'skipped';
           } else {
+            try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_start' }) } catch {}
             await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
             try {
             // Templates wählen via Modul
             const { pickTemplate } = await import('@/lib/external-jobs/template-files')
-            const preferredTemplate = ((lib.config?.chat as unknown as { transformerTemplate?: string })?.transformerTemplate || '').trim();
+              const preferredTemplate = ((lib.config?.chat as unknown as { transformerTemplate?: string })?.transformerTemplate || '').trim();
             const picked = await pickTemplate({ provider, repo, jobId, preferredTemplateName: preferredTemplate })
             if (picked?.templateContent) {
               const templateContent = picked.templateContent
@@ -331,6 +365,7 @@ export async function POST(
               metadataFromTemplate = tr.meta as unknown as Record<string, unknown> | null
               if (metadataFromTemplate) bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
               else { bufferLog(jobId, { phase: 'transform_meta_failed', message: 'Transformer lieferte kein gültiges JSON' }); templateStatus = 'failed' }
+              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_after_transform', attributes: { hasMeta: !!metadataFromTemplate } }) } catch {}
             }
           } catch(err) {
             console.error(err);
@@ -414,9 +449,9 @@ export async function POST(
         }
         if (!templateSkipped) {
           // Helper: Frontmatter entfernen
-          const textForAnalysis = stripAllFrontmatter(textSource)
-          const existingChaptersUnknownForApi = (mergedMeta as { chapters?: unknown }).chapters
-          const chaptersInForApi: Array<Record<string, unknown>> | undefined = Array.isArray(existingChaptersUnknownForApi) ? existingChaptersUnknownForApi as Array<Record<string, unknown>> : undefined
+            const textForAnalysis = stripAllFrontmatter(textSource)
+            const existingChaptersUnknownForApi = (mergedMeta as { chapters?: unknown }).chapters
+            const chaptersInForApi: Array<Record<string, unknown>> | undefined = Array.isArray(existingChaptersUnknownForApi) ? existingChaptersUnknownForApi as Array<Record<string, unknown>> : undefined
           const chaptersRes = await analyzeAndMergeChapters({ ctx, baseMeta: mergedMeta as unknown as import('@/types/external-jobs').Frontmatter, textForAnalysis, existingChapters: chaptersInForApi as unknown as import('@/types/external-jobs').ChapterMeta[] })
           mergedMeta = chaptersRes.mergedMeta as unknown as Record<string, unknown>
         }
@@ -474,6 +509,7 @@ export async function POST(
           // Speichern via Modul
           const saved = await saveMarkdown({ ctx, parentId: targetParentId, fileName: uniqueName, markdown })
           savedItemId = saved.savedItemId
+        try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'postprocessing_saved', attributes: { savedItemId } }) } catch {}
         }
         // Final: Template zuverlässig abschließen (keine Hänger)
         try {
@@ -490,15 +526,17 @@ export async function POST(
               await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { source: 'fallback' } })
             }
           } catch {}
+          try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_completed' }) } catch {}
         }
 
         // Entfernt: frühes Doc‑Meta‑Upsert. Doc‑Meta wird erst am Ende der Ingestion final geschrieben.
 
         // Bilder-ZIP optional verarbeiten (modular)
-        if (imagesArchiveUrlFromWorker) {
+        if (imagesArchiveUrlFromWorker && imagesPhaseEnabled) {
           try {
             const imageRes = await maybeProcessImages({ ctx, parentId: targetParentId, imagesZipUrl: imagesArchiveUrlFromWorker, extractedText, lang })
             if (imageRes && Array.isArray(imageRes.savedItemIds)) savedItems.push(...imageRes.savedItemIds)
+            try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'images_processed', attributes: { savedItems: savedItems.length } }) } catch {}
           } catch {
             bufferLog(jobId, { phase: 'images_extract_failed', message: 'ZIP-Extraktion fehlgeschlagen' })
             clearWatchdog(jobId)
@@ -644,7 +682,6 @@ export async function POST(
       }
 
       const completed = await setJobCompleted({ ctx, result: { savedItemId } })
-      try { await repo.traceAddEvent(jobId, { name: 'completed', attributes: { savedItemId, savedItemsCount: savedItems.length } }); } catch {}
       // @ts-expect-error custom field for UI refresh
       getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, refreshFolderId: (job.correlation?.source?.parentId || 'root') });
       return NextResponse.json({ status: 'ok', jobId: completed.jobId, kind: 'final', savedItemId, savedItemsCount: savedItems.length });
@@ -653,20 +690,33 @@ export async function POST(
     // Sollte nicht erreicht werden
     return NextResponse.json({ status: 'ok', jobId, kind: 'noop_final' });
   } catch (err) {
+    // Differenzierte Fehlerzuordnung (401/404/409/400)
+    const anyErr = err as { code?: unknown; status?: unknown; message?: unknown } | undefined;
+    const codeRaw = (anyErr && typeof anyErr.code === 'string') ? anyErr.code : undefined;
+    const statusFromErr = (anyErr && typeof anyErr.status === 'number') ? anyErr.status : undefined;
+    const status = statusFromErr
+      ?? (codeRaw === 'unauthorized' ? 401
+      : codeRaw === 'not_found' ? 404
+      : codeRaw === 'conflict' ? 409
+      : 400);
+    const message = (anyErr && typeof anyErr.message === 'string') ? anyErr.message : (status === 401 ? 'Unauthorized' : status === 404 ? 'Not Found' : status === 409 ? 'Conflict' : 'Invalid payload');
+    const code = codeRaw || (status === 401 ? 'unauthorized' : status === 404 ? 'not_found' : status === 409 ? 'conflict' : 'invalid_payload');
+
     try {
       const { jobId } = await params;
       const repo = new ExternalJobsRepository();
       const job = await repo.get(jobId);
       if (job) {
-        bufferLog(jobId, { phase: 'failed', message: 'Invalid payload' });
-        await repo.appendLog(jobId, { phase: 'failed', message: 'Invalid payload' } as unknown as Record<string, unknown>);
-        await repo.setStatus(jobId, 'failed', { error: { code: 'invalid_payload', message: err instanceof Error ? err.message : 'Invalid payload' } });
-        getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Invalid payload', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+        bufferLog(jobId, { phase: 'failed', message });
+        await repo.appendLog(jobId, { phase: 'failed', message, details: { code, status } } as unknown as Record<string, unknown>);
+        try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'callback_failed', attributes: { code, status, message } }) } catch {}
+        await repo.setStatus(jobId, 'failed', { error: { code, message } });
+        getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message, jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
       }
     } catch {
       // ignore secondary failures
     }
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    return NextResponse.json({ error: message, code }, { status });
   }
 }
 

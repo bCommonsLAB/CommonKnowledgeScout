@@ -51,6 +51,9 @@ const chatFormSchema = z.object({
       type: z.enum(["string","number","boolean","string[]","date","integer-range"]).default("string"),
       multi: z.boolean().default(true),
       visible: z.boolean().default(true),
+      sort: z.enum(['alpha','count']).optional(),
+      max: z.coerce.number().int().positive().optional(),
+      columns: z.coerce.number().int().min(1).max(2).optional(),
     })).default([
       { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
       { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },

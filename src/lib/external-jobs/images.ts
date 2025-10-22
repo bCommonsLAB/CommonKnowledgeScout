@@ -2,13 +2,14 @@ import type { ImagesArgs, ImagesResult } from '@/types/external-jobs'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { ImageExtractionService } from '@/lib/transform/image-extraction-service'
+import { getSecretaryConfig } from '../env'
 
 export async function maybeProcessImages(args: ImagesArgs): Promise<ImagesResult | void> {
   const { ctx, parentId, imagesZipUrl, extractedText, lang } = args
   if (!imagesZipUrl) return
 
   // Baue absolute URL, falls nötig
-  const baseRaw = process.env.SECRETARY_SERVICE_URL || ''
+  const { baseUrl: baseRaw } = getSecretaryConfig()
   const isAbsolute = /^https?:\/\//i.test(imagesZipUrl)
   let archiveUrl = imagesZipUrl
   if (!isAbsolute) {
@@ -17,7 +18,7 @@ export async function maybeProcessImages(args: ImagesArgs): Promise<ImagesResult
     archiveUrl = base.endsWith('/api') && rel.startsWith('/api/') ? `${base}${rel.substring(4)}` : `${base}${rel}`
   }
   const headers: Record<string, string> = {}
-  const apiKey = process.env.SECRETARY_SERVICE_API_KEY
+  const { apiKey } = getSecretaryConfig()
   if (apiKey) { headers['Authorization'] = `Bearer ${apiKey}`; headers['X-Service-Token'] = apiKey }
 
   const resp = await fetch(archiveUrl, { method: 'GET', headers })

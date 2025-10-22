@@ -962,7 +962,9 @@ export class OneDriveProvider implements StorageProvider {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': file.type || 'application/octet-stream'
+          // OneDrive /content Upload verlangt binären Stream; sichere Wahl ist application/octet-stream
+          // Einige Tenants/Proxies reagieren fehlerhaft auf text/markdown → daher immer octet-stream
+          'Content-Type': 'application/octet-stream'
         },
         body: arrayBuffer
       });

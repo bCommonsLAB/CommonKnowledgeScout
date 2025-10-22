@@ -2,6 +2,7 @@ import type { TemplateRunArgs, TemplateRunResult, Frontmatter } from '@/types/ex
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { callTemplateTransform } from '@/lib/secretary/adapter'
+import { getSecretaryConfig } from '@/lib/env'
 
 function normalizeStructuredData(raw: unknown): Frontmatter | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
@@ -22,12 +23,11 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
   const { ctx, extractedText, templateContent, targetLanguage } = args
   const repo = new ExternalJobsRepository()
   const jobId = ctx.jobId
-
-  const secretaryUrlRaw = process.env.SECRETARY_SERVICE_URL || ''
-  const transformerUrl = secretaryUrlRaw.endsWith('/') ? `${secretaryUrlRaw}transformer/template` : `${secretaryUrlRaw}/transformer/template`
+  const { baseUrl, apiKey } = getSecretaryConfig()
+  const transformerUrl = `${baseUrl}/transformer/template`
 
   try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_request_start', attributes: { url: transformerUrl, method: 'POST', targetLanguage, templateContentLen: templateContent.length } }) } catch {}
-  const resp = await callTemplateTransform({ url: transformerUrl, text: extractedText || '', targetLanguage, templateContent, apiKey: process.env.SECRETARY_SERVICE_API_KEY, timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000) })
+  const resp = await callTemplateTransform({ url: transformerUrl, text: extractedText || '', targetLanguage, templateContent, apiKey, timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000) })
   const data: unknown = await resp.json().catch(() => ({}))
   if (resp.ok && data && typeof data === 'object' && !Array.isArray(data)) {
     const d = (data as { data?: unknown }).data as { structured_data?: unknown } | undefined

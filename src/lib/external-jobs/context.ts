@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import type { RequestContext, ExternalCallbackBody, createExternalJobError } from '@/types/external-jobs'
+import { hasInternalTokenBypass } from '@/lib/external-jobs/auth'
 
 function parseBodySafe(jsonRaw: unknown): ExternalCallbackBody {
   if (jsonRaw && typeof jsonRaw === 'object' && !Array.isArray(jsonRaw)) return jsonRaw as ExternalCallbackBody
@@ -17,9 +18,7 @@ function readCallbackToken(request: NextRequest, body: ExternalCallbackBody): st
 }
 
 function isInternalBypass(request: NextRequest): boolean {
-  const t = request.headers.get('x-internal-token') || request.headers.get('X-Internal-Token')
-  const envToken = process.env.INTERNAL_TEST_TOKEN || ''
-  return !!t && !!envToken && t === envToken
+  return hasInternalTokenBypass(request.headers)
 }
 
 export async function readContext(args: { request: NextRequest; jobId: string }): Promise<RequestContext> {

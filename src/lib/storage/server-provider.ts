@@ -1,9 +1,10 @@
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import type { StorageProvider } from '@/lib/storage/types';
 import { LibraryService } from '@/lib/services/library-service';
+import { getSelfBaseUrl } from '../env'
 
 export async function getServerProvider(userEmail: string, libraryId: string): Promise<StorageProvider> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || '';
+  const baseUrl = getSelfBaseUrl();
 
   const libraryService = LibraryService.getInstance();
   const libraries = await libraryService.getUserLibraries(userEmail);

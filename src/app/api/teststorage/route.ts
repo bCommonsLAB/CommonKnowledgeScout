@@ -1,6 +1,7 @@
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { StorageProvider } from '@/lib/storage/types';
 import { NextRequest, NextResponse } from 'next/server';
+import { getSelfBaseUrl } from '@/lib/env'
 import { v4 as uuidv4 } from 'uuid';
 import { LibraryService } from '@/lib/services/library-service';
 import { auth, currentUser } from '@clerk/nextjs/server';
@@ -35,16 +36,12 @@ async function getUserEmail(): Promise<string | null> {
 /**
  * Hilfsfunktion zum Ermitteln der Basis-URL
  */
-function getBaseUrl(request: NextRequest): string {
-  // Versuche, den Host aus den Anfrage-Headers zu extrahieren
-  const host = request.headers.get('host') || 'localhost:3000';
-  // HTTP oder HTTPS basierend auf Host oder X-Forwarded-Proto bestimmen
-  const forwardedProto = request.headers.get('x-forwarded-proto');
-  const protocol = forwardedProto 
-    ? forwardedProto 
-    : host.includes('localhost') ? 'http' : 'https';
-  
-  return `${protocol}://${host}`;
+function getBaseUrl(): string {
+  // Strikte Konfiguration: nie localhost ableiten
+  // Nutzung der internen Basis-URL aus Env
+  // Wirft bei fehlender Konfiguration
+  // (Diese Testroute dient zur Verifikation)
+  return getSelfBaseUrl()
 }
 
 /**
@@ -226,7 +223,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Basis-URL für API-Anfragen ermitteln
-    const baseUrl = getBaseUrl(request);
+    const baseUrl = getBaseUrl();
     console.log(`Verwende API-Basis-URL: ${baseUrl}`);
 
     // Bibliotheken des Benutzers laden

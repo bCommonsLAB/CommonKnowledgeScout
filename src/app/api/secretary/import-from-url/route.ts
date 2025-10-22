@@ -1,3 +1,4 @@
+import { getSecretaryConfig } from '@/lib/env'
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -39,9 +40,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Secretary Service URL aus Umgebungsvariablen
-    const secretaryServiceUrl = process.env.SECRETARY_SERVICE_URL || 'http://127.0.0.1:5001';
-    const apiUrl = `${secretaryServiceUrl}/transformer/template`;
+    // Secretary Service URL strikt aus Env
+    const { baseUrl } = getSecretaryConfig();
+    const apiUrl = `${baseUrl}/transformer/template`;
     
     console.log('[api/secretary/import-from-url] Weiterleitung an Secretary Service:', apiUrl);
     console.log('[api/secretary/import-from-url] Parameter:', { url, source_language, target_language, template, use_cache });
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
           'Accept': 'application/json',
           'Content-Type': 'application/x-www-form-urlencoded',
         };
-        const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+        const { apiKey } = getSecretaryConfig();
         if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
         return h;
       })(),

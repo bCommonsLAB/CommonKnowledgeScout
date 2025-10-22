@@ -62,8 +62,11 @@ export async function decideTemplateRun(args: TemplateDecisionArgs): Promise<Tem
 
   // Entscheidung inkl. Begründung
   const { shouldRun, reason } = (() => {
-    // Callback-Sonderfall: Nur bei tatsächlichem Reparaturbedarf laufen
+    // Callback-Sonderfall: Template wurde extern bereits ausgeführt.
+    // Regel: Wenn Frontmatter im Callback vorhanden/komplett ist → niemals erneut laufen.
+    // Nur wenn KEIN Frontmatter geliefert wurde und eine Reparatur wirklich nötig erscheint, erneut laufen.
     if (isTemplateCompletedCallback) {
+      if (isFrontmatterCompleteFromBody) return { shouldRun: false, reason: 'template_completed_fm_ok' }
       return needsRepair
         ? { shouldRun: true, reason: 'template_completed_repair' }
         : { shouldRun: false, reason: 'template_completed_no_repair' }

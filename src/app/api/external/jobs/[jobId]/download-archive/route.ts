@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
+import { getSecretaryConfig } from '@/lib/env'
 
 /**
  * GET /api/external/jobs/[jobId]/download-archive
@@ -41,11 +42,11 @@ export async function GET(
 
     // Absolut vs. relativ behandeln
     const isAbsolute = /^https?:\/\//i.test(archiveUrl);
-    const base = process.env.SECRETARY_SERVICE_URL?.replace(/\/$/, '') || '';
+    const { baseUrl: base } = getSecretaryConfig();
     const targetUrl = isAbsolute ? archiveUrl : `${base}${archiveUrl.startsWith('/') ? '' : '/'}${archiveUrl}`;
 
     // Mit Service-Auth an Secretary weiterreichen
-    const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+    const { apiKey } = getSecretaryConfig();
     const headers: Record<string, string> = {};
     if (apiKey) {
       headers['Authorization'] = `Bearer ${apiKey}`;

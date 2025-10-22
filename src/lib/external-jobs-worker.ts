@@ -1,5 +1,6 @@
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { FileLogger } from '@/lib/debug/logger';
+import { getPublicAppUrl } from '@/lib/env'
 
 type WorkerState = 'stopped' | 'running';
 
@@ -52,10 +53,7 @@ class ExternalJobsWorkerSingleton {
     try {
       // Keine lauten Tick-Logs mehr
       const repo = new ExternalJobsRepository();
-      const appUrlPreferred = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
-      const port = String(process.env.PORT || '3000');
-      const localBase = `http://127.0.0.1:${port}`;
-      const baseUrl = appUrlPreferred || localBase;
+      const baseUrl = getPublicAppUrl();
       const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Worker': 'true', 'X-Worker-Id': this.workerId };
       const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
       if (internalToken) headers['X-Internal-Token'] = internalToken;
@@ -77,8 +75,8 @@ class ExternalJobsWorkerSingleton {
           if (!claimed) return;
           // Trace: Worker-Dispatch als Event
           try { await repo.traceAddEvent(claimed.jobId, { name: 'worker_dispatch', attributes: { workerId: this.workerId } }); } catch {}
-          // Retry-Route triggert die zentrale Ausführung
-          await fetch(`${baseUrl}/api/external/jobs/${claimed.jobId}/retry`, { method: 'POST', headers });
+          // Start-Route triggert die zentrale Ausführung
+          await fetch(`${baseUrl}/api/external/jobs/${claimed.jobId}/start`, { method: 'POST', headers });
           this.stats.processed += 1;
         } catch (err) {
           this.stats.errors += 1;

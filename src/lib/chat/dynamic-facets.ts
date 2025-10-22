@@ -9,6 +9,10 @@ export interface FacetDef {
   type: FacetType
   multi: boolean
   visible: boolean
+  // Zusatzattribute für Anzeige/Aggregation
+  sort?: 'alpha' | 'count'
+  max?: number
+  columns?: number
   buckets?: Array<{ label: string; min: number; max: number }>
 }
 
@@ -28,6 +32,9 @@ export function parseFacetDefs(library: Library): FacetDef[] {
       type: (d.type || 'string') as FacetType,
       multi: typeof d.multi === 'boolean' ? d.multi : true,
       visible: typeof d.visible === 'boolean' ? d.visible : true,
+      sort: (d as { sort?: unknown }).sort === 'count' ? 'count' : 'alpha',
+      max: typeof (d as { max?: unknown }).max === 'number' ? Math.max(1, Math.floor((d as { max: number }).max)) : undefined,
+      columns: typeof (d as { columns?: unknown }).columns === 'number' ? Math.min(3, Math.max(1, Math.floor((d as { columns: number }).columns))) : 1,
       buckets: Array.isArray(d.buckets) ? d.buckets.filter(b => b && typeof b.min === 'number' && typeof b.max === 'number') : undefined,
     })
   }

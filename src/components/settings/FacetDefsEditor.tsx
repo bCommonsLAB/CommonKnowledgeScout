@@ -12,14 +12,20 @@ export interface FacetDefUi {
   type: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
   multi: boolean
   visible: boolean
+  sort?: 'alpha' | 'count'
+  max?: number
+  columns?: number
 }
 
 export function FacetDefsEditor({ value, onChange }: { value: FacetDefUi[]; onChange: (v: FacetDefUi[]) => void }) {
-  const defs = (value || []).map(d => ({
+  const defs: FacetDefUi[] = (value || []).map(d => ({
     ...d,
     multi: d?.multi ?? true,
     visible: d?.visible ?? true,
     type: d?.type ?? 'string',
+    sort: ((d as { sort?: unknown }).sort === 'count' ? 'count' : 'alpha') as 'alpha' | 'count',
+    max: typeof (d as { max?: unknown }).max === 'number' ? (d as { max: number }).max : undefined,
+    columns: typeof (d as { columns?: unknown }).columns === 'number' ? (d as { columns: number }).columns : 1,
   }))
   const types: FacetDefUi['type'][] = ['string','number','boolean','string[]','date','integer-range']
 
@@ -51,8 +57,11 @@ export function FacetDefsEditor({ value, onChange }: { value: FacetDefUi[]; onCh
               <th className="px-3 py-2 w-[28%]">metaKey</th>
               <th className="px-3 py-2 w-[28%]">Label</th>
               <th className="px-3 py-2 w-[18%]">Typ</th>
-              <th className="px-3 py-2 w-[12%]">Multi</th>
-              <th className="px-3 py-2 w-[12%]">Sichtbar</th>
+              <th className="px-3 py-2 w-[10%]">Sort.</th>
+              <th className="px-3 py-2 w-[10%]">Max</th>
+              <th className="px-3 py-2 w-[10%]">Spalten</th>
+              <th className="px-3 py-2 w-[8%]">Multi</th>
+              <th className="px-3 py-2 w-[10%]">Sichtbar</th>
               <th className="px-3 py-2 w-[150px]">Aktionen</th>
             </tr>
           </thead>
@@ -70,6 +79,27 @@ export function FacetDefsEditor({ value, onChange }: { value: FacetDefUi[]; onCh
                     <SelectTrigger><SelectValue placeholder="Typ" /></SelectTrigger>
                     <SelectContent>
                       {types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </td>
+                <td className="px-3 py-2 align-middle">
+                  <Select value={d.sort || 'alpha'} onValueChange={(v) => update(i, { sort: v as 'alpha' | 'count' })}>
+                    <SelectTrigger><SelectValue placeholder="Sortierung" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="alpha">alpha</SelectItem>
+                      <SelectItem value="count">count</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </td>
+                <td className="px-3 py-2 align-middle">
+                  <Input type="number" min={1} placeholder="alle" value={typeof d.max === 'number' ? String(d.max) : ''} onChange={e => update(i, { max: e.target.value ? Number(e.target.value) : undefined })} />
+                </td>
+                <td className="px-3 py-2 align-middle">
+                  <Select value={String(d.columns || 1)} onValueChange={(v) => update(i, { columns: Number(v) })}>
+                    <SelectTrigger><SelectValue placeholder="Spalten" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1</SelectItem>
+                      <SelectItem value="2">2</SelectItem>
                     </SelectContent>
                   </Select>
                 </td>

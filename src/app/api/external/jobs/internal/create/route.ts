@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import type { ExternalJob } from '@/types/external-job'
+import { hasInternalTokenBypass } from '@/lib/external-jobs/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const internalToken = request.headers.get('x-internal-token') || request.headers.get('X-Internal-Token')
-    const expected = process.env.INTERNAL_TEST_TOKEN || ''
-    if (!internalToken || !expected || internalToken !== expected) {
+    if (!hasInternalTokenBypass(request.headers)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

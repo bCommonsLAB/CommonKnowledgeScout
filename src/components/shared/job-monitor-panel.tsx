@@ -359,7 +359,7 @@ export function JobMonitorPanel() {
 
   async function retryJob(jobId: string) {
     try {
-      const res = await fetch(`/api/external/jobs/${jobId}/retry`, { method: 'POST' });
+      const res = await fetch(`/api/external/jobs/${jobId}/start`, { method: 'POST' });
       if (!res.ok) return;
       // Nach erfolgreichem Retry frisch laden
       await refreshNow();
@@ -522,7 +522,7 @@ export function JobMonitorPanel() {
                 const payload: Record<string, string> = {};
                 if (statusFilter && statusFilter !== 'all') payload.status = statusFilter;
                 if (batchFilter) payload.batchName = batchFilter;
-                const res = await fetch('/api/external/jobs/retry-batch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const res = await fetch('/api/external/jobs/start-batch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!res.ok) return;
                 await refreshNow();
               } catch {}

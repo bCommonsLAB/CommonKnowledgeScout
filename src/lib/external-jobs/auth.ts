@@ -1,3 +1,35 @@
+import type { NextRequest } from 'next/server'
+
+export interface InternalAuthCheck { isInternal: boolean }
+export interface BypassCheck { bypass: boolean; reason: 'internal-token' | 'external-job' | null }
+
+function readHeaderCaseInsensitive(headers: Headers, name: string): string {
+  return headers.get(name) || headers.get(name.toLowerCase()) || headers.get(name.toUpperCase()) || ''
+}
+
+export function isInternalAuthorized(request: NextRequest): InternalAuthCheck {
+  const headerToken = readHeaderCaseInsensitive(request.headers, 'x-internal-token')
+  const expected = process.env.INTERNAL_TEST_TOKEN || ''
+  return { isInternal: Boolean(headerToken) && Boolean(expected) && headerToken === expected }
+}
+
+export function hasInternalTokenBypass(headers: Headers): boolean {
+  const token = readHeaderCaseInsensitive(headers, 'x-internal-token')
+  const expected = process.env.INTERNAL_TEST_TOKEN || ''
+  return Boolean(token) && Boolean(expected) && token === expected
+}
+
+export function hasExternalJobHeader(headers: Headers): boolean {
+  const jobHdr = readHeaderCaseInsensitive(headers, 'x-external-job')
+  return typeof jobHdr === 'string' && jobHdr.length > 0
+}
+
+export function isInternalOrExternalJobBypass(request: NextRequest): BypassCheck {
+  if (hasInternalTokenBypass(request.headers)) return { bypass: true, reason: 'internal-token' }
+  if (hasExternalJobHeader(request.headers)) return { bypass: true, reason: 'external-job' }
+  return { bypass: false, reason: null }
+}
+
 import type { RequestContext } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
