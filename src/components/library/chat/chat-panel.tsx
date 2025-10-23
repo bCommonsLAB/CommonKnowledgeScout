@@ -6,9 +6,11 @@ import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { DebugPanel } from '@/components/library/chat/debug-panel'
 import { FileText, MessageSquare } from 'lucide-react'
 
 interface ChatPanelProps {
@@ -43,6 +45,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [queryId, setQueryId] = useState<string | null>(null)
   const [debugOpen, setDebugOpen] = useState(false)
   const [debugJson, setDebugJson] = useState<unknown | null>(null)
+  const [history, setHistory] = useState<Array<{ queryId: string; question: string; createdAt: string; mode: string; status: string }>>([])
   const [answerLength, setAnswerLength] = useState<'kurz' | 'mittel' | 'ausführlich'>('mittel')
   const [retriever, setRetriever] = useState<'chunk' | 'doc'>('chunk')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -65,6 +68,23 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       }
     }
     load()
+    return () => { cancelled = true }
+  }, [libraryId])
+
+  // Lade jüngste Queries für Dropdown
+  useEffect(() => {
+    let cancelled = false
+    async function loadHistory() {
+      try {
+        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries?limit=20`, { cache: 'no-store' })
+        const data = await res.json() as { items?: Array<{ queryId: string; createdAt: string; question: string; mode: string; status: string }> }
+        if (!res.ok) throw new Error(data && (data as any).error || 'Fehler beim Laden der Historie')
+        if (!cancelled) setHistory(Array.isArray(data.items) ? data.items : [])
+      } catch {
+        if (!cancelled) setHistory([])
+      }
+    }
+    loadHistory()
     return () => { cancelled = true }
   }, [libraryId])
 
@@ -145,6 +165,47 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') onSend() }}
           />
+            <Select onValueChange={async (qid) => {
+              try {
+                setError(null)
+                setAnswer('')
+                setResults([])
+                setQueryId(qid)
+                setDebugOpen(false)
+                setDebugJson(null)
+                // Frage in das Eingabefeld übernehmen
+                const h = history.find(x => x.queryId === qid)
+                if (h && typeof h.question === 'string') setInput(h.question)
+                // gespeicherte Antwort/Sources laden, Overlay NICHT automatisch öffnen
+                const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(qid)}`, { cache: 'no-store' })
+                const data = await res.json()
+                if (!res.ok) throw new Error(data?.error || 'Historie laden fehlgeschlagen')
+                setAnswer(typeof data?.answer === 'string' ? data.answer : '')
+                const srcs = Array.isArray(data?.sources) ? (data.sources as Array<any>).map((s: any) => ({
+                  id: String(s?.id ?? ''),
+                  fileName: typeof s?.fileName === 'string' ? s.fileName : undefined,
+                  chunkIndex: typeof s?.chunkIndex === 'number' ? s.chunkIndex : undefined,
+                  score: typeof s?.score === 'number' ? s.score : undefined,
+                })) : []
+                setResults(srcs)
+              } catch (e) {
+                setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
+              }
+            }}>
+              <SelectTrigger className="w-[14rem] h-9" aria-label="Frühere Fragen">
+                <SelectValue placeholder="Frühere Fragen" />
+              </SelectTrigger>
+              <SelectContent className="max-h-80">
+                {history.map(h => (
+                  <SelectItem key={h.queryId} value={h.queryId}>
+                    <div className="flex flex-col text-xs">
+                      <span className="font-medium truncate max-w-[28rem]">{h.question}</span>
+                      <span className="text-muted-foreground">{new Date(h.createdAt).toLocaleString('de-DE')} · {h.mode}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           <Button type="button" size="sm" onClick={onSend}>Senden</Button>
         </div>
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
@@ -156,7 +217,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               </Button>
             ))}
           </div>
-          <span>Datenbasis:</span>
+          <span>Methode:</span>
           <div className="flex gap-1">
             {(['chunk','doc'] as const).map(v => (
               <Button key={v} type="button" size="sm" variant={retriever===v? 'default':'outline'} onClick={() => setRetriever(v)} className="h-7 px-2 capitalize">
@@ -185,6 +246,19 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                     setDebugJson({ error: e instanceof Error ? e.message : 'Unbekannter Fehler' })
                   }
                 }}>Debug</Button>
+                <Button type="button" variant="secondary" size="sm" className="ml-2" onClick={async () => {
+                  if (!queryId) return
+                  try {
+                    const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}/explain`, { cache: 'no-store' })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data?.error || 'Explain fehlgeschlagen')
+                    setDebugOpen(true)
+                    setDebugJson({ explanation: data.explanation })
+                  } catch (e) {
+                    setDebugOpen(true)
+                    setDebugJson({ error: e instanceof Error ? e.message : 'Unbekannter Fehler' })
+                  }
+                }}>Explain</Button>
               </div>
             ) : null}
           </div>
@@ -222,7 +296,20 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               <Button variant="ghost" size="sm" onClick={() => setDebugOpen(false)}>Schließen</Button>
             </div>
             <div className="p-4 h-[calc(100vh-56px)] overflow-auto">
-              <pre className="text-xs whitespace-pre-wrap break-words">{debugJson !== null ? (typeof debugJson === 'string' ? debugJson : JSON.stringify(debugJson, null, 2)) : 'Lade…'}</pre>
+              {debugJson && typeof debugJson === 'object'
+                ? (typeof (debugJson as { explanation?: unknown }).explanation === 'string'
+                  ? (
+                      <div className="prose prose-sm max-w-none">
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Explain</div>
+                        <div className="whitespace-pre-wrap break-words text-sm">{(debugJson as { explanation: string }).explanation}</div>
+                      </div>
+                    )
+                  : (
+                      // @ts-expect-error runtime shape
+                      <DebugPanel log={debugJson} />
+                    )
+                )
+                : (<div className="text-xs text-muted-foreground">{debugJson === null ? 'Lade…' : String(debugJson)}</div>)}
             </div>
           </div>
         </div>

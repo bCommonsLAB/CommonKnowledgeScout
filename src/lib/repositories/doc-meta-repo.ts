@@ -107,6 +107,53 @@ export async function findDocs(
   })
 }
 
+export interface FindDocSummariesOptions {
+  limit?: number
+  skip?: number
+  sort?: Record<string, 1 | -1>
+}
+
+// Liefert für Summary-Retriever die benötigten Felder direkt aus MongoDB
+export async function findDocSummaries(
+  libraryKey: string,
+  libraryId: string,
+  filter: Record<string, unknown>,
+  options: FindDocSummariesOptions = {}
+): Promise<Array<{ fileId: string; fileName?: string; chaptersCount?: number; chapters?: Array<{ title?: string; summary?: string }>; docSummary?: string }>> {
+  const col = await getDocMetaCollection(libraryKey)
+  const q: Record<string, unknown> = { libraryId, ...(filter || {}) }
+  const cursor = col.find(q, {
+    projection: {
+      _id: 0,
+      libraryId: 1,
+      fileId: 1,
+      fileName: 1,
+      chaptersCount: 1,
+      chapters: 1,
+      'docMetaJson.summary': 1,
+    }
+  })
+  if (options.sort) cursor.sort(options.sort)
+  if (typeof options.skip === 'number') cursor.skip(options.skip)
+  if (typeof options.limit === 'number') cursor.limit(options.limit)
+  const rows = await cursor.toArray()
+  return rows.map(r => {
+    const docMeta = r.docMetaJson && typeof r.docMetaJson === 'object' ? r.docMetaJson as Record<string, unknown> : undefined
+    const docSummary = docMeta && typeof (docMeta as { summary?: unknown }).summary === 'string' ? (docMeta as { summary: string }).summary : undefined
+    const chaptersArr = Array.isArray((r as any).chapters) ? ((r as any).chapters as Array<any>).map(c => ({
+      title: typeof c?.title === 'string' ? c.title : undefined,
+      summary: typeof c?.summary === 'string' ? c.summary : undefined,
+    })) : undefined
+    return {
+      fileId: r.fileId,
+      fileName: r.fileName,
+      chaptersCount: typeof (r as any).chaptersCount === 'number' ? Number((r as any).chaptersCount) : undefined,
+      chapters: chaptersArr,
+      docSummary,
+    }
+  })
+}
+
 export async function getByFileIds(
   libraryKey: string,
   libraryId: string,

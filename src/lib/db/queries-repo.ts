@@ -65,5 +65,17 @@ export async function getQueryLogById(args: { libraryId: string; queryId: string
 }
 
 
+export async function listRecentQueries(args: { libraryId: string; userEmail: string; limit?: number }): Promise<Array<Pick<QueryLog, 'queryId' | 'createdAt' | 'question' | 'mode' | 'status'>>> {
+  const col = await getQueriesCollection()
+  const lim = Math.max(1, Math.min(100, Number(args.limit ?? 20)))
+  const cursor = col
+    .find({ libraryId: args.libraryId, userEmail: args.userEmail })
+    .project({ _id: 0, queryId: 1, createdAt: 1, question: 1, mode: 1, status: 1 })
+    .sort({ createdAt: -1 })
+    .limit(lim)
+  return await cursor.toArray()
+}
+
+
 
 

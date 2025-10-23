@@ -17,16 +17,41 @@ type AccordionItemProps = React.HTMLAttributes<HTMLDivElement> & {
 };
 
 const ItemContext = React.createContext<{ open: boolean; setOpen: (v: boolean) => void } | null>(null);
+const GroupContext = React.createContext<{
+  type: "single" | "multiple";
+  collapsible: boolean;
+  activeValue?: string;
+  setActiveValue: (v?: string) => void;
+} | null>(null);
 
-export function Accordion({ className, children }: AccordionProps) {
-  return <div className={cn(className)}>{children}</div>;
+export function Accordion({ className, children, type = "multiple", collapsible = true, value, defaultValue }: AccordionProps) {
+  const [internal, setInternal] = React.useState<string | undefined>(defaultValue);
+  const activeValue = value !== undefined ? value : internal;
+  const setActiveValue = (v?: string) => setInternal(v);
+  return (
+    <GroupContext.Provider value={{ type, collapsible, activeValue, setActiveValue }}>
+      <div className={cn(className)}>{children}</div>
+    </GroupContext.Provider>
+  );
 }
 
 export const AccordionItem = React.forwardRef<HTMLDivElement, AccordionItemProps>(function AccordionItem(
-  { className, children, defaultOpen = false, ...rest },
+  { className, children, defaultOpen = false, value, ...rest },
   ref
 ) {
-  const [open, setOpen] = React.useState<boolean>(defaultOpen);
+  const group = React.useContext(GroupContext);
+  const isSingle = group?.type === "single" && value;
+  const controlledOpen = isSingle ? group?.activeValue === value : undefined;
+  const [localOpen, setLocalOpen] = React.useState<boolean>(defaultOpen);
+  const open = controlledOpen !== undefined ? controlledOpen : localOpen;
+  const setOpen = (v: boolean) => {
+    if (isSingle) {
+      if (v) group?.setActiveValue(value);
+      else if (group?.collapsible) group?.setActiveValue(undefined);
+    } else {
+      setLocalOpen(v);
+    }
+  };
   return (
     <div ref={ref} className={cn("border-b", className)} {...rest} data-state={open ? "open" : "closed"}>
       <ItemContext.Provider value={{ open, setOpen }}>{children}</ItemContext.Provider>

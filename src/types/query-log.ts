@@ -10,10 +10,14 @@ export interface QueryRetrievalResultItem {
 export interface QueryRetrievalStep {
   indexName: string;
   namespace?: string;
-  stage: 'list' | 'query' | 'fetchNeighbors' | 'rerank' | 'aggregate';
-  level: 'chapter' | 'summary' | 'chunk';
+  stage: 'embed' | 'list' | 'query' | 'fetchNeighbors' | 'rerank' | 'aggregate' | 'llm';
+  level: 'question' | 'chapter' | 'summary' | 'chunk' | 'answer';
   topKRequested?: number;
   topKReturned?: number;
+  // Erweiterte Observability
+  candidatesCount?: number; // Anzahl gefilterter Kandidaten (z. B. Docs)
+  usedInPrompt?: number;    // Anzahl tatsächlich in Prompt eingeflossener Elemente (z. B. Docs)
+  decision?: 'chapters' | 'docs';
   filtersEffective?: {
     normalized?: Record<string, unknown>;
     pinecone?: Record<string, unknown>;
@@ -21,6 +25,8 @@ export interface QueryRetrievalStep {
   queryVectorInfo?: { source: 'question' | 'rerank' | 'hybrid'; note?: string };
   results?: QueryRetrievalResultItem[];
   timingMs?: number;
+  startedAt?: Date; // Startzeitpunkt des Schritts (für Trace/Gantt)
+  endedAt?: Date;   // Endzeitpunkt des Schritts (für Trace/Gantt)
 }
 
 export interface QueryPromptInfo {

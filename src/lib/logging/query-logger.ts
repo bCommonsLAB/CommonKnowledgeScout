@@ -35,6 +35,16 @@ export async function appendRetrievalStep(queryId: string, step: QueryRetrievalS
   await repoAppend(queryId, safe)
 }
 
+export function markStepStart(partial: Omit<QueryRetrievalStep, 'endedAt' | 'timingMs' | 'results'> & { startedAt?: Date }): QueryRetrievalStep {
+  return { ...partial, startedAt: partial.startedAt || new Date() } as QueryRetrievalStep
+}
+
+export function markStepEnd(step: QueryRetrievalStep): QueryRetrievalStep {
+  const endedAt = new Date()
+  const timingMs = typeof step.startedAt?.getTime === 'function' ? Math.max(0, endedAt.getTime() - step.startedAt.getTime()) : step.timingMs
+  return { ...step, endedAt, timingMs }
+}
+
 export async function setPrompt(
   queryId: string,
   payload: { provider: import('@/types/query-log').QueryPromptInfo['provider']; model: string; temperature?: number; prompt: string }

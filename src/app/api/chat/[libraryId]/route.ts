@@ -5,7 +5,9 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { embedTexts } from '@/lib/chat/embeddings'
 import { describeIndex, queryVectors, fetchVectors, listVectors } from '@/lib/chat/pinecone'
 import { getByFileIds, computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
-import { startQueryLog, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog, failQueryLog } from '@/lib/logging/query-logger'
+import { startQueryLog, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog, failQueryLog, markStepStart, markStepEnd } from '@/lib/logging/query-logger'
+import { runChatOrchestrated } from '@/lib/chat/orchestrator'
+import { buildFilters } from '@/lib/chat/common/filters'
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -50,16 +52,6 @@ export async function POST(
 
     const { message, answerLength } = body.data
 
-    // Embedding der Nutzerfrage
-    const [qVec] = await embedTexts([message])
-
-    // Pinecone Query
-    const apiKey = process.env.PINECONE_API_KEY
-    if (!apiKey) return NextResponse.json({ error: 'PINECONE_API_KEY fehlt' }, { status: 500 })
-    const idx = await describeIndex(ctx.vectorIndex, apiKey)
-    if (!idx?.host) return NextResponse.json({ error: 'Index nicht gefunden' }, { status: 404 })
-
-    const baseTopK = 20
     // Optional: Filter aus Query (Facetten im Chat-Kontext wiederverwenden)
     const parsedUrl = new URL(request.url)
     const author = parsedUrl.searchParams.getAll('author')
@@ -70,11 +62,17 @@ export async function POST(
     const tag = parsedUrl.searchParams.getAll('tag')
     const retriever = (parsedUrl.searchParams.get('retriever') || 'chunk').toLowerCase() === 'doc' ? 'doc' : 'chunk'
     // Retriever: chunk (Standard) oder doc (Dokument-Summaries)
-    const baseFilter: Record<string, unknown> = {
+    const kindValue = retriever === 'doc' ? 'chapterSummary' : 'chunk'
+    // Normalisierte Filter (mit libraryId für Nachvollziehbarkeit)
+    const normalizedFilter: Record<string, unknown> = {
       user: { $eq: userEmail || '' },
       libraryId: { $eq: libraryId },
-      kind: { $eq: retriever }
+      kind: { $eq: kindValue }
     }
+    // Effektiver Pinecone-Filter: Im Summaries-Modus libraryId weglassen (nicht immer vorhanden)
+    const baseFilter: Record<string, unknown> = retriever === 'doc'
+      ? { user: { $eq: userEmail || '' }, kind: { $eq: 'chapterSummary' } }
+      : { ...normalizedFilter }
     if (author.length > 0) baseFilter['authors'] = { $in: author }
     if (region.length > 0) baseFilter['region'] = { $in: region }
     if (year.length > 0) baseFilter['year'] = { $in: year.map(y => (isNaN(Number(y)) ? y : Number(y))) }
@@ -82,12 +80,46 @@ export async function POST(
     if (source.length > 0) baseFilter['source'] = { $in: source }
     if (tag.length > 0) baseFilter['tags'] = { $in: tag }
 
-    // Query-Logging initialisieren
+    // Query-Logging initialisieren (muss vor allen logAppend-Aufrufen stehen)
     const facetsSelected: Record<string, unknown> = {}
     parsedUrl.searchParams.forEach((v, k) => {
       if (!facetsSelected[k]) facetsSelected[k] = [] as unknown[]
       ;(facetsSelected[k] as unknown[]).push(v)
     })
+
+    // Neuer Pfad: explizit angeforderter Summary-Retriever über Mongo (retriever=summary)
+    const retrieverParamRaw = (parsedUrl.searchParams.get('retriever') || '').toLowerCase()
+    if (retrieverParamRaw === 'summary' || retrieverParamRaw === 'doc') {
+      const built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, 'summary')
+      const modeNow = 'summaries' as const
+      const queryId = await startQueryLog({
+        libraryId,
+        userEmail: emailForLoad,
+        question: message,
+        mode: modeNow,
+        facetsSelected,
+        filtersNormalized: { ...built.normalized },
+        filtersPinecone: { ...built.pinecone },
+      })
+      const { answer, sources } = await runChatOrchestrated({
+        retriever: 'summary',
+        libraryId,
+        userEmail: emailForLoad,
+        question: message,
+        answerLength,
+        filters: built.mongo,
+        queryId,
+        context: { vectorIndex: ctx.vectorIndex }
+      })
+      return NextResponse.json({
+        status: 'ok',
+        libraryId,
+        vectorIndex: ctx.vectorIndex,
+        answer,
+        sources,
+        queryId,
+      })
+    }
     const mode = retriever === 'doc' ? 'summaries' : 'chunks' as const
     const queryId = await startQueryLog({
       libraryId,
@@ -95,9 +127,26 @@ export async function POST(
       question: message,
       mode,
       facetsSelected,
-      filtersNormalized: { ...baseFilter },
+      filtersNormalized: { ...normalizedFilter },
       filtersPinecone: { ...baseFilter },
     })
+
+    // Embedding nur, wenn nicht Summaries-Modus (dort wird nicht gerankt)
+    let qVec: number[] | undefined = undefined
+    if (mode !== 'summaries') {
+      let stepEmbed = markStepStart({ indexName: ctx.vectorIndex, namespace: '', stage: 'embed', level: 'question' })
+      ;[qVec] = await embedTexts([message])
+      stepEmbed = markStepEnd(stepEmbed)
+      await logAppend(queryId, { indexName: ctx.vectorIndex, namespace: '', stage: 'embed', level: 'question', timingMs: stepEmbed.timingMs, startedAt: stepEmbed.startedAt, endedAt: stepEmbed.endedAt })
+    }
+
+    // Pinecone Query
+    const apiKey = process.env.PINECONE_API_KEY
+    if (!apiKey) return NextResponse.json({ error: 'PINECONE_API_KEY fehlt' }, { status: 500 })
+    const idx = await describeIndex(ctx.vectorIndex, apiKey)
+    if (!idx?.host) return NextResponse.json({ error: 'Index nicht gefunden' }, { status: 404 })
+
+    const baseTopK = 20
 
     // Budget nach answerLength
     const baseBudget = answerLength === 'ausführlich' ? 180000 : answerLength === 'mittel' ? 90000 : 30000
@@ -109,53 +158,80 @@ export async function POST(
     if (retriever === 'doc') {
       const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
       const libraryKey = computeDocMetaCollectionName(userEmail || '', libraryId, strategy)
-      // Doc-Retriever: Kandidaten (doc) aus Pinecone listen, Inhalte aus Mongo hydrieren
-      const t0 = Date.now()
-      const docs = await listVectors(idx.host, apiKey, baseFilter as Record<string, unknown>)
-      const t1 = Date.now()
+      // Summaries-Modus: keine Ranking-Query, wir listen und filtern clientseitig
+      let step = markStepStart({ indexName: ctx.vectorIndex, namespace: '', stage: 'list', level: 'summary', filtersEffective: { normalized: { ...normalizedFilter }, pinecone: {} } })
+      const all = await listVectors(idx.host, apiKey, undefined)
+      const usedDocs = all.filter(d => {
+        const meta = (d.metadata || {}) as Record<string, unknown>
+        const userOk = typeof (meta as { user?: unknown }).user === 'string' ? ((meta as { user: string }).user === (userEmail || '')) : true
+        const kindOk = (meta as { kind?: unknown }).kind === 'chapterSummary'
+        const libMeta = (meta as { libraryId?: unknown }).libraryId
+        const libOk = libMeta ? libMeta === libraryId : true
+        return userOk && kindOk && libOk
+      })
+      step = markStepEnd({ ...step, topKReturned: usedDocs.length })
       await logAppend(queryId, {
         indexName: ctx.vectorIndex,
         namespace: '',
         stage: 'list',
         level: 'summary',
-        filtersEffective: { normalized: { ...baseFilter }, pinecone: { ...baseFilter } },
-        topKReturned: docs.length,
-        timingMs: t1 - t0,
-        results: docs.slice(0, 20).map((d) => ({ id: d.id, type: 'summary', metadata: d.metadata })),
+        filtersEffective: { normalized: { ...normalizedFilter }, pinecone: {} },
+        topKReturned: usedDocs.length,
+        timingMs: step.timingMs,
+        startedAt: step.startedAt,
+        endedAt: step.endedAt,
+        results: usedDocs.slice(0, 20).map((d) => ({ id: d.id, type: 'summary', metadata: d.metadata })),
       })
-      const fileIds = docs
+
+      const fileIds = usedDocs
         .map(d => (d.metadata && typeof d.metadata === 'object' ? (d.metadata as { fileId?: unknown }).fileId : undefined))
         .filter((v): v is string => typeof v === 'string' && v.length > 0)
       const metaMap = await getByFileIds(libraryKey, libraryId, fileIds)
-      for (const d of docs) {
+      for (const d of usedDocs) {
         const meta = (d.metadata || {}) as Record<string, unknown>
         const fileId = typeof (meta as { fileId?: unknown }).fileId === 'string' ? (meta as { fileId: string }).fileId : undefined
-        if (!fileId) continue
-        const m = metaMap.get(fileId)
-        if (!m) continue
-        // Komponieren eines kurzen Teaser-Texts aus Mongo-Metadaten
-        const docMeta = (m.docMetaJson || {}) as Record<string, unknown>
-        const title = typeof (docMeta as { title?: unknown }).title === 'string' ? (docMeta as { title: string }).title : undefined
-        const shortTitle = typeof (docMeta as { shortTitle?: unknown }).shortTitle === 'string' ? (docMeta as { shortTitle: string }).shortTitle : undefined
-        const summary = typeof (docMeta as { summary?: unknown }).summary === 'string' ? (docMeta as { summary: string }).summary : undefined
-        const authors = Array.isArray((docMeta as { authors?: unknown }).authors) ? ((docMeta as { authors?: unknown[] }).authors as string[]) : []
-        const parts = [
-          title ? `Titel: ${title}` : undefined,
-          shortTitle ? `Kurz: ${shortTitle}` : undefined,
-          authors.length ? `Autoren: ${authors.join(', ')}` : undefined,
-          summary ? `Zusammenfassung: ${String(summary).slice(0, 600)}` : undefined,
-        ].filter(Boolean) as string[]
-        const t = parts.join('\n')
-        const fileName = m.fileName || title || shortTitle
-        if (!t) continue
-        if (used + t.length > charBudget) break
-        sources.push({ id: d.id, fileName, text: t })
-        used += t.length
+        const m = fileId ? metaMap.get(fileId) : undefined
+        const chapterTitle = typeof (meta as { chapterTitle?: unknown }).chapterTitle === 'string' ? (meta as { chapterTitle: string }).chapterTitle : undefined
+        const text = typeof (meta as { text?: unknown }).text === 'string' ? (meta as { text: string }).text : undefined
+        const summaryShort = typeof (meta as { summaryShort?: unknown }).summaryShort === 'string' ? (meta as { summaryShort: string }).summaryShort : undefined
+        const vectorText = text || summaryShort
+        let fileName = typeof (meta as { fileName?: unknown }).fileName === 'string' ? (meta as { fileName: string }).fileName : undefined
+        let composed = vectorText ? `${chapterTitle ? `Kapitel: ${chapterTitle}\n` : ''}${String(vectorText).slice(0, 900)}` : ''
+        if (!composed && m) {
+          const docMeta = (m.docMetaJson || {}) as Record<string, unknown>
+          const title = typeof (docMeta as { title?: unknown }).title === 'string' ? (docMeta as { title: string }).title : undefined
+          const shortTitle = typeof (docMeta as { shortTitle?: unknown }).shortTitle === 'string' ? (docMeta as { shortTitle: string }).shortTitle : undefined
+          const summary = typeof (docMeta as { summary?: unknown }).summary === 'string' ? (docMeta as { summary: string }).summary : undefined
+          composed = [chapterTitle ? `Kapitel: ${chapterTitle}` : undefined, title ? `Titel: ${title}` : undefined, shortTitle ? `Kurz: ${shortTitle}` : undefined, summary ? `Zusammenfassung: ${String(summary).slice(0, 900)}` : undefined].filter(Boolean).join('\n')
+          fileName = fileName || m.fileName || title || shortTitle
+        }
+        if (!composed) continue
+        if (used + composed.length > charBudget) break
+        sources.push({ id: d.id, fileName, text: composed })
+        used += composed.length
       }
     } else {
-      const tQ0 = Date.now()
-      const matches = await queryVectors(idx.host, apiKey, qVec, baseTopK, baseFilter)
-      const tQ1 = Date.now()
+      // Parallel: chunk-Query und summary-Query starten
+      const chunkTask = (async () => {
+        let s = markStepStart({ indexName: ctx.vectorIndex, namespace: '', stage: 'query', level: 'chunk', filtersEffective: { normalized: { ...baseFilter }, pinecone: { ...baseFilter } }, queryVectorInfo: { source: 'question' } })
+        const res = await queryVectors(idx.host, apiKey, (qVec as number[]), baseTopK, baseFilter)
+        s = markStepEnd({ ...s, topKRequested: baseTopK, topKReturned: res.length })
+        return { matches: res, step: s }
+      })()
+
+      const summaryTask = (async () => {
+        try {
+          let s = markStepStart({ indexName: ctx.vectorIndex, namespace: '', stage: 'query', level: 'summary', filtersEffective: { normalized: { ...baseFilter, kind: { $eq: 'chapterSummary' } }, pinecone: { ...baseFilter, kind: { $eq: 'chapterSummary' } } }, queryVectorInfo: { source: 'question' } })
+          const res = await queryVectors(idx.host, apiKey, (qVec as number[]), 10, { ...baseFilter, kind: { $eq: 'chapterSummary' } })
+          s = markStepEnd({ ...s, topKRequested: 10, topKReturned: res.length })
+          return { chapterMatches: res, step: s }
+        } catch {
+          return { chapterMatches: [] as Awaited<ReturnType<typeof queryVectors>>, step: undefined as unknown as ReturnType<typeof markStepStart> }
+        }
+      })()
+
+      const [{ matches, step: stepQ }, { chapterMatches, step: stepC }] = await Promise.all([chunkTask, summaryTask])
+
       await logAppend(queryId, {
         indexName: ctx.vectorIndex,
         namespace: '',
@@ -165,19 +241,15 @@ export async function POST(
         topKReturned: matches.length,
         filtersEffective: { normalized: { ...baseFilter }, pinecone: { ...baseFilter } },
         queryVectorInfo: { source: 'question' },
-        timingMs: tQ1 - tQ0,
+        timingMs: stepQ.timingMs,
+        startedAt: stepQ.startedAt,
+        endedAt: stepQ.endedAt,
         results: matches.slice(0, 20).map(m => ({ id: m.id, type: 'chunk', score: m.score, metadata: m.metadata })),
       })
 
-      // Kapitel-Summaries abfragen und als Boost verwenden
+      // Kapitel-Summaries Boost
       const chapterBoost = new Map<string, number>()
-      try {
-        const tC0 = Date.now()
-        const chapterMatches = await queryVectors(idx.host, apiKey, qVec, 10, {
-          ...baseFilter,
-          kind: { $eq: 'chapterSummary' }
-        })
-        const tC1 = Date.now()
+      if (Array.isArray(chapterMatches) && chapterMatches.length > 0) {
         await logAppend(queryId, {
           indexName: ctx.vectorIndex,
           namespace: '',
@@ -187,10 +259,11 @@ export async function POST(
           topKReturned: chapterMatches.length,
           filtersEffective: { normalized: { ...baseFilter, kind: { $eq: 'chapterSummary' } }, pinecone: { ...baseFilter, kind: { $eq: 'chapterSummary' } } },
           queryVectorInfo: { source: 'question' },
-          timingMs: tC1 - tC0,
+          timingMs: stepC?.timingMs,
+          startedAt: stepC?.startedAt,
+          endedAt: stepC?.endedAt,
           results: chapterMatches.slice(0, 20).map(m => ({ id: m.id, type: 'summary', score: m.score, metadata: m.metadata })),
         })
-        // Rank-basiert: 1.0, 0.95, 0.9, ...
         const base = 1.0
         const step = 0.05
         chapterMatches.forEach((m, i) => {
@@ -200,9 +273,8 @@ export async function POST(
           const score = base - i * step
           if (!chapterBoost.has(chapterId)) chapterBoost.set(chapterId, Math.max(0, score))
         })
-      } catch {
-        // optional
       }
+
       const scoreMap = new Map<string, number>()
       for (const m of matches) scoreMap.set(m.id, typeof m.score === 'number' ? m.score : 0)
 
@@ -223,9 +295,9 @@ export async function POST(
         }
       }
       const ids = Array.from(idSet)
-      const tF0 = Date.now()
+      let stepF = markStepStart({ indexName: ctx.vectorIndex, namespace: '', stage: 'fetchNeighbors', level: 'chunk' })
       const fetched = await fetchVectors(idx.host, apiKey, ids)
-      const tF1 = Date.now()
+      stepF = markStepEnd({ ...stepF, topKRequested: ids.length, topKReturned: Object.keys(fetched).length })
       await logAppend(queryId, {
         indexName: ctx.vectorIndex,
         namespace: '',
@@ -233,7 +305,9 @@ export async function POST(
         level: 'chunk',
         topKRequested: ids.length,
         topKReturned: Object.keys(fetched).length,
-        timingMs: tF1 - tF0,
+        timingMs: stepF.timingMs,
+        startedAt: stepF.startedAt,
+        endedAt: stepF.endedAt,
       })
       const chapterAlpha = Number(process.env.CHAT_CHAPTER_BOOST ?? 0.15)
       const vectorRows = ids
@@ -304,14 +378,20 @@ export async function POST(
     }
     const retrievalMs = Date.now() - retrievalStartAll
 
-    // Wenn weiterhin keine Quellen gefunden wurden, antworte standardisiert
+    // Wenn weiterhin keine Quellen gefunden wurden, antworte standardisiert – aber Log finalisieren und queryId zurückgeben
     if (sources.length === 0) {
+      await finalizeQueryLog(queryId, {
+        answer: 'Keine passenden Inhalte gefunden',
+        sources: [],
+        timing: { retrievalMs, llmMs: 0, totalMs: retrievalMs },
+      })
       return NextResponse.json({
         status: 'ok',
         libraryId,
         vectorIndex: ctx.vectorIndex,
         answer: 'Keine passenden Inhalte gefunden',
         sources: [],
+        queryId,
       })
     }
 
@@ -369,6 +449,7 @@ export async function POST(
     }
 
     const tL0 = Date.now()
+    let stepLLM = markStepStart({ indexName: ctx.vectorIndex, namespace: '', stage: 'llm', level: 'answer' })
     let chatRes = await callChat(prompt)
     if (!chatRes.ok) {
       const text = await chatRes.text()
@@ -414,6 +495,16 @@ export async function POST(
       return NextResponse.json({ error: 'OpenAI Chat Parse Fehler', details: raw.slice(0, 400) }, { status: 502 })
     }
 
+    stepLLM = markStepEnd(stepLLM)
+    await logAppend(queryId, {
+      indexName: ctx.vectorIndex,
+      namespace: '',
+      stage: 'llm',
+      level: 'answer',
+      timingMs: stepLLM.timingMs,
+      startedAt: stepLLM.startedAt,
+      endedAt: stepLLM.endedAt,
+    })
     await finalizeQueryLog(queryId, {
       answer,
       sources: sources.map(s => ({ id: s.id, fileName: s.fileName, chunkIndex: s.chunkIndex, score: s.score })),

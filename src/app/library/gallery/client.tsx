@@ -39,6 +39,9 @@ interface DetailDoc extends DocCardMeta {
 
 interface FacetOption { value: string | number; count: number }
 
+interface StatsTotals { docs: number; chunks: number }
+interface StatsResponse { ok?: boolean; indexExists?: boolean; totals?: StatsTotals }
+
 function FacetGroup({ label, options, selected, onChange }: { label: string; options: Array<string | number | FacetOption>; selected: Array<string>; onChange: (values: string[]) => void }) {
   const isFacetOption = (o: unknown): o is FacetOption => !!o && typeof o === 'object' && 'value' in (o as Record<string, unknown>)
   const normalized: FacetOption[] = options.map(o => (isFacetOption(o) ? o : { value: o as (string | number), count: 0 }))
@@ -88,6 +91,7 @@ export default function GalleryClient() {
   const [showGalleryPanel, setShowGalleryPanel] = useState(true)
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }>>([])
+  const [stats, setStats] = useState<StatsResponse | null>(null)
 
   // Hinweis: activeLibrary derzeit ungenutzt
   void libraries
@@ -135,6 +139,24 @@ export default function GalleryClient() {
       }
     }
     loadFacets()
+    return () => { cancelled = true }
+  }, [libraryId])
+
+  // Stats laden (indizierte/transformierte Dokumente insgesamt)
+  useEffect(() => {
+    let cancelled = false
+    async function loadStats() {
+      if (!libraryId) return
+      try {
+        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/stats`, { cache: 'no-store' })
+        const data = await res.json()
+        if (!res.ok) return
+        if (!cancelled) setStats(data as StatsResponse)
+      } catch {
+        // optional: ignorieren
+      }
+    }
+    loadStats()
     return () => { cancelled = true }
   }, [libraryId])
 
@@ -211,10 +233,10 @@ export default function GalleryClient() {
     })
   }
 
-  if (!libraryId) return <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
-  if (loading) return <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
-  if (error) return <div className='text-sm text-destructive'>{error}</div>
-  if (docs.length === 0) return <div className='text-sm text-muted-foreground'>Keine Dokumente gefunden.</div>
+  const isFiltered = Object.values(filters as Record<string, string[] | undefined>).some(arr => Array.isArray(arr) && arr.length > 0)
+
+  // Statusanzeigen werden im rechten Panel gerendert (keine frühen Returns),
+  // damit der Facettenbereich immer sichtbar bleibt und Filter zurückgesetzt werden können.
 
   return (
     <div className='min-h-screen'>
@@ -266,7 +288,11 @@ export default function GalleryClient() {
           </Button>
         </div>
         <div>
-          <div className='text-muted-foreground text-sm'>Durchsuchen und befragen Sie Ihre transformierten PDF-Dokumente</div>
+          <div className='text-muted-foreground text-sm'>
+            {isFiltered
+              ? `Durchsuchen und befragen Sie ${docs.length.toLocaleString('de-DE')} gefilterten Dokumente`
+              : `Durchsuchen und befragen Sie ${docs.length.toLocaleString('de-DE')} Dokumente`}
+          </div>
         </div>
       </div>
 
@@ -321,49 +347,68 @@ export default function GalleryClient() {
 
               {gallerySpan > 0 ? (
                 <section className={`${spanClass(gallerySpan)} relative z-0`}>
-                  <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'>
-                  {docs.map((pdf) => (
-                    <Card
-                      key={pdf.id}
-                      className='cursor-pointer hover:shadow-lg transition-shadow duration-200'
-                      onClick={() => openDocDetail(pdf)}
-                    >
-                      <CardHeader>
-                        <div className='flex items-start justify-between'>
-                          <FileText className='h-8 w-8 text-primary mb-2' />
-                          {pdf.year ? <Badge variant='secondary'>{String(pdf.year)}</Badge> : null}
-                        </div>
-                        <CardTitle className='text-lg line-clamp-2'>{pdf.shortTitle || pdf.title || pdf.fileName || 'Dokument'}</CardTitle>
-                        <CardDescription className='line-clamp-2'>{pdf.title || pdf.fileName}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className='space-y-2'>
-                          {Array.isArray(pdf.authors) && pdf.authors.length > 0 ? (
-                            <div className='flex items-center text-sm text-muted-foreground'>
-                              <User className='h-4 w-4 mr-2' />
-                              <span className='line-clamp-1'>
-                                {pdf.authors[0]}
-                                {pdf.authors.length > 1 ? ` +${pdf.authors.length - 1} weitere` : ''}
-                              </span>
+                  {/* Zustände im rechten Panel anzeigen, damit Facetten links erhalten bleiben */}
+                  {!libraryId ? (
+                    <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
+                  ) : error ? (
+                    <div className='text-sm text-destructive'>{error}</div>
+                  ) : loading ? (
+                    <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
+                  ) : docs.length === 0 ? (
+                    <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
+                      <div>Keine Dokumente gefunden.</div>
+                      <Button
+                        variant='secondary'
+                        onClick={() => setFilters({} as Record<string, string[]>) }
+                      >
+                        Filter zurücksetzen
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'>
+                      {docs.map((pdf) => (
+                        <Card
+                          key={pdf.id}
+                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200'
+                          onClick={() => openDocDetail(pdf)}
+                        >
+                          <CardHeader>
+                            <div className='flex items-start justify-between'>
+                              <FileText className='h-8 w-8 text-primary mb-2' />
+                              {pdf.year ? <Badge variant='secondary'>{String(pdf.year)}</Badge> : null}
                             </div>
-                          ) : null}
-                          {pdf.region ? (
-                            <div className='flex items-center text-sm text-muted-foreground'>
-                              <MapPin className='h-4 w-4 mr-2' />
-                              <span>{pdf.region}</span>
+                            <CardTitle className='text-lg line-clamp-2'>{pdf.shortTitle || pdf.title || pdf.fileName || 'Dokument'}</CardTitle>
+                            <CardDescription className='line-clamp-2'>{pdf.title || pdf.fileName}</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className='space-y-2'>
+                              {Array.isArray(pdf.authors) && pdf.authors.length > 0 ? (
+                                <div className='flex items-center text-sm text-muted-foreground'>
+                                  <User className='h-4 w-4 mr-2' />
+                                  <span className='line-clamp-1'>
+                                    {pdf.authors[0]}
+                                    {pdf.authors.length > 1 ? ` +${pdf.authors.length - 1} weitere` : ''}
+                                  </span>
+                                </div>
+                              ) : null}
+                              {pdf.region ? (
+                                <div className='flex items-center text-sm text-muted-foreground'>
+                                  <MapPin className='h-4 w-4 mr-2' />
+                                  <span>{pdf.region}</span>
+                                </div>
+                              ) : null}
+                              {pdf.upsertedAt ? (
+                                <div className='flex items-center text-sm text-muted-foreground'>
+                                  <Calendar className='h-4 w-4 mr-2' />
+                                  <span>{new Date(pdf.upsertedAt).toLocaleDateString('de-DE')}</span>
+                                </div>
+                              ) : null}
                             </div>
-                          ) : null}
-                          {pdf.upsertedAt ? (
-                            <div className='flex items-center text-sm text-muted-foreground'>
-                              <Calendar className='h-4 w-4 mr-2' />
-                              <span>{new Date(pdf.upsertedAt).toLocaleDateString('de-DE')}</span>
-                            </div>
-                          ) : null}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                   {selected && (
                     <div className='fixed inset-0 z-50'>
                       {/* Overlay mobil */}
