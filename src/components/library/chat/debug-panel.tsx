@@ -1,6 +1,6 @@
 "use client"
 
-import type { QueryLog } from '@/types/query-log'
+import type { QueryLog, QueryRetrievalStep } from '@/types/query-log'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { DebugStepTable } from './debug-step-table'
 import { DebugTrace } from './debug-trace'
@@ -21,7 +21,7 @@ export function DebugPanel({ log }: { log: QueryLog }) {
   }
   const steps = (log.retrieval || []).map((s, i) => ({ key: `step-${i}`, label: simplifyLabel(s.stage, s.level), step: s }))
 
-  function explainStepLabelFromStep(step: QueryLog['retrieval'][number]): string {
+  function explainStepLabelFromStep(step: QueryRetrievalStep): string {
     if (step.stage === 'embed' && step.level === 'question') return 'Wir übersetzen Ihre Frage in eine Zahlenform (Vektor). Damit kann das System später „Ähnlichkeit“ zu Textstellen messen.'
     if (step.stage === 'query' && step.level === 'chunk') return 'Suche nach den passendsten Textausschnitten (Chunks). Ergebnis ist eine sortierte Trefferliste mit Relevanzwerten.'
     if (step.stage === 'query' && step.level === 'summary') return 'Kapitel‑Zusammenfassungen werden geladen und als kompakter Kontext verwendet (kein Ranking nötig).'
@@ -31,7 +31,7 @@ export function DebugPanel({ log }: { log: QueryLog }) {
     return ''
   }
 
-  const renderStepContent = (step: QueryLog['retrieval'][number], label: string) => (
+  const renderStepContent = (step: QueryRetrievalStep, label: string) => (
     <div>
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1 mb-1">{label}</div>
       <div className="text-xs text-muted-foreground mb-2">{explainStepLabelFromStep(step)}</div>

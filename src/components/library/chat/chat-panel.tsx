@@ -77,8 +77,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     async function loadHistory() {
       try {
         const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries?limit=20`, { cache: 'no-store' })
-        const data = await res.json() as { items?: Array<{ queryId: string; createdAt: string; question: string; mode: string; status: string }> }
-        if (!res.ok) throw new Error(data && (data as any).error || 'Fehler beim Laden der Historie')
+        const data = await res.json() as { items?: Array<{ queryId: string; createdAt: string; question: string; mode: string; status: string }>; error?: unknown }
+        if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Laden der Historie')
         if (!cancelled) setHistory(Array.isArray(data.items) ? data.items : [])
       } catch {
         if (!cancelled) setHistory([])
@@ -181,12 +181,15 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                 const data = await res.json()
                 if (!res.ok) throw new Error(data?.error || 'Historie laden fehlgeschlagen')
                 setAnswer(typeof data?.answer === 'string' ? data.answer : '')
-                const srcs = Array.isArray(data?.sources) ? (data.sources as Array<any>).map((s: any) => ({
-                  id: String(s?.id ?? ''),
-                  fileName: typeof s?.fileName === 'string' ? s.fileName : undefined,
-                  chunkIndex: typeof s?.chunkIndex === 'number' ? s.chunkIndex : undefined,
-                  score: typeof s?.score === 'number' ? s.score : undefined,
-                })) : []
+                const srcs = Array.isArray(data?.sources) ? (data.sources as Array<unknown>).map((s) => {
+                  const o = (s && typeof s === 'object') ? s as Record<string, unknown> : {}
+                  return {
+                    id: String(o.id ?? ''),
+                    fileName: typeof o.fileName === 'string' ? o.fileName : undefined,
+                    chunkIndex: typeof o.chunkIndex === 'number' ? o.chunkIndex : undefined,
+                    score: typeof o.score === 'number' ? o.score : undefined,
+                  }
+                }) : []
                 setResults(srcs)
               } catch (e) {
                 setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
@@ -219,11 +222,24 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           </div>
           <span>Methode:</span>
           <div className="flex gap-1">
-            {(['chunk','doc'] as const).map(v => (
-              <Button key={v} type="button" size="sm" variant={retriever===v? 'default':'outline'} onClick={() => setRetriever(v)} className="h-7 px-2 capitalize">
-                {v === 'chunk' ? 'Chunks' : 'Summaries'}
-              </Button>
-            ))}
+            {(['chunk','doc'] as const).map(v => {
+              const label = v === 'chunk' ? 'Spezifisch' : 'Übersichtlich'
+              const tip = v === 'chunk'
+                ? 'Für die Frage interessante Textstellen (Chunks) suchen und daraus die Antwort generieren. Nur spezifische Inhalte – dafür präziser.'
+                : 'Aus den Zusammenfassungen aller Kapitel/Dokumente eine Antwort kreieren. Mehr Überblick – dafür etwas ungenauer.'
+              return (
+                <Tooltip key={v}>
+                  <TooltipTrigger asChild>
+                    <Button type="button" size="sm" variant={retriever===v? 'default':'outline'} onClick={() => setRetriever(v)} className="h-7 px-2 capitalize" aria-label={label}>
+                      {label}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[320px] text-xs">
+                    <div className="max-w-[280px]">{tip}</div>
+                  </TooltipContent>
+                </Tooltip>
+              )
+            })}
           </div>
         </div>
         

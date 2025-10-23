@@ -16,7 +16,8 @@ function decideSummaryMode(docs: Array<{ chaptersCount?: number }>, budgetChars:
     .map(d => Math.min(Math.max(0, d.chaptersCount ?? 0), env.perDocChapterCap))
     .reduce((a, b) => a + b, 0)
   const estCharsChapters = estChapters * env.estimateCharsPerChapter
-  const estCharsDocs = limitedDocs.length * env.estimateCharsPerDoc
+  // estCharsDocs derzeit nicht benötigt
+  // const estCharsDocs = limitedDocs.length * env.estimateCharsPerDoc
   if (estChapters <= env.chaptersThreshold && estCharsChapters <= budgetChars) return 'chapters'
   return 'docs'
 }
@@ -54,7 +55,7 @@ export const summariesMongoRetriever: ChatRetriever = {
           used += text.length
         }
       } else {
-        const sum = typeof (d as any).docSummary === 'string' ? String((d as any).docSummary) : ''
+        const sum = typeof (d as { docSummary?: unknown }).docSummary === 'string' ? (d as { docSummary: string }).docSummary : ''
         if (!sum) continue
         const text = sum.slice(0, env.estimateCharsPerDoc)
         if (!canAccumulate(used, text.length, budget)) break

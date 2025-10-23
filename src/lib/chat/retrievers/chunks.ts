@@ -78,7 +78,7 @@ export const chunksRetriever: ChatRetriever = {
       const step = 0.05
       chapterMatches.forEach((m, i) => {
         const meta = (m.metadata ?? {}) as Record<string, unknown>
-        const chapterId = typeof (meta as any).chapterId === 'string' ? String((meta as any).chapterId) : undefined
+        const chapterId = typeof (meta as { chapterId?: unknown }).chapterId === 'string' ? (meta as { chapterId: string }).chapterId : undefined
         if (!chapterId) return
         const score = base - i * step
         if (!chapterBoost.has(chapterId)) chapterBoost.set(chapterId, Math.max(0, score))
@@ -105,11 +105,15 @@ export const chunksRetriever: ChatRetriever = {
 
     const chapterAlpha = Number(process.env.CHAT_CHAPTER_BOOST ?? 0.15)
     const rows = ids
-      .map(id => ({ id, score: scoreMap.get(id) ?? 0, meta: (fetched as any)[id]?.metadata as Record<string, unknown> | undefined }))
+      .map(id => {
+        const maybe = (fetched as Record<string, unknown>)[id]
+        const meta = maybe && typeof maybe === 'object' && 'metadata' in maybe ? (maybe as { metadata?: Record<string, unknown> }).metadata : undefined
+        return { id, score: scoreMap.get(id) ?? 0, meta }
+      })
       .filter(r => r.meta)
       .map(r => {
         const meta = r.meta!
-        const chapterId = typeof (meta as any).chapterId === 'string' ? String((meta as any).chapterId) : undefined
+        const chapterId = typeof (meta as { chapterId?: unknown }).chapterId === 'string' ? (meta as { chapterId: string }).chapterId : undefined
         let boosted = r.score
         if (chapterId && chapterBoost.size > 0) {
           const b = chapterBoost.get(chapterId)
@@ -117,8 +121,8 @@ export const chunksRetriever: ChatRetriever = {
         }
         try {
           const q = input.question.toLowerCase()
-          const title = typeof (meta as any).chapterTitle === 'string' ? String((meta as any).chapterTitle).toLowerCase() : ''
-          const kws = Array.isArray((meta as any).keywords) ? ((meta as any).keywords as unknown[]).filter(v => typeof v === 'string').map(v => (v as string).toLowerCase()) : []
+          const title = typeof (meta as { chapterTitle?: unknown }).chapterTitle === 'string' ? (meta as { chapterTitle: string }).chapterTitle.toLowerCase() : ''
+          const kws = Array.isArray((meta as { keywords?: unknown }).keywords) ? ((meta as { keywords: unknown[] }).keywords).filter(v => typeof v === 'string').map(v => String(v).toLowerCase()) : []
           let lex = 0
           if (title && q && title.includes(q)) lex += 0.02
           for (const kw of kws) if (kw && q.includes(kw)) { lex += 0.02; if (lex > 0.06) break }
@@ -132,10 +136,10 @@ export const chunksRetriever: ChatRetriever = {
     let used = 0
     for (const r of rows) {
       const meta = r.meta!
-      const t = typeof (meta as any).text === 'string' ? String((meta as any).text) : ''
+      const t = typeof (meta as { text?: unknown }).text === 'string' ? (meta as { text: string }).text : ''
       if (!t) continue
-      const fileName = typeof (meta as any).fileName === 'string' ? String((meta as any).fileName) : undefined
-      const chunkIndex = typeof (meta as any).chunkIndex === 'number' ? Number((meta as any).chunkIndex) : undefined
+      const fileName = typeof (meta as { fileName?: unknown }).fileName === 'string' ? (meta as { fileName: string }).fileName : undefined
+      const chunkIndex = typeof (meta as { chunkIndex?: unknown }).chunkIndex === 'number' ? (meta as { chunkIndex: number }).chunkIndex : undefined
       const s = { id: r.id, score: r.score, fileName, chunkIndex, text: t }
       if (used + t.length > budget) break
       sources.push(s)

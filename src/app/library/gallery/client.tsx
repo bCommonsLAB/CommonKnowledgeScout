@@ -91,9 +91,10 @@ export default function GalleryClient() {
   const [showGalleryPanel, setShowGalleryPanel] = useState(true)
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }>>([])
-  const [stats, setStats] = useState<StatsResponse | null>(null)
+  // Stats werden aktuell nicht gerendert; um Linter zu erfüllen, Status lokal halten
+  const [, setStats] = useState<StatsResponse | null>(null)
 
-  // Hinweis: activeLibrary derzeit ungenutzt
+  // Hinweis: libraries derzeit ungenutzt – bewusst markiert
   void libraries
 
   useEffect(() => {

@@ -140,14 +140,20 @@ export async function findDocSummaries(
   return rows.map(r => {
     const docMeta = r.docMetaJson && typeof r.docMetaJson === 'object' ? r.docMetaJson as Record<string, unknown> : undefined
     const docSummary = docMeta && typeof (docMeta as { summary?: unknown }).summary === 'string' ? (docMeta as { summary: string }).summary : undefined
-    const chaptersArr = Array.isArray((r as any).chapters) ? ((r as any).chapters as Array<any>).map(c => ({
-      title: typeof c?.title === 'string' ? c.title : undefined,
-      summary: typeof c?.summary === 'string' ? c.summary : undefined,
-    })) : undefined
+    const rawChapters = (r as unknown as { chapters?: unknown }).chapters
+    const chaptersArr = Array.isArray(rawChapters)
+      ? (rawChapters as Array<unknown>).map(c => {
+          const o = c && typeof c === 'object' ? c as Record<string, unknown> : {}
+          return {
+            title: typeof o.title === 'string' ? o.title : undefined,
+            summary: typeof o.summary === 'string' ? o.summary : undefined,
+          }
+        })
+      : undefined
     return {
       fileId: r.fileId,
       fileName: r.fileName,
-      chaptersCount: typeof (r as any).chaptersCount === 'number' ? Number((r as any).chaptersCount) : undefined,
+      chaptersCount: typeof (r as unknown as { chaptersCount?: unknown }).chaptersCount === 'number' ? (r as unknown as { chaptersCount: number }).chaptersCount : undefined,
       chapters: chaptersArr,
       docSummary,
     }

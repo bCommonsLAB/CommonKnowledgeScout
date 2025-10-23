@@ -1,6 +1,6 @@
 "use client"
 
-import type { QueryLog, QueryRetrievalStep } from '@/types/query-log'
+import type { QueryRetrievalStep } from '@/types/query-log'
 import { useMemo, useState } from 'react'
 
 function normalizeString(v: unknown): string {
