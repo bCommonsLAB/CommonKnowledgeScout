@@ -1,6 +1,6 @@
 import type { ChatRetriever, RetrieverInput, RetrieverOutput, RetrievedSource } from '@/types/retriever'
 import { appendRetrievalStep as logAppend, markStepStart, markStepEnd } from '@/lib/logging/query-logger'
-import { getBaseBudget, canAccumulate } from '@/lib/chat/common/budget'
+import { getBaseBudget, canAccumulate, getTokenBudget, estimateTokensFromText, canAccumulateTokens } from '@/lib/chat/common/budget'
 
 const env = {
   maxDocs: Number(process.env.SUMMARY_MAX_DOCS ?? 150),
@@ -36,11 +36,13 @@ export const summariesMongoRetriever: ChatRetriever = {
     let stepList = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'list', level: 'summary' })
     const items = await findDocSummaries(libraryKey, input.libraryId, input.filters, { limit: env.maxDocs, sort: { upsertedAt: -1 } })
 
-    const budget = getBaseBudget(input.answerLength)
-    const mode = decideSummaryMode(items as Array<{ chaptersCount?: number }>, budget)
+    const budgetChars = getBaseBudget(input.answerLength)
+    const budgetTokens = getTokenBudget()
+    const mode = decideSummaryMode(items as Array<{ chaptersCount?: number }>, budgetChars)
 
     const sources: RetrievedSource[] = []
-    let used = 0
+    let usedChars = 0
+    let usedTokens = 0
 
     for (const d of items) {
       if (mode === 'chapters') {
@@ -50,19 +52,27 @@ export const summariesMongoRetriever: ChatRetriever = {
           const sum = typeof c?.summary === 'string' ? c.summary : undefined
           if (!sum) continue
           const text = `${title ? `Kapitel: ${title}\n` : ''}${sum.slice(0, env.estimateCharsPerChapter)}`
-          if (!canAccumulate(used, text.length, budget)) { break }
+          const okChars = canAccumulate(usedChars, text.length, budgetChars)
+          const est = budgetTokens ? estimateTokensFromText(text) : 0
+          const okTokens = budgetTokens ? canAccumulateTokens(usedTokens, est, budgetTokens) : true
+          if (!(okChars && okTokens)) { break }
           sources.push({ id: String(d.fileId ?? ''), fileName: typeof d.fileName === 'string' ? d.fileName : undefined, text })
-          used += text.length
+          usedChars += text.length
+          if (budgetTokens) usedTokens += est
         }
       } else {
         const sum = typeof (d as { docSummary?: unknown }).docSummary === 'string' ? (d as { docSummary: string }).docSummary : ''
         if (!sum) continue
         const text = sum.slice(0, env.estimateCharsPerDoc)
-        if (!canAccumulate(used, text.length, budget)) break
+        const okChars = canAccumulate(usedChars, text.length, budgetChars)
+        const est = budgetTokens ? estimateTokensFromText(text) : 0
+        const okTokens = budgetTokens ? canAccumulateTokens(usedTokens, est, budgetTokens) : true
+        if (!(okChars && okTokens)) break
         sources.push({ id: String(d.fileId ?? ''), fileName: typeof d.fileName === 'string' ? d.fileName : undefined, text })
-        used += text.length
+        usedChars += text.length
+        if (budgetTokens) usedTokens += est
       }
-      if (used >= budget) break
+      if (usedChars >= budgetChars) break
     }
     stepList = markStepEnd({ ...stepList, topKReturned: sources.length })
     await logAppend(input.queryId, {
@@ -78,7 +88,7 @@ export const summariesMongoRetriever: ChatRetriever = {
       decision: mode,
     })
 
-    return { sources, timing: { retrievalMs: Date.now() - t0 } }
+    return { sources, timing: { retrievalMs: Date.now() - t0 }, stats: { candidatesCount: items.length, usedInPrompt: sources.length, decision: mode } }
   }
 }
 

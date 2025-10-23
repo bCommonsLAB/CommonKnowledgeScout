@@ -18,7 +18,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<{ ans
   const stepLevel = run.retriever === 'summary' ? 'summary' : 'chunk' as const
   // Hinweis: Summary-Flow loggt den list-Step bereits innerhalb des Retrievers mit candidatesCount/usedInPrompt/decision.
   // Für den Chunk-Flow behalten wir das Query-Logging hier bei.
-  const { sources } = await retrieverImpl.retrieve(run)
+  const { sources, stats } = await retrieverImpl.retrieve(run)
   if (run.retriever !== 'summary') {
     let step = markStepStart({ indexName: run.context.vectorIndex, namespace: '', stage: 'query', level: stepLevel })
     step = markStepEnd(step)
@@ -31,7 +31,11 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<{ ans
     return { answer: 'Keine passenden Inhalte gefunden', sources: [], retrievalMs, llmMs: 0 }
   }
 
-  const prompt = buildPrompt(run.question, sources, run.answerLength)
+  let prompt = buildPrompt(run.question, sources, run.answerLength)
+  if (stats && typeof stats.candidatesCount === 'number' && typeof stats.usedInPrompt === 'number' && stats.usedInPrompt < stats.candidatesCount) {
+    const hint = `\n\nHinweis: Aus Platzgründen konnten nur ${stats.usedInPrompt} von ${stats.candidatesCount} passenden Dokumenten berücksichtigt werden.`
+    prompt = prompt + hint
+  }
   const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
   const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.3)
   const apiKey = process.env.OPENAI_API_KEY || ''

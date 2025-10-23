@@ -21,6 +21,7 @@ export interface RetrievedSource {
 export interface RetrieverOutput {
   sources: RetrievedSource[]
   timing: { retrievalMs: number }
+  stats?: { candidatesCount?: number; usedInPrompt?: number; decision?: 'chapters' | 'docs' }
 }
 
 export interface ChatRetriever {

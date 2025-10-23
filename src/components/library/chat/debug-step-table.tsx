@@ -48,6 +48,12 @@ export function DebugStepTable({ step }: { step: QueryRetrievalStep }) {
         </label>
         <div className="text-xs text-muted-foreground ml-auto">{rows.length} Zeilen</div>
       </div>
+      {/* Zusatzmetriken falls vorhanden */}
+      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+        <span>candidates: {(step as any).candidatesCount ?? '-'}</span>
+        <span>used: {(step as any).usedInPrompt ?? '-'}</span>
+        {typeof (step as any).decision === 'string' && <span>decision: {(step as any).decision}</span>}
+      </div>
       <div className="overflow-auto max-h-72 border rounded">
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-muted">

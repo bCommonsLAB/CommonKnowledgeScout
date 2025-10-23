@@ -10,4 +10,22 @@ export function canAccumulate(current: number, add: number, budget: number): boo
   return current + add <= budget
 }
 
+// Tokenbasierte Budgetierung (heuristisch)
+export function getTokenBudget(): number | undefined {
+  const v = process.env.CHAT_MAX_INPUT_TOKENS
+  const n = v ? Number(v) : NaN
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
+// Sehr grobe Heuristik: ~4 Zeichen ≈ 1 Token (konservativ)
+export function estimateTokensFromText(text: string): number {
+  if (!text) return 0
+  const len = text.length
+  return Math.ceil(len / 4)
+}
+
+export function canAccumulateTokens(current: number, add: number, budget: number): boolean {
+  return current + add <= budget
+}
+
 
