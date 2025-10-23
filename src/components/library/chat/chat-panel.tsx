@@ -46,7 +46,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [debugOpen, setDebugOpen] = useState(false)
   const [debugJson, setDebugJson] = useState<unknown | null>(null)
   const [history, setHistory] = useState<Array<{ queryId: string; question: string; createdAt: string; mode: string; status: string }>>([])
-  const [answerLength, setAnswerLength] = useState<'kurz' | 'mittel' | 'ausführlich'>('mittel')
+  const [answerLength, setAnswerLength] = useState<'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'>('mittel')
   const [retriever, setRetriever] = useState<'chunk' | 'doc'>('chunk')
   const inputRef = useRef<HTMLInputElement>(null)
   const galleryFilters = useAtomValue(galleryFiltersAtom)
@@ -211,10 +211,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             </Select>
           <Button type="button" size="sm" onClick={onSend}>Senden</Button>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
           <span>Antwortlänge:</span>
           <div className="flex gap-1">
-            {(['kurz','mittel','ausführlich'] as const).map(v => (
+            {(['kurz','mittel','ausführlich','unbegrenzt'] as const).map(v => (
               <Button key={v} type="button" size="sm" variant={answerLength===v? 'default':'outline'} onClick={() => setAnswerLength(v)} className="h-7 px-2">
                 {v}
               </Button>
@@ -351,7 +351,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
             <span>Antwortlänge:</span>
             <div className="flex gap-1">
-              {(['kurz','mittel','ausführlich'] as const).map(v => (
+            {(['kurz','mittel','ausführlich','unbegrenzt'] as const).map(v => (
                 <Button key={v} type="button" size="sm" variant={answerLength===v? 'default':'outline'} onClick={() => setAnswerLength(v)} className="h-7">
                   {v}
                 </Button>

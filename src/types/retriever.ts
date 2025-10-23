@@ -2,7 +2,7 @@ export interface RetrieverInput {
   libraryId: string
   userEmail: string
   question: string
-  answerLength: 'kurz' | 'mittel' | 'ausführlich'
+  answerLength: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'
   filters: Record<string, unknown>
   queryId: string
   context: {

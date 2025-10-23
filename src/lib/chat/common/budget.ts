@@ -1,8 +1,10 @@
-export function getBaseBudget(answerLength: 'kurz' | 'mittel' | 'ausführlich'): number {
+export function getBaseBudget(answerLength: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'): number {
+  if (answerLength === 'unbegrenzt') return Number.MAX_SAFE_INTEGER
   return answerLength === 'ausführlich' ? 180000 : answerLength === 'mittel' ? 90000 : 30000
 }
 
-export function reduceBudgets(answerLength: 'kurz' | 'mittel' | 'ausführlich'): number[] {
+export function reduceBudgets(answerLength: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'): number[] {
+  if (answerLength === 'unbegrenzt') return [200000, 150000, 120000, 90000, 60000, 30000]
   return answerLength === 'ausführlich' ? [120000, 90000, 60000, 30000] : answerLength === 'mittel' ? [60000, 30000] : [20000]
 }
 

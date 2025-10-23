@@ -11,7 +11,7 @@ import { buildFilters } from '@/lib/chat/common/filters'
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(4000),
-  answerLength: z.enum(['kurz','mittel','ausführlich']).default('mittel')
+  answerLength: z.enum(['kurz','mittel','ausführlich','unbegrenzt']).default('mittel')
 })
 
 export async function POST(
@@ -412,7 +412,9 @@ export async function POST(
       ? 'Schreibe eine strukturierte, ausführliche Antwort (ca. 250–600 Wörter): Beginne mit 1–2 Sätzen Zusammenfassung, danach Details in Absätzen oder Stichpunkten. Vermeide Füllwörter.'
       : answerLength === 'mittel'
       ? 'Schreibe eine mittellange Antwort (ca. 120–250 Wörter): 3–6 Sätze oder eine kurze Liste der wichtigsten Punkte. Direkt und präzise.'
-      : 'Schreibe eine knappe Antwort (1–3 Sätze, max. 120 Wörter). Keine Einleitung, direkt die Kernaussage.'
+      : answerLength === 'kurz'
+      ? 'Schreibe eine knappe Antwort (1–3 Sätze, max. 120 Wörter). Keine Einleitung, direkt die Kernaussage.'
+      : 'Formuliere eine vollständige, gut strukturierte Antwort. Du darfst so lang antworten, wie nötig; bleibe aber fokussiert auf die Frage.'
 
     const prompt = `Du bist ein präziser Assistent. Beantworte die Frage ausschließlich auf Basis der bereitgestellten Quellen.\n\nFrage:\n${message}\n\nQuellen:\n${context}\n\nAnforderungen:\n- ${styleInstruction}\n- Fachlich korrekt, ohne Spekulationen.\n- Zitiere am Ende die verwendeten Quellen als [n] (Dateiname, Chunk).\n- Antworte auf Deutsch.`
     await logSetPrompt(queryId, { provider: 'openai', model, temperature, prompt })

@@ -8,7 +8,7 @@ import { LibraryHeader } from "./library-header"
 import { FileTree } from "./file-tree"
 import { FileList } from "./file-list"
 import dynamic from 'next/dynamic'
-const FilePreviewLazy = dynamic(() => import('./file-preview').then(m => m.FilePreview), {
+const FilePreviewLazy = dynamic(() => import('./file-preview').then(m => ({ default: m.FilePreview })), {
   ssr: false,
   loading: () => (
     <div className="h-full flex items-center justify-center text-muted-foreground">
