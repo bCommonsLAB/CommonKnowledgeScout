@@ -50,9 +50,9 @@ export function DebugStepTable({ step }: { step: QueryRetrievalStep }) {
       </div>
       {/* Zusatzmetriken falls vorhanden */}
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-        <span>candidates: {(step as any).candidatesCount ?? '-'}</span>
-        <span>used: {(step as any).usedInPrompt ?? '-'}</span>
-        {typeof (step as any).decision === 'string' && <span>decision: {(step as any).decision}</span>}
+        <span>candidates: {typeof step.candidatesCount === 'number' ? step.candidatesCount : '-'}</span>
+        <span>used: {typeof step.usedInPrompt === 'number' ? step.usedInPrompt : '-'}</span>
+        {typeof step.decision === 'string' && <span>decision: {step.decision}</span>}
       </div>
       <div className="overflow-auto max-h-72 border rounded">
         <table className="w-full text-xs">

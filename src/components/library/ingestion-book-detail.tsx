@@ -18,7 +18,7 @@ export function IngestionBookDetail({ libraryId, fileId, docModifiedAt }: Ingest
     try {
       setLoading(true);
       setError(null);
-      const url = `/api/chat/${encodeURIComponent(libraryId)}/document-status?fileId=${encodeURIComponent(fileId)}${docModifiedAt ? `&docModifiedAt=${encodeURIComponent(docModifiedAt)}` : ''}&stats=1`;
+      const url = `/api/chat/${encodeURIComponent(libraryId)}/ingestion-status?fileId=${encodeURIComponent(fileId)}${docModifiedAt ? `&docModifiedAt=${encodeURIComponent(docModifiedAt)}` : ''}&stats=1`;
       const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Ingestion-Status konnte nicht geladen werden');
