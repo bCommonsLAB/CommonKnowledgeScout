@@ -31,7 +31,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<{ ans
     return { answer: 'Keine passenden Inhalte gefunden', sources: [], retrievalMs, llmMs: 0 }
   }
 
-  let prompt = buildPrompt(run.question, sources, run.answerLength)
+  const promptAnswerLength = (run.answerLength === 'unbegrenzt' ? 'ausführlich' : run.answerLength)
+  let prompt = buildPrompt(run.question, sources, promptAnswerLength)
   if (stats && typeof stats.candidatesCount === 'number' && typeof stats.usedInPrompt === 'number' && stats.usedInPrompt < stats.candidatesCount) {
     const hint = `\n\nHinweis: Aus Platzgründen konnten nur ${stats.usedInPrompt} von ${stats.candidatesCount} passenden Dokumenten berücksichtigt werden.`
     prompt = prompt + hint

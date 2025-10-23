@@ -188,10 +188,6 @@ export async function GET(
   }
 }
 
-function safeParseJson(input: string): unknown {
-  try { return JSON.parse(input) } catch { return undefined }
-}
-
 function normalizeStr(v: unknown): string | undefined {
   if (typeof v === 'string') return v.replace(/^\s*"|"\s*$/g, '').trim()
   return undefined
