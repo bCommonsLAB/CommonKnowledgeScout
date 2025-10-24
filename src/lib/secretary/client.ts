@@ -955,3 +955,66 @@ export async function importSessionFromUrl(
     );
   }
 } 
+
+/**
+ * Startet die vollständige Session-Verarbeitung im Secretary Service
+ * und liefert Markdown/ZIP im Response.
+ */
+export interface ProcessSessionInput {
+  event: string;
+  session: string;
+  url: string;
+  filename: string;
+  track: string;
+  day?: string;
+  starttime?: string;
+  endtime?: string;
+  speakers?: string[];
+  video_url?: string;
+  video_transcript?: string;
+  attachments_url?: string;
+  source_language?: string;
+  target_language?: string;
+  target?: string;
+  template?: string;
+  use_cache?: boolean;
+  create_archive?: boolean;
+}
+
+export interface ProcessSessionSuccessData {
+  status: 'success';
+  data?: {
+    output?: {
+      archive_data?: string;
+      archive_filename?: string;
+      markdown_content?: string;
+      markdown_file?: string;
+    };
+  };
+}
+
+export interface ProcessSessionErrorData {
+  status: 'error';
+  error?: { code?: string; message?: string };
+}
+
+export type ProcessSessionResponse = ProcessSessionSuccessData | ProcessSessionErrorData | unknown;
+
+export async function processSession(input: ProcessSessionInput): Promise<ProcessSessionResponse> {
+  try {
+    const resp = await fetch('/api/secretary/session/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const data: ProcessSessionResponse = await resp.json();
+    if (!resp.ok || (data as ProcessSessionErrorData)?.status === 'error') {
+      const message = (data as ProcessSessionErrorData)?.error?.message || resp.statusText;
+      throw new SecretaryServiceError(message);
+    }
+    return data;
+  } catch (error) {
+    if (error instanceof SecretaryServiceError) throw error;
+    throw new SecretaryServiceError('Fehler bei processSession');
+  }
+}

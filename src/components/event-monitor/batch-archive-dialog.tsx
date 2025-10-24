@@ -340,8 +340,10 @@ export default function BatchArchiveDialog({
     });
 
     try {
-      // Datei-Objekt erstellen
-      const file = new File([content], filename, { type: mimeType });
+      // Datei-Objekt erstellen – Uint8Array in ArrayBuffer kopieren, um Typkonflikte zu vermeiden
+      const arrayBuffer = new ArrayBuffer(content.byteLength);
+      new Uint8Array(arrayBuffer).set(content);
+      const file = new File([arrayBuffer], filename, { type: mimeType });
 
       // Verzeichnis-Struktur erstellen und navigieren
       const targetFolderId = await ensureDirectoryPath(targetPath);
@@ -497,9 +499,9 @@ export default function BatchArchiveDialog({
                 {jobsWithArchives.length} von {completedJobs.length} abgeschlossene Jobs aus 
                 {batches.length} gefilterten Batches haben Archive und können gespeichert werden.
                 {completedJobs.length === 0 && (
-                  <div className="mt-2 text-amber-600">
+                  <span className="block mt-2 text-amber-600">
                     Keine abgeschlossenen Jobs gefunden. Stellen Sie sicher, dass die Jobs erfolgreich verarbeitet wurden.
-                  </div>
+                  </span>
                 )}
               </>
             ) : (
@@ -507,9 +509,9 @@ export default function BatchArchiveDialog({
                 {jobsWithArchives.length} von {completedJobs.length} abgeschlossene Jobs aus 
                 &quot;{batch?.batch_name}&quot; haben Archive und können gespeichert werden.
                 {completedJobs.length === 0 && (
-                  <div className="mt-2 text-amber-600">
+                  <span className="block mt-2 text-amber-600">
                     Keine abgeschlossenen Jobs gefunden. Stellen Sie sicher, dass die Jobs erfolgreich verarbeitet wurden.
-                  </div>
+                  </span>
                 )}
               </>
             )}

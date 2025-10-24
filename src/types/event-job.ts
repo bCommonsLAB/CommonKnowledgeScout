@@ -41,6 +41,7 @@ export interface JobParameters {
   endtime?: string;
   speakers?: string[] | null;
   video_url?: string;
+  template?: string;
   attachments_url?: string;
   source_language: string;
   target_language: string;

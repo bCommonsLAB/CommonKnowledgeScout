@@ -58,6 +58,7 @@ import { useAtom } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
 import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
 import BatchArchiveDialog from './batch-archive-dialog';
+import { BatchProcessDialog } from './batch-process-dialog';
 
 // Archive-Dialog wird jetzt durch separate BatchArchiveDialog-Komponente ersetzt
 
@@ -92,6 +93,8 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
   const [completedJobsForArchive, setCompletedJobsForArchive] = useState<Job[]>([]);
+  const [processDialogOpen, setProcessDialogOpen] = useState(false);
+  const [jobsForProcess, setJobsForProcess] = useState<Job[]>([]);
   
   // Dialog-Komponente für Batch-Restart
   const [batchRestartDialogOpen, setBatchRestartDialogOpen] = useState(false);
@@ -381,6 +384,17 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
     } catch (error) {
       console.error('Fehler beim Laden der Jobs für Archive:', error);
       alert('Fehler beim Laden der Jobs. Bitte versuchen Sie es erneut.');
+    }
+  };
+
+  // Verarbeitung starten – Jobs laden und Dialog öffnen
+  const openProcessDialog = async (batchId: string) => {
+    const response = await fetch(`/api/event-job/batches/${batchId}/jobs?limit=1000`);
+    const data = await response.json();
+    if (data.status === 'success') {
+      const jobs: Job[] = data.data.jobs || [];
+      setJobsForProcess(jobs);
+      setProcessDialogOpen(true);
     }
   };
   
@@ -755,6 +769,18 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                               <BookOpenText className="w-4 h-4 mr-2" />
                               Zusammenfassung erstellen
                             </DropdownMenuItem>
+
+                            {/* Verarbeitung starten Option (alias zu Archiv-Workflow) */}
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openProcessDialog(batch.batch_id);
+                              }}
+                              disabled={processingBatch === batch.batch_id}
+                            >
+                              <PlayCircle className="w-4 h-4 mr-2" />
+                              Verarbeitung starten
+                            </DropdownMenuItem>
                             
                             {/* In Library speichern Option */}
                             <DropdownMenuItem 
@@ -958,6 +984,13 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
           onArchiveComplete={handleArchiveComplete}
         />
       )}
+
+      {/* Prozess-Dialog */}
+      <BatchProcessDialog
+        open={processDialogOpen}
+        onOpenChange={setProcessDialogOpen}
+        jobs={jobsForProcess}
+      />
       
       {/* Dialog-Komponente für Batch-Restart */}
       {selectedBatchForRestart && (

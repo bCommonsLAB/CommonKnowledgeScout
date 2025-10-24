@@ -50,3 +50,13 @@ export function getSecretaryConfig(): SecretaryConfig {
 }
 
 
+/**
+ * Vimeo API Zugriff (optional). Wenn gesetzt, kann die Server-Route
+ * Medien-URLs über die offizielle API auflösen (um Player/CORS/403 zu umgehen).
+ */
+export function getVimeoConfig(): { accessToken?: string } {
+  const accessToken = process.env.VIMEO_ACCESS_TOKEN || undefined
+  return { accessToken }
+}
+
+

@@ -206,6 +206,26 @@ export class SessionRepository {
       throw error;
     }
   }
+
+  /**
+   * Aktualisiert eine Session über eindeutige Schlüssel (event + session + url + filename)
+   */
+  async updateSessionByKeys(
+    keys: Pick<Session, 'event' | 'session' | 'url' | 'filename'>,
+    updates: Partial<Omit<Session, 'id' | 'created_at'>>
+  ): Promise<boolean> {
+    try {
+      const sessionCollection = await this.getSessionCollection();
+      const result = await sessionCollection.updateOne(
+        { event: keys.event, session: keys.session, url: keys.url, filename: keys.filename },
+        { $set: { ...updates, updated_at: new Date() } }
+      );
+      return result.modifiedCount > 0;
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren der Session (by keys):', error);
+      throw error;
+    }
+  }
   
   /**
    * Löscht eine Session

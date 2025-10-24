@@ -15,6 +15,8 @@ export interface Session {
   speakers: string[];
   source_language: string;
   target_language?: string; // Optional für Job-Generierung
+  // Optional: gespeichertes Plaintext-Transkript (zur Kontrolle)
+  transcript_text?: string;
   created_at?: Date;
   updated_at?: Date;
 }
