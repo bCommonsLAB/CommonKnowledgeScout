@@ -1314,6 +1314,56 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   };
 
+  // Markdown‑Ingestion (Batch) – ruft serverseitige Route pro Datei auf
+  const handleBatchIngest = React.useCallback(async () => {
+    if (!provider) {
+      toast.error("Fehler", { description: "Storage Provider nicht verfügbar" });
+      return;
+    }
+    if (!activeLibraryId) {
+      toast.error("Fehler", { description: "Keine aktive Bibliothek" });
+      return;
+    }
+    const isMarkdown = (name: string, mime?: string) => {
+      const lower = name.toLowerCase();
+      return lower.endsWith('.md') || (mime || '').toLowerCase().includes('markdown');
+    }
+    const targets = selectedTransformationItems
+      .map(x => x.item)
+      .filter(it => it.type === 'file' && isMarkdown(it.metadata.name, it.metadata.mimeType));
+    if (targets.length === 0) {
+      toast.info("Hinweis", { description: "Keine Markdown‑Dateien ausgewählt" });
+      return;
+    }
+    const start = performance.now();
+    let ok = 0, fail = 0;
+    for (const it of targets) {
+      try {
+        const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/ingest-markdown`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileId: it.id, fileName: it.metadata.name })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Ingestion fehlgeschlagen');
+        ok++;
+        toast.success('Ingestion', { description: `${it.metadata.name}: ${json.chunksUpserted ?? 0} Chunks` });
+      } catch (e) {
+        fail++;
+        toast.error('Ingestion fehlgeschlagen', { description: `${it.metadata.name}: ${e instanceof Error ? e.message : 'Unbekannter Fehler'}` });
+      }
+    }
+    // Ordner aktualisieren
+    try {
+      const parentId = targets[0]?.parentId;
+      if (parentId) {
+        const refreshed = await refreshItems(parentId);
+        setFolderItems(refreshed);
+      }
+    } catch {}
+    StateLogger.info('FileList', 'Batch Ingestion done', { ok, fail, ms: (performance.now() - start).toFixed(1) });
+  }, [provider, activeLibraryId, selectedTransformationItems, refreshItems, setFolderItems]);
+
   // Bulk-Löschung für ausgewählte Dateien (unabhängig von Batch/Transformation-Selektor)
   const handleBulkDelete = React.useCallback(async () => {
     if (!provider) return;
@@ -1463,9 +1513,14 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
               </Button>
             )}
             {selectedTransformationItems.length > 0 && (
-              <Button size="icon" variant="secondary" title="Transformieren" aria-label="Transformieren" onClick={handleBatchTransformation}>
-                <Plus className="h-4 w-4" />
-              </Button>
+              <>
+                <Button size="icon" variant="secondary" title="Transformieren" aria-label="Transformieren" onClick={handleBatchTransformation}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <Button className="h-8 px-2 text-xs" variant="outline" title="Ingestieren" aria-label="Ingestieren" onClick={handleBatchIngest}>
+                  Ingest
+                </Button>
+              </>
             )}
             {(selectedBatchItems.length + selectedTransformationItems.length) > 0 && (
               <Button size="icon" variant="destructive" title="Ausgewählte löschen" aria-label="Ausgewählte löschen" onClick={handleBulkDelete}>

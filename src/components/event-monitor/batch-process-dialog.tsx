@@ -113,8 +113,8 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
           attachments_url: p.attachments_url,
           source_language: p.source_language || 'en',
           target_language: p.target_language || 'de',
-          template: p.template || 'Session',
-          use_cache: true,
+          template: p.template || 'Session_analyze',
+          use_cache: false,
           create_archive: true,
         };
 

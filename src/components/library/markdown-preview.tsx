@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
 import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
+import { stripAllFrontmatter, parseFrontmatter } from '@/lib/markdown/frontmatter'
 
 /**
  * Fügt unsichtbare Anker vor Zeilen wie "— Seite 12 —" ein, damit Scroll‑Sync möglich ist.
@@ -71,18 +72,14 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   const libraryStatus = useAtomValue(libraryStatusAtom);
   const { listItems } = useStorage();
   
-  // Text State mit entferntem Frontmatter initialisieren
+  // Text State mit entferntem Frontmatter initialisieren (strikt)
   const [text, setText] = React.useState(() => {
-    // Frontmatter entfernen
-    const frontmatterRegex = /^---\n([\s\S]*?)\n---\n?/;
-    return (content || '').replace(frontmatterRegex, '');
+    return stripAllFrontmatter(content || '');
   });
   
   // Text aktualisieren, wenn sich der content ändert
   React.useEffect(() => {
-    const frontmatterRegex = /^---\n([\s\S]*?)\n---\n?/;
-    const contentWithoutFrontmatter = (content || '').replace(frontmatterRegex, '');
-    setText(contentWithoutFrontmatter);
+    setText(stripAllFrontmatter(content || ''));
   }, [content]);
   
   // Debug-Logging für Text
@@ -95,35 +92,9 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     });
   }, [currentItem, text]);
   
-  // Funktion zum Extrahieren der Frontmatter-Metadaten
-  const extractFrontmatter = React.useCallback((markdownContent: string): Record<string, string> => {
-    const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
-    const match = markdownContent.match(frontmatterRegex);
-    
-    if (!match) return {};
-    
-    const frontmatterText = match[1];
-    const metadata: Record<string, string> = {};
-    
-    // Parse YAML-like frontmatter (simple implementation)
-    const lines = frontmatterText.split('\n');
-    for (const line of lines) {
-      const colonIndex = line.indexOf(':');
-      if (colonIndex > 0) {
-        const key = line.substring(0, colonIndex).trim();
-        let value = line.substring(colonIndex + 1).trim();
-        
-        // Remove quotes if present
-        if ((value.startsWith('"') && value.endsWith('"')) || 
-            (value.startsWith("'") && value.endsWith("'"))) {
-          value = value.slice(1, -1);
-        }
-        
-        metadata[key] = value;
-      }
-    }
-    
-    return metadata;
+  // Funktion zum Extrahieren der Frontmatter-Metadaten (strikt)
+  const extractFrontmatter = React.useCallback((markdownContent: string): Record<string, unknown> => {
+    return parseFrontmatter(markdownContent).meta;
   }, []);
 
 
@@ -992,9 +963,8 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   const renderedContent = React.useMemo(() => {
     if (!content) return '';
 
-    // Entferne Frontmatter nur am Anfang des Dokuments
-    const frontmatterRegex = /^---\n([\s\S]*?)\n---\n?/;
-    let mainContent = content.replace(frontmatterRegex, '');
+    // Entferne Frontmatter robust
+    let mainContent = stripAllFrontmatter(content);
 
     // Seite‑Marker als Anker einfügen, z. B. "— Seite 12 —" → <div data-page-marker="12"></div>
     mainContent = injectPageAnchors(mainContent);

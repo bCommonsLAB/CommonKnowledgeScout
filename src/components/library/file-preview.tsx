@@ -7,6 +7,7 @@ import { AlertCircle } from "lucide-react";
 import { AudioPlayer } from './audio-player';
 import { VideoPlayer } from './video-player';
 import { MarkdownPreview } from './markdown-preview';
+import { MarkdownMetadata } from './markdown-metadata';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
 import { useAtomValue, useSetAtom } from "jotai";
@@ -347,6 +348,7 @@ function PreviewContent({
           <Tabs defaultValue="preview" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <TabsList className="mx-4 mt-2 flex-shrink-0">
               <TabsTrigger value="preview">Vorschau</TabsTrigger>
+              <TabsTrigger value="metadata">Metadaten</TabsTrigger>
               <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
               <TabsTrigger value="report">Report</TabsTrigger>
             </TabsList>
@@ -361,6 +363,11 @@ function PreviewContent({
                   onTransform={() => setActiveTab("edit")}
                   onRefreshFolder={onRefreshFolder}
                 />
+              </TabsContent>
+              <TabsContent value="metadata" className="h-full mt-0">
+                <div className="h-full overflow-auto px-4 py-2">
+                  <MarkdownMetadata content={content} />
+                </div>
               </TabsContent>
               <TabsContent value="report" className="h-full mt-0">
                 <JobReportTab libraryId={activeLibraryId} fileId={item.id} fileName={item.metadata.name} provider={provider} />

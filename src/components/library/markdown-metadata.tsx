@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
+import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 
 interface MarkdownMetadataProps {
   content: string;
@@ -8,56 +9,17 @@ interface MarkdownMetadataProps {
 }
 
 /**
- * Extracts and formats YAML frontmatter from markdown content
+ * Extrahiert Frontmatter (strikt) via parseFrontmatter und gibt Meta zurück.
+ * Arrays/Objekte werden korrekt aus JSON gelesen (chapters, toc, ...).
  */
 export function extractFrontmatter(content: string): Record<string, unknown> | null {
-  // Match frontmatter with or without newlines after the dashes
-  const frontmatterMatch = content.match(/^---\s*([\s\S]*?)\s*---/);
-  if (!frontmatterMatch) {
-    FileLogger.debug('MarkdownMetadata', 'No frontmatter match found');
+  const { meta } = parseFrontmatter(content);
+  if (!meta || Object.keys(meta).length === 0) {
+    FileLogger.debug('MarkdownMetadata', 'No frontmatter found');
     return null;
   }
-
-  const frontmatter: Record<string, unknown> = {};
-  const lines = frontmatterMatch[1].split('\n');
-
-  lines.forEach(line => {
-    const trimmedLine = line.trim();
-    if (trimmedLine && trimmedLine.includes(':')) {
-      const [key, ...valueParts] = trimmedLine.split(':');
-      let value = valueParts.join(':').trim();
-      
-      // Remove surrounding quotes
-      value = value.replace(/^["'](.*)["']$/, '$1');
-      
-      // Special handling for arrays in square brackets
-      if (value.startsWith('[') && value.endsWith(']')) {
-        const cleanValue = value.slice(1, -1);
-        frontmatter[key.trim()] = cleanValue
-          .split(',')
-          .map(item => item.trim().replace(/^["'](.*)["']$/, '$1'))
-          .filter(Boolean);
-      }
-      // Handle comma-separated values without brackets
-      else if (value.includes(',')) {
-        frontmatter[key.trim()] = value
-          .split(',')
-          .map(item => item.trim().replace(/^["'](.*)["']$/, '$1'))
-          .filter(Boolean);
-      }
-      // Handle empty values
-      else if (!value) {
-        frontmatter[key.trim()] = null;
-      }
-      // Handle regular values
-      else {
-        frontmatter[key.trim()] = value;
-      }
-    }
-  });
-
-  FileLogger.debug('MarkdownMetadata', 'Extracted frontmatter', { frontmatter });
-  return frontmatter;
+  FileLogger.debug('MarkdownMetadata', 'Extracted frontmatter', { keys: Object.keys(meta) });
+  return meta;
 }
 
 /**
