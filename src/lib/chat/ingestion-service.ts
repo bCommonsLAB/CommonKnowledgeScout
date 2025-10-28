@@ -113,7 +113,12 @@ export class IngestionService {
           if ((trimmed.startsWith('[') && trimmed.endsWith(']'))) {
             try {
               const arr = JSON.parse(trimmed)
-              if (Array.isArray(arr)) return arr.map(x => stripWrappingQuotes(typeof x === 'string' ? x : String(x))).filter(Boolean)
+              if (Array.isArray(arr)) {
+                // Wichtig: Elemente rekursiv bereinigen und Typen bewahren (Objekte nicht stringifizieren)
+                return arr
+                  .map(x => deepClean(x))
+                  .filter(v => v !== undefined)
+              }
             } catch {}
           }
           return stripWrappingQuotes(trimmed)

@@ -73,10 +73,13 @@ export async function POST(request: NextRequest) {
     }
     
     // Validierung der einzelnen Session-Felder
+    // Pflichtfelder: session, filename, event, track
+    // Optionale Felder: image_url, video_url, url, day, starttime, endtime, speakers, source_language, target_language, subtitle, description, attachments_url
     for (let i = 0; i < body.sessions.length; i++) {
       const session = body.sessions[i];
-      const requiredFields = ['session', 'filename', 'track', 'video_url', 'event', 'url', 'day', 'starttime', 'endtime', 'speakers', 'source_language'];
+      const requiredFields = ['session', 'filename', 'event', 'track'];
       
+      // Prüfung der Pflichtfelder
       for (const field of requiredFields) {
         if (!session[field as keyof typeof session]) {
           return NextResponse.json(
@@ -90,12 +93,13 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Validierung des speakers Arrays
-      if (!Array.isArray(session.speakers) || session.speakers.length === 0) {
+      // Optionale Felder werden toleriert - keine Validierung erforderlich
+      // Falls speakers vorhanden ist, sicherstellen dass es ein Array ist (kann leer sein)
+      if (session.speakers && !Array.isArray(session.speakers)) {
         return NextResponse.json(
           { 
             status: 'error', 
-            message: `Session ${i + 1}: 'speakers' muss ein nicht-leeres Array sein`,
+            message: `Session ${i + 1}: 'speakers' muss ein Array sein (falls angegeben)`,
             details: { sessionIndex: i, speakers: session.speakers }
           },
           { status: 400 }

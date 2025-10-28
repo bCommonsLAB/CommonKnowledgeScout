@@ -40,6 +40,7 @@ export interface JobParameters {
   starttime?: string;
   endtime?: string;
   speakers?: string[] | null;
+  image_url?: string; // Optional: Bild-URL von der Session-Seite
   video_url?: string;
   template?: string;
   attachments_url?: string;

@@ -27,6 +27,8 @@ export const chatConfigSchema = z.object({
     indexOverride: z.string().min(1).optional(),
   }).default({}),
   gallery: z.object({
+    // Typ der Detailansicht: 'book' für klassische Dokumente, 'session' für Event-Sessions/Präsentationen
+    detailViewType: z.enum(['book', 'session']).default('book'),
     facets: z.array(z.object({
       metaKey: z.string().min(1), // Top‑Level Feld in docMetaJson (gleichzeitig Query-Param-Name)
       label: z.string().min(1).optional(),
@@ -46,6 +48,7 @@ export const chatConfigSchema = z.object({
       { metaKey: 'commercialStatus', label: 'Commercial', type: 'string', multi: true, visible: false },
     ])
   }).default({
+    detailViewType: 'book',
     facets: [
       { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
       { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },

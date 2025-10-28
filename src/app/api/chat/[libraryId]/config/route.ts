@@ -38,6 +38,7 @@ export async function GET(
         footerText: ctx.chat.footerText,
         companyLink: ctx.chat.companyLink,
         features: ctx.chat.features,
+        gallery: ctx.chat.gallery, // Gallery-Config inkl. detailViewType hinzufügen
       },
       vectorIndex: ctx.vectorIndex,
     }

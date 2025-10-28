@@ -176,6 +176,8 @@ export async function GET(
         language: languageStr,
         topics: topicsArr,
         summary: summaryStr,
+        // Komplettes docMetaJson für Session-spezifische Felder (speakers, event, slides, etc.)
+        docMetaJson: docMetaObj,
       },
       chapters,
     }

@@ -211,6 +211,17 @@ export class LibraryService {
     console.log('[LibraryService] === TO CLIENT LIBRARIES START ===');
     
     return libraries.map(lib => {
+      // Debug: Zeige Chat-Config vor dem Mapping
+      if (lib.config?.chat) {
+        console.log(`[LibraryService] Library ${lib.id} Chat-Config:`, {
+          hasGallery: !!(lib.config.chat as { gallery?: unknown }).gallery,
+          detailViewType: ((lib.config.chat as { gallery?: { detailViewType?: unknown } }).gallery)?.detailViewType,
+          facetsCount: Array.isArray(((lib.config.chat as { gallery?: { facets?: unknown } }).gallery)?.facets) 
+            ? ((lib.config.chat as { gallery?: { facets?: unknown[] } }).gallery)!.facets!.length 
+            : 0
+        });
+      }
+      
       // Basis-Konfiguration für alle Bibliothekstypen (nur sichere Felder)
       const baseConfig = {
         transcription: lib.transcription,

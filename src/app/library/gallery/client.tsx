@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { X, FileText, Calendar, User, MapPin, ExternalLink, Filter, ChevronLeft, MessageSquare, LayoutGrid } from 'lucide-react'
 import { ChatPanel } from '@/components/library/chat/chat-panel'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
+import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
 
 interface DocCardMeta {
   id: string
@@ -93,6 +94,8 @@ export default function GalleryClient() {
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }>>([])
   // Stats werden aktuell nicht gerendert; um Linter zu erfüllen, Status lokal halten
   const [, setStats] = useState<StatsResponse | null>(null)
+  // Detail-View-Typ aus Library-Config (default: 'book')
+  const [detailViewType, setDetailViewType] = useState<'book' | 'session'>('book')
 
   // Hinweis: libraries derzeit ungenutzt – bewusst markiert
   void libraries
@@ -125,7 +128,7 @@ export default function GalleryClient() {
     return () => { cancelled = true }
   }, [libraryId, filters])
 
-  // Facetten-Definitionen + Optionen laden
+  // Facetten-Definitionen + Optionen laden + detailViewType aus Config
   useEffect(() => {
     let cancelled = false
     async function loadFacets() {
@@ -139,7 +142,45 @@ export default function GalleryClient() {
         // ignorieren
       }
     }
+    async function loadConfig() {
+      if (!libraryId) {
+        console.warn('[Gallery] Kein libraryId - Config-Load abgebrochen')
+        return
+      }
+      try {
+        const url = `/api/chat/${encodeURIComponent(libraryId)}/config`
+        console.log('[Gallery] Lade Config für Library:', libraryId)
+        console.log('[Gallery] Request URL:', url)
+        const res = await fetch(url, { cache: 'no-store' })
+        const data = await res.json()
+        // Gallery-Config ist unter data.config.gallery, NICHT data.gallery!
+        const galleryConfig = (data?.config as { gallery?: { detailViewType?: string } })?.gallery
+        console.log('[Gallery] Config Response:', { 
+          ok: res.ok, 
+          status: res.status,
+          fullData: JSON.stringify(data, null, 2),
+          gallery: galleryConfig,
+          detailViewType: galleryConfig?.detailViewType
+        })
+        if (!res.ok) {
+          console.warn('[Gallery] Config Response nicht OK:', res.status, res.statusText)
+          return
+        }
+        const viewType = galleryConfig?.detailViewType
+        console.log('[Gallery] DetailViewType aus Config:', viewType)
+        if (!cancelled && (viewType === 'book' || viewType === 'session')) {
+          console.log('[Gallery] ✅ Setze detailViewType auf:', viewType)
+          setDetailViewType(viewType)
+        } else {
+          console.log('[Gallery] ⚠️ Ungültiger oder fehlender detailViewType, verwende default: book')
+        }
+      } catch (e) {
+        console.error('[Gallery] Fehler beim Laden der Config:', e)
+        // ignorieren, default 'book' bleibt
+      }
+    }
     loadFacets()
+    loadConfig()
     return () => { cancelled = true }
   }, [libraryId])
 
@@ -436,7 +477,16 @@ export default function GalleryClient() {
 
                         <ScrollArea className='h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)]'>
                           <div className='p-0'>
-                            <IngestionBookDetail libraryId={libraryId} fileId={selected.fileId || selected.id} />
+                            {(() => {
+                              console.log('[Gallery] Rendering Detail View:', { detailViewType, fileId: selected.fileId || selected.id })
+                              if (detailViewType === 'session') {
+                                console.log('[Gallery] ✅ Verwende IngestionSessionDetail')
+                                return <IngestionSessionDetail libraryId={libraryId} fileId={selected.fileId || selected.id} />
+                              } else {
+                                console.log('[Gallery] ℹ️ Verwende IngestionBookDetail (default)')
+                                return <IngestionBookDetail libraryId={libraryId} fileId={selected.fileId || selected.id} />
+                              }
+                            })()}
                           </div>
                         </ScrollArea>
                       </div>

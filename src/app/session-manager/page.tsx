@@ -41,7 +41,8 @@ import {
   Clock,
   Globe,
   Video,
-  FileText
+  FileText,
+  Image
 } from 'lucide-react';
 import { Session } from '@/types/session';
 import { LANGUAGE_MAP } from '@/lib/secretary/constants';
@@ -453,11 +454,15 @@ export default function SessionManagerPage() {
                     </TableCell>
                     <TableCell className="align-top">
                       <div className="space-y-1">
-                        <div className="text-sm font-medium">{session.day}</div>
-                        <div className="flex items-center gap-1 text-xs text-gray-600">
-                          <Clock className="w-3 h-3" />
-                          <span>{session.starttime} - {session.endtime}</span>
-                        </div>
+                        <div className="text-sm font-medium">{session.day || '—'}</div>
+                        {(session.starttime || session.endtime) ? (
+                          <div className="flex items-center gap-1 text-xs text-gray-600">
+                            <Clock className="w-3 h-3" />
+                            <span>{session.starttime || '—'} - {session.endtime || '—'}</span>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-400">Keine Zeiten</div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="break-words whitespace-pre-line align-top">
@@ -465,6 +470,20 @@ export default function SessionManagerPage() {
                     </TableCell>
                     <TableCell className="align-top">
                       <div className="space-y-2">
+                        {session.image_url && (
+                          <div className="flex items-center gap-2">
+                            <Image className="w-3 h-3 text-gray-500" />
+                            <a 
+                              href={session.image_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-xs truncate max-w-32"
+                              title={session.image_url}
+                            >
+                              Bild
+                            </a>
+                          </div>
+                        )}
                         {session.video_url && (
                           <div className="flex items-center gap-2">
                             <Video className="w-3 h-3 text-gray-500" />
@@ -493,7 +512,7 @@ export default function SessionManagerPage() {
                             </a>
                           </div>
                         )}
-                        {!session.video_url && !session.attachments_url && (
+                        {!session.image_url && !session.video_url && !session.attachments_url && (
                           <span className="text-xs text-gray-400">—</span>
                         )}
                       </div>

@@ -172,6 +172,7 @@ export default function SessionImportModal({
         description: importedData.description || '',
         filename: importedData.filename || '',
         track: importedData.track || '',
+        image_url: importedData.image_url || '', // Optional: Bild-URL von der Session-Seite
         video_url: importedData.video_url || '',
         attachments_url: importedData.attachments_url || '',
         url: importedData.url || url,
@@ -386,6 +387,7 @@ export default function SessionImportModal({
             description: structuredData.description || '',
             filename: structuredData.filename || '',
             track: sessionLink.track || structuredData.track || '', // Track aus der Liste hat Vorrang
+            image_url: structuredData.image_url || '', // Optional: Bild-URL von der Session-Seite
             video_url: structuredData.video_url || '',
             attachments_url: structuredData.attachments_url || '',
             url: structuredData.url || sessionLink.url,
@@ -556,6 +558,14 @@ export default function SessionImportModal({
                       {Array.isArray(importedData.speakers) ? importedData.speakers.join(', ') : importedData.speakers || 'Nicht verfügbar'}
                     </span>
                   </div>
+                  {importedData.image_url && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="font-medium text-gray-700">Bild-URL:</span>
+                      <span className="col-span-2 text-gray-900 truncate" title={importedData.image_url}>
+                        {importedData.image_url}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -595,8 +605,9 @@ export default function SessionImportModal({
           </TabsContent>
 
           {/* Batch Import Tab */}
-          <TabsContent value="batch" className="flex-1 flex flex-col mt-6">
-            <div className="space-y-6 flex-1 flex flex-col">
+          <TabsContent value="batch" className="flex-1 flex flex-col mt-6 overflow-hidden">
+            {/* Scrollbarer Bereich für Formular und Liste */}
+            <div className="space-y-4 flex-1 overflow-y-auto pr-2">
               {/* URL-Eingabe für Session-Liste */}
               <div className="space-y-2">
                 <Label htmlFor="batchUrl">URL der Session-Liste *</Label>
@@ -643,8 +654,8 @@ export default function SessionImportModal({
                   </Button>
                 </div>
               ) : (
-                /* Session-Liste mit Buttons */
-                <div className="flex-1 flex flex-col space-y-4">
+                /* Session-Liste mit Überschrift und Progress */
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="font-medium text-gray-900">Gefundene Sessions ({sessionLinks.length})</h4>
@@ -663,6 +674,7 @@ export default function SessionImportModal({
                     <Progress value={importProgress} />
                   )}
 
+                  {/* Session-Liste: Feste Höhe mit eigenem Scroll */}
                   <ScrollArea className="h-[300px] border rounded-lg">
                     <div className="px-4 pb-4 space-y-2">
                       {sessionLinks.map((link, index) => (
@@ -695,40 +707,42 @@ export default function SessionImportModal({
                       ))}
                     </div>
                   </ScrollArea>
-
-                  {/* Batch Import Actions - Immer sichtbar */}
-                  <div className="flex justify-end gap-2">
-                    {isImportingBatch ? (
-                      <>
-                        <Button
-                          variant="destructive"
-                          onClick={() => setShouldCancelBatch(true)}
-                        >
-                          Import abbrechen
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setSessionLinks([]);
-                            setBatchEvent('');
-                          }}
-                        >
-                          Zurücksetzen
-                        </Button>
-                        <Button 
-                          onClick={handleBatchImport}
-                        >
-                          {`${sessionLinks.length} Sessions importieren`}
-                        </Button>
-                      </>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
+
+            {/* Batch Import Actions - Fixed am unteren Rand (außerhalb Scroll-Bereich) */}
+            {sessionLinks.length > 0 && (
+              <div className="flex justify-end gap-2 pt-4 border-t mt-4 bg-white">
+                {isImportingBatch ? (
+                  <>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setShouldCancelBatch(true)}
+                    >
+                      Import abbrechen
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSessionLinks([]);
+                        setBatchEvent('');
+                      }}
+                    >
+                      Zurücksetzen
+                    </Button>
+                    <Button 
+                      onClick={handleBatchImport}
+                    >
+                      {`${sessionLinks.length} Sessions importieren`}
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 

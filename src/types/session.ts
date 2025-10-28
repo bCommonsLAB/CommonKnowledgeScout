@@ -1,20 +1,23 @@
 export interface Session {
   id?: string; // Automatisch generierte ID
+  // Pflichtfelder
   session: string;
-  subtitle?: string;  // ← Ergänzt: Untertitel der Session
-  description?: string;  // ← Ergänzt: Beschreibung der Session
   filename: string;
   track: string;
-  video_url: string;
-  attachments_url?: string;
   event: string;
-  url: string;
-  day: string;
-  starttime: string;
-  endtime: string;
-  speakers: string[];
-  source_language: string;
-  target_language?: string; // Optional für Job-Generierung
+  // Optionale Felder
+  subtitle?: string;
+  description?: string;
+  image_url?: string; // Optional: Bild-URL von der Session-Seite
+  video_url?: string;
+  attachments_url?: string;
+  url?: string;
+  day?: string;
+  starttime?: string;
+  endtime?: string;
+  speakers?: string[];
+  source_language?: string;
+  target_language?: string;
   // Optional: gespeichertes Plaintext-Transkript (zur Kontrolle)
   transcript_text?: string;
   created_at?: Date;

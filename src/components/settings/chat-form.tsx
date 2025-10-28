@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
 import { FacetDefsEditor } from '@/components/settings/FacetDefsEditor'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // Zod-Schema für Chat-Konfiguration
 const chatFormSchema = z.object({
@@ -45,6 +46,14 @@ const chatFormSchema = z.object({
     indexOverride: z.string().optional(),
   }).optional(),
   gallery: z.object({
+    detailViewType: z.preprocess(
+      (val) => {
+        // Konvertiere leere Strings und undefined zu 'book'
+        if (val === '' || val === undefined || val === null) return 'book';
+        return val;
+      },
+      z.enum(['book', 'session']).default('book')
+    ),
     facets: z.array(z.object({
       metaKey: z.string().min(1),
       label: z.string().optional(),
@@ -86,6 +95,7 @@ export function ChatForm() {
 
   const form = useForm<ChatFormValues>({
     resolver: zodResolver(chatFormSchema),
+    mode: 'onChange', // Echtzeit-Validierung aktivieren
     defaultValues: {
       public: false,
       titleAvatarSrc: undefined,
@@ -99,20 +109,52 @@ export function ChatForm() {
       features: { citations: true, streaming: true },
       rateLimit: { windowSec: 60, max: 30 },
       vectorStore: { indexOverride: undefined },
-      gallery: { facets: [
-        { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
-        { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
-        { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
-        { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
-        { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
-        { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
-      ] },
+      gallery: { 
+        detailViewType: 'book',
+        facets: [
+          { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
+          { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
+          { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
+          { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
+          { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
+          { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
+        ] 
+      },
     },
   })
 
   useEffect(() => {
     if (activeLibrary?.config?.chat) {
       const c = activeLibrary.config.chat as unknown as Record<string, unknown>
+      
+      // Debug: Zeige VOLLSTÄNDIGE geladene Library
+      console.log('[ChatForm] ===== LIBRARY LADEN START =====');
+      console.log('[ChatForm] Active Library ID:', activeLibrary.id);
+      console.log('[ChatForm] Active Library Label:', activeLibrary.label);
+      console.log('[ChatForm] Full Config.Chat:', JSON.stringify(c, null, 2));
+      
+      // Debug: Zeige geladene Config
+      console.log('[ChatForm] Lade Config aus Library:', {
+        libraryId: activeLibrary.id,
+        galleryConfig: JSON.stringify(c.gallery),
+        detailViewType: (c.gallery as { detailViewType?: unknown })?.detailViewType
+      })
+      
+      const galleryConfig = c.gallery as { detailViewType?: unknown; facets?: unknown } | undefined
+      const detailViewType = galleryConfig?.detailViewType
+      
+      // Explizite Prüfung und Logging
+      let finalViewType: 'book' | 'session' = 'book'
+      if (detailViewType === 'session') {
+        finalViewType = 'session'
+        console.log('[ChatForm] ✅ Setze detailViewType auf: session')
+      } else if (detailViewType === 'book') {
+        finalViewType = 'book'
+        console.log('[ChatForm] ✅ Setze detailViewType auf: book')
+      } else {
+        console.log('[ChatForm] ⚠️ Unbekannter detailViewType:', detailViewType, '- verwende default: book')
+      }
+      
       form.reset({
         public: Boolean(c.public ?? false),
         titleAvatarSrc: typeof c.titleAvatarSrc === 'string' ? c.titleAvatarSrc : undefined,
@@ -137,8 +179,9 @@ export function ChatForm() {
             : undefined,
         },
         gallery: {
+          detailViewType: finalViewType,
           facets: (() => {
-            const raw = (c.gallery as { facets?: unknown } | undefined)?.facets
+            const raw = galleryConfig?.facets
             if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'object') return raw as Array<Record<string, unknown>>
             if (Array.isArray(raw)) {
               return (raw as Array<unknown>).map(v => String(v)).filter(Boolean).map((k) => (
@@ -158,17 +201,35 @@ export function ChatForm() {
           })(),
         },
       })
+      
+      // Nach dem Reset nochmal prüfen
+      const afterResetValue = form.getValues('gallery.detailViewType')
+      console.log('[ChatForm] Form nach reset:', {
+        detailViewType: afterResetValue,
+        type: typeof afterResetValue,
+        isEmpty: afterResetValue === '',
+        allGalleryValues: form.getValues('gallery')
+      })
     }
   }, [activeLibrary, form])
 
   async function onSubmit(data: ChatFormValues) {
+    console.log('[ChatForm] ✅ onSubmit wurde aufgerufen!')
+    console.log('[ChatForm] Form Errors:', form.formState.errors)
+    console.log('[ChatForm] Form isValid:', form.formState.isValid)
+    
     setIsLoading(true)
     try {
       if (!activeLibrary) throw new Error("Keine Bibliothek ausgewählt")
 
       // Debug-Output vor dem Speichern
       // eslint-disable-next-line no-console
-      console.log('[ChatForm] Speichere Chat-Config …', { libraryId: activeLibrary.id, facets: data.gallery?.facets?.length || 0 })
+      console.log('[ChatForm] Speichere Chat-Config …', { 
+        libraryId: activeLibrary.id, 
+        facets: data.gallery?.facets?.length || 0,
+        detailViewType: data.gallery?.detailViewType,
+        fullGallery: data.gallery 
+      })
 
       // Nur Chat-Config mergen, Server behält restliche Config sicher bei
       const response = await fetch(`/api/libraries/${encodeURIComponent(activeLibrary.id)}`, {
@@ -425,10 +486,53 @@ export function ChatForm() {
           />
         </div>
 
-        <div className="grid gap-3">
-          <FormLabel>Galerie: Facetten</FormLabel>
-          <FormDescription>Definieren Sie beliebige Facetten.</FormDescription>
-          <FacetDefsEditor value={form.watch("gallery.facets") || []} onChange={(v) => form.setValue("gallery.facets", v, { shouldDirty: true })} />
+        <div className="grid gap-6">
+          <FormField
+            control={form.control}
+            name="gallery.detailViewType"
+            render={({ field }) => {
+              const currentValue = field.value || 'book';
+              console.log('[ChatForm] Select Field Render:', { fieldValue: field.value, currentValue });
+              
+              return (
+                <FormItem>
+                  <FormLabel>Galerie: Detailansicht-Typ</FormLabel>
+                  <Select 
+                    value={currentValue} 
+                    onValueChange={(value) => {
+                      console.log('[ChatForm] Select onChange:', value);
+                      // NUR valide Werte akzeptieren (leere Strings ignorieren!)
+                      if (value === 'book' || value === 'session') {
+                        field.onChange(value);
+                      } else {
+                        console.warn('[ChatForm] Ungültiger detailViewType ignoriert:', value);
+                      }
+                    }}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="book">Book (Bücher, Dokumente, Kapitel)</SelectItem>
+                      <SelectItem value="session">Session (Events, Präsentationen, Slides)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Legt fest, welches Detail-View-Format in der Galerie verwendet wird: Book für klassische Dokumente mit Kapiteln, Session für Event-Präsentationen mit Slides.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+
+          <div className="grid gap-3">
+            <FormLabel>Galerie: Facetten</FormLabel>
+            <FormDescription>Definieren Sie beliebige Facetten für die Filter-Navigation.</FormDescription>
+            <FacetDefsEditor value={form.watch("gallery.facets") || []} onChange={(v) => form.setValue("gallery.facets", v, { shouldDirty: true })} />
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4">
@@ -481,7 +585,19 @@ export function ChatForm() {
           }}>
             Index neu aufbauen
           </Button>
-          <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
+          <Button 
+            type="submit" 
+            disabled={isLoading}
+            onClick={() => {
+              console.log('[ChatForm] Button wurde geklickt!')
+              console.log('[ChatForm] Form State:', {
+                isValid: form.formState.isValid,
+                isDirty: form.formState.isDirty,
+                errors: form.formState.errors,
+                values: form.getValues()
+              })
+            }}
+          >
             {isLoading ? "Wird gespeichert..." : "Einstellungen speichern"}
           </Button>
         </div>

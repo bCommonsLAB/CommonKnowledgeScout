@@ -97,16 +97,17 @@ export async function POST(request: NextRequest) {
             parameters: {
               event: session.event,
               session: session.session,
-              url: session.url,
+              url: session.url || '', // Optional: leerer String wenn nicht vorhanden
               filename: session.filename,
               track: session.track,
-              day: session.day,
-              starttime: session.starttime,
-              endtime: session.endtime,
-              speakers: session.speakers || null,
-              video_url: session.video_url,
+              day: session.day || '', // Optional: leerer String wenn nicht vorhanden
+              starttime: session.starttime || '', // Optional: leerer String wenn nicht vorhanden
+              endtime: session.endtime || '', // Optional: leerer String wenn nicht vorhanden
+              speakers: session.speakers || null, // Optional: null wenn nicht vorhanden
+              image_url: session.image_url || undefined, // Optional: Bild-URL
+              video_url: session.video_url || '', // Optional: leerer String wenn nicht vorhanden
               attachments_url: session.attachments_url || undefined,
-              source_language: session.source_language,
+              source_language: session.source_language || 'en', // Optional: 'en' als Default
               target_language: targetLanguage
             },
             access_control: {
@@ -186,16 +187,17 @@ export async function POST(request: NextRequest) {
           parameters: {
             event: session.event,
             session: session.session,
-            url: session.url,
+            url: session.url || '', // Optional: leerer String wenn nicht vorhanden
             filename: session.filename,
             track: session.track,
-            day: session.day,
-            starttime: session.starttime,
-            endtime: session.endtime,
-            speakers: session.speakers || null,
-            video_url: session.video_url,
+            day: session.day || '', // Optional: leerer String wenn nicht vorhanden
+            starttime: session.starttime || '', // Optional: leerer String wenn nicht vorhanden
+            endtime: session.endtime || '', // Optional: leerer String wenn nicht vorhanden
+            speakers: session.speakers || null, // Optional: null wenn nicht vorhanden
+            image_url: session.image_url || undefined, // Optional: Bild-URL
+            video_url: session.video_url || '', // Optional: leerer String wenn nicht vorhanden
             attachments_url: session.attachments_url || undefined,
-            source_language: session.source_language,
+            source_language: session.source_language || 'en', // Optional: 'en' als Default
             target_language: targetLanguage
           },
           access_control: {

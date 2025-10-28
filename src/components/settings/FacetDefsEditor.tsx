@@ -75,16 +75,32 @@ export function FacetDefsEditor({ value, onChange }: { value: FacetDefUi[]; onCh
                   <Input placeholder="Label" value={d.label || ''} onChange={e => update(i, { label: e.target.value })} />
                 </td>
                 <td className="px-3 py-2 align-middle">
-                  <Select value={d.type} onValueChange={(v) => update(i, { type: v as FacetDefUi['type'] })}>
-                    <SelectTrigger><SelectValue placeholder="Typ" /></SelectTrigger>
+                  <Select 
+                    value={d.type || 'string'} 
+                    onValueChange={(v) => {
+                      // NUR valide Typen akzeptieren (leere Strings ignorieren!)
+                      if (v && types.includes(v as FacetDefUi['type'])) {
+                        update(i, { type: v as FacetDefUi['type'] });
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </td>
                 <td className="px-3 py-2 align-middle">
-                  <Select value={d.sort || 'alpha'} onValueChange={(v) => update(i, { sort: v as 'alpha' | 'count' })}>
-                    <SelectTrigger><SelectValue placeholder="Sortierung" /></SelectTrigger>
+                  <Select 
+                    value={d.sort || 'alpha'} 
+                    onValueChange={(v) => {
+                      // NUR valide Sort-Werte akzeptieren
+                      if (v === 'alpha' || v === 'count') {
+                        update(i, { sort: v });
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="alpha">alpha</SelectItem>
                       <SelectItem value="count">count</SelectItem>
@@ -95,8 +111,17 @@ export function FacetDefsEditor({ value, onChange }: { value: FacetDefUi[]; onCh
                   <Input type="number" min={1} placeholder="alle" value={typeof d.max === 'number' ? String(d.max) : ''} onChange={e => update(i, { max: e.target.value ? Number(e.target.value) : undefined })} />
                 </td>
                 <td className="px-3 py-2 align-middle">
-                  <Select value={String(d.columns || 1)} onValueChange={(v) => update(i, { columns: Number(v) })}>
-                    <SelectTrigger><SelectValue placeholder="Spalten" /></SelectTrigger>
+                  <Select 
+                    value={String(d.columns || 1)} 
+                    onValueChange={(v) => {
+                      // NUR valide Spalten-Werte akzeptieren
+                      const num = Number(v);
+                      if (num === 1 || num === 2) {
+                        update(i, { columns: num });
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="1">1</SelectItem>
                       <SelectItem value="2">2</SelectItem>
