@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Loader2, PlayCircle, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { Job, JobParameters } from '@/types/event-job';
-import { processSession, ProcessSessionInput } from '@/lib/secretary/client';
+import { processSession } from '@/lib/secretary/client';
+import { buildSessionPayload } from '@/lib/session/session-processor';
 import JSZip from 'jszip';
 import { useAtom } from 'jotai';
 import { activeLibraryAtom, currentFolderIdAtom } from '@/atoms/library-atom';
@@ -56,22 +57,6 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
     return parent;
   };
 
-  // VTT → Plaintext (einfach): entferne Header/Nummern/Zeitcodes, joine mit Space
-  function vttToPlainText(vtt: string): string {
-    return vtt
-      .replace(/^WEBVTT.*$/gmi, '')
-      .replace(/^\d+\s*$/gmi, '')
-      .replace(/\d{2}:\d{2}:\d{2}\.\d{3}\s+-->\s+\d{2}:\d{2}:\d{2}\.\d{3}.*$/gmi, '')
-      .replace(/^-+$/gmi, '')
-      .replace(/\r/g, '')
-      .split('\n')
-      .map(l => l.trim())
-      .filter(l => l.length > 0)
-      .join(' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
   async function handleRun() {
     console.group('[BatchProcess] Start');
     console.info('[BatchProcess] Jobs:', jobs.length);
@@ -96,49 +81,14 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
         const job = jobs[i];
         const p: JobParameters = job.parameters;
         console.groupCollapsed(`[BatchProcess] Job ${i + 1}/${jobs.length}: ${job.job_id}`);
-        // Basispayload für Secretary; video_transcript wird ggf. ergänzt
-        const payload: ProcessSessionInput = {
-          event: p.event || '',
-          session: p.session || (job.job_name || job.job_id),
-          url: p.url || '',
-          filename: p.filename || (p.session ? `${p.session}.md` : job.job_id + '.md'),
-          track: p.track || (p.event ? `${p.event}-track` : 'track'),
-          day: p.day,
-          starttime: p.starttime,
-          endtime: p.endtime,
-          speakers: Array.isArray(p.speakers) ? p.speakers : undefined,
-          // Video-URL MIT senden (Templates nutzen sie ggf. kontextuell);
-          // Wenn video_transcript gesetzt ist, wird Videoverarbeitung serverseitig übersprungen.
-          video_url: p.video_url,
-          attachments_url: p.attachments_url,
-          source_language: p.source_language || 'en',
-          target_language: p.target_language || 'de',
-          template: p.template || 'Session_analyze',
-          use_cache: false,
-          create_archive: true,
-        };
-
-        // Schritt A: Transcript laden (wenn möglich) und in Secretary-Payload einfügen
-        let transcriptText: string | null = null;
-        if (p.video_url) {
-          try {
-            const idMatch = String(p.video_url).match(/(?:player\.vimeo\.com\/video\/|vimeo\.com\/)(\d+)/);
-            const body: { videoId: string } | { playerUrl: string } = idMatch ? { videoId: idMatch[1] } : { playerUrl: p.video_url };
-            const tr = await fetch('/api/video/transcript', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            const tj: { status?: string; data?: { vtt?: string; track?: { id?: string; language?: string; kind?: string; name?: string; link?: string } } } = await tr.json();
-            console.info('[BatchProcess] Transcript resolve (pre-Secretary)', { ok: tr.ok, track: tj?.data?.track });
-            if (tr.ok && tj?.data?.vtt) {
-              const plain = vttToPlainText(String(tj.data.vtt));
-              transcriptText = plain;
-            }
-          } catch {}
-          if (transcriptText) {
-            payload.video_transcript = transcriptText;
-            console.info('[BatchProcess] Transcript-Text gesetzt', { chars: transcriptText.length });
-          } else {
-            console.info('[BatchProcess] Kein Transcript-Text verfügbar (skip)');
-          }
-        }
+        // Payload mit automatischer Transcript-Extraktion erstellen (wiederverwendbare Logik)
+        const payload = await buildSessionPayload(p, job);
+        console.info('[BatchProcess] Session-Payload erstellt', {
+          event: payload.event,
+          session: payload.session,
+          has_video_url: !!payload.video_url,
+          has_video_transcript: typeof payload.video_transcript === 'string',
+        });
 
         // Schritt B: Secretary mit ggf. video_transcript aufrufen (einmalig)
         try {
@@ -169,7 +119,8 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
             const zip = await JSZip.loadAsync(buf as unknown as ArrayBuffer);
             let markdownDir: string | null = null;
             for (const [name, entry] of Object.entries(zip.files)) {
-              const e = entry as JSZip.JSZipObject;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const e = entry as any;
               if (e.dir) continue;
               const fileData = await e.async('blob');
               const file = new File([fileData], name.split('/').pop() || name, { type: fileData.type || undefined });

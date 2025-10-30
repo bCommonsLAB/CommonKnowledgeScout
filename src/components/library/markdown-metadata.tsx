@@ -33,10 +33,16 @@ export const MarkdownMetadata = React.memo(function MarkdownMetadata({
     return typeof value === 'object' && value !== null && !Array.isArray(value)
   }
 
+  /**
+   * Kürzt einen String auf eine maximale Länge
+   */
   function truncate(value: string, max = 160): string {
     return value.length > max ? `${value.slice(0, max)}…` : value
   }
 
+  /**
+   * Konvertiert einen Wert in einen String für die Anzeige
+   */
   function toDisplayString(value: unknown): string {
     if (value === null || value === undefined) return '—'
     if (typeof value === 'string') return value
@@ -48,8 +54,103 @@ export const MarkdownMetadata = React.memo(function MarkdownMetadata({
     }
   }
 
+  /**
+   * Bestimmt den Datentyp einer Zelle für bessere Formatierung
+   */
+  function getCellType(value: unknown): 'empty' | 'number' | 'boolean' | 'url' | 'image' | 'text' {
+    if (value === null || value === undefined || value === '') return 'empty'
+    if (typeof value === 'number') return 'number'
+    if (typeof value === 'boolean') return 'boolean'
+    if (typeof value === 'string') {
+      // Prüfe auf URL (http/https)
+      if (value.startsWith('http://') || value.startsWith('https://')) return 'url'
+      // Prüfe auf Bild-URL (endet mit Bild-Extension)
+      if (/\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(value)) return 'image'
+      return 'text'
+    }
+    return 'text'
+  }
+
+  /**
+   * Ermittelt dynamisch alle Spalten eines Objekt-Arrays und sortiert sie intelligent
+   * - Spalten mit numerischen Namen (z.B. page_num, page) kommen zuerst
+   * - Spalten mit häufigen Namen (title, name, summary, etc.) kommen vor seltenen
+   * - Ansonsten alphabetisch
+   */
+  function extractAndSortColumns(objects: Record<string, unknown>[]): string[] {
+    const keySet = new Set<string>()
+    const keyFrequency = new Map<string, number>()
+
+    // Sammle alle Keys und deren Häufigkeit
+    for (const obj of objects) {
+      for (const key of Object.keys(obj)) {
+        keySet.add(key)
+        keyFrequency.set(key, (keyFrequency.get(key) || 0) + 1)
+      }
+    }
+
+    const keys = Array.from(keySet)
+
+    // Sortiere dynamisch basierend auf:
+    // 1. Namen mit numerischen Begriffen (page_num, page, index, id, etc.) zuerst
+    // 2. Häufige, semantisch wichtige Namen (title, name, summary, description, etc.)
+    // 3. Alphabetisch
+    const numericPattern = /^(page|num|index|id|order|rank|position|seq)/i
+    const semanticPattern = /^(title|name|label|summary|description|text|content|value|url|image|link|source|target|key|type|status|state|category|tag)/i
+
+    keys.sort((a, b) => {
+      const aHasNumeric = numericPattern.test(a)
+      const bHasNumeric = numericPattern.test(b)
+      const aHasSemantic = semanticPattern.test(a)
+      const bHasSemantic = semanticPattern.test(b)
+      const aFreq = keyFrequency.get(a) || 0
+      const bFreq = keyFrequency.get(b) || 0
+
+      // Numerische Keys zuerst
+      if (aHasNumeric && !bHasNumeric) return -1
+      if (!aHasNumeric && bHasNumeric) return 1
+
+      // Dann semantische Keys
+      if (aHasSemantic && !bHasSemantic) return -1
+      if (!aHasSemantic && bHasSemantic) return 1
+
+      // Dann nach Häufigkeit (häufigere zuerst)
+      if (aFreq !== bFreq) return bFreq - aFreq
+
+      // Zuletzt alphabetisch
+      return a.localeCompare(b)
+    })
+
+    return keys
+  }
+
+  /**
+   * Versucht einen Wert als JSON-Array zu parsen, falls er ein String ist
+   */
+  function tryParseJsonArray(value: unknown): unknown {
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+        try {
+          return JSON.parse(trimmed)
+        } catch {
+          // Nicht parsen, falls Fehler
+        }
+      }
+    }
+    return value
+  }
+
   const frontmatter = React.useMemo(() => extractFrontmatter(content), [content]);
-  const metadata = React.useMemo(() => frontmatter, [frontmatter]);
+  // Versuche String-Werte die JSON-Arrays enthalten zu parsen (Fallback)
+  const metadata = React.useMemo(() => {
+    if (!frontmatter) return null
+    const parsed: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(frontmatter)) {
+      parsed[key] = tryParseJsonArray(value)
+    }
+    return parsed
+  }, [frontmatter]);
 
   FileLogger.debug('MarkdownMetadata', 'Analyzing content', {
     contentLength: content.length,
@@ -92,7 +193,16 @@ export const MarkdownMetadata = React.memo(function MarkdownMetadata({
 
               // Handle arrays (primitive vs. Objekt-Array)
               if (Array.isArray(value)) {
+                FileLogger.debug('MarkdownMetadata', `Array gefunden: "${key}"`, {
+                  arrayLength: value.length,
+                  firstItem: value[0],
+                  firstItemType: typeof value[0],
+                  isFirstItemObject: value[0] && typeof value[0] === 'object' && !Array.isArray(value[0])
+                })
                 const hasObjects = value.some(v => isPlainObject(v))
+                FileLogger.debug('MarkdownMetadata', `Array "${key}" - hasObjects: ${hasObjects}`, {
+                  hasObjects
+                })
                 if (!hasObjects) {
                   const items = value.map(v => toDisplayString(v))
                   return (
@@ -115,37 +225,106 @@ export const MarkdownMetadata = React.memo(function MarkdownMetadata({
                     </tr>
                   )
                 }
-                // Objekt-Arrays tabellarisch darstellen (z. B. slides)
+                // Objekt-Arrays tabellarisch darstellen (z. B. slides, chapters, etc.)
                 const objects = value.filter(v => isPlainObject(v)) as Record<string, unknown>[]
-                // Schlüssel priorisieren
-                const preferred = ['page_num', 'page', 'title', 'summary', 'image_url', 'url', 'speaker', 'time']
-                const keySet = new Set<string>()
-                for (const k of preferred) keySet.add(k)
-                for (const obj of objects) for (const k of Object.keys(obj)) keySet.add(k)
-                const cols = Array.from(keySet)
+                
+                // Dynamisch alle Spalten extrahieren und intelligent sortieren
+                const cols = extractAndSortColumns(objects)
+                
+                // Debug: Logge die erkannten Spalten für Diagnose
+                FileLogger.debug('MarkdownMetadata', `Objekt-Array "${key}" erkannt`, {
+                  objectCount: objects.length,
+                  columns: cols,
+                  firstObjectKeys: objects[0] ? Object.keys(objects[0]) : []
+                })
+                
+                if (cols.length === 0) {
+                  // Fallback: Keine Spalten gefunden
+                  return (
+                    <tr key={key} className="border-t border-muted">
+                      <td className="py-2 pr-4 align-top text-xs text-muted-foreground font-medium whitespace-nowrap">
+                        {key}
+                      </td>
+                      <td className="py-2 text-xs text-muted-foreground">
+                        <span className="bg-muted/50 px-1.5 py-0.5 rounded italic">
+                          Leeres Array
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                }
+
                 return (
                   <tr key={key} className="border-t border-muted">
                     <td className="py-2 pr-4 align-top text-xs text-muted-foreground font-medium whitespace-nowrap">
                       {key}
                     </td>
                     <td className="py-2 text-xs text-muted-foreground">
-                      <div className="rounded-md border border-muted-foreground/20 overflow-x-auto">
+                      <div className="rounded-md border border-muted-foreground/20 overflow-x-auto max-h-[600px] overflow-y-auto">
                         <table className="min-w-full text-xs">
-                          <thead className="bg-muted/40">
+                          <thead className="bg-muted/40 sticky top-0">
                             <tr>
                               {cols.map(col => (
-                                <th key={`${key}-h-${col}`} className="text-left px-2 py-1 font-medium text-muted-foreground whitespace-nowrap">{col}</th>
+                                <th 
+                                  key={`${key}-h-${col}`} 
+                                  className="text-left px-3 py-2 font-medium text-muted-foreground whitespace-nowrap border-r border-muted/40 last:border-r-0"
+                                >
+                                  {col}
+                                </th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             {objects.map((obj, r) => (
-                              <tr key={`${key}-r-${r}`} className="border-t border-muted/40">
+                              <tr 
+                                key={`${key}-r-${r}`} 
+                                className="border-t border-muted/40 hover:bg-muted/20 transition-colors"
+                              >
                                 {cols.map(col => {
-                                  const cell = toDisplayString((obj as Record<string, unknown>)[col])
+                                  const cellValue = (obj as Record<string, unknown>)[col]
+                                  const cellType = getCellType(cellValue)
+                                  const cellString = toDisplayString(cellValue)
+                                  const isEmpty = cellType === 'empty'
+
                                   return (
-                                    <td key={`${key}-r-${r}-c-${col}`} className="px-2 py-1 align-top">
-                                      <span className="bg-muted/30 px-1 py-0.5 rounded inline-block max-w-[28rem] truncate" title={cell}>{truncate(cell)}</span>
+                                    <td 
+                                      key={`${key}-r-${r}-c-${col}`} 
+                                      className="px-3 py-2 align-top border-r border-muted/40 last:border-r-0"
+                                    >
+                                      {isEmpty ? (
+                                        <span className="text-muted-foreground/50 italic text-[10px]">—</span>
+                                      ) : cellType === 'url' ? (
+                                        <a 
+                                          href={cellString} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-primary hover:underline break-all max-w-[20rem] block"
+                                          title={cellString}
+                                        >
+                                          {truncate(cellString, 40)}
+                                        </a>
+                                      ) : cellType === 'image' ? (
+                                        <span className="text-primary/80 break-all max-w-[20rem] block font-medium" title={cellString}>
+                                          🖼️ {truncate(cellString.split('/').pop() || cellString, 30)}
+                                        </span>
+                                      ) : cellType === 'boolean' ? (
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                          cellValue ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-500/20 text-red-700 dark:text-red-400'
+                                        }`}>
+                                          {cellValue ? '✓' : '✗'}
+                                        </span>
+                                      ) : cellType === 'number' ? (
+                                        <span className="font-mono text-muted-foreground/90">
+                                          {cellString}
+                                        </span>
+                                      ) : (
+                                        <span 
+                                          className="bg-muted/30 px-1.5 py-0.5 rounded break-words max-w-[28rem] block" 
+                                          title={cellString.length > 160 ? cellString : undefined}
+                                        >
+                                          {truncate(cellString, 160)}
+                                        </span>
+                                      )}
                                     </td>
                                   )
                                 })}

@@ -13,9 +13,16 @@ export interface RetrieverInput {
 export interface RetrievedSource {
   id: string
   fileName?: string
+  fileId?: string // fileId extrahiert aus id (z.B. "fileId-0" → "fileId")
   chunkIndex?: number
   score?: number
   text: string
+  sourceType?: 'slides' | 'body' | 'video_transcript' | 'chapter' // Quelle des Chunks
+  // Zusätzliche Metadaten für benutzerfreundliche Beschreibungen
+  slidePageNum?: number // Für Slides: Seiten-Nummer
+  slideTitle?: string // Für Slides: Titel der Slide
+  chapterTitle?: string // Für Chapters: Kapitel-Titel
+  chapterOrder?: number // Für Chapters: Reihenfolge
 }
 
 export interface RetrieverOutput {

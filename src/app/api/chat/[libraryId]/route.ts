@@ -8,6 +8,9 @@ import { getByFileIds, computeDocMetaCollectionName } from '@/lib/repositories/d
 import { startQueryLog, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog, failQueryLog, markStepStart, markStepEnd } from '@/lib/logging/query-logger'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { buildFilters } from '@/lib/chat/common/filters'
+import { buildPrompt, getSourceDescription } from '@/lib/chat/common/prompt'
+import type { RetrievedSource } from '@/types/retriever'
+import type { ChatResponse } from '@/types/chat-response'
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -151,7 +154,7 @@ export async function POST(
     // Budget nach answerLength
     const baseBudget = answerLength === 'ausführlich' ? 180000 : answerLength === 'mittel' ? 90000 : 30000
     let charBudget = baseBudget
-    let sources: Array<{ id: string; score?: number; fileName?: string; chunkIndex?: number; text?: string }> = []
+    let sources: RetrievedSource[] = []
     let used = 0
 
     const retrievalStartAll = Date.now()
@@ -340,16 +343,40 @@ export async function POST(
         const fileName = typeof r.meta!.fileName === 'string' ? (r.meta!.fileName as string) : undefined
         const chunkIndex = typeof r.meta!.chunkIndex === 'number' ? (r.meta!.chunkIndex as number) : undefined
         const score = r.score
+        // Extrahiere fileId: Zuerst aus Metadaten, dann aus id
+        let fileId = typeof r.meta!.fileId === 'string' ? r.meta!.fileId : undefined
+        if (!fileId) {
+          // Fallback: Extrahiere aus id (Format: "fileId-chunkIndex" oder "fileId-chap-chapterId")
+          // Base64-encoded fileIds enthalten oft Bindestriche, daher besser: alles bis zum letzten Bindestrich nehmen
+          const parts = r.id.split('-')
+          // Wenn letzter Teil eine Zahl ist oder "chap" enthält, nimm alles davor
+          const lastPart = parts[parts.length - 1]
+          if (lastPart && (/^\d+$/.test(lastPart) || lastPart.startsWith('chap'))) {
+            fileId = parts.slice(0, -1).join('-')
+          } else {
+            // Fallback: alles außer letztem Teil
+            fileId = parts.slice(0, -1).join('-') || r.id
+          }
+        }
+        // Extrahiere sourceType aus Metadaten
+        const sourceType = typeof r.meta!.sourceType === 'string' 
+          ? (r.meta!.sourceType as 'slides' | 'body' | 'video_transcript') 
+          : undefined
+        // Extrahiere zusätzliche Metadaten für benutzerfreundliche Beschreibungen
+        const slidePageNum = typeof r.meta!.slidePageNum === 'number' ? r.meta!.slidePageNum : undefined
+        const slideTitle = typeof r.meta!.slideTitle === 'string' ? r.meta!.slideTitle : undefined
+        const chapterTitle = typeof r.meta!.chapterTitle === 'string' ? r.meta!.chapterTitle : undefined
+        const chapterOrder = typeof r.meta!.chapterOrder === 'number' ? r.meta!.chapterOrder : undefined
+        
         if (!t) continue
         if (used + t.length > charBudget) break
         // Optional Kapitel-Meta in den Snippets voranstellen
         if (process.env.CHAT_INCLUDE_CHAPTER_META === '1') {
-          const chapterTitle = typeof r.meta!.chapterTitle === 'string' ? r.meta!.chapterTitle : undefined
           const summaryShort = typeof r.meta!.summaryShort === 'string' ? r.meta!.summaryShort : undefined
           const pre = `${chapterTitle ? `Kapitel: ${chapterTitle}\n` : ''}${summaryShort ? `Summary: ${summaryShort.slice(0, 240)}\n\n` : ''}`
-          sources.push({ id: r.id, score, fileName, chunkIndex, text: pre + t })
+          sources.push({ id: r.id, score, fileName, fileId, chunkIndex, text: pre + t, sourceType, slidePageNum, slideTitle, chapterTitle, chapterOrder })
         } else {
-          sources.push({ id: r.id, score, fileName, chunkIndex, text: t })
+          sources.push({ id: r.id, score, fileName, fileId, chunkIndex, text: t, sourceType, slidePageNum, slideTitle, chapterTitle, chapterOrder })
         }
         used += t.length
       }
@@ -365,10 +392,29 @@ export async function POST(
           const fileName = typeof meta.fileName === 'string' ? meta.fileName as string : undefined
           const chunkIndex = typeof meta.chunkIndex === 'number' ? meta.chunkIndex as number : undefined
           const score = m.score
+          // Extrahiere fileId: Zuerst aus Metadaten, dann aus id
+          let fileId = typeof meta.fileId === 'string' ? meta.fileId : undefined
+          if (!fileId) {
+            // Fallback: Extrahiere aus id
+            const parts = String(m.id).split('-')
+            const lastPart = parts[parts.length - 1]
+            if (lastPart && (/^\d+$/.test(lastPart) || lastPart.startsWith('chap'))) {
+              fileId = parts.slice(0, -1).join('-')
+            } else {
+              fileId = parts.slice(0, -1).join('-') || String(m.id)
+            }
+          }
+          const sourceType = typeof meta.sourceType === 'string' 
+            ? (meta.sourceType as 'slides' | 'body' | 'video_transcript') 
+            : undefined
+          const slidePageNum = typeof meta.slidePageNum === 'number' ? meta.slidePageNum : undefined
+          const slideTitle = typeof meta.slideTitle === 'string' ? meta.slideTitle : undefined
+          const chapterTitle = typeof meta.chapterTitle === 'string' ? meta.chapterTitle : undefined
+          const chapterOrder = typeof meta.chapterOrder === 'number' ? meta.chapterOrder : undefined
           const snippet = t.slice(0, 1000)
           const len = snippet.length
           if (acc + len > charBudget) break
-          fallback.push({ id: String(m.id), score, fileName, chunkIndex, text: snippet })
+          fallback.push({ id: String(m.id), score, fileName, fileId, chunkIndex, text: snippet, sourceType, slidePageNum, slideTitle, chapterTitle, chapterOrder })
           acc += len
         }
         if (fallback.length > 0) {
@@ -395,28 +441,13 @@ export async function POST(
       })
     }
 
-    // Kontext bauen
-    const buildContext = (srcs: typeof sources, perSnippetLimit = 800) => srcs
-      .map((s, i) => `Quelle [${i + 1}] ${s.fileName ?? s.id} (Chunk ${s.chunkIndex ?? '-'}, Score ${typeof s.score === 'number' ? s.score.toFixed(3) : 'n/a'}):\n${(s.text ?? '').slice(0, perSnippetLimit)}`)
-      .join('\n\n')
-    let context = buildContext(sources)
-
-    // OpenAI Chat Call
+    // Kontext bauen mit benutzerfreundlichen Beschreibungen
     const chatApiKey = process.env.OPENAI_API_KEY
     if (!chatApiKey) return NextResponse.json({ error: 'OPENAI_API_KEY fehlt' }, { status: 500 })
     const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
     const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.3)
-
-    // Stilvorgaben je nach gewünschter Antwortlänge
-    const styleInstruction = answerLength === 'ausführlich'
-      ? 'Schreibe eine strukturierte, ausführliche Antwort (ca. 250–600 Wörter): Beginne mit 1–2 Sätzen Zusammenfassung, danach Details in Absätzen oder Stichpunkten. Vermeide Füllwörter.'
-      : answerLength === 'mittel'
-      ? 'Schreibe eine mittellange Antwort (ca. 120–250 Wörter): 3–6 Sätze oder eine kurze Liste der wichtigsten Punkte. Direkt und präzise.'
-      : answerLength === 'kurz'
-      ? 'Schreibe eine knappe Antwort (1–3 Sätze, max. 120 Wörter). Keine Einleitung, direkt die Kernaussage.'
-      : 'Formuliere eine vollständige, gut strukturierte Antwort. Du darfst so lang antworten, wie nötig; bleibe aber fokussiert auf die Frage.'
-
-    const prompt = `Du bist ein präziser Assistent. Beantworte die Frage ausschließlich auf Basis der bereitgestellten Quellen.\n\nFrage:\n${message}\n\nQuellen:\n${context}\n\nAnforderungen:\n- ${styleInstruction}\n- Fachlich korrekt, ohne Spekulationen.\n- Zitiere am Ende die verwendeten Quellen als [n] (Dateiname, Chunk).\n- Antworte auf Deutsch.`
+    
+    const prompt = buildPrompt(message, sources, answerLength)
     await logSetPrompt(queryId, { provider: 'openai', model, temperature, prompt })
 
     const callChat = async (currPrompt: string) => {
@@ -429,8 +460,9 @@ export async function POST(
         body: JSON.stringify({
           model,
           temperature,
+          response_format: { type: 'json_object' }, // Strukturierte JSON-Antwort erzwingen
           messages: [
-            { role: 'system', content: 'Du bist ein hilfreicher, faktenbasierter Assistent.' },
+            { role: 'system', content: 'Du bist ein hilfreicher, faktenbasierter Assistent. Antworte immer als JSON-Objekt mit den Feldern "answer" und "suggestedQuestions".' },
             { role: 'user', content: currPrompt }
           ]
         })
@@ -445,9 +477,9 @@ export async function POST(
       // eslint-disable-next-line no-console
       console.log('[api/chat] params', { answerLength, baseBudget, topK: baseTopK, used: usedChars, sources: sources.length, retriever })
       // eslint-disable-next-line no-console
-      console.log('[api/chat] sources', sources.map(s => ({ id: s.id, fileName: s.fileName, chunkIndex: s.chunkIndex, score: s.score, textChars: s.text?.length ?? 0 })))
+      console.log('[api/chat] sources', sources.map(s => ({ id: s.id, fileName: s.fileName, chunkIndex: s.chunkIndex, score: s.score, textChars: s.text?.length ?? 0, sourceType: s.sourceType, slidePageNum: s.slidePageNum })))
       // eslint-disable-next-line no-console
-      console.log('[api/chat] openai request', { model, temperature, promptChars: prompt.length, contextChars: context.length, style: answerLength })
+      console.log('[api/chat] openai request', { model, temperature, promptChars: prompt.length, style: answerLength })
     }
 
     const tL0 = Date.now()
@@ -472,10 +504,14 @@ export async function POST(
             reduced.push(s)
             acc += len
           }
-          context = buildContext(reduced)
-          const p2 = `Du bist ein präziser Assistent. Beantworte die Frage ausschließlich auf Basis der bereitgestellten Quellen.\n\nFrage:\n${message}\n\nQuellen:\n${context}\n\nAnforderungen:\n- Antworte knapp und fachlich korrekt.\n- Zitiere am Ende die verwendeten Quellen als [n] (Dateiname, Chunk).\n- Antworte auf Deutsch.`
-          chatRes = await callChat(p2)
-          if (chatRes.ok) { retried = true; break }
+          const prompt2 = buildPrompt(message, reduced, 'kurz')
+          chatRes = await callChat(prompt2)
+          if (chatRes.ok) {
+            retried = true
+            // Aktualisiere sources für Retry-Fall
+            sources = reduced
+            break
+          }
         }
         if (!retried && !chatRes.ok) {
           return NextResponse.json({ error: `OpenAI Chat Fehler: ${chatRes.status} ${text.slice(0, 400)}` }, { status: 500 })
@@ -486,15 +522,66 @@ export async function POST(
     }
     const raw = await chatRes.text()
     let answer = ''
+    let suggestedQuestions: string[] = []
+    let usedReferences: number[] = []
+    
     try {
       const parsed: unknown = JSON.parse(raw)
       if (parsed && typeof parsed === 'object') {
         const p = parsed as { choices?: Array<{ message?: { content?: unknown } }> }
-        const c = p.choices?.[0]?.message?.content
-        if (typeof c === 'string') answer = c
+        const content = p.choices?.[0]?.message?.content
+        if (typeof content === 'string') {
+          // Versuche als strukturiertes JSON zu parsen
+          try {
+            const llmJson = JSON.parse(content) as unknown
+            if (llmJson && typeof llmJson === 'object') {
+              const llm = llmJson as Record<string, unknown>
+              const ans = typeof llm.answer === 'string' ? llm.answer : ''
+              const questions = Array.isArray(llm.suggestedQuestions) 
+                ? llm.suggestedQuestions.filter((q): q is string => typeof q === 'string')
+                : []
+              const usedRefs = Array.isArray(llm.usedReferences)
+                ? llm.usedReferences.filter((r): r is number => typeof r === 'number' && r > 0)
+                : []
+              if (ans) {
+                answer = ans
+                suggestedQuestions = questions
+                usedReferences = usedRefs
+              }
+            }
+          } catch {
+            // Fallback: Plain Text Antwort (für Rückwärtskompatibilität)
+            answer = content
+            suggestedQuestions = []
+            usedReferences = []
+          }
+        }
       }
     } catch {
       return NextResponse.json({ error: 'OpenAI Chat Parse Fehler', details: raw.slice(0, 400) }, { status: 502 })
+    }
+    
+    // Generiere vollständige Referenzen-Liste aus sources (für Mapping)
+    const allReferences = sources.map((s, index) => {
+      const fileId = s.fileId || s.id.split('-')[0]
+      return {
+        number: index + 1,
+        fileId,
+        fileName: s.fileName,
+        description: getSourceDescription(s),
+      }
+    })
+    
+    // Filtere nur die tatsächlich verwendeten Referenzen aus usedReferences
+    const references = usedReferences.length > 0
+      ? allReferences.filter(ref => usedReferences.includes(ref.number))
+      : allReferences // Fallback: Wenn keine gefunden, zeige alle
+    
+    // Baue finale ChatResponse zusammen
+    const chatResponse: ChatResponse = {
+      answer,
+      references,
+      suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : [],
     }
 
     stepLLM = markStepEnd(stepLLM)
@@ -517,8 +604,8 @@ export async function POST(
       status: 'ok',
       libraryId,
       vectorIndex: ctx.vectorIndex,
-      answer,
-      sources,
+      ...chatResponse, // Spread chatResponse (answer, references, suggestedQuestions)
+      sources, // Behalte sources für Rückwärtskompatibilität
       queryId,
     })
   } catch (error) {

@@ -140,7 +140,50 @@ export const chunksRetriever: ChatRetriever = {
       if (!t) continue
       const fileName = typeof (meta as { fileName?: unknown }).fileName === 'string' ? (meta as { fileName: string }).fileName : undefined
       const chunkIndex = typeof (meta as { chunkIndex?: unknown }).chunkIndex === 'number' ? (meta as { chunkIndex: number }).chunkIndex : undefined
-      const s = { id: r.id, score: r.score, fileName, chunkIndex, text: t }
+      
+      // Extrahiere fileId für Gruppierung
+      let fileId = typeof (meta as { fileId?: unknown }).fileId === 'string' ? (meta as { fileId: string }).fileId : undefined
+      if (!fileId) {
+        // Fallback: Extrahiere aus id
+        const parts = r.id.split('-')
+        const lastPart = parts[parts.length - 1]
+        if (lastPart && (/^\d+$/.test(lastPart) || lastPart.startsWith('chap'))) {
+          fileId = parts.slice(0, -1).join('-')
+        } else {
+          fileId = parts.slice(0, -1).join('-') || r.id
+        }
+      }
+      
+      // Extrahiere sourceType und zusätzliche Metadaten für benutzerfreundliche Beschreibungen
+      const sourceType = typeof (meta as { sourceType?: unknown }).sourceType === 'string' 
+        ? (meta as { sourceType: string }).sourceType as 'slides' | 'body' | 'video_transcript' | 'chapter'
+        : undefined
+      const slidePageNum = typeof (meta as { slidePageNum?: unknown }).slidePageNum === 'number' 
+        ? (meta as { slidePageNum: number }).slidePageNum 
+        : undefined
+      const slideTitle = typeof (meta as { slideTitle?: unknown }).slideTitle === 'string' 
+        ? (meta as { slideTitle: string }).slideTitle 
+        : undefined
+      const chapterTitle = typeof (meta as { chapterTitle?: unknown }).chapterTitle === 'string' 
+        ? (meta as { chapterTitle: string }).chapterTitle 
+        : undefined
+      const chapterOrder = typeof (meta as { chapterOrder?: unknown }).chapterOrder === 'number' 
+        ? (meta as { chapterOrder: number }).chapterOrder 
+        : undefined
+      
+      const s: RetrievedSource = { 
+        id: r.id, 
+        score: r.score, 
+        fileName, 
+        fileId,
+        chunkIndex, 
+        text: t,
+        sourceType,
+        slidePageNum,
+        slideTitle,
+        chapterTitle,
+        chapterOrder,
+      }
       if (used + t.length > budget) break
       sources.push(s)
       used += t.length

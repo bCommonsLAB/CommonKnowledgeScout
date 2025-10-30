@@ -30,6 +30,7 @@ export interface StructuredSessionData {
   description: string;
   filename: string;
   track: string;
+  image_url?: string; // Optional: Bild-URL von der Session-Seite
   video_url: string;
   attachments_url?: string;
   url: string;

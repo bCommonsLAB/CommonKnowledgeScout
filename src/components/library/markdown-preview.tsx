@@ -119,7 +119,8 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     let baseName: string;
     if (metadata.source_file) {
       FileLogger.debug('TextTransform', 'Verwende source_file aus Frontmatter', { sourceFile: metadata.source_file });
-      baseName = getBaseFileName(metadata.source_file);
+      const sourceFileStr = typeof metadata.source_file === 'string' ? metadata.source_file : String(metadata.source_file);
+      baseName = getBaseFileName(sourceFileStr);
     } else if (currentFileName) {
       // Fallback: Verwende aktuellen Dateinamen ohne Sprach-Suffix
       baseName = currentFileName;

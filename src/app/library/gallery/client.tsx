@@ -1,18 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useAtom, useAtomValue } from 'jotai'
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
+import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import { FileLogger } from '@/lib/debug/logger'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { X, FileText, Calendar, User, MapPin, ExternalLink, Filter, ChevronLeft, MessageSquare, LayoutGrid } from 'lucide-react'
+import { X, FileText, Calendar, User, MapPin, ExternalLink, Filter, ChevronLeft, MessageSquare, LayoutGrid, BookOpen } from 'lucide-react'
 import { ChatPanel } from '@/components/library/chat/chat-panel'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
+import type { ChatResponse } from '@/types/chat-response'
 
 interface DocCardMeta {
   id: string
@@ -91,6 +93,8 @@ export default function GalleryClient() {
   const [showChatPanel, setShowChatPanel] = useState(true)
   const [showGalleryPanel, setShowGalleryPanel] = useState(true)
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
+  const [showReferenceLegend, setShowReferenceLegend] = useState(false)
+  const chatReferences = useAtomValue(chatReferencesAtom)
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }>>([])
   // Stats werden aktuell nicht gerendert; um Linter zu erfüllen, Status lokal halten
   const [, setStats] = useState<StatsResponse | null>(null)
@@ -127,6 +131,68 @@ export default function GalleryClient() {
     load()
     return () => { cancelled = true }
   }, [libraryId, filters])
+
+  // Event-Listener für 'open-document-detail' (von Chat-Panel)
+  useEffect(() => {
+    const handleOpenDocument = (event: Event) => {
+      const customEvent = event as CustomEvent<{ fileId: string; fileName?: string; libraryId: string }>
+      const { fileId } = customEvent.detail || {}
+      
+      if (!fileId || !libraryId) return
+      
+      // Finde Dokument in der aktuellen Liste
+      const doc = docs.find(d => d.fileId === fileId || d.id === fileId)
+      
+      if (doc) {
+        // Öffne Detailansicht
+        openDocDetail(doc)
+      } else {
+        // Dokument nicht gefunden → lade es neu und öffne dann
+        // Setze Filter auf fileId, um Dokument zu laden
+        setFilters({ fileId: [fileId] })
+        // Warte kurz und öffne dann (nach dem nächsten Load)
+        setTimeout(() => {
+          const docAfterLoad = docs.find(d => d.fileId === fileId || d.id === fileId)
+          if (docAfterLoad) {
+            openDocDetail(docAfterLoad)
+          }
+        }, 500)
+      }
+    }
+    
+    window.addEventListener('open-document-detail', handleOpenDocument)
+    return () => {
+      window.removeEventListener('open-document-detail', handleOpenDocument)
+    }
+  }, [docs, libraryId, setFilters])
+
+  // Event-Listener für 'show-reference-legend' (von Chat-Panel)
+  useEffect(() => {
+    const handleShowLegend = (event: Event) => {
+      const customEvent = event as CustomEvent<{ references: ChatResponse['references']; libraryId: string }>
+      const { references: refs } = customEvent.detail || {}
+      
+      if (!refs || refs.length === 0) return
+      
+      // Zeige Legende an
+      setShowReferenceLegend(true)
+      
+      // Filtere Dokumente nach Referenzen
+      const fileIds = Array.from(new Set(refs.map(r => r.fileId)))
+      setFilters({ fileId: fileIds })
+      
+      // Scroll zur Gallery
+      const galleryElement = document.querySelector('[data-gallery-section]')
+      if (galleryElement) {
+        galleryElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }
+    
+    window.addEventListener('show-reference-legend', handleShowLegend)
+    return () => {
+      window.removeEventListener('show-reference-legend', handleShowLegend)
+    }
+  }, [setFilters])
 
   // Facetten-Definitionen + Optionen laden + detailViewType aus Config
   useEffect(() => {
@@ -277,6 +343,15 @@ export default function GalleryClient() {
 
   const isFiltered = Object.values(filters as Record<string, string[] | undefined>).some(arr => Array.isArray(arr) && arr.length > 0)
 
+  // Filtere Dokumente nach fileId (wenn Filter gesetzt)
+  const filteredDocs = useMemo(() => {
+    const fileIdFilter = filters.fileId
+    if (!fileIdFilter || !Array.isArray(fileIdFilter) || fileIdFilter.length === 0) {
+      return docs
+    }
+    return docs.filter(d => fileIdFilter.includes(d.fileId || '') || fileIdFilter.includes(d.id || ''))
+  }, [docs, filters])
+
   // Statusanzeigen werden im rechten Panel gerendert (keine frühen Returns),
   // damit der Facettenbereich immer sichtbar bleibt und Filter zurückgesetzt werden können.
 
@@ -382,13 +457,106 @@ export default function GalleryClient() {
           return (
             <>
               {chatSpan > 0 ? (
-                <section className={`${spanClass(chatSpan)} space-y-3 relative z-10`}>
-                  <ChatPanel libraryId={libraryId} variant='compact' />
+                <section className={`${spanClass(chatSpan)} relative z-10`}>
+                  <div className="sticky top-20 h-[calc(100vh-140px)] flex flex-col">
+                    <ChatPanel libraryId={libraryId} variant='compact' />
+                  </div>
                 </section>
               ) : null}
 
               {gallerySpan > 0 ? (
-                <section className={`${spanClass(gallerySpan)} relative z-0`}>
+                <section className={`${spanClass(gallerySpan)} relative z-0 sticky top-20 self-start`} data-gallery-section>
+                  {/* Legende und Verwendete Dokumente */}
+                  {showReferenceLegend && chatReferences.length > 0 && (
+                    <div className="mb-6 rounded border bg-muted/30 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-medium flex items-center gap-2">
+                          <BookOpen className="h-4 w-4" />
+                          Legende und Verwendete Dokumente
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowReferenceLegend(false)
+                            setFilters({} as Record<string, string[]>)
+                          }}
+                          className="h-7 text-xs"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Schließen
+                        </Button>
+                      </div>
+                      
+                      {/* Kompakte Legende mit Nummern */}
+                      <div className="mb-4">
+                        <div className="text-xs text-muted-foreground mb-2">Legende:</div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                          {chatReferences.map((ref) => (
+                            <div
+                              key={ref.number}
+                              className="flex items-center gap-2 text-xs p-2 rounded bg-background border"
+                            >
+                              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] shrink-0">
+                                [{ref.number}]
+                              </Badge>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate font-medium">{ref.fileName || ref.fileId.slice(0, 20)}</div>
+                                <div className="text-[10px] text-muted-foreground truncate">{ref.description}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Gruppierte Dokumente */}
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-2">
+                          Verwendete Dokumente ({new Set(chatReferences.map(r => r.fileId)).size}):
+                        </div>
+                        <div className="space-y-2">
+                          {Array.from(new Set(chatReferences.map(r => r.fileId))).map((fileId) => {
+                            const refsForDoc = chatReferences.filter(r => r.fileId === fileId)
+                            const docRef = refsForDoc[0]
+                            const refNumbers = refsForDoc.map(r => r.number).sort((a, b) => a - b)
+                            const refNumbersStr = refNumbers.length <= 3
+                              ? refNumbers.join(', ')
+                              : `${refNumbers[0]}-${refNumbers[refNumbers.length - 1]}`
+                            
+                            return (
+                              <div
+                                key={fileId}
+                                className="flex items-center justify-between gap-2 p-2 rounded border bg-background hover:bg-muted/50 cursor-pointer"
+                                onClick={() => {
+                                  const doc = docs.find(d => d.fileId === fileId || d.id === fileId)
+                                  if (doc) openDocDetail(doc)
+                                }}
+                              >
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                                        [{refNumbersStr}]
+                                      </Badge>
+                                      <span className="text-xs font-medium truncate">
+                                        {docRef.fileName || fileId.slice(0, 30)}
+                                      </span>
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                                      {refsForDoc.map(r => r.description).join(', ')}
+                                    </div>
+                                  </div>
+                                </div>
+                                <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Zustände im rechten Panel anzeigen, damit Facetten links erhalten bleiben */}
                   {!libraryId ? (
                     <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
@@ -408,7 +576,7 @@ export default function GalleryClient() {
                     </div>
                   ) : (
                     <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'>
-                      {docs.map((pdf) => (
+                      {filteredDocs.map((pdf) => (
                         <Card
                           key={pdf.id}
                           className='cursor-pointer hover:shadow-lg transition-shadow duration-200'

@@ -120,22 +120,44 @@ export function getVectorIndexForLibrary(
   chatConfig?: LibraryChatConfig,
   userEmail?: string
 ): string {
+  console.log('[getVectorIndexForLibrary] Input:', {
+    libraryId: library.id,
+    libraryLabel: library.label,
+    hasConfig: !!chatConfig,
+    userEmail: userEmail ? `${userEmail.split('@')[0]}@...` : 'none'
+  })
+  
   // Globale Override-Möglichkeit für schnelle Fehleranalyse/Dev
   const envOverride = (process.env.PINECONE_INDEX_OVERRIDE || '').trim()
-  if (envOverride.length > 0) return envOverride
+  if (envOverride.length > 0) {
+    console.log('[getVectorIndexForLibrary] ⚠️ ENV Override aktiv:', envOverride)
+    return envOverride
+  }
 
   const override = chatConfig?.vectorStore?.indexOverride
+  console.log('[getVectorIndexForLibrary] Config Override:', override)
+  
   const base = (() => {
-    if (override && override.trim().length > 0) return slugifyIndexName(override)
+    if (override && override.trim().length > 0) {
+      const slugged = slugifyIndexName(override)
+      console.log('[getVectorIndexForLibrary] Verwende indexOverride:', { override, slugged })
+      return slugged
+    }
     const byLabel = slugifyIndexName(library.label)
+    console.log('[getVectorIndexForLibrary] Verwende Label:', { label: library.label, slugged: byLabel })
     if (byLabel) return byLabel
     const shortId = library.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)
     return slugifyIndexName(`lib-${shortId || 'default'}`)
   })()
 
-  if (!userEmail) return base
+  if (!userEmail) {
+    console.log('[getVectorIndexForLibrary] ✅ Final (ohne Email):', base)
+    return base
+  }
   const emailSlug = slugifyIndexName(userEmail)
-  return slugifyIndexName(`${emailSlug}-${base}`)
+  const final = slugifyIndexName(`${emailSlug}-${base}`)
+  console.log('[getVectorIndexForLibrary] ✅ Final (mit Email):', { emailSlug, base, final })
+  return final
 }
 
 

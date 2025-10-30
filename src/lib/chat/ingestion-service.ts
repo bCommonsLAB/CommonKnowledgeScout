@@ -213,9 +213,18 @@ export class IngestionService {
         FileLogger.warn('ingestion', 'Frontmatter summary fehlt oder leer', { fileId })
         if (jobId) bufferLog(jobId, { phase: 'frontmatter_missing', message: 'summary fehlt' })
       }
+      // Prüfe ob Session-Modus (Slides vorhanden) → dann keine Warnung für fehlende Chapters
+      const slidesRaw = metaEffective && typeof metaEffective === 'object' ? (metaEffective as { slides?: unknown }).slides : undefined
+      const isSessionMode = Array.isArray(slidesRaw) && (slidesRaw as Array<unknown>).length > 0
       if (!Array.isArray(chaptersInput) || chaptersInput.length === 0) {
-        FileLogger.warn('ingestion', 'Frontmatter chapters fehlen oder leer', { fileId })
-        if (jobId) bufferLog(jobId, { phase: 'frontmatter_missing', message: 'chapters fehlen' })
+        if (!isSessionMode) {
+          // Nur warnen wenn KEIN Session-Modus (keine Slides vorhanden)
+          FileLogger.warn('ingestion', 'Frontmatter chapters fehlen oder leer', { fileId })
+          if (jobId) bufferLog(jobId, { phase: 'frontmatter_missing', message: 'chapters fehlen' })
+        } else {
+          // Session-Modus: Chapters sind normalerweise leer → kein Warnung
+          FileLogger.info('ingestion', 'Session-Modus erkannt (keine Chapters erwartet)', { fileId })
+        }
       }
     } catch {}
 
@@ -291,6 +300,7 @@ export class IngestionService {
           chunkIndex: globalChunkIndex, text: safeText(chunkTexts[localIdx], 1200), upsertedAt,
           chapterId, chapterOrder: order, chapterTitle: title, level,
           startPage, endPage, pageCount, summaryShort: safeText(summary, 320), keywords,
+          sourceType: 'chapter', // Markierung: kommt aus Chapters
         }
         vectors.push({ id, values, metadata })
         globalChunkIndex += 1
@@ -311,6 +321,118 @@ export class IngestionService {
         })
         FileLogger.info('ingestion', 'Kapitel-Summary vektorisiert', { fileId, order, title })
         if (jobId) bufferLog(jobId, { phase: 'chapters', message: `Kapitel ${order ?? '-'}: Summary vektorisiert` })
+      }
+    }
+
+    // Session-Modus: Wenn keine Chapters vorhanden, aber Slides vorhanden → Slides als Chunks behandeln
+    if (chaptersInput.length === 0) {
+      const slidesRaw = metaEffective && typeof metaEffective === 'object' ? (metaEffective as { slides?: unknown }).slides : undefined
+      const slidesInput = Array.isArray(slidesRaw) ? slidesRaw as Array<Record<string, unknown>> : []
+      
+      if (slidesInput.length > 0) {
+        FileLogger.info('ingestion', 'Session-Modus erkannt: Verarbeite Slides als Chunks', { fileId, slidesCount: slidesInput.length })
+        if (jobId) bufferLog(jobId, { phase: 'session_mode', message: `Session-Modus: ${slidesInput.length} Slides werden als Chunks verarbeitet` })
+        
+        // 1. Slides chunken: slide_text (Originaltext) verwenden, nicht summary!
+        for (let slideIdx = 0; slideIdx < slidesInput.length; slideIdx++) {
+          const slide = slidesInput[slideIdx]
+          const slidePageNum = typeof (slide as { page_num?: unknown }).page_num === 'number' ? (slide as { page_num: number }).page_num : slideIdx + 1
+          const slideTitle = typeof (slide as { title?: unknown }).title === 'string' ? (slide as { title: string }).title : `Folie ${slidePageNum}`
+          const slideText = typeof (slide as { slide_text?: unknown }).slide_text === 'string' ? (slide as { slide_text: string }).slide_text : ''
+          const slideSummary = typeof (slide as { summary?: unknown }).summary === 'string' ? (slide as { summary: string }).summary : ''
+          
+          // WICHTIG: slide_text (Originaltext) verwenden, nicht summary!
+          if (slideText && slideText.trim().length > 0) {
+            // Slide-Text chunken (1500/100, wie Chapters)
+            const slideChunks = chunkText(slideText, 1500, 100)
+            if (slideChunks.length > 0) {
+              const slideEmbeds = await embedTexts(slideChunks)
+              const slideId = hashId(`${fileId}|slide|${slidePageNum}`)
+              const upsertedAt = new Date().toISOString()
+              
+              slideEmbeds.forEach((values, localIdx) => {
+                const id = `${fileId}-${globalChunkIndex}`
+                const metadata: Record<string, unknown> = {
+                  kind: 'chunk', // Normale Chunks, damit Retriever sie findet!
+                  user: userEmail, libraryId, fileId, fileName,
+                  chunkIndex: globalChunkIndex,
+                  text: safeText(slideChunks[localIdx], 1200), // WICHTIG: Originaltext, nicht summary!
+                  upsertedAt,
+                  // Slide-Metadaten für Kontext
+                  slidePageNum,
+                  slideTitle,
+                  slideSummary: safeText(slideSummary, 320), // Nur für Kontext, nicht für Retrieval
+                  slideId,
+                  sourceType: 'slides', // Markierung: kommt aus Slides (slide_text)
+                }
+                vectors.push({ id, values, metadata })
+                globalChunkIndex += 1
+              })
+              
+              FileLogger.info('ingestion', 'Slide gechunkt', { fileId, slidePageNum, slideTitle, chunks: slideChunks.length })
+              if (jobId) bufferLog(jobId, { phase: 'slide_chunked', message: `Slide ${slidePageNum}: ${slideChunks.length} Chunks aus slide_text` })
+            }
+          } else {
+            FileLogger.warn('ingestion', 'Slide ohne slide_text übersprungen', { fileId, slidePageNum, slideTitle })
+            if (jobId) bufferLog(jobId, { phase: 'slide_skipped', message: `Slide ${slidePageNum}: Kein slide_text vorhanden` })
+          }
+        }
+        
+        // 2. Body chunken (falls vorhanden und nicht leer)
+        if (body && body.trim().length > 0) {
+          const bodyChunks = chunkText(body, 1500, 100)
+          if (bodyChunks.length > 0) {
+            const bodyEmbeds = await embedTexts(bodyChunks)
+            const upsertedAt = new Date().toISOString()
+            
+            bodyEmbeds.forEach((values, localIdx) => {
+              const id = `${fileId}-${globalChunkIndex}`
+              const metadata: Record<string, unknown> = {
+                kind: 'chunk',
+                user: userEmail, libraryId, fileId, fileName,
+                chunkIndex: globalChunkIndex,
+                text: safeText(bodyChunks[localIdx], 1200),
+                upsertedAt,
+                sourceType: 'body', // Markierung: kommt aus Body, nicht aus Slide
+              }
+              vectors.push({ id, values, metadata })
+              globalChunkIndex += 1
+            })
+            
+            FileLogger.info('ingestion', 'Body gechunkt', { fileId, chunks: bodyChunks.length })
+            if (jobId) bufferLog(jobId, { phase: 'body_chunked', message: `Body: ${bodyChunks.length} Chunks` })
+          }
+        }
+        
+        // 3. Video-Transkript chunken (falls vorhanden)
+        const videoTranscript = typeof (metaEffective as { video_transcript?: unknown }).video_transcript === 'string' 
+          ? (metaEffective as { video_transcript: string }).video_transcript 
+          : ''
+        
+        if (videoTranscript && videoTranscript.trim().length > 0) {
+          const transcriptChunks = chunkText(videoTranscript, 1500, 100)
+          if (transcriptChunks.length > 0) {
+            const transcriptEmbeds = await embedTexts(transcriptChunks)
+            const upsertedAt = new Date().toISOString()
+            
+            transcriptEmbeds.forEach((values, localIdx) => {
+              const id = `${fileId}-${globalChunkIndex}`
+              const metadata: Record<string, unknown> = {
+                kind: 'chunk',
+                user: userEmail, libraryId, fileId, fileName,
+                chunkIndex: globalChunkIndex,
+                text: safeText(transcriptChunks[localIdx], 1200),
+                upsertedAt,
+                sourceType: 'video_transcript', // Markierung: kommt aus Video-Transkript
+              }
+              vectors.push({ id, values, metadata })
+              globalChunkIndex += 1
+            })
+            
+            FileLogger.info('ingestion', 'Video-Transkript gechunkt', { fileId, chunks: transcriptChunks.length })
+            if (jobId) bufferLog(jobId, { phase: 'transcript_chunked', message: `Video-Transkript: ${transcriptChunks.length} Chunks` })
+          }
+        }
       }
     }
 

@@ -82,12 +82,15 @@ export function ChatForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
   const [healthResult, setHealthResult] = useState<{
-    ok: boolean;
+    ok?: boolean;
     indexes?: Array<{ name: string }>;
     expectedIndex?: string;
+    expectedIndexName?: string;
     exists?: boolean;
-    status?: number;
+    status?: number | { state?: string };
     error?: string;
+    vectorCount?: number;
+    dimension?: number;
   } | null>(null)
   const [healthError, setHealthError] = useState<string | null>(null)
 
@@ -207,7 +210,6 @@ export function ChatForm() {
       console.log('[ChatForm] Form nach reset:', {
         detailViewType: afterResetValue,
         type: typeof afterResetValue,
-        isEmpty: afterResetValue === '',
         allGalleryValues: form.getValues('gallery')
       })
     }
@@ -541,14 +543,45 @@ export function ChatForm() {
             setHealthError(null)
             setHealthResult(null)
             try {
-              const res = await fetch('/api/health/pinecone', { method: 'GET', cache: 'no-store' })
+              if (!activeLibrary) throw new Error('Keine Bibliothek ausgewählt')
+              
+              console.log('[ChatForm] Index-Status-Prüfung für:', {
+                libraryId: activeLibrary.id,
+                libraryLabel: activeLibrary.label
+              })
+              
+              // Prüfe Index-Status für diese spezifische Library
+              const url = `/api/chat/${encodeURIComponent(activeLibrary.id)}/index-status`
+              console.log('[ChatForm] Request URL:', url)
+              
+              const res = await fetch(url, { 
+                method: 'GET', 
+                cache: 'no-store' 
+              })
               const data = await res.json()
-              if (!res.ok || data?.ok === false) {
+              
+              console.log('[ChatForm] Index-Status Response:', data)
+              
+              if (!res.ok) {
                 const message = typeof data?.error === 'string' ? data.error : `Fehlerstatus ${res.status}`
                 throw new Error(message)
               }
+              
               setHealthResult(data)
-              toast({ title: 'Index Status', description: 'Pinecone-Verbindung OK' })
+              
+              // Benutzerfreundliche Toast-Nachricht
+              if (data.exists) {
+                toast({ 
+                  title: '✅ Index vorhanden', 
+                  description: `Index "${data.indexName}" ist bereit (${data.vectorCount || 0} Vektoren)` 
+                })
+              } else {
+                toast({ 
+                  title: '⚠️ Index fehlt', 
+                  description: `Index "${data.expectedIndexName}" existiert noch nicht. Bitte "Index anlegen" klicken.`,
+                  variant: 'destructive'
+                })
+              }
             } catch (e) {
               const msg = e instanceof Error ? e.message : 'Unbekannter Fehler'
               setHealthError(msg)
@@ -604,9 +637,29 @@ export function ChatForm() {
 
         {(healthResult || healthError) && (
           <div className="rounded-md border bg-muted/30 p-3">
-            <div className="text-xs text-muted-foreground mb-2">Pinecone Health Check</div>
+            <div className="text-xs text-muted-foreground mb-2">
+              {healthResult?.exists !== undefined ? 'Index Status' : 'Pinecone Health Check'}
+            </div>
             {healthError ? (
               <div className="text-sm text-destructive">{healthError}</div>
+            ) : healthResult?.exists === true ? (
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-green-600 dark:text-green-400">✅ Index vorhanden</div>
+                <div className="text-xs space-y-1">
+                  <div><span className="text-muted-foreground">Index:</span> {healthResult.expectedIndexName || healthResult.expectedIndex}</div>
+                  <div><span className="text-muted-foreground">Vektoren:</span> {(healthResult.vectorCount || 0).toLocaleString('de-DE')}</div>
+                  <div><span className="text-muted-foreground">Dimension:</span> {healthResult.dimension}</div>
+                  <div><span className="text-muted-foreground">Status:</span> {(healthResult as Record<string, unknown>).status ? String((healthResult as Record<string, unknown>).status) : 'Unknown'}</div>
+                </div>
+              </div>
+            ) : healthResult?.exists === false ? (
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-orange-600 dark:text-orange-400">⚠️ Index fehlt</div>
+                <div className="text-xs">
+                  <div><span className="text-muted-foreground">Erwarteter Name:</span> {healthResult.expectedIndexName || healthResult.expectedIndex}</div>
+                  <div className="text-sm text-muted-foreground mt-2">Bitte &quot;Index anlegen&quot; klicken, um zu starten.</div>
+                </div>
+              </div>
             ) : (
               <pre className="text-xs whitespace-pre-wrap break-words">{healthResult ? JSON.stringify(healthResult, null, 2) : ''}</pre>
             )}

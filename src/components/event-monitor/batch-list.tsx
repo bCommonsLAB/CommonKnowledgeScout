@@ -59,6 +59,7 @@ import { activeLibraryIdAtom } from '@/atoms/library-atom';
 import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
 import BatchArchiveDialog from './batch-archive-dialog';
 import { BatchProcessDialog } from './batch-process-dialog';
+import { extractVideoTranscript } from '@/lib/session/session-processor';
 
 // Archive-Dialog wird jetzt durch separate BatchArchiveDialog-Komponente ersetzt
 
@@ -95,6 +96,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   const [completedJobsForArchive, setCompletedJobsForArchive] = useState<Job[]>([]);
   const [processDialogOpen, setProcessDialogOpen] = useState(false);
   const [jobsForProcess, setJobsForProcess] = useState<Job[]>([]);
+  const [processingAllPending, setProcessingAllPending] = useState(false);
   
   // Dialog-Komponente für Batch-Restart
   const [batchRestartDialogOpen, setBatchRestartDialogOpen] = useState(false);
@@ -212,7 +214,7 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
     }
   };
   
-  // Job neu starten
+  // Job neu starten (Status auf PENDING setzen, Worker verarbeitet später)
   async function restartJob(jobId: string, batchId: string) {
     if (!window.confirm('Möchten Sie diesen Job wirklich neu starten?')) {
       return;
@@ -236,6 +238,83 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
       }
     } catch (error) {
       console.error('Fehler beim Neustarten des Jobs:', error);
+      alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+    } finally {
+      setProcessingJob(null);
+    }
+  }
+  
+  // Job direkt verarbeiten (ohne Worker-Wartezeit)
+  async function processJobDirect(jobId: string, batchId: string) {
+    if (!window.confirm('Möchten Sie diesen Job jetzt direkt verarbeiten?\n\nDies startet die Verarbeitung sofort ohne Wartezeit auf den Worker.')) {
+      return;
+    }
+    
+    try {
+      setProcessingJob(jobId);
+      
+      // Job-Daten laden (falls noch nicht vorhanden)
+      let job: Job | undefined = jobsByBatch[batchId]?.find(j => j.job_id === jobId);
+      if (!job) {
+        const jobResponse = await fetch(`/api/event-job/jobs/${jobId}`);
+        const jobData = await jobResponse.json();
+        if (jobData.status === 'success' && jobData.data?.job) {
+          job = jobData.data.job;
+        }
+      }
+      
+      // Video-Transcript clientseitig extrahieren (falls video_url vorhanden)
+      let videoTranscript: string | null = null;
+      if (job?.parameters?.video_url) {
+        try {
+          videoTranscript = await extractVideoTranscript(job.parameters.video_url);
+          if (videoTranscript) {
+            console.info('[processJobDirect] Video-Transcript extrahiert', { chars: videoTranscript.length });
+          }
+        } catch (error) {
+          console.warn('[processJobDirect] Fehler bei Transcript-Extraktion (wird übersprungen):', error);
+        }
+      }
+      
+      // Request-Body mit Library-Informationen und Video-Transcript vorbereiten
+      const requestBody: { libraryId?: string; uploadToLibrary?: boolean; videoTranscript?: string } = {};
+      if (activeLibraryId) {
+        requestBody.libraryId = activeLibraryId;
+        requestBody.uploadToLibrary = true;
+      }
+      if (videoTranscript) {
+        requestBody.videoTranscript = videoTranscript;
+      }
+      
+      const response = await fetch(`/api/event-job/jobs/${jobId}/process-direct`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        await loadJobsForBatch(batchId);
+        onRefresh();
+        
+        // Upload-Informationen anzeigen (falls vorhanden)
+        if (data.data?.upload) {
+          const upload = data.data.upload;
+          if (upload.success) {
+            alert(`Job erfolgreich verarbeitet!\n\n${upload.uploadedFiles} Dateien wurden in die Library hochgeladen.`);
+          } else {
+            alert(`Job erfolgreich verarbeitet, aber Upload fehlgeschlagen:\n\n${upload.error || 'Unbekannter Fehler'}\n\nDie Ergebnisse wurden im Job gespeichert.`);
+          }
+        } else {
+          alert('Job erfolgreich verarbeitet!\n\nHinweis: Ergebnisse wurden nur im Job gespeichert. Keine aktive Library zum Hochladen.');
+        }
+      } else {
+        console.error('Fehler bei direkter Verarbeitung:', data.message);
+        alert(`Fehler: ${data.message}${data.error ? `\n\nDetails: ${data.error.message}` : ''}`);
+      }
+    } catch (error) {
+      console.error('Fehler bei direkter Verarbeitung:', error);
       alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
     } finally {
       setProcessingJob(null);
@@ -395,6 +474,44 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
       const jobs: Job[] = data.data.jobs || [];
       setJobsForProcess(jobs);
       setProcessDialogOpen(true);
+    }
+  };
+
+  // Alle ausstehenden Jobs sammeln und Verarbeitung starten
+  const openProcessAllPendingDialog = async () => {
+    try {
+      setProcessingAllPending(true);
+      const allPendingJobs: Job[] = [];
+      
+      // Durch alle Batches iterieren und deren Jobs laden
+      for (const batch of batches) {
+        try {
+          const response = await fetch(`/api/event-job/batches/${batch.batch_id}/jobs?limit=1000`);
+          const data = await response.json();
+          if (data.status === 'success') {
+            const jobs: Job[] = data.data.jobs || [];
+            // Nur pending Jobs hinzufügen
+            const pendingJobs = jobs.filter(job => job.status === JobStatus.PENDING);
+            allPendingJobs.push(...pendingJobs);
+          }
+        } catch (error) {
+          console.error(`Fehler beim Laden der Jobs für Batch ${batch.batch_id}:`, error);
+        }
+      }
+      
+      if (allPendingJobs.length === 0) {
+        alert('Keine ausstehenden Jobs gefunden.');
+        setProcessingAllPending(false);
+        return;
+      }
+      
+      setJobsForProcess(allPendingJobs);
+      setProcessDialogOpen(true);
+    } catch (error) {
+      console.error('Fehler beim Sammeln aller ausstehenden Jobs:', error);
+      alert('Fehler beim Laden der Jobs. Bitte versuchen Sie es erneut.');
+    } finally {
+      setProcessingAllPending(false);
     }
   };
   
@@ -621,6 +738,37 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
           </ul>
         </div>
       )}
+      {/* Alle ausstehenden Jobs verarbeiten Button - immer sichtbar */}
+      {!isArchive && (
+        <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-blue-900 dark:text-blue-100">Verarbeitung</h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  {selectedEvent 
+                    ? `Alle ausstehenden Jobs des Events &quot;${selectedEvent}&quot; verarbeiten`
+                    : 'Alle ausstehenden Jobs verarbeiten'}
+                </p>
+              </div>
+              <Button
+                onClick={openProcessAllPendingDialog}
+                variant="outline"
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-800"
+                disabled={processingAllPending}
+              >
+                {processingAllPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <PlayCircle className="w-4 h-4 mr-2" />
+                )}
+                Alle Jobs jetzt verarbeiten
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Event-weite Steuerung - nur wenn Event gefiltert ist */}
       {selectedEvent && !isArchive && (
         <Card className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
@@ -855,40 +1003,82 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
                                       <TableCell>{formatDateTime(job.created_at)}</TableCell>
                                       <TableCell className="text-right">
                                         <div className="flex gap-2 justify-end">
-                                          <Button 
-                                            onClick={() => handleJobClick(job.job_id)}
-                                            variant="outline" 
-                                            size="sm"
-                                            disabled={processingJob === job.job_id}
-                                          >
-                                            <Eye className="w-4 h-4" />
-                                          </Button>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button 
+                                                onClick={() => handleJobClick(job.job_id)}
+                                                variant="outline" 
+                                                size="sm"
+                                                disabled={processingJob === job.job_id}
+                                              >
+                                                <Eye className="w-4 h-4" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              Details anzeigen
+                                            </TooltipContent>
+                                          </Tooltip>
                                           
+                                          {/* Direkter Start (ohne Worker-Wartezeit) */}
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button 
+                                                onClick={() => processJobDirect(job.job_id, batch.batch_id)}
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={processingJob === job.job_id || job.status === JobStatus.PROCESSING}
+                                                className="text-green-600 dark:text-green-400"
+                                              >
+                                                {processingJob === job.job_id ? (
+                                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                  <PlayCircle className="w-4 h-4" />
+                                                )}
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              {job.status === JobStatus.PROCESSING 
+                                                ? "Job wird bereits verarbeitet" 
+                                                : "Job jetzt direkt verarbeiten (ohne Wartezeit)"}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                          
+                                          {/* Normaler Neustart (Status auf PENDING setzen) */}
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <Button 
                                                 onClick={() => restartJob(job.job_id, batch.batch_id)}
                                                 variant="outline"
                                                 size="sm"
+                                                disabled={processingJob === job.job_id || job.status === JobStatus.PROCESSING}
                                                 className="text-blue-600 dark:text-blue-400"
                                               >
                                                 <RotateCw className="w-4 h-4" />
                                               </Button>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                              {job.status === JobStatus.PROCESSING ? "Job wird gerade verarbeitet" : "Job neu starten"}
+                                              {job.status === JobStatus.PROCESSING 
+                                                ? "Job wird gerade verarbeitet" 
+                                                : "Job neu starten (Status zurücksetzen, Worker verarbeitet später)"}
                                             </TooltipContent>
                                           </Tooltip>
                                           
-                                          <Button 
-                                            onClick={() => deleteJob(job.job_id, batch.batch_id)}
-                                            variant="outline"
-                                            size="sm"
-                                            disabled={processingJob === job.job_id}
-                                            className="text-red-600 dark:text-red-400"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </Button>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button 
+                                                onClick={() => deleteJob(job.job_id, batch.batch_id)}
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={processingJob === job.job_id}
+                                                className="text-red-600 dark:text-red-400"
+                                              >
+                                                <Trash2 className="w-4 h-4" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              Job löschen
+                                            </TooltipContent>
+                                          </Tooltip>
                                         </div>
                                       </TableCell>
                                     </TableRow>
