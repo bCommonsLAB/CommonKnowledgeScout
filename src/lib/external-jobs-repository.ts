@@ -8,7 +8,32 @@ export class ExternalJobsRepository {
   private collectionName = 'external_jobs';
 
   private async getCollection(): Promise<Collection<ExternalJob>> {
-    return getCollection<ExternalJob>(this.collectionName);
+    const col = await getCollection<ExternalJob>(this.collectionName);
+    // PERFORMANCE: Stelle sicher, dass Indizes vorhanden sind (nur beim ersten Aufruf)
+    try {
+      await Promise.all([
+        // Index auf jobId für Lookups
+        col.createIndex({ jobId: 1 }, { unique: true, name: 'jobId_unique' }),
+        // Index auf userEmail für User-Queries
+        col.createIndex({ userEmail: 1 }, { name: 'userEmail' }),
+        // Index auf status für Status-Filterung
+        col.createIndex({ status: 1 }, { name: 'status' }),
+        // Verbund-Indizes für häufig verwendete Query-Patterns
+        // userEmail + libraryId + correlation.source.itemId (für findLatestBySourceItem)
+        col.createIndex({ userEmail: 1, libraryId: 1, 'correlation.source.itemId': 1 }, { name: 'user_library_sourceItem' }),
+        // userEmail + libraryId + correlation.source.name (für findLatestBySourceName)
+        col.createIndex({ userEmail: 1, libraryId: 1, 'correlation.source.name': 1 }, { name: 'user_library_sourceName' }),
+        // userEmail + result.savedItemId (für findLatestByResultItem)
+        col.createIndex({ userEmail: 1, 'result.savedItemId': 1 }, { name: 'user_resultItem' }),
+        // Status + updatedAt für Worker-Queries (claimNextQueuedJob)
+        col.createIndex({ status: 1, updatedAt: 1 }, { name: 'status_updatedAt' }),
+        // userEmail + updatedAt für Sortierung
+        col.createIndex({ userEmail: 1, updatedAt: -1 }, { name: 'user_updatedAt_desc' }),
+      ]);
+    } catch {
+      // Fehler ignorieren (Indizes könnten bereits existieren)
+    }
+    return col;
   }
 
   hashSecret(secret: string): string {

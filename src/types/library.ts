@@ -70,6 +70,15 @@ export interface LibraryChatConfig {
   vectorStore?: {
     indexOverride?: string;
   };
+
+  /** Zielsprache für Chat-Antworten */
+  targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar';
+
+  /** Charakter/Profil für die Antwort-Perspektive */
+  character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific';
+
+  /** Sozialer Kontext/Sprachebene */
+  socialContext?: 'scientific' | 'popular' | 'youth' | 'senior';
 }
 
 /**

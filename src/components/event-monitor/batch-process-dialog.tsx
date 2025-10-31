@@ -57,9 +57,166 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
     return parent;
   };
 
+  // Hilfsfunktion: Verarbeitet einen einzelnen Job
+  async function processJob(job: Job, jobIndex: number): Promise<void> {
+    const p: JobParameters = job.parameters;
+    console.groupCollapsed(`[BatchProcess] Job ${jobIndex + 1}/${jobs.length}: ${job.job_id}`);
+    
+    try {
+      // Payload mit automatischer Transcript-Extraktion erstellen (wiederverwendbare Logik)
+      const payload = await buildSessionPayload(p, job);
+      console.info('[BatchProcess] Session-Payload erstellt', {
+        event: payload.event,
+        session: payload.session,
+        has_video_url: !!payload.video_url,
+        has_video_transcript: typeof payload.video_transcript === 'string',
+      });
+
+      // Schritt B: Secretary mit ggf. video_transcript aufrufen (einmalig)
+      console.info('[BatchProcess] Secretary processSession request', {
+        event: payload.event,
+        session: payload.session,
+        url: payload.url,
+        filename: payload.filename,
+        track: payload.track,
+        target_language: payload.target_language,
+        has_video_url: !!payload.video_url,
+        has_video_transcript: typeof payload.video_transcript === 'string',
+        create_archive: payload.create_archive,
+      });
+      console.time('[BatchProcess] processSession');
+      const respFinal = await processSession(payload);
+      console.timeEnd('[BatchProcess] processSession');
+      const outFinal = (respFinal && typeof respFinal === 'object' && 'data' in respFinal && respFinal.data && typeof respFinal.data === 'object' && 'output' in respFinal.data)
+        ? (respFinal as { data: { output?: { archive_data?: string; archive_filename?: string; markdown_content?: string; markdown_file?: string } } }).data.output
+        : undefined;
+      console.debug('[BatchProcess] processSession response keys', outFinal ? Object.keys(outFinal) : []);
+
+      if (outFinal?.archive_data && outFinal?.archive_filename) {
+        console.info('[BatchProcess] ZIP vorhanden, entpacke und lade hoch', { filename: outFinal.archive_filename });
+        const binary = atob(outFinal.archive_data);
+        const buf = new Uint8Array(binary.length);
+        for (let bi = 0; bi < binary.length; bi++) buf[bi] = binary.charCodeAt(bi);
+        const zip = await JSZip.loadAsync(buf as unknown as ArrayBuffer);
+        let markdownDir: string | null = null;
+        for (const [name, entry] of Object.entries(zip.files)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const e = entry as any;
+          if (e.dir) continue;
+          const fileData = await e.async('blob');
+          const file = new File([fileData], name.split('/').pop() || name, { type: fileData.type || undefined });
+          const folderId = await ensureDirectoryPath(name);
+          console.debug('[BatchProcess] Upload Datei', { name, targetFolderId: folderId });
+          await provider.uploadFile(folderId, file);
+          if (!markdownDir && name.toLowerCase().endsWith('.md') && name.includes('/')) {
+            const idx = name.lastIndexOf('/');
+            markdownDir = idx > 0 ? name.substring(0, idx) : null;
+          }
+        }
+        // Fallback: aus Response entnehmen, falls durch spätere README.md überschrieben
+        if (!markdownDir && typeof outFinal?.markdown_file === 'string') {
+          const mf: string = outFinal.markdown_file;
+          const idx = mf.lastIndexOf('/');
+          markdownDir = idx > 0 ? mf.substring(0, idx) : null;
+        }
+        console.info('[BatchProcess] Markdown-Verzeichnis ermittelt', { markdownDir, responsePath: outFinal?.markdown_file });
+        // Wenn wir ein Transcript im Payload hatten, zusätzlich als .txt neben Markdown speichern
+        if (payload.video_transcript && markdownDir) {
+          const txt = new File([payload.video_transcript], 'auto_generated_captions.txt', { type: 'text/plain' });
+          const folderId = await ensureDirectoryPath(markdownDir + '/auto_generated_captions.txt');
+          console.info('[BatchProcess] Transcript-Datei hochladen (ZIP-Fall)', { targetDir: markdownDir, fileName: 'auto_generated_captions.txt', folderId });
+          await provider.uploadFile(folderId, txt);
+        } else {
+          console.info('[BatchProcess] Transcript-Upload übersprungen (ZIP-Fall)', { hasTranscript: !!payload.video_transcript, markdownDir });
+        }
+        setSuccesses(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id }]);
+      } else if (outFinal?.markdown_content && outFinal?.markdown_file) {
+        console.info('[BatchProcess] Nur Markdown vorhanden, lade hoch', { markdown_file: outFinal.markdown_file });
+        const file = new File([outFinal.markdown_content], outFinal.markdown_file, { type: 'text/markdown' });
+        const folderId = await ensureDirectoryPath(outFinal.markdown_file);
+        console.debug('[BatchProcess] Upload Markdown', { targetFolderId: folderId, fileName: outFinal.markdown_file });
+        await provider.uploadFile(folderId, file);
+        if (payload.video_transcript) {
+          const baseIdx = outFinal.markdown_file.lastIndexOf('/');
+          const dir = baseIdx > 0 ? outFinal.markdown_file.substring(0, baseIdx) : '';
+          const txt = new File([payload.video_transcript], 'auto_generated_captions.txt', { type: 'text/plain' });
+          const tfId = await ensureDirectoryPath(dir ? dir + '/auto_generated_captions.txt' : 'auto_generated_captions.txt');
+          console.info('[BatchProcess] Transcript-Datei hochladen (Markdown-Fall)', { targetDir: dir || '(root)', fileName: 'auto_generated_captions.txt', folderId: tfId });
+          await provider.uploadFile(tfId, txt);
+        } else {
+          console.info('[BatchProcess] Transcript-Upload übersprungen (Markdown-Fall) – kein Transcript im Payload');
+        }
+        setSuccesses(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id }]);
+      } else {
+        throw new Error('Secretary-Antwort ohne archive_data/markdown_content');
+      }
+
+      // Persistiere das Plaintext-Transcript zusätzlich in der Session-Collection (falls verfügbar)
+      try {
+        if (payload.video_transcript) {
+          await fetch('/api/sessions/transcript', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: payload.event,
+              session: payload.session,
+              url: payload.url,
+              filename: payload.filename,
+              transcript_text: payload.video_transcript
+            })
+          });
+        }
+      } catch {}
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[BatchProcess] Fehler bei processSession', { jobId: job.job_id, message, stack: err instanceof Error ? err.stack : undefined });
+      setErrors(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id, message }]);
+    } finally {
+      console.groupEnd();
+    }
+  }
+
+  // Concurrency-Limit: Maximale Anzahl gleichzeitiger Verarbeitungen
+  const CONCURRENCY_LIMIT = 5;
+
+  // Hilfsfunktion: Verarbeitet Jobs mit Concurrency-Limit
+  async function processWithConcurrency() {
+    let completed = 0;
+    const total = jobs.length;
+    
+    // Queue für Jobs mit Index
+    const queue = jobs.map((job, index) => ({ job, index }));
+    const running: Promise<void>[] = [];
+    
+    // Verarbeite Jobs mit Concurrency-Limit
+    while (queue.length > 0 || running.length > 0) {
+      // Starte neue Jobs bis zum Limit
+      while (running.length < CONCURRENCY_LIMIT && queue.length > 0) {
+        const { job, index: jobIndex } = queue.shift()!;
+        
+        const promise = processJob(job, jobIndex).finally(() => {
+          // Entferne Promise aus running Array
+          const index = running.indexOf(promise);
+          if (index > -1) {
+            running.splice(index, 1);
+          }
+          completed++;
+          setIdx(completed);
+        });
+        
+        running.push(promise);
+      }
+      
+      // Warte auf mindestens einen Job, bevor neue gestartet werden
+      if (running.length > 0) {
+        await Promise.race(running);
+      }
+    }
+  }
+
   async function handleRun() {
     console.group('[BatchProcess] Start');
-    console.info('[BatchProcess] Jobs:', jobs.length);
+    console.info('[BatchProcess] Jobs:', jobs.length, `(Concurrency: ${CONCURRENCY_LIMIT})`);
     if (!provider || !activeLibrary) {
       console.error('[BatchProcess] Abbruch: fehlende Umgebung', {
         hasProvider: !!provider,
@@ -76,125 +233,7 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
     setSuccesses([]);
     try {
       console.time('[BatchProcess] Gesamtzeit');
-      for (let i = 0; i < jobs.length; i++) {
-        setIdx(i);
-        const job = jobs[i];
-        const p: JobParameters = job.parameters;
-        console.groupCollapsed(`[BatchProcess] Job ${i + 1}/${jobs.length}: ${job.job_id}`);
-        // Payload mit automatischer Transcript-Extraktion erstellen (wiederverwendbare Logik)
-        const payload = await buildSessionPayload(p, job);
-        console.info('[BatchProcess] Session-Payload erstellt', {
-          event: payload.event,
-          session: payload.session,
-          has_video_url: !!payload.video_url,
-          has_video_transcript: typeof payload.video_transcript === 'string',
-        });
-
-        // Schritt B: Secretary mit ggf. video_transcript aufrufen (einmalig)
-        try {
-          console.info('[BatchProcess] Secretary processSession request', {
-            event: payload.event,
-            session: payload.session,
-            url: payload.url,
-            filename: payload.filename,
-            track: payload.track,
-            target_language: payload.target_language,
-            has_video_url: !!payload.video_url,
-            has_video_transcript: typeof payload.video_transcript === 'string',
-            create_archive: payload.create_archive,
-          });
-          console.time('[BatchProcess] processSession');
-          const respFinal = await processSession(payload);
-          console.timeEnd('[BatchProcess] processSession');
-          const outFinal = (respFinal && typeof respFinal === 'object' && 'data' in respFinal && respFinal.data && typeof respFinal.data === 'object' && 'output' in respFinal.data)
-            ? (respFinal as { data: { output?: { archive_data?: string; archive_filename?: string; markdown_content?: string; markdown_file?: string } } }).data.output
-            : undefined;
-          console.debug('[BatchProcess] processSession response keys', outFinal ? Object.keys(outFinal) : []);
-
-          if (outFinal?.archive_data && outFinal?.archive_filename) {
-            console.info('[BatchProcess] ZIP vorhanden, entpacke und lade hoch', { filename: outFinal.archive_filename });
-            const binary = atob(outFinal.archive_data);
-            const buf = new Uint8Array(binary.length);
-            for (let bi = 0; bi < binary.length; bi++) buf[bi] = binary.charCodeAt(bi);
-            const zip = await JSZip.loadAsync(buf as unknown as ArrayBuffer);
-            let markdownDir: string | null = null;
-            for (const [name, entry] of Object.entries(zip.files)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const e = entry as any;
-              if (e.dir) continue;
-              const fileData = await e.async('blob');
-              const file = new File([fileData], name.split('/').pop() || name, { type: fileData.type || undefined });
-              const folderId = await ensureDirectoryPath(name);
-              console.debug('[BatchProcess] Upload Datei', { name, targetFolderId: folderId });
-              await provider.uploadFile(folderId, file);
-              if (!markdownDir && name.toLowerCase().endsWith('.md') && name.includes('/')) {
-                const idx = name.lastIndexOf('/');
-                markdownDir = idx > 0 ? name.substring(0, idx) : null;
-              }
-            }
-            // Fallback: aus Response entnehmen, falls durch spätere README.md überschrieben
-            if (!markdownDir && typeof outFinal?.markdown_file === 'string') {
-              const mf: string = outFinal.markdown_file;
-              const idx = mf.lastIndexOf('/');
-              markdownDir = idx > 0 ? mf.substring(0, idx) : null;
-            }
-            console.info('[BatchProcess] Markdown-Verzeichnis ermittelt', { markdownDir, responsePath: outFinal?.markdown_file });
-            // Wenn wir ein Transcript im Payload hatten, zusätzlich als .txt neben Markdown speichern
-            if (payload.video_transcript && markdownDir) {
-              const txt = new File([payload.video_transcript], 'auto_generated_captions.txt', { type: 'text/plain' });
-              const folderId = await ensureDirectoryPath(markdownDir + '/auto_generated_captions.txt');
-              console.info('[BatchProcess] Transcript-Datei hochladen (ZIP-Fall)', { targetDir: markdownDir, fileName: 'auto_generated_captions.txt', folderId });
-              await provider.uploadFile(folderId, txt);
-            } else {
-              console.info('[BatchProcess] Transcript-Upload übersprungen (ZIP-Fall)', { hasTranscript: !!payload.video_transcript, markdownDir });
-            }
-            setSuccesses(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id }]);
-          } else if (outFinal?.markdown_content && outFinal?.markdown_file) {
-            console.info('[BatchProcess] Nur Markdown vorhanden, lade hoch', { markdown_file: outFinal.markdown_file });
-            const file = new File([outFinal.markdown_content], outFinal.markdown_file, { type: 'text/markdown' });
-            const folderId = await ensureDirectoryPath(outFinal.markdown_file);
-            console.debug('[BatchProcess] Upload Markdown', { targetFolderId: folderId, fileName: outFinal.markdown_file });
-            await provider.uploadFile(folderId, file);
-            if (payload.video_transcript) {
-              const baseIdx = outFinal.markdown_file.lastIndexOf('/');
-              const dir = baseIdx > 0 ? outFinal.markdown_file.substring(0, baseIdx) : '';
-              const txt = new File([payload.video_transcript], 'auto_generated_captions.txt', { type: 'text/plain' });
-              const tfId = await ensureDirectoryPath(dir ? dir + '/auto_generated_captions.txt' : 'auto_generated_captions.txt');
-              console.info('[BatchProcess] Transcript-Datei hochladen (Markdown-Fall)', { targetDir: dir || '(root)', fileName: 'auto_generated_captions.txt', folderId: tfId });
-              await provider.uploadFile(tfId, txt);
-            } else {
-              console.info('[BatchProcess] Transcript-Upload übersprungen (Markdown-Fall) – kein Transcript im Payload');
-            }
-            setSuccesses(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id }]);
-          } else {
-            throw new Error('Secretary-Antwort ohne archive_data/markdown_content');
-          }
-
-          // Persistiere das Plaintext-Transcript zusätzlich in der Session-Collection (falls verfügbar)
-          try {
-            if (payload.video_transcript) {
-              await fetch('/api/sessions/transcript', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  event: payload.event,
-                  session: payload.session,
-                  url: payload.url,
-                  filename: payload.filename,
-                  transcript_text: payload.video_transcript
-                })
-              });
-            }
-          } catch {}
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error('[BatchProcess] Fehler bei processSession', { jobId: job.job_id, message, stack: err instanceof Error ? err.stack : undefined });
-          setErrors(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id, message }]);
-        }
-
-        // (entfernt) Optionaler Audio-Schritt
-        console.groupEnd();
-      }
+      await processWithConcurrency();
     } finally {
       setRunning(false);
       setFinished(true);
@@ -211,6 +250,11 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
           <DialogTitle>Batch verarbeiten</DialogTitle>
           <DialogDescription>
             Führt pro Job einen Secretary-Lauf aus und lädt Markdown/Bilder in die aktuelle Library hoch.
+            {jobs.length > CONCURRENCY_LIMIT && (
+              <span className="block mt-1 text-xs text-muted-foreground">
+                Es werden maximal {CONCURRENCY_LIMIT} Jobs gleichzeitig verarbeitet.
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 

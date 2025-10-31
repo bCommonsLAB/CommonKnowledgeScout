@@ -130,6 +130,10 @@ transcriptionDialogOpenAtom.debugLabel = 'transcriptionDialogOpenAtom';
 export const transformationDialogOpenAtom = atom<boolean>(false);
 transformationDialogOpenAtom.debugLabel = 'transformationDialogOpenAtom';
 
+// Atom für den Dialog-Status (Ingestion)
+export const ingestionDialogOpenAtom = atom<boolean>(false);
+ingestionDialogOpenAtom.debugLabel = 'ingestionDialogOpenAtom';
+
 // Atom für den Verarbeitungsstatus
 export const transformProcessingAtom = atom<boolean>(false);
 transformProcessingAtom.debugLabel = 'transformProcessingAtom';

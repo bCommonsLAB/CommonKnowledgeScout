@@ -96,10 +96,10 @@ export default function SessionManagerPage() {
       if (data.status === 'success') {
         setSessions(data.data.sessions);
         
-        // Filter-Optionen extrahieren
-        const tracks = Array.from(new Set(data.data.sessions.map((s: Session) => s.track))).filter((t): t is string => typeof t === 'string' && t !== null && t !== undefined);
-        const days = Array.from(new Set(data.data.sessions.map((s: Session) => s.day))).filter((d): d is string => typeof d === 'string' && d !== null && d !== undefined);
-        const languages = Array.from(new Set(data.data.sessions.map((s: Session) => s.source_language))).filter((l): l is string => typeof l === 'string' && l !== null && l !== undefined);
+        // Filter-Optionen extrahieren (leere Strings ausschließen)
+        const tracks = Array.from(new Set(data.data.sessions.map((s: Session) => s.track))).filter((t): t is string => typeof t === 'string' && t !== null && t !== undefined && t.trim() !== '');
+        const days = Array.from(new Set(data.data.sessions.map((s: Session) => s.day))).filter((d): d is string => typeof d === 'string' && d !== null && d !== undefined && d.trim() !== '');
+        const languages = Array.from(new Set(data.data.sessions.map((s: Session) => s.source_language))).filter((l): l is string => typeof l === 'string' && l !== null && l !== undefined && l.trim() !== '');
         
         setAvailableTracks(tracks.sort());
         setAvailableDays(days.sort());
@@ -319,7 +319,7 @@ export default function SessionManagerPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Alle Tracks</SelectItem>
-              {availableTracks.map(track => (
+              {availableTracks.filter(track => track && track.trim() !== '').map(track => (
                 <SelectItem key={track} value={track}>{track}</SelectItem>
               ))}
             </SelectContent>
@@ -331,7 +331,7 @@ export default function SessionManagerPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Alle Tage</SelectItem>
-              {availableDays.map(day => (
+              {availableDays.filter(day => day && day.trim() !== '').map(day => (
                 <SelectItem key={day} value={day}>{day}</SelectItem>
               ))}
             </SelectContent>
@@ -343,7 +343,7 @@ export default function SessionManagerPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Alle</SelectItem>
-              {availableLanguages.map(lang => (
+              {availableLanguages.filter(lang => lang && lang.trim() !== '').map(lang => (
                 <SelectItem key={lang} value={lang}>{lang?.toUpperCase() || 'UNBEKANNT'}</SelectItem>
               ))}
             </SelectContent>
@@ -554,9 +554,11 @@ export default function SessionManagerPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(LANGUAGE_MAP).map(([code, name]) => (
-                    <SelectItem key={code} value={code}>{name}</SelectItem>
-                  ))}
+                  {Object.entries(LANGUAGE_MAP)
+                    .filter(([code]) => code && code.trim() !== '') // Leere Strings ausschließen
+                    .map(([code, name]) => (
+                      <SelectItem key={code} value={code}>{name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

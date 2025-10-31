@@ -310,41 +310,46 @@ export default function DebugFooter() {
   }, [logsWithRemarks, debugInfo, debugState.visibleComponents, debugState.visibleAreas]);
 
   return (
-    <div 
-      className={cn(
-        "fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t",
-        !isExpanded && "h-8",
-        isExpanded && !isFullHeight && "h-72",
-        isExpanded && isFullHeight && "h-[calc(100vh-64px)]"
-      )}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 h-8 border-b">
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-          </Button>
-          {isExpanded && (
-            <>
+    <>
+      {/* Handle - immer sichtbar, minimaler Handle am unteren Rand (rechtsbündig mit 40px Abstand) */}
+      <div 
+        className={cn(
+          "fixed bottom-0 right-[40px] h-6 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/40 border border-t-0 rounded-t-lg cursor-pointer hover:bg-muted/50 transition-colors z-50 flex items-center justify-center px-4 min-w-[60px]"
+        )}
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <ChevronUp className={cn(
+          "h-3 w-3 text-muted-foreground transition-transform",
+          isExpanded && "rotate-180"
+        )} />
+      </div>
+
+      {/* Panel - nur sichtbar wenn ausgeklappt */}
+      {isExpanded && (
+        <div 
+          className={cn(
+            "fixed bottom-6 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t transition-all duration-200 z-40 flex flex-col",
+            !isFullHeight && "h-72",
+            isFullHeight && "h-[calc(100vh-64px-24px)]"
+          )}
+        >
+          {/* Header - innerhalb des Panels */}
+          <div className="flex items-center justify-between px-4 h-8 border-b">
+            <div className="flex items-center space-x-2">
               <span className="text-sm font-medium">Debug Panel</span>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => setIsFullHeight(!isFullHeight)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFullHeight(!isFullHeight);
+                }}
               >
                 {isFullHeight ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
-            </>
-          )}
-        </div>
-        {isExpanded && (
-          <div className="flex items-center space-x-2">
+            </div>
+            <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
             {/* Preset-Buttons modulabhängig */}
             {moduleKey !== 'other' && (
               <>
@@ -379,12 +384,10 @@ export default function DebugFooter() {
               Clear Logs
             </Button>
           </div>
-        )}
-      </div>
+          </div>
 
-      {/* Content */}
-      {isExpanded && (
-        <div className="flex flex-col h-full overflow-hidden">
+          {/* Content - unterhalb des Headers */}
+          <div className="flex flex-col flex-1 overflow-hidden">
           <ResizablePanelGroup direction="horizontal" className="flex-1">
             {/* Filter Panel */}
             <ResizablePanel defaultSize={15} minSize={10} maxSize={20}>
@@ -585,8 +588,9 @@ export default function DebugFooter() {
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 } 

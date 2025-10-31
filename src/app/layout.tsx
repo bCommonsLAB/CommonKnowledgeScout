@@ -40,8 +40,11 @@ export default function RootLayout({
           >
             <StorageContextProvider>
               <TooltipProvider>
-                <div className="h-screen overflow-auto">
-                  {children}
+                <div className="h-screen overflow-hidden flex flex-col">
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    {children}
+                  </div>
+                  <DebugFooterWrapper />
                 </div>
                 <Toaster richColors />
               </TooltipProvider>
@@ -81,9 +84,9 @@ export default function RootLayout({
           >
             <StorageContextProvider>
               <TooltipProvider>
-                <div className="relative h-screen overflow-hidden">
+                <div className="relative h-screen overflow-hidden flex flex-col">
                   <TopNavWrapper />
-                  <div className={hasClerk ? "h-[calc(100vh-4rem)] overflow-auto" : "h-screen overflow-auto"}>
+                  <div className="flex-1 min-h-0 overflow-hidden">
                     {children}
                   </div>
                   <JobMonitorPanel />

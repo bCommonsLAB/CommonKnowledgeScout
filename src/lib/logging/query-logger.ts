@@ -17,6 +17,8 @@ export async function startQueryLog(context: {
   userEmail: string
   question: string
   mode: QueryLog['mode']
+  answerLength?: QueryLog['answerLength']
+  retriever?: QueryLog['retriever']
   facetsSelected?: Record<string, unknown>
   filtersNormalized?: Record<string, unknown>
   filtersPinecone?: Record<string, unknown>
@@ -59,12 +61,27 @@ export async function setPrompt(
   })
 }
 
-export async function finalizeQueryLog(queryId: string, payload: { answer: string; sources?: QueryLog['sources']; timing?: QueryLog['timing']; tokenUsage?: QueryLog['tokenUsage'] }): Promise<void> {
-  await updateQueryLogPartial(queryId, { status: 'ok', answer: payload.answer, sources: payload.sources, timing: payload.timing, tokenUsage: payload.tokenUsage })
+export async function finalizeQueryLog(queryId: string, payload: { answer: string; sources?: QueryLog['sources']; references?: QueryLog['references']; suggestedQuestions?: QueryLog['suggestedQuestions']; timing?: QueryLog['timing']; tokenUsage?: QueryLog['tokenUsage'] }): Promise<void> {
+  await updateQueryLogPartial(queryId, { 
+    status: 'ok', 
+    answer: payload.answer, 
+    sources: payload.sources, 
+    references: payload.references,
+    suggestedQuestions: payload.suggestedQuestions,
+    timing: payload.timing, 
+    tokenUsage: payload.tokenUsage 
+  })
 }
 
 export async function failQueryLog(queryId: string, error: { message: string; stage?: string }): Promise<void> {
   await updateQueryLogPartial(queryId, { status: 'error', error })
+}
+
+export async function setQuestionAnalysis(
+  queryId: string,
+  analysis: import('@/types/query-log').QuestionAnalysisInfo
+): Promise<void> {
+  await updateQueryLogPartial(queryId, { questionAnalysis: analysis })
 }
 
 

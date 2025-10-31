@@ -19,6 +19,35 @@ export function DebugPanel({ log }: { log: QueryLog }) {
     if (stage === 'llm' && level === 'answer') return 'Schritt 4: Antwort erzeugen'
     return `${stage} [${level}]`
   }
+  // Hilfsfunktion für Retriever-Label
+  function getRetrieverLabel(retriever?: string): string {
+    if (!retriever) return '-'
+    if (retriever === 'chunk') return 'Chunk (spezifisch)'
+    if (retriever === 'doc' || retriever === 'summary') return 'Summary (Übersicht)'
+    return retriever
+  }
+
+  // Hilfsfunktion für Antwortlänge-Label
+  function getAnswerLengthLabel(answerLength?: string): string {
+    if (!answerLength) return '-'
+    const labels: Record<string, string> = {
+      'kurz': 'Kurz',
+      'mittel': 'Mittel',
+      'ausführlich': 'Ausführlich',
+      'unbegrenzt': 'Unbegrenzt',
+    }
+    return labels[answerLength] || answerLength
+  }
+
+  // Prüft ob Empfehlung mit verwendetem Retriever übereinstimmt
+  function recommendationMatches(retriever?: string, recommendation?: string): boolean {
+    if (!retriever || !recommendation) return false
+    if (recommendation === 'unclear') return false
+    if (recommendation === 'chunk' && retriever === 'chunk') return true
+    if (recommendation === 'summary' && (retriever === 'summary' || retriever === 'doc')) return true
+    return false
+  }
+
   const steps = (log.retrieval || []).map((s, i) => ({ key: `step-${i}`, label: simplifyLabel(s.stage, s.level), step: s }))
 
   function explainStepLabelFromStep(step: QueryRetrievalStep): string {
@@ -95,6 +124,27 @@ export function DebugPanel({ log }: { log: QueryLog }) {
             <span className="px-2 py-0.5 rounded border font-mono" title={log.queryId}>{log.queryId.slice(0, 8)}…</span>
           ) : null}
           <span className="px-2 py-0.5 rounded border">{log.mode}</span>
+          {log.retriever && (
+            <span className="px-2 py-0.5 rounded border bg-blue-50 dark:bg-blue-950" title="Retriever-Methode">
+              {getRetrieverLabel(log.retriever)}
+            </span>
+          )}
+          {log.questionAnalysis && (
+            <span className={`px-2 py-0.5 rounded border ${
+              log.questionAnalysis.confidence === 'high' 
+                ? 'bg-green-50 dark:bg-green-950' 
+                : log.questionAnalysis.confidence === 'medium'
+                ? 'bg-yellow-50 dark:bg-yellow-950'
+                : 'bg-orange-50 dark:bg-orange-950'
+            }`} title="Automatische Analyse">
+              Analyse: {log.questionAnalysis.recommendation === 'chunk' ? 'Chunk' : log.questionAnalysis.recommendation === 'summary' ? 'Summary' : 'Unklar'} ({log.questionAnalysis.confidence})
+            </span>
+          )}
+          {log.answerLength && (
+            <span className="px-2 py-0.5 rounded border bg-green-50 dark:bg-green-950" title="Antwortlänge">
+              {getAnswerLengthLabel(log.answerLength)}
+            </span>
+          )}
           {typeof log.timing?.retrievalMs === 'number' && <span className="px-2 py-0.5 rounded border">retrieval {log.timing.retrievalMs}ms</span>}
           {typeof log.timing?.llmMs === 'number' && <span className="px-2 py-0.5 rounded border">llm {log.timing.llmMs}ms</span>}
         </div>
@@ -113,6 +163,64 @@ export function DebugPanel({ log }: { log: QueryLog }) {
               <div className="p-2 rounded border text-sm">genutzte Quellen: <span className="font-medium">{kpis.usedSources}</span></div>
               <div className="p-2 rounded border text-sm">Model: <span className="font-medium">{kpis.model || '-'}</span> ({typeof kpis.temperature === 'number' ? kpis.temperature : '-'})</div>
             </div>
+            
+            {/* Retriever-Analyse Sektion */}
+            {log.questionAnalysis && (
+              <div className="mt-4">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Retriever-Auswahl (automatisch)</div>
+                <div className="rounded-lg border-2 p-3 bg-muted/30">
+                  <div className="flex items-start gap-3">
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                      log.questionAnalysis.recommendation === 'chunk' 
+                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200' 
+                        : log.questionAnalysis.recommendation === 'summary'
+                        ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200'
+                        : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200'
+                    }`}>
+                      {log.questionAnalysis.recommendation === 'chunk' ? 'C' : log.questionAnalysis.recommendation === 'summary' ? 'S' : '?'}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div>
+                        <div className="text-sm font-medium">
+                          Empfehlung: {log.questionAnalysis.recommendation === 'chunk' ? 'Chunk-Modus' : log.questionAnalysis.recommendation === 'summary' ? 'Summary-Modus' : 'Unklar'}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Konfidenz: {log.questionAnalysis.confidence === 'high' ? '🔴 Hoch' : log.questionAnalysis.confidence === 'medium' ? '🟡 Mittel' : '🟢 Niedrig'}
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground bg-background/50 rounded p-2 border">
+                        <div className="font-medium mb-1">Begründung:</div>
+                        <div className="whitespace-pre-wrap">{log.questionAnalysis.reasoning}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        <span className="font-medium">Verwendet:</span> {getRetrieverLabel(log.retriever)}
+                        {log.questionAnalysis && !recommendationMatches(log.retriever, log.questionAnalysis.recommendation) && (
+                          <span className="ml-2 text-yellow-600 dark:text-yellow-400">⚠️ Abweichung von Empfehlung</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Query-Parameter Sektion */}
+            <div className="mt-4 text-[11px] uppercase tracking-wide text-muted-foreground">Query-Parameter</div>
+            <div className="mt-1 grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div className="p-2 rounded border text-sm">
+                <div className="text-xs text-muted-foreground mb-1">Retriever-Methode</div>
+                <div className="font-medium">{getRetrieverLabel(log.retriever)}</div>
+              </div>
+              <div className="p-2 rounded border text-sm">
+                <div className="text-xs text-muted-foreground mb-1">Antwortlänge</div>
+                <div className="font-medium">{getAnswerLengthLabel(log.answerLength)}</div>
+              </div>
+              <div className="p-2 rounded border text-sm">
+                <div className="text-xs text-muted-foreground mb-1">Mode</div>
+                <div className="font-medium">{log.mode}</div>
+              </div>
+            </div>
+            
             <div className="mt-4 text-[11px] uppercase tracking-wide text-muted-foreground">Summen je Ebene</div>
             <div className="mt-1 grid grid-cols-2 md:grid-cols-4 gap-2">
               {Object.entries(kpis.perLevel).map(([lvl, s]) => (
@@ -130,6 +238,94 @@ export function DebugPanel({ log }: { log: QueryLog }) {
             </div>
           </AccordionContent>
         </AccordionItem>
+        {log.questionAnalysis && (
+          <AccordionItem value="analysis">
+            <AccordionTrigger className="rounded-md bg-muted/60 data-[state=open]:bg-muted px-2">
+              Retriever-Analyse
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4">
+                <div className="rounded-lg border-2 p-4 bg-muted/30">
+                  <div className="flex items-start gap-4">
+                    <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
+                      log.questionAnalysis.recommendation === 'chunk' 
+                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200' 
+                        : log.questionAnalysis.recommendation === 'summary'
+                        ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200'
+                        : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200'
+                    }`}>
+                      {log.questionAnalysis.recommendation === 'chunk' ? 'C' : log.questionAnalysis.recommendation === 'summary' ? 'S' : '?'}
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <div className="text-base font-semibold mb-1">
+                          Empfehlung: {log.questionAnalysis.recommendation === 'chunk' ? 'Chunk-Modus' : log.questionAnalysis.recommendation === 'summary' ? 'Summary-Modus' : 'Unklar'}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Konfidenz: <span className="font-medium">{log.questionAnalysis.confidence === 'high' ? '🔴 Hoch' : log.questionAnalysis.confidence === 'medium' ? '🟡 Mittel' : '🟢 Niedrig'}</span>
+                        </div>
+                      </div>
+                      <div className="bg-background rounded-lg p-3 border">
+                        <div className="text-sm font-semibold mb-2">Begründung:</div>
+                        <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                          {log.questionAnalysis.reasoning}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Empfohlen:</span>{' '}
+                          <span className="font-medium">{log.questionAnalysis.recommendation === 'chunk' ? 'Chunk-Modus' : log.questionAnalysis.recommendation === 'summary' ? 'Summary-Modus' : 'Unklar'}</span>
+                        </div>
+                        <div className="text-muted-foreground">→</div>
+                        <div>
+                          <span className="text-muted-foreground">Verwendet:</span>{' '}
+                          <span className="font-medium">{getRetrieverLabel(log.retriever)}</span>
+                        </div>
+                        {log.questionAnalysis && !recommendationMatches(log.retriever, log.questionAnalysis.recommendation) && (
+                          <span className="ml-auto px-2 py-1 rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-xs font-medium">
+                            ⚠️ Abweichung
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2 border">
+                  <div className="font-medium mb-1">Wie funktioniert die Analyse?</div>
+                  <div className="space-y-1">
+                    <div>• <strong>Chunk-Modus</strong>: Für spezifische Fragen nach Details, Formeln, Code-Beispielen</div>
+                    <div>• <strong>Summary-Modus</strong>: Für breite Fragen über Themen, Konzepte oder mehrere Dokumente</div>
+                    <div>• <strong>Unklar</strong>: Frage zu vage → System schlägt präzisierte Fragen vor</div>
+                  </div>
+                </div>
+                
+                <div className="rounded-lg border p-3 bg-background">
+                  <div className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Ablauf</div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center font-bold text-[10px]">1</div>
+                      <div>Frage wird analysiert</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center font-bold text-[10px]">2</div>
+                      <div>Empfehlung: <strong>{log.questionAnalysis.recommendation === 'chunk' ? 'Chunk' : log.questionAnalysis.recommendation === 'summary' ? 'Summary' : 'Unklar'}</strong> (Konfidenz: {log.questionAnalysis.confidence})</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center font-bold text-[10px]">3</div>
+                      <div>Retriever wird gestartet: <strong>{getRetrieverLabel(log.retriever)}</strong></div>
+                    </div>
+                    {log.questionAnalysis && recommendationMatches(log.retriever, log.questionAnalysis.recommendation) ? (
+                      <div className="ml-8 text-xs text-green-600 dark:text-green-400">✓ Empfehlung wurde befolgt</div>
+                    ) : log.questionAnalysis && log.questionAnalysis.recommendation !== 'unclear' ? (
+                      <div className="ml-8 text-xs text-yellow-600 dark:text-yellow-400">⚠ Abweichung: Expliziter Parameter überschreibt Analyse</div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        )}
         {steps.map(({ key, step, label }) => (
           <AccordionItem key={key} value={key}>
             <AccordionTrigger className="rounded-md bg-muted/60 data-[state=open]:bg-muted px-2">{label}</AccordionTrigger>

@@ -26,6 +26,12 @@ export const chatConfigSchema = z.object({
   vectorStore: z.object({
     indexOverride: z.string().min(1).optional(),
   }).default({}),
+  // Zielsprache für Chat-Antworten
+  targetLanguage: z.enum(['de', 'en', 'it', 'fr', 'es', 'ar']).default('de'),
+  // Charakter/Profil für die Antwort-Perspektive
+  character: z.enum(['developer','business', 'eco-social', 'social', 'open-source', 'legal', 'scientific']).default('business'),
+  // Sozialer Kontext/Sprachebene
+  socialContext: z.enum(['scientific', 'popular', 'youth', 'senior']).default('popular'),
   gallery: z.object({
     // Typ der Detailansicht: 'book' für klassische Dokumente, 'session' für Event-Sessions/Präsentationen
     detailViewType: z.enum(['book', 'session']).default('book'),

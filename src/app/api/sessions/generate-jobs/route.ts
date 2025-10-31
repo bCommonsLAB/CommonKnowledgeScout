@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
               starttime: session.starttime || '', // Optional: leerer String wenn nicht vorhanden
               endtime: session.endtime || '', // Optional: leerer String wenn nicht vorhanden
               speakers: session.speakers || null, // Optional: null wenn nicht vorhanden
+              speakers_url: session.speakers_url || undefined, // Optional: URLs der Sprecher (comma-separated string wird zu Array geparst)
+              speakers_image_url: session.speakers_image_url || undefined, // Optional: Bild-URLs der Sprecher (comma-separated string wird zu Array geparst)
               image_url: session.image_url || undefined, // Optional: Bild-URL
               video_url: session.video_url || '', // Optional: leerer String wenn nicht vorhanden
               attachments_url: session.attachments_url || undefined,
@@ -194,6 +196,8 @@ export async function POST(request: NextRequest) {
             starttime: session.starttime || '', // Optional: leerer String wenn nicht vorhanden
             endtime: session.endtime || '', // Optional: leerer String wenn nicht vorhanden
             speakers: session.speakers || null, // Optional: null wenn nicht vorhanden
+            speakers_url: session.speakers_url || undefined, // Optional: URLs der Sprecher (comma-separated string wird zu Array geparst)
+            speakers_image_url: session.speakers_image_url || undefined, // Optional: Bild-URLs der Sprecher (comma-separated string wird zu Array geparst)
             image_url: session.image_url || undefined, // Optional: Bild-URL
             video_url: session.video_url || '', // Optional: leerer String wenn nicht vorhanden
             attachments_url: session.attachments_url || undefined,

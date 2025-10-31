@@ -112,6 +112,8 @@ export async function buildSessionPayload(
     starttime: parameters.starttime,
     endtime: parameters.endtime,
     speakers: Array.isArray(parameters.speakers) ? parameters.speakers : undefined,
+    speakers_url: Array.isArray(parameters.speakers_url) ? parameters.speakers_url : undefined,
+    speakers_image_url: Array.isArray(parameters.speakers_image_url) ? parameters.speakers_image_url : undefined,
     video_url: parameters.video_url,
     attachments_url: parameters.attachments_url,
     source_language: parameters.source_language || 'en',

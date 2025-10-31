@@ -31,6 +31,7 @@ import { activeLibraryIdAtom } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
 import { TranscriptionDialog } from "./transcription-dialog"
 import { TransformationDialog } from "./transformation-dialog"
+import { IngestionDialog } from "./ingestion-dialog"
 import { StorageItem } from "@/lib/storage/types"
 import { NavigationLogger, StateLogger, UILogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
@@ -701,6 +702,7 @@ export function Library() {
           }
         }}
       />
+      <IngestionDialog />
     </div>
   );
 }

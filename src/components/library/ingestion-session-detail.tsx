@@ -7,13 +7,14 @@ interface IngestionSessionDetailProps {
   libraryId: string;
   fileId: string;
   docModifiedAt?: string;
+  onDataLoaded?: (data: SessionDetailData) => void;
 }
 
 /**
  * Wrapper-Komponente für SessionDetail
  * Lädt Session-Daten via API und mappt sie auf das SessionDetailData-Format
  */
-export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt }: IngestionSessionDetailProps) {
+export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt, onDataLoaded }: IngestionSessionDetailProps) {
   const [data, setData] = React.useState<SessionDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -24,21 +25,15 @@ export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt }: Ing
       setError(null);
       // Verwende den schnellen doc-meta Endpunkt (nur MongoDB, kein Pinecone)
       const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`;
-      console.log('[IngestionSessionDetail] Loading data from:', url);
       const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json();
-      console.log('[IngestionSessionDetail] API Response:', { ok: res.ok, dataKeys: Object.keys(json) });
       if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Session-Daten konnten nicht geladen werden');
       const mapped = mapToSessionDetail(json as unknown);
-      console.log('[IngestionSessionDetail] Mapped Data:', {
-        hasTitle: !!mapped.title,
-        hasSpeakers: !!mapped.speakers && mapped.speakers.length > 0,
-        hasEvent: !!mapped.event,
-        hasSlides: !!mapped.slides && mapped.slides.length > 0,
-        hasSummary: !!mapped.summary,
-        summaryLength: mapped.summary?.length || 0
-      });
       setData(mapped);
+      // Callback aufrufen, wenn Daten geladen wurden
+      if (onDataLoaded) {
+        onDataLoaded(mapped);
+      }
     } catch (e) {
       console.error('[IngestionSessionDetail] Error:', e);
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler');
@@ -74,25 +69,57 @@ function mapToSessionDetail(input: unknown): SessionDetailData {
     ? root.docMetaJson as Record<string, unknown> 
     : {};
   
-  // Debug: Zeige die Struktur
-  console.log('[mapToSessionDetail] Input Structure:', {
-    hasRoot: !!root,
-    hasDocMetaJson: !!docMetaJson,
-    rootKeys: Object.keys(root),
-    docMetaJsonKeys: Object.keys(docMetaJson),
-    speakersInDocMetaJson: docMetaJson.speakers,
-    eventInDocMetaJson: docMetaJson.event,
-    slidesInDocMetaJson: Array.isArray(docMetaJson.slides) ? docMetaJson.slides.length : 'not array',
-    summaryLength: typeof docMetaJson.summary === 'string' ? docMetaJson.summary.length : 0
-  });
 
   // Helper-Funktionen
   const toStr = (v: unknown): string | undefined => typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined;
   const toNum = (v: unknown): number | undefined => typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+  
+  /**
+   * Konvertiert einen Wert zu einem String-Array
+   * Unterstützt:
+   * - Arrays (direkt)
+   * - Strings die wie Arrays aussehen: "['url1', 'url2']" → ['url1', 'url2']
+   * - Einzelne Strings → [string]
+   */
   const toStrArr = (v: unknown): string[] | undefined => {
-    if (!Array.isArray(v)) return undefined;
-    const arr = (v as Array<unknown>).map(x => toStr(x) || '').filter(Boolean);
-    return arr.length > 0 ? arr : undefined;
+    // Direktes Array
+    if (Array.isArray(v)) {
+      const arr = (v as Array<unknown>).map(x => toStr(x) || '').filter(Boolean);
+      return arr.length > 0 ? arr : undefined;
+    }
+    
+    // String der wie ein Array aussieht: "['url1', 'url2']" oder '["url1", "url2"]'
+    if (typeof v === 'string' && v.trim().length > 0) {
+      const trimmed = v.trim();
+      
+      // Versuche JSON-Array zu parsen
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || 
+          (trimmed.startsWith("['") && trimmed.endsWith("']"))) {
+        try {
+          // Ersetze einfache Anführungszeichen durch doppelte für JSON.parse
+          const jsonStr = trimmed.replace(/'/g, '"');
+          const parsed = JSON.parse(jsonStr);
+          if (Array.isArray(parsed)) {
+            const arr = parsed.map(x => toStr(x) || '').filter(Boolean);
+            return arr.length > 0 ? arr : undefined;
+          }
+        } catch {
+          // Fehler beim Parsen, versuche manuell zu extrahieren
+          // Pattern: ['url1', 'url2'] → ['url1', 'url2']
+          const matches = trimmed.match(/(['"])((?:(?!\1).)*)\1/g);
+          if (matches && matches.length > 0) {
+            const arr = matches.map(m => m.slice(1, -1).trim()).filter(Boolean);
+            return arr.length > 0 ? arr : undefined;
+          }
+        }
+      }
+      
+      // Einzelner String → als Array mit einem Element
+      const singleStr = toStr(v);
+      return singleStr ? [singleStr] : undefined;
+    }
+    
+    return undefined;
   };
 
   // Slides aus docMetaJson.slides extrahieren
@@ -119,6 +146,8 @@ function mapToSessionDetail(input: unknown): SessionDetailData {
     
     // Session-spezifisch (alle aus docMetaJson)
     speakers: toStrArr(docMetaJson.speakers) || [],
+    speakers_url: toStrArr(docMetaJson.speakers_url) || [],
+    speakers_image_url: toStrArr(docMetaJson.speakers_image_url) || [],
     affiliations: toStrArr(docMetaJson.affiliations) || [],
     tags: toStrArr(docMetaJson.tags) || [],
     topics: toStrArr(docMetaJson.topics) || [],
@@ -158,15 +187,6 @@ function mapToSessionDetail(input: unknown): SessionDetailData {
     upsertedAt: toStr(root.upsertedAt),
     chunkCount: typeof root.chunkCount === 'number' ? root.chunkCount : undefined,
   };
-  
-  console.log('[mapToSessionDetail] Final Data:', {
-    title: data.title,
-    speakers: data.speakers,
-    event: data.event,
-    track: data.track,
-    slides: data.slides?.length || 0,
-    summary: data.summary?.substring(0, 100) + '...'
-  });
 
   return data;
 }

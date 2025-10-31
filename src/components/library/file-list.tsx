@@ -25,6 +25,7 @@ import {
   transcriptionDialogOpenAtom,
   selectedTransformationItemsAtom,
   transformationDialogOpenAtom,
+  ingestionDialogOpenAtom,
   getMediaType,
   fileCategoryFilterAtom,
 } from '@/atoms/transcription-options';
@@ -392,6 +393,7 @@ const FileRow = React.memo(function FileRow({
   const isInAnyBatch = isInBatch || isInTransformation;
 
   // Handler für Checkbox-Änderungen
+  // Erweitert: Unterstützt jetzt auch Ordner für rekursive Markdown-Ingestion
   const handleCheckboxChange = React.useCallback((checked: boolean) => {
     const mediaType = getMediaType(item);
     
@@ -405,12 +407,13 @@ const FileRow = React.memo(function FileRow({
       } else {
         setSelectedBatchItems(selectedBatchItems.filter(i => i.item.id !== item.id));
       }
-    } else if (mediaType === 'text' || mediaType === 'document') {
+    } else if (mediaType === 'text' || mediaType === 'document' || item.type === 'folder') {
       // Für Text/Dokumente: Transformation-Atom verwenden
+      // NEU: Ordner können jetzt auch ausgewählt werden für rekursive Markdown-Ingestion
       if (checked) {
         setSelectedTransformationItems([...selectedTransformationItems, {
           item,
-          type: mediaType
+          type: item.type === 'folder' ? 'unknown' : mediaType
         }]);
       } else {
         setSelectedTransformationItems(selectedTransformationItems.filter(i => i.item.id !== item.id));
@@ -748,6 +751,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [selectedTransformationItems, setSelectedTransformationItems] = useAtom(selectedTransformationItemsAtom);
   const [, setTranscriptionDialogOpen] = useAtom(transcriptionDialogOpenAtom);
   const [, setTransformationDialogOpen] = useAtom(transformationDialogOpenAtom);
+  const [, setIngestionDialogOpen] = useAtom(ingestionDialogOpenAtom);
   const [isInitialized, setIsInitialized] = React.useState(false);
   const initializationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   // Entkoppelt: Kein Warten mehr auf FileTree-Status
@@ -1314,55 +1318,28 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   };
 
-  // Markdown‑Ingestion (Batch) – ruft serverseitige Route pro Datei auf
-  const handleBatchIngest = React.useCallback(async () => {
-    if (!provider) {
-      toast.error("Fehler", { description: "Storage Provider nicht verfügbar" });
-      return;
-    }
-    if (!activeLibraryId) {
-      toast.error("Fehler", { description: "Keine aktive Bibliothek" });
-      return;
-    }
+  // Markdown‑Ingestion (Batch) – öffnet Dialog für Fortschrittsanzeige
+  // Erweitert: Unterstützt jetzt auch rekursive Ordner-Verarbeitung
+  const handleBatchIngest = React.useCallback(() => {
+    // Prüfe ob Markdown-Dateien oder Ordner ausgewählt sind
     const isMarkdown = (name: string, mime?: string) => {
       const lower = name.toLowerCase();
       return lower.endsWith('.md') || (mime || '').toLowerCase().includes('markdown');
-    }
-    const targets = selectedTransformationItems
-      .map(x => x.item)
-      .filter(it => it.type === 'file' && isMarkdown(it.metadata.name, it.metadata.mimeType));
-    if (targets.length === 0) {
-      toast.info("Hinweis", { description: "Keine Markdown‑Dateien ausgewählt" });
+    };
+
+    const hasMarkdownOrFolders = selectedTransformationItems.some(({ item }) => 
+      item.type === 'folder' || 
+      (item.type === 'file' && isMarkdown(item.metadata.name, item.metadata.mimeType))
+    );
+
+    if (!hasMarkdownOrFolders) {
+      toast.info("Hinweis", { description: "Keine Markdown‑Dateien oder Ordner ausgewählt" });
       return;
     }
-    const start = performance.now();
-    let ok = 0, fail = 0;
-    for (const it of targets) {
-      try {
-        const res = await fetch(`/api/chat/${encodeURIComponent(activeLibraryId)}/ingest-markdown`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileId: it.id, fileName: it.metadata.name })
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Ingestion fehlgeschlagen');
-        ok++;
-        toast.success('Ingestion', { description: `${it.metadata.name}: ${json.chunksUpserted ?? 0} Chunks` });
-      } catch (e) {
-        fail++;
-        toast.error('Ingestion fehlgeschlagen', { description: `${it.metadata.name}: ${e instanceof Error ? e.message : 'Unbekannter Fehler'}` });
-      }
-    }
-    // Ordner aktualisieren
-    try {
-      const parentId = targets[0]?.parentId;
-      if (parentId) {
-        const refreshed = await refreshItems(parentId);
-        setFolderItems(refreshed);
-      }
-    } catch {}
-    StateLogger.info('FileList', 'Batch Ingestion done', { ok, fail, ms: (performance.now() - start).toFixed(1) });
-  }, [provider, activeLibraryId, selectedTransformationItems, refreshItems, setFolderItems]);
+
+    // Öffne Dialog für Fortschrittsanzeige
+    setIngestionDialogOpen(true);
+  }, [selectedTransformationItems, setIngestionDialogOpen]);
 
   // Bulk-Löschung für ausgewählte Dateien (unabhängig von Batch/Transformation-Selektor)
   const handleBulkDelete = React.useCallback(async () => {
@@ -1586,6 +1563,20 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id) }}
                 className="w-full px-2 py-1 text-xs hover:bg-muted/50 grid grid-cols-[24px_minmax(0,1fr)] gap-2 items-center cursor-pointer"
               >
+                <Checkbox
+                  checked={selectedTransformationItems.some(transformationItem => transformationItem.item.id === folder.id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedTransformationItems([...selectedTransformationItems, {
+                        item: folder,
+                        type: 'unknown'
+                      }]);
+                    } else {
+                      setSelectedTransformationItems(selectedTransformationItems.filter(i => i.item.id !== folder.id));
+                    }
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
                 <FolderIcon className="h-4 w-4" />
                 <span className="text-left truncate select-none" title={folder.metadata.name}>{folder.metadata.name}</span>
               </div>
@@ -1599,7 +1590,22 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id) }}
                 className="w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)] gap-2 items-center cursor-pointer"
               >
-                <div />
+                <div className="w-6 flex items-center justify-center">
+                  <Checkbox
+                    checked={selectedTransformationItems.some(transformationItem => transformationItem.item.id === folder.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedTransformationItems([...selectedTransformationItems, {
+                          item: folder,
+                          type: 'unknown'
+                        }]);
+                      } else {
+                        setSelectedTransformationItems(selectedTransformationItems.filter(i => i.item.id !== folder.id));
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
                 <FolderIcon className="h-4 w-4" />
                 <span className="text-left truncate select-none" title={folder.metadata.name}>{folder.metadata.name}</span>
               </div>

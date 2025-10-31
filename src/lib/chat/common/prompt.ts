@@ -46,7 +46,31 @@ export function buildContext(sources: RetrievedSource[], perSnippetLimit = 800):
   return sources
     .map((s, i) => {
       const description = getSourceDescription(s)
-      return `Quelle [${i + 1}] ${s.fileName ?? s.id} (${description}, Score ${typeof s.score === 'number' ? s.score.toFixed(3) : 'n/a'}):\n${(s.text ?? '').slice(0, perSnippetLimit)}`
+      
+      // Formatierte Metadaten für den Prompt (basierend auf Facetten-Definitionen)
+      const metadataParts: string[] = []
+      if (s.metadata && typeof s.metadata === 'object') {
+        for (const [key, value] of Object.entries(s.metadata)) {
+          if (value === undefined || value === null) continue
+          
+          // Formatierung basierend auf Werttyp
+          if (Array.isArray(value)) {
+            if (value.length > 0) {
+              // Array-Werte: Komma-separiert
+              const arrayStr = value.map(v => String(v)).join(', ')
+              metadataParts.push(`${key}: ${arrayStr}`)
+            }
+          } else if (typeof value === 'string' || typeof value === 'number') {
+            metadataParts.push(`${key}: ${String(value)}`)
+          } else if (typeof value === 'boolean') {
+            metadataParts.push(`${key}: ${value ? 'true' : 'false'}`)
+          }
+        }
+      }
+      
+      const metadataLine = metadataParts.length > 0 ? ` | ${metadataParts.join(' | ')}` : ''
+      
+      return `Quelle [${i + 1}] ${s.fileName ?? s.id} (${description}, Score ${typeof s.score === 'number' ? s.score.toFixed(3) : 'n/a'}${metadataLine}):\n${(s.text ?? '').slice(0, perSnippetLimit)}`
     })
     .join('\n\n')
 }
@@ -59,7 +83,76 @@ export function styleInstruction(answerLength: 'kurz' | 'mittel' | 'ausführlich
     : 'Schreibe eine knappe Antwort (1–3 Sätze, max. 120 Wörter) im Markdown-Format: Verwende **Fettdruck** für wichtige Begriffe wenn nötig. Keine Einleitung, direkt die Kernaussage.'
 }
 
-export function buildPrompt(question: string, sources: RetrievedSource[], answerLength: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'): string {
+/**
+ * Erstellt Charakter/Perspektive-Anweisung basierend auf Konfiguration
+ */
+function getCharacterInstruction(character: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'): string {
+  const instructions: Record<string, string> = {
+    'developer': 'Du antwortest aus einer Entwickler-Perspektive. Fokus auf Code-Qualität, Best Practices, Technologie-Stacks, Performance, Skalierbarkeit und praktische Implementierung.',
+    'business': 'Du antwortest aus einer geschäftlichen, unternehmerischen Perspektive. Fokus auf Effizienz, ROI, Marktchancen, Wettbewerbsvorteile und praktische Umsetzbarkeit.',
+    'eco-social': 'Du antwortest aus einer ökosozialen Perspektive. Fokus auf Nachhaltigkeit, soziale Gerechtigkeit, Umweltschutz und langfristige gesellschaftliche Auswirkungen.',
+    'social': 'Du antwortest aus einer sozialen Perspektive. Fokus auf Gemeinschaft, Kooperation, Inklusion und gesellschaftliche Aspekte.',
+    'open-source': 'Du antwortest aus einer Open-Source-Perspektive. Fokus auf Community, Transparenz, Kollaboration, Lizenzmodelle und offene Standards.',
+    'legal': 'Du antwortest aus einer rechtskundlichen Perspektive. Fokus auf rechtliche Aspekte, Compliance, Lizenzen, Datenschutz und rechtliche Risiken.',
+    'scientific': 'Du antwortest aus einer naturwissenschaftlichen Perspektive. Fokus auf Evidenz, Methodik, Reproduzierbarkeit und wissenschaftliche Genauigkeit.',
+  }
+  return instructions[character] || instructions.developer
+}
+
+/**
+ * Erstellt Sprachkontext-Anweisung basierend auf Konfiguration
+ */
+function getSocialContextInstruction(socialContext: 'scientific' | 'popular' | 'youth' | 'senior'): string {
+  const instructions: Record<string, string> = {
+    'scientific': 'Verwende eine wissenschaftliche Sprache mit Fachbegriffen. Erkläre komplexe Konzepte präzise und technisch korrekt.',
+    'popular': 'Verwende eine populärwissenschaftliche Sprache. Erkläre komplexe Konzepte verständlich für ein breites Publikum.',
+    'youth': 'Verwende eine jugendgerechte Sprache. Erkläre komplexe Konzepte lebendig und verständlich, vermeide zu formelle Formulierungen.',
+    'senior': 'Verwende eine seniorengerechte Sprache. Erkläre komplexe Konzepte klar und ausführlich, mit angemessenem Tempo und ohne zu viele Abkürzungen.',
+  }
+  return instructions[socialContext] || instructions.popular
+}
+
+/**
+ * Erstellt Sprach-Anweisung basierend auf Konfiguration
+ */
+function getLanguageInstruction(targetLanguage: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'): string {
+  const languageNames: Record<string, string> = {
+    'de': 'Deutsch',
+    'en': 'Englisch',
+    'it': 'Italienisch',
+    'fr': 'Französisch',
+    'es': 'Spanisch',
+    'ar': 'Arabisch',
+  }
+  return `Antworte auf ${languageNames[targetLanguage] || 'Deutsch'}.`
+}
+
+/**
+ * Formatiert Chatverlauf für den LLM-Prompt
+ */
+function formatChatHistory(history: Array<{ question: string; answer: string }>): string {
+  if (!history || history.length === 0) return ''
+  
+  return history.map((item, index) => {
+    return `Vorherige Frage ${index + 1}:
+${item.question}
+
+Antwort:
+${item.answer}`
+  }).join('\n\n---\n\n')
+}
+
+export function buildPrompt(
+  question: string, 
+  sources: RetrievedSource[], 
+  answerLength: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt',
+  options?: {
+    targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'
+    character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'
+    socialContext?: 'scientific' | 'popular' | 'youth' | 'senior'
+    chatHistory?: Array<{ question: string; answer: string }>
+  }
+): string {
   const context = buildContext(sources)
   const style = styleInstruction(answerLength)
   
@@ -69,9 +162,33 @@ export function buildPrompt(question: string, sources: RetrievedSource[], answer
     return `[${i + 1}] = ${desc}`
   }).join(', ')
   
-  return `Du bist ein präziser Assistent. Beantworte die Frage ausschließlich auf Basis der bereitgestellten Quellen.
+  // Erstelle System-Prompt-Komponenten basierend auf Konfiguration
+  const characterInstruction = options?.character ? getCharacterInstruction(options.character) : ''
+  const socialContextInstruction = options?.socialContext ? getSocialContextInstruction(options.socialContext) : ''
+  const languageInstruction = options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Antworte auf Deutsch.'
+  
+  // Formatiere Chatverlauf, falls vorhanden
+  const chatHistoryText = options?.chatHistory && options.chatHistory.length > 0
+    ? formatChatHistory(options.chatHistory)
+    : ''
+  
+  // System-Prompt zusammenbauen
+  const systemParts: string[] = ['Du bist ein präziser Assistent. Beantworte die Frage ausschließlich auf Basis der bereitgestellten Quellen.']
+  if (characterInstruction) {
+    systemParts.push(`\n${characterInstruction}`)
+  }
+  if (socialContextInstruction) {
+    systemParts.push(`\n${socialContextInstruction}`)
+  }
+  
+  // Chatverlauf vor der aktuellen Frage einfügen, falls vorhanden
+  const chatHistorySection = chatHistoryText 
+    ? `\n\nBisheriger Gesprächsverlauf:\n${chatHistoryText}\n\n---\n\n`
+    : ''
+  
+  return `${systemParts.join('')}
 
-Frage:
+${chatHistorySection}Frage:
 ${question}
 
 Quellen:
@@ -85,6 +202,7 @@ Anforderungen:
 - WICHTIG: Verwende nur die Nummern, NICHT "Chunk X".
 - Beispiel: "[1] [2] [5]".
 - Verfügbare Beschreibungen: ${sourceDescriptions}
+${chatHistoryText ? '\n- Berücksichtige den bisherigen Gesprächsverlauf und baue darauf auf, wenn relevant.' : ''}
 
 Ausgabe-Format:
 Antworte IMMER als JSON-Objekt mit genau diesen drei Feldern:
@@ -107,7 +225,7 @@ WICHTIG:
 - Referenzen werden serverseitig hinzugefügt, generiere sie nicht im JSON.
 - Das Feld "usedReferences" muss alle Nummern enthalten, die du in deiner Antwort als [n] zitierst.
 
-Antworte auf Deutsch.`
+${languageInstruction}`
 }
 
 

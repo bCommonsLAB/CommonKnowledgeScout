@@ -40,6 +40,8 @@ export interface JobParameters {
   starttime?: string;
   endtime?: string;
   speakers?: string[] | null;
+  speakers_url?: string[]; // Optional: URLs der Sprecher (comma-separated string wird zu Array geparst)
+  speakers_image_url?: string[]; // Optional: Bild-URLs der Sprecher (comma-separated string wird zu Array geparst)
   image_url?: string; // Optional: Bild-URL von der Session-Seite
   video_url?: string;
   template?: string;

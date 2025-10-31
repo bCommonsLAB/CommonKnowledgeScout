@@ -14,7 +14,9 @@ import { X, FileText, Calendar, User, MapPin, ExternalLink, Filter, ChevronLeft,
 import { ChatPanel } from '@/components/library/chat/chat-panel'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
+import { EventDetailsAccordion } from '@/components/library/event-details-accordion'
 import type { ChatResponse } from '@/types/chat-response'
+import type { SessionDetailData } from '@/components/library/session-detail'
 
 interface DocCardMeta {
   id: string
@@ -100,6 +102,10 @@ export default function GalleryClient() {
   const [, setStats] = useState<StatsResponse | null>(null)
   // Detail-View-Typ aus Library-Config (default: 'book')
   const [detailViewType, setDetailViewType] = useState<'book' | 'session'>('book')
+  // Session-Daten für Header-Button
+  const [sessionUrl, setSessionUrl] = useState<string | undefined>(undefined)
+  const [sessionTitle, setSessionTitle] = useState<string | undefined>(undefined)
+  const [sessionData, setSessionData] = useState<SessionDetailData | undefined>(undefined)
 
   // Hinweis: libraries derzeit ungenutzt – bewusst markiert
   void libraries
@@ -113,6 +119,8 @@ export default function GalleryClient() {
       try {
         const params = new URLSearchParams()
         Object.entries(filters as Record<string, string[] | undefined>).forEach(([k, arr]) => {
+          // fileId-Filter nicht an Docs-API senden (nur für Client-seitige Filterung)
+          if (k === 'fileId') return
           if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
         })
         const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
@@ -200,7 +208,15 @@ export default function GalleryClient() {
     async function loadFacets() {
       if (!libraryId) return
       try {
-        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/facets`, { cache: 'no-store' })
+        // Filter als Query-Parameter mitgeben, damit Facetten-Counts korrekt berechnet werden
+        const params = new URLSearchParams()
+        Object.entries(filters as Record<string, string[] | undefined>).forEach(([k, arr]) => {
+          // fileId-Filter nicht an Facetten-API senden (nur für Client-seitige Filterung)
+          if (k === 'fileId') return
+          if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
+        })
+        const url = `/api/chat/${encodeURIComponent(libraryId)}/facets${params.toString() ? `?${params.toString()}` : ''}`
+        const res = await fetch(url, { cache: 'no-store' })
         const data = await res.json()
         if (!res.ok) return
         if (!cancelled) setFacetDefs(Array.isArray(data?.facets) ? data.facets as Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }> : [])
@@ -248,7 +264,7 @@ export default function GalleryClient() {
     loadFacets()
     loadConfig()
     return () => { cancelled = true }
-  }, [libraryId])
+  }, [libraryId, filters])
 
   // Stats laden (indizierte/transformierte Dokumente insgesamt)
   useEffect(() => {
@@ -274,15 +290,17 @@ export default function GalleryClient() {
     void (async () => {
       try {
         if (!doc.fileId || !libraryId) return
-        const url = `/api/external/jobs?bySourceItemId=${encodeURIComponent(doc.fileId)}&libraryId=${encodeURIComponent(libraryId)}`
+        // PERFORMANCE: Verwende nur den schnellen doc-meta Endpunkt (nur MongoDB, kein Pinecone)
+        // Alle benötigten Daten (inkl. chapters) sind bereits in MongoDB verfügbar
+        const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(doc.fileId)}`
         const res = await fetch(url, { cache: 'no-store' })
         const data = await res.json()
-        if (!res.ok) return
-        const job = Array.isArray(data?.items) && data.items[0] ? data.items[0] : undefined
-        const history = Array.isArray(job?.metaHistory) ? (job.metaHistory as Array<unknown>) : []
-        const cumulative = job && typeof job === 'object' ? (job as { cumulativeMeta?: unknown }).cumulativeMeta : undefined
+        if (!res.ok || !data?.exists) return
+        
+        // Extrahiere Kapitel aus der Antwort
+        // Kapitel können sowohl im Top-Level chapters-Feld als auch in docMetaJson.chapters sein
         let chapters: ChapterInfo[] | undefined
-
+        
         const mapChapters = (raw: unknown): ChapterInfo[] | undefined => {
           if (!Array.isArray(raw)) return undefined
           const out = raw
@@ -290,8 +308,9 @@ export default function GalleryClient() {
               if (!c || typeof c !== 'object') return undefined
               const t = (c as { title?: unknown }).title
               const s = (c as { summary?: unknown }).summary
-              const ps = (c as { pageStart?: unknown }).pageStart
-              const pe = (c as { pageEnd?: unknown }).pageEnd
+              // Unterstütze sowohl pageStart/pageEnd als auch startPage/endPage
+              const ps = (c as { pageStart?: unknown; startPage?: unknown }).pageStart ?? (c as { startPage?: unknown }).startPage
+              const pe = (c as { pageEnd?: unknown; endPage?: unknown }).pageEnd ?? (c as { endPage?: unknown }).endPage
               return {
                 title: typeof t === 'string' && t ? t : 'Kapitel',
                 summary: typeof s === 'string' ? s : undefined,
@@ -302,24 +321,23 @@ export default function GalleryClient() {
             .filter((v): v is ChapterInfo => !!v)
           return out && out.length > 0 ? out : undefined
         }
-
-        // 1) Versuche cumulativeMeta.chapters
-        if (cumulative && typeof cumulative === 'object') {
-          chapters = mapChapters((cumulative as { chapters?: unknown }).chapters)
+        
+        // 1) Versuche Top-Level chapters Feld
+        if (data.chapters) {
+          chapters = mapChapters(data.chapters)
         }
-
-        // 2) Falls leer: suche rückwärts in metaHistory nach dem letzten Eintrag mit Kapiteln
-        if (!chapters && history.length > 0) {
-          for (let i = history.length - 1; i >= 0; i--) {
-            const entry = history[i]
-            if (!entry || typeof entry !== 'object') continue
-            const meta = (entry as { meta?: unknown }).meta
-            if (!meta || typeof meta !== 'object') continue
-            const mapped = mapChapters((meta as { chapters?: unknown }).chapters)
-            if (mapped) { chapters = mapped; break }
+        
+        // 2) Falls leer: versuche docMetaJson.chapters
+        if (!chapters && data.docMetaJson && typeof data.docMetaJson === 'object') {
+          const docMeta = data.docMetaJson as Record<string, unknown>
+          if (docMeta.chapters) {
+            chapters = mapChapters(docMeta.chapters)
           }
         }
-        if (chapters && chapters.length > 0) setSelected(s => (s ? { ...s, chapters } : s))
+        
+        if (chapters && chapters.length > 0) {
+          setSelected(s => (s ? { ...s, chapters } : s))
+        }
       } catch {
         // optional: ignorieren
       }
@@ -341,7 +359,11 @@ export default function GalleryClient() {
     })
   }
 
-  const isFiltered = Object.values(filters as Record<string, string[] | undefined>).some(arr => Array.isArray(arr) && arr.length > 0)
+  const isFiltered = Object.entries(filters as Record<string, string[] | undefined>).some(([k, arr]) => {
+    // fileId-Filter zählt nicht als Facetten-Filter
+    if (k === 'fileId') return false
+    return Array.isArray(arr) && arr.length > 0
+  })
 
   // Filtere Dokumente nach fileId (wenn Filter gesetzt)
   const filteredDocs = useMemo(() => {
@@ -356,8 +378,8 @@ export default function GalleryClient() {
   // damit der Facettenbereich immer sichtbar bleibt und Filter zurückgesetzt werden können.
 
   return (
-    <div className='min-h-screen'>
-      <div className='mb-6 flex items-center justify-start gap-2'>
+    <div className='h-full overflow-hidden flex flex-col'>
+      <div className='mb-6 flex items-center justify-start gap-2 flex-shrink-0'>
         <div className='flex items-center gap-1'>
           <Button
             variant={showFilterPanel ? 'default' : 'outline'}
@@ -413,10 +435,10 @@ export default function GalleryClient() {
         </div>
       </div>
 
-      <div className='grid grid-cols-1 lg:grid-cols-12 gap-6 items-start'>
+      <div className='flex flex-row gap-6 flex-1 min-h-0'>
         {showFilterPanel ? (
-          <aside className='hidden lg:block lg:col-span-2 relative z-0'>
-            <div className='rounded border p-3 space-y-3 sticky top-20 max-h-[calc(100vh-140px)] overflow-y-auto overflow-x-hidden bg-background'>
+          <aside className='hidden lg:flex flex-col w-[16.666%] flex-shrink-0'>
+            <div className='rounded border p-3 space-y-3 overflow-y-auto overflow-x-hidden bg-background h-full'>
               <div className='font-medium flex items-center gap-2'><Filter className='h-4 w-4' /> Filter</div>
               <div className='grid gap-2'>
                 {facetDefs.filter(d => d).map(def => {
@@ -437,38 +459,18 @@ export default function GalleryClient() {
           </aside>
         ) : null}
 
-        {(() => {
-          const filterSpan = showFilterPanel ? 2 : 0
-          const remaining = 12 - filterSpan
-          let chatSpan = 0
-          let gallerySpan = 0
-          if (showChatPanel && showGalleryPanel) {
-            chatSpan = Math.floor(remaining / 2)
-            gallerySpan = remaining - chatSpan
-          } else if (showChatPanel) {
-            chatSpan = remaining
-          } else if (showGalleryPanel) {
-            gallerySpan = remaining
-          } else {
-            gallerySpan = remaining
-          }
-          const spanClass = (n: number) => n === 12 ? 'lg:col-span-12' : n === 10 ? 'lg:col-span-10' : n === 9 ? 'lg:col-span-9' : n === 8 ? 'lg:col-span-8' : n === 7 ? 'lg:col-span-7' : n === 6 ? 'lg:col-span-6' : n === 5 ? 'lg:col-span-5' : n === 4 ? 'lg:col-span-4' : 'lg:col-span-3'
+        {showChatPanel && showGalleryPanel ? (
+          <>
+            <section className="flex-1 flex flex-col min-h-0">
+              <ChatPanel libraryId={libraryId} variant='compact' />
+            </section>
 
-          return (
-            <>
-              {chatSpan > 0 ? (
-                <section className={`${spanClass(chatSpan)} relative z-10`}>
-                  <div className="sticky top-20 h-[calc(100vh-140px)] flex flex-col">
-                    <ChatPanel libraryId={libraryId} variant='compact' />
-                  </div>
-                </section>
-              ) : null}
-
-              {gallerySpan > 0 ? (
-                <section className={`${spanClass(gallerySpan)} relative z-0 sticky top-20 self-start`} data-gallery-section>
-                  {/* Legende und Verwendete Dokumente */}
-                  {showReferenceLegend && chatReferences.length > 0 && (
-                    <div className="mb-6 rounded border bg-muted/30 p-4">
+            <section className="flex-1 flex flex-col min-h-0" data-gallery-section>
+                  {/* Flex-Container mit fester Höhe für ScrollArea */}
+                  <div className="flex flex-col h-full min-h-0">
+                    {/* Legende und Verwendete Dokumente - außerhalb ScrollArea */}
+                    {showReferenceLegend && chatReferences.length > 0 && (
+                      <div className="mb-6 rounded border bg-muted/30 p-4 shrink-0">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-medium flex items-center gap-2">
                           <BookOpen className="h-4 w-4" />
@@ -488,94 +490,55 @@ export default function GalleryClient() {
                         </Button>
                       </div>
                       
-                      {/* Kompakte Legende mit Nummern */}
-                      <div className="mb-4">
-                        <div className="text-xs text-muted-foreground mb-2">Legende:</div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {/* Legende: Nummer-Zuordnung */}
+                      <div>
+                        <div className="text-xs font-medium text-muted-foreground mb-2">Legende (Nummer → Dokument/Abschnitt):</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
                           {chatReferences.map((ref) => (
                             <div
                               key={ref.number}
-                              className="flex items-center gap-2 text-xs p-2 rounded bg-background border"
+                              className="flex items-start gap-2 text-xs p-2 rounded bg-background border hover:bg-muted/50"
                             >
-                              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] shrink-0">
+                              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] shrink-0 font-mono">
                                 [{ref.number}]
                               </Badge>
                               <div className="min-w-0 flex-1">
-                                <div className="truncate font-medium">{ref.fileName || ref.fileId.slice(0, 20)}</div>
-                                <div className="text-[10px] text-muted-foreground truncate">{ref.description}</div>
+                                <div className="font-medium text-[11px] mb-0.5">
+                                  {ref.fileName || ref.fileId.split('/').pop() || ref.fileId.slice(0, 25)}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground leading-relaxed">
+                                  {ref.description}
+                                </div>
                               </div>
                             </div>
                           ))}
                         </div>
                       </div>
-                      
-                      {/* Gruppierte Dokumente */}
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-2">
-                          Verwendete Dokumente ({new Set(chatReferences.map(r => r.fileId)).size}):
-                        </div>
-                        <div className="space-y-2">
-                          {Array.from(new Set(chatReferences.map(r => r.fileId))).map((fileId) => {
-                            const refsForDoc = chatReferences.filter(r => r.fileId === fileId)
-                            const docRef = refsForDoc[0]
-                            const refNumbers = refsForDoc.map(r => r.number).sort((a, b) => a - b)
-                            const refNumbersStr = refNumbers.length <= 3
-                              ? refNumbers.join(', ')
-                              : `${refNumbers[0]}-${refNumbers[refNumbers.length - 1]}`
-                            
-                            return (
-                              <div
-                                key={fileId}
-                                className="flex items-center justify-between gap-2 p-2 rounded border bg-background hover:bg-muted/50 cursor-pointer"
-                                onClick={() => {
-                                  const doc = docs.find(d => d.fileId === fileId || d.id === fileId)
-                                  if (doc) openDocDetail(doc)
-                                }}
-                              >
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="secondary" className="h-4 px-1 text-[10px]">
-                                        [{refNumbersStr}]
-                                      </Badge>
-                                      <span className="text-xs font-medium truncate">
-                                        {docRef.fileName || fileId.slice(0, 30)}
-                                      </span>
-                                    </div>
-                                    <div className="text-[10px] text-muted-foreground truncate mt-0.5">
-                                      {refsForDoc.map(r => r.description).join(', ')}
-                                    </div>
-                                  </div>
-                                </div>
-                                <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
                     </div>
                   )}
                   
-                  {/* Zustände im rechten Panel anzeigen, damit Facetten links erhalten bleiben */}
-                  {!libraryId ? (
-                    <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
-                  ) : error ? (
-                    <div className='text-sm text-destructive'>{error}</div>
-                  ) : loading ? (
-                    <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
-                  ) : docs.length === 0 ? (
-                    <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
-                      <div>Keine Dokumente gefunden.</div>
-                      <Button
-                        variant='secondary'
-                        onClick={() => setFilters({} as Record<string, string[]>) }
-                      >
-                        Filter zurücksetzen
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'>
+                  {/* ScrollArea für Dokumentenliste - nimmt den restlichen Platz ein */}
+                  <ScrollArea className="flex-1 min-h-0">
+                    <div className="pr-4">
+                      {/* Zustände im rechten Panel anzeigen, damit Facetten links erhalten bleiben */}
+                      {!libraryId ? (
+                        <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
+                      ) : error ? (
+                        <div className='text-sm text-destructive'>{error}</div>
+                      ) : loading ? (
+                        <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
+                      ) : docs.length === 0 ? (
+                        <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
+                          <div>Keine Dokumente gefunden.</div>
+                          <Button
+                            variant='secondary'
+                            onClick={() => setFilters({} as Record<string, string[]>) }
+                          >
+                            Filter zurücksetzen
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'>
                       {filteredDocs.map((pdf) => (
                         <Card
                           key={pdf.id}
@@ -617,55 +580,214 @@ export default function GalleryClient() {
                           </CardContent>
                         </Card>
                       ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {selected && (
-                    <div className='fixed inset-0 z-50'>
-                      {/* Overlay mobil */}
-                      <div className='absolute inset-0 bg-black/50 lg:bg-transparent' onClick={() => setSelected(null)} />
-                      {/* Panel stets rechts fixiert */}
-                      <div className='absolute right-0 top-0 h-full w-full max-w-2xl bg-background shadow-2xl animate-in slide-in-from-right duration-300'>
-                        <div className='flex items-center justify-between p-6 border-b'>
-                          <h2 className='text-xl font-semibold'>Dokumentdetails</h2>
-                          <div className='flex items-center gap-2'>
-                            <Button
-                              variant='outline'
-                              size='sm'
-                              onClick={() => openPDFAtPage('', 1)}
-                              className='flex items-center gap-2'
-                            >
-                              <ExternalLink className='h-4 w-4' />
-                              Dokument öffnen
-                            </Button>
-                            <Button variant='ghost' size='icon' onClick={() => setSelected(null)}>
-                              <X className='h-4 w-4' />
-                            </Button>
+                  </ScrollArea>
+                </div>
+              </section>
+          </>
+        ) : showChatPanel ? (
+          <section className="flex-1 flex flex-col min-h-0">
+            <ChatPanel libraryId={libraryId} variant='compact' />
+          </section>
+        ) : showGalleryPanel ? (
+          <section className="flex-1 flex flex-col min-h-0" data-gallery-section>
+            <div className="flex flex-col h-full min-h-0">
+              {showReferenceLegend && chatReferences.length > 0 && (
+                <div className="mb-6 rounded border bg-muted/30 p-4 shrink-0">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium flex items-center gap-2">
+                      <BookOpen className="h-4 w-4" />
+                      Legende und Verwendete Dokumente
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowReferenceLegend(false)
+                        setFilters({} as Record<string, string[]>)
+                      }}
+                      className="h-7 text-xs"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Schließen
+                    </Button>
+                  </div>
+                  
+                  {/* Legende: Nummer-Zuordnung */}
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground mb-2">Legende (Nummer → Dokument/Abschnitt):</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                      {chatReferences.map((ref) => (
+                        <div
+                          key={ref.number}
+                          className="flex items-start gap-2 text-xs p-2 rounded bg-background border hover:bg-muted/50"
+                        >
+                          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] shrink-0 font-mono">
+                            [{ref.number}]
+                          </Badge>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-[11px] mb-0.5">
+                              {ref.fileName || ref.fileId.split('/').pop() || ref.fileId.slice(0, 25)}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground leading-relaxed">
+                              {ref.description}
+                            </div>
                           </div>
                         </div>
-
-                        <ScrollArea className='h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)]'>
-                          <div className='p-0'>
-                            {(() => {
-                              console.log('[Gallery] Rendering Detail View:', { detailViewType, fileId: selected.fileId || selected.id })
-                              if (detailViewType === 'session') {
-                                console.log('[Gallery] ✅ Verwende IngestionSessionDetail')
-                                return <IngestionSessionDetail libraryId={libraryId} fileId={selected.fileId || selected.id} />
-                              } else {
-                                console.log('[Gallery] ℹ️ Verwende IngestionBookDetail (default)')
-                                return <IngestionBookDetail libraryId={libraryId} fileId={selected.fileId || selected.id} />
-                              }
-                            })()}
-                          </div>
-                        </ScrollArea>
-                      </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="pr-4">
+                  {!libraryId ? (
+                    <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
+                  ) : error ? (
+                    <div className='text-sm text-destructive'>{error}</div>
+                  ) : loading ? (
+                    <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
+                  ) : docs.length === 0 ? (
+                    <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
+                      <div>Keine Dokumente gefunden.</div>
+                      <Button variant='secondary' onClick={() => setFilters({} as Record<string, string[]>)}>
+                        Filter zurücksetzen
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'>
+                      {filteredDocs.map((pdf) => (
+                        <Card
+                          key={pdf.id}
+                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200'
+                          onClick={() => openDocDetail(pdf)}
+                        >
+                          <CardHeader>
+                            <div className='flex items-start justify-between'>
+                              <FileText className='h-8 w-8 text-primary mb-2' />
+                              {pdf.year ? <Badge variant='secondary'>{String(pdf.year)}</Badge> : null}
+                            </div>
+                            <CardTitle className='text-lg line-clamp-2'>{pdf.shortTitle || pdf.title || pdf.fileName || 'Dokument'}</CardTitle>
+                            <CardDescription className='line-clamp-2'>{pdf.title || pdf.fileName}</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className='space-y-2'>
+                              {Array.isArray(pdf.authors) && pdf.authors.length > 0 && (
+                                <div className='flex items-center text-sm text-muted-foreground'>
+                                  <User className='h-4 w-4 mr-2' />
+                                  <span className='line-clamp-1'>
+                                    {pdf.authors[0]}
+                                    {pdf.authors.length > 1 ? ` +${pdf.authors.length - 1} weitere` : ''}
+                                  </span>
+                                </div>
+                              )}
+                              {pdf.region && (
+                                <div className='flex items-center text-sm text-muted-foreground'>
+                                  <MapPin className='h-4 w-4 mr-2' />
+                                  <span>{pdf.region}</span>
+                                </div>
+                              )}
+                              {pdf.upsertedAt && (
+                                <div className='flex items-center text-sm text-muted-foreground'>
+                                  <Calendar className='h-4 w-4 mr-2' />
+                                  <span>{new Date(pdf.upsertedAt).toLocaleDateString('de-DE')}</span>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
                   )}
-                </section>
-              ) : null}
-            </>
-          )
-        })()}
+                </div>
+              </ScrollArea>
+            </div>
+          </section>
+        ) : null}
       </div>
+
+      {/* Dokumentdetails-Overlay - außerhalb der Grid-Struktur */}
+      {selected && (
+        <div className='fixed inset-0 z-50'>
+          {/* Overlay mobil */}
+          <div className='absolute inset-0 bg-black/50 lg:bg-transparent' onClick={() => setSelected(null)} />
+          {/* Panel stets rechts fixiert */}
+          <div className='absolute right-0 top-0 h-full w-full max-w-2xl bg-background shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col'>
+            {/* Header mit Buttons (ohne Titel, da dieser in der Hero-Section ist) */}
+            <div className='flex items-center justify-between p-6 border-b shrink-0 relative'>
+              {/* Event Details Accordion für Sessions - links */}
+              {sessionData && detailViewType === 'session' ? (
+                <div className="relative">
+                  <EventDetailsAccordion data={sessionData} />
+                </div>
+              ) : (
+                <h2 className='text-xl font-semibold'>Dokumentdetails</h2>
+              )}
+              <div className='flex items-center gap-2 shrink-0'>
+                {sessionUrl && detailViewType === 'session' ? (
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    asChild
+                    className='flex items-center gap-2'
+                  >
+                    <a href={sessionUrl} target='_blank' rel='noopener noreferrer'>
+                      <ExternalLink className='h-4 w-4' />
+                      Event Webseite öffnen
+                    </a>
+                  </Button>
+                ) : (
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => openPDFAtPage('', 1)}
+                    className='flex items-center gap-2'
+                  >
+                    <ExternalLink className='h-4 w-4' />
+                    Dokument öffnen
+                  </Button>
+                )}
+                <Button variant='ghost' size='icon' onClick={() => {
+                  setSelected(null)
+                  setSessionUrl(undefined)
+                  setSessionTitle(undefined)
+                  setSessionData(undefined)
+                }}>
+                  <X className='h-4 w-4' />
+                </Button>
+              </div>
+            </div>
+
+            <ScrollArea className='flex-1'>
+              <div className='p-0'>
+                {(() => {
+                  console.log('[Gallery] Rendering Detail View:', { detailViewType, fileId: selected.fileId || selected.id })
+                  if (detailViewType === 'session') {
+                    console.log('[Gallery] ✅ Verwende IngestionSessionDetail')
+                    return (
+                      <IngestionSessionDetail 
+                        libraryId={libraryId} 
+                        fileId={selected.fileId || selected.id}
+                        onDataLoaded={(data) => {
+                          setSessionUrl(data.url)
+                          setSessionTitle(data.title || data.shortTitle)
+                          setSessionData(data)
+                        }}
+                      />
+                    )
+                  } else {
+                    console.log('[Gallery] ℹ️ Verwende IngestionBookDetail (default)')
+                    return <IngestionBookDetail libraryId={libraryId} fileId={selected.fileId || selected.id} />
+                  }
+                })()}
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Filter Sheet */}
       {showFilters ? (
@@ -696,3 +818,4 @@ export default function GalleryClient() {
     </div>
   )
 }
+

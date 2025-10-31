@@ -1,16 +1,29 @@
-import { buildPrompt } from '@/lib/chat/common/prompt'
-import { callOpenAI, parseOpenAIResponse } from '@/lib/chat/common/llm'
+import { buildPrompt, getSourceDescription } from '@/lib/chat/common/prompt'
+import { callOpenAI, parseStructuredLLMResponse } from '@/lib/chat/common/llm'
 import { getBaseBudget, reduceBudgets } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog } from '@/lib/logging/query-logger'
 import type { RetrieverInput, RetrieverOutput } from '@/types/retriever'
 import { summariesMongoRetriever } from '@/lib/chat/retrievers/summaries-mongo'
 import { chunksRetriever } from '@/lib/chat/retrievers/chunks'
+import type { ChatResponse } from '@/types/chat-response'
+import type { NormalizedChatConfig } from '@/lib/chat/config'
 
 export interface OrchestratorInput extends RetrieverInput {
   retriever: 'chunk' | 'summary'
+  chatConfig?: NormalizedChatConfig
+  chatHistory?: Array<{ question: string; answer: string }>
 }
 
-export async function runChatOrchestrated(run: OrchestratorInput): Promise<{ answer: string; sources: RetrieverOutput['sources']; retrievalMs: number; llmMs: number }> {
+export interface OrchestratorOutput {
+  answer: string
+  sources: RetrieverOutput['sources']
+  references: ChatResponse['references']
+  suggestedQuestions: string[]
+  retrievalMs: number
+  llmMs: number
+}
+
+export async function runChatOrchestrated(run: OrchestratorInput): Promise<OrchestratorOutput> {
   const tR0 = Date.now()
   // Retriever wählen – vorerst nur summaries-mongo verfügbar; chunk folgt im nächsten Schritt
   const retrieverImpl = run.retriever === 'summary' ? summariesMongoRetriever : chunksRetriever
@@ -28,12 +41,18 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<{ ans
   const retrievalMs = Date.now() - tR0
   if (!sources || sources.length === 0) {
     await finalizeQueryLog(run.queryId, { answer: 'Keine passenden Inhalte gefunden', sources: [], timing: { retrievalMs, llmMs: 0, totalMs: retrievalMs } })
-    return { answer: 'Keine passenden Inhalte gefunden', sources: [], retrievalMs, llmMs: 0 }
+    return { answer: 'Keine passenden Inhalte gefunden', sources: [], references: [], suggestedQuestions: [], retrievalMs, llmMs: 0 }
   }
 
   const promptAnswerLength = (run.answerLength === 'unbegrenzt' ? 'ausführlich' : run.answerLength)
-  let prompt = buildPrompt(run.question, sources, promptAnswerLength)
-  if (stats && typeof stats.candidatesCount === 'number' && typeof stats.usedInPrompt === 'number' && stats.usedInPrompt < stats.candidatesCount) {
+  let prompt = buildPrompt(run.question, sources, promptAnswerLength, {
+    targetLanguage: run.chatConfig?.targetLanguage,
+    character: run.chatConfig?.character,
+    socialContext: run.chatConfig?.socialContext,
+    chatHistory: run.chatHistory,
+  })
+  // Hinweis nur für Chunk-Modus: Im Summary-Modus werden alle Dokumente übernommen
+  if (run.retriever !== 'summary' && stats && typeof stats.candidatesCount === 'number' && typeof stats.usedInPrompt === 'number' && stats.usedInPrompt < stats.candidatesCount) {
     const hint = `\n\nHinweis: Aus Platzgründen konnten nur ${stats.usedInPrompt} von ${stats.candidatesCount} passenden Dokumenten berücksichtigt werden.`
     prompt = prompt + hint
   }
@@ -44,6 +63,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<{ ans
 
   const tL0 = Date.now()
   let res = await callOpenAI({ model, temperature, prompt, apiKey })
+  let raw = ''
   if (!res.ok) {
     const text = await res.text()
     const tooLong = text.includes('maximum context length') || res.status === 400
@@ -57,26 +77,54 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<{ ans
         let acc = 0
         const reduced: typeof sources = []
         for (const s of sources) { const len = s.text?.length ?? 0; if (acc + len > b) break; reduced.push(s); acc += len }
-        const p2 = buildPrompt(run.question, reduced, 'kurz')
+        const p2 = buildPrompt(run.question, reduced, 'kurz', {
+          targetLanguage: run.chatConfig?.targetLanguage,
+          character: run.chatConfig?.character,
+          socialContext: run.chatConfig?.socialContext,
+          chatHistory: run.chatHistory,
+        })
         res = await callOpenAI({ model, temperature, prompt: p2, apiKey })
-        if (res.ok) { retried = true; break }
+        if (res.ok) { retried = true; raw = await res.text(); break }
       }
       if (!retried) throw new Error(`OpenAI Chat Fehler: ${res.status} ${text.slice(0, 200)}`)
     } else {
       throw new Error(`OpenAI Chat Fehler: ${res.status} ${text.slice(0, 200)}`)
     }
+  } else {
+    raw = await res.text()
   }
-  const raw = await res.text()
-  const answer = await parseOpenAIResponse(raw)
+  
+  // Parse strukturierte Response (answer, suggestedQuestions, usedReferences)
+  const parsed = parseStructuredLLMResponse(raw)
+  const { answer, suggestedQuestions, usedReferences } = parsed
+  
   const llmMs = Date.now() - tL0
+
+  // Generiere vollständige Referenzen-Liste aus sources (für Mapping)
+  const allReferences: ChatResponse['references'] = sources.map((s, index) => {
+    const fileId = s.fileId || s.id.split('-')[0]
+    return {
+      number: index + 1,
+      fileId,
+      fileName: s.fileName,
+      description: getSourceDescription(s),
+    }
+  })
+  
+  // Filtere nur die tatsächlich verwendeten Referenzen aus usedReferences
+  const references: ChatResponse['references'] = usedReferences.length > 0
+    ? allReferences.filter(ref => usedReferences.includes(ref.number))
+    : allReferences // Fallback: Wenn keine gefunden, zeige alle
 
   await finalizeQueryLog(run.queryId, {
     answer,
     sources: sources.map(s => ({ id: s.id, fileName: s.fileName, chunkIndex: s.chunkIndex, score: s.score })),
+    references,
+    suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : [],
     timing: { retrievalMs, llmMs, totalMs: undefined }
   })
 
-  return { answer, sources, retrievalMs, llmMs }
+  return { answer, sources, references, suggestedQuestions, retrievalMs, llmMs }
 }
 
 

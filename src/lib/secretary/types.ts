@@ -38,6 +38,8 @@ export interface StructuredSessionData {
   starttime: string;
   endtime: string;
   speakers: string[];
+  speakers_url?: string[]; // Optional: URLs der Sprecher (comma-separated string wird zu Array geparst)
+  speakers_image_url?: string[]; // Optional: Bild-URLs der Sprecher (comma-separated string wird zu Array geparst)
   language: string;
 }
 

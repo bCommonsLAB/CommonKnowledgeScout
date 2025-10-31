@@ -45,6 +45,27 @@ const chatFormSchema = z.object({
   vectorStore: z.object({
     indexOverride: z.string().optional(),
   }).optional(),
+  targetLanguage: z.preprocess(
+    (val) => {
+      if (val === '' || val === undefined || val === null) return 'de'
+      return val
+    },
+    z.enum(['de', 'en', 'it', 'fr', 'es', 'ar']).default('de')
+  ),
+  character: z.preprocess(
+    (val) => {
+      if (val === '' || val === undefined || val === null) return 'developer'
+      return val
+    },
+    z.enum(['developer', 'business', 'eco-social', 'social', 'open-source', 'legal', 'scientific']).default('developer')
+  ),
+  socialContext: z.preprocess(
+    (val) => {
+      if (val === '' || val === undefined || val === null) return 'popular'
+      return val
+    },
+    z.enum(['scientific', 'popular', 'youth', 'senior']).default('popular')
+  ),
   gallery: z.object({
     detailViewType: z.preprocess(
       (val) => {
@@ -112,6 +133,9 @@ export function ChatForm() {
       features: { citations: true, streaming: true },
       rateLimit: { windowSec: 60, max: 30 },
       vectorStore: { indexOverride: undefined },
+      targetLanguage: 'de',
+      character: 'developer',
+      socialContext: 'popular',
       gallery: { 
         detailViewType: 'book',
         facets: [
@@ -135,6 +159,11 @@ export function ChatForm() {
       console.log('[ChatForm] Active Library ID:', activeLibrary.id);
       console.log('[ChatForm] Active Library Label:', activeLibrary.label);
       console.log('[ChatForm] Full Config.Chat:', JSON.stringify(c, null, 2));
+      console.log('[ChatForm] Neue Chat-Config-Felder:', {
+        targetLanguage: c.targetLanguage,
+        character: c.character,
+        socialContext: c.socialContext,
+      });
       
       // Debug: Zeige geladene Config
       console.log('[ChatForm] Lade Config aus Library:', {
@@ -156,6 +185,36 @@ export function ChatForm() {
         console.log('[ChatForm] ✅ Setze detailViewType auf: book')
       } else {
         console.log('[ChatForm] ⚠️ Unbekannter detailViewType:', detailViewType, '- verwende default: book')
+      }
+      
+      // Explizite Prüfung für targetLanguage
+      let finalTargetLanguage: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar' = 'de'
+      const targetLanguageVal = c.targetLanguage
+      if (targetLanguageVal === 'de' || targetLanguageVal === 'en' || targetLanguageVal === 'it' || targetLanguageVal === 'fr' || targetLanguageVal === 'es' || targetLanguageVal === 'ar') {
+        finalTargetLanguage = targetLanguageVal
+        console.log('[ChatForm] ✅ Setze targetLanguage auf:', finalTargetLanguage)
+      } else {
+        console.log('[ChatForm] ⚠️ Unbekannter targetLanguage:', targetLanguageVal, '- verwende default: de')
+      }
+      
+      // Explizite Prüfung für character
+      let finalCharacter: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific' = 'developer'
+      const characterVal = c.character
+      if (characterVal === 'developer' || characterVal === 'business' || characterVal === 'eco-social' || characterVal === 'social' || characterVal === 'open-source' || characterVal === 'legal' || characterVal === 'scientific') {
+        finalCharacter = characterVal
+        console.log('[ChatForm] ✅ Setze character auf:', finalCharacter)
+      } else {
+        console.log('[ChatForm] ⚠️ Unbekannter character:', characterVal, '- verwende default: developer')
+      }
+      
+      // Explizite Prüfung für socialContext
+      let finalSocialContext: 'scientific' | 'popular' | 'youth' | 'senior' = 'popular'
+      const socialContextVal = c.socialContext
+      if (socialContextVal === 'scientific' || socialContextVal === 'popular' || socialContextVal === 'youth' || socialContextVal === 'senior') {
+        finalSocialContext = socialContextVal
+        console.log('[ChatForm] ✅ Setze socialContext auf:', finalSocialContext)
+      } else {
+        console.log('[ChatForm] ⚠️ Unbekannter socialContext:', socialContextVal, '- verwende default: popular')
       }
       
       form.reset({
@@ -181,6 +240,9 @@ export function ChatForm() {
             ? (c.vectorStore as { indexOverride?: string })!.indexOverride
             : undefined,
         },
+        targetLanguage: finalTargetLanguage,
+        character: finalCharacter,
+        socialContext: finalSocialContext,
         gallery: {
           detailViewType: finalViewType,
           facets: (() => {
@@ -486,6 +548,109 @@ export function ChatForm() {
               </FormItem>
             )}
           />
+        </div>
+
+        <div className="grid gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField
+              control={form.control}
+              name="targetLanguage"
+              render={({ field }) => {
+                const currentValue = field.value || 'de'
+                return (
+                  <FormItem>
+                    <FormLabel>Zielsprache</FormLabel>
+                    <Select value={currentValue} onValueChange={(value) => {
+                      if (value === 'de' || value === 'en' || value === 'it' || value === 'fr' || value === 'es' || value === 'ar') {
+                        field.onChange(value)
+                      }
+                    }}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="de">Deutsch</SelectItem>
+                        <SelectItem value="en">Englisch</SelectItem>
+                        <SelectItem value="it">Italienisch</SelectItem>
+                        <SelectItem value="fr">Französisch</SelectItem>
+                        <SelectItem value="es">Spanisch</SelectItem>
+                        <SelectItem value="ar">Arabisch</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>Sprache, in der der Chat antwortet.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
+            <FormField
+              control={form.control}
+              name="character"
+              render={({ field }) => {
+                const currentValue = field.value || 'developer'
+                return (
+                  <FormItem>
+                    <FormLabel>Charakter/Perspektive</FormLabel>
+                    <Select value={currentValue} onValueChange={(value) => {
+                      if (value === 'developer' || value === 'business' || value === 'eco-social' || value === 'social' || value === 'open-source' || value === 'legal' || value === 'scientific') {
+                        field.onChange(value)
+                      }
+                    }}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="developer">Developer-orientiert</SelectItem>
+                        <SelectItem value="business">Business-orientiert</SelectItem>
+                        <SelectItem value="eco-social">Ökosozial-orientiert</SelectItem>
+                        <SelectItem value="social">Sozial-orientiert</SelectItem>
+                        <SelectItem value="open-source">Open-Source-spezifisch</SelectItem>
+                        <SelectItem value="legal">Rechtskundespezifisch</SelectItem>
+                        <SelectItem value="scientific">Naturwissenschaftlich</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>Perspektive, aus der Antworten formuliert werden.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
+            <FormField
+              control={form.control}
+              name="socialContext"
+              render={({ field }) => {
+                const currentValue = field.value || 'popular'
+                return (
+                  <FormItem>
+                    <FormLabel>Sozialer Kontext/Sprachebene</FormLabel>
+                    <Select value={currentValue} onValueChange={(value) => {
+                      if (value === 'scientific' || value === 'popular' || value === 'youth' || value === 'senior') {
+                        field.onChange(value)
+                      }
+                    }}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="scientific">Wissenschaftlich</SelectItem>
+                        <SelectItem value="popular">Populär</SelectItem>
+                        <SelectItem value="youth">Jugendlich</SelectItem>
+                        <SelectItem value="senior">Seniorengerecht</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>Sprachstil und Komplexität der Antworten.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
+          </div>
         </div>
 
         <div className="grid gap-6">

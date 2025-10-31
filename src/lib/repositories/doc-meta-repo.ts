@@ -19,9 +19,15 @@ async function getDocMetaCollection(libraryKey: string): Promise<Collection<DocM
   if (colCache.has(libraryKey)) return colCache.get(libraryKey) as Collection<DocMeta>
   const col = await getCollection<DocMeta>(libraryKey)
   try {
+    // Basis-Indizes für häufig verwendete Felder
+    // HINWEIS: libraryId wird NICHT indiziert, da jede Collection bereits nur Dokumente einer Library enthält
     await Promise.all([
+      // Index auf fileId für Lookups
       col.createIndex({ fileId: 1 }, { name: 'fileId' }),
+      // Index auf upsertedAt für Sortierung
       col.createIndex({ upsertedAt: -1 }, { name: 'upsertedAt_desc' }),
+      // Verbund-Index für Sortierung nach upsertedAt (häufig verwendet)
+      col.createIndex({ year: 1, upsertedAt: -1 }, { name: 'year_upsertedAt_desc' }),
     ])
   } catch {}
   colCache.set(libraryKey, col)
@@ -65,7 +71,11 @@ export async function findDocs(
   options: FindDocsOptions = {}
 ): Promise<Array<{ id: string; fileId: string; fileName?: string; title?: string; shortTitle?: string; authors?: string[]; year?: number | string; region?: string; upsertedAt?: string; docType?: string; source?: string; tags?: string[] }>> {
   const col = await getDocMetaCollection(libraryKey)
-  const q: Record<string, unknown> = { libraryId, ...(filter || {}) }
+  // PERFORMANCE: libraryId wird NICHT gefiltert, da die Collection bereits nur Dokumente dieser Library enthält
+  // Die Collection selbst ist bereits nach Library getrennt (doc_meta__${libraryId})
+  const q: Record<string, unknown> = { ...(filter || {}) }
+  // PERFORMANCE: Nur benötigte Felder aus docMetaJson laden (nicht das komplette Objekt)
+  // MongoDB unterstützt dot-notation für verschachtelte Felder in Projection
   const cursor = col.find(q, {
     projection: {
       _id: 0,
@@ -79,7 +89,9 @@ export async function findDocs(
       source: 1,
       tags: 1,
       upsertedAt: 1,
-      docMetaJson: 1,
+      // Nur title und shortTitle aus docMetaJson laden, nicht das komplette Objekt
+      'docMetaJson.title': 1,
+      'docMetaJson.shortTitle': 1,
     }
   })
   if (options.sort) cursor.sort(options.sort)
@@ -118,21 +130,27 @@ export async function findDocSummaries(
   libraryKey: string,
   libraryId: string,
   filter: Record<string, unknown>,
-  options: FindDocSummariesOptions = {}
+  options: FindDocSummariesOptions = {},
+  skipChapters: boolean = false
 ): Promise<Array<{ fileId: string; fileName?: string; chaptersCount?: number; chapters?: Array<{ title?: string; summary?: string }>; docSummary?: string }>> {
   const col = await getDocMetaCollection(libraryKey)
-  const q: Record<string, unknown> = { libraryId, ...(filter || {}) }
-  const cursor = col.find(q, {
-    projection: {
-      _id: 0,
-      libraryId: 1,
-      fileId: 1,
-      fileName: 1,
-      chaptersCount: 1,
-      chapters: 1,
-      'docMetaJson.summary': 1,
-    }
-  })
+  // PERFORMANCE: libraryId wird NICHT gefiltert, da die Collection bereits nur Dokumente dieser Library enthält
+  const q: Record<string, unknown> = { ...(filter || {}) }
+  
+  // PERFORMANCE: Im Event-Modus keine Chapters laden (nur docMetaJson.summary)
+  const projection: Record<string, 1> = {
+    _id: 0,
+    libraryId: 1,
+    fileId: 1,
+    fileName: 1,
+    'docMetaJson.summary': 1,
+  }
+  if (!skipChapters) {
+    projection.chaptersCount = 1
+    projection.chapters = 1
+  }
+  
+  const cursor = col.find(q, { projection })
   if (options.sort) cursor.sort(options.sort)
   if (typeof options.skip === 'number') cursor.skip(options.skip)
   if (typeof options.limit === 'number') cursor.limit(options.limit)
@@ -166,8 +184,9 @@ export async function getByFileIds(
   fileIds: string[]
 ): Promise<Map<string, DocMeta>> {
   const col = await getDocMetaCollection(libraryKey)
+  // PERFORMANCE: libraryId wird NICHT gefiltert, da die Collection bereits nur Dokumente dieser Library enthält
   const rows = await col.find(
-    { libraryId, fileId: { $in: fileIds } },
+    { fileId: { $in: fileIds } },
     { projection: { _id: 0 } }
   ).toArray()
   const map = new Map<string, DocMeta>()
@@ -182,7 +201,8 @@ export async function aggregateFacets(
   defs: Array<{ metaKey: string; type: string; label?: string }>
 ): Promise<Record<string, Array<{ value: string; count: number }>>> {
   const col = await getDocMetaCollection(libraryKey)
-  const match: Record<string, unknown> = { libraryId, ...(filter || {}) }
+  // PERFORMANCE: libraryId wird NICHT gefiltert, da die Collection bereits nur Dokumente dieser Library enthält
+  const match: Record<string, unknown> = { ...(filter || {}) }
   const facetStages: Record<string, Document[]> = {}
   for (const d of defs) {
     const key = d.metaKey

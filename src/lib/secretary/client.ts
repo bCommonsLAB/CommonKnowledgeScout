@@ -830,6 +830,8 @@ export interface SessionImportResponse {
     starttime: string;
     endtime: string;
     speakers: string[];
+    speakers_url?: string[];
+    speakers_image_url?: string[];
     source_language: string;
   };
   error?: {
@@ -970,6 +972,8 @@ export interface ProcessSessionInput {
   starttime?: string;
   endtime?: string;
   speakers?: string[];
+  speakers_url?: string[];
+  speakers_image_url?: string[];
   video_url?: string;
   video_transcript?: string;
   attachments_url?: string;

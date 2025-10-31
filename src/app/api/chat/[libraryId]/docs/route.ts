@@ -2,7 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
-import { findDocs, computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
+import { findDocs, computeDocMetaCollectionName, ensureFacetIndexes } from '@/lib/repositories/doc-meta-repo'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -21,15 +21,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const defs = parseFacetDefs(ctx.library)
     const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
     const libraryKey = computeDocMetaCollectionName(userEmail, libraryId, strategy)
+    
+    // PERFORMANCE: Stelle sicher, dass Indizes für Facettenfelder vorhanden sind
+    // Dies wird beim ersten Aufruf die Indizes erstellen, danach werden sie aus dem Cache geladen
+    try {
+      await ensureFacetIndexes(libraryKey, defs)
+    } catch {
+      // Fehler bei Index-Erstellung ignorieren (z.B. wenn bereits vorhanden)
+    }
     const builtin = buildFilterFromQuery(url, defs)
     // buildFilterFromQuery liefert Pinecone-Filter-Form; auf Mongo-Form abbilden
-    const filter: Record<string, unknown> = { }
+    const filter: Record<string, unknown> = {}
     if (builtin['authors']) filter['authors'] = builtin['authors']
     if (builtin['region']) filter['region'] = builtin['region']
     if (builtin['year']) filter['year'] = builtin['year']
     if (builtin['docType']) filter['docType'] = builtin['docType']
     if (builtin['source']) filter['source'] = builtin['source']
     if (builtin['tags']) filter['tags'] = builtin['tags']
+    // Unterstütze auch dynamische Facettenfelder (z.B. event, track, speakers aus Session-Daten)
+    for (const def of defs) {
+      if (builtin[def.metaKey] && !filter[def.metaKey]) {
+        filter[def.metaKey] = builtin[def.metaKey]
+      }
+    }
 
     const items = await findDocs(libraryKey, libraryId, filter, { limit: 200, sort: { upsertedAt: -1 } })
     return NextResponse.json({ items }, { status: 200 })

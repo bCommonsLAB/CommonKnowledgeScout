@@ -23,6 +23,8 @@ export interface RetrievedSource {
   slideTitle?: string // Für Slides: Titel der Slide
   chapterTitle?: string // Für Chapters: Kapitel-Titel
   chapterOrder?: number // Für Chapters: Reihenfolge
+  // Dynamische Metadaten basierend auf Facetten-Definitionen der Library
+  metadata?: Record<string, unknown> // Key-Value-Paare: metaKey -> Wert (getypt nach FacetDef.type)
 }
 
 export interface RetrieverOutput {

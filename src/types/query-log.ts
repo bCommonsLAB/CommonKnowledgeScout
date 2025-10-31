@@ -42,21 +42,32 @@ export interface QueryTokenUsage {
   totalTokens?: number;
 }
 
+export interface QuestionAnalysisInfo {
+  recommendation: 'chunk' | 'summary' | 'unclear';
+  confidence: 'high' | 'medium' | 'low';
+  reasoning: string;
+}
+
 export interface QueryLog {
   queryId: string;
   libraryId: string;
   userEmail: string;
   question: string;
   mode: 'concise' | 'verbose' | 'summaries' | 'chunks';
+  answerLength?: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'; // Antwortlänge-Parameter
+  retriever?: 'chunk' | 'doc' | 'summary'; // Retriever-Methode
   facetsSelected?: Record<string, unknown>;
   filtersNormalized?: Record<string, unknown>;
   filtersPinecone?: Record<string, unknown>;
   retrieval?: QueryRetrievalStep[];
   prompt?: QueryPromptInfo;
   answer?: string;
+  references?: Array<{ number: number; fileId: string; fileName?: string; description: string }>; // Referenzen für die Antwort
+  suggestedQuestions?: string[]; // Vorgeschlagene Folgefragen
   sources?: Array<{ id: string; fileName?: string; chunkIndex?: number; score?: number }>; // zur schnellen Sicht
   timing?: { retrievalMs?: number; llmMs?: number; totalMs?: number };
   tokenUsage?: QueryTokenUsage;
+  questionAnalysis?: QuestionAnalysisInfo; // Analyse-Ergebnis für Retriever-Auswahl
   createdAt: Date;
   status: 'pending' | 'ok' | 'error';
   error?: { message: string; stage?: string };

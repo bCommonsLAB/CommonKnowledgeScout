@@ -3,10 +3,17 @@ import { embedTexts } from '@/lib/chat/embeddings'
 import { describeIndex, queryVectors, fetchVectors } from '@/lib/chat/pinecone'
 import { getBaseBudget } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend } from '@/lib/logging/query-logger'
+import { extractFacetMetadata } from './metadata-extractor'
 
 export const chunksRetriever: ChatRetriever = {
   async retrieve(input: RetrieverInput): Promise<RetrieverOutput> {
     const t0 = Date.now()
+
+    // Library-Context laden, um Facetten-Definitionen zu erhalten
+    const { loadLibraryChatContext } = await import('@/lib/chat/loader')
+    const ctx = await loadLibraryChatContext(input.userEmail || '', input.libraryId)
+    const { parseFacetDefs } = await import('@/lib/chat/dynamic-facets')
+    const facetDefs = ctx ? parseFacetDefs(ctx.library) : []
 
     const apiKey = process.env.PINECONE_API_KEY
     if (!apiKey) throw new Error('PINECONE_API_KEY fehlt')
@@ -104,33 +111,68 @@ export const chunksRetriever: ChatRetriever = {
     await logAppend(input.queryId, { indexName: input.context.vectorIndex, namespace: '', stage: 'fetchNeighbors', level: 'chunk', topKRequested: ids.length, topKReturned: Object.keys(fetched).length, timingMs: stepF.timingMs, startedAt: stepF.startedAt, endedAt: stepF.endedAt })
 
     const chapterAlpha = Number(process.env.CHAT_CHAPTER_BOOST ?? 0.15)
-    const rows = ids
-      .map(id => {
-        const maybe = (fetched as Record<string, unknown>)[id]
-        const meta = maybe && typeof maybe === 'object' && 'metadata' in maybe ? (maybe as { metadata?: Record<string, unknown> }).metadata : undefined
-        return { id, score: scoreMap.get(id) ?? 0, meta }
-      })
-      .filter(r => r.meta)
-      .map(r => {
-        const meta = r.meta!
-        const chapterId = typeof (meta as { chapterId?: unknown }).chapterId === 'string' ? (meta as { chapterId: string }).chapterId : undefined
-        let boosted = r.score
-        if (chapterId && chapterBoost.size > 0) {
-          const b = chapterBoost.get(chapterId)
-          if (typeof b === 'number') boosted = boosted + chapterAlpha * b
-        }
-        try {
-          const q = input.question.toLowerCase()
-          const title = typeof (meta as { chapterTitle?: unknown }).chapterTitle === 'string' ? (meta as { chapterTitle: string }).chapterTitle.toLowerCase() : ''
-          const kws = Array.isArray((meta as { keywords?: unknown }).keywords) ? ((meta as { keywords: unknown[] }).keywords).filter(v => typeof v === 'string').map(v => String(v).toLowerCase()) : []
-          let lex = 0
-          if (title && q && title.includes(q)) lex += 0.02
-          for (const kw of kws) if (kw && q.includes(kw)) { lex += 0.02; if (lex > 0.06) break }
-          boosted += lex
-        } catch {}
-        return { ...r, score: boosted }
-      })
-      .sort((a, b) => (b.score - a.score))
+    
+    // FALLBACK: Wenn fetchNeighbors keine Ergebnisse liefert, verwende die ursprünglichen Matches
+    // Die ursprünglichen Matches haben bereits metadata von der Query
+    const fetchedCount = Object.keys(fetched).length
+    const useOriginalMatches = fetchedCount === 0 && matches.length > 0
+    
+    const rows = useOriginalMatches
+      ? // Fallback: Verwende die ursprünglichen Matches direkt
+        matches.map(m => ({
+          id: m.id,
+          score: scoreMap.get(m.id) ?? (typeof m.score === 'number' ? m.score : 0),
+          meta: m.metadata && typeof m.metadata === 'object' ? m.metadata as Record<string, unknown> : undefined
+        }))
+          .filter(r => r.meta)
+          .map(r => {
+            const meta = r.meta!
+            const chapterId = typeof (meta as { chapterId?: unknown }).chapterId === 'string' ? (meta as { chapterId: string }).chapterId : undefined
+            let boosted = r.score
+            if (chapterId && chapterBoost.size > 0) {
+              const b = chapterBoost.get(chapterId)
+              if (typeof b === 'number') boosted = boosted + chapterAlpha * b
+            }
+            try {
+              const q = input.question.toLowerCase()
+              const title = typeof (meta as { chapterTitle?: unknown }).chapterTitle === 'string' ? (meta as { chapterTitle: string }).chapterTitle.toLowerCase() : ''
+              const kws = Array.isArray((meta as { keywords?: unknown }).keywords) ? ((meta as { keywords: unknown[] }).keywords).filter(v => typeof v === 'string').map(v => String(v).toLowerCase()) : []
+              let lex = 0
+              if (title && q && title.includes(q)) lex += 0.02
+              for (const kw of kws) if (kw && q.includes(kw)) { lex += 0.02; if (lex > 0.06) break }
+              boosted += lex
+            } catch {}
+            return { ...r, score: boosted }
+          })
+          .sort((a, b) => (b.score - a.score))
+      : // Normaler Flow: Verwende gefetchte Vektoren (inkl. Nachbarn)
+        ids
+          .map(id => {
+            const maybe = (fetched as Record<string, unknown>)[id]
+            const meta = maybe && typeof maybe === 'object' && 'metadata' in maybe ? (maybe as { metadata?: Record<string, unknown> }).metadata : undefined
+            return { id, score: scoreMap.get(id) ?? 0, meta }
+          })
+          .filter(r => r.meta)
+          .map(r => {
+            const meta = r.meta!
+            const chapterId = typeof (meta as { chapterId?: unknown }).chapterId === 'string' ? (meta as { chapterId: string }).chapterId : undefined
+            let boosted = r.score
+            if (chapterId && chapterBoost.size > 0) {
+              const b = chapterBoost.get(chapterId)
+              if (typeof b === 'number') boosted = boosted + chapterAlpha * b
+            }
+            try {
+              const q = input.question.toLowerCase()
+              const title = typeof (meta as { chapterTitle?: unknown }).chapterTitle === 'string' ? (meta as { chapterTitle: string }).chapterTitle.toLowerCase() : ''
+              const kws = Array.isArray((meta as { keywords?: unknown }).keywords) ? ((meta as { keywords: unknown[] }).keywords).filter(v => typeof v === 'string').map(v => String(v).toLowerCase()) : []
+              let lex = 0
+              if (title && q && title.includes(q)) lex += 0.02
+              for (const kw of kws) if (kw && q.includes(kw)) { lex += 0.02; if (lex > 0.06) break }
+              boosted += lex
+            } catch {}
+            return { ...r, score: boosted }
+          })
+          .sort((a, b) => (b.score - a.score))
 
     const sources: RetrievedSource[] = []
     let used = 0
@@ -171,6 +213,9 @@ export const chunksRetriever: ChatRetriever = {
         ? (meta as { chapterOrder: number }).chapterOrder 
         : undefined
       
+      // Extrahiere Metadaten basierend auf Facetten-Definitionen
+      const facetMetadata = extractFacetMetadata(meta, facetDefs)
+      
       const s: RetrievedSource = { 
         id: r.id, 
         score: r.score, 
@@ -183,6 +228,7 @@ export const chunksRetriever: ChatRetriever = {
         slideTitle,
         chapterTitle,
         chapterOrder,
+        metadata: Object.keys(facetMetadata).length > 0 ? facetMetadata : undefined, // Nur wenn Werte vorhanden sind
       }
       if (used + t.length > budget) break
       sources.push(s)

@@ -164,6 +164,18 @@ export default function SessionImportModal({
       setImporting(true);
       setError(null);
 
+      // Hilfsfunktion: Konvertiert comma-separated strings zu Arrays
+      const parseStringArray = (value: unknown): string[] => {
+        if (Array.isArray(value)) {
+          return value.filter(v => typeof v === 'string' && v.trim().length > 0).map(v => v.trim());
+        }
+        if (typeof value === 'string' && value.trim().length > 0) {
+          // Comma-separated string zu Array konvertieren
+          return value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+        return [];
+      };
+
       // Session-Daten in korrekte Struktur transformieren
       const sessionData = {
         event: importedData.event || '',
@@ -179,7 +191,9 @@ export default function SessionImportModal({
         day: importedData.day || '',
         starttime: importedData.starttime || '',
         endtime: importedData.endtime || '',
-        speakers: Array.isArray(importedData.speakers) ? importedData.speakers : [importedData.speakers || ''],
+        speakers: parseStringArray(importedData.speakers),
+        speakers_url: importedData.speakers_url ? parseStringArray(importedData.speakers_url) : undefined,
+        speakers_image_url: importedData.speakers_image_url ? parseStringArray(importedData.speakers_image_url) : undefined,
         source_language: importedData.language || sourceLanguage,
         target_language: importedData.language || targetLanguage
       };
@@ -378,6 +392,18 @@ export default function SessionImportModal({
         if (response.status === 'success' && response.data && response.data.structured_data) {
           const structuredData = response.data.structured_data;
           
+          // Hilfsfunktion: Konvertiert comma-separated strings zu Arrays
+          const parseStringArray = (value: unknown): string[] => {
+            if (Array.isArray(value)) {
+              return value.filter(v => typeof v === 'string' && v.trim().length > 0).map(v => v.trim());
+            }
+            if (typeof value === 'string' && value.trim().length > 0) {
+              // Comma-separated string zu Array konvertieren
+              return value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            }
+            return [];
+          };
+          
           // Session erstellen
           // Event und Track aus der Batch-Liste haben Vorrang
           const sessionData = {
@@ -394,7 +420,9 @@ export default function SessionImportModal({
             day: structuredData.day || '',
             starttime: structuredData.starttime || '',
             endtime: structuredData.endtime || '',
-            speakers: Array.isArray(structuredData.speakers) ? structuredData.speakers : [structuredData.speakers || ''],
+            speakers: parseStringArray(structuredData.speakers),
+            speakers_url: structuredData.speakers_url ? parseStringArray(structuredData.speakers_url) : undefined,
+            speakers_image_url: structuredData.speakers_image_url ? parseStringArray(structuredData.speakers_image_url) : undefined,
             source_language: structuredData.language || batchSourceLanguage,
             target_language: structuredData.language || batchTargetLanguage
           };

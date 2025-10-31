@@ -25,3 +25,21 @@ export interface LLMChatResponse {
   usedReferences: number[]
 }
 
+/**
+ * Response wenn die Frage unklar ist und Klärung benötigt
+ */
+export interface NeedsClarificationResponse {
+  status: 'needs_clarification'
+  analysis: {
+    /** Benutzerfreundliche Erklärung, warum die Frage unklar ist */
+    explanation: string
+    /** Vorgeschlagene präzisierte Fragen für beide Modi */
+    suggestedQuestions: {
+      /** Präzisierte Frage für Chunk-Modus (detaillierte Suche) */
+      chunk?: string
+      /** Präzisierte Frage für Summary-Modus (Überblick-Suche) */
+      summary?: string
+    }
+  }
+}
+

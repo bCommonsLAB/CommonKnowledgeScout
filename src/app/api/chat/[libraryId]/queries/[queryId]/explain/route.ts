@@ -28,6 +28,12 @@ export async function GET(
       queryId: log.queryId,
       question: log.question,
       mode: log.mode,
+      retriever: log.retriever,
+      questionAnalysis: log.questionAnalysis ? {
+        recommendation: log.questionAnalysis.recommendation,
+        confidence: log.questionAnalysis.confidence,
+        reasoning: log.questionAnalysis.reasoning,
+      } : undefined,
       facetsSelected: log.facetsSelected,
       filters: { normalized: log.filtersNormalized, pinecone: log.filtersPinecone },
       retrieval: (log.retrieval || []).map(s => ({
@@ -36,6 +42,9 @@ export async function GET(
         topKRequested: s.topKRequested,
         topKReturned: s.topKReturned,
         timingMs: s.timingMs,
+        decision: s.decision,
+        candidatesCount: s.candidatesCount,
+        usedInPrompt: s.usedInPrompt,
       })),
       sources: (log.sources || []).slice(0, 30),
       timing: log.timing,
@@ -43,35 +52,68 @@ export async function GET(
     }
 
     const system = 'Du bist ein Assistent, der komplexe technische Abläufe laienverständlich erklärt.'
-    const userMsg = `Erkläre diese Logdatei einer RAG-Query verständlich in 4-8 kurzen Sätzen. Keine Angaben über Benutzer und dass es sich um eine Logdatei handelt. Einfach erklären, wie die Antwort zustandekommt.
-Hintergrundinformationen:    
-1) Chunk-Retriever (klassischer RAG)
-wenn mode="chunks"
-Schritte:
-1. Frage-Embedding berechnen.
-2. Vektor-Query auf Chunks mit Filtern (Top-K).
-3. Optional: Parallel Kapitel-Summary-Query (Top-K) → Kapitel-Boost-Map aufbauen.
-4. Nachbarfenster für Top-Treffer bestimmen (±w) und vollständige Metadaten laden.
-5. Scoring-Phase: Kapitel-Boost und leichter lexikalischer Boost anwenden; Sortierung.
-6. Budgetakkumulation: Snippets in Reihenfolge einfügen bis Budget erreicht.
-7. Logging: embed → query(chunks) → query(summary, optional) → fetchNeighbors → KPIs.
+    
+    // Bestimme welcher Modus verwendet wurde
+    const usedMode = log.mode === 'summaries' || log.retriever === 'summary' || log.retriever === 'doc' ? 'summary' : 'chunk'
+    
+    // Erweitere Erklärung um Analyse-Informationen
+    let analysisContext = ''
+    if (log.questionAnalysis) {
+      const analysis = log.questionAnalysis
+      const recommendedLabel = analysis.recommendation === 'chunk' ? 'Chunk-Modus (spezifische Detailsuche)' : analysis.recommendation === 'summary' ? 'Summary-Modus (Überblick-Suche)' : 'Unklar (Frage zu vage)'
+      const usedLabel = usedMode === 'chunk' ? 'Chunk-Modus' : 'Summary-Modus'
+      const confidenceLabel = analysis.confidence === 'high' ? 'hoch' : analysis.confidence === 'medium' ? 'mittel' : 'niedrig'
+      
+      analysisContext = `\n\nWICHTIG: Retriever-Analyse wurde durchgeführt:
+- Empfehlung: ${recommendedLabel} (Konfidenz: ${confidenceLabel})
+- Begründung der Empfehlung: ${analysis.reasoning}
+- Tatsächlich verwendet: ${usedLabel}
+${analysis.recommendation === usedMode || (analysis.recommendation === 'summary' && (log.retriever === 'doc' || log.retriever === 'summary')) ? '- Die Empfehlung wurde befolgt.' : '- Die Empfehlung wurde überschrieben (expliziter Parameter oder Fallback).'}
+`
+    }
+    
+    // Unterschiedliche Erklärungen je nach verwendetem Modus
+    const chunkFlow = `**Chunk-Retriever-Flow** (wenn mode="chunks" oder retriever="chunk"):
+1. Frage-Embedding berechnen: Die Frage wird in eine Zahlenform (Vektor) umgewandelt
+2. Vektor-Query auf Chunks: Suche nach ähnlichen Textausschnitten mit semantischer Ähnlichkeit (Top-K Ergebnisse)
+3. Optional: Parallel Kapitel-Summary-Query: Lädt Kapitel-Übersichten für besseren Kontext
+4. Nachbarfenster: Lädt Textstellen um die Treffer herum für mehr Zusammenhang
+5. Scoring: Bewertet und sortiert die Treffer nach Relevanz
+6. Budgetakkumulation: Wählt Quellen aus bis Zeichen-Budget erreicht ist
+7. LLM: Generiert Antwort basierend auf den ausgewählten Quellen`
 
-2. Summary-Retriever (Kapitel-Summaries als Gesamt-Kontext)
-wenn mode="summaries"
+    const summaryFlow = `**Summary-Retriever-Flow** (wenn mode="summaries" oder retriever="summary"):
+1. Dokument-Auflistung: Lädt alle verfügbaren Dokumente/Kapitel aus MongoDB (kein Ranking)
+2. Filterung: Wendet Filter an (z.B. Event, Jahr, Tags)
+3. Metadaten-Laden: Ergänzt Dokument-Infos (Titel, Summary) aus der Datenbank
+4. Budgetakkumulation: Wählt Dokumente/Kapitel der Reihe nach bis Budget erreicht ist
+5. LLM: Generiert Antwort basierend auf den Dokument-Zusammenfassungen`
 
-Schritte:
-1. Vektoren listen (oder gefiltert selektieren) und clientseitig nach kind=chapterSummary + Filter einschränken.
-2. Zu den gefundenen Kapiteln ergänzende Metadaten aus doc-meta-repo laden (Titel, ShortTitle, Summary-Felder).
-3. Kurz-Text für jedes Kapitel komponieren (Kapitel-Header, Summary-Content, ggf. Fallbacks).
-4. Budgetakkumulation: Summaries der Reihe nach, bis Zeichenziel erreicht.
-5. Logging: list(summary) → KPIs.
+    const userMsg = `Erkläre diese Query-Logdatei verständlich in 5-10 kurzen Sätzen. 
 
-Schwerpunkt:
-Erkläre welche Schritte, welche Daten/Quellen verwendet wurden, wie entstand die Antwort.
-Vermeide Fachjargon, aber nenne wichtige Begriffe (Retriever, Top-K, Quellen) präzise.
-Sprache: Deutsch.
+WICHTIG: 
+- Erkenne zuerst, welcher Modus verwendet wurde (mode und retriever im JSON zeigen das)
+- Erkläre dann die entsprechenden Schritte für diesen Modus
+- ${analysisContext ? 'Erkläre auch die automatische Retriever-Auswahl und warum dieser Modus gewählt wurde.' : ''}
+- Keine Angaben über Benutzer oder dass es eine Logdatei ist
+- Erkläre einfach, wie die Antwort zustandekommt
 
-LOG (JSON):\n${JSON.stringify(compact, null, 2)}`
+Verfügbare Modi:
+
+${chunkFlow}
+
+${summaryFlow}
+
+Aktuelle Query:
+- mode: ${log.mode}
+- retriever: ${log.retriever || 'nicht gesetzt'}
+- verwendeter Modus: ${usedMode === 'chunk' ? 'Chunk-Retriever' : 'Summary-Retriever'}
+${analysisContext}
+${log.retrieval && log.retrieval.length > 0 ? `\nRetrieval-Schritte:\n${log.retrieval.map((s, i) => `${i + 1}. ${s.stage} [${s.level}] - ${s.timingMs}ms - ${s.topKReturned || 0} Ergebnisse`).join('\n')}` : ''}
+${log.sources && log.sources.length > 0 ? `\nVerwendete Quellen: ${log.sources.length} Quellen wurden für die Antwort verwendet.` : ''}
+
+Vollständige Log-Daten:
+${JSON.stringify(compact, null, 2)}`
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

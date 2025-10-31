@@ -21,7 +21,8 @@ import { computeDocMetaCollectionName, getByFileIds } from '@/lib/repositories/d
  *   // Top-Level Felder für Facetten
  *   event?: string
  *   track?: string
- *   speakers?: string[]
+ *   speakers_url?: string[]
+ *   speakers_image_url?: string[]
  *   tags?: string[]
  *   topics?: string[]
  *   year?: number | string
@@ -69,6 +70,8 @@ export async function GET(
       docMetaJson: (docMeta.docMetaJson && typeof docMeta.docMetaJson === 'object') 
         ? docMeta.docMetaJson as Record<string, unknown> 
         : undefined,
+      // Top-Level chapters Feld (falls vorhanden)
+      chapters: Array.isArray(docMeta.chapters) ? docMeta.chapters : undefined,
       // Technische Felder
       chunkCount: typeof docMeta.chunkCount === 'number' ? docMeta.chunkCount : undefined,
       chaptersCount: typeof docMeta.chaptersCount === 'number' ? docMeta.chaptersCount : undefined,
@@ -77,6 +80,8 @@ export async function GET(
       event: typeof docMeta.event === 'string' ? docMeta.event : undefined,
       track: typeof docMeta.track === 'string' ? docMeta.track : undefined,
       speakers: Array.isArray(docMeta.speakers) ? docMeta.speakers as string[] : undefined,
+      speakers_url: Array.isArray(docMeta.speakers_url) ? docMeta.speakers_url as string[] : undefined,
+      speakers_image_url: Array.isArray(docMeta.speakers_image_url) ? docMeta.speakers_image_url as string[] : undefined,
       tags: Array.isArray(docMeta.tags) ? docMeta.tags as string[] : undefined,
       topics: Array.isArray(docMeta.topics) ? docMeta.topics as string[] : undefined,
       year: docMeta.year,

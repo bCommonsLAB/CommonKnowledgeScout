@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ChatMessage } from './chat-message'
 import type { ChatResponse } from '@/types/chat-response'
-import { MessageSquare, SlidersHorizontal } from 'lucide-react'
+import { MessageSquare, SlidersHorizontal, Loader2 } from 'lucide-react'
 import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 
@@ -33,6 +34,9 @@ interface ChatConfigResponse {
     footerText?: string
     companyLink?: string
     features?: { citations?: boolean; streaming?: boolean }
+    targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'
+    character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'
+    socialContext?: 'scientific' | 'popular' | 'youth' | 'senior'
   }
   vectorIndex: string
 }
@@ -45,6 +49,7 @@ interface ChatMessage {
   suggestedQuestions?: string[]
   queryId?: string
   createdAt: string
+  character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'
 }
 
 export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
@@ -55,10 +60,16 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [answerLength, setAnswerLength] = useState<'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'>('mittel')
   const setChatReferences = useSetAtom(chatReferencesAtom)
-  const [retriever, setRetriever] = useState<'chunk' | 'doc'>('chunk')
+  const [retriever, setRetriever] = useState<'chunk' | 'doc' | 'auto'>('auto')
+  const [targetLanguage, setTargetLanguage] = useState<'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'>('de')
+  const [character, setCharacter] = useState<'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'>('developer')
+  const [socialContext, setSocialContext] = useState<'scientific' | 'popular' | 'youth' | 'senior'>('popular')
+  const [isSending, setIsSending] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const galleryFilters = useAtomValue(galleryFiltersAtom)
+  const prevMessagesLengthRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -69,7 +80,13 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/config`, { cache: 'no-store' })
         if (!res.ok) throw new Error(`Fehler beim Laden der Chat-Konfiguration: ${res.statusText}`)
         const data = await res.json() as ChatConfigResponse
-        if (!cancelled) setCfg(data)
+        if (!cancelled) {
+          setCfg(data)
+          // Setze Default-Werte aus Config, falls vorhanden
+          if (data.config.targetLanguage) setTargetLanguage(data.config.targetLanguage)
+          if (data.config.character) setCharacter(data.config.character)
+          if (data.config.socialContext) setSocialContext(data.config.socialContext)
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
       } finally {
@@ -79,6 +96,39 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     load()
     return () => { cancelled = true }
   }, [libraryId])
+
+  // Gemeinsame Hilfsfunktion: Erstelle ChatMessage aus QueryLog-Daten
+  function createMessagesFromQueryLog(queryLog: { queryId: string; question: string; answer?: string; references?: ChatResponse['references']; suggestedQuestions?: string[]; createdAt: string | Date }): ChatMessage[] {
+    const messages: ChatMessage[] = []
+    
+    // Frage als Message
+    messages.push({
+      id: `${queryLog.queryId}-question`,
+      type: 'question',
+      content: queryLog.question,
+      createdAt: typeof queryLog.createdAt === 'string' ? queryLog.createdAt : queryLog.createdAt.toISOString(),
+    })
+    
+    // Antwort als Message (wenn vorhanden)
+    if (queryLog.answer) {
+      const refs: ChatResponse['references'] = Array.isArray(queryLog.references) ? queryLog.references : []
+      const suggestedQuestions = Array.isArray(queryLog.suggestedQuestions)
+        ? queryLog.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
+        : []
+      
+      messages.push({
+        id: `${queryLog.queryId}-answer`,
+        type: 'answer',
+        content: queryLog.answer,
+        references: refs,
+        suggestedQuestions,
+        queryId: queryLog.queryId,
+        createdAt: typeof queryLog.createdAt === 'string' ? queryLog.createdAt : queryLog.createdAt.toISOString(),
+      })
+    }
+    
+    return messages
+  }
 
   // Lade historische Fragen als Messages
   useEffect(() => {
@@ -97,30 +147,16 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               const queryRes = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(item.queryId)}`, { cache: 'no-store' })
               const queryData = await queryRes.json()
               if (queryRes.ok && typeof queryData?.answer === 'string') {
-                // Frage als Message
-                historyMessages.push({
-                  id: `${item.queryId}-question`,
-                  type: 'question',
-                  content: item.question,
-                  createdAt: item.createdAt,
-                })
-                // Antwort als Message
-                let refs: ChatResponse['references'] = []
-                if (Array.isArray(queryData?.references)) {
-                  refs = queryData.references as ChatResponse['references']
-                }
-                const suggestedQuestions = Array.isArray(queryData?.suggestedQuestions)
-                  ? queryData.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
-                  : []
-                historyMessages.push({
-                  id: `${item.queryId}-answer`,
-                  type: 'answer',
-                  content: queryData.answer,
-                  references: refs,
-                  suggestedQuestions,
+                // Verwende gemeinsame Funktion zur Erstellung der Messages
+                const messages = createMessagesFromQueryLog({
                   queryId: item.queryId,
+                  question: item.question,
+                  answer: queryData.answer,
+                  references: Array.isArray(queryData.references) ? queryData.references : undefined,
+                  suggestedQuestions: Array.isArray(queryData.suggestedQuestions) ? queryData.suggestedQuestions : undefined,
                   createdAt: item.createdAt,
                 })
+                historyMessages.push(...messages)
               }
             } catch {
               // Ignoriere Fehler beim Laden einzelner Queries
@@ -128,7 +164,11 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           }
           // Sortiere nach Datum (neueste zuerst) und kehre um für chronologische Reihenfolge
           historyMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-          if (!cancelled) setMessages(historyMessages)
+          if (!cancelled) {
+            setMessages(historyMessages)
+            // Setze prevMessagesLengthRef, damit beim ersten Laden nicht gescrollt wird
+            prevMessagesLengthRef.current = historyMessages.length
+          }
         }
       } catch {
         if (!cancelled) setMessages([])
@@ -138,15 +178,40 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     return () => { cancelled = true }
   }, [libraryId])
 
-  // Auto-Scroll nach neuen Messages
+  // Auto-Scroll zum Bereich der letzten Frage/Antwort (nur bei neuen Nachrichten)
   useEffect(() => {
-    if (scrollRef.current) {
-      // ScrollArea erstellt ein Viewport-Element, das wir zum Scrollen benötigen
+    // Scroll nur, wenn neue Nachrichten hinzugefügt wurden
+    if (messages.length <= prevMessagesLengthRef.current) {
+      prevMessagesLengthRef.current = messages.length
+      return
+    }
+    prevMessagesLengthRef.current = messages.length
+
+    if (scrollRef.current && messages.length > 0) {
       const viewport = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null
       if (viewport) {
-        setTimeout(() => {
-          viewport.scrollTop = viewport.scrollHeight
-        }, 100)
+        // Finde die letzte Antwort-Message (falls vorhanden), sonst die letzte Frage
+        const lastAnswerId = messages.filter(m => m.type === 'answer').pop()?.id
+        const targetId = lastAnswerId || messages.filter(m => m.type === 'question').pop()?.id
+        if (targetId) {
+          const targetElement = messageRefs.current.get(targetId)
+          if (targetElement) {
+            setTimeout(() => {
+              // Verwende scrollIntoView für zuverlässigere Positionierung
+              // block: 'center' positioniert die Message in der Mitte des Viewports
+              // oder 'start' mit offset für Abstand oben
+              const containerRect = viewport.getBoundingClientRect()
+              const elementRect = targetElement.getBoundingClientRect()
+              const relativeTop = elementRect.top - containerRect.top + viewport.scrollTop
+              
+              // Scrolle zur Message mit 120px Abstand oben (damit Frage und Antwort sichtbar sind)
+              viewport.scrollTo({
+                top: Math.max(0, relativeTop - 120),
+                behavior: 'smooth'
+              })
+            }, 150)
+          }
+        }
       }
     }
   }, [messages])
@@ -154,11 +219,13 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   async function onSend() {
     if (!cfg) return
     if (!input.trim()) return
+    if (isSending) return // Verhindere doppelte Anfragen
     if (cfg.config.maxChars && input.length > cfg.config.maxChars) {
       setError(cfg.config.maxCharsWarningMessage || 'Eingabe zu lang')
       return
     }
     setError(null)
+    setIsSending(true)
     const questionText = input.trim()
     const questionId = `question-${Date.now()}`
     
@@ -168,6 +235,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       type: 'question',
       content: questionText,
       createdAt: new Date().toISOString(),
+      character: character, // Speichere den aktuellen Charakter mit der Frage
     }
     setMessages(prev => [...prev, questionMessage])
     setInput('')
@@ -178,54 +246,88 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       Object.entries(galleryFilters || {}).forEach(([k, arr]) => {
         if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
       })
-      params.set('retriever', retriever)
+      // Bei 'auto' keinen expliziten retriever-Parameter setzen → Analyse läuft automatisch
+      if (retriever !== 'auto') {
+        params.set('retriever', retriever)
+      }
+      // Füge die neuen Optionen als Query-Parameter hinzu
+      params.set('targetLanguage', targetLanguage)
+      params.set('character', character)
+      params.set('socialContext', socialContext)
       const url = `/api/chat/${encodeURIComponent(libraryId)}${params.toString() ? `?${params.toString()}` : ''}`
+      
+      // Bereite Chatverlauf vor: Nur vollständige Frage-Antwort-Paare aus den letzten Nachrichten
+      // Begrenze auf die letzten 5 Paare, um Token-Limit nicht zu überschreiten
+      const chatHistory: Array<{ question: string; answer: string }> = []
+      const recentMessages = messages.slice(-10) // Letzte 10 Messages (max. 5 Paare)
+      for (let i = 0; i < recentMessages.length - 1; i++) {
+        const msg = recentMessages[i]
+        const nextMsg = recentMessages[i + 1]
+        if (msg.type === 'question' && nextMsg.type === 'answer') {
+          chatHistory.push({
+            question: msg.content,
+            answer: nextMsg.content,
+          })
+        }
+      }
+      // Begrenze auf die letzten 5 Paare
+      const limitedChatHistory = chatHistory.slice(-5)
+      
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Debug': '1' },
-        body: JSON.stringify({ message: questionText, answerLength })
+        body: JSON.stringify({ 
+          message: questionText, 
+          answerLength,
+          chatHistory: limitedChatHistory.length > 0 ? limitedChatHistory : undefined,
+        })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || 'Fehler bei der Anfrage')
       
-      // Neue strukturierte Response
-      if (typeof data?.answer === 'string') {
-        // Referenzen aus neuer strukturierter Response
-        let refs: ChatResponse['references'] = []
-        if (Array.isArray(data?.references)) {
-          refs = data.references as ChatResponse['references']
-        } else {
-          // Fallback: Generiere Referenzen aus sources (Rückwärtskompatibilität)
-          const sources = Array.isArray(data?.sources) ? data.sources : []
-          refs = sources.map((s: unknown, index: number) => {
-            const src = (s && typeof s === 'object') ? s as Record<string, unknown> : {}
-            return {
-              number: index + 1,
-              fileId: typeof src.fileId === 'string' ? src.fileId : String(src.id || ''),
-              fileName: typeof src.fileName === 'string' ? src.fileName : undefined,
-              description: typeof src.description === 'string' ? src.description : `Quelle ${index + 1}`,
-            }
-          })
+      // Handling für NeedsClarificationResponse
+      if (data?.status === 'needs_clarification') {
+        const clarificationData = data as { status: 'needs_clarification'; analysis: { explanation: string; suggestedQuestions: { chunk?: string; summary?: string } } }
+        const suggestedQuestions: string[] = []
+        if (clarificationData.analysis.suggestedQuestions.chunk) {
+          suggestedQuestions.push(clarificationData.analysis.suggestedQuestions.chunk)
         }
-        // Setze Referenzen im Atom für Gallery
-        setChatReferences(refs)
-        
-        // Suggested Questions
-        const suggestedQuestions = Array.isArray(data?.suggestedQuestions) 
-          ? data.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
-          : []
-        
-        // Füge Antwort als Message hinzu
-        const answerMessage: ChatMessage = {
-          id: `answer-${Date.now()}`,
+        if (clarificationData.analysis.suggestedQuestions.summary) {
+          suggestedQuestions.push(clarificationData.analysis.suggestedQuestions.summary)
+        }
+        const clarificationMessage: ChatMessage = {
+          id: `clarification-${Date.now()}`,
           type: 'answer',
-          content: data.answer,
-          references: refs,
+          content: `${clarificationData.analysis.explanation}\n\n**Vorgeschlagene präzisierte Fragen:**`,
           suggestedQuestions,
-          queryId: typeof data?.queryId === 'string' ? data.queryId : undefined,
           createdAt: new Date().toISOString(),
         }
-        setMessages(prev => [...prev, answerMessage])
+        setMessages(prev => [...prev, clarificationMessage])
+        return
+      }
+      
+      // Neue strukturierte Response
+      if (typeof data?.answer === 'string') {
+        // Verwende gemeinsame Funktion zur Erstellung der Messages
+        const answerMessages = createMessagesFromQueryLog({
+          queryId: typeof data?.queryId === 'string' ? data.queryId : `temp-${Date.now()}`,
+          question: questionText,
+          answer: data.answer,
+          references: Array.isArray(data.references) ? data.references : undefined,
+          suggestedQuestions: Array.isArray(data.suggestedQuestions) ? data.suggestedQuestions : undefined,
+          createdAt: new Date(),
+        })
+        
+        // Nur die Antwort-Message verwenden (Frage wurde bereits hinzugefügt)
+        const answerMessage = answerMessages.find(m => m.type === 'answer')
+        if (answerMessage) {
+          // Setze Referenzen im Atom für Gallery
+          if (answerMessage.references) {
+            setChatReferences(answerMessage.references)
+          }
+          
+          setMessages(prev => [...prev, answerMessage])
+        }
       } else {
         throw new Error('Ungültige Antwort vom Server')
       }
@@ -233,6 +335,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
       // Entferne die Frage wieder, wenn Fehler auftrat
       setMessages(prev => prev.filter(m => m.id !== questionId))
+    } finally {
+      setIsSending(false)
     }
   }
 
@@ -262,6 +366,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             {messages.map((msg) => (
               <ChatMessage
                 key={msg.id}
+                messageId={msg.id}
                 type={msg.type}
                 content={msg.content}
                 references={msg.references}
@@ -269,12 +374,34 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                 queryId={msg.queryId}
                 createdAt={msg.createdAt}
                 libraryId={libraryId}
+                character={msg.character}
+                innerRef={(id, el) => {
+                  if (el) {
+                    messageRefs.current.set(id, el)
+                  } else {
+                    messageRefs.current.delete(id)
+                  }
+                }}
                 onQuestionClick={(question) => {
                   setInput(question)
                   inputRef.current?.focus()
                 }}
               />
             ))}
+            {isSending && (
+              <div className="flex gap-3 mb-4">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="bg-muted/30 border rounded-lg p-3">
+                    <div className="text-sm text-muted-foreground">Wird verarbeitet...</div>
+                  </div>
+                </div>
+              </div>
+            )}
             {error && (
               <div className="text-sm text-destructive p-3 bg-destructive/10 rounded border border-destructive/20">
                 {error}
@@ -292,7 +419,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               placeholder={cfg.config.placeholder || 'Ihre Frage...'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') onSend() }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !isSending) onSend() }}
+              disabled={isSending}
             />
             <Popover>
               <PopoverTrigger asChild>
@@ -322,9 +450,11 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                   <div>
                     <div className="text-sm font-medium mb-2">Methode:</div>
                     <div className="flex gap-1 flex-wrap">
-                      {(['chunk','doc'] as const).map(v => {
-                        const label = v === 'chunk' ? 'Spezifisch' : 'Übersichtlich'
-                        const tip = v === 'chunk'
+                      {(['auto','chunk','doc'] as const).map(v => {
+                        const label = v === 'auto' ? 'Auto' : v === 'chunk' ? 'Spezifisch' : 'Übersichtlich'
+                        const tip = v === 'auto'
+                          ? 'Das System analysiert Ihre Frage automatisch und wählt die beste Methode (Spezifisch oder Übersichtlich).'
+                          : v === 'chunk'
                           ? 'Für die Frage interessante Textstellen (Chunks) suchen und daraus die Antwort generieren. Nur spezifische Inhalte – dafür präziser.'
                           : 'Aus den Zusammenfassungen aller Kapitel/Dokumente eine Antwort kreieren. Mehr Überblick – dafür etwas ungenauer.'
                         return (
@@ -349,6 +479,53 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                     </div>
                   </div>
                   <div>
+                    <div className="text-sm font-medium mb-2">Zielsprache:</div>
+                    <Select value={targetLanguage} onValueChange={(v) => setTargetLanguage(v as typeof targetLanguage)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="de">Deutsch</SelectItem>
+                        <SelectItem value="en">Englisch</SelectItem>
+                        <SelectItem value="it">Italienisch</SelectItem>
+                        <SelectItem value="fr">Französisch</SelectItem>
+                        <SelectItem value="es">Spanisch</SelectItem>
+                        <SelectItem value="ar">Arabisch</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium mb-2">Charakter/Perspektive:</div>
+                    <Select value={character} onValueChange={(v) => setCharacter(v as typeof character)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="developer">Developer-orientiert</SelectItem>
+                        <SelectItem value="business">Business-orientiert</SelectItem>
+                        <SelectItem value="eco-social">Ökosozial-orientiert</SelectItem>
+                        <SelectItem value="social">Sozial-orientiert</SelectItem>
+                        <SelectItem value="open-source">Open-Source-spezifisch</SelectItem>
+                        <SelectItem value="legal">Rechtskundespezifisch</SelectItem>
+                        <SelectItem value="scientific">Naturwissenschaftlich</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium mb-2">Sozialer Kontext/Sprachebene:</div>
+                    <Select value={socialContext} onValueChange={(v) => setSocialContext(v as typeof socialContext)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="scientific">Wissenschaftlich</SelectItem>
+                        <SelectItem value="popular">Populär</SelectItem>
+                        <SelectItem value="youth">Jugendlich</SelectItem>
+                        <SelectItem value="senior">Seniorengerecht</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Button 
                       type="button" 
                       variant="outline" 
@@ -365,7 +542,16 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                 </div>
               </PopoverContent>
             </Popover>
-            <Button type="button" size="sm" onClick={onSend} className="h-9">Senden</Button>
+            <Button type="button" size="sm" onClick={onSend} className="h-9" disabled={isSending}>
+              {isSending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Warten...
+                </>
+              ) : (
+                'Senden'
+              )}
+            </Button>
           </div>
         </div>
       </div>
@@ -396,6 +582,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               {messages.map((msg) => (
                 <ChatMessage
                   key={msg.id}
+                  messageId={msg.id}
                   type={msg.type}
                   content={msg.content}
                   references={msg.references}
@@ -403,12 +590,34 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                   queryId={msg.queryId}
                   createdAt={msg.createdAt}
                   libraryId={libraryId}
+                  character={msg.character}
+                  innerRef={(id, el) => {
+                    if (el) {
+                      messageRefs.current.set(id, el)
+                    } else {
+                      messageRefs.current.delete(id)
+                    }
+                  }}
                   onQuestionClick={(question) => {
                     setInput(question)
                     inputRef.current?.focus()
                   }}
                 />
               ))}
+              {isSending && (
+                <div className="flex gap-3 mb-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                      <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="bg-muted/30 border rounded-lg p-3">
+                      <div className="text-sm text-muted-foreground">Wird verarbeitet...</div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {error && (
                 <div className="text-sm text-destructive p-3 bg-destructive/10 rounded border border-destructive/20">
                   {error}
@@ -426,7 +635,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                 placeholder={cfg.config.placeholder || 'Ihre Frage...'}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') onSend() }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !isSending) onSend() }}
+                disabled={isSending}
               />
               <Popover>
                 <PopoverTrigger asChild>
@@ -456,9 +666,11 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                     <div>
                       <div className="text-sm font-medium mb-2">Methode:</div>
                       <div className="flex gap-1 flex-wrap">
-                        {(['chunk','doc'] as const).map(v => {
-                          const label = v === 'chunk' ? 'Spezifisch' : 'Übersichtlich'
-                          const tip = v === 'chunk'
+                        {(['auto','chunk','doc'] as const).map(v => {
+                          const label = v === 'auto' ? 'Auto' : v === 'chunk' ? 'Spezifisch' : 'Übersichtlich'
+                          const tip = v === 'auto'
+                            ? 'Das System analysiert Ihre Frage automatisch und wählt die beste Methode (Spezifisch oder Übersichtlich).'
+                            : v === 'chunk'
                             ? 'Für die Frage interessante Textstellen (Chunks) suchen und daraus die Antwort generieren. Nur spezifische Inhalte – dafür präziser.'
                             : 'Aus den Zusammenfassungen aller Kapitel/Dokumente eine Antwort kreieren. Mehr Überblick – dafür etwas ungenauer.'
                           return (
@@ -482,6 +694,53 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                       </div>
                     </div>
                     <div>
+                      <div className="text-sm font-medium mb-2">Zielsprache:</div>
+                      <Select value={targetLanguage} onValueChange={(v) => setTargetLanguage(v as typeof targetLanguage)}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="de">Deutsch</SelectItem>
+                          <SelectItem value="en">Englisch</SelectItem>
+                          <SelectItem value="it">Italienisch</SelectItem>
+                          <SelectItem value="fr">Französisch</SelectItem>
+                          <SelectItem value="es">Spanisch</SelectItem>
+                          <SelectItem value="ar">Arabisch</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium mb-2">Charakter/Perspektive:</div>
+                      <Select value={character} onValueChange={(v) => setCharacter(v as typeof character)}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="developer">Developer-orientiert</SelectItem>
+                          <SelectItem value="business">Business-orientiert</SelectItem>
+                          <SelectItem value="eco-social">Ökosozial-orientiert</SelectItem>
+                          <SelectItem value="social">Sozial-orientiert</SelectItem>
+                          <SelectItem value="open-source">Open-Source-spezifisch</SelectItem>
+                          <SelectItem value="legal">Rechtskundespezifisch</SelectItem>
+                          <SelectItem value="scientific">Naturwissenschaftlich</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium mb-2">Sozialer Kontext/Sprachebene:</div>
+                      <Select value={socialContext} onValueChange={(v) => setSocialContext(v as typeof socialContext)}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="scientific">Wissenschaftlich</SelectItem>
+                          <SelectItem value="popular">Populär</SelectItem>
+                          <SelectItem value="youth">Jugendlich</SelectItem>
+                          <SelectItem value="senior">Seniorengerecht</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
                       <Button 
                         type="button" 
                         variant="outline" 
@@ -498,7 +757,16 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                   </div>
                 </PopoverContent>
               </Popover>
-              <Button type="button" onClick={onSend}>Senden</Button>
+              <Button type="button" onClick={onSend} disabled={isSending}>
+                {isSending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Warten...
+                  </>
+                ) : (
+                  'Senden'
+                )}
+              </Button>
             </div>
             {cfg.config.footerText && (
               <div className="mt-4 text-xs text-muted-foreground">

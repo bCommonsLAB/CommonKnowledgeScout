@@ -39,6 +39,9 @@ export async function GET(
         companyLink: ctx.chat.companyLink,
         features: ctx.chat.features,
         gallery: ctx.chat.gallery, // Gallery-Config inkl. detailViewType hinzufügen
+        targetLanguage: ctx.chat.targetLanguage,
+        character: ctx.chat.character,
+        socialContext: ctx.chat.socialContext,
       },
       vectorIndex: ctx.vectorIndex,
     }
