@@ -15,6 +15,7 @@ import type { ChatResponse } from '@/types/chat-response'
 import { MessageSquare, SlidersHorizontal, Loader2 } from 'lucide-react'
 import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
+import type { Character } from '@/types/character'
 
 interface ChatPanelProps {
   libraryId: string
@@ -35,7 +36,7 @@ interface ChatConfigResponse {
     companyLink?: string
     features?: { citations?: boolean; streaming?: boolean }
     targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'
-    character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'
+    character?: Character
     socialContext?: 'scientific' | 'popular' | 'youth' | 'senior'
   }
   vectorIndex: string
@@ -49,7 +50,7 @@ interface ChatMessage {
   suggestedQuestions?: string[]
   queryId?: string
   createdAt: string
-  character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'
+  character?: Character
 }
 
 export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
@@ -62,7 +63,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const setChatReferences = useSetAtom(chatReferencesAtom)
   const [retriever, setRetriever] = useState<'chunk' | 'doc' | 'auto'>('auto')
   const [targetLanguage, setTargetLanguage] = useState<'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'>('de')
-  const [character, setCharacter] = useState<'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'>('developer')
+  const [character, setCharacter] = useState<Character>('developer')
   const [socialContext, setSocialContext] = useState<'scientific' | 'popular' | 'youth' | 'senior'>('popular')
   const [isSending, setIsSending] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -501,13 +502,23 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        {/* Knowledge & Innovation */}
                         <SelectItem value="developer">Developer-orientiert</SelectItem>
-                        <SelectItem value="business">Business-orientiert</SelectItem>
+                        <SelectItem value="technical">Technisch-orientiert</SelectItem>
+                        <SelectItem value="open-source">Open-Source-spezifisch</SelectItem>
+                        <SelectItem value="scientific">Naturwissenschaftlich</SelectItem>
+                        {/* Society & Impact */}
                         <SelectItem value="eco-social">Ökosozial-orientiert</SelectItem>
                         <SelectItem value="social">Sozial-orientiert</SelectItem>
-                        <SelectItem value="open-source">Open-Source-spezifisch</SelectItem>
+                        <SelectItem value="civic">Bürgerschaftlich-orientiert</SelectItem>
+                        <SelectItem value="policy">Politikwissenschaftlich-orientiert</SelectItem>
+                        <SelectItem value="cultural">Kulturell-orientiert</SelectItem>
+                        {/* Economy & Practice */}
+                        <SelectItem value="business">Business-orientiert</SelectItem>
+                        <SelectItem value="entrepreneurial">Unternehmerisch-orientiert</SelectItem>
                         <SelectItem value="legal">Rechtskundespezifisch</SelectItem>
-                        <SelectItem value="scientific">Naturwissenschaftlich</SelectItem>
+                        <SelectItem value="educational">Bildungswissenschaftlich-orientiert</SelectItem>
+                        <SelectItem value="creative">Kreativ-orientiert</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

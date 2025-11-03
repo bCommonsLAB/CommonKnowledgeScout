@@ -60,7 +60,7 @@ function FacetGroup({ label, options, selected, onChange }: { label: string; opt
     onChange(Array.from(next))
   }
   return (
-    <div className='border rounded p-2'>
+    <div className='border rounded p-2 bg-gradient-to-br from-blue-50/30 to-cyan-50/30 dark:from-blue-950/10 dark:to-cyan-950/10'>
       <div className='flex items-center gap-2 mb-2 min-w-0'>
         <div className='text-sm font-medium truncate flex-1 min-w-0'>{label}</div>
         <button className='text-xs text-muted-foreground hover:underline shrink-0' onClick={() => onChange([])}>Zurücksetzen</button>
@@ -113,13 +113,13 @@ function SpeakerOrAuthorIcons({ doc }: { doc: DocCardMeta }) {
   // Mehrere Namen nebeneinander mit Tooltips - überlappen sich leicht
   // Negative margin-top schneidet den oberen Rand der Card deutlich an, sodass die Bilder darüber hinausragen
   return (
-    <div className='flex items-center gap-0 -mt-10 mb-2 flex-wrap'>
+    <div className='flex items-center gap-0 -mt-10 mb-2 flex-wrap -ml-2'>
       {names.slice(0, 3).map((name, idx) => {
         const imageUrl = images && images[idx] ? images[idx] : undefined
         return (
           <div 
             key={idx}
-            className={idx > 0 ? '-ml-4' : ''}
+            className={idx > 0 ? '-ml-2' : ''}
             style={{ zIndex: names.length - idx }}
           >
             <SpeakerIcon name={name} imageUrl={imageUrl} />
@@ -127,7 +127,7 @@ function SpeakerOrAuthorIcons({ doc }: { doc: DocCardMeta }) {
         )
       })}
       {names.length > 3 && (
-        <div className='-ml-4' style={{ zIndex: 0 }}>
+        <div className='-ml-2' style={{ zIndex: 0 }}>
           <Tooltip>
             <TooltipTrigger asChild>
               <div className='flex items-center justify-center h-20 w-20 rounded-full bg-muted text-muted-foreground text-sm font-medium shrink-0 border-2 border-background shadow-sm'>
@@ -482,9 +482,11 @@ export default function GalleryClient() {
             className='h-7 w-7'
             aria-pressed={showFilterPanel}
             onClick={() => {
-              if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 1024px)').matches) {
+              // Auf mobilen Geräten: Mobile Filter Sheet öffnen
+              if (typeof window !== 'undefined' && window.innerWidth < 1024) {
                 setShowFilters(true)
               } else {
+                // Auf Desktop: Filter-Panel ein-/ausblenden
                 setShowFilterPanel(v => !v)
               }
             }}
@@ -531,7 +533,7 @@ export default function GalleryClient() {
       </div>
 
       <TooltipProvider>
-        <div className='flex flex-row gap-6 flex-1 min-h-0'>
+        <div className='flex flex-col lg:flex-row gap-6 flex-1 min-h-0'>
         {showFilterPanel ? (
           <aside className='hidden lg:flex flex-col w-[16.666%] flex-shrink-0'>
             <div className='rounded border p-3 space-y-3 overflow-y-auto overflow-x-hidden bg-background h-full'>
@@ -557,11 +559,11 @@ export default function GalleryClient() {
 
         {showChatPanel && showGalleryPanel ? (
           <>
-            <section className="flex-1 flex flex-col min-h-0">
+            <section className="w-full lg:w-auto lg:flex-1 flex flex-col min-h-[40vh] lg:min-h-0 max-h-[50vh] lg:max-h-none">
               <ChatPanel libraryId={libraryId} variant='compact' />
             </section>
 
-            <section className="flex-1 flex flex-col min-h-0" data-gallery-section>
+            <section className="w-full lg:w-auto lg:flex-1 flex flex-col min-h-0 max-h-[50vh] lg:max-h-none" data-gallery-section>
                   {/* Flex-Container mit fester Höhe für ScrollArea */}
                   <div className="flex flex-col h-full min-h-0">
                     {/* Legende und Verwendete Dokumente - außerhalb ScrollArea */}
@@ -638,7 +640,7 @@ export default function GalleryClient() {
                       {filteredDocs.map((pdf) => (
                         <Card
                           key={pdf.id}
-                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible'
+                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20'
                           onClick={() => openDocDetail(pdf)}
                         >
                           <CardHeader className='relative'>
@@ -653,7 +655,7 @@ export default function GalleryClient() {
                             <div className='space-y-2'>
                               {Array.isArray(pdf.authors) && pdf.authors.length > 0 ? (
                                 <div className='flex items-center text-sm text-muted-foreground'>
-                                  <User className='h-4 w-4 mr-2' />
+                                  <User className='h-2.5 w-2.5 mr-2' />
                                   <span className='line-clamp-1'>
                                     {pdf.authors[0]}
                                     {pdf.authors.length > 1 ? ` +${pdf.authors.length - 1} weitere` : ''}
@@ -662,13 +664,13 @@ export default function GalleryClient() {
                               ) : null}
                               {pdf.region ? (
                                 <div className='flex items-center text-sm text-muted-foreground'>
-                                  <MapPin className='h-4 w-4 mr-2' />
+                                  <MapPin className='h-2.5 w-2.5 mr-2' />
                                   <span>{pdf.region}</span>
                                 </div>
                               ) : null}
                               {pdf.upsertedAt ? (
                                 <div className='flex items-center text-sm text-muted-foreground'>
-                                  <Calendar className='h-4 w-4 mr-2' />
+                                  <Calendar className='h-2.5 w-2.5 mr-2' />
                                   <span>{new Date(pdf.upsertedAt).toLocaleDateString('de-DE')}</span>
                                 </div>
                               ) : null}
@@ -684,11 +686,11 @@ export default function GalleryClient() {
               </section>
           </>
         ) : showChatPanel ? (
-          <section className="flex-1 flex flex-col min-h-0">
+          <section className="w-full lg:w-auto lg:flex-1 flex flex-col min-h-[300px] lg:min-h-0 max-h-[50vh] lg:max-h-none">
             <ChatPanel libraryId={libraryId} variant='compact' />
           </section>
         ) : showGalleryPanel ? (
-          <section className="flex-1 flex flex-col min-h-0" data-gallery-section>
+          <section className="w-full lg:w-auto lg:flex-1 flex flex-col min-h-0 max-h-[50vh] lg:max-h-none" data-gallery-section>
             <div className="flex flex-col h-full min-h-0">
               {showReferenceLegend && chatReferences.length > 0 && (
                 <div className="mb-6 rounded border bg-muted/30 p-4 shrink-0">
@@ -758,7 +760,7 @@ export default function GalleryClient() {
                       {filteredDocs.map((pdf) => (
                         <Card
                           key={pdf.id}
-                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible'
+                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20'
                           onClick={() => openDocDetail(pdf)}
                         >
                           <CardHeader className='relative'>
@@ -771,27 +773,27 @@ export default function GalleryClient() {
                           </CardHeader>
                           <CardContent>
                             <div className='space-y-2'>
-                              {Array.isArray(pdf.authors) && pdf.authors.length > 0 && (
+                              {Array.isArray(pdf.authors) && pdf.authors.length > 0 ? (
                                 <div className='flex items-center text-sm text-muted-foreground'>
-                                  <User className='h-4 w-4 mr-2' />
+                                  <User className='h-2.5 w-2.5 mr-2' />
                                   <span className='line-clamp-1'>
                                     {pdf.authors[0]}
                                     {pdf.authors.length > 1 ? ` +${pdf.authors.length - 1} weitere` : ''}
                                   </span>
                                 </div>
-                              )}
-                              {pdf.region && (
+                              ) : null}
+                              {pdf.region ? (
                                 <div className='flex items-center text-sm text-muted-foreground'>
-                                  <MapPin className='h-4 w-4 mr-2' />
+                                  <MapPin className='h-2.5 w-2.5 mr-2' />
                                   <span>{pdf.region}</span>
                                 </div>
-                              )}
-                              {pdf.upsertedAt && (
+                              ) : null}
+                              {pdf.upsertedAt ? (
                                 <div className='flex items-center text-sm text-muted-foreground'>
-                                  <Calendar className='h-4 w-4 mr-2' />
+                                  <Calendar className='h-2.5 w-2.5 mr-2' />
                                   <span>{new Date(pdf.upsertedAt).toLocaleDateString('de-DE')}</span>
                                 </div>
-                              )}
+                              ) : null}
                             </div>
                           </CardContent>
                         </Card>
@@ -891,7 +893,14 @@ export default function GalleryClient() {
           <div className='absolute inset-0 bg-black/50' onClick={() => setShowFilters(false)} />
           <div className='absolute inset-y-0 left-0 w-[85vw] max-w-[420px] bg-background shadow-2xl flex flex-col'>
             <div className='p-4 border-b flex items-center gap-2'>
-              <ChevronLeft className='h-4 w-4' />
+              <Button
+                variant='ghost'
+                size='icon'
+                className='h-8 w-8 -ml-2'
+                onClick={() => setShowFilters(false)}
+              >
+                <ChevronLeft className='h-4 w-4' />
+              </Button>
               <div className='font-medium'>Filter</div>
             </div>
             <div className='p-4 space-y-3 overflow-auto'>

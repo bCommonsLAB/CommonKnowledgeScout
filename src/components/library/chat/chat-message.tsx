@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { BookOpen } from 'lucide-react'
 import type { ChatResponse } from '@/types/chat-response'
 import { QueryDetailsDialog } from './query-details-dialog'
+import type { Character } from '@/types/character'
+import { characterColors, characterIconColors } from '@/types/character'
 
 interface ChatMessageProps {
   type: 'question' | 'answer'
@@ -20,39 +22,25 @@ interface ChatMessageProps {
   onQuestionClick?: (question: string) => void
   messageId?: string
   innerRef?: (id: string, element: HTMLDivElement | null) => void
-  character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'
+  character?: Character
 }
 
 /**
- * Gibt eine passende Pastellfarbe für den jeweiligen Charakter zurück
+ * Gibt eine passende Pastellfarbe für den jeweiligen Charakter zurück.
+ * Verwendet die zentrale Farbdefinition aus types/character.ts.
  */
-function getCharacterColor(character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'): string {
-  const colors: Record<string, string> = {
-    'developer': 'bg-blue-50 border-blue-200', // Blau für Tech/Code
-    'business': 'bg-emerald-50 border-emerald-200', // Grün für Geschäft/Wachstum
-    'eco-social': 'bg-green-50 border-green-200', // Grün für Umwelt/Nachhaltigkeit
-    'social': 'bg-pink-50 border-pink-200', // Pink für Gemeinschaft/Soziales
-    'open-source': 'bg-orange-50 border-orange-200', // Orange für Community/Energie
-    'legal': 'bg-indigo-50 border-indigo-200', // Indigo für Professionell/Recht
-    'scientific': 'bg-purple-50 border-purple-200', // Violett für Forschung/Wissen
-  }
-  return colors[character || ''] || 'bg-background border'
+function getCharacterColor(character?: Character): string {
+  if (!character) return 'bg-background border'
+  return characterColors[character] || 'bg-background border'
 }
 
 /**
- * Gibt eine passende Icon-Farbe für den jeweiligen Charakter zurück
+ * Gibt eine passende Icon-Farbe für den jeweiligen Charakter zurück.
+ * Verwendet die zentrale Farbdefinition aus types/character.ts.
  */
-function getCharacterIconColor(character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'): string {
-  const colors: Record<string, string> = {
-    'developer': 'bg-blue-100 text-blue-600',
-    'business': 'bg-emerald-100 text-emerald-600',
-    'eco-social': 'bg-green-100 text-green-600',
-    'social': 'bg-pink-100 text-pink-600',
-    'open-source': 'bg-orange-100 text-orange-600',
-    'legal': 'bg-indigo-100 text-indigo-600',
-    'scientific': 'bg-purple-100 text-purple-600',
-  }
-  return colors[character || ''] || 'bg-primary/10 text-primary'
+function getCharacterIconColor(character?: Character): string {
+  if (!character) return 'bg-primary/10 text-primary'
+  return characterIconColors[character] || 'bg-primary/10 text-primary'
 }
 
 export function ChatMessage({ 

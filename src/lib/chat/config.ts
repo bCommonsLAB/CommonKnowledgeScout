@@ -29,7 +29,22 @@ export const chatConfigSchema = z.object({
   // Zielsprache für Chat-Antworten
   targetLanguage: z.enum(['de', 'en', 'it', 'fr', 'es', 'ar']).default('de'),
   // Charakter/Profil für die Antwort-Perspektive
-  character: z.enum(['developer','business', 'eco-social', 'social', 'open-source', 'legal', 'scientific']).default('business'),
+  character: z.enum([
+    'developer',
+    'technical',
+    'open-source',
+    'scientific',
+    'eco-social',
+    'social',
+    'civic',
+    'policy',
+    'cultural',
+    'business',
+    'entrepreneurial',
+    'legal',
+    'educational',
+    'creative',
+  ]).default('business'),
   // Sozialer Kontext/Sprachebene
   socialContext: z.enum(['scientific', 'popular', 'youth', 'senior']).default('popular'),
   gallery: z.object({

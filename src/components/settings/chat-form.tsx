@@ -57,7 +57,22 @@ const chatFormSchema = z.object({
       if (val === '' || val === undefined || val === null) return 'developer'
       return val
     },
-    z.enum(['developer', 'business', 'eco-social', 'social', 'open-source', 'legal', 'scientific']).default('developer')
+    z.enum([
+      'developer',
+      'technical',
+      'open-source',
+      'scientific',
+      'eco-social',
+      'social',
+      'civic',
+      'policy',
+      'cultural',
+      'business',
+      'entrepreneurial',
+      'legal',
+      'educational',
+      'creative',
+    ]).default('developer')
   ),
   socialContext: z.preprocess(
     (val) => {
@@ -198,10 +213,27 @@ export function ChatForm() {
       }
       
       // Explizite Prüfung für character
-      let finalCharacter: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific' = 'developer'
+      const validCharacters = [
+        'developer',
+        'technical',
+        'open-source',
+        'scientific',
+        'eco-social',
+        'social',
+        'civic',
+        'policy',
+        'cultural',
+        'business',
+        'entrepreneurial',
+        'legal',
+        'educational',
+        'creative',
+      ] as const
+      type ValidCharacter = typeof validCharacters[number]
+      let finalCharacter: ValidCharacter = 'developer'
       const characterVal = c.character
-      if (characterVal === 'developer' || characterVal === 'business' || characterVal === 'eco-social' || characterVal === 'social' || characterVal === 'open-source' || characterVal === 'legal' || characterVal === 'scientific') {
-        finalCharacter = characterVal
+      if (characterVal && validCharacters.includes(characterVal as ValidCharacter)) {
+        finalCharacter = characterVal as ValidCharacter
         console.log('[ChatForm] ✅ Setze character auf:', finalCharacter)
       } else {
         console.log('[ChatForm] ⚠️ Unbekannter character:', characterVal, '- verwende default: developer')
@@ -594,7 +626,23 @@ export function ChatForm() {
                   <FormItem>
                     <FormLabel>Charakter/Perspektive</FormLabel>
                     <Select value={currentValue} onValueChange={(value) => {
-                      if (value === 'developer' || value === 'business' || value === 'eco-social' || value === 'social' || value === 'open-source' || value === 'legal' || value === 'scientific') {
+                      const validCharacters = [
+                        'developer',
+                        'technical',
+                        'open-source',
+                        'scientific',
+                        'eco-social',
+                        'social',
+                        'civic',
+                        'policy',
+                        'cultural',
+                        'business',
+                        'entrepreneurial',
+                        'legal',
+                        'educational',
+                        'creative',
+                      ]
+                      if (validCharacters.includes(value)) {
                         field.onChange(value)
                       }
                     }}>
@@ -604,13 +652,23 @@ export function ChatForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        {/* Knowledge & Innovation */}
                         <SelectItem value="developer">Developer-orientiert</SelectItem>
-                        <SelectItem value="business">Business-orientiert</SelectItem>
+                        <SelectItem value="technical">Technisch-orientiert</SelectItem>
+                        <SelectItem value="open-source">Open-Source-spezifisch</SelectItem>
+                        <SelectItem value="scientific">Naturwissenschaftlich</SelectItem>
+                        {/* Society & Impact */}
                         <SelectItem value="eco-social">Ökosozial-orientiert</SelectItem>
                         <SelectItem value="social">Sozial-orientiert</SelectItem>
-                        <SelectItem value="open-source">Open-Source-spezifisch</SelectItem>
+                        <SelectItem value="civic">Bürgerschaftlich-orientiert</SelectItem>
+                        <SelectItem value="policy">Politikwissenschaftlich-orientiert</SelectItem>
+                        <SelectItem value="cultural">Kulturell-orientiert</SelectItem>
+                        {/* Economy & Practice */}
+                        <SelectItem value="business">Business-orientiert</SelectItem>
+                        <SelectItem value="entrepreneurial">Unternehmerisch-orientiert</SelectItem>
                         <SelectItem value="legal">Rechtskundespezifisch</SelectItem>
-                        <SelectItem value="scientific">Naturwissenschaftlich</SelectItem>
+                        <SelectItem value="educational">Bildungswissenschaftlich-orientiert</SelectItem>
+                        <SelectItem value="creative">Kreativ-orientiert</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>Perspektive, aus der Antworten formuliert werden.</FormDescription>

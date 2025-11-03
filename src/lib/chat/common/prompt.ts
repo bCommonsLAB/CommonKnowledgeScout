@@ -1,4 +1,5 @@
 import type { RetrievedSource } from '@/types/retriever'
+import type { Character } from '@/types/character'
 
 /**
  * Erstellt eine benutzerfreundliche Beschreibung für eine Quelle
@@ -84,17 +85,30 @@ export function styleInstruction(answerLength: 'kurz' | 'mittel' | 'ausführlich
 }
 
 /**
- * Erstellt Charakter/Perspektive-Anweisung basierend auf Konfiguration
+ * Erstellt Charakter/Perspektive-Anweisung basierend auf Konfiguration.
+ * Verwendet den zentralen Character-Typ aus types/character.ts.
  */
-function getCharacterInstruction(character: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'): string {
-  const instructions: Record<string, string> = {
+function getCharacterInstruction(character: Character): string {
+  const instructions: Record<Character, string> = {
+    // Knowledge & Innovation
     'developer': 'Du antwortest aus einer Entwickler-Perspektive. Fokus auf Code-Qualität, Best Practices, Technologie-Stacks, Performance, Skalierbarkeit und praktische Implementierung.',
-    'business': 'Du antwortest aus einer geschäftlichen, unternehmerischen Perspektive. Fokus auf Effizienz, ROI, Marktchancen, Wettbewerbsvorteile und praktische Umsetzbarkeit.',
+    'technical': 'Du antwortest aus einer technischen Perspektive. Fokus auf technische Details, Architektur, Systemdesign, Engineering-Prinzipien und praktische Lösungsansätze.',
+    'open-source': 'Du antwortest aus einer Open-Source-Perspektive. Fokus auf Community, Transparenz, Kollaboration, Lizenzmodelle und offene Standards.',
+    'scientific': 'Du antwortest aus einer naturwissenschaftlichen Perspektive. Fokus auf Evidenz, Methodik, Reproduzierbarkeit und wissenschaftliche Genauigkeit.',
+    
+    // Society & Impact
     'eco-social': 'Du antwortest aus einer ökosozialen Perspektive. Fokus auf Nachhaltigkeit, soziale Gerechtigkeit, Umweltschutz und langfristige gesellschaftliche Auswirkungen.',
     'social': 'Du antwortest aus einer sozialen Perspektive. Fokus auf Gemeinschaft, Kooperation, Inklusion und gesellschaftliche Aspekte.',
-    'open-source': 'Du antwortest aus einer Open-Source-Perspektive. Fokus auf Community, Transparenz, Kollaboration, Lizenzmodelle und offene Standards.',
+    'civic': 'Du antwortest aus einer bürgerschaftlichen Perspektive. Fokus auf Bürgerbeteiligung, Demokratie, Gemeinwohl und zivilgesellschaftliches Engagement.',
+    'policy': 'Du antwortest aus einer politikwissenschaftlichen Perspektive. Fokus auf Policy-Analyse, Regulierungen, Governance-Strukturen und gesellschaftspolitische Auswirkungen.',
+    'cultural': 'Du antwortest aus einer kulturellen Perspektive. Fokus auf kulturelle Werte, Traditionen, gesellschaftliche Normen und kulturelle Vielfalt.',
+    
+    // Economy & Practice
+    'business': 'Du antwortest aus einer geschäftlichen, unternehmerischen Perspektive. Fokus auf Effizienz, ROI, Marktchancen, Wettbewerbsvorteile und praktische Umsetzbarkeit.',
+    'entrepreneurial': 'Du antwortest aus einer unternehmerischen Perspektive. Fokus auf Innovation, Risikobereitschaft, Geschäftsmodelle, Wachstumsstrategien und Markterfolg.',
     'legal': 'Du antwortest aus einer rechtskundlichen Perspektive. Fokus auf rechtliche Aspekte, Compliance, Lizenzen, Datenschutz und rechtliche Risiken.',
-    'scientific': 'Du antwortest aus einer naturwissenschaftlichen Perspektive. Fokus auf Evidenz, Methodik, Reproduzierbarkeit und wissenschaftliche Genauigkeit.',
+    'educational': 'Du antwortest aus einer bildungswissenschaftlichen Perspektive. Fokus auf Lernprozesse, Pädagogik, Wissensvermittlung und didaktische Ansätze.',
+    'creative': 'Du antwortest aus einer kreativen Perspektive. Fokus auf Innovation, Design-Thinking, künstlerische Ansätze und kreative Problemlösung.',
   }
   return instructions[character] || instructions.developer
 }
@@ -148,7 +162,7 @@ export function buildPrompt(
   answerLength: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt',
   options?: {
     targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'
-    character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'
+    character?: Character
     socialContext?: 'scientific' | 'popular' | 'youth' | 'senior'
     chatHistory?: Array<{ question: string; answer: string }>
   }

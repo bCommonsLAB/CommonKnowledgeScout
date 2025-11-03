@@ -4,6 +4,7 @@
  */
 
 import { ReactNode } from 'react';
+import type { Character } from './character';
 
 /**
  * Supported storage provider types.
@@ -75,7 +76,7 @@ export interface LibraryChatConfig {
   targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar';
 
   /** Charakter/Profil für die Antwort-Perspektive */
-  character?: 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific';
+  character?: Character;
 
   /** Sozialer Kontext/Sprachebene */
   socialContext?: 'scientific' | 'popular' | 'youth' | 'senior';

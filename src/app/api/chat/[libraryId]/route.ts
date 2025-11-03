@@ -7,6 +7,7 @@ import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { buildFilters } from '@/lib/chat/common/filters'
 import { analyzeQuestionForRetriever } from '@/lib/chat/common/question-analyzer'
 import type { NeedsClarificationResponse } from '@/types/chat-response'
+import type { Character } from '@/types/character'
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -121,8 +122,23 @@ export async function POST(
       targetLanguage: (targetLanguageParam && ['de', 'en', 'it', 'fr', 'es', 'ar'].includes(targetLanguageParam)) 
         ? targetLanguageParam as 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'
         : ctx.chat.targetLanguage,
-      character: (characterParam && ['developer', 'business', 'eco-social', 'social', 'open-source', 'legal', 'scientific'].includes(characterParam))
-        ? characterParam as 'developer' | 'business' | 'eco-social' | 'social' | 'open-source' | 'legal' | 'scientific'
+      character: (characterParam && [
+        'developer',
+        'technical',
+        'open-source',
+        'scientific',
+        'eco-social',
+        'social',
+        'civic',
+        'policy',
+        'cultural',
+        'business',
+        'entrepreneurial',
+        'legal',
+        'educational',
+        'creative',
+      ].includes(characterParam))
+        ? characterParam as Character
         : ctx.chat.character,
       socialContext: (socialContextParam && ['scientific', 'popular', 'youth', 'senior'].includes(socialContextParam))
         ? socialContextParam as 'scientific' | 'popular' | 'youth' | 'senior'
