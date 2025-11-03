@@ -42,21 +42,64 @@ import {
   Globe,
   Video,
   FileText,
-  Image
+  Image,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { Session } from '@/types/session';
 import { LANGUAGE_MAP } from '@/lib/secretary/constants';
 import SessionEventFilter from '@/components/session/session-event-filter';
 import SessionImportModal from '@/components/session/session-import-modal';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+// Sortier-Typen
+type SortField = 'session' | 'speaker' | 'time';
+type SortOrder = 'asc' | 'desc';
+
+// Sortierbare Kopfzelle Komponente
+function SortableHeaderCell({
+  label,
+  field,
+  currentSortField,
+  currentSortOrder,
+  onSort
+}: {
+  label: string;
+  field: SortField;
+  currentSortField: SortField | null;
+  currentSortOrder: SortOrder;
+  onSort: (field: SortField) => void;
+}) {
+  const isActive = currentSortField === field;
+  
+  return (
+    <button 
+      onClick={() => onSort(field)}
+      className="flex items-center gap-1 hover:text-foreground transition-colors"
+    >
+      <span>{label}</span>
+      {isActive && (
+        currentSortOrder === 'asc' 
+          ? <ChevronUp className="h-3 w-3" /> 
+          : <ChevronDown className="h-3 w-3" />
+      )}
+    </button>
+  );
+}
 
 export default function SessionManagerPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [totalSessions, setTotalSessions] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [trackFilter, setTrackFilter] = useState<string>('');
   const [dayFilter, setDayFilter] = useState<string>('');
   const [languageFilter, setLanguageFilter] = useState<string>('');
+  
+  // Sortierung State
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   
   // Verfügbare Filter-Optionen
   const [availableTracks, setAvailableTracks] = useState<string[]>([]);
@@ -72,6 +115,11 @@ export default function SessionManagerPage() {
   
   // Session-Import Dialog
   const [sessionImportDialog, setSessionImportDialog] = useState(false);
+  
+  // Duplikate-Dialog State
+  const [duplicatesDialog, setDuplicatesDialog] = useState(false);
+  const [duplicateGroups, setDuplicateGroups] = useState<Array<{ sessionName: string; sessions: Session[] }>>([]);
+  const [deletingDuplicates, setDeletingDuplicates] = useState(false);
   
   // Event-Filter State
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
@@ -95,6 +143,8 @@ export default function SessionManagerPage() {
       
       if (data.status === 'success') {
         setSessions(data.data.sessions);
+        // Gesamtanzahl aus API-Antwort verwenden
+        setTotalSessions(data.data.total ?? data.data.sessions.length);
         
         // Filter-Optionen extrahieren (leere Strings ausschließen)
         const tracks = Array.from(new Set(data.data.sessions.map((s: Session) => s.track))).filter((t): t is string => typeof t === 'string' && t !== null && t !== undefined && t.trim() !== '');
@@ -118,7 +168,60 @@ export default function SessionManagerPage() {
     loadSessions();
   }, [loadSessions]);
   
-
+  // Sortier-Handler
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Wenn bereits nach diesem Feld sortiert wird, Reihenfolge umkehren
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Neues Sortierfeld setzen, Standard-Reihenfolge ist aufsteigend
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+  
+  // Sessions sortieren
+  const sortedSessions = [...sessions].sort((a, b) => {
+    if (!sortField) return 0;
+    
+    let comparison = 0;
+    
+    switch (sortField) {
+      case 'session':
+        // Nach Session-Titel sortieren
+        const sessionA = (a.session || '').toLowerCase();
+        const sessionB = (b.session || '').toLowerCase();
+        comparison = sessionA.localeCompare(sessionB, 'de', { sensitivity: 'base' });
+        break;
+        
+      case 'speaker':
+        // Nach erstem Sprecher sortieren
+        const speakerA = (a.speakers?.[0] || '').toLowerCase();
+        const speakerB = (b.speakers?.[0] || '').toLowerCase();
+        comparison = speakerA.localeCompare(speakerB, 'de', { sensitivity: 'base' });
+        break;
+        
+      case 'time':
+        // Nach Tag und Startzeit sortieren
+        const dayA = a.day || '';
+        const dayB = b.day || '';
+        // Datum im Format YYYY-MM-DD kann lexikalisch sortiert werden
+        const dayComparison = dayA.localeCompare(dayB, 'de', { sensitivity: 'base' });
+        
+        if (dayComparison !== 0) {
+          comparison = dayComparison;
+        } else {
+          // Wenn Tag gleich, nach Startzeit sortieren (Format: HH:MM)
+          const timeA = a.starttime || '';
+          const timeB = b.starttime || '';
+          // Uhrzeit im Format HH:MM kann lexikalisch sortiert werden
+          comparison = timeA.localeCompare(timeB, 'de', { sensitivity: 'base' });
+        }
+        break;
+    }
+    
+    return sortOrder === 'asc' ? comparison : -comparison;
+  });
   
   // Session auswählen/abwählen
   const toggleSessionSelection = (sessionId: string) => {
@@ -133,10 +236,10 @@ export default function SessionManagerPage() {
   
   // Alle auswählen/abwählen
   const toggleSelectAll = () => {
-    if (selectedSessions.size === sessions.length) {
+    if (selectedSessions.size === sortedSessions.length) {
       setSelectedSessions(new Set());
     } else {
-      setSelectedSessions(new Set(sessions.map(s => s.id!)));
+      setSelectedSessions(new Set(sortedSessions.map(s => s.id!)));
     }
   };
   
@@ -216,6 +319,95 @@ export default function SessionManagerPage() {
     } catch (error) {
       console.error('Fehler beim Löschen:', error);
       alert('Ein Fehler ist aufgetreten.');
+    }
+  };
+  
+  // Doppelte Sessions finden
+  const findDuplicates = () => {
+    // Normalisiere Session-Namen für Vergleich (lowercase, trim)
+    const normalizeSessionName = (name: string | undefined): string => {
+      return (name || '').toLowerCase().trim();
+    };
+    
+    // Gruppiere Sessions nach normalisiertem Namen
+    const nameMap = new Map<string, Session[]>();
+    
+    sortedSessions.forEach(session => {
+      const normalizedName = normalizeSessionName(session.session);
+      if (normalizedName) {
+        if (!nameMap.has(normalizedName)) {
+          nameMap.set(normalizedName, []);
+        }
+        nameMap.get(normalizedName)!.push(session);
+      }
+    });
+    
+    // Finde Gruppen mit mehr als einem Eintrag
+    const duplicates: Array<{ sessionName: string; sessions: Session[] }> = [];
+    
+    nameMap.forEach((sessions, normalizedName) => {
+      if (sessions.length > 1) {
+        // Verwende den originalen Namen der ersten Session
+        duplicates.push({
+          sessionName: sessions[0].session || normalizedName,
+          sessions
+        });
+      }
+    });
+    
+    if (duplicates.length === 0) {
+      alert('Keine doppelten Sessions gefunden!');
+      return;
+    }
+    
+    setDuplicateGroups(duplicates);
+    setDuplicatesDialog(true);
+  };
+  
+  // Doppelte Sessions löschen
+  const deleteDuplicates = async () => {
+    try {
+      setDeletingDuplicates(true);
+      
+      // Sammle alle IDs der Duplikate (behalte immer die erste Session jeder Gruppe)
+      const idsToDelete: string[] = [];
+      
+      duplicateGroups.forEach(group => {
+        // Behalte die erste Session, lösche den Rest
+        const duplicatesToDelete = group.sessions.slice(1);
+        duplicatesToDelete.forEach(session => {
+          if (session.id) {
+            idsToDelete.push(session.id);
+          }
+        });
+      });
+      
+      if (idsToDelete.length === 0) {
+        alert('Keine Sessions zum Löschen gefunden.');
+        return;
+      }
+      
+      const response = await fetch('/api/sessions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: idsToDelete })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        alert(`Erfolgreich ${data.data.deletedCount} doppelte Sessions gelöscht!`);
+        setDuplicatesDialog(false);
+        setDuplicateGroups([]);
+        setSelectedSessions(new Set());
+        loadSessions();
+      } else {
+        alert('Fehler beim Löschen der doppelten Sessions.');
+      }
+    } catch (error) {
+      console.error('Fehler beim Löschen der Duplikate:', error);
+      alert('Ein Fehler ist aufgetreten.');
+    } finally {
+      setDeletingDuplicates(false);
     }
   };
   
@@ -363,32 +555,67 @@ export default function SessionManagerPage() {
               Filter zurücksetzen
             </Button>
           )}
+          
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={findDuplicates}
+            disabled={sortedSessions.length === 0 || loading}
+            className="ml-auto"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Doppelte löschen
+          </Button>
         </div>
       </Card>
       
       {/* Sessions Statistik */}
       <div className="mb-4 text-sm text-gray-600">
-        {loading ? 'Lädt...' : `${sessions.length} Sessions gefunden`}
+        {loading ? 'Lädt...' : `${totalSessions} Sessions gefunden`}
         {selectedSessions.size > 0 && ` • ${selectedSessions.size} ausgewählt`}
       </div>
       
       {/* Sessions Tabelle */}
       <Card className="overflow-hidden">
-        <div>
+        <ScrollArea className="h-[calc(100vh-400px)]">
           <Table className="table-auto w-full">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">
                   <input
                     type="checkbox"
-                    checked={sessions.length > 0 && selectedSessions.size === sessions.length}
+                    checked={sortedSessions.length > 0 && selectedSessions.size === sortedSessions.length}
                     onChange={toggleSelectAll}
                     className="rounded"
                   />
                 </TableHead>
-                <TableHead>Session Details</TableHead>
-                <TableHead>Zeit</TableHead>
-                <TableHead>Sprecher</TableHead>
+                <TableHead>
+                  <SortableHeaderCell
+                    label="Session Details"
+                    field="session"
+                    currentSortField={sortField}
+                    currentSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </TableHead>
+                <TableHead>
+                  <SortableHeaderCell
+                    label="Zeit"
+                    field="time"
+                    currentSortField={sortField}
+                    currentSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </TableHead>
+                <TableHead>
+                  <SortableHeaderCell
+                    label="Sprecher"
+                    field="speaker"
+                    currentSortField={sortField}
+                    currentSortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </TableHead>
                 <TableHead>Links</TableHead>
                 <TableHead>Sprache</TableHead>
                 <TableHead>Dateiname</TableHead>
@@ -401,7 +628,7 @@ export default function SessionManagerPage() {
                     <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" />
                   </TableCell>
                 </TableRow>
-              ) : sessions.length === 0 ? (
+              ) : sortedSessions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                     Keine Sessions gefunden
@@ -424,7 +651,7 @@ export default function SessionManagerPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sessions.map((session) => (
+                sortedSessions.map((session) => (
                   <TableRow key={session.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                     <TableCell>
                       <input
@@ -533,7 +760,7 @@ export default function SessionManagerPage() {
               )}
             </TableBody>
           </Table>
-        </div>
+        </ScrollArea>
       </Card>
       
       {/* Job-Generierung Dialog */}
@@ -614,6 +841,96 @@ export default function SessionManagerPage() {
         onOpenChange={setSessionImportDialog}
         onSessionImported={handleSessionImported}
       />
+      
+      {/* Duplikate-Dialog */}
+      <Dialog open={duplicatesDialog} onOpenChange={setDuplicatesDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Doppelte Sessions gefunden</DialogTitle>
+            <DialogDescription>
+              Es wurden {duplicateGroups.length} Gruppen mit doppelten Sessions gefunden. 
+              Die erste Session jeder Gruppe wird behalten, die restlichen werden gelöscht.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="space-y-4">
+              {duplicateGroups.map((group, groupIndex) => {
+                const sessionsToDelete = group.sessions.slice(1);
+                
+                return (
+                  <div key={groupIndex} className="border rounded-lg p-4 space-y-2">
+                    <div className="font-medium text-sm text-gray-700 dark:text-gray-300">
+                      {group.sessionName}
+                    </div>
+                    <div className="text-xs text-gray-500 mb-2">
+                      {group.sessions.length} Einträge gefunden - {sessionsToDelete.length} werden gelöscht
+                    </div>
+                    
+                    <div className="space-y-1">
+                      {/* Erste Session - wird behalten */}
+                      <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 rounded text-xs">
+                        <Badge variant="outline" className="bg-green-100 dark:bg-green-900/40">
+                          Behalten
+                        </Badge>
+                        <span className="font-medium">{group.sessions[0].filename || group.sessions[0].id}</span>
+                        {group.sessions[0].day && (
+                          <span className="text-gray-500">• {group.sessions[0].day}</span>
+                        )}
+                      </div>
+                      
+                      {/* Duplikate - werden gelöscht */}
+                      {sessionsToDelete.map((session, idx) => (
+                        <div key={session.id || idx} className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded text-xs">
+                          <Badge variant="destructive" className="text-xs">
+                            Löschen
+                          </Badge>
+                          <span>{session.filename || session.id}</span>
+                          {session.day && (
+                            <span className="text-gray-500">• {session.day}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+          
+          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+            <div className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
+              Zusammenfassung:
+            </div>
+            <div className="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
+              Es werden {duplicateGroups.reduce((sum, g) => sum + g.sessions.length - 1, 0)} doppelte Sessions gelöscht.
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicatesDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={deleteDuplicates} 
+              disabled={deletingDuplicates}
+            >
+              {deletingDuplicates ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Löschen...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {duplicateGroups.reduce((sum, g) => sum + g.sessions.length - 1, 0)} Duplikate löschen
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

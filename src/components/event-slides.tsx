@@ -1,63 +1,112 @@
 import { Badge } from "@/components/ui/badge";
-
-interface Slide {
-  page_num: number;
-  title: string;
-  summary: string;
-  image_url: string;
-}
+import type { Slide } from "@/components/library/slide-accordion";
 
 interface EventSlidesProps {
   slides: Slide[];
+  libraryId?: string; // Optional: für Auflösung relativer Bildpfade
+}
+
+/**
+ * Konvertiert einen relativen Pfad (bezogen auf Library-Root) zu einer Storage-API-URL
+ * Der relative Pfad wird base64-kodiert und als fileId verwendet
+ * 
+ * @param relativePath Relativer Pfad wie "2024 SFSCON/assets/ansible/preview_001.jpg"
+ * @param libraryId Die Library-ID
+ * @returns Storage-API-URL oder undefined falls libraryId fehlt
+ */
+function resolveImageUrl(relativePath: string | undefined, libraryId: string | undefined): string | undefined {
+  if (!relativePath || !libraryId) {
+    return relativePath; // Fallback: ursprüngliche URL verwenden
+  }
+
+  // Prüfe ob es bereits eine absolute URL ist (http/https)
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    return relativePath;
+  }
+
+  // Normalisiere den Pfad (entferne führende/trailing Slashes)
+  const normalizedPath = relativePath.replace(/^\/+|\/+$/g, '');
+
+  // Prüfe auf Path-Traversal-Versuche
+  if (normalizedPath.includes('..')) {
+    console.warn('[EventSlides] Path traversal detected, ignoring:', normalizedPath);
+    return relativePath; // Fallback: ursprüngliche URL verwenden
+  }
+
+  // Konvertiere relativen Pfad zu base64-kodierter fileId
+  // (entspricht der Logik in getIdFromPath aus filesystem/route.ts)
+  // Browser-kompatible base64-Kodierung für UTF-8-Strings
+  try {
+    // Konvertiere UTF-8-String zu Uint8Array und dann zu base64
+    const utf8Bytes = new TextEncoder().encode(normalizedPath);
+    let binary = '';
+    for (let i = 0; i < utf8Bytes.length; i++) {
+      binary += String.fromCharCode(utf8Bytes[i]);
+    }
+    const fileId = btoa(binary);
+    
+    // Baue Storage-API-URL
+    return `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(libraryId)}`;
+  } catch (error) {
+    console.error('[EventSlides] Fehler beim Konvertieren des Bildpfads:', error);
+    return relativePath; // Fallback: ursprüngliche URL verwenden
+  }
 }
 
 /**
  * Komponente zur Anzeige von Präsentationsfolien
  * Zeigt Slides mit Thumbnails, Titel und Zusammenfassung
  */
-export function EventSlides({ slides }: EventSlidesProps) {
+export function EventSlides({ slides, libraryId }: EventSlidesProps) {
   if (!slides || slides.length === 0) {
     return null;
   }
 
   return (
-    <div>
+    <div className="w-full max-w-full overflow-x-hidden">
       <h2 className="text-2xl font-bold mb-6">Presentation Slides</h2>
-      <div className="space-y-8">
-        {slides.map((slide) => (
-          <div key={slide.page_num} className="flex gap-6 items-start">
-            <div className="flex-shrink-0 w-64">
-              <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden">
-                {slide.image_url ? (
-                  // Verwende normales img Tag für externe URLs (Next.js Image benötigt Domain-Konfiguration)
-                  <img
-                    src={slide.image_url}
-                    alt={slide.title || `Slide ${slide.page_num}`}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      // Fallback bei fehlerhaftem Bild
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                    Kein Bild
-                  </div>
+      <div className="space-y-8 w-full max-w-full overflow-x-hidden">
+        {slides.map((slide) => {
+          // Resolve relative image paths to Storage API URLs
+          const imageUrl = resolveImageUrl(slide.image_url, libraryId);
+          
+          return (
+            <div key={slide.page_num} className="flex gap-6 items-start">
+              <div className="flex-shrink-0 w-64">
+                <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden">
+                  {imageUrl ? (
+                    // Verwende Storage-API-URL für relative Pfade oder normale img Tag für externe URLs
+                    <img
+                      src={imageUrl}
+                      alt={slide.title || `Slide ${slide.page_num}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback bei fehlerhaftem Bild
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      Kein Bild
+                    </div>
+                  )}
+                  <Badge className="absolute top-2 left-2 bg-black/70 text-white text-xs">
+                    {slide.page_num}
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex-1 pt-1">
+                {slide.title && (
+                  <h3 className="text-lg font-semibold mb-2 text-balance">{slide.title}</h3>
                 )}
-                <Badge className="absolute top-2 left-2 bg-black/70 text-white text-xs">
-                  {slide.page_num}
-                </Badge>
+                {slide.summary && (
+                  <p className="text-muted-foreground text-pretty leading-relaxed">{slide.summary}</p>
+                )}
               </div>
             </div>
-            <div className="flex-1 pt-1">
-              {slide.title && (
-                <h3 className="text-lg font-semibold mb-2 text-balance">{slide.title}</h3>
-              )}
-              <p className="text-muted-foreground text-pretty leading-relaxed">{slide.summary}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

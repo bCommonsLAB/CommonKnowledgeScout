@@ -6,6 +6,7 @@ import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 interface MarkdownMetadataProps {
   content: string;
   className?: string;
+  libraryId?: string; // Optional: für Auflösung relativer Bildpfade
 }
 
 /**
@@ -25,9 +26,56 @@ export function extractFrontmatter(content: string): Record<string, unknown> | n
 /**
  * Component for displaying markdown metadata/frontmatter
  */
+/**
+ * Konvertiert einen relativen Pfad (bezogen auf Library-Root) zu einer Storage-API-URL
+ * Der relative Pfad wird base64-kodiert und als fileId verwendet
+ * 
+ * @param relativePath Relativer Pfad wie "2024 SFSCON/assets/ansible/preview_001.jpg"
+ * @param libraryId Die Library-ID
+ * @returns Storage-API-URL oder undefined falls libraryId fehlt
+ */
+function resolveImageUrl(relativePath: string | undefined, libraryId: string | undefined): string | undefined {
+  if (!relativePath || !libraryId) {
+    return relativePath; // Fallback: ursprüngliche URL verwenden
+  }
+
+  // Prüfe ob es bereits eine absolute URL ist (http/https)
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    return relativePath;
+  }
+
+  // Normalisiere den Pfad (entferne führende/trailing Slashes)
+  const normalizedPath = relativePath.replace(/^\/+|\/+$/g, '');
+
+  // Prüfe auf Path-Traversal-Versuche
+  if (normalizedPath.includes('..')) {
+    console.warn('[MarkdownMetadata] Path traversal detected, ignoring:', normalizedPath);
+    return relativePath; // Fallback: ursprüngliche URL verwenden
+  }
+
+  // Konvertiere relativen Pfad zu base64-kodierter fileId
+  // Browser-kompatible base64-Kodierung für UTF-8-Strings
+  try {
+    // Konvertiere UTF-8-String zu Uint8Array und dann zu base64
+    const utf8Bytes = new TextEncoder().encode(normalizedPath);
+    let binary = '';
+    for (let i = 0; i < utf8Bytes.length; i++) {
+      binary += String.fromCharCode(utf8Bytes[i]);
+    }
+    const fileId = btoa(binary);
+    
+    // Baue Storage-API-URL
+    return `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(libraryId)}`;
+  } catch (error) {
+    console.error('[MarkdownMetadata] Fehler beim Konvertieren des Bildpfads:', error);
+    return relativePath; // Fallback: ursprüngliche URL verwenden
+  }
+}
+
 export const MarkdownMetadata = React.memo(function MarkdownMetadata({
   content,
-  className
+  className,
+  libraryId
 }: MarkdownMetadataProps) {
   function isPlainObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -304,9 +352,33 @@ export const MarkdownMetadata = React.memo(function MarkdownMetadata({
                                           {truncate(cellString, 40)}
                                         </a>
                                       ) : cellType === 'image' ? (
-                                        <span className="text-primary/80 break-all max-w-[20rem] block font-medium" title={cellString}>
-                                          🖼️ {truncate(cellString.split('/').pop() || cellString, 30)}
-                                        </span>
+                                        // Für image_url Spalten: Bild als Thumbnail anzeigen
+                                        (() => {
+                                          const resolvedUrl = resolveImageUrl(cellString, libraryId);
+                                          return resolvedUrl ? (
+                                            <div className="flex items-center gap-2">
+                                              <img
+                                                src={resolvedUrl}
+                                                alt={cellString}
+                                                className="h-12 w-auto max-w-[12rem] object-cover rounded border border-muted-foreground/20"
+                                                onError={(e) => {
+                                                  // Fallback: Zeige Text, wenn Bild nicht geladen werden kann
+                                                  const target = e.target as HTMLImageElement;
+                                                  target.style.display = 'none';
+                                                  const fallback = target.nextSibling as HTMLElement;
+                                                  if (fallback) fallback.style.display = 'block';
+                                                }}
+                                              />
+                                              <span className="text-primary/80 break-all max-w-[20rem] block font-medium hidden text-xs" title={cellString}>
+                                                🖼️ {truncate(cellString.split('/').pop() || cellString, 30)}
+                                              </span>
+                                            </div>
+                                          ) : (
+                                            <span className="text-primary/80 break-all max-w-[20rem] block font-medium text-xs" title={cellString}>
+                                              🖼️ {truncate(cellString.split('/').pop() || cellString, 30)}
+                                            </span>
+                                          );
+                                        })()
                                       ) : cellType === 'boolean' ? (
                                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                                           cellValue ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-500/20 text-red-700 dark:text-red-400'

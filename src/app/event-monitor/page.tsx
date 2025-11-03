@@ -384,8 +384,9 @@ export default function EventMonitorPage() {
   };
   
   return (
-    <div className="container py-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="h-full overflow-y-auto">
+      <div className="container py-6">
+        <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold">Event-Track-Monitor</h1>
           
@@ -707,6 +708,7 @@ export default function EventMonitorPage() {
           isMultiBatch={true}
         />
       )}
+      </div>
     </div>
   );
 } 

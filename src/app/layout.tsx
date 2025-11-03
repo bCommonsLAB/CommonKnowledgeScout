@@ -69,9 +69,6 @@ export default function RootLayout({
     );
   };
 
-  // Prüfen, ob Clerk verfügbar ist
-  const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-
   return (
     <ClerkWrapper>
       <html lang="en" suppressHydrationWarning>

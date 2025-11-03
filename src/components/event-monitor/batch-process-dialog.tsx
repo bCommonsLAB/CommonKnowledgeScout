@@ -28,11 +28,10 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
   const [idx, setIdx] = useState(0);
   const [errors, setErrors] = useState<Array<{ jobId: string; jobName: string; message: string }>>([]);
   const [successes, setSuccesses] = useState<Array<{ jobId: string; jobName: string }>>([]);
+  const [forceRegenerate, setForceRegenerate] = useState(false);
   const total = jobs.length;
   const progress = total ? (idx / total) * 100 : 0;
   const canRun = !!provider && !!activeLibrary && total > 0;
-
-  // (entfernt) Vimeo Medien-Auflösung; nicht mehr benötigt, da Audio-Schritt entfällt
 
   // Hilfsfunktion: Verzeichnisstruktur anlegen und Ziel-Folder-ID für einen Pfad bestimmen
   const ensureDirectoryPath = async (targetPath: string): Promise<string> => {
@@ -64,7 +63,13 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
     
     try {
       // Payload mit automatischer Transcript-Extraktion erstellen (wiederverwendbare Logik)
-      const payload = await buildSessionPayload(p, job);
+      // use_cache wird basierend auf forceRegenerate überschrieben:
+      // - forceRegenerate = true → use_cache = false (Neuerstellung erzwingen)
+      // - forceRegenerate = false → use_cache aus Job-Parametern oder true (Cache verwenden)
+      const payload = await buildSessionPayload(
+        { ...p, use_cache: forceRegenerate ? false : (p.use_cache ?? true) },
+        job
+      );
       console.info('[BatchProcess] Session-Payload erstellt', {
         event: payload.event,
         session: payload.session,
@@ -91,6 +96,10 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
         ? (respFinal as { data: { output?: { archive_data?: string; archive_filename?: string; markdown_content?: string; markdown_file?: string } } }).data.output
         : undefined;
       console.debug('[BatchProcess] processSession response keys', outFinal ? Object.keys(outFinal) : []);
+
+      if (!provider) {
+        throw new Error('Kein Storage Provider verfügbar');
+      }
 
       if (outFinal?.archive_data && outFinal?.archive_filename) {
         console.info('[BatchProcess] ZIP vorhanden, entpacke und lade hoch', { filename: outFinal.archive_filename });
@@ -120,15 +129,6 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
           markdownDir = idx > 0 ? mf.substring(0, idx) : null;
         }
         console.info('[BatchProcess] Markdown-Verzeichnis ermittelt', { markdownDir, responsePath: outFinal?.markdown_file });
-        // Wenn wir ein Transcript im Payload hatten, zusätzlich als .txt neben Markdown speichern
-        if (payload.video_transcript && markdownDir) {
-          const txt = new File([payload.video_transcript], 'auto_generated_captions.txt', { type: 'text/plain' });
-          const folderId = await ensureDirectoryPath(markdownDir + '/auto_generated_captions.txt');
-          console.info('[BatchProcess] Transcript-Datei hochladen (ZIP-Fall)', { targetDir: markdownDir, fileName: 'auto_generated_captions.txt', folderId });
-          await provider.uploadFile(folderId, txt);
-        } else {
-          console.info('[BatchProcess] Transcript-Upload übersprungen (ZIP-Fall)', { hasTranscript: !!payload.video_transcript, markdownDir });
-        }
         setSuccesses(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id }]);
       } else if (outFinal?.markdown_content && outFinal?.markdown_file) {
         console.info('[BatchProcess] Nur Markdown vorhanden, lade hoch', { markdown_file: outFinal.markdown_file });
@@ -136,16 +136,6 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
         const folderId = await ensureDirectoryPath(outFinal.markdown_file);
         console.debug('[BatchProcess] Upload Markdown', { targetFolderId: folderId, fileName: outFinal.markdown_file });
         await provider.uploadFile(folderId, file);
-        if (payload.video_transcript) {
-          const baseIdx = outFinal.markdown_file.lastIndexOf('/');
-          const dir = baseIdx > 0 ? outFinal.markdown_file.substring(0, baseIdx) : '';
-          const txt = new File([payload.video_transcript], 'auto_generated_captions.txt', { type: 'text/plain' });
-          const tfId = await ensureDirectoryPath(dir ? dir + '/auto_generated_captions.txt' : 'auto_generated_captions.txt');
-          console.info('[BatchProcess] Transcript-Datei hochladen (Markdown-Fall)', { targetDir: dir || '(root)', fileName: 'auto_generated_captions.txt', folderId: tfId });
-          await provider.uploadFile(tfId, txt);
-        } else {
-          console.info('[BatchProcess] Transcript-Upload übersprungen (Markdown-Fall) – kein Transcript im Payload');
-        }
         setSuccesses(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id }]);
       } else {
         throw new Error('Secretary-Antwort ohne archive_data/markdown_content');
@@ -182,7 +172,6 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
   // Hilfsfunktion: Verarbeitet Jobs mit Concurrency-Limit
   async function processWithConcurrency() {
     let completed = 0;
-    const total = jobs.length;
     
     // Queue für Jobs mit Index
     const queue = jobs.map((job, index) => ({ job, index }));
@@ -216,7 +205,7 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
 
   async function handleRun() {
     console.group('[BatchProcess] Start');
-    console.info('[BatchProcess] Jobs:', jobs.length, `(Concurrency: ${CONCURRENCY_LIMIT})`);
+    console.info('[BatchProcess] Jobs:', jobs.length, `(Concurrency: ${CONCURRENCY_LIMIT}, use_cache: ${forceRegenerate ? 'false (Neuerstellung erzwungen)' : 'true (Cache verwenden)'})`);
     if (!provider || !activeLibrary) {
       console.error('[BatchProcess] Abbruch: fehlende Umgebung', {
         hasProvider: !!provider,
@@ -250,13 +239,31 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
           <DialogTitle>Batch verarbeiten</DialogTitle>
           <DialogDescription>
             Führt pro Job einen Secretary-Lauf aus und lädt Markdown/Bilder in die aktuelle Library hoch.
-            {jobs.length > CONCURRENCY_LIMIT && (
-              <span className="block mt-1 text-xs text-muted-foreground">
-                Es werden maximal {CONCURRENCY_LIMIT} Jobs gleichzeitig verarbeitet.
-              </span>
-            )}
+            <span className="block mt-1 text-xs text-muted-foreground">
+              Es werden {jobs.length} Job{jobs.length !== 1 ? 's' : ''} verarbeitet.
+              {jobs.length > CONCURRENCY_LIMIT && (
+                <span className="block mt-1">
+                  Es werden maximal {CONCURRENCY_LIMIT} Jobs gleichzeitig verarbeitet.
+                </span>
+              )}
+            </span>
           </DialogDescription>
         </DialogHeader>
+
+        {!running && (
+          <div className="flex items-center space-x-2 p-3 rounded border bg-gray-50 dark:bg-gray-900">
+            <input
+              type="checkbox"
+              id="forceRegenerate"
+              checked={forceRegenerate}
+              onChange={(e) => setForceRegenerate(e.target.checked)}
+              className="rounded"
+            />
+            <label htmlFor="forceRegenerate" className="text-sm cursor-pointer">
+              Neuerstellung erzwingen (use_cache = false - Cache wird nicht verwendet, alle Jobs werden neu generiert)
+            </label>
+          </div>
+        )}
 
         {running && (
           <div className="space-y-2">
@@ -310,7 +317,7 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
           <Button variant="outline" onClick={() => { if (!running) { onOpenChange(false); setFinished(false); setIdx(0); setErrors([]); setSuccesses([]); } }} disabled={running}>Schließen</Button>
           <Button onClick={handleRun} disabled={running || !jobs.length || !canRun}>
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlayCircle className="w-4 h-4 mr-2" />}
-            Verarbeitung starten
+            Verarbeitung starten ({jobs.length} Job{jobs.length !== 1 ? 's' : ''})
           </Button>
         </DialogFooter>
       </DialogContent>

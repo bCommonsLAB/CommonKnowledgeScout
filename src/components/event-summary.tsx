@@ -1,14 +1,18 @@
+"use client";
+
+import * as React from "react";
 import { Card } from "@/components/ui/card";
-import ReactMarkdown from "react-markdown";
+import { MarkdownPreview } from "@/components/library/markdown-preview";
 
 interface EventSummaryProps {
   summary: string;
-  videoUrl?: string;
+  videoUrl?: string; 
 }
 
 /**
  * Komponente zur Anzeige der Event-Zusammenfassung
- * Zeigt Markdown-Inhalt und optional eingebettetes Video
+ * Zeigt Markdown-Inhalt mit zentralem MarkdownPreview-Viewer
+ * Video ist bereits im Markdown integriert
  */
 export function EventSummary({ summary, videoUrl }: EventSummaryProps) {
   if (!summary) {
@@ -16,9 +20,9 @@ export function EventSummary({ summary, videoUrl }: EventSummaryProps) {
   }
 
   return (
-    <Card className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Summary</h2>
-      
+    <Card className="px-6 pt-0 pb-6 w-full max-w-full overflow-x-hidden">
+      {/* Markdown Content mit zentralem MarkdownPreview */}
+
       {/* Video Embed */}
       {videoUrl && (
         <div className="mb-6 aspect-video rounded-lg overflow-hidden bg-muted">
@@ -31,10 +35,12 @@ export function EventSummary({ summary, videoUrl }: EventSummaryProps) {
           />
         </div>
       )}
-
-      {/* Markdown Content */}
-      <div className="prose prose-slate dark:prose-invert max-w-none">
-        <ReactMarkdown>{summary}</ReactMarkdown>
+      <div className="prose prose-slate dark:prose-invert max-w-none w-full overflow-x-hidden">
+        <MarkdownPreview 
+          content={summary} 
+          compact={true}
+          className="min-h-0 w-full max-w-full"
+        />
       </div>
     </Card>
   );

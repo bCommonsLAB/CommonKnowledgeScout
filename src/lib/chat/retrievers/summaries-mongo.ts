@@ -85,9 +85,9 @@ export const summariesMongoRetriever: ChatRetriever = {
           const text = `${title ? `Kapitel: ${title}\n` : ''}${sum.slice(0, env.estimateCharsPerChapter)}`
           // Im Summary-Modus: Budget prüfen, aber nicht abbrechen
           // Nur warnen, wenn Budget überschritten wird
-          const okChars = canAccumulate(usedChars, text.length, budgetChars)
+          void canAccumulate(usedChars, text.length, budgetChars)
           const est = budgetTokens ? estimateTokensFromText(text) : 0
-          const okTokens = budgetTokens ? canAccumulateTokens(usedTokens, est, budgetTokens) : true
+          void (budgetTokens ? canAccumulateTokens(usedTokens, est, budgetTokens) : true)
           // Warnung: Budget überschritten, aber trotzdem hinzufügen
           sources.push({ 
             id: String(d.fileId ?? ''), 
@@ -104,9 +104,9 @@ export const summariesMongoRetriever: ChatRetriever = {
         const text = sum.slice(0, env.estimateCharsPerDoc)
         // Im Summary-Modus: Budget prüfen, aber nicht abbrechen
         // Alle Dokumente werden übernommen, Budget dient nur als Warnung
-        const okChars = canAccumulate(usedChars, text.length, budgetChars)
+        void canAccumulate(usedChars, text.length, budgetChars)
         const est = budgetTokens ? estimateTokensFromText(text) : 0
-        const okTokens = budgetTokens ? canAccumulateTokens(usedTokens, est, budgetTokens) : true
+        void (budgetTokens ? canAccumulateTokens(usedTokens, est, budgetTokens) : true)
         // Warnung: Budget überschritten, aber trotzdem hinzufügen
         sources.push({ 
           id: String(d.fileId ?? ''), 

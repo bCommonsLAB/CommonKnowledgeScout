@@ -366,7 +366,7 @@ function PreviewContent({
               </TabsContent>
               <TabsContent value="metadata" className="h-full mt-0">
                 <div className="h-full overflow-auto px-4 py-2">
-                  <MarkdownMetadata content={content} />
+                  <MarkdownMetadata content={content} libraryId={activeLibraryId} />
                 </div>
               </TabsContent>
               <TabsContent value="report" className="h-full mt-0">

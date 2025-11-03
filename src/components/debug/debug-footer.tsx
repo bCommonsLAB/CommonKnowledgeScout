@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronDown, ChevronUp, Maximize2, Minimize2, Copy } from 'lucide-react';
+import { ChevronUp, Maximize2, Minimize2, Copy } from 'lucide-react';
 import { debugStateAtom, toggleComponentAtom, toggleAreaAtom, clearLogsAtom, addLogAtom } from '@/atoms/debug-atom';
 import { cn } from '@/lib/utils';
 import { subscribeToLogs } from '@/lib/debug/logger';

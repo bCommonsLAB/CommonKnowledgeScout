@@ -39,6 +39,10 @@ interface IngestionResult {
     success: boolean;
     chunksUpserted?: number;
     error?: string;
+    warnings?: {
+      imageErrors?: Array<{ slideIndex: number; imageUrl: string; error: string }>;
+      message?: string;
+    };
   }>;
 }
 
@@ -193,11 +197,24 @@ export function IngestionDialog() {
             throw new Error(typeof json?.error === 'string' ? json.error : 'Ingestion fehlgeschlagen');
           }
 
+          // Prüfe auf Warnungen (z.B. Bild-Fehler)
+          const hasWarnings = json.warnings && json.warnings.imageErrors && Array.isArray(json.warnings.imageErrors) && json.warnings.imageErrors.length > 0;
+
           results.push({
             item: file,
             success: true,
-            chunksUpserted: json.chunksUpserted ?? 0
+            chunksUpserted: json.chunksUpserted ?? 0,
+            warnings: hasWarnings ? json.warnings : undefined,
           });
+
+          // Zeige Warnung für Bild-Fehler an
+          if (hasWarnings && json.warnings?.imageErrors) {
+            const imageErrors = json.warnings.imageErrors as Array<{ slideIndex: number; imageUrl: string; error: string }>;
+            toast.warning("Ingestion mit Bild-Fehlern", {
+              description: `${imageErrors.length} Bild(er) konnten nicht verarbeitet werden. Details in der Ergebnisliste.`,
+              duration: 8000,
+            });
+          }
 
           setProgressState(prev => ({
             ...prev,
@@ -246,13 +263,23 @@ export function IngestionDialog() {
 
       // Erfolgs-/Fehlermeldung
       const successCount = results.filter(r => r.success).length;
+      const totalImageErrors = results.reduce((sum, r) => {
+        return sum + (r.warnings?.imageErrors?.length || 0);
+      }, 0);
+      
       if (successCount === uniqueFiles.length) {
-        toast.success("Ingestion abgeschlossen", {
-          description: `${successCount} von ${uniqueFiles.length} Dateien erfolgreich ingestiert.`
-        });
+        if (totalImageErrors > 0) {
+          toast.warning("Ingestion mit Bild-Fehlern abgeschlossen", {
+            description: `${successCount} von ${uniqueFiles.length} Dateien erfolgreich ingestiert. ${totalImageErrors} Bild(er) konnten nicht verarbeitet werden.`
+          });
+        } else {
+          toast.success("Ingestion abgeschlossen", {
+            description: `${successCount} von ${uniqueFiles.length} Dateien erfolgreich ingestiert.`
+          });
+        }
       } else {
         toast.error("Ingestion mit Fehlern abgeschlossen", {
-          description: `${successCount} von ${uniqueFiles.length} Dateien erfolgreich ingestiert.`
+          description: `${successCount} von ${uniqueFiles.length} Dateien erfolgreich ingestiert.${totalImageErrors > 0 ? ` ${totalImageErrors} Bild(er) konnten nicht verarbeitet werden.` : ''}`
         });
       }
 
@@ -348,24 +375,64 @@ export function IngestionDialog() {
           {progressState.results && (
             <div className="space-y-4">
               <h4 className="text-sm font-medium">Ergebnisse</h4>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
+              <div className="space-y-3 max-h-96 overflow-y-auto">
                 {progressState.results.results.map((result) => (
-                  <div key={result.item.id} className="flex items-center gap-2 text-sm">
-                    {result.success ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-500" />
-                    )}
-                    <span className="truncate">{result.item.metadata.name}</span>
-                    {result.success && result.chunksUpserted !== undefined && (
-                      <span className="text-xs text-muted-foreground">
-                        ({result.chunksUpserted} Chunks)
-                      </span>
-                    )}
-                    {!result.success && (
-                      <span className="text-xs text-red-500 truncate">
-                        {result.error}
-                      </span>
+                  <div key={result.item.id} className="space-y-2 border-b border-border pb-2 last:border-b-0">
+                    <div className="flex items-start gap-2 text-sm">
+                      {result.success ? (
+                        <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium truncate">{result.item.metadata.name}</span>
+                          {result.success && result.chunksUpserted !== undefined && (
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              ({result.chunksUpserted} Chunks)
+                            </span>
+                          )}
+                          {result.success && result.warnings?.imageErrors && result.warnings.imageErrors.length > 0 && (
+                            <span className="text-xs text-yellow-600 dark:text-yellow-500 whitespace-nowrap">
+                              ⚠️ {result.warnings.imageErrors.length} Bild-Fehler
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Fehlermeldung mehrzeilig anzeigen */}
+                        {!result.success && result.error && (
+                          <div className="mt-2 p-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded text-xs">
+                            <div className="font-semibold text-red-700 dark:text-red-400 mb-1">
+                              Fehler während der Ingestion:
+                            </div>
+                            <div className="text-red-600 dark:text-red-300 whitespace-pre-wrap break-words">
+                              {result.error}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Bild-Fehler Details anzeigen */}
+                    {result.success && result.warnings?.imageErrors && result.warnings.imageErrors.length > 0 && (
+                      <div className="pl-6 space-y-2 text-xs">
+                        <div className="font-semibold text-yellow-600 dark:text-yellow-500 mb-1">
+                          Bild-Fehler Details:
+                        </div>
+                        {result.warnings.imageErrors.map((imgError, idx) => (
+                          <div key={idx} className="p-2 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900/50 rounded">
+                            <div className="font-medium text-yellow-700 dark:text-yellow-400 mb-1">
+                              Slide {imgError.slideIndex + 1} - Bild-Upload Fehler:
+                            </div>
+                            <div className="text-yellow-600 dark:text-yellow-300 whitespace-pre-wrap break-words mb-1">
+                              {imgError.error}
+                            </div>
+                            <div className="text-xs opacity-75 break-all text-muted-foreground">
+                              Pfad: {imgError.imageUrl}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 ))}

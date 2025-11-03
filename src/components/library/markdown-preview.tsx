@@ -1123,7 +1123,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
           <TabsTrigger value="transform">Transformieren</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="preview" className="flex-1 overflow-auto relative" data-markdown-scroll-root="true" ref={!isFullscreen ? containerRef : undefined}>
+        <TabsContent value="preview" className="flex-1 overflow-auto relative pt-0" data-markdown-scroll-root="true" ref={!isFullscreen ? containerRef : undefined}>
           {/* Hover-Zone und Suchleiste (immer verfügbar, nimmt verborgen keinen Platz ein) */}
           <div
             className="sticky top-0 z-20 h-3 w-full"
@@ -1183,7 +1183,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
           </div>
           <div 
             ref={!isFullscreen ? contentRef : undefined}
-            className={cn("prose dark:prose-invert max-w-none w-full", compact ? "p-1" : "p-4")}
+            className={cn("prose dark:prose-invert max-w-none w-full overflow-x-hidden [&>*]:max-w-full [&>*]:overflow-x-hidden", compact ? "p-1 pt-0 [&>*:first-child]:!mt-0" : "p-4 [&>*:first-child]:!mt-0")}
             dangerouslySetInnerHTML={{ __html: renderedContent }}
           />
         </TabsContent>
@@ -1247,7 +1247,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
               </div>
               <div 
                 ref={contentRef}
-                className={cn("prose dark:prose-invert max-w-none w-full", compact ? "p-1" : "p-4")}
+                className={cn("prose dark:prose-invert max-w-none w-full overflow-x-hidden [&>*]:max-w-full [&>*]:overflow-x-hidden", compact ? "p-1 pt-0 [&>*:first-child]:!mt-0" : "p-4 [&>*:first-child]:!mt-0")}
                 dangerouslySetInnerHTML={{ __html: renderedContent }}
               />
             </div>

@@ -10,6 +10,9 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { parseFacetDefs, getTopLevelValue } from '@/lib/chat/dynamic-facets'
 import { upsertDocMeta, ensureFacetIndexes, computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
 import type { DocMeta, ChapterMetaEntry } from '@/types/doc-meta'
+import type { StorageProvider } from '@/lib/storage/types'
+import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-storage-service'
+import { getAzureStorageConfig } from '@/lib/config/azure-storage'
 
 /**
  * Stub-Service zum Enqueue einer Ingestion.
@@ -51,6 +54,172 @@ export class IngestionService {
    * - Zeichenbasiert chunken (1500/100)
    * - Kapitel-Metadaten je Chunk beilegen
    */
+  /**
+   * Verarbeitet Slide-Bilder und lädt sie auf Azure Storage hoch
+   * Dedupliziert Bilder basierend auf Hash
+   * @returns Object mit updatedSlides und errors Array
+   */
+  private static async processSlideImagesToAzure(
+    slides: Array<Record<string, unknown>>,
+    provider: StorageProvider,
+    libraryId: string,
+    fileId: string,
+    jobId?: string
+  ): Promise<{ slides: Array<Record<string, unknown>>; errors: Array<{ slideIndex: number; imageUrl: string; error: string }> }> {
+    const azureConfig = getAzureStorageConfig()
+    if (!azureConfig) {
+      FileLogger.info('ingestion', 'Azure Storage nicht konfiguriert, überspringe Bild-Upload')
+      return { slides, errors: [] }
+    }
+
+    const azureStorage = new AzureStorageService()
+    if (!azureStorage.isConfigured()) {
+      FileLogger.warn('ingestion', 'Azure Storage Service nicht konfiguriert')
+      return { slides, errors: [] }
+    }
+
+    // Prüfe ob Container existiert
+    const containerExists = await azureStorage.containerExists(azureConfig.containerName)
+    if (!containerExists) {
+      const errorMessage = `[Schritt: Azure Container Prüfung] Azure Storage Container '${azureConfig.containerName}' existiert nicht. Bitte erstellen Sie den Container im Azure Portal mit öffentlichem Blob-Zugriff.`
+      FileLogger.error('ingestion', 'Azure Container existiert nicht', {
+        containerName: azureConfig.containerName,
+        fileId,
+      })
+      if (jobId) {
+        bufferLog(jobId, {
+          phase: 'slide_images_container_error',
+          message: errorMessage,
+        })
+      }
+      // Fehler werfen damit er im Frontend angezeigt werden kann
+      throw new Error(errorMessage)
+    }
+
+    const updatedSlides: Array<Record<string, unknown>> = []
+    const errors: Array<{ slideIndex: number; imageUrl: string; error: string }> = []
+
+    for (let i = 0; i < slides.length; i++) {
+      const slide = { ...slides[i] }
+      const imageUrl = typeof slide.image_url === 'string' ? slide.image_url : ''
+
+      // Prüfe ob bereits eine Azure-URL oder absolute URL
+      if (!imageUrl || imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        updatedSlides.push(slide)
+        continue
+      }
+
+      try {
+        // Konvertiere relativen Pfad zu fileId (base64-kodiert)
+        const normalizedPath = imageUrl.replace(/^\/+|\/+$/g, '')
+        if (normalizedPath.includes('..')) {
+          const errorMsg = '[Schritt: Bild-Pfad Validierung] Path traversal erkannt'
+          FileLogger.warn('ingestion', errorMsg, { imageUrl, fileId })
+          errors.push({ slideIndex: i, imageUrl, error: errorMsg })
+          updatedSlides.push(slide)
+          continue
+        }
+
+        // UTF-8 zu Base64 (wie in resolveImageUrl)
+        const utf8Bytes = Buffer.from(normalizedPath, 'utf-8')
+        const fileIdForImage = utf8Bytes.toString('base64')
+
+        // Lade Bild aus Storage
+        const bin = await provider.getBinary(fileIdForImage)
+        const buffer = Buffer.from(await bin.blob.arrayBuffer())
+
+        // Berechne Hash
+        const hash = calculateImageHash(buffer)
+
+        // Bestimme Extension
+        const extension = normalizedPath.split('.').pop()?.toLowerCase() || 'jpg'
+
+        // Prüfe ob Bild bereits existiert
+        const existingUrl = await azureStorage.getImageUrlByHash(
+          azureConfig.containerName,
+          libraryId,
+          hash,
+          extension
+        )
+
+        let azureUrl: string
+        if (existingUrl) {
+          // Verwende vorhandene URL
+          azureUrl = existingUrl
+          FileLogger.info('ingestion', 'Bild bereits vorhanden, verwende vorhandene URL', {
+            fileId,
+            hash,
+            azureUrl,
+          })
+          if (jobId) {
+            bufferLog(jobId, {
+              phase: 'slide_image_deduplicated',
+              message: `Bild ${i + 1}: Hash ${hash} bereits vorhanden`,
+            })
+          }
+        } else {
+          // Lade auf Azure hoch
+          azureUrl = await azureStorage.uploadImage(
+            azureConfig.containerName,
+            libraryId,
+            hash,
+            extension,
+            buffer
+          )
+          FileLogger.info('ingestion', 'Bild auf Azure hochgeladen', {
+            fileId,
+            hash,
+            extension,
+            azureUrl,
+          })
+          if (jobId) {
+            bufferLog(jobId, {
+              phase: 'slide_image_uploaded',
+              message: `Bild ${i + 1}: ${hash}.${extension} hochgeladen`,
+            })
+          }
+        }
+
+        // Ersetze image_url mit Azure-URL
+        slide.image_url = azureUrl
+        updatedSlides.push(slide)
+      } catch (error) {
+        // Fehler beim Upload: Original-Pfad beibehalten, Fehler sammeln
+        const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+        FileLogger.warn('ingestion', 'Fehler beim Verarbeiten des Slide-Bildes', {
+          fileId,
+          slideIndex: i,
+          imageUrl,
+          error: errorMessage,
+        })
+        
+        // Spezielle Fehlermeldungen für verschiedene Fehlertypen
+        let userFriendlyError = errorMessage
+        if (errorMessage.includes('not found') || errorMessage.includes('nicht gefunden')) {
+          userFriendlyError = `[Schritt: Bild-Upload] Bild nicht gefunden: ${imageUrl}`
+        } else if (errorMessage.includes('does not exist')) {
+          userFriendlyError = `[Schritt: Bild-Upload] Bild-Datei existiert nicht: ${imageUrl}`
+        } else if (errorMessage.includes('Upload fehlgeschlagen')) {
+          userFriendlyError = `[Schritt: Bild-Upload] Upload fehlgeschlagen für ${imageUrl}: ${errorMessage.replace('Upload fehlgeschlagen: ', '')}`
+        } else {
+          userFriendlyError = `[Schritt: Bild-Upload] ${errorMessage}`
+        }
+        
+        errors.push({ slideIndex: i, imageUrl, error: userFriendlyError })
+        updatedSlides.push(slide) // Original-Pfad beibehalten
+        
+        if (jobId) {
+          bufferLog(jobId, {
+            phase: 'slide_image_error',
+            message: `Bild ${i + 1}: ${userFriendlyError}`,
+          })
+        }
+      }
+    }
+
+    return { slides: updatedSlides, errors }
+  }
+
   static async upsertMarkdown(
     userEmail: string,
     libraryId: string,
@@ -59,7 +228,8 @@ export class IngestionService {
     markdown: string,
     meta?: Record<string, unknown>,
     jobId?: string,
-  ): Promise<{ chunksUpserted: number; docUpserted: boolean; index: string }> {
+    provider?: StorageProvider,
+  ): Promise<{ chunksUpserted: number; docUpserted: boolean; index: string; imageErrors?: Array<{ slideIndex: number; imageUrl: string; error: string }> }> {
     const repo = new ExternalJobsRepository()
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) throw new Error('Bibliothek nicht gefunden')
@@ -189,6 +359,10 @@ export class IngestionService {
 
     const vectors: Array<{ id: string; values: number[]; metadata: Record<string, unknown> }> = []
     let globalChunkIndex = 0
+    
+    // Slide-Bilder auf Azure Storage hochladen (vor docMetaJsonObj Erstellung)
+    // imageErrors muss außerhalb des try-Blocks initialisiert werden, damit es immer im Scope ist
+    let imageErrors: Array<{ slideIndex: number; imageUrl: string; error: string }> | undefined = undefined
 
     // Hilfsfunktionen
     const safeText = (s: string, max: number) => s.length > max ? s.slice(0, max) : s
@@ -445,15 +619,102 @@ export class IngestionService {
     // Doc‑Meta finalisieren: counts + ingest_status + upsertedAt (ein finales Upsert)
     try {
       const chaptersCount = chaptersInput.length
+      
+      // Slide-Bilder auf Azure Storage hochladen (vor docMetaJsonObj Erstellung)
+      // imageErrors wurde bereits außerhalb des try-Blocks initialisiert
+      if (provider) {
+        const slidesRaw = metaEffective && typeof metaEffective === 'object' ? (metaEffective as { slides?: unknown }).slides : undefined
+        const slidesInput = Array.isArray(slidesRaw) ? slidesRaw as Array<Record<string, unknown>> : []
+        
+        if (slidesInput.length > 0) {
+          FileLogger.info('ingestion', 'Verarbeite Slide-Bilder für Azure Upload', { fileId, slidesCount: slidesInput.length })
+          if (jobId) {
+            bufferLog(jobId, { phase: 'slide_images_processing', message: `Verarbeite ${slidesInput.length} Slide-Bilder für Azure Upload` })
+          }
+          
+          try {
+            const result = await IngestionService.processSlideImagesToAzure(
+              slidesInput,
+              provider,
+              libraryId,
+              fileId,
+              jobId
+            )
+            
+            // Aktualisiere Slides in metaEffective
+            metaEffective.slides = result.slides
+            
+            // WICHTIG: Aktualisiere auch __jsonClean und __sanitized, damit die Azure-URLs in docMetaJsonObj übernommen werden
+            if ((metaEffective as Record<string, unknown>)['__jsonClean']) {
+              ((metaEffective as Record<string, unknown>)['__jsonClean'] as Record<string, unknown>).slides = result.slides
+            }
+            if ((metaEffective as Record<string, unknown>)['__sanitized']) {
+              ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>).slides = result.slides
+            }
+            
+            // Wenn Fehler aufgetreten sind, diese sammeln
+            imageErrors = result.errors.length > 0 ? result.errors : undefined
+            
+            FileLogger.info('ingestion', 'Slide-Bilder verarbeitet', {
+              fileId,
+              processed: result.slides.length,
+              errors: result.errors.length,
+            })
+            if (jobId) {
+              bufferLog(jobId, {
+                phase: 'slide_images_processed',
+                message: `${result.slides.length} Slide-Bilder verarbeitet${result.errors.length > 0 ? `, ${result.errors.length} Fehler` : ''}`,
+              })
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            FileLogger.error('ingestion', 'Fehler beim Verarbeiten der Slide-Bilder', {
+              fileId,
+              error: errorMessage,
+            })
+            
+            // Wenn Container-Fehler: Fehler weiterwerfen, damit er im Frontend angezeigt wird
+            if (errorMessage.includes('Container') && errorMessage.includes('existiert nicht')) {
+              if (jobId) {
+                bufferLog(jobId, {
+                  phase: 'slide_images_container_error',
+                  message: errorMessage,
+                })
+              }
+              throw error // Fehler weiterwerfen für Frontend-Anzeige
+            }
+            
+            // Andere Fehler: Original-Slides beibehalten, weitermachen
+            FileLogger.warn('ingestion', 'Bild-Upload fehlgeschlagen, verwende Original-Pfade', { fileId })
+          }
+        }
+      }
+      
       // Mongo-Dokument vorbereiten (vollständige Metadaten)
       const docMetaJsonObj = (((metaEffective as Record<string, unknown>)['__jsonClean'] as Record<string, unknown>) || ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || metaEffective || {}) as Record<string, unknown>
+      // Markdown-Body als separates Feld für Detailansicht hinzufügen (nicht Summary für Retrieval)
+      if (body && typeof body === 'string' && body.trim().length > 0) {
+        docMetaJsonObj.markdown = body.trim()
+      }
+      // WICHTIG: Stelle sicher, dass die aktualisierten Slides (mit Azure-URLs) in docMetaJsonObj sind
+      if (metaEffective.slides && Array.isArray(metaEffective.slides)) {
+        docMetaJsonObj.slides = metaEffective.slides
+      }
       const mongoDoc: DocMeta = {
         user: userEmail,
         libraryId,
         fileId,
         fileName,
         authors: Array.isArray((docMetaJsonObj as { authors?: unknown }).authors) ? ((docMetaJsonObj as { authors?: unknown[] }).authors as string[]) : undefined,
-        year: typeof (docMetaJsonObj as { year?: unknown }).year === 'number' ? (docMetaJsonObj as { year: number }).year : (typeof (docMetaJsonObj as { year?: unknown }).year === 'string' ? Number((docMetaJsonObj as { year: string }).year) : undefined),
+        year: ((): number | undefined => {
+          const y = (docMetaJsonObj as { year?: unknown }).year;
+          if (typeof y === 'number' && Number.isFinite(y)) return y;
+          if (typeof y === 'string' && y.trim().length > 0) {
+            const parsed = Number(y.trim());
+            if (Number.isFinite(parsed)) return parsed;
+          }
+          return undefined;
+        })(),
         region: typeof (docMetaJsonObj as { region?: unknown }).region === 'string' ? (docMetaJsonObj as { region: string }).region : undefined,
         docType: typeof (docMetaJsonObj as { docType?: unknown }).docType === 'string' ? (docMetaJsonObj as { docType: string }).docType : undefined,
         source: typeof (docMetaJsonObj as { source?: unknown }).source === 'string' ? (docMetaJsonObj as { source: string }).source : undefined,
@@ -474,7 +735,26 @@ export class IngestionService {
         const sanitized = ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || (metaEffective || {}) as Record<string, unknown>
         for (const d of defs) {
           const v = getTopLevelValue(sanitized, d)
-          if (v !== undefined && v !== null) (mongoDoc as Record<string, unknown>)[d.metaKey] = v
+          if (v !== undefined && v !== null) {
+            // Spezielle Behandlung für year: Validierung um NaN zu vermeiden
+            if (d.metaKey === 'year') {
+              let yearValue: number | undefined = undefined;
+              if (typeof v === 'number' && Number.isFinite(v)) {
+                yearValue = v;
+              } else if (typeof v === 'string' && v.trim().length > 0) {
+                const parsed = Number(v.trim());
+                if (Number.isFinite(parsed)) {
+                  yearValue = parsed;
+                }
+              }
+              // Nur setzen wenn gültig, sonst undefined (wird nicht gesetzt)
+              if (yearValue !== undefined) {
+                (mongoDoc as Record<string, unknown>)[d.metaKey] = yearValue;
+              }
+            } else {
+              (mongoDoc as Record<string, unknown>)[d.metaKey] = v
+            }
+          }
         }
       } catch {}
       // Events für Mongo-Upsert
@@ -546,9 +826,9 @@ export class IngestionService {
       // Kritisch: Fehler weiterwerfen, damit Orchestrator den Step/Job als failed markiert
       throw err instanceof Error ? err : new Error(String(err))
     }
-    FileLogger.info('ingestion', 'Upsert abgeschlossen', { fileId, chunks: chunksUpserted, vectors: vectors.length })
+    FileLogger.info('ingestion', 'Upsert abgeschlossen', { fileId, chunks: chunksUpserted, vectors: vectors.length, imageErrors: imageErrors?.length ?? 0 })
     if (jobId) bufferLog(jobId, { phase: 'ingest_pinecone_upserted', message: `Upsert abgeschlossen: ${chunksUpserted} Chunks (${vectors.length} Vektoren)` })
-    return { chunksUpserted, docUpserted: true, index: ctx.vectorIndex }
+    return { chunksUpserted, docUpserted: true, index: ctx.vectorIndex, imageErrors: imageErrors ?? undefined }
   }
 }
 

@@ -15,6 +15,7 @@ import { ChatPanel } from '@/components/library/chat/chat-panel'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
 import { EventDetailsAccordion } from '@/components/library/event-details-accordion'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ChatResponse } from '@/types/chat-response'
 import type { SessionDetailData } from '@/components/library/session-detail'
 
@@ -25,6 +26,8 @@ interface DocCardMeta {
   title?: string
   shortTitle?: string
   authors?: string[]
+  speakers?: string[] // Speaker-Namen für Sessions
+  speakers_image_url?: string[] // Speaker-Bild-URLs für Sessions
   year?: number | string
   region?: string
   upsertedAt?: string
@@ -83,6 +86,98 @@ function FacetGroup({ label, options, selected, onChange }: { label: string; opt
   )
 }
 
+/**
+ * Rendert Speaker/Authors als Icons statt Dokumentensymbol
+ * Gemeinsames Layout für Sessions (speakers) und Books (authors)
+ * Falls mehrere vorhanden, werden sie nebeneinander mit Tooltips angezeigt
+ * Zeigt Speaker-Bilder an, falls verfügbar, sonst Initialen
+ * Mehrere Icons überlappen sich leicht, um zu zeigen, dass sie zusammen präsentiert haben
+ * Icons sind größer und schneiden den oberen Rand der Card leicht an
+ */
+function SpeakerOrAuthorIcons({ doc }: { doc: DocCardMeta }) {
+  // Priorität: speakers für Sessions, authors für Books
+  const names = doc.speakers && doc.speakers.length > 0 
+    ? doc.speakers 
+    : (doc.authors && doc.authors.length > 0 ? doc.authors : undefined)
+  
+  // Falls keine Namen vorhanden, zeige Standard-Icon
+  if (!names || names.length === 0) {
+    return <FileText className='h-8 w-8 text-primary mb-2' />
+  }
+  
+  // Speaker-Bilder verfügbar? (nur für Sessions)
+  const images = doc.speakers_image_url && doc.speakers_image_url.length > 0 
+    ? doc.speakers_image_url 
+    : undefined
+  
+  // Mehrere Namen nebeneinander mit Tooltips - überlappen sich leicht
+  // Negative margin-top schneidet den oberen Rand der Card deutlich an, sodass die Bilder darüber hinausragen
+  return (
+    <div className='flex items-center gap-0 -mt-10 mb-2 flex-wrap'>
+      {names.slice(0, 3).map((name, idx) => {
+        const imageUrl = images && images[idx] ? images[idx] : undefined
+        return (
+          <div 
+            key={idx}
+            className={idx > 0 ? '-ml-4' : ''}
+            style={{ zIndex: names.length - idx }}
+          >
+            <SpeakerIcon name={name} imageUrl={imageUrl} />
+          </div>
+        )
+      })}
+      {names.length > 3 && (
+        <div className='-ml-4' style={{ zIndex: 0 }}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className='flex items-center justify-center h-20 w-20 rounded-full bg-muted text-muted-foreground text-sm font-medium shrink-0 border-2 border-background shadow-sm'>
+                +{names.length - 3}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className='space-y-1'>
+                {names.slice(3).map((name, idx) => (
+                  <p key={idx}>{name}</p>
+                ))}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Einzelnes Speaker-Icon mit Bild oder Initialen
+ * Doppelt so groß wie vorher, mit Border für bessere Sichtbarkeit bei Überlappung
+ */
+function SpeakerIcon({ name, imageUrl }: { name: string; imageUrl?: string }) {
+  const [imageError, setImageError] = useState(false)
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className='flex items-center justify-center h-20 w-20 rounded-full bg-primary/10 text-primary text-base font-medium border-2 border-background hover:border-primary/30 transition-colors overflow-hidden shrink-0 shadow-sm'>
+          {imageUrl && !imageError ? (
+            <img 
+              src={imageUrl} 
+              alt={name}
+              className='w-full h-full object-cover'
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            name.charAt(0).toUpperCase()
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{name}</p>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 export default function GalleryClient() {
   const libraryId = useAtomValue(activeLibraryIdAtom)
   const libraries = useAtomValue(librariesAtom)
@@ -104,7 +199,7 @@ export default function GalleryClient() {
   const [detailViewType, setDetailViewType] = useState<'book' | 'session'>('book')
   // Session-Daten für Header-Button
   const [sessionUrl, setSessionUrl] = useState<string | undefined>(undefined)
-  const [sessionTitle, setSessionTitle] = useState<string | undefined>(undefined)
+  const [, setSessionTitle] = useState<string | undefined>(undefined)
   const [sessionData, setSessionData] = useState<SessionDetailData | undefined>(undefined)
 
   // Hinweis: libraries derzeit ungenutzt – bewusst markiert
@@ -435,7 +530,8 @@ export default function GalleryClient() {
         </div>
       </div>
 
-      <div className='flex flex-row gap-6 flex-1 min-h-0'>
+      <TooltipProvider>
+        <div className='flex flex-row gap-6 flex-1 min-h-0'>
         {showFilterPanel ? (
           <aside className='hidden lg:flex flex-col w-[16.666%] flex-shrink-0'>
             <div className='rounded border p-3 space-y-3 overflow-y-auto overflow-x-hidden bg-background h-full'>
@@ -538,16 +634,16 @@ export default function GalleryClient() {
                           </Button>
                         </div>
                       ) : (
-                        <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'>
+                        <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pt-10'>
                       {filteredDocs.map((pdf) => (
                         <Card
                           key={pdf.id}
-                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200'
+                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible'
                           onClick={() => openDocDetail(pdf)}
                         >
-                          <CardHeader>
+                          <CardHeader className='relative'>
                             <div className='flex items-start justify-between'>
-                              <FileText className='h-8 w-8 text-primary mb-2' />
+                              <SpeakerOrAuthorIcons doc={pdf} />
                               {pdf.year ? <Badge variant='secondary'>{String(pdf.year)}</Badge> : null}
                             </div>
                             <CardTitle className='text-lg line-clamp-2'>{pdf.shortTitle || pdf.title || pdf.fileName || 'Dokument'}</CardTitle>
@@ -643,7 +739,7 @@ export default function GalleryClient() {
               )}
               
               <ScrollArea className="flex-1 min-h-0">
-                <div className="pr-4">
+                <div className="pr-4 pt-5">
                   {!libraryId ? (
                     <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
                   ) : error ? (
@@ -662,12 +758,12 @@ export default function GalleryClient() {
                       {filteredDocs.map((pdf) => (
                         <Card
                           key={pdf.id}
-                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200'
+                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible'
                           onClick={() => openDocDetail(pdf)}
                         >
-                          <CardHeader>
+                          <CardHeader className='relative'>
                             <div className='flex items-start justify-between'>
-                              <FileText className='h-8 w-8 text-primary mb-2' />
+                              <SpeakerOrAuthorIcons doc={pdf} />
                               {pdf.year ? <Badge variant='secondary'>{String(pdf.year)}</Badge> : null}
                             </div>
                             <CardTitle className='text-lg line-clamp-2'>{pdf.shortTitle || pdf.title || pdf.fileName || 'Dokument'}</CardTitle>
@@ -715,9 +811,9 @@ export default function GalleryClient() {
           {/* Overlay mobil */}
           <div className='absolute inset-0 bg-black/50 lg:bg-transparent' onClick={() => setSelected(null)} />
           {/* Panel stets rechts fixiert */}
-          <div className='absolute right-0 top-0 h-full w-full max-w-2xl bg-background shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col'>
+          <div className='absolute right-0 top-0 h-full w-full max-w-2xl bg-background shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col overflow-hidden'>
             {/* Header mit Buttons (ohne Titel, da dieser in der Hero-Section ist) */}
-            <div className='flex items-center justify-between p-6 border-b shrink-0 relative'>
+            <div className='flex items-center justify-between p-6 border-b shrink-0 relative w-full'>
               {/* Event Details Accordion für Sessions - links */}
               {sessionData && detailViewType === 'session' ? (
                 <div className="relative">
@@ -761,8 +857,8 @@ export default function GalleryClient() {
               </div>
             </div>
 
-            <ScrollArea className='flex-1'>
-              <div className='p-0'>
+            <ScrollArea className='flex-1 w-full overflow-hidden'>
+              <div className='p-0 w-full max-w-full overflow-x-hidden'>
                 {(() => {
                   console.log('[Gallery] Rendering Detail View:', { detailViewType, fileId: selected.fileId || selected.id })
                   if (detailViewType === 'session') {
@@ -815,6 +911,7 @@ export default function GalleryClient() {
       ) : null}
 
       
+      </TooltipProvider>
     </div>
   )
 }

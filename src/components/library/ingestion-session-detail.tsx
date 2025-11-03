@@ -18,6 +18,12 @@ export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt, onDat
   const [data, setData] = React.useState<SessionDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
+  
+  // Ref für onDataLoaded, um Endlosschleifen zu vermeiden
+  const onDataLoadedRef = React.useRef(onDataLoaded);
+  React.useEffect(() => {
+    onDataLoadedRef.current = onDataLoaded;
+  }, [onDataLoaded]);
 
   const load = React.useCallback(async () => {
     try {
@@ -30,9 +36,12 @@ export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt, onDat
       if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Session-Daten konnten nicht geladen werden');
       const mapped = mapToSessionDetail(json as unknown);
       setData(mapped);
-      // Callback aufrufen, wenn Daten geladen wurden
-      if (onDataLoaded) {
-        onDataLoaded(mapped);
+      // Callback aufrufen, wenn Daten geladen wurden (nach setState)
+      if (onDataLoadedRef.current) {
+        // Verwende setTimeout, um sicherzustellen, dass State gesetzt ist
+        setTimeout(() => {
+          onDataLoadedRef.current?.(mapped);
+        }, 0);
       }
     } catch (e) {
       console.error('[IngestionSessionDetail] Error:', e);
@@ -48,7 +57,7 @@ export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt, onDat
   if (error) return <div className="text-sm text-destructive">{error}</div>;
   if (!data) return null;
 
-  return <SessionDetail data={data} showBackLink={false} />;
+  return <SessionDetail data={data} showBackLink={false} libraryId={libraryId} />;
 }
 
 /**
@@ -71,7 +80,12 @@ function mapToSessionDetail(input: unknown): SessionDetailData {
   
 
   // Helper-Funktionen
-  const toStr = (v: unknown): string | undefined => typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined;
+  const toStr = (v: unknown): string | undefined => {
+    if (typeof v === 'string' && v.trim().length > 0) {
+      return v.trim();
+    }
+    return undefined;
+  };
   const toNum = (v: unknown): number | undefined => typeof v === 'number' && Number.isFinite(v) ? v : undefined;
   
   /**
@@ -142,7 +156,8 @@ function mapToSessionDetail(input: unknown): SessionDetailData {
     title: toStr(docMetaJson.title) || toStr(root.fileName) || '—',
     shortTitle: toStr(docMetaJson.shortTitle),
     teaser: toStr(docMetaJson.teaser),
-    summary: toStr(docMetaJson.summary), // Markdown-formatiert
+    summary: toStr(docMetaJson.summary), // Markdown-formatiert (für Retrieval)
+    markdown: toStr(docMetaJson.markdown), // Markdown-Body für Detailansicht
     
     // Session-spezifisch (alle aus docMetaJson)
     speakers: toStrArr(docMetaJson.speakers) || [],

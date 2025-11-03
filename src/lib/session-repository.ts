@@ -95,7 +95,7 @@ export class SessionRepository {
         day, 
         source_language, 
         search,
-        limit = 100, 
+        limit, 
         skip = 0 
       } = options;
       
@@ -127,12 +127,18 @@ export class SessionRepository {
         ];
       }
       
-      return await sessionCollection
+      // Query builder mit optionalem Limit
+      let queryBuilder = sessionCollection
         .find(query)
         .sort({ created_at: -1 })
-        .skip(skip)
-        .limit(limit)
-        .toArray();
+        .skip(skip);
+      
+      // Nur Limit anwenden, wenn explizit gesetzt
+      if (limit !== undefined) {
+        queryBuilder = queryBuilder.limit(limit);
+      }
+      
+      return await queryBuilder.toArray();
     } catch (error) {
       console.error('Fehler beim Abrufen der Sessions:', error);
       throw error;

@@ -16,7 +16,9 @@ export async function GET(request: NextRequest) {
     const day = searchParams.get('day') || undefined;
     const source_language = searchParams.get('source_language') || undefined;
     const search = searchParams.get('search') || undefined;
-    const limit = parseInt(searchParams.get('limit') || '100');
+    // Wenn kein Limit angegeben ist, alle Sessions laden (kein Limit)
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam ? parseInt(limitParam) : undefined;
     const skip = parseInt(searchParams.get('skip') || '0');
     
     // Sessions abrufen
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
       data: {
         sessions,
         total,
-        limit,
+        limit: limit ?? sessions.length, // Falls kein Limit gesetzt, verwende die Anzahl der geladenen Sessions
         skip
       }
     });

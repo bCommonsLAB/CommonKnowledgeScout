@@ -27,7 +27,7 @@ export function EventDetailsAccordion({ data }: EventDetailsAccordionProps) {
           <AccordionTrigger className="text-sm font-semibold text-muted-foreground uppercase tracking-wide py-1 hover:no-underline px-2">
             Event Details
           </AccordionTrigger>
-          <AccordionContent className="absolute right-0 top-full mt-2 z-50">
+          <AccordionContent className="absolute left-0 top-full mt-2 z-50">
             <Card className="w-80 shadow-lg bg-background border">
               <div className="p-4 space-y-3 text-sm">
                 {data.date && (

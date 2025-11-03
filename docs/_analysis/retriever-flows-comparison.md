@@ -235,3 +235,5 @@ Beide Flows verwenden jetzt den **Orchestrator** (`runChatOrchestrated`) für di
 ### ✅ Bestätigung:
 **Die Funktionalität des Chunk-Flows bleibt vollständig erhalten.** Alle Scoring-, Reranking- und Boost-Mechanismen wurden unverändert aus der Route in den `chunksRetriever` verschoben. Die einzige Änderung ist die Zentralisierung der LLM-Verarbeitung im Orchestrator.
 
+
+

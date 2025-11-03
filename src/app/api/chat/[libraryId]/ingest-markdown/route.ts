@@ -46,13 +46,33 @@ export async function POST(
       fileId,
       fileName || item.metadata.name,
       markdown,
-      docMeta
+      docMeta,
+      undefined, // jobId
+      provider // Provider für Bild-Upload
     )
 
-    FileLogger.info('ingest-markdown', 'Erfolg', { libraryId, fileId, chunks: res.chunksUpserted })
-    return NextResponse.json({ status: 'ok', index: res.index, chunksUpserted: res.chunksUpserted }, { status: 200 })
+    FileLogger.info('ingest-markdown', 'Erfolg', { libraryId, fileId, chunks: res.chunksUpserted, imageErrors: res.imageErrors?.length ?? 0 })
+    
+    // Wenn Bild-Fehler vorhanden sind, aber Ingestion erfolgreich war: Warnung zurückgeben
+    if (res.imageErrors && res.imageErrors.length > 0) {
+      return NextResponse.json({
+        status: 'ok',
+        index: res.index,
+        chunksUpserted: res.chunksUpserted,
+        warnings: {
+          imageErrors: res.imageErrors,
+          message: `${res.imageErrors.length} Bild(er) konnten nicht verarbeitet werden`,
+        },
+      }, { status: 200 })
+    }
+    
+    return NextResponse.json({ 
+      status: 'ok', 
+      index: res.index, 
+      chunksUpserted: res.chunksUpserted
+    }, { status: 200 })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unbekannter Fehler'
+    const msg = e instanceof Error ? e.message : String(e)
     FileLogger.error('ingest-markdown', 'Fehler', { error: msg })
     return NextResponse.json({ error: msg }, { status: 500 })
   }

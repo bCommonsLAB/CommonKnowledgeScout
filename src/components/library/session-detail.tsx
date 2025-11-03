@@ -4,13 +4,11 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, Calendar, Clock, MapPin, Video, ExternalLink, FileText } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText } from "lucide-react";
 import Link from "next/link";
 import { EventSlides } from "@/components/event-slides";
 import { EventSummary } from "@/components/event-summary";
-import type { Slide } from "./slide-accordion";
+import type { Slide } from "@/components/library/slide-accordion";
 
 /**
  * Interface für Session-Detail-Daten aus Event/Konferenz-Dokumenten
@@ -19,7 +17,8 @@ export interface SessionDetailData {
   title: string;
   shortTitle?: string;
   teaser?: string;
-  summary?: string; // Markdown-formatiert
+  summary?: string; // Markdown-formatiert (für Retrieval)
+  markdown?: string; // Markdown-Body für Detailansicht
   speakers?: string[];
   speakers_url?: string[];
   speakers_image_url?: string[];
@@ -51,19 +50,19 @@ interface SessionDetailProps {
   data: SessionDetailData;
   backHref?: string;
   showBackLink?: boolean;
+  libraryId?: string; // Optional: für Link zur Library
 }
 
 /**
  * Detailansicht für Event-Sessions/Präsentationen
  * Moderne UI mit Hero-Section, Speakers mit Avataren, Event-Details Sidebar
  */
-export function SessionDetail({ data, backHref = "/library", showBackLink = false }: SessionDetailProps) {
+export function SessionDetail({ data, backHref = "/library", showBackLink = false, libraryId }: SessionDetailProps) {
   const title = data.title || data.shortTitle || "—";
   const speakers = Array.isArray(data.speakers) ? data.speakers : [];
   const speakers_url = Array.isArray(data.speakers_url) ? data.speakers_url : [];
   const speakers_image_url = Array.isArray(data.speakers_image_url) ? data.speakers_image_url : [];
   const affiliations = Array.isArray(data.affiliations) ? data.affiliations : [];
-  const tags = Array.isArray(data.tags) ? data.tags : [];
   const slides = Array.isArray(data.slides) ? data.slides : [];
 
   // Helper: Speaker-URL für Index ermitteln
@@ -88,10 +87,10 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background w-full max-w-full overflow-x-hidden box-border">
       {/* Back Link */}
       {showBackLink && (
-        <div className="container mx-auto px-4 pt-4 max-w-7xl">
+        <div className="w-full px-4 pt-4">
           <Link href={backHref} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm">Zurück</span>
@@ -101,7 +100,7 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
 
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border-b">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="w-full px-4 py-8">
           <div className="flex flex-col gap-8 items-start">
             {/* Left: Badge, Title, Teaser, and Speakers */}
             <div className="flex-1 w-full">
@@ -174,17 +173,53 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="w-full px-4 py-8">
         <div className="space-y-8">
-          {/* Summary Section - full width */}
-          {data.summary && (
-            <EventSummary summary={data.summary} videoUrl={data.video_url} />
+          {/* Markdown Content Section - full width (verwendet markdown Feld, fallback auf summary) */}
+          {(data.markdown || data.summary) && (
+            <EventSummary summary={data.markdown || data.summary || ''} videoUrl={data.video_url} />
           )}
 
           {/* Slides Section - full width */}
-          {slides.length > 0 && <EventSlides slides={slides} />}
+          {slides.length > 0 && <EventSlides slides={slides} libraryId={libraryId} />}
         </div>
       </div>
+
+      {/* Debug-Informationen am Ende */}
+      {data.fileId && (
+        <div className="w-full px-4 pb-8">
+          <div className="text-[10px] text-muted-foreground/50 text-center pt-4 border-t break-words space-y-1">
+            {data.fileName && (
+              <div className="break-all">
+                <FileText className="h-3 w-3 inline mr-1" />
+                {data.fileName}
+              </div>
+            )}
+            <div className="break-all">
+              File ID: <code className="px-0.5 py-0 bg-muted rounded text-[10px] break-all">{data.fileId}</code>
+              {libraryId && (
+                <Link 
+                  href={`/library?activeLibraryId=${encodeURIComponent(libraryId)}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // Custom Event dispatchen, um Dokument in Gallery zu öffnen
+                    const event = new CustomEvent('open-document-detail', {
+                      detail: { fileId: data.fileId, fileName: data.fileName, libraryId },
+                    });
+                    window.dispatchEvent(event);
+                    // Navigiere zur Library
+                    window.location.href = `/library?activeLibraryId=${encodeURIComponent(libraryId)}`;
+                  }}
+                  className="ml-2 text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  In Library öffnen
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
