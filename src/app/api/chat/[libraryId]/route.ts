@@ -6,16 +6,29 @@ import { startQueryLog, failQueryLog, setQuestionAnalysis } from '@/lib/logging/
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { buildFilters } from '@/lib/chat/common/filters'
 import { analyzeQuestionForRetriever } from '@/lib/chat/common/question-analyzer'
+import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
+import {
+  ANSWER_LENGTH_ZOD_ENUM,
+  TARGET_LANGUAGE_VALUES,
+  CHARACTER_VALUES,
+  SOCIAL_CONTEXT_VALUES,
+  isValidTargetLanguage,
+  isValidCharacter,
+  isValidSocialContext,
+  TargetLanguage,
+  Character,
+  SocialContext,
+} from '@/lib/chat/constants'
 import type { NeedsClarificationResponse } from '@/types/chat-response'
-import type { Character } from '@/types/character'
 
 const chatRequestSchema = z.object({
   message: z.string().min(1).max(4000),
-  answerLength: z.enum(['kurz','mittel','ausführlich','unbegrenzt']).default('mittel'),
+  answerLength: ANSWER_LENGTH_ZOD_ENUM.default('mittel'),
   chatHistory: z.array(z.object({
     question: z.string(),
     answer: z.string(),
   })).optional(),
+  chatId: z.string().optional(), // Optional: chatId für bestehenden Chat oder null für neuen Chat
 })
 
 export async function POST(
@@ -30,15 +43,17 @@ export async function POST(
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress
 
-    // Fallback: erlauben wir public nur, wenn Chat public konfiguriert ist
-    const emailForLoad = userEmail || request.headers.get('X-User-Email') || ''
-
-    if (!emailForLoad) {
-      // Wir laden trotzdem, um public-Flag zu prüfen
-      // Wenn kein userEmail vorliegt und Chat nicht public ist → 401
+    // Wenn keine Email vorhanden ist und nicht öffentlich, Fehler zurückgeben
+    if (!userEmail) {
+      // Prüfe erst, ob Chat öffentlich ist, bevor wir ablehnen
+      const ctx = await loadLibraryChatContext('', libraryId)
+      if (!ctx || !ctx.chat.public) {
+        return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+      }
+      // Wenn öffentlich, können wir ohne Email fortfahren
     }
 
-    const ctx = await loadLibraryChatContext(emailForLoad, libraryId)
+    const ctx = await loadLibraryChatContext(userEmail || '', libraryId)
     if (!ctx) {
       return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
     }
@@ -54,10 +69,13 @@ export async function POST(
       return NextResponse.json({ error: 'Ungültige Anfrage', details: body.error.flatten() }, { status: 400 })
     }
 
-    const { message, answerLength, chatHistory } = body.data
+    const { message, answerLength, chatHistory, chatId: bodyChatId } = body.data
 
     // Optional: Filter aus Query (Facetten im Chat-Kontext wiederverwenden)
     const parsedUrl = new URL(request.url)
+    // chatId kann aus Query-Parameter oder Body kommen
+    const chatIdParam = parsedUrl.searchParams.get('chatId')
+    const chatId = bodyChatId || chatIdParam || null
     
     // Query-Logging initialisieren (muss vor allen logAppend-Aufrufen stehen)
     const facetsSelected: Record<string, unknown> = {}
@@ -107,6 +125,24 @@ export async function POST(
       }
     }
     
+    // Chat-Verwaltung: Wenn keine chatId vorhanden, erstelle neuen Chat
+    let activeChatId: string
+    if (!chatId) {
+      // Neuen Chat erstellen mit generiertem Titel aus Frage-Analyse
+      const chatTitle = questionAnalysis?.chatTitle || message.slice(0, 60)
+      activeChatId = await createChat(libraryId, userEmail || '', chatTitle)
+    } else {
+      // Bestehenden Chat verwenden und updatedAt aktualisieren
+      activeChatId = chatId
+      // Prüfe, ob Chat existiert und Benutzer Zugriff hat
+      const existingChat = await getChatById(chatId, userEmail || '')
+      if (!existingChat) {
+        return NextResponse.json({ error: 'Chat nicht gefunden' }, { status: 404 })
+      }
+      // Aktualisiere updatedAt
+      await touchChat(chatId)
+    }
+    
     // Retriever bestimmen: Explizit gesetzt > Analyse > Standard (chunk)
     const effectiveRetriever: 'chunk' | 'summary' = explicitRetriever 
       ? (retrieverParamRaw === 'summary' || retrieverParamRaw === 'doc' ? 'summary' : 'chunk')
@@ -116,33 +152,24 @@ export async function POST(
     const targetLanguageParam = parsedUrl.searchParams.get('targetLanguage')
     const characterParam = parsedUrl.searchParams.get('character')
     const socialContextParam = parsedUrl.searchParams.get('socialContext')
+    const genderInclusiveParam = parsedUrl.searchParams.get('genderInclusive')
     
     const effectiveChatConfig = {
       ...ctx.chat,
-      targetLanguage: (targetLanguageParam && ['de', 'en', 'it', 'fr', 'es', 'ar'].includes(targetLanguageParam)) 
-        ? targetLanguageParam as 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'
+      targetLanguage: isValidTargetLanguage(targetLanguageParam)
+        ? targetLanguageParam
         : ctx.chat.targetLanguage,
-      character: (characterParam && [
-        'developer',
-        'technical',
-        'open-source',
-        'scientific',
-        'eco-social',
-        'social',
-        'civic',
-        'policy',
-        'cultural',
-        'business',
-        'entrepreneurial',
-        'legal',
-        'educational',
-        'creative',
-      ].includes(characterParam))
-        ? characterParam as Character
+      character: isValidCharacter(characterParam)
+        ? characterParam
         : ctx.chat.character,
-      socialContext: (socialContextParam && ['scientific', 'popular', 'youth', 'senior'].includes(socialContextParam))
-        ? socialContextParam as 'scientific' | 'popular' | 'youth' | 'senior'
+      socialContext: isValidSocialContext(socialContextParam)
+        ? socialContextParam
         : ctx.chat.socialContext,
+      genderInclusive: genderInclusiveParam === 'true' 
+        ? true 
+        : genderInclusiveParam === 'false' 
+        ? false 
+        : ctx.chat.genderInclusive,
     }
 
     // Neuer Pfad: Summary-Retriever über Mongo (retriever=summary oder von Analyse empfohlen)
@@ -151,11 +178,16 @@ export async function POST(
       const modeNow = 'summaries' as const
       const queryId = await startQueryLog({
         libraryId,
-        userEmail: emailForLoad,
+        chatId: activeChatId,
+        userEmail: userEmail || '',
         question: message,
         mode: modeNow,
         answerLength,
         retriever: 'summary',
+        targetLanguage: effectiveChatConfig.targetLanguage,
+        character: effectiveChatConfig.character,
+        socialContext: effectiveChatConfig.socialContext,
+        genderInclusive: effectiveChatConfig.genderInclusive,
         facetsSelected,
         filtersNormalized: { ...built.normalized },
         filtersPinecone: { ...built.pinecone },
@@ -172,7 +204,7 @@ export async function POST(
       const { answer, sources, references, suggestedQuestions } = await runChatOrchestrated({
         retriever: 'summary',
         libraryId,
-        userEmail: emailForLoad,
+        userEmail: userEmail || '',
         question: message,
         answerLength,
         filters: built.mongo,
@@ -190,6 +222,7 @@ export async function POST(
         suggestedQuestions,
         sources, // Behalte sources für Rückwärtskompatibilität
         queryId,
+        chatId: activeChatId, // Chat-ID zurückgeben
       })
     }
     
@@ -199,11 +232,15 @@ export async function POST(
     const built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, 'chunk')
     const queryId = await startQueryLog({
       libraryId,
-      userEmail: emailForLoad,
+      chatId: activeChatId,
+      userEmail: userEmail || '',
       question: message,
       mode,
       answerLength,
       retriever: 'chunk' as const,
+      targetLanguage: effectiveChatConfig.targetLanguage,
+      character: effectiveChatConfig.character,
+      socialContext: effectiveChatConfig.socialContext,
       facetsSelected,
       filtersNormalized: { ...built.normalized },
       filtersPinecone: { ...built.pinecone },
@@ -222,7 +259,7 @@ export async function POST(
     const { answer, sources, references, suggestedQuestions } = await runChatOrchestrated({
       retriever: 'chunk',
       libraryId,
-      userEmail: emailForLoad,
+      userEmail: userEmail || '',
       question: message,
       answerLength,
       filters: built.mongo,
@@ -241,6 +278,7 @@ export async function POST(
       suggestedQuestions,
       sources, // Behalte sources für Rückwärtskompatibilität
       queryId,
+      chatId: activeChatId, // Chat-ID zurückgeben
     })
   } catch (error) {
     // Detailliertes Logging und dev-Details zurückgeben

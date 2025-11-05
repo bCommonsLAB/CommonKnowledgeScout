@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
+import { ANSWER_LENGTH_ZOD_ENUM, ANSWER_LENGTH_DEFAULT } from '@/lib/chat/constants'
 
 const bodySchema = z.object({
   systemPrompt: z.string().optional(),
   instructions: z.string().min(1),
   contextText: z.string().min(1),
-  answerLength: z.enum(['kurz','mittel','ausführlich']).default('mittel')
+  answerLength: ANSWER_LENGTH_ZOD_ENUM.default(ANSWER_LENGTH_DEFAULT)
 })
 
 export async function POST(
@@ -20,9 +21,11 @@ export async function POST(
     const { userId } = await auth()
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress
+    if (!userId || !userEmail) {
+      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+    }
 
-    const emailForLoad = userEmail || request.headers.get('X-User-Email') || ''
-    const ctx = await loadLibraryChatContext(emailForLoad, libraryId)
+    const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
     if (!ctx.chat.public && !userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 

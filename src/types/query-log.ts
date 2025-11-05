@@ -1,3 +1,5 @@
+import type { SocialContext, TargetLanguage, AnswerLength, Retriever } from '@/lib/chat/constants'
+
 export interface QueryRetrievalResultItem {
   id: string;
   type: 'chapter' | 'summary' | 'chunk';
@@ -50,12 +52,24 @@ export interface QuestionAnalysisInfo {
 
 export interface QueryLog {
   queryId: string;
+  /** Chat-ID, zu der diese Query gehört (required für neue Queries) */
+  chatId: string;
   libraryId: string;
   userEmail: string;
   question: string;
   mode: 'concise' | 'verbose' | 'summaries' | 'chunks';
-  answerLength?: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'; // Antwortlänge-Parameter
-  retriever?: 'chunk' | 'doc' | 'summary'; // Retriever-Methode
+  /** Typ der Query: 'toc' für Inhaltsverzeichnis, 'question' für normale Fragen */
+  queryType?: 'toc' | 'question';
+  answerLength?: AnswerLength; // Antwortlänge-Parameter
+  retriever?: Retriever; // Retriever-Methode
+  /** Zielsprache für die Antwort */
+  targetLanguage?: TargetLanguage;
+  /** Charakter/Perspektive für die Antwort */
+  character?: string;
+  /** Sozialer Kontext/Sprachebene */
+  socialContext?: SocialContext;
+  /** Gendergerechte Formulierung aktivieren/deaktivieren */
+  genderInclusive?: boolean;
   facetsSelected?: Record<string, unknown>;
   filtersNormalized?: Record<string, unknown>;
   filtersPinecone?: Record<string, unknown>;
@@ -68,6 +82,8 @@ export interface QueryLog {
   timing?: { retrievalMs?: number; llmMs?: number; totalMs?: number };
   tokenUsage?: QueryTokenUsage;
   questionAnalysis?: QuestionAnalysisInfo; // Analyse-Ergebnis für Retriever-Auswahl
+  /** User-freundliche Processing-Logs (nicht zu verwechseln mit internen Debug-Logs) */
+  processingLogs?: import('./chat-processing').ChatProcessingStep[];
   createdAt: Date;
   status: 'pending' | 'ok' | 'error';
   error?: { message: string; stage?: string };

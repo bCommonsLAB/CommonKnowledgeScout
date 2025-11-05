@@ -1,15 +1,18 @@
 'use client'
 
-import { useState } from 'react'
-import { User, Bot, Bug, Lightbulb } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { User, Bot, Bug, FileText } from 'lucide-react'
 import { MarkdownPreview } from '../markdown-preview'
 import { ChatSuggestedQuestions } from './chat-suggested-questions'
+import { ChatConfigDisplay } from './chat-config-display'
 import { Button } from '@/components/ui/button'
 import { BookOpen } from 'lucide-react'
 import type { ChatResponse } from '@/types/chat-response'
 import { QueryDetailsDialog } from './query-details-dialog'
-import type { Character } from '@/types/character'
-import { characterColors, characterIconColors } from '@/types/character'
+import { ProcessingLogsDialog } from './processing-logs-dialog'
+import type { Character, TargetLanguage, SocialContext, AnswerLength, Retriever } from '@/lib/chat/constants'
+import type { ChatProcessingStep } from '@/types/chat-processing'
+import { characterColors, characterIconColors } from '@/lib/chat/constants'
 
 interface ChatMessageProps {
   type: 'question' | 'answer'
@@ -23,6 +26,10 @@ interface ChatMessageProps {
   messageId?: string
   innerRef?: (id: string, element: HTMLDivElement | null) => void
   character?: Character
+  answerLength?: AnswerLength
+  retriever?: Retriever
+  targetLanguage?: TargetLanguage
+  socialContext?: SocialContext
 }
 
 /**
@@ -53,9 +60,33 @@ export function ChatMessage({
   onQuestionClick,
   messageId,
   innerRef,
-  character
+  character,
+  answerLength,
+  retriever,
+  targetLanguage,
+  socialContext,
 }: ChatMessageProps) {
   const [showDetails, setShowDetails] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
+  const lastMessageIdRef = useRef<string | undefined>(undefined)
+
+  // Automatisch Legende öffnen, wenn eine Antwort mit Referenzen angezeigt wird
+  useEffect(() => {
+    if (type === 'answer' && references && Array.isArray(references) && references.length > 0) {
+      // Nur auslösen, wenn es eine neue Nachricht ist (messageId hat sich geändert)
+      if (messageId && messageId !== lastMessageIdRef.current) {
+        lastMessageIdRef.current = messageId
+        // Kurze Verzögerung, damit die Komponente vollständig gerendert ist
+        const timer = setTimeout(() => {
+          const event = new CustomEvent('show-reference-legend', {
+            detail: { references, libraryId },
+          })
+          window.dispatchEvent(event)
+        }, 100)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [type, references, libraryId, messageId])
 
   if (type === 'question') {
     const bgColor = getCharacterColor(character)
@@ -82,6 +113,16 @@ export function ChatMessage({
             title="Klicken Sie hier, um diese Frage erneut zu stellen"
           >
             <div className="text-sm whitespace-pre-wrap break-words">{content}</div>
+            {/* Config-Anzeige unter der Frage - nur bei neuen Fragen (ohne queryId) */}
+            {!queryId && (
+              <ChatConfigDisplay
+                answerLength={answerLength}
+                retriever={retriever}
+                targetLanguage={targetLanguage}
+                character={character}
+                socialContext={socialContext}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -109,51 +150,66 @@ export function ChatMessage({
               <MarkdownPreview content={content} compact />
             </div>
             
-            {/* Action-Buttons: Legende, Debug, Explain */}
-            {(references && Array.isArray(references) && references.length > 0) || queryId ? (
-              <div className="flex justify-end gap-2 mt-2 flex-wrap">
-                {references && Array.isArray(references) && references.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const event = new CustomEvent('show-reference-legend', {
-                        detail: { references, libraryId },
-                      })
-                      window.dispatchEvent(event)
-                    }}
-                    className="h-6 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    <BookOpen className="h-3 w-3 mr-1" />
-                    Legende ({references.length})
-                  </Button>
+            {/* Action-Buttons: Config, Legende, Logs, Debug */}
+            {(references && Array.isArray(references) && references.length > 0) || queryId || (answerLength || retriever || targetLanguage || character || socialContext) ? (
+              <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
+                {/* Config-Anzeige bei historischen Antworten (mit queryId) */}
+                {queryId && (answerLength || retriever || targetLanguage || character || socialContext) && (
+                  <div className="flex-1 min-w-0">
+                    <ChatConfigDisplay
+                      answerLength={answerLength}
+                      retriever={retriever}
+                      targetLanguage={targetLanguage}
+                      character={character}
+                      socialContext={socialContext}
+                    />
+                  </div>
                 )}
                 
-                {queryId && (
-                  <>
+                <div className="flex justify-end gap-2 flex-wrap">
+                  {references && Array.isArray(references) && references.length > 0 && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setShowDetails(true)}
+                      onClick={() => {
+                        const event = new CustomEvent('show-reference-legend', {
+                          detail: { references, libraryId },
+                        })
+                        window.dispatchEvent(event)
+                      }}
                       className="h-6 text-xs text-muted-foreground hover:text-foreground"
-                      title="Zeigt eine KI-generierte Erklärung, wie diese Antwort entstanden ist"
                     >
-                      <Lightbulb className="h-3 w-3 mr-1" />
-                      Explain
+                      <BookOpen className="h-3 w-3 mr-1" />
+                      Legende ({references.length})
                     </Button>
-                    
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowDetails(true)}
-                      className="h-6 text-xs text-muted-foreground hover:text-foreground"
-                      title="Zeigt technische Debug-Informationen zur Query"
-                    >
-                      <Bug className="h-3 w-3 mr-1" />
-                      Debug
-                    </Button>
-                  </>
-                )}
+                  )}
+                  
+                  {queryId && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowLogs(true)}
+                        className="h-6 text-xs text-muted-foreground hover:text-foreground"
+                        title="Zeigt die Verarbeitungsschritte dieser Antwort"
+                      >
+                        <FileText className="h-3 w-3 mr-1" />
+                        Logs
+                      </Button>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowDetails(true)}
+                        className="h-6 text-xs text-muted-foreground hover:text-foreground"
+                        title="Zeigt technische Debug-Informationen zur Query"
+                      >
+                        <Bug className="h-3 w-3 mr-1" />
+                        Debug
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             ) : null}
 
@@ -172,6 +228,16 @@ export function ChatMessage({
         <QueryDetailsDialog
           open={showDetails}
           onOpenChange={setShowDetails}
+          libraryId={libraryId}
+          queryId={queryId}
+        />
+      )}
+      
+      {/* Processing Logs Dialog */}
+      {queryId && (
+        <ProcessingLogsDialog
+          open={showLogs}
+          onOpenChange={setShowLogs}
           libraryId={libraryId}
           queryId={queryId}
         />

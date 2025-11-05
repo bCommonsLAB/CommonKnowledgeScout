@@ -14,11 +14,17 @@ function clampSnippet(text: string | undefined, max = 300): string | undefined {
 
 export async function startQueryLog(context: {
   libraryId: string
+  chatId: string // Required: chatId für Chat-Zuordnung
   userEmail: string
   question: string
   mode: QueryLog['mode']
+  queryType?: QueryLog['queryType'] // 'toc' für Inhaltsverzeichnis, 'question' für normale Fragen
   answerLength?: QueryLog['answerLength']
   retriever?: QueryLog['retriever']
+  targetLanguage?: QueryLog['targetLanguage']
+  character?: QueryLog['character']
+  socialContext?: QueryLog['socialContext']
+  genderInclusive?: QueryLog['genderInclusive']
   facetsSelected?: Record<string, unknown>
   filtersNormalized?: Record<string, unknown>
   filtersPinecone?: Record<string, unknown>

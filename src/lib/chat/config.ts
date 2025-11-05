@@ -1,5 +1,14 @@
 import * as z from 'zod'
 import { LibraryChatConfig } from '@/types/library'
+import {
+  TARGET_LANGUAGE_ZOD_ENUM,
+  TARGET_LANGUAGE_DEFAULT,
+  CHARACTER_ZOD_ENUM,
+  CHARACTER_DEFAULT,
+  SOCIAL_CONTEXT_ZOD_ENUM,
+  SOCIAL_CONTEXT_DEFAULT,
+  GENDER_INCLUSIVE_DEFAULT,
+} from './constants'
 
 /**
  * Zod-Schema für Chat-Konfiguration mit Defaults.
@@ -27,26 +36,19 @@ export const chatConfigSchema = z.object({
     indexOverride: z.string().min(1).optional(),
   }).default({}),
   // Zielsprache für Chat-Antworten
-  targetLanguage: z.enum(['de', 'en', 'it', 'fr', 'es', 'ar']).default('de'),
+  targetLanguage: TARGET_LANGUAGE_ZOD_ENUM.default(TARGET_LANGUAGE_DEFAULT),
   // Charakter/Profil für die Antwort-Perspektive
-  character: z.enum([
-    'developer',
-    'technical',
-    'open-source',
-    'scientific',
-    'eco-social',
-    'social',
-    'civic',
-    'policy',
-    'cultural',
-    'business',
-    'entrepreneurial',
-    'legal',
-    'educational',
-    'creative',
-  ]).default('business'),
+  character: CHARACTER_ZOD_ENUM.default(CHARACTER_DEFAULT),
   // Sozialer Kontext/Sprachebene
-  socialContext: z.enum(['scientific', 'popular', 'youth', 'senior']).default('popular'),
+  socialContext: SOCIAL_CONTEXT_ZOD_ENUM.default(SOCIAL_CONTEXT_DEFAULT),
+  // Gendergerechte Formulierung
+  genderInclusive: z.boolean().default(GENDER_INCLUSIVE_DEFAULT),
+  userPreferences: z.object({
+    targetLanguage: TARGET_LANGUAGE_ZOD_ENUM.optional(),
+    character: CHARACTER_ZOD_ENUM.optional(),
+    socialContext: SOCIAL_CONTEXT_ZOD_ENUM.optional(),
+    genderInclusive: z.boolean().optional(),
+  }).optional(),
   gallery: z.object({
     // Typ der Detailansicht: 'book' für klassische Dokumente, 'session' für Event-Sessions/Präsentationen
     detailViewType: z.enum(['book', 'session']).default('book'),

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import * as React from "react"
 import { Moon, Sun, Settings, Plus, Menu } from "lucide-react"
 import { useTheme } from "next-themes"
@@ -62,6 +62,7 @@ const protectedNavItems = [
 export function TopNav() {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { theme, setTheme } = useTheme()
   
   // Statt Events verwenden wir Jotai
@@ -69,7 +70,8 @@ export function TopNav() {
   const [activeLibraryId] = useAtom(activeLibraryIdAtom)
   const { libraries } = libraryContext
   
-
+  // Prüfe ob Story-Modus aktiv ist
+  const isStoryMode = searchParams?.get('mode') === 'story'
 
   const [open, setOpen] = React.useState(false)
 
@@ -114,6 +116,19 @@ export function TopNav() {
                   )}
                 >
                   Chat
+                </Link>
+                {/* Dynamischer Story-Link (abhängig von aktiver Bibliothek) */}
+                <Link
+                  href="/library/gallery?mode=story"
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "block rounded-md px-3 py-2 text-sm",
+                    pathname?.includes('/library/') && pathname?.includes('/gallery') && isStoryMode
+                      ? "bg-muted text-primary"
+                      : "text-foreground hover:bg-muted"
+                  )}
+                >
+                  Story
                 </Link>
                 <div className="pt-3 border-t" />
                 {/* Settings + Dark Mode im Menü */}
@@ -187,6 +202,19 @@ export function TopNav() {
                   )}
                 >
                   Chat
+                </Link>
+                {/* Dynamischer Story-Link */}
+                <Link
+                  key="/library/[id]/gallery?mode=story"
+                  href="/library/gallery?mode=story"
+                  className={cn(
+                    "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
+                    pathname?.includes('/library/') && pathname?.includes('/gallery') && isStoryMode
+                      ? "bg-muted text-primary"
+                      : "text-muted-foreground hover:text-primary"
+                  )}
+                >
+                  Story
                 </Link>
               </SignedIn>
             </div>

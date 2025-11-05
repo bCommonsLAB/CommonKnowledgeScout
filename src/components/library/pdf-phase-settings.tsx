@@ -13,6 +13,12 @@ import { useStorage } from "@/contexts/storage-context";
 import { useAtom } from "jotai";
 import { pdfOverridesAtom } from "@/atoms/pdf-defaults";
 import type { PdfTransformOptions } from "@/lib/transform/transform-service";
+import {
+  TARGET_LANGUAGE_VALUES,
+  TARGET_LANGUAGE_LABELS,
+  TARGET_LANGUAGE_DEFAULT,
+  type TargetLanguage,
+} from "@/lib/chat/constants";
 
 interface PdfPhaseSettingsProps {
   open: boolean;
@@ -59,7 +65,7 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
   function saveAndClose() {
     if (!activeLibraryId) return onOpenChange(false);
     const defaults: PdfTransformOptions = {
-      targetLanguage: typeof values.targetLanguage === 'string' ? values.targetLanguage : 'de',
+      targetLanguage: typeof values.targetLanguage === 'string' ? values.targetLanguage : TARGET_LANGUAGE_DEFAULT,
       fileName: '',
       createShadowTwin: true,
       fileExtension: 'md',
@@ -84,13 +90,13 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Zielsprache</Label>
-            <Select value={values.targetLanguage || 'de'} onValueChange={(v) => update({ targetLanguage: v })}>
+            <Select value={values.targetLanguage || TARGET_LANGUAGE_DEFAULT} onValueChange={(v) => update({ targetLanguage: v })}>
               <SelectTrigger>
                 <SelectValue placeholder="Sprache wählen" />
               </SelectTrigger>
               <SelectContent>
-                {['de','en','fr','it','es'].map(code => (
-                  <SelectItem key={code} value={code}>{code.toUpperCase()}</SelectItem>
+                {TARGET_LANGUAGE_VALUES.map((code) => (
+                  <SelectItem key={code} value={code}>{TARGET_LANGUAGE_LABELS[code] || code.toUpperCase()}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -16,12 +16,13 @@ export function buildFilters(url: URL, library: Library, userEmail: string, libr
     ? { user: { $eq: userEmail || '' } }
     : { user: { $eq: userEmail || '' }, libraryId: { $eq: libraryId } }
 
-  if (builtin['authors']) pinecone['authors'] = builtin['authors']
-  if (builtin['region']) pinecone['region'] = builtin['region']
-  if (builtin['year']) pinecone['year'] = builtin['year']
-  if (builtin['docType']) pinecone['docType'] = builtin['docType']
-  if (builtin['source']) pinecone['source'] = builtin['source']
-  if (builtin['tags']) pinecone['tags'] = builtin['tags']
+  // Dynamisch alle Facetten-Filter hinzufügen (nicht nur hardcodierte Liste)
+  for (const def of defs) {
+    const filterValue = builtin[def.metaKey]
+    if (filterValue !== undefined && filterValue !== null) {
+      pinecone[def.metaKey] = filterValue
+    }
+  }
 
   const normalized: Record<string, unknown> = {
     user: { $eq: userEmail || '' },
@@ -29,14 +30,16 @@ export function buildFilters(url: URL, library: Library, userEmail: string, libr
     kind: { $eq: mode === 'summary' ? 'chapterSummary' : 'chunk' }
   }
 
-  // Mongo-Filter: Spiegeln der relevanten Felder aus Facetten
+  // Mongo-Filter: Dynamisch alle Facetten-Filter hinzufügen
   const mongo: Record<string, unknown> = {}
-  if (builtin['authors']) mongo['authors'] = builtin['authors']
-  if (builtin['region']) mongo['region'] = builtin['region']
-  if (builtin['year']) mongo['year'] = builtin['year']
-  if (builtin['docType']) mongo['docType'] = builtin['docType']
-  if (builtin['source']) mongo['source'] = builtin['source']
-  if (builtin['tags']) mongo['tags'] = builtin['tags']
+  
+  // Dynamisch alle Facetten-Filter hinzufügen (nicht nur hardcodierte Liste)
+  for (const def of defs) {
+    const filterValue = builtin[def.metaKey]
+    if (filterValue !== undefined && filterValue !== null) {
+      mongo[def.metaKey] = filterValue
+    }
+  }
 
   return { normalized, pinecone, mongo }
 }

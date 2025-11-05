@@ -22,6 +22,24 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
 import { FacetDefsEditor } from '@/components/settings/FacetDefsEditor'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  TARGET_LANGUAGE_ZOD_ENUM,
+  TARGET_LANGUAGE_DEFAULT,
+  TARGET_LANGUAGE_VALUES,
+  TARGET_LANGUAGE_LABELS,
+  CHARACTER_ZOD_ENUM,
+  CHARACTER_DEFAULT,
+  CHARACTER_VALUES,
+  CHARACTER_LABELS,
+  SOCIAL_CONTEXT_ZOD_ENUM,
+  SOCIAL_CONTEXT_DEFAULT,
+  SOCIAL_CONTEXT_VALUES,
+  SOCIAL_CONTEXT_LABELS,
+  isValidSocialContext,
+  isValidCharacter,
+  isValidTargetLanguage,
+  type TargetLanguage,
+} from '@/lib/chat/constants'
 
 // Zod-Schema für Chat-Konfiguration
 const chatFormSchema = z.object({
@@ -47,39 +65,24 @@ const chatFormSchema = z.object({
   }).optional(),
   targetLanguage: z.preprocess(
     (val) => {
-      if (val === '' || val === undefined || val === null) return 'de'
+      if (val === '' || val === undefined || val === null) return TARGET_LANGUAGE_DEFAULT
       return val
     },
-    z.enum(['de', 'en', 'it', 'fr', 'es', 'ar']).default('de')
+    TARGET_LANGUAGE_ZOD_ENUM.default(TARGET_LANGUAGE_DEFAULT)
   ),
   character: z.preprocess(
     (val) => {
-      if (val === '' || val === undefined || val === null) return 'developer'
+      if (val === '' || val === undefined || val === null) return CHARACTER_DEFAULT
       return val
     },
-    z.enum([
-      'developer',
-      'technical',
-      'open-source',
-      'scientific',
-      'eco-social',
-      'social',
-      'civic',
-      'policy',
-      'cultural',
-      'business',
-      'entrepreneurial',
-      'legal',
-      'educational',
-      'creative',
-    ]).default('developer')
+    CHARACTER_ZOD_ENUM.default(CHARACTER_DEFAULT)
   ),
   socialContext: z.preprocess(
     (val) => {
-      if (val === '' || val === undefined || val === null) return 'popular'
+      if (val === '' || val === undefined || val === null) return SOCIAL_CONTEXT_DEFAULT
       return val
     },
-    z.enum(['scientific', 'popular', 'youth', 'senior']).default('popular')
+    SOCIAL_CONTEXT_ZOD_ENUM.default(SOCIAL_CONTEXT_DEFAULT)
   ),
   gallery: z.object({
     detailViewType: z.preprocess(
@@ -148,9 +151,9 @@ export function ChatForm() {
       features: { citations: true, streaming: true },
       rateLimit: { windowSec: 60, max: 30 },
       vectorStore: { indexOverride: undefined },
-      targetLanguage: 'de',
-      character: 'developer',
-      socialContext: 'popular',
+      targetLanguage: TARGET_LANGUAGE_DEFAULT,
+      character: CHARACTER_DEFAULT,
+      socialContext: SOCIAL_CONTEXT_DEFAULT,
       gallery: { 
         detailViewType: 'book',
         facets: [
@@ -203,50 +206,33 @@ export function ChatForm() {
       }
       
       // Explizite Prüfung für targetLanguage
-      let finalTargetLanguage: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar' = 'de'
+      let finalTargetLanguage: typeof TARGET_LANGUAGE_DEFAULT = TARGET_LANGUAGE_DEFAULT
       const targetLanguageVal = c.targetLanguage
-      if (targetLanguageVal === 'de' || targetLanguageVal === 'en' || targetLanguageVal === 'it' || targetLanguageVal === 'fr' || targetLanguageVal === 'es' || targetLanguageVal === 'ar') {
+      if (isValidTargetLanguage(targetLanguageVal)) {
         finalTargetLanguage = targetLanguageVal
         console.log('[ChatForm] ✅ Setze targetLanguage auf:', finalTargetLanguage)
       } else {
-        console.log('[ChatForm] ⚠️ Unbekannter targetLanguage:', targetLanguageVal, '- verwende default: de')
+        console.log('[ChatForm] ⚠️ Unbekannter targetLanguage:', targetLanguageVal, '- verwende default:', TARGET_LANGUAGE_DEFAULT)
       }
       
       // Explizite Prüfung für character
-      const validCharacters = [
-        'developer',
-        'technical',
-        'open-source',
-        'scientific',
-        'eco-social',
-        'social',
-        'civic',
-        'policy',
-        'cultural',
-        'business',
-        'entrepreneurial',
-        'legal',
-        'educational',
-        'creative',
-      ] as const
-      type ValidCharacter = typeof validCharacters[number]
-      let finalCharacter: ValidCharacter = 'developer'
+      let finalCharacter: typeof CHARACTER_DEFAULT = CHARACTER_DEFAULT
       const characterVal = c.character
-      if (characterVal && validCharacters.includes(characterVal as ValidCharacter)) {
-        finalCharacter = characterVal as ValidCharacter
+      if (isValidCharacter(characterVal)) {
+        finalCharacter = characterVal
         console.log('[ChatForm] ✅ Setze character auf:', finalCharacter)
       } else {
-        console.log('[ChatForm] ⚠️ Unbekannter character:', characterVal, '- verwende default: developer')
+        console.log('[ChatForm] ⚠️ Unbekannter character:', characterVal, '- verwende default:', CHARACTER_DEFAULT)
       }
       
       // Explizite Prüfung für socialContext
-      let finalSocialContext: 'scientific' | 'popular' | 'youth' | 'senior' = 'popular'
+      let finalSocialContext: typeof SOCIAL_CONTEXT_DEFAULT = SOCIAL_CONTEXT_DEFAULT
       const socialContextVal = c.socialContext
-      if (socialContextVal === 'scientific' || socialContextVal === 'popular' || socialContextVal === 'youth' || socialContextVal === 'senior') {
+      if (isValidSocialContext(socialContextVal)) {
         finalSocialContext = socialContextVal
         console.log('[ChatForm] ✅ Setze socialContext auf:', finalSocialContext)
       } else {
-        console.log('[ChatForm] ⚠️ Unbekannter socialContext:', socialContextVal, '- verwende default: popular')
+        console.log('[ChatForm] ⚠️ Unbekannter socialContext:', socialContextVal, '- verwende default:', SOCIAL_CONTEXT_DEFAULT)
       }
       
       form.reset({
@@ -588,12 +574,12 @@ export function ChatForm() {
               control={form.control}
               name="targetLanguage"
               render={({ field }) => {
-                const currentValue = field.value || 'de'
+                const currentValue = field.value || TARGET_LANGUAGE_DEFAULT
                 return (
                   <FormItem>
                     <FormLabel>Zielsprache</FormLabel>
                     <Select value={currentValue} onValueChange={(value) => {
-                      if (value === 'de' || value === 'en' || value === 'it' || value === 'fr' || value === 'es' || value === 'ar') {
+                      if (TARGET_LANGUAGE_VALUES.includes(value as typeof TARGET_LANGUAGE_VALUES[number])) {
                         field.onChange(value)
                       }
                     }}>
@@ -603,12 +589,11 @@ export function ChatForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="de">Deutsch</SelectItem>
-                        <SelectItem value="en">Englisch</SelectItem>
-                        <SelectItem value="it">Italienisch</SelectItem>
-                        <SelectItem value="fr">Französisch</SelectItem>
-                        <SelectItem value="es">Spanisch</SelectItem>
-                        <SelectItem value="ar">Arabisch</SelectItem>
+                        {TARGET_LANGUAGE_VALUES.map((lang) => (
+                          <SelectItem key={lang} value={lang}>
+                            {TARGET_LANGUAGE_LABELS[lang]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormDescription>Sprache, in der der Chat antwortet.</FormDescription>
@@ -621,28 +606,12 @@ export function ChatForm() {
               control={form.control}
               name="character"
               render={({ field }) => {
-                const currentValue = field.value || 'developer'
+                const currentValue = field.value || CHARACTER_DEFAULT
                 return (
                   <FormItem>
                     <FormLabel>Charakter/Perspektive</FormLabel>
                     <Select value={currentValue} onValueChange={(value) => {
-                      const validCharacters = [
-                        'developer',
-                        'technical',
-                        'open-source',
-                        'scientific',
-                        'eco-social',
-                        'social',
-                        'civic',
-                        'policy',
-                        'cultural',
-                        'business',
-                        'entrepreneurial',
-                        'legal',
-                        'educational',
-                        'creative',
-                      ]
-                      if (validCharacters.includes(value)) {
+                      if (CHARACTER_VALUES.includes(value as typeof CHARACTER_VALUES[number])) {
                         field.onChange(value)
                       }
                     }}>
@@ -652,23 +621,11 @@ export function ChatForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {/* Knowledge & Innovation */}
-                        <SelectItem value="developer">Developer-orientiert</SelectItem>
-                        <SelectItem value="technical">Technisch-orientiert</SelectItem>
-                        <SelectItem value="open-source">Open-Source-spezifisch</SelectItem>
-                        <SelectItem value="scientific">Naturwissenschaftlich</SelectItem>
-                        {/* Society & Impact */}
-                        <SelectItem value="eco-social">Ökosozial-orientiert</SelectItem>
-                        <SelectItem value="social">Sozial-orientiert</SelectItem>
-                        <SelectItem value="civic">Bürgerschaftlich-orientiert</SelectItem>
-                        <SelectItem value="policy">Politikwissenschaftlich-orientiert</SelectItem>
-                        <SelectItem value="cultural">Kulturell-orientiert</SelectItem>
-                        {/* Economy & Practice */}
-                        <SelectItem value="business">Business-orientiert</SelectItem>
-                        <SelectItem value="entrepreneurial">Unternehmerisch-orientiert</SelectItem>
-                        <SelectItem value="legal">Rechtskundespezifisch</SelectItem>
-                        <SelectItem value="educational">Bildungswissenschaftlich-orientiert</SelectItem>
-                        <SelectItem value="creative">Kreativ-orientiert</SelectItem>
+                        {CHARACTER_VALUES.map((char) => (
+                          <SelectItem key={char} value={char}>
+                            {CHARACTER_LABELS[char]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormDescription>Perspektive, aus der Antworten formuliert werden.</FormDescription>
@@ -681,12 +638,12 @@ export function ChatForm() {
               control={form.control}
               name="socialContext"
               render={({ field }) => {
-                const currentValue = field.value || 'popular'
+                const currentValue = field.value || SOCIAL_CONTEXT_DEFAULT
                 return (
                   <FormItem>
                     <FormLabel>Sozialer Kontext/Sprachebene</FormLabel>
                     <Select value={currentValue} onValueChange={(value) => {
-                      if (value === 'scientific' || value === 'popular' || value === 'youth' || value === 'senior') {
+                      if (SOCIAL_CONTEXT_VALUES.includes(value as typeof SOCIAL_CONTEXT_VALUES[number])) {
                         field.onChange(value)
                       }
                     }}>
@@ -696,10 +653,11 @@ export function ChatForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="scientific">Wissenschaftlich</SelectItem>
-                        <SelectItem value="popular">Populär</SelectItem>
-                        <SelectItem value="youth">Jugendlich</SelectItem>
-                        <SelectItem value="senior">Seniorengerecht</SelectItem>
+                        {SOCIAL_CONTEXT_VALUES.map((ctx) => (
+                          <SelectItem key={ctx} value={ctx}>
+                            {SOCIAL_CONTEXT_LABELS[ctx]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormDescription>Sprachstil und Komplexität der Antworten.</FormDescription>

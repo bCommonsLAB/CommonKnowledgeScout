@@ -1,5 +1,5 @@
 import { buildPrompt, getSourceDescription } from '@/lib/chat/common/prompt'
-import { callOpenAI, parseStructuredLLMResponse } from '@/lib/chat/common/llm'
+import { callOpenAI, parseStructuredLLMResponse, parseOpenAIResponseWithUsage } from '@/lib/chat/common/llm'
 import { getBaseBudget, reduceBudgets } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog } from '@/lib/logging/query-logger'
 import type { RetrieverInput, RetrieverOutput } from '@/types/retriever'
@@ -12,6 +12,10 @@ export interface OrchestratorInput extends RetrieverInput {
   retriever: 'chunk' | 'summary'
   chatConfig?: NormalizedChatConfig
   chatHistory?: Array<{ question: string; answer: string }>
+  facetsSelected?: Record<string, unknown>  // Facetten-Filter für Prompt
+  facetDefs?: Array<{ metaKey: string; label?: string; type: string }>  // Facetten-Definitionen für Prompt
+  onStatusUpdate?: (message: string) => void
+  onProcessingStep?: (step: import('@/types/chat-processing').ChatProcessingStep) => void
 }
 
 export interface OrchestratorOutput {
@@ -21,6 +25,9 @@ export interface OrchestratorOutput {
   suggestedQuestions: string[]
   retrievalMs: number
   llmMs: number
+  promptTokens?: number
+  completionTokens?: number
+  totalTokens?: number
 }
 
 export async function runChatOrchestrated(run: OrchestratorInput): Promise<OrchestratorOutput> {
@@ -31,7 +38,9 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   const stepLevel = run.retriever === 'summary' ? 'summary' : 'chunk' as const
   // Hinweis: Summary-Flow loggt den list-Step bereits innerhalb des Retrievers mit candidatesCount/usedInPrompt/decision.
   // Für den Chunk-Flow behalten wir das Query-Logging hier bei.
+  run.onStatusUpdate?.('Suche nach relevanten Quellen...')
   const { sources, stats } = await retrieverImpl.retrieve(run)
+  run.onStatusUpdate?.(`${sources.length} Quellen gefunden`)
   if (run.retriever !== 'summary') {
     let step = markStepStart({ indexName: run.context.vectorIndex, namespace: '', stage: 'query', level: stepLevel })
     step = markStepEnd(step)
@@ -44,12 +53,23 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     return { answer: 'Keine passenden Inhalte gefunden', sources: [], references: [], suggestedQuestions: [], retrievalMs, llmMs: 0 }
   }
 
+  // Sende retrieval_complete direkt nach dem Retrieval
+  run.onProcessingStep?.({
+    type: 'retrieval_complete',
+    sourcesCount: sources.length,
+    timingMs: retrievalMs,
+  })
+
   const promptAnswerLength = (run.answerLength === 'unbegrenzt' ? 'ausführlich' : run.answerLength)
+  run.onStatusUpdate?.('Erstelle Prompt...')
   let prompt = buildPrompt(run.question, sources, promptAnswerLength, {
     targetLanguage: run.chatConfig?.targetLanguage,
     character: run.chatConfig?.character,
     socialContext: run.chatConfig?.socialContext,
+    genderInclusive: run.chatConfig?.genderInclusive,
     chatHistory: run.chatHistory,
+    filters: run.facetsSelected,
+    facetDefs: run.facetDefs,
   })
   // Hinweis nur für Chunk-Modus: Im Summary-Modus werden alle Dokumente übernommen
   if (run.retriever !== 'summary' && stats && typeof stats.candidatesCount === 'number' && typeof stats.usedInPrompt === 'number' && stats.usedInPrompt < stats.candidatesCount) {
@@ -60,10 +80,24 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.3)
   const apiKey = process.env.OPENAI_API_KEY || ''
   await logSetPrompt(run.queryId, { provider: 'openai', model, temperature, prompt })
+  
+  // Sende prompt_complete direkt nach dem Prompt-Building
+  const { estimateTokensFromText } = await import('@/lib/chat/common/budget')
+  run.onProcessingStep?.({
+    type: 'prompt_complete',
+    promptLength: prompt.length,
+    documentsUsed: sources.length,
+    tokenCount: estimateTokensFromText(prompt),
+  })
 
   const tL0 = Date.now()
+  run.onStatusUpdate?.('Generiere Antwort...')
   let res = await callOpenAI({ model, temperature, prompt, apiKey })
   let raw = ''
+  let promptTokens: number | undefined = undefined
+  let completionTokens: number | undefined = undefined
+  let totalTokens: number | undefined = undefined
+  
   if (!res.ok) {
     const text = await res.text()
     const tooLong = text.includes('maximum context length') || res.status === 400
@@ -81,24 +115,49 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
           targetLanguage: run.chatConfig?.targetLanguage,
           character: run.chatConfig?.character,
           socialContext: run.chatConfig?.socialContext,
+          genderInclusive: run.chatConfig?.genderInclusive,
           chatHistory: run.chatHistory,
+          filters: run.facetsSelected,
+          facetDefs: run.facetDefs,
         })
         res = await callOpenAI({ model, temperature, prompt: p2, apiKey })
-        if (res.ok) { retried = true; raw = await res.text(); break }
+        if (res.ok) { 
+          retried = true
+          const result = await parseOpenAIResponseWithUsage(res)
+          raw = result.raw
+          promptTokens = result.promptTokens
+          completionTokens = result.completionTokens
+          totalTokens = result.totalTokens
+          break 
+        }
       }
       if (!retried) throw new Error(`OpenAI Chat Fehler: ${res.status} ${text.slice(0, 200)}`)
     } else {
       throw new Error(`OpenAI Chat Fehler: ${res.status} ${text.slice(0, 200)}`)
     }
   } else {
-    raw = await res.text()
+    const result = await parseOpenAIResponseWithUsage(res)
+    raw = result.raw
+    promptTokens = result.promptTokens
+    completionTokens = result.completionTokens
+    totalTokens = result.totalTokens
   }
   
   // Parse strukturierte Response (answer, suggestedQuestions, usedReferences)
+  run.onStatusUpdate?.('Verarbeite Antwort...')
   const parsed = parseStructuredLLMResponse(raw)
   const { answer, suggestedQuestions, usedReferences } = parsed
   
   const llmMs = Date.now() - tL0
+  
+  // Sende llm_complete direkt nach dem LLM-Aufruf
+  run.onProcessingStep?.({
+    type: 'llm_complete',
+    timingMs: llmMs,
+    promptTokens,
+    completionTokens,
+    totalTokens,
+  })
 
   // Generiere vollständige Referenzen-Liste aus sources (für Mapping)
   const allReferences: ChatResponse['references'] = sources.map((s, index) => {
@@ -121,10 +180,13 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     sources: sources.map(s => ({ id: s.id, fileName: s.fileName, chunkIndex: s.chunkIndex, score: s.score })),
     references,
     suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : [],
-    timing: { retrievalMs, llmMs, totalMs: undefined }
+    timing: { retrievalMs, llmMs, totalMs: undefined },
+    tokenUsage: promptTokens !== undefined || completionTokens !== undefined || totalTokens !== undefined
+      ? { promptTokens, completionTokens, totalTokens }
+      : undefined
   })
 
-  return { answer, sources, references, suggestedQuestions, retrievalMs, llmMs }
+  return { answer, sources, references, suggestedQuestions, retrievalMs, llmMs, promptTokens, completionTokens, totalTokens }
 }
 
 

@@ -5,6 +5,7 @@
 
 import { ReactNode } from 'react';
 import type { Character } from './character';
+import type { SocialContext } from '@/lib/chat/constants';
 
 /**
  * Supported storage provider types.
@@ -79,7 +80,18 @@ export interface LibraryChatConfig {
   character?: Character;
 
   /** Sozialer Kontext/Sprachebene */
-  socialContext?: 'scientific' | 'popular' | 'youth' | 'senior';
+  socialContext?: SocialContext;
+
+  /** Gendergerechte Formulierung aktivieren/deaktivieren */
+  genderInclusive?: boolean;
+
+  /** Benutzer-Präferenzen für Chat-Einstellungen (werden beim Start gespeichert) */
+  userPreferences?: {
+    targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar';
+    character?: Character;
+    socialContext?: SocialContext;
+    genderInclusive?: boolean;
+  };
 }
 
 /**

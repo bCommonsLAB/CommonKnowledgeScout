@@ -16,6 +16,8 @@ export interface QuestionAnalysisResult {
   suggestedQuestionSummary?: string
   /** Erklärung für den Benutzer (benutzerfreundlich formuliert) */
   explanation: string
+  /** Chat-Titel basierend auf der Frage (max. ~60 Zeichen, prägnant und beschreibend) */
+  chatTitle?: string
 }
 
 /**
@@ -28,6 +30,7 @@ const questionAnalysisSchema = z.object({
   suggestedQuestionChunk: z.string().optional(),
   suggestedQuestionSummary: z.string().optional(),
   explanation: z.string().min(20),
+  chatTitle: z.string().max(60).optional(), // Chat-Titel basierend auf der Frage (max. 60 Zeichen)
 })
 
 /**
@@ -63,11 +66,13 @@ Es gibt zwei Retrieval-Modi:
 - suggestedQuestionChunk: Nur wenn recommendation='unclear', eine präzisierte Frage für Chunk-Modus
 - suggestedQuestionSummary: Nur wenn recommendation='unclear', eine präzisierte Frage für Summary-Modus
 - explanation: Benutzerfreundliche Erklärung (mindestens 20 Zeichen), warum dieser Modus empfohlen wird oder was unklar ist
+- chatTitle: Ein prägnanter Chat-Titel basierend auf der Frage (max. 60 Zeichen). Sollte das Hauptthema oder die Intention der Frage widerspiegeln. Beispiel: "Wie funktioniert X?" → "Funktionsweise von X" oder "Was sind die Hauptthemen?" → "Hauptthemen Übersicht"
 
 **Wichtig:**
 - Wenn recommendation='unclear', MUSS mindestens eine der suggestedQuestion-Felder ausgefüllt sein
 - Die explanation sollte für den Benutzer verständlich sein, nicht technisch
-- Bei 'unclear' sollten beide Frage-Vorschläge helfen, die ursprüngliche Intention zu klären`
+- Bei 'unclear' sollten beide Frage-Vorschläge helfen, die ursprüngliche Intention zu klären
+- chatTitle sollte immer vorhanden sein und maximal 60 Zeichen lang sein. Verwende prägnante, beschreibende Titel ohne Anführungszeichen.`
 
 /**
  * Analysiert eine Benutzerfrage und bestimmt den optimalen Retriever-Modus
@@ -149,6 +154,18 @@ export async function analyzeQuestionForRetriever(
       // Fallback: Erstelle generische Vorschläge
       validated.suggestedQuestionChunk = `Gib mir Details zu: ${question}`
       validated.suggestedQuestionSummary = `Gib mir einen Überblick über: ${question}`
+    }
+  }
+
+  // Fallback für Chat-Titel: Falls nicht generiert, erstelle einen basierend auf der Frage
+  if (!validated.chatTitle || validated.chatTitle.trim().length === 0) {
+    // Erstelle einen prägnanten Titel aus der Frage (max. 60 Zeichen)
+    const trimmedQuestion = question.trim()
+    if (trimmedQuestion.length <= 60) {
+      validated.chatTitle = trimmedQuestion
+    } else {
+      // Kürze die Frage auf max. 57 Zeichen und füge "..." hinzu
+      validated.chatTitle = trimmedQuestion.slice(0, 57) + '...'
     }
   }
 

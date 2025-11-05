@@ -13,6 +13,7 @@ import { pdfOverridesAtom, getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { TransformService, type PdfTransformOptions } from "@/lib/transform/transform-service";
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
+import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants";
 
 interface PhaseStepperProps {
   statuses?: { p1?: "completed" | "in_progress" | "failed" | "pending"; p2?: "completed" | "in_progress" | "failed" | "pending"; p3?: "completed" | "in_progress" | "failed" | "pending" };
@@ -38,8 +39,8 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
     if (!provider || !activeLibraryId || !item || item.type !== 'file') return null;
     const defaults = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
     const base: PdfTransformOptions = {
-      targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de',
-      fileName: TransformService.generateShadowTwinName(item.metadata.name, typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de'),
+      targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT,
+      fileName: TransformService.generateShadowTwinName(item.metadata.name, typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT),
       createShadowTwin: true,
       fileExtension: 'md',
       extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native',

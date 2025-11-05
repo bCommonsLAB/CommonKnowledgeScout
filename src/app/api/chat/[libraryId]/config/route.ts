@@ -42,6 +42,8 @@ export async function GET(
         targetLanguage: ctx.chat.targetLanguage,
         character: ctx.chat.character,
         socialContext: ctx.chat.socialContext,
+        genderInclusive: ctx.chat.genderInclusive,
+        userPreferences: ctx.chat.userPreferences,
       },
       vectorIndex: ctx.vectorIndex,
     }

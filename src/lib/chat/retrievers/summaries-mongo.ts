@@ -131,6 +131,10 @@ export const summariesMongoRetriever: ChatRetriever = {
       candidatesCount: items.length,
       usedInPrompt: sources.length,
       decision: mode,
+      filtersEffective: {
+        normalized: input.filters || {},
+        pinecone: input.filters || {}, // Für MongoDB-Retriever sind normalized und pinecone identisch
+      },
     })
 
     return { sources, timing: { retrievalMs: Date.now() - t0 }, stats: { candidatesCount: items.length, usedInPrompt: sources.length, decision: mode } }

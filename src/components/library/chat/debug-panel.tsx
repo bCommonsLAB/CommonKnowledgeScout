@@ -6,6 +6,7 @@ import { DebugStepTable } from './debug-step-table'
 import { DebugTrace } from './debug-trace'
 import { computeKpis, hasFilterDiff } from '@/lib/chat/debug-stats'
 import { useMemo } from 'react'
+import { ANSWER_LENGTH_LABELS, RETRIEVER_LABELS } from '@/lib/chat/constants'
 
 export function DebugPanel({ log }: { log: QueryLog }) {
   const kpis = useMemo(() => computeKpis(log), [log])
@@ -22,21 +23,13 @@ export function DebugPanel({ log }: { log: QueryLog }) {
   // Hilfsfunktion für Retriever-Label
   function getRetrieverLabel(retriever?: string): string {
     if (!retriever) return '-'
-    if (retriever === 'chunk') return 'Chunk (spezifisch)'
-    if (retriever === 'doc' || retriever === 'summary') return 'Summary (Übersicht)'
-    return retriever
+    return RETRIEVER_LABELS[retriever as keyof typeof RETRIEVER_LABELS] || retriever
   }
 
   // Hilfsfunktion für Antwortlänge-Label
   function getAnswerLengthLabel(answerLength?: string): string {
     if (!answerLength) return '-'
-    const labels: Record<string, string> = {
-      'kurz': 'Kurz',
-      'mittel': 'Mittel',
-      'ausführlich': 'Ausführlich',
-      'unbegrenzt': 'Unbegrenzt',
-    }
-    return labels[answerLength] || answerLength
+    return ANSWER_LENGTH_LABELS[answerLength as keyof typeof ANSWER_LENGTH_LABELS] || answerLength
   }
 
   // Prüft ob Empfehlung mit verwendetem Retriever übereinstimmt

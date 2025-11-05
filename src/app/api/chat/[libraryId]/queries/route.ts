@@ -17,7 +17,8 @@ export async function GET(
     const url = new URL(request.url)
     const limitRaw = url.searchParams.get('limit')
     const limit = limitRaw ? Number(limitRaw) : 20
-    const items = await listRecentQueries({ libraryId, userEmail, limit })
+    const chatId = url.searchParams.get('chatId') // Optional: Filter nach chatId
+    const items = await listRecentQueries({ libraryId, userEmail, chatId: chatId || undefined, limit })
     return NextResponse.json({ items })
   } catch (error) {
     // eslint-disable-next-line no-console

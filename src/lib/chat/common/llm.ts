@@ -5,6 +5,13 @@ export interface LlmCallArgs {
   apiKey: string
 }
 
+export interface LlmCallResult {
+  raw: string
+  promptTokens?: number
+  completionTokens?: number
+  totalTokens?: number
+}
+
 export async function callOpenAI({ model, temperature, prompt, apiKey }: LlmCallArgs): Promise<Response> {
   return fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -20,14 +27,27 @@ export async function callOpenAI({ model, temperature, prompt, apiKey }: LlmCall
   })
 }
 
-export async function parseOpenAIResponse(raw: string): Promise<string> {
-  const parsed: unknown = JSON.parse(raw)
-  if (parsed && typeof parsed === 'object') {
-    const p = parsed as { choices?: Array<{ message?: { content?: unknown } }> }
-    const c = p.choices?.[0]?.message?.content
-    if (typeof c === 'string') return c
+/**
+ * Parst die OpenAI Response und extrahiert Token-Informationen
+ */
+export async function parseOpenAIResponseWithUsage(response: Response): Promise<LlmCallResult> {
+  const raw = await response.text()
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object') {
+      const p = parsed as { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }
+      const usage = p.usage
+      return {
+        raw,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+        totalTokens: usage?.total_tokens,
+      }
+    }
+  } catch {
+    // Bei Parse-Fehler trotzdem raw zurückgeben
   }
-  throw new Error('OpenAI Chat Parse Fehler')
+  return { raw }
 }
 
 /**

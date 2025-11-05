@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       }
     }
 
-    const items = await findDocs(libraryKey, libraryId, filter, { limit: 200, sort: { upsertedAt: -1 } })
+    const items = await findDocs(libraryKey, libraryId, filter, { limit: 200, sort: { year: -1, upsertedAt: -1 } })
     return NextResponse.json({ items }, { status: 200 })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'

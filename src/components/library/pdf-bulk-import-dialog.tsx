@@ -24,6 +24,7 @@ import { loadPdfDefaults } from '@/lib/pdf-defaults';
 import { pdfOverridesAtom, getEffectivePdfDefaults } from '@/atoms/pdf-defaults';
 import { PdfPhaseSettings } from '@/components/library/pdf-phase-settings';
 import { Settings } from 'lucide-react';
+import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants';
 
 interface PdfBulkImportDialogProps {
   open: boolean;
@@ -109,7 +110,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
 
         const base = getBaseName(file.metadata.name);
         const defaults = activeLibraryId ? loadPdfDefaults(activeLibraryId) : {};
-        const lang = (defaults as { targetLanguage?: string }).targetLanguage || 'de';
+        const lang = (defaults as { targetLanguage?: string }).targetLanguage || TARGET_LANGUAGE_DEFAULT;
         // Batch-Scan soll auch bei Phase 1+2 ohne vorhandenen Twin zulassen → kein Twin-Zwang hier
         const requireTwin = false;
         if (requireTwin && !hasTwinInFolder(items, base, lang)) {
@@ -195,7 +196,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         libraryId: activeLibraryId,
         batchName: (batchName || '').trim() || undefined,
         options: {
-          targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : 'de',
+          targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT,
           extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native',
           includeImages: defaults.includeImages ?? false,
           useCache: defaults.useCache ?? true,

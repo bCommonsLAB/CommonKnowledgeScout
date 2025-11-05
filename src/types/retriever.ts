@@ -1,8 +1,10 @@
+import type { AnswerLength } from '@/lib/chat/constants'
+
 export interface RetrieverInput {
   libraryId: string
   userEmail: string
   question: string
-  answerLength: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'
+  answerLength: AnswerLength
   filters: Record<string, unknown>
   queryId: string
   context: {

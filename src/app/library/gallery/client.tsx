@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAtom, useAtomValue } from 'jotai'
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
@@ -9,8 +10,11 @@ import { FileLogger } from '@/lib/debug/logger'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { X, FileText, Calendar, User, MapPin, ExternalLink, Filter, ChevronLeft, MessageSquare, LayoutGrid, BookOpen } from 'lucide-react'
+import { X, FileText, Calendar, User, MapPin, ExternalLink, Filter, ChevronLeft, MessageSquare, LayoutGrid, BookOpen, Feather } from 'lucide-react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { FilterContextBar } from '@/components/library/filter-context-bar'
 import { ChatPanel } from '@/components/library/chat/chat-panel'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
@@ -179,6 +183,8 @@ function SpeakerIcon({ name, imageUrl }: { name: string; imageUrl?: string }) {
 }
 
 export default function GalleryClient() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const libraryId = useAtomValue(activeLibraryIdAtom)
   const libraries = useAtomValue(librariesAtom)
   const [docs, setDocs] = useState<DocCardMeta[]>([])
@@ -186,9 +192,6 @@ export default function GalleryClient() {
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<DetailDoc | null>(null)
   const [showFilters, setShowFilters] = useState(false)
-  const [showFilterPanel, setShowFilterPanel] = useState(true)
-  const [showChatPanel, setShowChatPanel] = useState(true)
-  const [showGalleryPanel, setShowGalleryPanel] = useState(true)
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [showReferenceLegend, setShowReferenceLegend] = useState(false)
   const chatReferences = useAtomValue(chatReferencesAtom)
@@ -201,6 +204,46 @@ export default function GalleryClient() {
   const [sessionUrl, setSessionUrl] = useState<string | undefined>(undefined)
   const [, setSessionTitle] = useState<string | undefined>(undefined)
   const [sessionData, setSessionData] = useState<SessionDetailData | undefined>(undefined)
+  // Suchfeld-Query (nur im Gallery-Modus)
+  const [searchQuery, setSearchQuery] = useState('')
+  
+  // State für Mobile/Desktop-Erkennung
+  const [isMobile, setIsMobile] = useState(false)
+  
+  useEffect(() => {
+    // Prüfe Bildschirmgröße beim Mount und bei Resize
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Modus-State: 'gallery' oder 'story'
+  const modeParam = searchParams?.get('mode')
+  const mode = (modeParam === 'story' ? 'story' : 'gallery') as 'gallery' | 'story'
+  
+  // Debug-Logging
+  useEffect(() => {
+    console.log('[Gallery] Mode Debug:', {
+      modeParam,
+      mode,
+      searchParams: searchParams?.toString(),
+      url: typeof window !== 'undefined' ? window.location.href : 'N/A'
+    })
+  }, [modeParam, mode, searchParams])
+  
+  // Funktion zum Wechseln des Modus
+  const setMode = (newMode: 'gallery' | 'story') => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    if (newMode === 'story') {
+      params.set('mode', 'story')
+    } else {
+      params.delete('mode')
+    }
+    router.push(`/library/gallery${params.toString() ? `?${params.toString()}` : ''}`)
+  }
 
   // Hinweis: libraries derzeit ungenutzt – bewusst markiert
   void libraries
@@ -460,245 +503,285 @@ export default function GalleryClient() {
     return Array.isArray(arr) && arr.length > 0
   })
 
-  // Filtere Dokumente nach fileId (wenn Filter gesetzt)
+  // Filtere Dokumente nach fileId (wenn Filter gesetzt) und Suchfeld, gruppiere nach Jahrgang
   const filteredDocs = useMemo(() => {
     const fileIdFilter = filters.fileId
-    if (!fileIdFilter || !Array.isArray(fileIdFilter) || fileIdFilter.length === 0) {
-      return docs
+    let result = docs
+    
+    // Filtere nach fileId (wenn Filter gesetzt)
+    if (fileIdFilter && Array.isArray(fileIdFilter) && fileIdFilter.length > 0) {
+      result = docs.filter(d => fileIdFilter.includes(d.fileId || '') || fileIdFilter.includes(d.id || ''))
     }
-    return docs.filter(d => fileIdFilter.includes(d.fileId || '') || fileIdFilter.includes(d.id || ''))
-  }, [docs, filters])
+    
+    // Filtere nach Suchfeld (nur im Gallery-Modus)
+    if (mode === 'gallery' && searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      result = result.filter(doc => {
+        // Suche in Titel
+        const titleMatch = doc.title?.toLowerCase().includes(query) || doc.shortTitle?.toLowerCase().includes(query)
+        // Suche in Speaker-Namen
+        const speakerMatch = doc.speakers?.some(speaker => speaker.toLowerCase().includes(query))
+        // Suche in Author-Namen
+        const authorMatch = doc.authors?.some(author => author.toLowerCase().includes(query))
+        // Suche in Topics (falls vorhanden)
+        // Hinweis: Topics könnten in einem separaten Feld sein, hier nur die verfügbaren Felder durchsuchen
+        return titleMatch || speakerMatch || authorMatch
+      })
+    }
+    
+    // Gruppiere nach Jahrgang und sortiere
+    // 1. Sortiere zuerst nach Jahrgang (absteigend - neueste zuerst), dann nach upsertedAt (absteigend)
+    result = [...result].sort((a, b) => {
+      // Jahrgang-Vergleich (neueste zuerst)
+      const yearA = a.year ? (typeof a.year === 'string' ? parseInt(a.year, 10) : a.year) : 0
+      const yearB = b.year ? (typeof b.year === 'string' ? parseInt(b.year, 10) : b.year) : 0
+      if (yearA !== yearB) {
+        return yearB - yearA // Absteigend: neueste zuerst
+      }
+      
+      // Innerhalb des gleichen Jahrgangs: nach upsertedAt sortieren (neueste zuerst)
+      const dateA = a.upsertedAt ? new Date(a.upsertedAt).getTime() : 0
+      const dateB = b.upsertedAt ? new Date(b.upsertedAt).getTime() : 0
+      return dateB - dateA // Absteigend: neueste zuerst
+    })
+    
+    return result
+  }, [docs, filters, mode, searchQuery])
+  
+  // Gruppiere Dokumente nach Jahrgang für die Anzeige
+  const docsByYear = useMemo(() => {
+    const grouped = new Map<number | string, DocCardMeta[]>()
+    for (const doc of filteredDocs) {
+      const year = doc.year || 'Ohne Jahrgang'
+      if (!grouped.has(year)) {
+        grouped.set(year, [])
+      }
+      grouped.get(year)!.push(doc)
+    }
+    // Sortiere Jahrgänge absteigend (neueste zuerst)
+    const sortedEntries = Array.from(grouped.entries()).sort((a, b) => {
+      const yearA = a[0] === 'Ohne Jahrgang' ? 0 : (typeof a[0] === 'string' ? parseInt(a[0], 10) : a[0])
+      const yearB = b[0] === 'Ohne Jahrgang' ? 0 : (typeof b[0] === 'string' ? parseInt(b[0], 10) : b[0])
+      return yearB - yearA
+    })
+    return sortedEntries
+  }, [filteredDocs])
+
+  // Funktion zum Zurücksetzen aller Filter
+  const handleClearFilters = () => {
+    // Wenn ein fileId-Filter gesetzt ist (Legenden-Modus), schließe auch die Legende
+    if (filters.fileId && Array.isArray(filters.fileId) && filters.fileId.length > 0) {
+      setShowReferenceLegend(false)
+    }
+    setFilters({} as Record<string, string[]>)
+  }
+
+  // Funktion zum Rendern des Dokumenten-Grids
+  const renderDocumentGrid = () => {
+    if (!libraryId) {
+      return <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
+    }
+    if (error) {
+      return <div className='text-sm text-destructive'>{error}</div>
+    }
+    if (loading) {
+      return <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
+    }
+    if (docs.length === 0) {
+                  return (
+        <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
+          <div>Keine Dokumente gefunden.</div>
+          <Button variant='secondary' onClick={handleClearFilters}>
+            Filter zurücksetzen
+                        </Button>
+                      </div>
+      )
+    }
+    if (filteredDocs.length === 0) {
+      return (
+                        <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
+          <div>Keine Dokumente entsprechen den aktuellen Filtern.</div>
+          <Button variant='secondary' onClick={handleClearFilters}>
+                            Filter zurücksetzen
+                          </Button>
+                        </div>
+      )
+    }
+    return (
+                        <div className='space-y-8'>
+                          {docsByYear.map(([year, yearDocs]) => (
+                            <div key={year}>
+                              <h3 className='text-lg font-semibold mb-4 pb-2 border-b'>
+                                {year === 'Ohne Jahrgang' ? 'Ohne Jahrgang' : `Jahrgang ${year}`}
+                              </h3>
+                              <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'>
+                                {yearDocs.map((pdf) => (
+                                  <Card
+                                    key={pdf.id}
+                                    className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20'
+                                    onClick={() => openDocDetail(pdf)}
+                                  >
+                                    <CardHeader className='relative'>
+                                      <div className='flex items-start justify-between'>
+                                        <SpeakerOrAuthorIcons doc={pdf} />
+                                        {pdf.year ? <Badge variant='secondary'>{String(pdf.year)}</Badge> : null}
+                                      </div>
+                                      <CardTitle className='text-lg line-clamp-2'>{pdf.shortTitle || pdf.title || pdf.fileName || 'Dokument'}</CardTitle>
+                                      <CardDescription className='line-clamp-2'>{pdf.title || pdf.fileName}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <div className='space-y-2'>
+                                        {Array.isArray(pdf.authors) && pdf.authors.length > 0 ? (
+                                          <div className='flex items-center text-sm text-muted-foreground'>
+                                            <User className='h-2.5 w-2.5 mr-2' />
+                                            <span className='line-clamp-1'>
+                                              {pdf.authors[0]}
+                                              {pdf.authors.length > 1 ? ` +${pdf.authors.length - 1} weitere` : ''}
+                                            </span>
+                                          </div>
+                                        ) : null}
+                                        {pdf.region ? (
+                                          <div className='flex items-center text-sm text-muted-foreground'>
+                                            <MapPin className='h-2.5 w-2.5 mr-2' />
+                                            <span>{pdf.region}</span>
+                                          </div>
+                                        ) : null}
+                                        {pdf.upsertedAt ? (
+                                          <div className='flex items-center text-sm text-muted-foreground'>
+                                            <Calendar className='h-2.5 w-2.5 mr-2' />
+                                            <span>{new Date(pdf.upsertedAt).toLocaleDateString('de-DE')}</span>
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+    )
+  }
 
   // Statusanzeigen werden im rechten Panel gerendert (keine frühen Returns),
   // damit der Facettenbereich immer sichtbar bleibt und Filter zurückgesetzt werden können.
 
   return (
     <div className='h-full overflow-hidden flex flex-col'>
-      <div className='mb-6 flex items-center justify-start gap-2 flex-shrink-0'>
-        <div className='flex items-center gap-1'>
-          <Button
-            variant={showFilterPanel ? 'default' : 'outline'}
-            size='icon'
-            className='h-7 w-7'
-            aria-pressed={showFilterPanel}
-            onClick={() => {
-              // Auf mobilen Geräten: Mobile Filter Sheet öffnen
-              if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                setShowFilters(true)
-              } else {
-                // Auf Desktop: Filter-Panel ein-/ausblenden
-                setShowFilterPanel(v => !v)
-              }
-            }}
-            title='Filter anzeigen/ausblenden'
-          >
-            <Filter className='h-3 w-3' />
-          </Button>
-          <Button
-            variant={showChatPanel ? 'default' : 'outline'}
-            size='icon'
-            className='h-7 w-7'
-            aria-pressed={showChatPanel}
-            onClick={() => setShowChatPanel(v => {
-              const next = !v
-              if (!next && !showGalleryPanel) return v
-              return next
-            })}
-            title='Chat anzeigen/ausblenden'
-          >
-            <MessageSquare className='h-3 w-3' />
-          </Button>
-          <Button
-            variant={showGalleryPanel ? 'default' : 'outline'}
-            size='icon'
-            className='h-7 w-7'
-            aria-pressed={showGalleryPanel}
-            onClick={() => setShowGalleryPanel(v => {
-              const next = !v
-              if (!next && !showChatPanel) return v
-              return next
-            })}
-            title='Galerie anzeigen/ausblenden'
-          >
-            <LayoutGrid className='h-3 w-3' />
-          </Button>
-        </div>
+      {/* Header mit dynamischem Titel */}
+      <div className='mb-4 flex items-center justify-between flex-shrink-0'>
         <div>
-          <div className='text-muted-foreground text-sm'>
-            {isFiltered
-              ? `Durchsuchen und befragen Sie ${docs.length.toLocaleString('de-DE')} gefilterten Dokumente`
-              : `Durchsuchen und befragen Sie ${docs.length.toLocaleString('de-DE')} Dokumente`}
-          </div>
+          <h1 className='text-2xl font-semibold'>
+            {mode === 'story' ? 'Story Mode' : 'Knowledge Gallery'}
+          </h1>
+          {mode === 'story' && (
+            <p className='text-sm text-muted-foreground mt-1'>
+              Wissen verstehen – aus deiner Perspektive
+            </p>
+          )}
+          {mode === 'story' && (
+            <p className='text-xs text-muted-foreground mt-2 max-w-2xl'>
+              Im Story Mode kannst du die Talks und Dokumente so betrachten, wie sie für dich relevant sind.
+              Wähle deine Sprache, Rolle und Kontext – und lass dir die Inhalte erzählen aus deiner Sichtweise.
+            </p>
+          )}
+          {mode === 'gallery' && (
+            <p className='text-sm text-muted-foreground mt-1'>
+              Sofortiges Verständnis: Übersicht über alles
+            </p>
+          )}
+          {mode === 'gallery' && (
+            <p className='text-xs text-muted-foreground mt-2 max-w-2xl'>
+              Durchsuche alle Talks, filtere nach Themen oder Jahren. 
+              Starte ein Gespräch im Story-Modus, um Fragen zu stellen und Zusammenhänge zu entdecken.
+            </p>
+                      )}
+                    </div>
+        <div className='flex items-center gap-2'>
+          {/* Filter-Button und Zurück-Button nur im Story-Modus oben */}
+          {mode === 'story' && (
+            <>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setShowFilters(true)}
+                className='flex items-center gap-2'
+              >
+                <Filter className='h-4 w-4' />
+                Filter
+              </Button>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setMode('gallery')}
+                className='flex items-center gap-2'
+              >
+                <ChevronLeft className='h-4 w-4' />
+                Zurück zur Gallery
+              </Button>
+            </>
+          )}
+          
+          {/* Suchfeld nur im Gallery-Modus */}
+          {mode === 'gallery' && (
+            <Input
+              type='text'
+              placeholder='Durchsuchen nach Titel, Speaker, Topics...'
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className='w-64'
+            />
+          )}
+          {/* Story-Button nur im Gallery-Modus */}
+          {mode === 'gallery' && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant='outline'
+                    onClick={() => setMode('story')}
+                    className='flex items-center gap-2'
+                  >
+                    <Feather className='h-4 w-4' />
+                    In Story Mode wechseln
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Entdecke Wissen neu: Der Story Mode erzählt die Talks aus deiner Sicht – in deiner Sprache und mit deinem Fokus.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
 
-      <TooltipProvider>
-        <div className='flex flex-col lg:flex-row gap-6 flex-1 min-h-0'>
-        {showFilterPanel ? (
-          <aside className='hidden lg:flex flex-col w-[16.666%] flex-shrink-0'>
-            <div className='rounded border p-3 space-y-3 overflow-y-auto overflow-x-hidden bg-background h-full'>
-              <div className='font-medium flex items-center gap-2'><Filter className='h-4 w-4' /> Filter</div>
-              <div className='grid gap-2'>
-                {facetDefs.filter(d => d).map(def => {
-                  const cols = (def as { columns?: number })?.columns || 1
-                  return (
-                    <div key={def.metaKey} className={cols === 2 ? 'grid grid-cols-2 gap-2' : ''}>
-                      <FacetGroup
-                        label={def.label || def.metaKey}
-                        options={def.options}
-                        selected={(filters as Record<string, string[] | undefined>)[def.metaKey] || []}
-                        onChange={(vals: string[]) => setFacet(def.metaKey, vals)}
-                      />
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </aside>
-        ) : null}
-
-        {showChatPanel && showGalleryPanel ? (
+      {/* Hauptinhalt je nach Modus */}
+      <div className='flex-1 min-h-0 overflow-hidden relative'>
+        {mode === 'story' ? (
+          /* Story-Modus: Chat prominent, Gallery nur auf Desktop oder als Overlay */
           <>
-            <section className="w-full lg:w-auto lg:flex-1 flex flex-col min-h-[40vh] lg:min-h-0 max-h-[50vh] lg:max-h-none">
-              <ChatPanel libraryId={libraryId} variant='compact' />
+            {/* Chat-Panel - immer sichtbar */}
+            <section className="w-full lg:w-1/2 flex flex-col min-h-0 h-full relative z-10">
+              <ChatPanel libraryId={libraryId} variant='default' />
             </section>
 
-            <section className="w-full lg:w-auto lg:flex-1 flex flex-col min-h-0 max-h-[50vh] lg:max-h-none" data-gallery-section>
-                  {/* Flex-Container mit fester Höhe für ScrollArea */}
-                  <div className="flex flex-col h-full min-h-0">
-                    {/* Legende und Verwendete Dokumente - außerhalb ScrollArea */}
-                    {showReferenceLegend && chatReferences.length > 0 && (
-                      <div className="mb-6 rounded border bg-muted/30 p-4 shrink-0">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-medium flex items-center gap-2">
-                          <BookOpen className="h-4 w-4" />
-                          Legende und Verwendete Dokumente
-                        </h3>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setShowReferenceLegend(false)
-                            setFilters({} as Record<string, string[]>)
-                          }}
-                          className="h-7 text-xs"
-                        >
-                          <X className="h-3 w-3 mr-1" />
-                          Schließen
-                        </Button>
-                      </div>
-                      
-                      {/* Legende: Nummer-Zuordnung */}
-                      <div>
-                        <div className="text-xs font-medium text-muted-foreground mb-2">Legende (Nummer → Dokument/Abschnitt):</div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-                          {chatReferences.map((ref) => (
-                            <div
-                              key={ref.number}
-                              className="flex items-start gap-2 text-xs p-2 rounded bg-background border hover:bg-muted/50"
-                            >
-                              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] shrink-0 font-mono">
-                                [{ref.number}]
-                              </Badge>
-                              <div className="min-w-0 flex-1">
-                                <div className="font-medium text-[11px] mb-0.5">
-                                  {ref.fileName || ref.fileId.split('/').pop() || ref.fileId.slice(0, 25)}
-                                </div>
-                                <div className="text-[10px] text-muted-foreground leading-relaxed">
-                                  {ref.description}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* ScrollArea für Dokumentenliste - nimmt den restlichen Platz ein */}
-                  <ScrollArea className="flex-1 min-h-0">
-                    <div className="pr-4">
-                      {/* Zustände im rechten Panel anzeigen, damit Facetten links erhalten bleiben */}
-                      {!libraryId ? (
-                        <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
-                      ) : error ? (
-                        <div className='text-sm text-destructive'>{error}</div>
-                      ) : loading ? (
-                        <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
-                      ) : docs.length === 0 ? (
-                        <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
-                          <div>Keine Dokumente gefunden.</div>
-                          <Button
-                            variant='secondary'
-                            onClick={() => setFilters({} as Record<string, string[]>) }
-                          >
-                            Filter zurücksetzen
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pt-10'>
-                      {filteredDocs.map((pdf) => (
-                        <Card
-                          key={pdf.id}
-                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20'
-                          onClick={() => openDocDetail(pdf)}
-                        >
-                          <CardHeader className='relative'>
-                            <div className='flex items-start justify-between'>
-                              <SpeakerOrAuthorIcons doc={pdf} />
-                              {pdf.year ? <Badge variant='secondary'>{String(pdf.year)}</Badge> : null}
-                            </div>
-                            <CardTitle className='text-lg line-clamp-2'>{pdf.shortTitle || pdf.title || pdf.fileName || 'Dokument'}</CardTitle>
-                            <CardDescription className='line-clamp-2'>{pdf.title || pdf.fileName}</CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className='space-y-2'>
-                              {Array.isArray(pdf.authors) && pdf.authors.length > 0 ? (
-                                <div className='flex items-center text-sm text-muted-foreground'>
-                                  <User className='h-2.5 w-2.5 mr-2' />
-                                  <span className='line-clamp-1'>
-                                    {pdf.authors[0]}
-                                    {pdf.authors.length > 1 ? ` +${pdf.authors.length - 1} weitere` : ''}
-                                  </span>
-                                </div>
-                              ) : null}
-                              {pdf.region ? (
-                                <div className='flex items-center text-sm text-muted-foreground'>
-                                  <MapPin className='h-2.5 w-2.5 mr-2' />
-                                  <span>{pdf.region}</span>
-                                </div>
-                              ) : null}
-                              {pdf.upsertedAt ? (
-                                <div className='flex items-center text-sm text-muted-foreground'>
-                                  <Calendar className='h-2.5 w-2.5 mr-2' />
-                                  <span>{new Date(pdf.upsertedAt).toLocaleDateString('de-DE')}</span>
-                                </div>
-                              ) : null}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </div>
-              </section>
-          </>
-        ) : showChatPanel ? (
-          <section className="w-full lg:w-auto lg:flex-1 flex flex-col min-h-[300px] lg:min-h-0 max-h-[50vh] lg:max-h-none">
-            <ChatPanel libraryId={libraryId} variant='compact' />
-          </section>
-        ) : showGalleryPanel ? (
-          <section className="w-full lg:w-auto lg:flex-1 flex flex-col min-h-0 max-h-[50vh] lg:max-h-none" data-gallery-section>
-            <div className="flex flex-col h-full min-h-0">
-              {showReferenceLegend && chatReferences.length > 0 && (
-                <div className="mb-6 rounded border bg-muted/30 p-4 shrink-0">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-medium flex items-center gap-2">
-                      <BookOpen className="h-4 w-4" />
-                      Legende und Verwendete Dokumente
-                    </h3>
+            {/* Gallery-Overlay - nur wenn showReferenceLegend aktiv (Mobile) */}
+            {showReferenceLegend && isMobile && (
+              <div className="fixed inset-0 z-50">
+                {/* Overlay-Hintergrund */}
+                <div 
+                  className="absolute inset-0 bg-black/50" 
+                  onClick={() => {
+                    setShowReferenceLegend(false)
+                    setFilters({} as Record<string, string[]>)
+                  }}
+                />
+                
+                {/* Gallery-Panel von rechts */}
+                <div className="absolute right-0 top-0 h-full w-full bg-background shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col overflow-hidden">
+                  {/* Header mit Zurück-Button */}
+                  <div className="flex items-center justify-between p-4 border-b shrink-0">
+                    <h2 className="text-lg font-semibold">Legende und Dokumente</h2>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -706,106 +789,200 @@ export default function GalleryClient() {
                         setShowReferenceLegend(false)
                         setFilters({} as Record<string, string[]>)
                       }}
-                      className="h-7 text-xs"
                     >
-                      <X className="h-3 w-3 mr-1" />
-                      Schließen
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                   
-                  {/* Legende: Nummer-Zuordnung */}
-                  <div>
-                    <div className="text-xs font-medium text-muted-foreground mb-2">Legende (Nummer → Dokument/Abschnitt):</div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-                      {chatReferences.map((ref) => (
-                        <div
-                          key={ref.number}
-                          className="flex items-start gap-2 text-xs p-2 rounded bg-background border hover:bg-muted/50"
-                        >
-                          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] shrink-0 font-mono">
-                            [{ref.number}]
-                          </Badge>
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium text-[11px] mb-0.5">
-                              {ref.fileName || ref.fileId.split('/').pop() || ref.fileId.slice(0, 25)}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground leading-relaxed">
-                              {ref.description}
-                            </div>
+                  {/* Filter-Kontext-Bar direkt über der Gallery */}
+                  <div className="mb-4 flex-shrink-0 px-4">
+                    <FilterContextBar
+                      docCount={filteredDocs.length}
+                      onOpenFilters={() => setShowFilters(true)}
+                      onClear={handleClearFilters}
+                      showReferenceLegend={showReferenceLegend}
+                    />
+                  </div>
+                  
+                  <div className="flex flex-col h-full min-h-0 flex-1 px-4 overflow-hidden">
+                    {/* Legende und Verwendete Dokumente */}
+                    {chatReferences.length > 0 && (
+                      <div className="mb-6 rounded border bg-muted/30 p-4 shrink-0">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-sm font-medium flex items-center gap-2">
+                            <BookOpen className="h-4 w-4" />
+                            Legende und Verwendete Dokumente
+                          </h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setShowReferenceLegend(false)
+                              setFilters({} as Record<string, string[]>)
+                            }}
+                            className="h-7 text-xs"
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Schließen
+                          </Button>
+                        </div>
+                        
+                        {/* Legende: Nummer-Zuordnung */}
+                        <div>
+                          <div className="text-xs font-medium text-muted-foreground mb-2">Legende (Nummer → Dokument/Textchunk):</div>
+                          <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                            {chatReferences.map((ref) => (
+                              <div
+                                key={ref.number}
+                                className="flex items-start gap-2 text-xs p-2 rounded bg-background border hover:bg-muted/50"
+                              >
+                                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] shrink-0 font-mono">
+                                  [{ref.number}]
+                                </Badge>
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-medium text-[11px] mb-0.5">
+                                    {ref.fileName || ref.fileId.split('/').pop() || ref.fileId.slice(0, 25)}
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground leading-relaxed">
+                                    {ref.description}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
+                    
+                    {/* Dokumente-Grid */}
+                    <ScrollArea className="flex-1 min-h-0">
+                      <div className="pr-4">
+                        {renderDocumentGrid()}
+                      </div>
+                    </ScrollArea>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
+            
+            {/* Desktop-Layout: Gallery als Sidebar rechts (immer sichtbar außer wenn Legende aktiv) */}
+            <section className="hidden lg:flex lg:w-1/2 lg:absolute lg:right-0 lg:top-0 lg:h-full flex-col min-h-0" data-gallery-section>
+              {/* Filter-Kontext-Bar direkt über der Gallery */}
+              <div className="mb-4 flex-shrink-0">
+                <FilterContextBar
+                  docCount={filteredDocs.length}
+                  onOpenFilters={() => setShowFilters(true)}
+                  onClear={handleClearFilters}
+                  showReferenceLegend={showReferenceLegend}
+                />
+              </div>
               
-              <ScrollArea className="flex-1 min-h-0">
-                <div className="pr-4 pt-5">
-                  {!libraryId ? (
-                    <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
-                  ) : error ? (
-                    <div className='text-sm text-destructive'>{error}</div>
-                  ) : loading ? (
-                    <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
-                  ) : docs.length === 0 ? (
-                    <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
-                      <div>Keine Dokumente gefunden.</div>
-                      <Button variant='secondary' onClick={() => setFilters({} as Record<string, string[]>)}>
-                        Filter zurücksetzen
+              <div className="flex flex-col h-full min-h-0 flex-1">
+                {/* Legende und Verwendete Dokumente (Desktop) */}
+                {showReferenceLegend && chatReferences.length > 0 && (
+                  <div className="mb-6 rounded border bg-muted/30 p-4 shrink-0">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-medium flex items-center gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        Legende und Verwendete Dokumente
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setShowReferenceLegend(false)
+                          setFilters({} as Record<string, string[]>)
+                        }}
+                        className="h-7 text-xs"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Schließen
                       </Button>
                     </div>
-                  ) : (
-                    <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'>
-                      {filteredDocs.map((pdf) => (
-                        <Card
-                          key={pdf.id}
-                          className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20'
-                          onClick={() => openDocDetail(pdf)}
-                        >
-                          <CardHeader className='relative'>
-                            <div className='flex items-start justify-between'>
-                              <SpeakerOrAuthorIcons doc={pdf} />
-                              {pdf.year ? <Badge variant='secondary'>{String(pdf.year)}</Badge> : null}
+                    
+                    {/* Legende: Nummer-Zuordnung */}
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-2">Legende (Nummer → Dokument/Textchunk):</div>
+                      <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                        {chatReferences.map((ref) => (
+                          <div
+                            key={ref.number}
+                            className="flex items-start gap-2 text-xs p-2 rounded bg-background border hover:bg-muted/50"
+                          >
+                            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] shrink-0 font-mono">
+                              [{ref.number}]
+                            </Badge>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-[11px] mb-0.5">
+                                {ref.fileName || ref.fileId.split('/').pop() || ref.fileId.slice(0, 25)}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground leading-relaxed">
+                                {ref.description}
+                              </div>
                             </div>
-                            <CardTitle className='text-lg line-clamp-2'>{pdf.shortTitle || pdf.title || pdf.fileName || 'Dokument'}</CardTitle>
-                            <CardDescription className='line-clamp-2'>{pdf.title || pdf.fileName}</CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className='space-y-2'>
-                              {Array.isArray(pdf.authors) && pdf.authors.length > 0 ? (
-                                <div className='flex items-center text-sm text-muted-foreground'>
-                                  <User className='h-2.5 w-2.5 mr-2' />
-                                  <span className='line-clamp-1'>
-                                    {pdf.authors[0]}
-                                    {pdf.authors.length > 1 ? ` +${pdf.authors.length - 1} weitere` : ''}
-                                  </span>
-                                </div>
-                              ) : null}
-                              {pdf.region ? (
-                                <div className='flex items-center text-sm text-muted-foreground'>
-                                  <MapPin className='h-2.5 w-2.5 mr-2' />
-                                  <span>{pdf.region}</span>
-                                </div>
-                              ) : null}
-                              {pdf.upsertedAt ? (
-                                <div className='flex items-center text-sm text-muted-foreground'>
-                                  <Calendar className='h-2.5 w-2.5 mr-2' />
-                                  <span>{new Date(pdf.upsertedAt).toLocaleDateString('de-DE')}</span>
-                                </div>
-                              ) : null}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  </div>
+                )}
+                
+                {/* Dokumente-Grid */}
+                <ScrollArea className="flex-1 min-h-0">
+                  <div className="pr-4">
+                    {renderDocumentGrid()}
+                  </div>
+                </ScrollArea>
+              </div>
+            </section>
+          </>
+        ) : (
+          /* Gallery-Modus: Nur Dokumente-Grid */
+          <>
+            {/* Filter-Kontext-Bar nur im Gallery-Modus über dem gesamten Bereich */}
+            <FilterContextBar
+              docCount={filteredDocs.length}
+              onOpenFilters={() => setShowFilters(true)}
+              onClear={handleClearFilters}
+              showReferenceLegend={showReferenceLegend}
+            />
+            <section className="w-full flex flex-col min-h-0 h-full" data-gallery-section>
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="pr-4">
+                  {renderDocumentGrid()}
+                                      </div>
+              </ScrollArea>
+            </section>
+          </>
                   )}
                 </div>
-              </ScrollArea>
+
+      {/* Filter-Panel als Slide-In (Sheet) - für beide Modi */}
+      <Sheet open={showFilters} onOpenChange={setShowFilters}>
+        <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              Filter
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-6 space-y-3">
+            {facetDefs.filter(d => d).map(def => {
+              const cols = (def as { columns?: number })?.columns || 1
+              return (
+                <div key={def.metaKey} className={cols === 2 ? 'grid grid-cols-2 gap-2' : ''}>
+                  <FacetGroup
+                    label={def.label || def.metaKey}
+                    options={def.options}
+                    selected={(filters as Record<string, string[] | undefined>)[def.metaKey] || []}
+                    onChange={(vals: string[]) => setFacet(def.metaKey, vals)}
+                  />
             </div>
-          </section>
-        ) : null}
+              )
+            })}
       </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Dokumentdetails-Overlay - außerhalb der Grid-Struktur */}
       {selected && (
@@ -886,41 +1063,6 @@ export default function GalleryClient() {
           </div>
         </div>
       )}
-
-      {/* Mobile Filter Sheet */}
-      {showFilters ? (
-        <div className='fixed inset-0 z-50 lg:hidden'>
-          <div className='absolute inset-0 bg-black/50' onClick={() => setShowFilters(false)} />
-          <div className='absolute inset-y-0 left-0 w-[85vw] max-w-[420px] bg-background shadow-2xl flex flex-col'>
-            <div className='p-4 border-b flex items-center gap-2'>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='h-8 w-8 -ml-2'
-                onClick={() => setShowFilters(false)}
-              >
-                <ChevronLeft className='h-4 w-4' />
-              </Button>
-              <div className='font-medium'>Filter</div>
-            </div>
-            <div className='p-4 space-y-3 overflow-auto'>
-              {facetDefs.filter(d => d).map(def => (
-                <FacetGroup
-                  key={def.metaKey}
-                  label={def.label || def.metaKey}
-                  options={def.options}
-                  selected={(filters as Record<string, string[] | undefined>)[def.metaKey] || []}
-                  onChange={(vals: string[]) => setFacet(def.metaKey, vals)}
-                />
-              ))}
-              <Button variant='secondary' className='w-full' onClick={() => setShowFilters(false)}>Fertig</Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      
-      </TooltipProvider>
     </div>
   )
 }

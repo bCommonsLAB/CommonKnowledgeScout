@@ -308,6 +308,17 @@ export async function PATCH(
             console.log(`[API] Behalte existierendes clientSecret (leerer Wert gesendet)`);
           }
           // Wenn leer, behalten wir den existierenden Wert
+        } else if (key === 'chat' && value && typeof value === 'object' && !Array.isArray(value)) {
+          // Spezielle Behandlung für chat-Config: Merge statt Überschreiben
+          const existingChat = updatedConfig[key] as Record<string, unknown> | undefined
+          updatedConfig[key] = {
+            ...(existingChat || {}),
+            ...(value as Record<string, unknown>),
+          }
+          console.log(`[API] Gemergte chat-Config`, { 
+            existingKeys: existingChat ? Object.keys(existingChat) : [],
+            newKeys: Object.keys(value as Record<string, unknown>),
+          })
         } else {
           // Alle anderen Felder normal aktualisieren
           updatedConfig[key] = value;

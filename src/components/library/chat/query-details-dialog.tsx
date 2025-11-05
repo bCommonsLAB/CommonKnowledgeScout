@@ -30,19 +30,20 @@ export function QueryDetailsDialog({
   libraryId,
   queryId,
 }: QueryDetailsDialogProps) {
-  const [activeTab, setActiveTab] = useState<'explain' | 'debug'>('explain')
+  const [activeTab, setActiveTab] = useState<'explain' | 'debug'>('debug')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [queryLog, setQueryLog] = useState<QueryLog | null>(null)
   const [explanation, setExplanation] = useState<string>('')
+  const [explanationLoading, setExplanationLoading] = useState(false)
 
-  // Daten-Lade-Funktion mit useCallback, um stabile Referenz zu gewährleisten
+  // Daten-Lade-Funktion für Debug-Daten
   const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      // Debug-Daten laden
+      // Nur Debug-Daten laden (QueryLog)
       const debugRes = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`)
       if (!debugRes.ok) {
         const errorText = await debugRes.text()
@@ -50,8 +51,23 @@ export function QueryDetailsDialog({
       }
       const debugData = await debugRes.json() as QueryLog
       setQueryLog(debugData)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
+      console.error('[QueryDetailsDialog] Fehler beim Laden:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [libraryId, queryId])
 
-      // Explain-Daten laden
+  // Separate Funktion zum Laden der Erklärung (nur wenn benötigt)
+  const loadExplanation = useCallback(async () => {
+    if (explanation) {
+      // Erklärung bereits vorhanden, nicht erneut laden
+      return
+    }
+
+    setExplanationLoading(true)
+    try {
       const explainRes = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}/explain`)
       if (!explainRes.ok) {
         const errorText = await explainRes.text()
@@ -60,18 +76,23 @@ export function QueryDetailsDialog({
       const explainData = await explainRes.json() as { explanation: string }
       setExplanation(explainData.explanation)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
-      // Besseres Error-Logging für Debugging
-      console.error('[QueryDetailsDialog] Fehler beim Laden:', e)
+      console.error('[QueryDetailsDialog] Fehler beim Laden der Erklärung:', e)
+      setExplanation('Fehler beim Laden der Erklärung')
     } finally {
-      setLoading(false)
+      setExplanationLoading(false)
     }
-  }, [libraryId, queryId])
+  }, [libraryId, queryId, explanation])
 
   // Lade Daten automatisch, wenn Dialog geöffnet wird
   useEffect(() => {
     if (open && !queryLog) {
       loadData()
+    }
+    // Reset beim Schließen
+    if (!open) {
+      setExplanation('')
+      setExplanationLoading(false)
+      setActiveTab('debug')
     }
   }, [open, queryLog, loadData])
 
@@ -100,26 +121,41 @@ export function QueryDetailsDialog({
         )}
 
         {!loading && !error && queryLog && (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'explain' | 'debug')} className="flex-1 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={(v) => {
+            const newTab = v as 'explain' | 'debug'
+            setActiveTab(newTab)
+            // Lade Erklärung nur, wenn der Erklärung-Tab aktiviert wird
+            if (newTab === 'explain' && !explanation && !explanationLoading) {
+              loadExplanation()
+            }
+          }} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="explain">Erklärung</TabsTrigger>
               <TabsTrigger value="debug">Debug</TabsTrigger>
+              <TabsTrigger value="explain">Erklärung</TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="explain" className="flex-1 mt-4 min-h-0">
-              <ScrollArea className="h-[500px] rounded border p-4">
-                <div className="prose prose-sm max-w-none">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {explanation || 'Keine Erklärung verfügbar'}
-                  </p>
-                </div>
-              </ScrollArea>
-            </TabsContent>
             
             <TabsContent value="debug" className="flex-1 mt-4 min-h-0">
               <ScrollArea className="h-[500px]">
                 <DebugPanel log={queryLog} />
               </ScrollArea>
+            </TabsContent>
+            
+            <TabsContent value="explain" className="flex-1 mt-4 min-h-0">
+              {explanationLoading && (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-3 text-sm text-muted-foreground">Generiere Erklärung...</span>
+                </div>
+              )}
+              {!explanationLoading && (
+                <ScrollArea className="h-[500px] rounded border p-4">
+                  <div className="prose prose-sm max-w-none">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                      {explanation || 'Keine Erklärung verfügbar'}
+                    </p>
+                  </div>
+                </ScrollArea>
+              )}
             </TabsContent>
           </Tabs>
         )}
