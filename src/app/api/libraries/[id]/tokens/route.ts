@@ -29,17 +29,37 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const refreshToken = cfg?.refreshToken as string | undefined
     const tokenExpiry = cfg?.tokenExpiry as number | string | undefined
 
+    // Debug-Informationen zurückgeben
+    const debugInfo = {
+      libraryId: id,
+      libraryLabel: lib.label,
+      hasConfig: !!cfg,
+      configKeys: cfg ? Object.keys(cfg) : [],
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      hasTokenExpiry: !!tokenExpiry,
+      tokenExpiryValue: tokenExpiry,
+      // Zeige erste/last 10 Zeichen der Tokens für Debugging (nicht vollständig aus Sicherheitsgründen)
+      accessTokenPreview: accessToken ? `${accessToken.substring(0, 10)}...${accessToken.substring(accessToken.length - 10)}` : null,
+      refreshTokenPreview: refreshToken ? `${refreshToken.substring(0, 10)}...${refreshToken.substring(refreshToken.length - 10)}` : null,
+    }
+
     if (!accessToken || !refreshToken) {
-      return NextResponse.json({ error: 'Keine Tokens gefunden' }, { status: 404 })
+      return NextResponse.json({ 
+        error: 'Keine Tokens gefunden',
+        debug: debugInfo
+      }, { status: 404 })
     }
 
     return NextResponse.json({
       accessToken,
       refreshToken,
-      tokenExpiry: Number(tokenExpiry || 0)
+      tokenExpiry: Number(tokenExpiry || 0),
+      debug: debugInfo
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
+    console.error('[GET /api/libraries/[id]/tokens] Fehler:', e)
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

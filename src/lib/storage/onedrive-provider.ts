@@ -162,7 +162,10 @@ export class OneDriveProvider implements StorageProvider {
     this.baseFolderId = parentId;
   }
 
-  private async loadTokens(): Promise<void> {
+  private async loadTokens(userEmailFromContext?: string): Promise<void> {
+    // Verwende userEmail aus dem Kontext, falls verfügbar
+    const effectiveEmail = userEmailFromContext || this.userEmail;
+    
     // Server-Kontext: Tokens aus der Library-Konfiguration lesen (DB)
     if (typeof window === 'undefined') {
       try {
@@ -179,15 +182,27 @@ export class OneDriveProvider implements StorageProvider {
         }
         
         // Wenn keine Tokens in der Config sind, versuche sie direkt aus der DB zu laden
-        console.log('[OneDriveProvider] Keine Tokens in Library-Config gefunden, versuche aus DB zu laden...');
+        console.log('[OneDriveProvider] Keine Tokens in Library-Config gefunden, versuche aus DB zu laden...', {
+          libraryId: this.library.id,
+          userEmail: effectiveEmail,
+          baseUrl: this.baseUrl
+        });
         try {
-          const response = await fetch(`${this.baseUrl}/api/libraries/${this.library.id}/tokens`, {
+          // Verwende userEmail aus dem Kontext, falls verfügbar
+          const emailParam = effectiveEmail ? `?email=${encodeURIComponent(effectiveEmail)}` : '';
+          const response = await fetch(`${this.baseUrl}/api/libraries/${this.library.id}/tokens${emailParam}`, {
             method: 'GET',
             headers: { 'X-Internal-Request': '1' }
           });
           
           if (response.ok) {
             const tokenData = await response.json();
+            console.log('[OneDriveProvider] Token-Daten aus DB:', {
+              hasAccessToken: !!tokenData.accessToken,
+              hasRefreshToken: !!tokenData.refreshToken,
+              debug: tokenData.debug
+            });
+            
             if (tokenData.accessToken && tokenData.refreshToken) {
               this.accessToken = tokenData.accessToken;
               this.refreshToken = tokenData.refreshToken;
@@ -196,6 +211,13 @@ export class OneDriveProvider implements StorageProvider {
               console.log('[OneDriveProvider] Tokens erfolgreich aus DB geladen');
               return;
             }
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            console.warn('[OneDriveProvider] Fehler beim Laden der Tokens aus DB:', {
+              status: response.status,
+              error: errorData.error,
+              debug: errorData.debug
+            });
           }
         } catch (dbError) {
           console.warn('[OneDriveProvider] Fehler beim Laden der Tokens aus DB:', dbError);

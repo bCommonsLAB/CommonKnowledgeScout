@@ -167,6 +167,49 @@ export function IngestionDialog() {
       results: null
     });
 
+    // OneDrive Token-Sync: Wenn der Client Tokens im localStorage hat, stelle sicher,
+    // dass der Server (DB) vor dem Ingestion-Start aktuelle Tokens hat, damit serverseitige Zugriffe funktionieren.
+    try {
+      const key = `onedrive_tokens_${activeLibraryId}`;
+      const json = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+      if (json) {
+        const tokens = JSON.parse(json) as { accessToken: string; refreshToken: string; expiry: number };
+        const now = Date.now();
+        const bufferMs = 120_000; // 2 Minuten Buffer
+        let accessToken = tokens.accessToken;
+        let refreshToken = tokens.refreshToken;
+        let expiryMs = Number(tokens.expiry);
+
+        // Falls abgelaufen oder kurz davor: Refresh über Serverroute
+        if (!expiryMs || expiryMs - now <= bufferMs) {
+          const resp = await fetch('/api/auth/onedrive/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ libraryId: activeLibraryId, refreshToken })
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            accessToken = data.accessToken;
+            refreshToken = data.refreshToken || refreshToken;
+            // Server liefert expiresIn in Sekunden
+            expiryMs = now + (Number(data.expiresIn || 0) * 1000);
+            // Update localStorage
+            localStorage.setItem(key, JSON.stringify({ accessToken, refreshToken, expiry: expiryMs }));
+          }
+        }
+
+        // Persistiere Tokens in DB (Server), damit serverseitige Zugriffe funktionieren
+        await fetch(`/api/libraries/${activeLibraryId}/tokens`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken, refreshToken, tokenExpiry: Math.floor(expiryMs / 1000).toString() })
+        });
+      }
+    } catch (tokenSyncError) {
+      // Token-Sync-Fehler nicht fatal behandeln, aber loggen
+      console.warn('[IngestionDialog] Token-Synchronisation fehlgeschlagen:', tokenSyncError);
+    }
+
     const results: IngestionResult['results'] = [];
     let hasError = false;
 

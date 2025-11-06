@@ -24,6 +24,12 @@ export async function getServerProvider(userEmail: string, libraryId: string): P
   }]);
 
   const provider = await factory.getProvider(lib.id);
+  
+  // Stelle sicher, dass userEmail im Provider gesetzt ist (für Token-Loading)
+  if ('setUserEmail' in provider && typeof provider.setUserEmail === 'function') {
+    (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(userEmail);
+  }
+  
   const validation = await provider.validateConfiguration();
   if (!validation.isValid) throw new Error(validation.error || 'Ungültige Provider-Konfiguration');
   return provider;
