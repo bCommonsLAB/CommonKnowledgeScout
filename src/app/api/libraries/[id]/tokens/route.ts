@@ -3,6 +3,47 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { StorageFactory } from '@/lib/storage/storage-factory'
 
+// GET - Tokens aus der Library-Konfiguration abrufen (Server-intern)
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    const isInternal = req.headers.get('x-internal-request') === '1'
+    const emailParam = req.nextUrl.searchParams.get('email') || undefined
+    
+    if (!isInternal) {
+      const { userId } = await auth()
+      if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+    }
+    
+    const user = isInternal ? null : await currentUser()
+    const email = emailParam || user?.emailAddresses?.[0]?.emailAddress
+    if (!email) return NextResponse.json({ error: 'E-Mail nicht gefunden' }, { status: 400 })
+
+    const svc = LibraryService.getInstance()
+    const libs = await svc.getUserLibraries(email)
+    const lib = libs.find(l => l.id === id)
+    if (!lib) return NextResponse.json({ error: 'Library nicht gefunden' }, { status: 404 })
+
+    const cfg = lib.config as unknown as Record<string, unknown> | undefined
+    const accessToken = cfg?.accessToken as string | undefined
+    const refreshToken = cfg?.refreshToken as string | undefined
+    const tokenExpiry = cfg?.tokenExpiry as number | string | undefined
+
+    if (!accessToken || !refreshToken) {
+      return NextResponse.json({ error: 'Keine Tokens gefunden' }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      accessToken,
+      refreshToken,
+      tokenExpiry: Number(tokenExpiry || 0)
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
+
 // PATCH - Persistiert Tokens in der Library (Server-intern oder via Clerk)
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

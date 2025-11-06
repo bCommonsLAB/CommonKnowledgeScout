@@ -56,7 +56,8 @@ export class OneDriveProvider implements StorageProvider {
     this.library = library;
     // Im Server-Kontext kann baseUrl übergeben werden, sonst relative URL verwenden
     this.baseUrl = baseUrl || '';
-    this.loadTokens();
+    // loadTokens ist jetzt async, aber wir können nicht await im Constructor verwenden
+    // Daher wird es beim ersten ensureAccessToken aufgerufen
     this.loadOAuthDefaults(); // Lade OAuth-Standardwerte
   }
 
@@ -161,7 +162,7 @@ export class OneDriveProvider implements StorageProvider {
     this.baseFolderId = parentId;
   }
 
-  private loadTokens() {
+  private async loadTokens(): Promise<void> {
     // Server-Kontext: Tokens aus der Library-Konfiguration lesen (DB)
     if (typeof window === 'undefined') {
       try {
@@ -174,7 +175,33 @@ export class OneDriveProvider implements StorageProvider {
           this.tokenExpiry = Number(cfg.tokenExpiry || 0);
           this.authenticated = true;
           console.log('[OneDriveProvider] Tokens aus Library-Konfiguration geladen (Server-Kontext)');
+          return;
         }
+        
+        // Wenn keine Tokens in der Config sind, versuche sie direkt aus der DB zu laden
+        console.log('[OneDriveProvider] Keine Tokens in Library-Config gefunden, versuche aus DB zu laden...');
+        try {
+          const response = await fetch(`${this.baseUrl}/api/libraries/${this.library.id}/tokens`, {
+            method: 'GET',
+            headers: { 'X-Internal-Request': '1' }
+          });
+          
+          if (response.ok) {
+            const tokenData = await response.json();
+            if (tokenData.accessToken && tokenData.refreshToken) {
+              this.accessToken = tokenData.accessToken;
+              this.refreshToken = tokenData.refreshToken;
+              this.tokenExpiry = Number(tokenData.tokenExpiry || 0);
+              this.authenticated = true;
+              console.log('[OneDriveProvider] Tokens erfolgreich aus DB geladen');
+              return;
+            }
+          }
+        } catch (dbError) {
+          console.warn('[OneDriveProvider] Fehler beim Laden der Tokens aus DB:', dbError);
+        }
+        
+        console.log('[OneDriveProvider] Keine Tokens gefunden - Authentifizierung erforderlich');
       } catch (error) {
         console.error('[OneDriveProvider] Fehler beim Laden der Tokens aus Library-Konfiguration:', error);
       }
@@ -452,6 +479,11 @@ export class OneDriveProvider implements StorageProvider {
   }
 
   private async ensureAccessToken(): Promise<string> {
+    // Wenn Tokens noch nicht geladen wurden, lade sie jetzt
+    if (!this.accessToken && !this.refreshToken) {
+      await this.loadTokens();
+    }
+    
     // Wenn kein Token vorhanden, Fehler werfen
     if (!this.accessToken) {
       throw new StorageError(
