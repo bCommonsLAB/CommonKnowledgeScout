@@ -1,6 +1,5 @@
 'use client'
 
-import { Settings } from 'lucide-react'
 import {
   ANSWER_LENGTH_LABELS,
   RETRIEVER_LABELS,
@@ -76,7 +75,6 @@ export function ChatConfigDisplay({
           </span>
         ))}
       </span>
-      <Settings className="h-3 w-3 flex-shrink-0" />
     </div>
   )
 }

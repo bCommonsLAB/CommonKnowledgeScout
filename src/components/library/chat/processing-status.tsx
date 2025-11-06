@@ -34,7 +34,7 @@ export function ProcessingStatus({ steps }: ProcessingStatusProps) {
       details: analysisResult 
         ? `Empfehlung: ${analysisResult.recommendation === 'chunk' ? 'Spezifisch' : analysisResult.recommendation === 'summary' ? 'Übersichtlich' : 'Unklar'} (${analysisResult.confidence})`
         : undefined,
-      icon: analysisResult ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
+      icon: analysisResult ? <CheckCircle2 className="h-3 w-3 text-green-600" /> : <Loader2 className="h-3 w-3 animate-spin text-blue-500" />,
     })
   }
 
@@ -45,7 +45,7 @@ export function ProcessingStatus({ steps }: ProcessingStatusProps) {
       label: 'Retriever auswählen',
       status: 'complete',
       details: `${retrieverStep.retriever === 'chunk' ? 'Spezifisch' : 'Übersichtlich'}${retrieverStep.reason ? ` - ${retrieverStep.reason}` : ''}`,
-      icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
+      icon: <CheckCircle2 className="h-3 w-3 text-green-600" />,
     })
   }
 
@@ -61,8 +61,8 @@ export function ProcessingStatus({ steps }: ProcessingStatusProps) {
         ? `${retrievalComplete.sourcesCount} Text-Chunk${retrievalComplete.sourcesCount !== 1 ? 's' : ''} gefunden (${retrievalComplete.timingMs}ms)`
         : retrievalProgress?.message || 'Suche nach relevanten Inhalten...',
       icon: retrievalComplete 
-        ? <CheckCircle2 className="h-4 w-4 text-green-500" />
-        : <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
+        ? <CheckCircle2 className="h-3 w-3 text-green-600" />
+        : <Loader2 className="h-3 w-3 animate-spin text-blue-500" />,
     })
   }
 
@@ -78,8 +78,8 @@ export function ProcessingStatus({ steps }: ProcessingStatusProps) {
       status: promptComplete ? 'complete' : (promptBuilding ? 'active' : 'pending'),
       details,
       icon: promptComplete 
-        ? <CheckCircle2 className="h-4 w-4 text-green-500" />
-        : <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
+        ? <CheckCircle2 className="h-3 w-3 text-green-600" />
+        : <Loader2 className="h-3 w-3 animate-spin text-blue-500" />,
     })
   }
 
@@ -111,8 +111,8 @@ export function ProcessingStatus({ steps }: ProcessingStatusProps) {
       status: llmComplete ? 'complete' : (llmStart || llmProgress ? 'active' : 'pending'),
       details,
       icon: llmComplete 
-        ? <CheckCircle2 className="h-4 w-4 text-green-500" />
-        : <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
+        ? <CheckCircle2 className="h-3 w-3 text-green-600" />
+        : <Loader2 className="h-3 w-3 animate-spin text-blue-500" />,
     })
   }
 
@@ -127,8 +127,8 @@ export function ProcessingStatus({ steps }: ProcessingStatusProps) {
         ? 'Fertig - Antwort erfolgreich generiert'
         : parsing?.message || undefined,
       icon: complete 
-        ? <CheckCircle2 className="h-4 w-4 text-green-500" />
-        : <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
+        ? <CheckCircle2 className="h-3 w-3 text-green-600" />
+        : <Loader2 className="h-3 w-3 animate-spin text-blue-500" />,
     })
   }
 
@@ -139,27 +139,25 @@ export function ProcessingStatus({ steps }: ProcessingStatusProps) {
       label: 'Fehler',
       status: 'error',
       details: error.error,
-      icon: <XCircle className="h-4 w-4 text-red-500" />,
+      icon: <XCircle className="h-3 w-3 text-red-500" />,
     })
   }
 
   return (
-    <div className="bg-muted/30 border rounded-lg p-3 mb-4">
-      <div className="space-y-2">
-        {displaySteps.map((step, index) => (
-          <div key={index} className="flex items-start gap-2 text-sm">
-            <div className="flex-shrink-0 mt-0.5">
-              {step.icon || <Circle className="h-4 w-4 text-muted-foreground" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium">{step.label}</div>
-              {step.details && (
-                <div className="text-xs text-muted-foreground mt-0.5">{step.details}</div>
-              )}
-            </div>
+    <div className="space-y-1.5">
+      {displaySteps.map((step, index) => (
+        <div key={index} className="flex items-start gap-2 text-sm">
+          <div className="flex-shrink-0 mt-0.5">
+            {step.icon || <Circle className="h-3 w-3 text-muted-foreground" />}
           </div>
-        ))}
-      </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-muted-foreground">{step.label}</div>
+            {step.details && (
+              <div className="text-xs text-muted-foreground/80 mt-0.5">{step.details}</div>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

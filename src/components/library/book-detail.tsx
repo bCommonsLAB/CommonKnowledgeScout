@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Calendar, FileText, MapPin, BookOpen, Tag } from "lucide-react";
 import Link from "next/link";
 import { ChapterAccordion } from "./chapter-accordion";
+import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 
 export interface Chapter {
   order: number;
@@ -89,6 +90,8 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
         <section className="bg-card border border-border rounded-lg p-5 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Zusammenfassung</h2>
           <p className="text-sm text-muted-foreground leading-relaxed text-pretty">{data.summary}</p>
+          {/* KI-Info-Hinweis für KI-generierte Zusammenfassung */}
+          <AIGeneratedNotice compact />
         </section>
       )}
 

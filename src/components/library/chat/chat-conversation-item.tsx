@@ -165,8 +165,8 @@ export function ChatConversationItem({
       <Accordion type="single" collapsible value={isOpen ? conversationId : undefined}>
         <AccordionItem value={conversationId} className="border-b">
           <div className="flex items-center gap-2">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline flex-1 min-w-0">
-            <div className="flex gap-3 items-center flex-1 min-w-0 mr-2">
+            <AccordionTrigger className="px-0 py-3 hover:no-underline flex-1 min-w-0">
+            <div className="flex gap-3 items-center flex-1 min-w-0">
               {/* User-Icon */}
               <div className="flex-shrink-0">
                 <div className={`w-8 h-8 rounded-full ${iconColor} flex items-center justify-center transition-colors`}>
@@ -209,7 +209,7 @@ export function ChatConversationItem({
                 )}
               </div>
             </div>
-          <AccordionContent className="px-4 pb-4">
+          <AccordionContent className="px-0 pb-4">
             <div className="space-y-4 pt-2">
               {/* Nur Antwort anzeigen - Frage ist bereits im Trigger */}
               {hasAnswer && pair.answer && (

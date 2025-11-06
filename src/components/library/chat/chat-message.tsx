@@ -13,6 +13,7 @@ import { ProcessingLogsDialog } from './processing-logs-dialog'
 import type { Character, TargetLanguage, SocialContext, AnswerLength, Retriever } from '@/lib/chat/constants'
 import { characterColors, characterIconColors } from '@/lib/chat/constants'
 import { useUser } from '@clerk/nextjs'
+import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
 
 interface ChatMessageProps {
   type: 'question' | 'answer'
@@ -133,6 +134,14 @@ export function ChatMessage({
             <div className="prose prose-sm max-w-none">
               <MarkdownPreview content={content} compact />
             </div>
+            
+            {/* KI-Info-Hinweis unter jeder Antwort */}
+            <AIGeneratedNotice 
+              sources={references?.map(ref => ({
+                id: ref.fileId || String(ref.number),
+                fileName: ref.fileName
+              }))}
+            />
             
             {/* Action-Buttons: Config, Quellenverzeichnis, Logs, Debug */}
             {(references && Array.isArray(references) && references.length > 0) || queryId || (answerLength || retriever || targetLanguage || character || socialContext) ? (

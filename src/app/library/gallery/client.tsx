@@ -849,17 +849,18 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
           </TabsList>
         </Tabs>
         
-        {/* Story-Button rechts */}
+        {/* Story-Button rechts - Prominenter CTA */}
         {mode === 'gallery' && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant='outline'
+                  variant='default'
+                  size='lg'
                   onClick={() => setMode('story')}
-                  className='flex items-center gap-2 bg-transparent'
+                  className='flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all'
                 >
-                  <Feather className='h-4 w-4' />
+                  <Feather className='h-5 w-5' />
                   In Story Mode wechseln
                 </Button>
               </TooltipTrigger>
@@ -1036,8 +1037,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
           {/* Story Mode Header-Bereich (fest oben) */}
           <div className="flex-shrink-0">
             <StoryModeHeader 
-              libraryId={libraryId} 
-              onBackToGallery={() => setMode('gallery')}
+              libraryId={libraryId || ''} 
             />
           </div>
 
@@ -1051,6 +1051,13 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
 
             {/* Rechts: Gallery mit Filter-Kontext-Bar und Dokumente-Grid */}
             <div className="hidden lg:flex flex-col min-h-0 overflow-hidden rounded-md">
+              {/* Überschrift für die Galerie im Story-Modus */}
+              <div className="flex-shrink-0 px-4 py-3 border-b bg-background">
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Antworten werden aus den in der Gallery ausgewählten Talks generiert.
+                </h3>
+              </div>
+              
               {/* Filter-Kontext-Bar mit aktiven Filtern - nur anzeigen wenn kein Quellenverzeichnis aktiv */}
               {!showReferenceLegend && (
                 <div className="flex-shrink-0">

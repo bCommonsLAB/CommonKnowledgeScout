@@ -5,6 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button'
 import { Sparkles, Loader2 } from 'lucide-react'
 import type { StoryTopicsData, StoryQuestion } from '@/types/story-topics'
+import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
 
 interface StoryTopicsProps {
   libraryId: string
@@ -116,10 +117,10 @@ export function StoryTopics({ libraryId, data, onSelectQuestion, visible = true,
                     key={question.id}
                     variant="outline"
                     size="sm"
-                    className="w-full justify-start text-left h-auto py-2 text-xs bg-transparent"
+                    className="w-full justify-start text-left h-auto py-2 text-xs bg-transparent whitespace-normal break-words"
                     onClick={() => onSelectQuestion?.(question)}
                   >
-                    {question.text}
+                    <span className="text-left">{question.text}</span>
                   </Button>
                 ))}
               </div>
@@ -127,6 +128,9 @@ export function StoryTopics({ libraryId, data, onSelectQuestion, visible = true,
           </AccordionItem>
         ))}
       </Accordion>
+      
+      {/* KI-Info-Hinweis für KI-generiertes Inhaltsverzeichnis */}
+      <AIGeneratedNotice compact />
     </div>
   )
 }

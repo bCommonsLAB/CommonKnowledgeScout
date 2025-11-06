@@ -3,53 +3,36 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ChatMessage } from './chat-message'
-import { ChatSelector } from './chat-selector'
-import { ChatConfigDisplay } from './chat-config-display'
-import { ProcessingStatus } from './processing-status'
-import { ChatConversationItem } from './chat-conversation-item'
 import { StoryTopics } from '../story/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 import type { StoryTopicsData } from '@/types/story-topics'
-import { Loader2, Settings } from 'lucide-react'
 import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
-import { Switch } from '@/components/ui/switch'
 import {
   type Character,
   type AnswerLength,
   type Retriever,
   type TargetLanguage,
   type SocialContext,
-  GENDER_INCLUSIVE_DEFAULT,
-  ANSWER_LENGTH_VALUES,
-  ANSWER_LENGTH_LABELS,
   ANSWER_LENGTH_DEFAULT,
-  RETRIEVER_VALUES,
-  RETRIEVER_LABELS,
   RETRIEVER_DEFAULT,
-  TARGET_LANGUAGE_VALUES,
-  TARGET_LANGUAGE_LABELS,
   TARGET_LANGUAGE_DEFAULT,
-  CHARACTER_VALUES,
-  CHARACTER_LABELS,
   CHARACTER_DEFAULT,
-  SOCIAL_CONTEXT_VALUES,
-  SOCIAL_CONTEXT_LABELS,
   SOCIAL_CONTEXT_DEFAULT,
 } from '@/lib/chat/constants'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { storyPerspectiveOpenAtom } from '@/atoms/story-context-atom'
 import { useUser } from '@clerk/nextjs'
-import { Card, CardContent } from '@/components/ui/card'
-import { Send } from 'lucide-react'
+import { ChatInput } from './chat-input'
+import { ChatConfigBar } from './chat-config-bar'
+import { ChatConfigPopover } from './chat-config-popover'
+import { ChatMessagesList } from './chat-messages-list'
+import { useChatScroll } from './hooks/use-chat-scroll'
+import type { ChatMessage } from './utils/chat-utils'
+import { createMessagesFromQueryLog } from './utils/chat-utils'
+import { getInitialTargetLanguage, getInitialCharacter, getInitialSocialContext, getInitialGenderInclusive } from './utils/chat-storage'
 
 interface ChatPanelProps {
   libraryId: string
@@ -78,78 +61,6 @@ interface ChatConfigResponse {
   vectorIndex: string
 }
 
-interface ChatMessage {
-  id: string
-  type: 'question' | 'answer'
-  content: string
-  references?: ChatResponse['references']
-  suggestedQuestions?: string[]
-  queryId?: string
-  createdAt: string
-  character?: Character
-  answerLength?: AnswerLength
-  retriever?: Retriever
-  targetLanguage?: TargetLanguage
-  socialContext?: SocialContext
-}
-
-// Helper-Funktionen: Lade initiale Werte aus localStorage (client-side only)
-function getInitialTargetLanguage(): TargetLanguage {
-  if (typeof window === 'undefined') return TARGET_LANGUAGE_DEFAULT
-  try {
-    const stored = localStorage.getItem('story-context-targetLanguage')
-    if (stored) {
-      const parsed = JSON.parse(stored) as TargetLanguage
-      return parsed
-    }
-  } catch {
-    // Ignoriere Fehler
-  }
-  return TARGET_LANGUAGE_DEFAULT
-}
-
-function getInitialCharacter(): Character {
-  if (typeof window === 'undefined') return CHARACTER_DEFAULT
-  try {
-    const stored = localStorage.getItem('story-context-character')
-    if (stored) {
-      const parsed = JSON.parse(stored) as Character
-      return parsed
-    }
-  } catch {
-    // Ignoriere Fehler
-  }
-  return CHARACTER_DEFAULT
-}
-
-function getInitialSocialContext(): SocialContext {
-  if (typeof window === 'undefined') return SOCIAL_CONTEXT_DEFAULT
-  try {
-    const stored = localStorage.getItem('story-context-socialContext')
-    if (stored) {
-      const parsed = JSON.parse(stored) as SocialContext
-      return parsed
-    }
-  } catch {
-    // Ignoriere Fehler
-  }
-  return SOCIAL_CONTEXT_DEFAULT
-}
-
-function getInitialGenderInclusive(): boolean {
-  if (typeof window === 'undefined') return GENDER_INCLUSIVE_DEFAULT
-  try {
-    const stored = localStorage.getItem('story-context-genderInclusive')
-    if (stored !== null) {
-      const parsed = JSON.parse(stored) as boolean
-      return parsed
-    }
-  } catch {
-    // Ignoriere Fehler
-  }
-  return GENDER_INCLUSIVE_DEFAULT
-}
-
 export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const isEmbedded = variant === 'embedded'
   const storyContext = useStoryContext()
@@ -172,6 +83,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [answerLength, setAnswerLength] = useState<AnswerLength>(ANSWER_LENGTH_DEFAULT)
   const setChatReferences = useSetAtom(chatReferencesAtom)
   const [retriever, setRetriever] = useState<Retriever>(RETRIEVER_DEFAULT)
+  // State für Chat-Input-Panel (nur im embedded Modus)
+  const [isChatInputOpen, setIsChatInputOpen] = useState(false)
   // Im embedded-Modus: Werte aus StoryContext, sonst lokaler State
   // WICHTIG: Initial-Werte aus localStorage laden (falls vorhanden)
   const [targetLanguageState, setTargetLanguageState] = useState<TargetLanguage>(getInitialTargetLanguage())
@@ -391,76 +304,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     return () => { cancelled = true }
   }, [libraryId, isAnonymous, isEmbedded, setTargetLanguage, setCharacter, setSocialContext, targetLanguageState, characterState, socialContextState, storyContext.targetLanguage, storyContext.character, storyContext.socialContext])
 
-  // Gemeinsame Hilfsfunktion: Erstelle ChatMessage aus QueryLog-Daten
-  function createMessagesFromQueryLog(queryLog: { queryId: string; question: string; answer?: string; references?: ChatResponse['references']; suggestedQuestions?: string[]; createdAt: string | Date; answerLength?: AnswerLength; retriever?: Retriever; targetLanguage?: TargetLanguage; character?: string; socialContext?: SocialContext }): ChatMessage[] {
-    const messages: ChatMessage[] = []
-    
-    // Frage als Message
-    messages.push({
-      id: `${queryLog.queryId}-question`,
-      type: 'question',
-      content: queryLog.question,
-      createdAt: typeof queryLog.createdAt === 'string' ? queryLog.createdAt : queryLog.createdAt.toISOString(),
-      queryId: queryLog.queryId, // Setze queryId, damit wir historische Fragen erkennen können
-      answerLength: queryLog.answerLength,
-      retriever: queryLog.retriever,
-      targetLanguage: queryLog.targetLanguage,
-      character: queryLog.character as Character | undefined,
-      socialContext: queryLog.socialContext,
-    })
-    
-    // Antwort als Message (wenn vorhanden)
-    if (queryLog.answer) {
-      const refs: ChatResponse['references'] = Array.isArray(queryLog.references) ? queryLog.references : []
-      const suggestedQuestions = Array.isArray(queryLog.suggestedQuestions)
-        ? queryLog.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
-        : []
-      
-      messages.push({
-        id: `${queryLog.queryId}-answer`,
-        type: 'answer',
-        content: queryLog.answer,
-        references: refs,
-        suggestedQuestions,
-        queryId: queryLog.queryId,
-        createdAt: typeof queryLog.createdAt === 'string' ? queryLog.createdAt : queryLog.createdAt.toISOString(),
-        answerLength: queryLog.answerLength,
-        retriever: queryLog.retriever,
-        targetLanguage: queryLog.targetLanguage,
-        character: queryLog.character as Character | undefined,
-        socialContext: queryLog.socialContext,
-      })
-    }
-    
-    return messages
-  }
-
-  // Gruppiere Messages zu Frage-Antwort-Paaren
-  function groupMessagesToConversations(messages: ChatMessage[]): Array<{ conversationId: string; question: ChatMessage; answer?: ChatMessage }> {
-    const conversations: Array<{ conversationId: string; question: ChatMessage; answer?: ChatMessage }> = []
-    
-    for (let i = 0; i < messages.length; i++) {
-      const msg = messages[i]
-      if (msg.type === 'question') {
-        // Prüfe, ob die nächste Message eine Antwort ist
-        const nextMsg = messages[i + 1]
-        const conversationId = msg.queryId || msg.id.replace('-question', '') || `conv-${i}`
-        
-        conversations.push({
-          conversationId,
-          question: msg,
-          answer: nextMsg && nextMsg.type === 'answer' ? nextMsg : undefined,
-        })
-        
-        // Überspringe die Antwort-Message im nächsten Durchlauf
-        if (nextMsg && nextMsg.type === 'answer') {
-          i++
-        }
-      }
-    }
-    
-    return conversations
-  }
 
   // Zeige Welcome-Assistent nicht mehr benötigt - Konfiguration ist jetzt in der Kontextbar
 
@@ -572,27 +415,16 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     return () => { cancelled = true }
   }, [libraryId, activeChatId])
 
-  // Auto-Scroll zum neuesten Accordion (nur bei neuen Nachrichten)
-  useEffect(() => {
-    // Scroll nur, wenn neue Nachrichten hinzugefügt wurden
-    if (messages.length <= prevMessagesLengthRef.current) {
-      prevMessagesLengthRef.current = messages.length
-      return
-    }
-    prevMessagesLengthRef.current = messages.length
-
-    // Prüfe, ob es ein neues geöffnetes Accordion gibt
-    const conversations = groupMessagesToConversations(messages)
-    const lastConversation = conversations[conversations.length - 1]
-    if (lastConversation && openConversations.has(lastConversation.conversationId)) {
-      setTimeout(() => {
-        const element = document.querySelector(`[data-conversation-id="${lastConversation.conversationId}"]`)
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-        }
-      }, 500)
-    }
-  }, [messages, openConversations])
+  // Auto-Scroll-Logik über Custom Hook
+  useChatScroll({
+    scrollRef,
+    messages,
+    openConversations,
+    setOpenConversations,
+    isSending,
+    processingSteps,
+    prevMessagesLengthRef,
+  })
 
   // Handler für das Löschen einer Query
   async function handleDeleteQuery(queryId: string): Promise<void> {
@@ -1393,6 +1225,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     // Verwende die direkte Send-Funktion
     await sendQuestionDirectly(input.trim())
     setInput('')
+    // Chat-Input-Panel wird automatisch durch ChatInput-Komponente geschlossen
   }
 
   if (loading) return <div className={variant === 'compact' ? '' : 'p-6'}>Lade Chat...</div>
@@ -1404,184 +1237,41 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       <div className="flex flex-col h-full min-h-0 w-full">
         {/* Kontextbar - nur im non-embedded Modus anzeigen */}
         {!isEmbedded && (
-          <>
-        <div className="flex items-center gap-2 pb-2 flex-shrink-0">
-          {/* Zielsprache */}
-          <Select value={targetLanguage} onValueChange={(v) => setTargetLanguage(v as TargetLanguage)}>
-            <SelectTrigger className="h-8 text-xs w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TARGET_LANGUAGE_VALUES.map((lang) => (
-                <SelectItem key={lang} value={lang}>
-                  {TARGET_LANGUAGE_LABELS[lang]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {/* Perspektive (Charakter) */}
-          <Select value={character} onValueChange={(v) => setCharacter(v as Character)}>
-            <SelectTrigger className="h-8 text-xs w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CHARACTER_VALUES.map((char) => (
-                <SelectItem key={char} value={char}>
-                  {CHARACTER_LABELS[char]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {/* Sozialer Kontext */}
-          <Select value={socialContext} onValueChange={(v) => setSocialContext(v as SocialContext)}>
-            <SelectTrigger className="h-8 text-xs w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SOCIAL_CONTEXT_VALUES.map((ctx) => (
-                <SelectItem key={ctx} value={ctx}>
-                  {SOCIAL_CONTEXT_LABELS[ctx]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {/* Config-Popover */}
-          <Popover open={configPopoverOpen} onOpenChange={handleConfigPopoverChange}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80" align="end">
-              <div className="space-y-4">
-                <div className="font-medium text-sm mb-3">Erweiterte Einstellungen</div>
-                
-                {/* Antwortlänge */}
-                <div>
-                  <div className="text-sm font-medium mb-2">Antwortlänge:</div>
-                  <div className="flex gap-1 flex-wrap">
-                    {ANSWER_LENGTH_VALUES.map((v) => (
-                      <Button 
-                        key={v} 
-                        type="button" 
-                        size="sm" 
-                        variant={answerLength===v? 'default':'outline'} 
-                        onClick={() => setAnswerLength(v)} 
-                        className="h-7 px-2 text-xs"
-                      >
-                        {ANSWER_LENGTH_LABELS[v]}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Methode */}
-                <div>
-                  <div className="text-sm font-medium mb-2">Methode:</div>
-                  <div className="flex gap-1 flex-wrap">
-                    {RETRIEVER_VALUES.filter(v => v !== 'summary').map((v) => {
-                      const label = RETRIEVER_LABELS[v]
-                      const tip = v === 'auto'
-                        ? 'Das System analysiert Ihre Frage automatisch und wählt die beste Methode (Spezifisch oder Übersichtlich).'
-                        : v === 'chunk'
-                        ? 'Für die Frage interessante Textstellen (Chunks) suchen und daraus die Antwort generieren. Nur spezifische Inhalte – dafür präziser.'
-                        : 'Aus den Zusammenfassungen aller Kapitel/Dokumente eine Antwort kreieren. Mehr Überblick – dafür etwas ungenauer.'
-                      return (
-                        <Tooltip key={v}>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              type="button" 
-                              size="sm" 
-                              variant={retriever===v? 'default':'outline'} 
-                              onClick={() => setRetriever(v)} 
-                              className="h-7 px-2 text-xs"
-                            >
-                              {label}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-[320px] text-xs">
-                            <div className="max-w-[280px]">{tip}</div>
-                          </TooltipContent>
-                        </Tooltip>
-                      )
-                    })}
-                  </div>
-                </div>
-                
-                {/* Gendergerechte Formulierung */}
-                <div className="flex items-center justify-between rounded-md border p-2.5">
-                  <div className="space-y-0.5">
-                    <div className="text-xs font-medium">Gendergerechte Formulierung</div>
-                    <div className="text-xs text-muted-foreground">
-                      Verwende geschlechtsneutrale Formulierungen in den Antworten
-                    </div>
-                  </div>
-                  <Switch
-                    checked={genderInclusive}
-                    onCheckedChange={setGenderInclusive}
-                  />
-                </div>
-                
-                {/* Themenübersicht anzeigen */}
-                <div>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={async () => {
-                      await saveUserPreferences({
-                        targetLanguage,
-                        character,
-                        socialContext,
-                        genderInclusive,
-                      })
-                      await handleGenerateTOC()
-                      setConfigPopoverOpen(false)
-                    }}
-                  >
-                    Themenübersicht anzeigen
-                  </Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-          
-          {/* Chat-Selector rechts */}
-            {!isEmbedded && (
-          <div className="ml-auto">
-            <ChatSelector
-              libraryId={libraryId}
-              activeChatId={activeChatId}
-              onChatChange={(chatId) => {
-                setActiveChatId(chatId)
-                if (chatId) {
-                  // Messages werden durch loadHistory useEffect geladen
-                } else {
-                  setMessages([])
-                }
-              }}
-              onCreateNewChat={() => {
-                // Leere Messages, wenn neuer Chat erstellt wird
-                setMessages([])
-              }}
+          <ChatConfigBar
+            targetLanguage={targetLanguage}
+            setTargetLanguage={setTargetLanguage}
+            character={character}
+            setCharacter={setCharacter}
+            socialContext={socialContext}
+            setSocialContext={setSocialContext}
+            libraryId={libraryId}
+            activeChatId={activeChatId}
+            setActiveChatId={setActiveChatId}
+            setMessages={setMessages}
+            isEmbedded={isEmbedded}
+          >
+            <ChatConfigPopover
+              open={configPopoverOpen}
+              onOpenChange={handleConfigPopoverChange}
+              answerLength={answerLength}
+              setAnswerLength={setAnswerLength}
+              retriever={retriever}
+              setRetriever={setRetriever}
+              genderInclusive={genderInclusive}
+              setGenderInclusive={setGenderInclusive}
+              targetLanguage={targetLanguage}
+              character={character}
+              socialContext={socialContext}
+              onGenerateTOC={handleGenerateTOC}
+              onSavePreferences={saveUserPreferences}
             />
-          </div>
-            )}
-        </div>
-        
-        {/* Trennlinie unter der Kontextbar */}
-        <div className="border-b mb-4"></div>
-        </>
+          </ChatConfigBar>
         )}
         
         {/* Scrollbarer Chat-Verlauf */}
         <div className={`flex-1 min-h-0 flex flex-col overflow-hidden ${isEmbedded ? 'relative' : ''}`}>
           <ScrollArea className="flex-1 min-h-0 h-full" ref={scrollRef}>
-            <div className={`p-4 ${isEmbedded ? 'pb-32' : ''}`}>
+            <div className={`p-4 ${isEmbedded ? '' : ''}`}>
               {/* StoryTopics im embedded Modus - oben im Scroll-Bereich */}
               {isEmbedded && (
                 <div className="mb-6 pb-6 border-b">
@@ -1592,234 +1282,74 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                     onSelectQuestion={(question) => {
                       // Frage an Chat übergeben
                       setInput(question.text)
-                                  inputRef.current?.focus()
-                                }}
+                      setIsChatInputOpen(true)
+                      setTimeout(() => {
+                        inputRef.current?.focus()
+                      }, 100)
+                    }}
                               />
                 </div>
               )}
               
               {/* Alte TOC-Anzeige entfernt - wird jetzt durch StoryTopics-Komponente ersetzt */}
               
-              {/* Leerer Zustand / Startnachricht - nicht im embedded Modus */}
-              {!isEmbedded && !isCheckingTOC && !cachedTOC && messages.length === 0 && !isSending && (
-                <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                  <div className="text-4xl mb-4">💡</div>
-                  <h3 className="text-lg font-medium mb-2">Willkommen im Story Mode.</h3>
-                  <p className="text-sm text-muted-foreground mb-4 max-w-md">
-                    Wähle oben Sprache und Perspektive, dann beginne dein Gespräch mit dem Wissen.
-                  </p>
-                  <p className="text-xs text-muted-foreground max-w-md">
-                    Tipp: Stelle eine Frage oder klicke rechts auf einen Talk, um die Story aus deiner Sicht zu sehen.
-                  </p>
-                </div>
-              )}
-              
-            {(() => {
-              const conversations = groupMessagesToConversations(messages)
-              return conversations.map((conv) => {
-                const isOpen = openConversations.has(conv.conversationId)
-                return (
-                  <div key={conv.conversationId} data-conversation-id={conv.conversationId}>
-                    <ChatConversationItem
-                      pair={{
-                        question: {
-                          id: conv.question.id,
-                          content: conv.question.content,
-                          createdAt: conv.question.createdAt,
-                          character: conv.question.character,
-                          answerLength: conv.question.answerLength,
-                          retriever: conv.question.retriever,
-                          targetLanguage: conv.question.targetLanguage,
-                          socialContext: conv.question.socialContext,
-                          queryId: conv.question.queryId,
-                        },
-                        answer: conv.answer ? {
-                          id: conv.answer.id,
-                          content: conv.answer.content,
-                          references: conv.answer.references,
-                          suggestedQuestions: conv.answer.suggestedQuestions,
-                          queryId: conv.answer.queryId,
-                          createdAt: conv.answer.createdAt,
-                          answerLength: conv.answer.answerLength,
-                          retriever: conv.answer.retriever,
-                          targetLanguage: conv.answer.targetLanguage,
-                          character: conv.answer.character,
-                          socialContext: conv.answer.socialContext,
-                        } : undefined,
-                      }}
-                      conversationId={conv.conversationId}
-                      isOpen={isOpen}
-                      onOpenChange={(open) => {
-                        setOpenConversations(prev => {
-                          const next = new Set(prev)
-                          if (open) {
-                            next.add(conv.conversationId)
-                          } else {
-                            next.delete(conv.conversationId)
-                          }
-                          return next
-                        })
-                      }}
-                      libraryId={libraryId}
-                        onQuestionClick={(question) => {
-                          setInput(question)
-                          inputRef.current?.focus()
-                        }}
-                        onDelete={handleDeleteQuery}
-                        onReload={handleReloadQuestion}
-                        innerRef={(id, el) => {
-                          if (el) {
-                            messageRefs.current.set(id, el)
-                          } else {
-                            messageRefs.current.delete(id)
-                          }
-                        }}
-                      />
-                  </div>
-                )
-              })
-            })()}
-            {isSending && (
-              <div className="mb-4">
-                {/* Warten-Symbol - IMMER anzeigen */}
-                <div className="flex gap-3 mb-2">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                      <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="bg-muted/30 border rounded-lg p-3">
-                      <div className="text-sm text-muted-foreground">Wird verarbeitet...</div>
-                      {/* Konfigurationsparameter während der Berechnung anzeigen */}
-                      <div className="mt-2">
-                        <ChatConfigDisplay
-                          answerLength={answerLength}
-                          retriever={retriever}
-                          targetLanguage={targetLanguage}
-                          character={character}
-                          socialContext={socialContext}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* Logs dezent darunter */}
-                {processingSteps.length > 0 && (
-                  <div className="ml-11">
-                    <ProcessingStatus steps={processingSteps} isActive={isSending} />
-                  </div>
-                )}
-              </div>
-            )}
-            {error && (
-              <div className="text-sm text-destructive p-3 bg-destructive/10 rounded border border-destructive/20">
-                {error}
-              </div>
-            )}
+              <ChatMessagesList
+                messages={messages}
+                openConversations={openConversations}
+                setOpenConversations={setOpenConversations}
+                libraryId={libraryId}
+                isSending={isSending}
+                processingSteps={processingSteps}
+                error={error}
+                answerLength={answerLength}
+                retriever={retriever}
+                targetLanguage={targetLanguage}
+                character={character}
+                socialContext={socialContext}
+                onQuestionClick={(question) => {
+                  setInput(question)
+                  inputRef.current?.focus()
+                }}
+                onDelete={handleDeleteQuery}
+                onReload={handleReloadQuestion}
+                messageRefs={messageRefs}
+                isEmbedded={isEmbedded}
+                isCheckingTOC={isCheckingTOC}
+                cachedTOC={cachedTOC}
+              />
           </div>
         </ScrollArea>
 
-        {/* Fixierter Input-Bereich */}
-        {isEmbedded ? (
-          <Card className="border-2 absolute bottom-0 left-4 right-4 mb-4 flex-shrink-0 z-10 bg-background">
-            <CardContent className="p-4">
-              <div className="space-y-3">
-                <p className="text-sm font-medium">Oder stelle deine eigene Frage:</p>
-                <div className="flex gap-2 items-end">
-                  <Input
-                    ref={inputRef}
-                    placeholder="z.B. Wie wurde Nachhaltigkeit diskutiert?"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !isSending) onSend()
-                    }}
-                    disabled={isSending}
-                    className="text-sm"
-                  />
-                  {/* Antwortlänge-Dropdown (dezent) */}
-                  <div className="flex flex-col gap-1 items-center">
-                    <label className="text-xs text-muted-foreground whitespace-nowrap">Antwort</label>
-                    <Select 
-                      value={answerLength} 
-                      onValueChange={(v) => setAnswerLength(v as AnswerLength)}
-                      disabled={isSending}
-                    >
-                      <SelectTrigger className="h-9 w-[130px] text-xs border-border/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ANSWER_LENGTH_VALUES.map((length) => (
-                          <SelectItem key={length} value={length}>
-                            {ANSWER_LENGTH_LABELS[length]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button onClick={onSend} size="sm" className="gap-2 shrink-0" disabled={isSending}>
-                    {isSending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Warten...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4" />
-                        Fragen
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-        <div className="border-t p-3 bg-background flex-shrink-0">
-          {/* Header-Zeile: Antwortlänge rechts oben */}
-          <div className="flex items-center justify-end gap-2 mb-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Antwortlänge:</span>
-            <Select 
-              value={answerLength} 
-              onValueChange={(v) => setAnswerLength(v as AnswerLength)}
-              disabled={isSending}
-            >
-              <SelectTrigger className="h-8 w-[110px] text-xs border-border/50">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ANSWER_LENGTH_VALUES.map((length) => (
-                  <SelectItem key={length} value={length}>
-                    {ANSWER_LENGTH_LABELS[length]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Input-Bereich */}
-          <div className="flex items-center gap-2">
-            <Input
-              ref={inputRef}
-              className="flex-1 h-9"
-              placeholder={cfg.config.placeholder || 'Schreibe deine Frage … (z. B. „Wie erklären die SFSCon-Talks die Rolle von Open Source für die Gesellschaft?")'}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !isSending) onSend() }}
-              disabled={isSending}
-            />
-            <Button type="button" size="sm" onClick={onSend} className="h-9" disabled={isSending}>
-              {isSending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Warten...
-                </>
-              ) : (
-                'Senden'
-              )}
-            </Button>
-          </div>
-        </div>
+        {/* Input-Bereich - nur im non-embedded Modus */}
+        {!isEmbedded && (
+          <ChatInput
+            input={input}
+            setInput={setInput}
+            onSend={onSend}
+            isSending={isSending}
+            answerLength={answerLength}
+            setAnswerLength={setAnswerLength}
+            placeholder={cfg.config.placeholder}
+            variant="default"
+            inputRef={inputRef}
+          />
+        )}
+        
+        {/* Chat-Input für embedded Modus - fixed positioniert */}
+        {isEmbedded && (
+          <ChatInput
+            input={input}
+            setInput={setInput}
+            onSend={onSend}
+            isSending={isSending}
+            answerLength={answerLength}
+            setAnswerLength={setAnswerLength}
+            placeholder={cfg.config.placeholder}
+            variant="embedded"
+            inputRef={inputRef}
+            isOpen={isChatInputOpen}
+            onOpenChange={setIsChatInputOpen}
+          />
         )}
       </div>
     </div>
@@ -1830,182 +1360,41 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     <div className="w-full h-full flex flex-col min-h-[600px] overflow-hidden">
       {/* Kontextbar - nur im default/compact Modus anzeigen */}
       {!isEmbedded && (
-        <>
-      <div className="flex items-center gap-2 pb-2 flex-shrink-0">
-        {/* Zielsprache */}
-        <Select value={targetLanguage} onValueChange={(v) => setTargetLanguage(v as TargetLanguage)}>
-          <SelectTrigger className="h-8 text-xs w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TARGET_LANGUAGE_VALUES.map((lang) => (
-              <SelectItem key={lang} value={lang}>
-                {TARGET_LANGUAGE_LABELS[lang]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
-        {/* Perspektive (Charakter) */}
-        <Select value={character} onValueChange={(v) => setCharacter(v as Character)}>
-          <SelectTrigger className="h-8 text-xs w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {CHARACTER_VALUES.map((char) => (
-              <SelectItem key={char} value={char}>
-                {CHARACTER_LABELS[char]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
-        {/* Sozialer Kontext */}
-        <Select value={socialContext} onValueChange={(v) => setSocialContext(v as SocialContext)}>
-          <SelectTrigger className="h-8 text-xs w-[160px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SOCIAL_CONTEXT_VALUES.map((ctx) => (
-              <SelectItem key={ctx} value={ctx}>
-                {SOCIAL_CONTEXT_LABELS[ctx]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
-        {/* Config-Popover */}
-        <Popover open={configPopoverOpen} onOpenChange={setConfigPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80" align="end">
-            <div className="space-y-4">
-              <div className="font-medium text-sm mb-3">Erweiterte Einstellungen</div>
-              
-              {/* Antwortlänge */}
-              <div>
-                <div className="text-sm font-medium mb-2">Antwortlänge:</div>
-                <div className="flex gap-1 flex-wrap">
-                  {ANSWER_LENGTH_VALUES.map((v) => (
-                    <Button 
-                      key={v} 
-                      type="button" 
-                      size="sm" 
-                      variant={answerLength===v? 'default':'outline'} 
-                      onClick={() => setAnswerLength(v)} 
-                      className="h-7 px-2 text-xs"
-                    >
-                      {ANSWER_LENGTH_LABELS[v]}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Methode */}
-              <div>
-                <div className="text-sm font-medium mb-2">Methode:</div>
-                <div className="flex gap-1 flex-wrap">
-                  {RETRIEVER_VALUES.filter(v => v !== 'summary').map((v) => {
-                    const label = RETRIEVER_LABELS[v]
-                    const tip = v === 'auto'
-                      ? 'Das System analysiert Ihre Frage automatisch und wählt die beste Methode (Spezifisch oder Übersichtlich).'
-                      : v === 'chunk'
-                      ? 'Für die Frage interessante Textstellen (Chunks) suchen und daraus die Antwort generieren. Nur spezifische Inhalte – dafür präziser.'
-                      : 'Aus den Zusammenfassungen aller Kapitel/Dokumente eine Antwort kreieren. Mehr Überblick – dafür etwas ungenauer.'
-                    return (
-                      <Tooltip key={v}>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            type="button" 
-                            size="sm" 
-                            variant={retriever===v? 'default':'outline'} 
-                            onClick={() => setRetriever(v)} 
-                            className="h-7 px-2 text-xs"
-                          >
-                            {label}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-[320px] text-xs">
-                          <div className="max-w-[280px]">{tip}</div>
-                        </TooltipContent>
-                      </Tooltip>
-                    )
-                  })}
-                </div>
-              </div>
-              
-              {/* Gendergerechte Formulierung */}
-              <div className="flex items-center justify-between rounded-md border p-2.5">
-                <div className="space-y-0.5">
-                  <div className="text-xs font-medium">Gendergerechte Formulierung</div>
-                  <div className="text-xs text-muted-foreground">
-                    Verwende geschlechtsneutrale Formulierungen in den Antworten
-                  </div>
-                </div>
-                <Switch
-                  checked={genderInclusive}
-                  onCheckedChange={setGenderInclusive}
-                />
-              </div>
-              
-                {/* Themenübersicht anzeigen */}
-                <div>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={async () => {
-                      await saveUserPreferences({
-                        targetLanguage,
-                        character,
-                        socialContext,
-                        genderInclusive,
-                      })
-                      await handleGenerateTOC()
-                      setConfigPopoverOpen(false)
-                    }}
-                  >
-                    Themenübersicht anzeigen
-                  </Button>
-                </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-        
-        {/* Chat-Selector rechts */}
-        <div className="ml-auto">
-          <ChatSelector
-            libraryId={libraryId}
-            activeChatId={activeChatId}
-            onChatChange={(chatId) => {
-              setActiveChatId(chatId)
-              if (chatId) {
-                // Messages werden durch loadHistory useEffect geladen
-              } else {
-                setMessages([])
-              }
-            }}
-            onCreateNewChat={() => {
-              // Leere Messages, wenn neuer Chat erstellt wird
-              setMessages([])
-            }}
+        <ChatConfigBar
+          targetLanguage={targetLanguage}
+          setTargetLanguage={setTargetLanguage}
+          character={character}
+          setCharacter={setCharacter}
+          socialContext={socialContext}
+          setSocialContext={setSocialContext}
+          libraryId={libraryId}
+          activeChatId={activeChatId}
+          setActiveChatId={setActiveChatId}
+          setMessages={setMessages}
+          isEmbedded={isEmbedded}
+        >
+          <ChatConfigPopover
+            open={configPopoverOpen}
+            onOpenChange={handleConfigPopoverChange}
+            answerLength={answerLength}
+            setAnswerLength={setAnswerLength}
+            retriever={retriever}
+            setRetriever={setRetriever}
+            genderInclusive={genderInclusive}
+            setGenderInclusive={setGenderInclusive}
+            targetLanguage={targetLanguage}
+            character={character}
+            socialContext={socialContext}
+            onGenerateTOC={handleGenerateTOC}
+            onSavePreferences={saveUserPreferences}
           />
-        </div>
-      </div>
-      
-      {/* Trennlinie unter der Kontextbar */}
-      <div className="border-b mb-4"></div>
-        </>
+        </ChatConfigBar>
       )}
       
       {/* Scrollbarer Chat-Verlauf */}
       <div className={`flex-1 min-h-0 flex flex-col overflow-hidden ${isEmbedded ? 'relative' : ''}`}>
         <ScrollArea className="flex-1 h-full" ref={scrollRef}>
-          <div className={`p-6 ${isEmbedded ? 'pb-32' : ''}`}>
+          <div className={`p-6 ${isEmbedded ? '' : ''}`}>
             {/* StoryTopics im embedded Modus - oben im Scroll-Bereich */}
             {isEmbedded && (
               <div className="mb-6 pb-6 border-b">
@@ -2016,233 +1405,83 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                   onSelectQuestion={(question) => {
                     // Frage an Chat übergeben
                     setInput(question.text)
+                    // Öffne Panel explizit
+                    setIsChatInputOpen(true)
+                    setTimeout(() => {
                       inputRef.current?.focus()
-                    }}
+                    }, 200)
+                  }}
                   />
               </div>
             )}
             
             {/* Alte TOC-Anzeige entfernt - wird jetzt durch StoryTopics-Komponente ersetzt */}
             
-            {/* Leerer Zustand / Startnachricht - nicht im embedded Modus */}
-            {!isEmbedded && !isCheckingTOC && !cachedTOC && messages.length === 0 && !isSending && (
-              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                <div className="text-4xl mb-4">💡</div>
-                <h3 className="text-lg font-medium mb-2">Willkommen im Story Mode.</h3>
-                <p className="text-sm text-muted-foreground mb-4 max-w-md">
-                  Wähle oben Sprache und Perspektive, dann beginne dein Gespräch mit dem Wissen.
-                </p>
-                <p className="text-xs text-muted-foreground max-w-md">
-                  Tipp: Stelle eine Frage oder klicke rechts auf einen Talk, um die Story aus deiner Sicht zu sehen.
-                </p>
-              </div>
-            )}
-            
-            {(() => {
-              const conversations = groupMessagesToConversations(messages)
-              return conversations.map((conv) => {
-                const isOpen = openConversations.has(conv.conversationId)
-                return (
-                  <div key={conv.conversationId} data-conversation-id={conv.conversationId}>
-                    <ChatConversationItem
-                      pair={{
-                        question: {
-                          id: conv.question.id,
-                          content: conv.question.content,
-                          createdAt: conv.question.createdAt,
-                          character: conv.question.character,
-                          answerLength: conv.question.answerLength,
-                          retriever: conv.question.retriever,
-                          targetLanguage: conv.question.targetLanguage,
-                          socialContext: conv.question.socialContext,
-                          queryId: conv.question.queryId,
-                        },
-                        answer: conv.answer ? {
-                          id: conv.answer.id,
-                          content: conv.answer.content,
-                          references: conv.answer.references,
-                          suggestedQuestions: conv.answer.suggestedQuestions,
-                          queryId: conv.answer.queryId,
-                          createdAt: conv.answer.createdAt,
-                          answerLength: conv.answer.answerLength,
-                          retriever: conv.answer.retriever,
-                          targetLanguage: conv.answer.targetLanguage,
-                          character: conv.answer.character,
-                          socialContext: conv.answer.socialContext,
-                        } : undefined,
-                      }}
-                      conversationId={conv.conversationId}
-                      isOpen={isOpen}
-                      onOpenChange={(open) => {
-                        setOpenConversations(prev => {
-                          const next = new Set(prev)
-                          if (open) {
-                            next.add(conv.conversationId)
-                          } else {
-                            next.delete(conv.conversationId)
-                          }
-                          return next
-                        })
-                      }}
-                      libraryId={libraryId}
-                      onQuestionClick={(question) => {
-                        setInput(question)
-                        inputRef.current?.focus()
-                      }}
-                      onDelete={handleDeleteQuery}
-                      onReload={handleReloadQuestion}
-                      innerRef={(id, el) => {
-                        if (el) {
-                          messageRefs.current.set(id, el)
-                        } else {
-                          messageRefs.current.delete(id)
-                        }
-                      }}
-                    />
-                  </div>
-                )
-              })
-            })()}
-            {isSending && (
-              <div className="mb-4">
-                {/* Warten-Symbol - IMMER anzeigen */}
-                <div className="flex gap-3 mb-2">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                      <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="bg-muted/30 border rounded-lg p-3">
-                      <div className="text-sm text-muted-foreground">Wird verarbeitet...</div>
-                    </div>
-                  </div>
-                </div>
-                {/* Logs dezent darunter */}
-                {processingSteps.length > 0 && (
-                  <div className="ml-11">
-                    <ProcessingStatus steps={processingSteps} isActive={isSending} />
-                  </div>
-                )}
-              </div>
-            )}
-            {error && (
-              <div className="text-sm text-destructive p-3 bg-destructive/10 rounded border border-destructive/20">
-                {error}
-              </div>
-            )}
+            <ChatMessagesList
+              messages={messages}
+              openConversations={openConversations}
+              setOpenConversations={setOpenConversations}
+              libraryId={libraryId}
+              isSending={isSending}
+              processingSteps={processingSteps}
+              error={error}
+              answerLength={answerLength}
+              retriever={retriever}
+              targetLanguage={targetLanguage}
+              character={character}
+              socialContext={socialContext}
+              onQuestionClick={(question) => {
+                setInput(question)
+                setIsChatInputOpen(true)
+                setTimeout(() => {
+                  inputRef.current?.focus()
+                }, 100)
+              }}
+              onDelete={handleDeleteQuery}
+              onReload={handleReloadQuestion}
+              messageRefs={messageRefs}
+              isEmbedded={isEmbedded}
+              isCheckingTOC={isCheckingTOC}
+              cachedTOC={cachedTOC}
+            />
           </div>
         </ScrollArea>
 
-        {/* Fixierter Input-Bereich */}
-        {isEmbedded ? (
-          <Card className="border-2 flex-shrink-0 mb-4 absolute bottom-0 left-4 right-4 z-10 bg-background">
-            <CardContent className="p-4">
-              <div className="space-y-3">
-                {/* Header-Zeile: Überschrift links, Antwortlänge rechts */}
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-sm font-medium">Oder stelle deine eigene Frage:</p>
-                  {/* Antwortlänge rechts oben */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">Antwortlänge:</span>
-                    <Select 
-                      value={answerLength} 
-                      onValueChange={(v) => setAnswerLength(v as AnswerLength)}
-                      disabled={isSending}
-                    >
-                      <SelectTrigger className="h-8 w-[110px] text-xs border-border/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ANSWER_LENGTH_VALUES.map((length) => (
-                          <SelectItem key={length} value={length}>
-                            {ANSWER_LENGTH_LABELS[length]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {/* Input-Bereich */}
-                <div className="flex gap-2 items-center">
-                  <Input
-                    ref={inputRef}
-                    placeholder="z.B. Wie wurde Nachhaltigkeit diskutiert?"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !isSending) onSend()
-                    }}
-                    disabled={isSending}
-                    className="text-sm"
-                  />
-                  <Button onClick={onSend} size="sm" className="gap-2 shrink-0" disabled={isSending}>
-                    {isSending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Warten...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4" />
-                        Fragen
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-        <div className="border-t p-4 bg-background flex-shrink-0">
-          {/* Header-Zeile: Antwortlänge rechts oben */}
-          <div className="flex items-center justify-end gap-2 mb-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Antwortlänge:</span>
-            <Select 
-              value={answerLength} 
-              onValueChange={(v) => setAnswerLength(v as AnswerLength)}
-              disabled={isSending}
-            >
-              <SelectTrigger className="h-8 w-[110px] text-xs border-border/50">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ANSWER_LENGTH_VALUES.map((length) => (
-                  <SelectItem key={length} value={length}>
-                    {ANSWER_LENGTH_LABELS[length]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Input-Bereich - nur im non-embedded Modus */}
+        {!isEmbedded && (
+          <ChatInput
+            input={input}
+            setInput={setInput}
+            onSend={onSend}
+            isSending={isSending}
+            answerLength={answerLength}
+            setAnswerLength={setAnswerLength}
+            placeholder={cfg.config.placeholder}
+            variant="default"
+            inputRef={inputRef}
+          />
+        )}
+        
+        {/* Chat-Input für embedded Modus - fixed positioniert */}
+        {isEmbedded && (
+          <ChatInput
+            input={input}
+            setInput={setInput}
+            onSend={onSend}
+            isSending={isSending}
+            answerLength={answerLength}
+            setAnswerLength={setAnswerLength}
+            placeholder={cfg.config.placeholder}
+            variant="embedded"
+            inputRef={inputRef}
+            isOpen={isChatInputOpen}
+            onOpenChange={setIsChatInputOpen}
+          />
+        )}
+        {cfg.config.footerText && !isEmbedded && (
+          <div className="mt-4 text-xs text-muted-foreground px-4">
+            {cfg.config.footerText} {cfg.config.companyLink ? (<a className="underline" href={cfg.config.companyLink} target="_blank" rel="noreferrer">mehr</a>) : null}
           </div>
-          {/* Input-Bereich */}
-          <div className="flex items-center gap-2">
-            <Input
-              ref={inputRef}
-              className="flex-1"
-              placeholder={cfg.config.placeholder || 'Schreibe deine Frage … (z. B. „Wie erklären die SFSCon-Talks die Rolle von Open Source für die Gesellschaft?")'}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !isSending) onSend() }}
-              disabled={isSending}
-            />
-            <Button type="button" onClick={onSend} disabled={isSending}>
-              {isSending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Warten...
-                </>
-              ) : (
-                'Senden'
-              )}
-            </Button>
-          </div>
-          {cfg.config.footerText && (
-            <div className="mt-4 text-xs text-muted-foreground">
-              {cfg.config.footerText} {cfg.config.companyLink ? (<a className="underline" href={cfg.config.companyLink} target="_blank" rel="noreferrer">mehr</a>) : null}
-            </div>
-          )}
-        </div>
         )}
       </div>
     </div>

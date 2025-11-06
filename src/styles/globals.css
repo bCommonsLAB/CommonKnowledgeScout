@@ -146,3 +146,19 @@
     background-color: hsl(38 92% 55%) !important;
   }
 }
+
+/* Next.js Entwicklungs-Indikator ausblenden */
+#__next-build-indicator,
+[data-nextjs-toast],
+[data-nextjs-toast-wrapper],
+[data-nextjs-dialog],
+.nextjs-toast-container,
+[data-next-badge],
+[data-next-badge-root],
+[data-nextjs-dev-tools-button],
+[data-next-mark] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

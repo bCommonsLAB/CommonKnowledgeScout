@@ -9,6 +9,7 @@ import Link from "next/link";
 import { EventSlides } from "@/components/event-slides";
 import { EventSummary } from "@/components/event-summary";
 import type { Slide } from "@/components/library/slide-accordion";
+import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 
 /**
  * Interface für Session-Detail-Daten aus Event/Konferenz-Dokumenten
@@ -177,7 +178,11 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
         <div className="space-y-8">
           {/* Markdown Content Section - full width (verwendet markdown Feld, fallback auf summary) */}
           {(data.markdown || data.summary) && (
-            <EventSummary summary={data.markdown || data.summary || ''} videoUrl={data.video_url} />
+            <>
+              <EventSummary summary={data.markdown || data.summary || ''} videoUrl={data.video_url} />
+              {/* KI-Info-Hinweis für KI-generierte Zusammenfassung */}
+              <AIGeneratedNotice compact />
+            </>
           )}
 
           {/* Slides Section - full width */}

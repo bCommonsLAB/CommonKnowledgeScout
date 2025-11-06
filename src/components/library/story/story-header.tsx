@@ -50,11 +50,18 @@ export function StoryHeader({}: StoryHeaderProps) {
   }
 
   return (
-    <div className="flex items-center pb-4 border-b flex-shrink-0">
-      {/* Perspektive-Button */}
+    <div className="flex flex-col gap-2 pb-4 border-b flex-shrink-0">
+      {/* Aktuelle Perspektive - dezent angezeigt */}
+      <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5">
+        <span>Sprache: {targetLanguageLabels[targetLanguage]}</span>
+        <span>Charakter: {characterLabels[character]}</span>
+        <span>Mein sozialer Kontext: {socialContextLabels[socialContext]}</span>
+      </div>
+      
+      {/* Perspektive-Button - weniger prominent */}
       <Popover open={perspectiveOpen} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+          <Button variant="outline" size="sm" className="gap-2 w-fit">
             <Settings2 className="h-4 w-4" />
             Eigene Perspektive anpassen
           </Button>

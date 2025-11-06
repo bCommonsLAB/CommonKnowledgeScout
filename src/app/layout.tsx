@@ -7,6 +7,7 @@ import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
 import { AppLayout } from "@/components/layouts/app-layout"
 import { HomeLayout } from "@/components/layouts/home-layout"
+import { ConditionalFooter } from "@/components/home/conditional-footer"
 
 export const metadata = {
   title: "Knowledge Scout",
@@ -55,6 +56,7 @@ export default function RootLayout({
                 <HomeLayout>
                   {children}
                 </HomeLayout>
+                <ConditionalFooter />
                 <Toaster richColors />
               </TooltipProvider>
             </StorageContextProvider>
@@ -80,6 +82,7 @@ export default function RootLayout({
                   <AppLayout>
                     {children}
                   </AppLayout>
+                  <ConditionalFooter />
                 </div>
                 <Toaster richColors />
               </TooltipProvider>

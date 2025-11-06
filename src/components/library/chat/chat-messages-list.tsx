@@ -1,0 +1,191 @@
+'use client'
+
+import { Loader2 } from 'lucide-react'
+import { ChatConversationItem } from './chat-conversation-item'
+import { ProcessingStatus } from './processing-status'
+import { ChatConfigDisplay } from './chat-config-display'
+import type { ChatMessage } from './utils/chat-utils'
+import { groupMessagesToConversations } from './utils/chat-utils'
+import type { ChatProcessingStep } from '@/types/chat-processing'
+import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext } from '@/lib/chat/constants'
+
+interface ChatMessagesListProps {
+  messages: ChatMessage[]
+  openConversations: Set<string>
+  setOpenConversations: React.Dispatch<React.SetStateAction<Set<string>>>
+  libraryId: string
+  isSending: boolean
+  processingSteps: ChatProcessingStep[]
+  error: string | null
+  answerLength: AnswerLength
+  retriever: Retriever
+  targetLanguage: TargetLanguage
+  character: Character
+  socialContext: SocialContext
+  onQuestionClick: (question: string) => void
+  onDelete: (queryId: string) => Promise<void>
+  onReload: (question: string, config: {
+    character?: Character
+    answerLength?: AnswerLength
+    retriever?: Retriever
+    targetLanguage?: TargetLanguage
+    socialContext?: SocialContext
+  }) => Promise<void>
+  messageRefs: React.MutableRefObject<Map<string, HTMLDivElement>>
+  isEmbedded?: boolean
+  isCheckingTOC?: boolean
+  cachedTOC?: unknown
+}
+
+/**
+ * Komponente für die Liste der Chat-Conversations
+ * 
+ * Rendert:
+ * - Liste der Frage-Antwort-Paare
+ * - Verarbeitungsstatus während des Sendens
+ * - Fehlermeldungen
+ */
+export function ChatMessagesList({
+  messages,
+  openConversations,
+  setOpenConversations,
+  libraryId,
+  isSending,
+  processingSteps,
+  error,
+  answerLength,
+  retriever,
+  targetLanguage,
+  character,
+  socialContext,
+  onQuestionClick,
+  onDelete,
+  onReload,
+  messageRefs,
+  isEmbedded = false,
+  isCheckingTOC = false,
+  cachedTOC = null,
+}: ChatMessagesListProps) {
+  const conversations = groupMessagesToConversations(messages)
+
+  // Leerer Zustand / Startnachricht - nicht im embedded Modus
+  if (!isEmbedded && !isCheckingTOC && !cachedTOC && messages.length === 0 && !isSending) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+        <div className="text-4xl mb-4">💡</div>
+        <h3 className="text-lg font-medium mb-2">Willkommen im Story Mode.</h3>
+        <p className="text-sm text-muted-foreground mb-4 max-w-md">
+          Wähle oben Sprache und Perspektive, dann beginne dein Gespräch mit dem Wissen.
+        </p>
+        <p className="text-xs text-muted-foreground max-w-md">
+          Tipp: Stelle eine Frage oder klicke rechts auf einen Talk, um die Story aus deiner Sicht zu sehen.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Conversations-Liste */}
+      {conversations.map((conv) => {
+        const isOpen = openConversations.has(conv.conversationId)
+        return (
+          <div key={conv.conversationId} data-conversation-id={conv.conversationId}>
+            <ChatConversationItem
+              pair={{
+                question: {
+                  id: conv.question.id,
+                  content: conv.question.content,
+                  createdAt: conv.question.createdAt,
+                  character: conv.question.character,
+                  answerLength: conv.question.answerLength,
+                  retriever: conv.question.retriever,
+                  targetLanguage: conv.question.targetLanguage,
+                  socialContext: conv.question.socialContext,
+                  queryId: conv.question.queryId,
+                },
+                answer: conv.answer ? {
+                  id: conv.answer.id,
+                  content: conv.answer.content,
+                  references: conv.answer.references,
+                  suggestedQuestions: conv.answer.suggestedQuestions,
+                  queryId: conv.answer.queryId,
+                  createdAt: conv.answer.createdAt,
+                  answerLength: conv.answer.answerLength,
+                  retriever: conv.answer.retriever,
+                  targetLanguage: conv.answer.targetLanguage,
+                  character: conv.answer.character,
+                  socialContext: conv.answer.socialContext,
+                } : undefined,
+              }}
+              conversationId={conv.conversationId}
+              isOpen={isOpen}
+              onOpenChange={(open) => {
+                setOpenConversations(prev => {
+                  const next = new Set(prev)
+                  if (open) {
+                    next.add(conv.conversationId)
+                  } else {
+                    next.delete(conv.conversationId)
+                  }
+                  return next
+                })
+              }}
+              libraryId={libraryId}
+              onQuestionClick={onQuestionClick}
+              onDelete={onDelete}
+              onReload={onReload}
+              innerRef={(id, el) => {
+                if (el) {
+                  messageRefs.current.set(id, el)
+                } else {
+                  messageRefs.current.delete(id)
+                }
+              }}
+            />
+          </div>
+        )
+      })}
+
+      {/* Verarbeitungsstatus während des Sendens */}
+      {isSending && (
+        <div className="flex gap-3 mb-4">
+          <div className="flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+              <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="bg-muted/30 border rounded-lg p-3">
+              <div className="text-sm text-muted-foreground">Wird verarbeitet...</div>
+              {/* Konfigurationsparameter während der Berechnung anzeigen */}
+              <div className="mt-2">
+                <ChatConfigDisplay
+                  answerLength={answerLength}
+                  retriever={retriever}
+                  targetLanguage={targetLanguage}
+                  character={character}
+                  socialContext={socialContext}
+                />
+              </div>
+              {/* Processing Steps - dezent innerhalb des Blocks */}
+              {processingSteps.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border/50">
+                  <ProcessingStatus steps={processingSteps} isActive={isSending} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fehlermeldung */}
+      {error && (
+        <div className="text-sm text-destructive p-3 bg-destructive/10 rounded border border-destructive/20">
+          {error}
+        </div>
+      )}
+    </>
+  )
+}
+
