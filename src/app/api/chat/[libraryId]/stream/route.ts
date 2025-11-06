@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { startQueryLog, failQueryLog, setQuestionAnalysis } from '@/lib/logging/query-logger'
+import { startQueryLog, setQuestionAnalysis } from '@/lib/logging/query-logger'
 import { updateQueryLogPartial } from '@/lib/db/queries-repo'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { buildFilters } from '@/lib/chat/common/filters'
@@ -14,11 +14,7 @@ import {
   isValidTargetLanguage,
   isValidCharacter,
   isValidSocialContext,
-  TargetLanguage,
-  Character,
-  SocialContext,
 } from '@/lib/chat/constants'
-import type { NeedsClarificationResponse } from '@/types/chat-response'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 import { formatSSE } from '@/types/chat-processing'
 
@@ -64,21 +60,13 @@ export async function POST(
         // Auth prüfen
         const { userId } = await auth()
         const user = await currentUser()
-        const userEmail = user?.emailAddresses?.[0]?.emailAddress
+        const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
 
-        // Wenn keine Email vorhanden ist und nicht öffentlich, Fehler zurückgeben
-        if (!userEmail) {
-          // Prüfe erst, ob Chat öffentlich ist, bevor wir ablehnen
-          const ctx = await loadLibraryChatContext('', libraryId)
-          if (!ctx || !ctx.chat.public || !userId) {
-            send({ type: 'error', error: 'Nicht authentifiziert' })
-            controller.close()
-            return
-          }
-          // Wenn öffentlich, können wir ohne Email fortfahren
-        }
+        // Session-ID aus Header lesen (für anonyme Nutzer)
+        const sessionIdHeader = request.headers.get('x-session-id') || request.headers.get('X-Session-ID')
+        const sessionId = sessionIdHeader || undefined
 
-        // Library-Context laden
+        // Library-Context laden (unterstützt auch öffentliche Libraries ohne Email)
         const ctx = await loadLibraryChatContext(userEmail || '', libraryId)
         if (!ctx) {
           send({ type: 'error', error: 'Bibliothek nicht gefunden' })
@@ -86,8 +74,16 @@ export async function POST(
           return
         }
 
-        if (!ctx.chat.public && !userId) {
+        // Zugriff: wenn nicht public, Auth erforderlich
+        if (!ctx.library.config?.publicPublishing?.isPublic && !userId) {
           send({ type: 'error', error: 'Nicht authentifiziert' })
+          controller.close()
+          return
+        }
+
+        // Für anonyme Nutzer: Session-ID muss vorhanden sein
+        if (!userEmail && !sessionId) {
+          send({ type: 'error', error: 'Session-ID erforderlich für anonyme Nutzer' })
           controller.close()
           return
         }
@@ -127,22 +123,35 @@ export async function POST(
         })
 
         // Schritt 1: Frage-Analyse
-        send({ type: 'question_analysis_start', question: message })
+        // Prüfe ZUERST, ob es eine TOC-Query ist, bevor wir Steps senden
+        const tocQuestion = 'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
+        const isTOCQuery = message.trim() === tocQuestion.trim()
+        
+        // Nur für normale Fragen: Frage-Analyse starten
+        if (!isTOCQuery) {
+          send({ type: 'question_analysis_start', question: message })
+        }
         
         const retrieverParamRaw = (parsedUrl.searchParams.get('retriever') || '').toLowerCase()
         const autoRetrieverEnabled = parsedUrl.searchParams.get('autoRetriever') !== 'false'
         const explicitRetriever = retrieverParamRaw === 'summary' || retrieverParamRaw === 'doc' || retrieverParamRaw === 'chunk'
         
         let analyzedRetriever: 'chunk' | 'summary' | null = null
+        // Schritt 1: Frage-Analyse (nur für normale Fragen, nicht für TOC-Queries)
+        
+        // Verwende Library-spezifischen API-Key, falls vorhanden
+        const libraryApiKey = ctx.library.config?.publicPublishing?.apiKey
+        
         let questionAnalysis: Awaited<ReturnType<typeof analyzeQuestionForRetriever>> | undefined = undefined
         
-        if (!explicitRetriever && autoRetrieverEnabled && process.env.ENABLE_AUTO_RETRIEVER_ANALYSIS !== 'false') {
+        // Für TOC-Queries: Überspringe Frage-Analyse, verwende immer Summary-Modus
+        if (!isTOCQuery && !explicitRetriever && autoRetrieverEnabled && process.env.ENABLE_AUTO_RETRIEVER_ANALYSIS !== 'false') {
           try {
             const isEventMode = ctx.chat.gallery.detailViewType === 'session'
             questionAnalysis = await analyzeQuestionForRetriever(message, {
               isEventMode,
               libraryType: ctx.library.type,
-            })
+            }, libraryApiKey)
             
             send({
               type: 'question_analysis_result',
@@ -185,20 +194,27 @@ export async function POST(
             analyzedRetriever = questionAnalysis.recommendation === 'summary' ? 'summary' : 'chunk'
           } catch (error) {
             console.error('[api/chat/stream] Frage-Analyse fehlgeschlagen:', error)
-            send({ type: 'question_analysis_result', recommendation: 'chunk', confidence: 'low' })
+            // Nur für normale Queries: Frage-Analyse-Ergebnis senden
+            if (!isTOCQuery) {
+              send({ type: 'question_analysis_result', recommendation: 'chunk', confidence: 'low' })
+            }
           }
         } else {
-          send({ type: 'question_analysis_result', recommendation: explicitRetriever ? (retrieverParamRaw === 'summary' || retrieverParamRaw === 'doc' ? 'summary' : 'chunk') : 'chunk', confidence: 'high' })
+          // Nur für normale Queries: Frage-Analyse-Ergebnis senden
+          if (!isTOCQuery) {
+            send({ type: 'question_analysis_result', recommendation: explicitRetriever ? (retrieverParamRaw === 'summary' || retrieverParamRaw === 'doc' ? 'summary' : 'chunk') : 'chunk', confidence: 'high' })
+          }
         }
 
         // Schritt 2: Chat-Verwaltung
         let activeChatId: string
         if (!chatId) {
           const chatTitle = questionAnalysis?.chatTitle || message.slice(0, 60)
-          activeChatId = await createChat(libraryId, userEmail || '', chatTitle)
+          // Verwende userEmail oder sessionId für Chat-Erstellung
+          activeChatId = await createChat(libraryId, userEmail || sessionId || '', chatTitle)
         } else {
           activeChatId = chatId
-          const existingChat = await getChatById(chatId, userEmail || '')
+          const existingChat = await getChatById(chatId, userEmail || sessionId || '')
           if (!existingChat) {
             send({ type: 'error', error: 'Chat nicht gefunden' })
             controller.close()
@@ -208,14 +224,23 @@ export async function POST(
         }
 
         // Schritt 3: Retriever bestimmen
-        const effectiveRetriever: 'chunk' | 'summary' = explicitRetriever 
+        // Für TOC-Queries: Immer Summary-Modus verwenden
+        const effectiveRetriever: 'chunk' | 'summary' = isTOCQuery
+          ? 'summary'
+          : explicitRetriever 
           ? (retrieverParamRaw === 'summary' || retrieverParamRaw === 'doc' ? 'summary' : 'chunk')
           : (analyzedRetriever ?? 'chunk')
 
         send({
           type: 'retriever_selected',
           retriever: effectiveRetriever,
-          reason: explicitRetriever ? 'Explizit gesetzt' : questionAnalysis ? `Von Analyse empfohlen (${questionAnalysis.confidence})` : 'Standard',
+          reason: isTOCQuery 
+            ? 'TOC-Query: Immer Summary-Modus'
+            : explicitRetriever 
+            ? 'Explizit gesetzt' 
+            : questionAnalysis 
+            ? `Von Analyse empfohlen (${questionAnalysis.confidence})` 
+            : 'Standard',
         })
 
         // Chat-Config bestimmen
@@ -241,14 +266,13 @@ export async function POST(
         const modeNow = effectiveRetriever === 'summary' ? 'summaries' as const : 'chunks' as const
 
         // Schritt 5: Query-Log starten
-        // Prüfe, ob es eine TOC-Frage ist
-        const tocQuestion = 'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
-        const isTOCQuery = message.trim() === tocQuestion.trim()
+        // Prüfe, ob es eine TOC-Frage ist (bereits oben definiert)
         
         queryId = await startQueryLog({
           libraryId,
           chatId: activeChatId,
-          userEmail: userEmail || '',
+          userEmail: userEmail || undefined,
+          sessionId: sessionId || undefined,
           question: message,
           mode: modeNow,
           queryType: isTOCQuery ? 'toc' : 'question', // Setze queryType basierend auf der Frage
@@ -263,7 +287,8 @@ export async function POST(
           filtersPinecone: { ...built.pinecone },
         })
 
-        if (questionAnalysis) {
+        // Nur für normale Queries: Frage-Analyse speichern
+        if (questionAnalysis && !isTOCQuery) {
           await setQuestionAnalysis(queryId, {
             recommendation: questionAnalysis.recommendation,
             confidence: questionAnalysis.confidence,
@@ -277,7 +302,7 @@ export async function POST(
         const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
         send({ type: 'llm_start', model })
 
-        const { answer, sources, references, suggestedQuestions, retrievalMs, llmMs } = await runChatOrchestrated({
+        const { answer, references, suggestedQuestions, storyTopicsData } = await runChatOrchestrated({
           retriever: effectiveRetriever,
           libraryId,
           userEmail: userEmail,
@@ -290,6 +315,8 @@ export async function POST(
           chatHistory: chatHistory,
           facetsSelected: facetsSelected,
           facetDefs: facetDefs,
+          isTOCQuery: isTOCQuery,
+          apiKey: libraryApiKey,
           onStatusUpdate: (msg) => {
             // Send progress updates - Timing wird später gesetzt
             if (msg.includes('Suche nach relevanten Quellen')) {
@@ -322,6 +349,7 @@ export async function POST(
           suggestedQuestions,
           queryId,
           chatId: activeChatId,
+          ...(storyTopicsData && { storyTopicsData }),
         }
         
         // Füge complete-Step zu den gesammelten Steps hinzu

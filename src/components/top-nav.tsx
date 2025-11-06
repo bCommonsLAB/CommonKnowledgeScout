@@ -91,7 +91,8 @@ export function TopNav() {
                 <SheetTitle>Menü</SheetTitle>
               </SheetHeader>
               <div className="mt-4 space-y-2">
-                {publicNavItems.concat(protectedNavItems).map((item) => (
+                {/* Öffentliche Navigationselemente - immer sichtbar */}
+                {publicNavItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
@@ -104,32 +105,50 @@ export function TopNav() {
                     {item.name}
                   </Link>
                 ))}
-                {/* Dynamischer Chat-Link (abhängig von aktiver Bibliothek) */}
-                <Link
-                  href={activeLibraryId ? `/library/${activeLibraryId}/chat` : "/library"}
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "block rounded-md px-3 py-2 text-sm",
-                    pathname?.includes('/library/') && pathname?.includes('/chat')
-                      ? "bg-muted text-primary"
-                      : "text-foreground hover:bg-muted"
-                  )}
-                >
-                  Chat
-                </Link>
-                {/* Dynamischer Story-Link (abhängig von aktiver Bibliothek) */}
-                <Link
-                  href="/library/gallery?mode=story"
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "block rounded-md px-3 py-2 text-sm",
-                    pathname?.includes('/library/') && pathname?.includes('/gallery') && isStoryMode
-                      ? "bg-muted text-primary"
-                      : "text-foreground hover:bg-muted"
-                  )}
-                >
-                  Story
-                </Link>
+                
+                {/* Geschützte Navigationselemente - nur für angemeldete Benutzer */}
+                <SignedIn>
+                  {protectedNavItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        "block rounded-md px-3 py-2 text-sm",
+                        pathname === item.href ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
+                      )}
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
+                  {/* Dynamischer Chat-Link (abhängig von aktiver Bibliothek) */}
+                  <Link
+                    href={activeLibraryId ? `/library/${activeLibraryId}/chat` : "/library"}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "block rounded-md px-3 py-2 text-sm",
+                      pathname?.includes('/library/') && pathname?.includes('/chat')
+                        ? "bg-muted text-primary"
+                        : "text-foreground hover:bg-muted"
+                    )}
+                  >
+                    Chat
+                  </Link>
+                  {/* Dynamischer Story-Link (abhängig von aktiver Bibliothek) */}
+                  <Link
+                    href="/library/gallery?mode=story"
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "block rounded-md px-3 py-2 text-sm",
+                      pathname?.includes('/library/') && pathname?.includes('/gallery') && isStoryMode
+                        ? "bg-muted text-primary"
+                        : "text-foreground hover:bg-muted"
+                    )}
+                  >
+                    Story
+                  </Link>
+                </SignedIn>
+                
                 <div className="pt-3 border-t" />
                 {/* Settings + Dark Mode im Menü */}
                 <SignedIn>

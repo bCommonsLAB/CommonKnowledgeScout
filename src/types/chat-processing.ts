@@ -14,7 +14,7 @@ export type ChatProcessingStep =
   | { type: 'llm_progress'; message?: string }
   | { type: 'llm_complete'; timingMs: number; promptTokens?: number; completionTokens?: number; totalTokens?: number }
   | { type: 'parsing_response'; message?: string }
-  | { type: 'complete'; answer: string; references: unknown[]; suggestedQuestions: string[]; queryId: string; chatId: string }
+  | { type: 'complete'; answer: string; references: unknown[]; suggestedQuestions: string[]; queryId: string; chatId: string; storyTopicsData?: import('@/types/story-topics').StoryTopicsData }
   | { type: 'error'; error: string }
 
 /**

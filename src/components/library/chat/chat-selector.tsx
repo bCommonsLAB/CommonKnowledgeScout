@@ -30,7 +30,18 @@ export function ChatSelector({ libraryId, activeChatId, onChatChange, onCreateNe
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/chats`, { cache: 'no-store' })
+        // Session-ID für anonyme Nutzer
+        const { getOrCreateSessionId } = await import('@/lib/session/session-utils')
+        const sessionId = getOrCreateSessionId()
+        const headers: Record<string, string> = {}
+        if (!sessionId.startsWith('temp-')) {
+          headers['X-Session-ID'] = sessionId
+        }
+        
+        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/chats`, { 
+          cache: 'no-store',
+          headers: Object.keys(headers).length > 0 ? headers : undefined,
+        })
         if (!res.ok) throw new Error('Fehler beim Laden der Chats')
         const data = await res.json() as { items?: Chat[] }
         if (!cancelled && Array.isArray(data.items)) {
@@ -57,15 +68,26 @@ export function ChatSelector({ libraryId, activeChatId, onChatChange, onCreateNe
   // Aktualisiere Chats nach Erstellung eines neuen Chats
   const handleCreateNewChat = async () => {
     try {
+      // Session-ID für anonyme Nutzer
+      const { getOrCreateSessionId } = await import('@/lib/session/session-utils')
+      const sessionId = getOrCreateSessionId()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (!sessionId.startsWith('temp-')) {
+        headers['X-Session-ID'] = sessionId
+      }
+      
       const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/chats`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ title: 'Neuer Chat' }),
       })
       if (!res.ok) throw new Error('Fehler beim Erstellen des Chats')
       const data = await res.json() as { chatId: string }
       // Lade Chats neu
-      const chatsRes = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/chats`, { cache: 'no-store' })
+      const chatsRes = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/chats`, { 
+        cache: 'no-store',
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
+      })
       if (chatsRes.ok) {
         const chatsData = await chatsRes.json() as { items?: Chat[] }
         if (Array.isArray(chatsData.items)) {

@@ -13,13 +13,21 @@ export async function GET(
     const { userId } = await auth()
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
-    if (!userId || !userEmail) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+
+    // Für öffentliche Libraries: Erlaube Zugriff ohne Auth
+    // Prüfe zuerst, ob Library öffentlich ist
+    const ctx = await loadLibraryChatContext(userEmail || '', libraryId)
+    if (!ctx) {
+      return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
+    }
+
+    // Wenn nicht öffentlich und nicht authentifiziert: Fehler
+    if (!ctx.library.config?.publicPublishing?.isPublic && (!userId || !userEmail)) {
+      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+    }
 
     const apiKey = process.env.PINECONE_API_KEY
     if (!apiKey) return NextResponse.json({ error: 'PINECONE_API_KEY fehlt' }, { status: 500 })
-
-    const ctx = await loadLibraryChatContext(userEmail, libraryId)
-    if (!ctx) return NextResponse.json({ ok: true, indexExists: false, totals: { docs: 0, chunks: 0 } })
     const idx = await describeIndex(ctx.vectorIndex, apiKey)
     if (!idx?.host) return NextResponse.json({ ok: true, indexExists: false, totals: { docs: 0, chunks: 0 } })
 

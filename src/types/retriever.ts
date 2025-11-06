@@ -10,6 +10,7 @@ export interface RetrieverInput {
   context: {
     vectorIndex: string
   }
+  apiKey?: string  // Optional: Library-spezifischer OpenAI API-Key für Embeddings
 }
 
 export interface RetrievedSource {

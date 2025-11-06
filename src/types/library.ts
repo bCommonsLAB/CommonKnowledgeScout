@@ -4,7 +4,7 @@
  */
 
 import { ReactNode } from 'react';
-import type { Character } from './character';
+import type { Character } from '@/lib/chat/constants';
 import type { SocialContext } from '@/lib/chat/constants';
 
 /**
@@ -20,18 +20,6 @@ export type StorageProviderType = 'local' | 'onedrive' | 'gdrive';
  * sofern kein expliziter Override gesetzt ist.
  */
 export interface LibraryChatConfig {
-  /** Ob der Chat öffentlich zugreifbar ist (ohne Login) */
-  public?: boolean;
-
-  /** Avatarbild der Chat-Ansicht */
-  titleAvatarSrc?: string;
-
-  /** Begrüßungstext */
-  welcomeMessage: string;
-
-  /** Generische Fehlermeldung für Chat-Antworten */
-  errorMessage?: string;
-
   /** Platzhalter im Eingabefeld */
   placeholder?: string;
 
@@ -46,20 +34,6 @@ export interface LibraryChatConfig {
 
   /** Link im Footer (z. B. Firmen-/Projektlink) */
   companyLink?: string;
-
-  /** Feature-Flags für die Darstellung/Funktionalität */
-  features?: {
-    /** Zitate/Quellen anzeigen */
-    citations?: boolean;
-    /** Streaming von Teilantworten aktivieren */
-    streaming?: boolean;
-  };
-
-  /** Ratenbegrenzung für öffentliche Nutzung */
-  rateLimit?: {
-    windowSec: number;
-    max: number;
-  };
 
   /** Modell-Overrides; Standardwerte über ENV konfigurierbar */
   models?: {
@@ -91,6 +65,21 @@ export interface LibraryChatConfig {
     character?: Character;
     socialContext?: SocialContext;
     genderInclusive?: boolean;
+  };
+
+  /** Gallery-Konfiguration für die Wissensgalerie */
+  gallery?: {
+    /** Typ der Detailansicht: 'book' für klassische Dokumente, 'session' für Event-Sessions/Präsentationen */
+    detailViewType?: 'book' | 'session';
+    /** Facetten-Definitionen für Filter */
+    facets?: Array<{
+      metaKey: string;
+      label?: string;
+      type?: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range';
+      multi?: boolean;
+      visible?: boolean;
+      buckets?: Array<{ label: string; min: number; max: number }>;
+    }>;
   };
 }
 
@@ -133,6 +122,44 @@ export interface StorageConfig {
 
   /** Chat-/RAG-Konfiguration pro Library (öffentlich sichere Inhalte) */
   chat?: LibraryChatConfig;
+
+  /** Öffentliche Veröffentlichungseinstellungen */
+  publicPublishing?: {
+    /** Eindeutiger Slug für URL (z.B. "sfscon-talks") */
+    slugName: string;
+    /** Öffentlicher Name für die Anzeige (z.B. "SFSCon Talks") */
+    publicName: string;
+    /** Beschreibung für öffentliche Teaser */
+    description: string;
+    /** Icon-Name aus Lucide oder URL für öffentliche Ansicht */
+    icon?: string;
+    /** OpenAI API-Key für anonyme Anfragen (serverseitig, nie an Client gesendet) */
+    apiKey?: string;
+    /** Flag für öffentliche Verfügbarkeit */
+    isPublic: boolean;
+    /** Gallery-spezifische Texte für die öffentliche Ansicht */
+    gallery?: {
+      /** Große Überschrift für die Gallery-Ansicht */
+      headline?: string;
+      /** Untertitel unter der Überschrift */
+      subtitle?: string;
+      /** Beschreibungstext unter der Überschrift */
+      description?: string;
+      /** Beschreibungstext für das Filter-Panel */
+      filterDescription?: string;
+    };
+    /** Story-Modus-spezifische Texte für die öffentliche Ansicht */
+    story?: {
+      /** Überschrift im Story-Tab */
+      headline?: string;
+      /** Absatz unter der Headline */
+      intro?: string;
+      /** Titel „Themenübersicht" */
+      topicsTitle?: string;
+      /** Erklärungstext zur Themenübersicht */
+      topicsIntro?: string;
+    };
+  };
 }
 
 /**
@@ -206,6 +233,38 @@ export interface ClientLibrary {
     };
     /** Chat-/RAG-Konfiguration für die UI */
     chat?: LibraryChatConfig;
+    /** Public-Publishing-Daten (ohne API-Key) */
+    publicPublishing?: {
+      slugName: string;
+      publicName: string;
+      description: string;
+      icon?: string;
+      isPublic: boolean;
+      /** Maskierter API-Key (erste 6 und letzte 4 Zeichen sichtbar, z.B. "sk-proj....................abcd") */
+      apiKey?: string;
+      /** Gallery-spezifische Texte für die öffentliche Ansicht */
+      gallery?: {
+        /** Große Überschrift für die Gallery-Ansicht */
+        headline?: string;
+        /** Untertitel unter der Überschrift */
+        subtitle?: string;
+        /** Beschreibungstext unter der Überschrift */
+        description?: string;
+        /** Beschreibungstext für das Filter-Panel */
+        filterDescription?: string;
+      };
+      /** Story-Modus-spezifische Texte für die öffentliche Ansicht */
+      story?: {
+        /** Überschrift im Story-Tab */
+        headline?: string;
+        /** Absatz unter der Headline */
+        intro?: string;
+        /** Titel „Themenübersicht" */
+        topicsTitle?: string;
+        /** Erklärungstext zur Themenübersicht */
+        topicsIntro?: string;
+      };
+    };
     [key: string]: unknown;
   };
   

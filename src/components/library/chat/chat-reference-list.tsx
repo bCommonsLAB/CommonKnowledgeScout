@@ -18,7 +18,7 @@ interface ChatReferenceListProps {
 }
 
 /**
- * Komponente für die Anzeige von Referenzen als auf/zu klappbare Legende (Accordion).
+ * Komponente für die Anzeige von Referenzen als Quellenverzeichnis (Accordion).
  * Gruppiert Referenzen nach fileId und zeigt:
  * - Dokument-Namen (nicht einzelne Chunks)
  * - Tooltip mit Quelle-Typen (slides, body, video_transcript, chapter)
@@ -38,23 +38,29 @@ export function ChatReferenceList({ references, libraryId, onDocumentClick }: Ch
     return undefined
   }
 
-  // Gruppiere Referenzen nach fileId
+  // Gruppiere Referenzen nach fileId, dann nach sourceType
   const groupedDocs = useMemo(() => {
     const map = new Map<string, { 
       fileName?: string
       fileId: string
-      sourceTypes: Set<string>
+      sourceGroups: Map<string, { sourceType: string; references: ChatResponse['references'] }>
       references: ChatResponse['references']
     }>()
     
     for (const ref of references) {
       const existing = map.get(ref.fileId)
+      const sourceType = extractSourceType(ref.description) || 'unknown'
       
       if (existing) {
-        // Füge Quelle-Typ hinzu (aus description extrahieren)
-        const sourceType = extractSourceType(ref.description)
-        if (sourceType) {
-          existing.sourceTypes.add(sourceType)
+        // Füge Referenz zu sourceGroup hinzu
+        const sourceGroup = existing.sourceGroups.get(sourceType)
+        if (sourceGroup) {
+          sourceGroup.references.push(ref)
+        } else {
+          existing.sourceGroups.set(sourceType, {
+            sourceType,
+            references: [ref],
+          })
         }
         existing.references.push(ref)
         // Aktualisiere fileName falls vorhanden
@@ -62,15 +68,15 @@ export function ChatReferenceList({ references, libraryId, onDocumentClick }: Ch
           existing.fileName = ref.fileName
         }
       } else {
-        const sourceTypes = new Set<string>()
-        const sourceType = extractSourceType(ref.description)
-        if (sourceType) {
-          sourceTypes.add(sourceType)
-        }
+        const sourceGroups = new Map<string, { sourceType: string; references: ChatResponse['references'] }>()
+        sourceGroups.set(sourceType, {
+          sourceType,
+          references: [ref],
+        })
         map.set(ref.fileId, {
           fileId: ref.fileId,
           fileName: ref.fileName,
-          sourceTypes,
+          sourceGroups,
           references: [ref],
         })
       }
@@ -129,9 +135,11 @@ export function ChatReferenceList({ references, libraryId, onDocumentClick }: Ch
     <div className="mt-3">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="references">
-          <AccordionTrigger className="text-xs text-muted-foreground">
-            <div className="flex items-center justify-between w-full pr-2">
-              <span>Verwendete Dokumente ({groupedDocs.length}):</span>
+          <div className="border-b">
+            <div className="flex items-center justify-between pr-2">
+              <AccordionTrigger className="text-xs text-muted-foreground flex-1">
+                Verwendete Dokumente ({groupedDocs.length}):
+              </AccordionTrigger>
               <Button
                 variant="outline"
                 size="sm"
@@ -139,83 +147,93 @@ export function ChatReferenceList({ references, libraryId, onDocumentClick }: Ch
                   e.stopPropagation()
                   handleShowDocuments()
                 }}
-                className="h-6 text-xs"
+                className="h-6 text-xs shrink-0"
                 aria-label="In Galerie zeigen"
               >
                 <Filter className="h-3 w-3 mr-1" />
                 do show
               </Button>
             </div>
-          </AccordionTrigger>
+          </div>
           <AccordionContent>
             <div className="space-y-2 mt-2">
               {groupedDocs.map((doc) => {
-                const sourceTypesArray = Array.from(doc.sourceTypes)
-                const sourceTypesLabel = sourceTypesArray.length > 0
-                  ? sourceTypesArray.map(getSourceTypeLabel).join(', ')
-                  : 'Unbekannt'
+                const sourceGroupsArray = Array.from(doc.sourceGroups.values())
                 
-                // Zeige Anzahl der Referenzen für dieses Dokument
+                // Zeige Gesamtanzahl der Referenzen für dieses Dokument
                 const refNumbers = doc.references.map(r => r.number).sort((a, b) => a - b)
                 const refNumbersStr = refNumbers.length <= 3 
                   ? refNumbers.join(', ')
                   : `${refNumbers[0]}-${refNumbers[refNumbers.length - 1]}`
 
                 return (
-                  <Tooltip key={doc.fileId}>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center justify-between gap-2 p-2 rounded border bg-muted/30 hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                  <div key={doc.fileId} className="rounded border bg-muted/30 hover:bg-muted/50 transition-colors">
+                    {/* Dokument-Header */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center justify-between gap-2 p-2 cursor-pointer" onClick={() => handleDocumentClick(doc.fileId, doc.fileName)}>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
                               <Badge variant="secondary" className="h-4 px-1 text-[10px]">
                                 [{refNumbersStr}]
                               </Badge>
                               <span className="text-xs font-medium truncate">
                                 {doc.fileName || doc.fileId.slice(0, 30)}
                               </span>
-                              {sourceTypesArray.length > 0 && (
-                                <Badge variant="outline" className="h-4 px-1 text-[10px]">
-                                  {sourceTypesArray.length}
-                                </Badge>
-                              )}
                             </div>
-                            {sourceTypesArray.length > 0 && (
-                              <span className="text-[10px] text-muted-foreground truncate">
-                                {sourceTypesLabel}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDocumentClick(doc.fileId, doc.fileName)
+                            }}
+                            aria-label={`${doc.fileName || doc.fileId} öffnen`}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-[300px] p-2">
+                        <div className="text-xs space-y-1">
+                          <div className="font-medium">{doc.fileName || doc.fileId}</div>
+                          <div className="text-muted-foreground text-[10px] mt-1">
+                            Referenzen: [{refNumbersStr}]
+                          </div>
+                          <div className="text-muted-foreground text-[10px] mt-1">
+                            Klicken zum Öffnen der Detailansicht
+                          </div>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    {/* Source-Gruppen: Kompakte Anzeige nach Quelle */}
+                    {sourceGroupsArray.length > 0 && (
+                      <div className="px-2 pb-2 space-y-1">
+                        {sourceGroupsArray.map((sourceGroup) => {
+                          const sourceRefNumbers = sourceGroup.references.map(r => r.number).sort((a, b) => a - b)
+                          const sourceRefNumbersStr = sourceRefNumbers.length <= 3 
+                            ? sourceRefNumbers.join(', ')
+                            : `${sourceRefNumbers[0]}-${sourceRefNumbers[sourceRefNumbers.length - 1]}`
+                          const sourceLabel = getSourceTypeLabel(sourceGroup.sourceType)
+                          
+                          return (
+                            <div key={sourceGroup.sourceType} className="flex items-center gap-2 text-[10px] text-muted-foreground pl-5">
+                              <Badge variant="outline" className="h-3 px-1 text-[9px]">
+                                {sourceLabel}
+                              </Badge>
+                              <span className="text-[9px]">
+                                [{sourceRefNumbersStr}] ({sourceGroup.references.length} {sourceGroup.references.length === 1 ? 'Stelle' : 'Stellen'})
                               </span>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 shrink-0"
-                          onClick={() => handleDocumentClick(doc.fileId, doc.fileName)}
-                          aria-label={`${doc.fileName || doc.fileId} öffnen`}
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
+                            </div>
+                          )
+                        })}
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-[300px] p-2">
-                      <div className="text-xs space-y-1">
-                        <div className="font-medium">{doc.fileName || doc.fileId}</div>
-                        {sourceTypesArray.length > 0 && (
-                          <div className="text-muted-foreground">
-                            Quelle: {sourceTypesLabel}
-                          </div>
-                        )}
-                        <div className="text-muted-foreground text-[10px] mt-1">
-                          Referenzen: [{refNumbersStr}]
-                        </div>
-                        <div className="text-muted-foreground text-[10px] mt-1">
-                          Klicken zum Öffnen der Detailansicht
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+                    )}
+                  </div>
                 )
               })}
             </div>

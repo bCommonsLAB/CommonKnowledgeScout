@@ -54,6 +54,9 @@ export async function POST(
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 
+    // Verwende Library-spezifischen API-Key für Embeddings, falls vorhanden
+    const libraryApiKey = ctx.library.config?.publicPublishing?.apiKey
+
     const apiKey = process.env.PINECONE_API_KEY
     if (!apiKey) return NextResponse.json({ error: 'PINECONE_API_KEY fehlt' }, { status: 500 })
     const idx = await describeIndex(ctx.vectorIndex, apiKey)
@@ -63,7 +66,8 @@ export async function POST(
     await deleteByFilter(idx.host, apiKey, { user: { $eq: userEmail }, libraryId: { $eq: libraryId }, fileId: { $eq: fileId } })
 
     const chunks = chunkText(content, 1500)
-    const embeddings = await embedTexts(chunks)
+    // Verwende Library-spezifischen API-Key für Embeddings, falls vorhanden
+    const embeddings = await embedTexts(chunks, undefined, libraryApiKey)
     const vectors: UpsertVector[] = embeddings.map((values, i) => ({
       id: `${fileId}-${i}`,
       values,
@@ -88,7 +92,8 @@ export async function POST(
         const { parseFacetDefs, getTopLevelValue } = await import('@/lib/chat/dynamic-facets')
         const summaryText = composeDocSummaryText(docMeta as Record<string, unknown>)
         if (summaryText && summaryText.length > 0) {
-          const [docEmbed] = await embedTexts([summaryText])
+          // Verwende Library-spezifischen API-Key für Embeddings, falls vorhanden
+          const [docEmbed] = await embedTexts([summaryText], undefined, libraryApiKey)
           docVectorValues = docEmbed
         }
         // Facetten-Promotion auf Top-Level durch defs bei metadata unten
@@ -134,7 +139,8 @@ export async function POST(
     // Kapitel-Summaries als eigene Vektoren (Retriever-Ziel)
     if (chapters && chapters.length > 0) {
       const chapterSummaries = chapters.map(c => c.summary)
-      const chapterEmbeds = await embedTexts(chapterSummaries)
+      // Verwende Library-spezifischen API-Key für Embeddings, falls vorhanden
+      const chapterEmbeds = await embedTexts(chapterSummaries, undefined, libraryApiKey)
       chapterEmbeds.forEach((values, i) => {
         const c = chapters[i]
         vectors.push({

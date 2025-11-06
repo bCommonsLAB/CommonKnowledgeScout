@@ -2,13 +2,11 @@ import "@/styles/globals.css"
 import { GeistSans } from 'geist/font/sans';
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { TopNavWrapper } from "@/components/top-nav-wrapper"
 import { Toaster } from "sonner"
 import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
-import { DebugFooterWrapper } from "@/components/debug/debug-footer-wrapper"
-import { JobMonitorPanel } from "@/components/shared/job-monitor-panel"
-import { ChatSidePanel } from "@/components/shared/chat-panel"
+import { AppLayout } from "@/components/layouts/app-layout"
+import { HomeLayout } from "@/components/layouts/home-layout"
 
 export const metadata = {
   title: "Knowledge Scout",
@@ -27,34 +25,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Während des Builds ein minimales Layout ohne Clerk rendern
-  if (isBuildTime) {
-    return (
-      <html lang="en" suppressHydrationWarning>
-        <body className={GeistSans.className}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <StorageContextProvider>
-              <TooltipProvider>
-                <div className="h-screen overflow-hidden flex flex-col">
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    {children}
-                  </div>
-                  <DebugFooterWrapper />
-                </div>
-                <Toaster richColors />
-              </TooltipProvider>
-            </StorageContextProvider>
-          </ThemeProvider>
-        </body>
-      </html>
-    );
-  }
-
   // Wrapper-Komponente für Clerk
   const ClerkWrapper = ({ children }: { children: React.ReactNode }) => {
     // Wenn kein Clerk-Key vorhanden ist, ohne Clerk rendern
@@ -69,6 +39,31 @@ export default function RootLayout({
     );
   };
 
+  // Während des Builds ein minimales Layout ohne Clerk rendern
+  if (isBuildTime) {
+    return (
+      <html lang="en" suppressHydrationWarning>
+        <body className={GeistSans.className}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <StorageContextProvider>
+              <TooltipProvider>
+                <HomeLayout>
+                  {children}
+                </HomeLayout>
+                <Toaster richColors />
+              </TooltipProvider>
+            </StorageContextProvider>
+          </ThemeProvider>
+        </body>
+      </html>
+    );
+  }
+
   return (
     <ClerkWrapper>
       <html lang="en" suppressHydrationWarning>
@@ -81,14 +76,10 @@ export default function RootLayout({
           >
             <StorageContextProvider>
               <TooltipProvider>
-                <div className="relative h-screen overflow-hidden flex flex-col">
-                  <TopNavWrapper />
-                  <div className="flex-1 min-h-0 overflow-hidden">
+                <div className="relative min-h-screen flex flex-col">
+                  <AppLayout>
                     {children}
-                  </div>
-                  <JobMonitorPanel />
-                  <ChatSidePanel />
-                  <DebugFooterWrapper />
+                  </AppLayout>
                 </div>
                 <Toaster richColors />
               </TooltipProvider>

@@ -15,7 +15,7 @@ interface StepDisplay {
   icon?: React.ReactNode
 }
 
-export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
+export function ProcessingStatus({ steps }: ProcessingStatusProps) {
   // Wenn keine Steps vorhanden sind, nichts anzeigen
   if (steps.length === 0) {
     return null
@@ -23,7 +23,6 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
 
   // Konvertiere Steps zu Display-Format
   const displaySteps: StepDisplay[] = []
-  let currentStep = 0
 
   // Frage-Analyse
   const analysisStep = steps.find(s => s.type === 'question_analysis_start')
@@ -37,7 +36,6 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
         : undefined,
       icon: analysisResult ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
     })
-    if (analysisResult) currentStep++
   }
 
   // Retriever-Auswahl
@@ -49,7 +47,6 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
       details: `${retrieverStep.retriever === 'chunk' ? 'Spezifisch' : 'Übersichtlich'}${retrieverStep.reason ? ` - ${retrieverStep.reason}` : ''}`,
       icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
     })
-    currentStep++
   }
 
   // Retriever-Start
@@ -67,7 +64,6 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
         ? <CheckCircle2 className="h-4 w-4 text-green-500" />
         : <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
     })
-    if (retrievalComplete) currentStep++
   }
 
   // Prompt bauen
@@ -85,7 +81,6 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
         ? <CheckCircle2 className="h-4 w-4 text-green-500" />
         : <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
     })
-    if (promptComplete) currentStep++
   }
 
   // LLM-Aufruf
@@ -119,7 +114,6 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
         ? <CheckCircle2 className="h-4 w-4 text-green-500" />
         : <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
     })
-    if (llmComplete) currentStep++
   }
 
   // Parsing
@@ -136,7 +130,6 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
         ? <CheckCircle2 className="h-4 w-4 text-green-500" />
         : <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
     })
-    if (complete) currentStep++
   }
 
   // Fehler

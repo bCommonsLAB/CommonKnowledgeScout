@@ -27,8 +27,8 @@ const questionAnalysisSchema = z.object({
   recommendation: z.enum(['chunk', 'summary', 'unclear']),
   confidence: z.enum(['high', 'medium', 'low']),
   reasoning: z.string().min(10),
-  suggestedQuestionChunk: z.string().optional(),
-  suggestedQuestionSummary: z.string().optional(),
+  suggestedQuestionChunk: z.string().nullish(),
+  suggestedQuestionSummary: z.string().nullish(),
   explanation: z.string().min(20),
   chatTitle: z.string().max(60).optional(), // Chat-Titel basierend auf der Frage (max. 60 Zeichen)
 })
@@ -79,6 +79,7 @@ Es gibt zwei Retrieval-Modi:
  * 
  * @param question Die Benutzerfrage, die analysiert werden soll
  * @param context Optional: Library-Kontext (z.B. Event-Modus aktiv?)
+ * @param apiKey Optional: Library-spezifischer OpenAI API-Key. Wenn nicht gesetzt, wird der globale OPENAI_API_KEY verwendet.
  * @returns Analyse-Ergebnis mit Empfehlung und optionalen Frage-Vorschlägen
  */
 export async function analyzeQuestionForRetriever(
@@ -86,13 +87,14 @@ export async function analyzeQuestionForRetriever(
   context?: {
     isEventMode?: boolean
     libraryType?: string
-  }
+  },
+  apiKey?: string
 ): Promise<QuestionAnalysisResult> {
   const model = process.env.QUESTION_ANALYZER_MODEL || process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
   const temperature = Number(process.env.QUESTION_ANALYZER_TEMPERATURE ?? 0.3)
-  const apiKey = process.env.OPENAI_API_KEY || ''
+  const effectiveApiKey = apiKey || process.env.OPENAI_API_KEY || ''
   
-  if (!apiKey) {
+  if (!effectiveApiKey) {
     throw new Error('OPENAI_API_KEY fehlt für Frage-Analyse')
   }
 
@@ -111,7 +113,7 @@ export async function analyzeQuestionForRetriever(
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      'Authorization': `Bearer ${effectiveApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -147,29 +149,40 @@ export async function analyzeQuestionForRetriever(
 
   // Zod-Validierung
   const validated = questionAnalysisSchema.parse(parsed)
+  
+  // Konvertiere null zu undefined für optionale Felder und erstelle typisiertes Ergebnis
+  const result: QuestionAnalysisResult = {
+    recommendation: validated.recommendation,
+    confidence: validated.confidence,
+    reasoning: validated.reasoning,
+    explanation: validated.explanation,
+    suggestedQuestionChunk: validated.suggestedQuestionChunk ?? undefined,
+    suggestedQuestionSummary: validated.suggestedQuestionSummary ?? undefined,
+    chatTitle: validated.chatTitle,
+  }
 
   // Zusätzliche Validierung: Wenn unclear, müssen suggestedQuestions vorhanden sein
-  if (validated.recommendation === 'unclear') {
-    if (!validated.suggestedQuestionChunk && !validated.suggestedQuestionSummary) {
+  if (result.recommendation === 'unclear') {
+    if (!result.suggestedQuestionChunk && !result.suggestedQuestionSummary) {
       // Fallback: Erstelle generische Vorschläge
-      validated.suggestedQuestionChunk = `Gib mir Details zu: ${question}`
-      validated.suggestedQuestionSummary = `Gib mir einen Überblick über: ${question}`
+      result.suggestedQuestionChunk = `Gib mir Details zu: ${question}`
+      result.suggestedQuestionSummary = `Gib mir einen Überblick über: ${question}`
     }
   }
 
   // Fallback für Chat-Titel: Falls nicht generiert, erstelle einen basierend auf der Frage
-  if (!validated.chatTitle || validated.chatTitle.trim().length === 0) {
+  if (!result.chatTitle || result.chatTitle.trim().length === 0) {
     // Erstelle einen prägnanten Titel aus der Frage (max. 60 Zeichen)
     const trimmedQuestion = question.trim()
     if (trimmedQuestion.length <= 60) {
-      validated.chatTitle = trimmedQuestion
+      result.chatTitle = trimmedQuestion
     } else {
       // Kürze die Frage auf max. 57 Zeichen und füge "..." hinzu
-      validated.chatTitle = trimmedQuestion.slice(0, 57) + '...'
+      result.chatTitle = trimmedQuestion.slice(0, 57) + '...'
     }
   }
 
-  return validated
+  return result
 }
 
 

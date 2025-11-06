@@ -27,7 +27,7 @@ export async function POST(
 
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
-    if (!ctx.chat.public && !userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+    if (!ctx.library.config?.publicPublishing?.isPublic && !userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 
     const json = await request.json().catch(() => ({}))
     const parsed = bodySchema.safeParse(json)

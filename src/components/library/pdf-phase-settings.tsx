@@ -17,7 +17,6 @@ import {
   TARGET_LANGUAGE_VALUES,
   TARGET_LANGUAGE_LABELS,
   TARGET_LANGUAGE_DEFAULT,
-  type TargetLanguage,
 } from "@/lib/chat/constants";
 
 interface PdfPhaseSettingsProps {

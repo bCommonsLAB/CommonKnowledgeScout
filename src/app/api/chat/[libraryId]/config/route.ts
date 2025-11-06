@@ -21,23 +21,18 @@ export async function GET(
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 
     // Zugriff: wenn nicht public, Auth erforderlich
-    if (!ctx.chat.public && !userId) {
+    if (!ctx.library.config?.publicPublishing?.isPublic && !userId) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
 
     const response = {
       library: { id: ctx.library.id, label: ctx.library.label },
       config: {
-        public: ctx.chat.public,
-        titleAvatarSrc: ctx.chat.titleAvatarSrc,
-        welcomeMessage: ctx.chat.welcomeMessage,
-        errorMessage: ctx.chat.errorMessage,
         placeholder: ctx.chat.placeholder,
         maxChars: ctx.chat.maxChars,
         maxCharsWarningMessage: ctx.chat.maxCharsWarningMessage,
         footerText: ctx.chat.footerText,
         companyLink: ctx.chat.companyLink,
-        features: ctx.chat.features,
         gallery: ctx.chat.gallery, // Gallery-Config inkl. detailViewType hinzufügen
         targetLanguage: ctx.chat.targetLanguage,
         character: ctx.chat.character,
@@ -45,6 +40,17 @@ export async function GET(
         genderInclusive: ctx.chat.genderInclusive,
         userPreferences: ctx.chat.userPreferences,
       },
+      // Public-Publishing-Daten (inkl. Gallery- und Story-Texte, ohne API-Key)
+      publicPublishing: ctx.library.config?.publicPublishing ? {
+        slugName: ctx.library.config.publicPublishing.slugName,
+        publicName: ctx.library.config.publicPublishing.publicName,
+        description: ctx.library.config.publicPublishing.description,
+        icon: ctx.library.config.publicPublishing.icon,
+        isPublic: ctx.library.config.publicPublishing.isPublic,
+        gallery: ctx.library.config.publicPublishing.gallery,
+        story: ctx.library.config.publicPublishing.story,
+        // API-Key nicht an Client senden
+      } : undefined,
       vectorIndex: ctx.vectorIndex,
     }
     // eslint-disable-next-line no-console

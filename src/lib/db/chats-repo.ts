@@ -14,7 +14,9 @@ async function getChatsCollection(): Promise<Collection<Chat>> {
     await Promise.all([
       col.createIndex({ chatId: 1 }, { unique: true, name: 'chatId_unique' }),
       col.createIndex({ libraryId: 1, userEmail: 1, createdAt: -1 }, { name: 'library_user_createdAt_desc' }),
+      col.createIndex({ libraryId: 1, sessionId: 1, createdAt: -1 }, { name: 'library_session_createdAt_desc' }),
       col.createIndex({ userEmail: 1, createdAt: -1 }, { name: 'user_createdAt_desc' }),
+      col.createIndex({ sessionId: 1, createdAt: -1 }, { name: 'session_createdAt_desc' }),
     ])
   } catch {
     // Indizes existieren bereits oder Fehler beim Erstellen (ignorieren)
@@ -26,23 +28,25 @@ async function getChatsCollection(): Promise<Collection<Chat>> {
  * Erstellt einen neuen Chat
  * 
  * @param libraryId Bibliothek-ID
- * @param userEmail E-Mail-Adresse des Benutzers
+ * @param userEmailOrSessionId E-Mail-Adresse des Benutzers oder Session-ID für anonyme Nutzer
  * @param title Chat-Titel (max. ~60 Zeichen)
  * @returns Chat-ID des erstellten Chats
  */
 export async function createChat(
   libraryId: string,
-  userEmail: string,
+  userEmailOrSessionId: string,
   title: string
 ): Promise<string> {
   const col = await getChatsCollection()
   const chatId = crypto.randomUUID()
   const now = new Date()
   
+  // Prüfe, ob es eine E-Mail-Adresse oder Session-ID ist
+  const isEmail = userEmailOrSessionId.includes('@')
   const payload: Chat = {
     chatId,
     libraryId,
-    userEmail,
+    ...(isEmail ? { userEmail: userEmailOrSessionId } : { sessionId: userEmailOrSessionId }),
     title: title.slice(0, 60), // Stelle sicher, dass Titel nicht länger als 60 Zeichen ist
     createdAt: now,
     updatedAt: now,
@@ -53,23 +57,28 @@ export async function createChat(
 }
 
 /**
- * Listet alle Chats für eine Bibliothek und einen Benutzer
+ * Listet alle Chats für eine Bibliothek und einen Benutzer oder eine Session
  * 
  * @param libraryId Bibliothek-ID
- * @param userEmail E-Mail-Adresse des Benutzers
+ * @param userEmailOrSessionId E-Mail-Adresse des Benutzers oder Session-ID
  * @param limit Maximale Anzahl der zurückgegebenen Chats (Standard: 50)
  * @returns Liste der Chats, sortiert nach createdAt (neueste zuerst)
  */
 export async function listChats(
   libraryId: string,
-  userEmail: string,
+  userEmailOrSessionId: string,
   limit?: number
 ): Promise<Chat[]> {
   const col = await getChatsCollection()
   const lim = Math.max(1, Math.min(100, Number(limit ?? 50)))
   
+  const isEmail = userEmailOrSessionId.includes('@')
+  const filter = isEmail 
+    ? { libraryId, userEmail: userEmailOrSessionId }
+    : { libraryId, sessionId: userEmailOrSessionId }
+  
   const cursor = col
-    .find({ libraryId, userEmail })
+    .find(filter)
     .sort({ createdAt: -1 })
     .limit(lim)
   
@@ -80,15 +89,19 @@ export async function listChats(
  * Lädt einen Chat anhand seiner ID
  * 
  * @param chatId Chat-ID
- * @param userEmail E-Mail-Adresse des Benutzers (für Sicherheit)
+ * @param userEmailOrSessionId E-Mail-Adresse des Benutzers oder Session-ID (für Sicherheit)
  * @returns Chat oder null, wenn nicht gefunden
  */
 export async function getChatById(
   chatId: string,
-  userEmail: string
+  userEmailOrSessionId: string
 ): Promise<Chat | null> {
   const col = await getChatsCollection()
-  return await col.findOne({ chatId, userEmail })
+  const isEmail = userEmailOrSessionId.includes('@')
+  const filter = isEmail 
+    ? { chatId, userEmail: userEmailOrSessionId }
+    : { chatId, sessionId: userEmailOrSessionId }
+  return await col.findOne(filter)
 }
 
 /**
@@ -130,15 +143,19 @@ export async function touchChat(chatId: string): Promise<void> {
  * Löscht einen Chat
  * 
  * @param chatId Chat-ID
- * @param userEmail E-Mail-Adresse des Benutzers (für Sicherheit)
+ * @param userEmailOrSessionId E-Mail-Adresse des Benutzers oder Session-ID (für Sicherheit)
  * @returns true, wenn Chat gelöscht wurde, false wenn nicht gefunden
  */
 export async function deleteChat(
   chatId: string,
-  userEmail: string
+  userEmailOrSessionId: string
 ): Promise<boolean> {
   const col = await getChatsCollection()
-  const result = await col.deleteOne({ chatId, userEmail })
+  const isEmail = userEmailOrSessionId.includes('@')
+  const filter = isEmail 
+    ? { chatId, userEmail: userEmailOrSessionId }
+    : { chatId, sessionId: userEmailOrSessionId }
+  const result = await col.deleteOne(filter)
   return result.deletedCount > 0
 }
 

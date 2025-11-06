@@ -1,4 +1,5 @@
 import type { SocialContext, TargetLanguage, AnswerLength, Retriever } from '@/lib/chat/constants'
+import type { StoryTopicsData } from '@/types/story-topics'
 
 export interface QueryRetrievalResultItem {
   id: string;
@@ -55,7 +56,10 @@ export interface QueryLog {
   /** Chat-ID, zu der diese Query gehört (required für neue Queries) */
   chatId: string;
   libraryId: string;
-  userEmail: string;
+  /** E-Mail-Adresse des Benutzers (für authentifizierte Nutzer) */
+  userEmail?: string;
+  /** Session-ID für anonyme Nutzer (wenn kein userEmail vorhanden) */
+  sessionId?: string;
   question: string;
   mode: 'concise' | 'verbose' | 'summaries' | 'chunks';
   /** Typ der Query: 'toc' für Inhaltsverzeichnis, 'question' für normale Fragen */
@@ -82,6 +86,8 @@ export interface QueryLog {
   timing?: { retrievalMs?: number; llmMs?: number; totalMs?: number };
   tokenUsage?: QueryTokenUsage;
   questionAnalysis?: QuestionAnalysisInfo; // Analyse-Ergebnis für Retriever-Auswahl
+  /** Strukturierte Themenübersicht für TOC-Queries */
+  storyTopicsData?: StoryTopicsData;
   /** User-freundliche Processing-Logs (nicht zu verwechseln mit internen Debug-Logs) */
   processingLogs?: import('./chat-processing').ChatProcessingStep[];
   createdAt: Date;

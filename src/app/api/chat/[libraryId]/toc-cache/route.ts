@@ -16,10 +16,11 @@ export async function GET(
   try {
     const { userId } = await auth()
     const user = await currentUser()
-    const userEmail = user?.emailAddresses?.[0]?.emailAddress
-    if (!userId || !userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
+
+    // Session-ID aus Header lesen (für anonyme Nutzer)
+    const sessionIdHeader = request.headers.get('x-session-id') || request.headers.get('X-Session-ID')
+    const sessionId = sessionIdHeader || undefined
 
     const { libraryId } = await params
     const parsedUrl = new URL(request.url)
@@ -34,10 +35,20 @@ export async function GET(
       return NextResponse.json({ error: 'question parameter required' }, { status: 400 })
     }
 
-    // Lade Library-Context für Facetten-Definitionen
-    const ctx = await loadLibraryChatContext(userEmail, libraryId)
+    // Lade Library-Context für Facetten-Definitionen (unterstützt auch öffentliche Libraries ohne Email)
+    const ctx = await loadLibraryChatContext(userEmail || '', libraryId)
     if (!ctx) {
       return NextResponse.json({ error: 'Library not found' }, { status: 404 })
+    }
+
+    // Zugriff: wenn nicht public, Auth erforderlich
+    if (!ctx.library.config?.publicPublishing?.isPublic && !userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Für anonyme Nutzer: Session-ID muss vorhanden sein
+    if (!userEmail && !sessionId) {
+      return NextResponse.json({ error: 'Session-ID erforderlich für anonyme Nutzer' }, { status: 400 })
     }
 
     // Extrahiere Filter-Parameter (nur Facetten, keine Chat-Konfiguration)
@@ -61,7 +72,8 @@ export async function GET(
     // Suche nach bestehender Query
     const cachedQuery = await findQueryByQuestionAndContext({
       libraryId,
-      userEmail,
+      userEmail: userEmail || undefined,
+      sessionId: sessionId || undefined,
       question,
       queryType: 'toc', // Suche nur nach TOC-Queries
       targetLanguage: targetLanguage || undefined,
@@ -95,6 +107,7 @@ export async function GET(
         answer: cachedQuery.answer,
         references: cachedQuery.references,
         suggestedQuestions: cachedQuery.suggestedQuestions,
+        storyTopicsData: cachedQuery.storyTopicsData, // Strukturierte Themenübersicht, falls vorhanden
         createdAt: cachedQuery.createdAt.toISOString(),
       })
     }

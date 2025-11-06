@@ -1,5 +1,6 @@
-import { buildPrompt, getSourceDescription } from '@/lib/chat/common/prompt'
+import { buildPrompt, buildTOCPrompt, getSourceDescription } from '@/lib/chat/common/prompt'
 import { callOpenAI, parseStructuredLLMResponse, parseOpenAIResponseWithUsage } from '@/lib/chat/common/llm'
+import { parseStoryTopicsData } from '@/lib/chat/common/toc-parser'
 import { getBaseBudget, reduceBudgets } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog } from '@/lib/logging/query-logger'
 import type { RetrieverInput, RetrieverOutput } from '@/types/retriever'
@@ -7,6 +8,7 @@ import { summariesMongoRetriever } from '@/lib/chat/retrievers/summaries-mongo'
 import { chunksRetriever } from '@/lib/chat/retrievers/chunks'
 import type { ChatResponse } from '@/types/chat-response'
 import type { NormalizedChatConfig } from '@/lib/chat/config'
+import type { StoryTopicsData } from '@/types/story-topics'
 
 export interface OrchestratorInput extends RetrieverInput {
   retriever: 'chunk' | 'summary'
@@ -16,6 +18,9 @@ export interface OrchestratorInput extends RetrieverInput {
   facetDefs?: Array<{ metaKey: string; label?: string; type: string }>  // Facetten-Definitionen für Prompt
   onStatusUpdate?: (message: string) => void
   onProcessingStep?: (step: import('@/types/chat-processing').ChatProcessingStep) => void
+  apiKey?: string  // Optional: API-Key für öffentliche Libraries
+  isTOCQuery?: boolean  // Wenn true, verwende TOC-Prompt und parse StoryTopicsData
+  // libraryId ist bereits in RetrieverInput enthalten (required)
 }
 
 export interface OrchestratorOutput {
@@ -28,6 +33,7 @@ export interface OrchestratorOutput {
   promptTokens?: number
   completionTokens?: number
   totalTokens?: number
+  storyTopicsData?: StoryTopicsData  // Für TOC-Queries: Strukturierte Themenübersicht
 }
 
 export async function runChatOrchestrated(run: OrchestratorInput): Promise<OrchestratorOutput> {
@@ -39,7 +45,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   // Hinweis: Summary-Flow loggt den list-Step bereits innerhalb des Retrievers mit candidatesCount/usedInPrompt/decision.
   // Für den Chunk-Flow behalten wir das Query-Logging hier bei.
   run.onStatusUpdate?.('Suche nach relevanten Quellen...')
-  const { sources, stats } = await retrieverImpl.retrieve(run)
+  // Übergebe API-Key an Retriever für Embeddings (falls vorhanden)
+  const { sources, stats } = await retrieverImpl.retrieve({ ...run, apiKey: run.apiKey })
   run.onStatusUpdate?.(`${sources.length} Quellen gefunden`)
   if (run.retriever !== 'summary') {
     let step = markStepStart({ indexName: run.context.vectorIndex, namespace: '', stage: 'query', level: stepLevel })
@@ -62,15 +69,29 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
 
   const promptAnswerLength = (run.answerLength === 'unbegrenzt' ? 'ausführlich' : run.answerLength)
   run.onStatusUpdate?.('Erstelle Prompt...')
-  let prompt = buildPrompt(run.question, sources, promptAnswerLength, {
-    targetLanguage: run.chatConfig?.targetLanguage,
-    character: run.chatConfig?.character,
-    socialContext: run.chatConfig?.socialContext,
-    genderInclusive: run.chatConfig?.genderInclusive,
-    chatHistory: run.chatHistory,
-    filters: run.facetsSelected,
-    facetDefs: run.facetDefs,
-  })
+  
+  // Für TOC-Queries: Verwende speziellen TOC-Prompt
+  let prompt: string
+  if (run.isTOCQuery && run.libraryId) {
+    prompt = buildTOCPrompt(run.libraryId, sources, {
+      targetLanguage: run.chatConfig?.targetLanguage,
+      character: run.chatConfig?.character,
+      socialContext: run.chatConfig?.socialContext,
+      genderInclusive: run.chatConfig?.genderInclusive,
+      filters: run.facetsSelected,
+      facetDefs: run.facetDefs,
+    })
+  } else {
+    prompt = buildPrompt(run.question, sources, promptAnswerLength, {
+      targetLanguage: run.chatConfig?.targetLanguage,
+      character: run.chatConfig?.character,
+      socialContext: run.chatConfig?.socialContext,
+      genderInclusive: run.chatConfig?.genderInclusive,
+      chatHistory: run.chatHistory,
+      filters: run.facetsSelected,
+      facetDefs: run.facetDefs,
+    })
+  }
   // Hinweis nur für Chunk-Modus: Im Summary-Modus werden alle Dokumente übernommen
   if (run.retriever !== 'summary' && stats && typeof stats.candidatesCount === 'number' && typeof stats.usedInPrompt === 'number' && stats.usedInPrompt < stats.candidatesCount) {
     const hint = `\n\nHinweis: Aus Platzgründen konnten nur ${stats.usedInPrompt} von ${stats.candidatesCount} passenden Dokumenten berücksichtigt werden.`
@@ -78,7 +99,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   }
   const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
   const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.3)
-  const apiKey = process.env.OPENAI_API_KEY || ''
+  // Verwende publicApiKey wenn vorhanden, sonst globalen API-Key
+  const apiKey = run.apiKey || process.env.OPENAI_API_KEY || ''
   await logSetPrompt(run.queryId, { provider: 'openai', model, temperature, prompt })
   
   // Sende prompt_complete direkt nach dem Prompt-Building
@@ -111,15 +133,24 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
         let acc = 0
         const reduced: typeof sources = []
         for (const s of sources) { const len = s.text?.length ?? 0; if (acc + len > b) break; reduced.push(s); acc += len }
-        const p2 = buildPrompt(run.question, reduced, 'kurz', {
-          targetLanguage: run.chatConfig?.targetLanguage,
-          character: run.chatConfig?.character,
-          socialContext: run.chatConfig?.socialContext,
-          genderInclusive: run.chatConfig?.genderInclusive,
-          chatHistory: run.chatHistory,
-          filters: run.facetsSelected,
-          facetDefs: run.facetDefs,
-        })
+        const p2 = run.isTOCQuery && run.libraryId
+          ? buildTOCPrompt(run.libraryId, reduced, {
+              targetLanguage: run.chatConfig?.targetLanguage,
+              character: run.chatConfig?.character,
+              socialContext: run.chatConfig?.socialContext,
+              genderInclusive: run.chatConfig?.genderInclusive,
+              filters: run.facetsSelected,
+              facetDefs: run.facetDefs,
+            })
+          : buildPrompt(run.question, reduced, 'kurz', {
+              targetLanguage: run.chatConfig?.targetLanguage,
+              character: run.chatConfig?.character,
+              socialContext: run.chatConfig?.socialContext,
+              genderInclusive: run.chatConfig?.genderInclusive,
+              chatHistory: run.chatHistory,
+              filters: run.facetsSelected,
+              facetDefs: run.facetDefs,
+            })
         res = await callOpenAI({ model, temperature, prompt: p2, apiKey })
         if (res.ok) { 
           retried = true
@@ -144,9 +175,57 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   }
   
   // Parse strukturierte Response (answer, suggestedQuestions, usedReferences)
+  // Für TOC-Queries: Parse StoryTopicsData statt normaler Antwort
   run.onStatusUpdate?.('Verarbeite Antwort...')
-  const parsed = parseStructuredLLMResponse(raw)
-  const { answer, suggestedQuestions, usedReferences } = parsed
+  let answer = ''
+  let suggestedQuestions: string[] = []
+  let usedReferences: number[] = []
+  let storyTopicsData: StoryTopicsData | undefined = undefined
+
+  if (run.isTOCQuery) {
+    // Für TOC-Queries: Versuche StoryTopicsData zu parsen
+    console.log('[Orchestrator] TOC-Query erkannt, versuche StoryTopicsData zu parsen. Raw-Länge:', raw.length)
+    console.log('[Orchestrator] Raw (erste 500 Zeichen):', raw.substring(0, 500))
+    const parsedTopicsData = parseStoryTopicsData(raw)
+    if (parsedTopicsData) {
+      console.log('[Orchestrator] ✅ StoryTopicsData erfolgreich geparst:', {
+        title: parsedTopicsData.title,
+        topicsCount: parsedTopicsData.topics.length,
+      })
+      storyTopicsData = parsedTopicsData
+      // Erstelle eine Markdown-Antwort aus der StoryTopicsData für die normale Antwort
+      // (für Rückwärtskompatibilität)
+      answer = `# ${parsedTopicsData.title}\n\n${parsedTopicsData.tagline}\n\n${parsedTopicsData.intro}\n\n`
+      parsedTopicsData.topics.forEach((topic) => {
+        answer += `## ${topic.title}\n\n`
+        if (topic.summary) {
+          answer += `${topic.summary}\n\n`
+        }
+        topic.questions.forEach((q, qIndex) => {
+          answer += `${qIndex + 1}. ${q.text}\n`
+        })
+        answer += '\n'
+      })
+      // Generiere suggestedQuestions aus den Topics
+      suggestedQuestions = parsedTopicsData.topics.flatMap(topic => 
+        topic.questions.map(q => q.text)
+      ).slice(0, 7) // Limit auf 7 Fragen
+    } else {
+      console.error('[Orchestrator] ❌ StoryTopicsData-Parsing fehlgeschlagen. Raw-Länge:', raw.length)
+      console.error('[Orchestrator] Raw (erste 1000 Zeichen):', raw.substring(0, 1000))
+      // Fallback: Normale Antwort parsen
+      const parsed = parseStructuredLLMResponse(raw)
+      answer = parsed.answer
+      suggestedQuestions = parsed.suggestedQuestions
+      usedReferences = parsed.usedReferences
+    }
+  } else {
+    // Normale Queries: Standard-Parsing
+    const parsed = parseStructuredLLMResponse(raw)
+    answer = parsed.answer
+    suggestedQuestions = parsed.suggestedQuestions
+    usedReferences = parsed.usedReferences
+  }
   
   const llmMs = Date.now() - tL0
   
@@ -183,10 +262,22 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     timing: { retrievalMs, llmMs, totalMs: undefined },
     tokenUsage: promptTokens !== undefined || completionTokens !== undefined || totalTokens !== undefined
       ? { promptTokens, completionTokens, totalTokens }
-      : undefined
+      : undefined,
+    storyTopicsData,
   })
 
-  return { answer, sources, references, suggestedQuestions, retrievalMs, llmMs, promptTokens, completionTokens, totalTokens }
+  return { 
+    answer, 
+    sources, 
+    references, 
+    suggestedQuestions, 
+    retrievalMs, 
+    llmMs, 
+    promptTokens, 
+    completionTokens, 
+    totalTokens,
+    storyTopicsData 
+  }
 }
 
 

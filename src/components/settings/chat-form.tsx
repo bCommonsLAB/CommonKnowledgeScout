@@ -17,8 +17,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
 import { FacetDefsEditor } from '@/components/settings/FacetDefsEditor'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -38,28 +36,15 @@ import {
   isValidSocialContext,
   isValidCharacter,
   isValidTargetLanguage,
-  type TargetLanguage,
 } from '@/lib/chat/constants'
 
 // Zod-Schema für Chat-Konfiguration
 const chatFormSchema = z.object({
-  public: z.boolean().default(false),
-  titleAvatarSrc: z.string().url().optional().or(z.literal("")).transform(v => v || undefined),
-  welcomeMessage: z.string().min(1, "Bitte geben Sie eine Begrüßungsnachricht ein."),
-  errorMessage: z.string().optional(),
   placeholder: z.string().optional(),
   maxChars: z.coerce.number().int().positive().max(4000).optional(),
   maxCharsWarningMessage: z.string().optional(),
   footerText: z.string().optional(),
   companyLink: z.string().url().optional().or(z.literal("")).transform(v => v || undefined),
-  features: z.object({
-    citations: z.boolean().default(true),
-    streaming: z.boolean().default(true),
-  }).default({ citations: true, streaming: true }),
-  rateLimit: z.object({
-    windowSec: z.coerce.number().int().positive().default(60),
-    max: z.coerce.number().int().positive().default(30),
-  }).optional(),
   vectorStore: z.object({
     indexOverride: z.string().optional(),
   }).optional(),
@@ -139,17 +124,11 @@ export function ChatForm() {
     resolver: zodResolver(chatFormSchema),
     mode: 'onChange', // Echtzeit-Validierung aktivieren
     defaultValues: {
-      public: false,
-      titleAvatarSrc: undefined,
-      welcomeMessage: "Hallo! Ich bin dein wissensbasierter Chatbot.",
-      errorMessage: "Etwas ist schiefgegangen. Versuche es bitte nochmal.",
       placeholder: "Schreibe deine Frage...",
       maxChars: 500,
       maxCharsWarningMessage: "Deine Frage ist zu lang, bitte kürze sie.",
       footerText: "",
       companyLink: undefined,
-      features: { citations: true, streaming: true },
-      rateLimit: { windowSec: 60, max: 30 },
       vectorStore: { indexOverride: undefined },
       targetLanguage: TARGET_LANGUAGE_DEFAULT,
       character: CHARACTER_DEFAULT,
@@ -236,23 +215,11 @@ export function ChatForm() {
       }
       
       form.reset({
-        public: Boolean(c.public ?? false),
-        titleAvatarSrc: typeof c.titleAvatarSrc === 'string' ? c.titleAvatarSrc : undefined,
-        welcomeMessage: typeof c.welcomeMessage === 'string' && c.welcomeMessage ? c.welcomeMessage : "Hallo! Ich bin dein wissensbasierter Chatbot.",
-        errorMessage: typeof c.errorMessage === 'string' ? c.errorMessage : "Etwas ist schiefgegangen. Versuche es bitte nochmal.",
         placeholder: typeof c.placeholder === 'string' ? c.placeholder : "Schreibe deine Frage...",
         maxChars: typeof c.maxChars === 'number' ? c.maxChars : 500,
         maxCharsWarningMessage: typeof c.maxCharsWarningMessage === 'string' ? c.maxCharsWarningMessage : "Deine Frage ist zu lang, bitte kürze sie.",
         footerText: typeof c.footerText === 'string' ? c.footerText : "",
         companyLink: typeof c.companyLink === 'string' ? c.companyLink : undefined,
-        features: {
-          citations: Boolean((c.features as { citations?: boolean })?.citations ?? true),
-          streaming: Boolean((c.features as { streaming?: boolean })?.streaming ?? true),
-        },
-        rateLimit: {
-          windowSec: Number((c.rateLimit as { windowSec?: number })?.windowSec ?? 60),
-          max: Number((c.rateLimit as { max?: number })?.max ?? 30),
-        },
         vectorStore: {
           indexOverride: typeof (c.vectorStore as { indexOverride?: string })?.indexOverride === 'string'
             ? (c.vectorStore as { indexOverride?: string })!.indexOverride
@@ -352,68 +319,6 @@ export function ChatForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid gap-6">
-          <FormField
-            control={form.control}
-            name="public"
-            render={({ field }) => (
-              <FormItem className="flex items-center justify-between">
-                <div>
-                  <FormLabel>Öffentlich zugänglich</FormLabel>
-                  <FormDescription>
-                    Wenn aktiviert, kann der Chat ohne Anmeldung verwendet werden (Rate-Limit beachten).
-                  </FormDescription>
-                </div>
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="titleAvatarSrc"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Avatar URL</FormLabel>
-                <FormControl>
-                  <Input placeholder="https://.../avatar.png" {...field} />
-                </FormControl>
-                <FormDescription>Optionales Avatarbild für die Chat-Ansicht.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="welcomeMessage"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Begrüßung</FormLabel>
-                <FormControl>
-                  <Textarea rows={3} placeholder="Willkommensnachricht..." {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="errorMessage"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Fehlermeldung</FormLabel>
-                <FormControl>
-                  <Input placeholder="Allgemeine Fehlermeldung..." {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -479,70 +384,6 @@ export function ChatForm() {
                   <FormLabel>Footer-Link</FormLabel>
                   <FormControl>
                     <Input placeholder="https://www.example.org" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="features.citations"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between">
-                  <div>
-                    <FormLabel>Zitate/Quellen anzeigen</FormLabel>
-                    <FormDescription>Quellverweise zu Antworten im Chat einblenden.</FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="features.streaming"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between">
-                  <div>
-                    <FormLabel>Streaming aktivieren</FormLabel>
-                    <FormDescription>Antworten während der Generierung anzeigen.</FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="rateLimit.windowSec"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Rate-Limit Fenster (Sekunden)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={1} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="rateLimit.max"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Max. Requests pro Fenster</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={1} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

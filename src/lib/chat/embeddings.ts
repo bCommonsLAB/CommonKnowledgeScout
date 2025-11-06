@@ -5,10 +5,11 @@ interface EmbeddingResponse {
 /**
  * Erstellt Embeddings in Batches, um das Tokenlimit pro Request nicht zu überschreiten.
  * Näherung: ~4 Zeichen pro Token. Für text-embedding-3-large (8192 Tokens) setzen wir konservativ ~24k Zeichen Budget.
+ * @param apiKey Optional: Library-spezifischer OpenAI API-Key. Wenn nicht gesetzt, wird der globale OPENAI_API_KEY verwendet.
  */
-export async function embedTexts(texts: string[], model?: string): Promise<number[][]> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY fehlt')
+export async function embedTexts(texts: string[], model?: string, apiKey?: string): Promise<number[][]> {
+  const effectiveApiKey = apiKey || process.env.OPENAI_API_KEY
+  if (!effectiveApiKey) throw new Error('OPENAI_API_KEY fehlt')
   const m = model || process.env.OPENAI_EMBEDDINGS_MODEL_NAME || 'text-embedding-3-large'
 
   const charBudget = Number(process.env.OPENAI_EMBEDDINGS_MAX_BATCH_CHARS || 24000)
@@ -35,7 +36,7 @@ export async function embedTexts(texts: string[], model?: string): Promise<numbe
     const res = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${effectiveApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ input: batch, model: m })

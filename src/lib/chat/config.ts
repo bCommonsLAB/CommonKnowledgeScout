@@ -15,23 +15,11 @@ import {
  * Achtung: Keine Secrets hier speichern.
  */
 export const chatConfigSchema = z.object({
-  public: z.boolean().default(false),
-  titleAvatarSrc: z.string().url().optional(),
-  welcomeMessage: z.string().min(1).default('Hallo! Ich bin dein wissensbasierter Chatbot.'),
-  errorMessage: z.string().default('Etwas ist schiefgegangen. Versuche es bitte nochmal.'),
   placeholder: z.string().default('Schreibe deine Frage...'),
   maxChars: z.number().int().positive().max(4000).default(500),
   maxCharsWarningMessage: z.string().default('Deine Frage ist zu lang, bitte kürze sie.'),
   footerText: z.string().default(''),
   companyLink: z.string().url().optional(),
-  features: z.object({
-    citations: z.boolean().default(true),
-    streaming: z.boolean().default(true),
-  }).default({ citations: true, streaming: true }),
-  rateLimit: z.object({
-    windowSec: z.number().int().positive().default(60),
-    max: z.number().int().positive().default(30),
-  }).default({ windowSec: 60, max: 30 }),
   vectorStore: z.object({
     indexOverride: z.string().min(1).optional(),
   }).default({}),
@@ -160,12 +148,15 @@ export function getVectorIndexForLibrary(
   const override = chatConfig?.vectorStore?.indexOverride
   console.log('[getVectorIndexForLibrary] Config Override:', override)
   
+  // Wenn indexOverride gesetzt ist, verwende diesen direkt (kann bereits vollständigen Index-Namen enthalten)
+  if (override && override.trim().length > 0) {
+    const slugged = slugifyIndexName(override)
+    console.log('[getVectorIndexForLibrary] ✅ Verwende indexOverride direkt:', { override, slugged })
+    return slugged
+  }
+  
+  // Sonst: Basis aus Label berechnen
   const base = (() => {
-    if (override && override.trim().length > 0) {
-      const slugged = slugifyIndexName(override)
-      console.log('[getVectorIndexForLibrary] Verwende indexOverride:', { override, slugged })
-      return slugged
-    }
     const byLabel = slugifyIndexName(library.label)
     console.log('[getVectorIndexForLibrary] Verwende Label:', { label: library.label, slugged: byLabel })
     if (byLabel) return byLabel
@@ -173,10 +164,13 @@ export function getVectorIndexForLibrary(
     return slugifyIndexName(`lib-${shortId || 'default'}`)
   })()
 
+  // Wenn keine Email vorhanden ist, verwende nur die Basis
   if (!userEmail) {
     console.log('[getVectorIndexForLibrary] ✅ Final (ohne Email):', base)
     return base
   }
+  
+  // Mit Email: Präfix hinzufügen
   const emailSlug = slugifyIndexName(userEmail)
   const final = slugifyIndexName(`${emailSlug}-${base}`)
   console.log('[getVectorIndexForLibrary] ✅ Final (mit Email):', { emailSlug, base, final })

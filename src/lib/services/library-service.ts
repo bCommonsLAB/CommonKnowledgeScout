@@ -148,7 +148,9 @@ export class LibraryService {
       console.log('[LibraryService] Config vor Update:', {
         hasClientSecret: !!updatedLibrary.config?.clientSecret,
         clientSecretValue: updatedLibrary.config?.clientSecret,
-        configKeys: updatedLibrary.config ? Object.keys(updatedLibrary.config) : []
+        configKeys: updatedLibrary.config ? Object.keys(updatedLibrary.config) : [],
+        hasPublicPublishing: !!updatedLibrary.config?.publicPublishing,
+        publicPublishing: updatedLibrary.config?.publicPublishing
       });
       
       const libraries = await this.getUserLibraries(email);
@@ -165,6 +167,17 @@ export class LibraryService {
       console.log('[LibraryService] Rufe updateUserLibraries auf...');
       const result = await this.updateUserLibraries(email, libraries);
       console.log('[LibraryService] Update-Ergebnis:', result);
+      
+      // Nach dem Speichern: Verifiziere dass die Daten korrekt gespeichert wurden
+      const verifyLibraries = await this.getUserLibraries(email);
+      const verifyLibrary = verifyLibraries.find(lib => lib.id === updatedLibrary.id);
+      console.log('[LibraryService] Verifizierung nach Speichern:', {
+        found: !!verifyLibrary,
+        hasPublicPublishing: !!verifyLibrary?.config?.publicPublishing,
+        isPublic: verifyLibrary?.config?.publicPublishing?.isPublic,
+        slugName: verifyLibrary?.config?.publicPublishing?.slugName
+      });
+      
       console.log('[LibraryService] === UPDATE LIBRARY END ===');
       
       return result;
@@ -205,6 +218,27 @@ export class LibraryService {
   }
 
   /**
+   * Maskiert einen API-Key und zeigt die ersten 6 und die letzten 4 Zeichen
+   * @param apiKey Der zu maskierende API-Key
+   * @returns Maskierter API-Key (z.B. "sk-proj....................abcd")
+   */
+  private maskApiKey(apiKey: string): string {
+    if (!apiKey || apiKey.length <= 10) {
+      // Wenn der Key zu kurz ist, zeige nur die letzten 4 Zeichen
+      if (apiKey && apiKey.length > 4) {
+        const lastFour = apiKey.slice(-4);
+        return `••••${lastFour}`;
+      }
+      return '••••';
+    }
+    
+    const firstSix = apiKey.slice(0, 6);
+    const lastFour = apiKey.slice(-4);
+    
+    return `${firstSix}....................${lastFour}`;
+  }
+
+  /**
    * Sichere Client-Bibliotheken aus vollständigen Bibliotheken erstellen
    */
   toClientLibraries(libraries: Library[]): ClientLibrary[] {
@@ -227,7 +261,21 @@ export class LibraryService {
         transcription: lib.transcription,
         secretaryService: lib.config?.secretaryService,
         // Chat-/Galerie-Settings sind sicher und werden an den Client geliefert
-        chat: lib.config?.chat
+        chat: lib.config?.chat,
+        // Public-Publishing-Daten (ohne API-Key) sind sicher für den Client
+        publicPublishing: lib.config?.publicPublishing ? {
+          slugName: lib.config.publicPublishing.slugName,
+          publicName: lib.config.publicPublishing.publicName,
+          description: lib.config.publicPublishing.description,
+          icon: lib.config.publicPublishing.icon,
+          isPublic: lib.config.publicPublishing.isPublic,
+          // Gallery-Texte übertragen
+          gallery: lib.config.publicPublishing.gallery,
+          // API-Key maskiert an den Client senden (letzte 4 Zeichen sichtbar)
+          apiKey: lib.config.publicPublishing.apiKey 
+            ? this.maskApiKey(lib.config.publicPublishing.apiKey)
+            : undefined,
+        } : undefined
       } as Record<string, unknown>;
       
       // Zusätzliche Konfiguration basierend auf dem Bibliothekstyp
@@ -283,5 +331,163 @@ export class LibraryService {
       
       return result;
     });
+  }
+
+  /**
+   * Alle öffentlichen Bibliotheken abrufen
+   * Durchsucht alle Benutzer und findet Libraries mit isPublic: true
+   */
+  async getAllPublicLibraries(): Promise<Library[]> {
+    try {
+      const collection = await getCollection<UserLibraries>(this.collectionName);
+      
+      // Alle Einträge finden
+      const allEntries = await collection.find({}).toArray();
+      
+      console.log('[getAllPublicLibraries] Gefundene Einträge:', allEntries.length);
+      
+      const publicLibraries: Library[] = [];
+      const seenIds = new Set<string>();
+      
+      // Durch alle Benutzer-Einträge iterieren
+      for (const entry of allEntries) {
+        if (entry.libraries && Array.isArray(entry.libraries)) {
+          for (const lib of entry.libraries) {
+            // Debug: Prüfe die Struktur der Library
+            const hasPublicPublishing = !!lib.config?.publicPublishing;
+            // Robustere Prüfung: akzeptiere nur boolean true
+            const isPublicValue = lib.config?.publicPublishing?.isPublic;
+            const isPublic = isPublicValue === true;
+            const hasSlug = !!lib.config?.publicPublishing?.slugName;
+            
+            console.log('[getAllPublicLibraries] Prüfe Library:', {
+              id: lib.id,
+              label: lib.label,
+              hasPublicPublishing,
+              isPublicValue,
+              isPublic,
+              hasSlug,
+              publicPublishing: lib.config?.publicPublishing
+            });
+            
+            // Prüfe ob Library öffentlich ist und noch nicht gefunden wurde
+            if (
+              isPublic &&
+              hasSlug &&
+              !seenIds.has(lib.id)
+            ) {
+              seenIds.add(lib.id);
+              publicLibraries.push(lib);
+              console.log('[getAllPublicLibraries] ✅ Öffentliche Library gefunden:', lib.id, lib.label);
+            }
+          }
+        }
+      }
+      
+      console.log('[getAllPublicLibraries] Gesamt gefundene öffentliche Libraries:', publicLibraries.length);
+      
+      return publicLibraries;
+    } catch (error) {
+      console.error('Fehler beim Abrufen der öffentlichen Bibliotheken:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Öffentliche Bibliothek nach ID abrufen
+   * @param libraryId ID der Bibliothek
+   */
+  async getPublicLibraryById(libraryId: string): Promise<Library | null> {
+    try {
+      const collection = await getCollection<UserLibraries>(this.collectionName);
+      
+      // Alle Einträge finden
+      const allEntries = await collection.find({}).toArray();
+      
+      // Durch alle Benutzer-Einträge iterieren
+      for (const entry of allEntries) {
+        if (entry.libraries && Array.isArray(entry.libraries)) {
+          const library = entry.libraries.find(
+            (lib: Library) =>
+              lib.id === libraryId &&
+              lib.config?.publicPublishing?.isPublic === true
+          );
+          
+          if (library) {
+            return library;
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Fehler beim Abrufen der öffentlichen Bibliothek nach ID:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Öffentliche Bibliothek nach Slug-Name abrufen
+   * @param slugName Eindeutiger Slug-Name der Bibliothek
+   */
+  async getPublicLibraryBySlug(slugName: string): Promise<Library | null> {
+    try {
+      const collection = await getCollection<UserLibraries>(this.collectionName);
+      
+      // Alle Einträge finden
+      const allEntries = await collection.find({}).toArray();
+      
+      // Durch alle Benutzer-Einträge iterieren
+      for (const entry of allEntries) {
+        if (entry.libraries && Array.isArray(entry.libraries)) {
+          const library = entry.libraries.find(
+            (lib: Library) =>
+              lib.config?.publicPublishing?.isPublic === true &&
+              lib.config?.publicPublishing?.slugName === slugName
+          );
+          
+          if (library) {
+            return library;
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Fehler beim Abrufen der öffentlichen Bibliothek nach Slug:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Prüft ob ein Slug-Name bereits verwendet wird
+   * @param slugName Der zu prüfende Slug-Name
+   * @param excludeLibraryId Optional: Library-ID die ausgeschlossen werden soll (für Updates)
+   */
+  async isSlugNameTaken(slugName: string, excludeLibraryId?: string): Promise<boolean> {
+    try {
+      const collection = await getCollection<UserLibraries>(this.collectionName);
+      const allEntries = await collection.find({}).toArray();
+      
+      for (const entry of allEntries) {
+        if (entry.libraries && Array.isArray(entry.libraries)) {
+          const found = entry.libraries.find(
+            (lib: Library) =>
+              lib.config?.publicPublishing?.slugName === slugName &&
+              lib.id !== excludeLibraryId &&
+              lib.config?.publicPublishing?.isPublic === true
+          );
+          
+          if (found) {
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Fehler beim Prüfen der Slug-Eindeutigkeit:', error);
+      throw error;
+    }
   }
 } 

@@ -7,12 +7,16 @@ console.log(`[MIDDLEWARE] 🚀 Middleware wird geladen - ${new Date().toISOStrin
 // Test-/Legacy-Routen entfernt. Externe Callbacks erfolgen über External-Jobs (siehe dynamische Ausnahme unten).
 const isPublicRoute = createRouteMatcher([
   '/',
-  '/docs(.*)'
+  '/docs(.*)',
+  '/explore(.*)',
+  '/api/public(.*)'
 ]);
 
 console.log(`[MIDDLEWARE] 🔧 Public routes configured:`, [
   '/',
   '/docs(.*)',
+  '/explore(.*)',
+  '/api/public(.*)',
 ]);
 
 // Verwende die offizielle Clerk-Middleware
@@ -30,6 +34,17 @@ export default clerkMiddleware(async (auth, req) => {
   
   // Prüfe Public Routes (statisch) + dynamische Ausnahme für Job-Callbacks
   let isPublic = isPublicRoute(req);
+
+  // Dynamische Ausnahme: GET-Requests zu /api/chat/[libraryId]/* für anonyme Benutzer erlauben
+  // Die API-Routen prüfen selbst, ob die Library öffentlich ist
+  if (!isPublic) {
+    const path = req.nextUrl.pathname;
+    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|facets|config|stats|doc-meta|chats|toc-cache)$/.test(path);
+    const isChatStreamPath = /^\/api\/chat\/[^/]+\/stream$/.test(path);
+    if ((req.method === 'GET' && isChatApiPath) || (req.method === 'POST' && isChatStreamPath)) {
+      isPublic = true;
+    }
+  }
 
   // Dynamische Ausnahme: Nur POST /api/external/jobs/:jobId erlauben (nicht /stream)
   if (!isPublic) {

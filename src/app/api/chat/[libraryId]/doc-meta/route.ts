@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
+import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { computeDocMetaCollectionName, getByFileIds } from '@/lib/repositories/doc-meta-repo'
 
 /**
@@ -37,9 +38,13 @@ export async function GET(
     const { userId } = await auth()
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
-    
-    // Auth check (kann optional sein für public libraries)
-    if (!userId || !userEmail) {
+
+    // Chat-Kontext laden (nutzt userEmail für nicht-öffentliche Bibliotheken)
+    const ctx = await loadLibraryChatContext(userEmail, libraryId)
+    if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
+
+    // Zugriff: wenn nicht public, Auth erforderlich
+    if (!ctx.library.config?.publicPublishing?.isPublic && !userId) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
 
@@ -49,7 +54,7 @@ export async function GET(
       return NextResponse.json({ error: 'fileId erforderlich' }, { status: 400 })
     }
 
-    // MongoDB Collection-Name bestimmen
+    // MongoDB Collection-Name bestimmen (für öffentliche Libraries ohne userEmail)
     const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
     const libraryKey = computeDocMetaCollectionName(userEmail, libraryId, strategy)
 

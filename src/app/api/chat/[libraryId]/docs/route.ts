@@ -7,15 +7,18 @@ import { findDocs, computeDocMetaCollectionName, ensureFacetIndexes } from '@/li
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
     const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
-
     const { libraryId } = await params
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
-    if (!userEmail) return NextResponse.json({ error: 'User-Email unbekannt' }, { status: 400 })
 
+    // Chat-Kontext laden (nutzt userEmail für nicht-öffentliche Bibliotheken)
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
+
+    // Zugriff: wenn nicht public, Auth erforderlich
+    if (!ctx.library.config?.publicPublishing?.isPublic && !userId) {
+      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+    }
 
     const url = new URL(req.url)
     const defs = parseFacetDefs(ctx.library)

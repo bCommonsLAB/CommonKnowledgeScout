@@ -18,13 +18,20 @@ export const chunksRetriever: ChatRetriever = {
     const apiKey = process.env.PINECONE_API_KEY
     if (!apiKey) throw new Error('PINECONE_API_KEY fehlt')
     const idx = await describeIndex(input.context.vectorIndex, apiKey)
-    if (!idx?.host) throw new Error('Index nicht gefunden')
+    if (!idx?.host) {
+      throw new Error(
+        `Index nicht gefunden: "${input.context.vectorIndex}". ` +
+        `Bitte prüfe, ob der Index in Pinecone existiert oder ob der Index-Name in der Library-Konfiguration korrekt ist. ` +
+        `Tipp: Verwende config.vectorStore.indexOverride in der Library-Konfiguration, um einen spezifischen Index-Namen festzulegen.`
+      )
+    }
 
     const budget = getBaseBudget(input.answerLength)
     const baseTopK = 20
 
     let stepEmbed = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'embed', level: 'question' })
-    const [qVec] = await embedTexts([input.question])
+    // Verwende Library-spezifischen API-Key für Embeddings, falls vorhanden
+    const [qVec] = await embedTexts([input.question], undefined, input.apiKey)
     stepEmbed = markStepEnd(stepEmbed)
     await logAppend(input.queryId, { indexName: input.context.vectorIndex, namespace: '', stage: 'embed', level: 'question', timingMs: stepEmbed.timingMs, startedAt: stepEmbed.startedAt, endedAt: stepEmbed.endedAt })
 

@@ -15,7 +15,8 @@ function clampSnippet(text: string | undefined, max = 300): string | undefined {
 export async function startQueryLog(context: {
   libraryId: string
   chatId: string // Required: chatId für Chat-Zuordnung
-  userEmail: string
+  userEmail?: string // Optional: für authentifizierte Nutzer
+  sessionId?: string // Optional: für anonyme Nutzer
   question: string
   mode: QueryLog['mode']
   queryType?: QueryLog['queryType'] // 'toc' für Inhaltsverzeichnis, 'question' für normale Fragen
@@ -29,6 +30,11 @@ export async function startQueryLog(context: {
   filtersNormalized?: Record<string, unknown>
   filtersPinecone?: Record<string, unknown>
 }): Promise<string> {
+  // Validierung: Entweder userEmail ODER sessionId muss vorhanden sein
+  if (!context.userEmail && !context.sessionId) {
+    throw new Error('Entweder userEmail oder sessionId muss angegeben werden')
+  }
+  
   return insertQueryLog({ ...context, status: 'pending' })
 }
 
@@ -67,7 +73,7 @@ export async function setPrompt(
   })
 }
 
-export async function finalizeQueryLog(queryId: string, payload: { answer: string; sources?: QueryLog['sources']; references?: QueryLog['references']; suggestedQuestions?: QueryLog['suggestedQuestions']; timing?: QueryLog['timing']; tokenUsage?: QueryLog['tokenUsage'] }): Promise<void> {
+export async function finalizeQueryLog(queryId: string, payload: { answer: string; sources?: QueryLog['sources']; references?: QueryLog['references']; suggestedQuestions?: QueryLog['suggestedQuestions']; timing?: QueryLog['timing']; tokenUsage?: QueryLog['tokenUsage']; storyTopicsData?: QueryLog['storyTopicsData'] }): Promise<void> {
   await updateQueryLogPartial(queryId, { 
     status: 'ok', 
     answer: payload.answer, 
@@ -75,7 +81,8 @@ export async function finalizeQueryLog(queryId: string, payload: { answer: strin
     references: payload.references,
     suggestedQuestions: payload.suggestedQuestions,
     timing: payload.timing, 
-    tokenUsage: payload.tokenUsage 
+    tokenUsage: payload.tokenUsage,
+    storyTopicsData: payload.storyTopicsData
   })
 }
 

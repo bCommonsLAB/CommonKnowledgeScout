@@ -12,6 +12,7 @@ async function getQueriesCollection(): Promise<Collection<QueryLog>> {
       col.createIndex({ queryId: 1 }, { unique: true, name: 'queryId_unique' }),
       col.createIndex({ libraryId: 1, createdAt: -1 }, { name: 'library_createdAt_desc' }),
       col.createIndex({ userEmail: 1, createdAt: -1 }, { name: 'user_createdAt_desc' }),
+      col.createIndex({ sessionId: 1, createdAt: -1 }, { name: 'sessionId_createdAt_desc' }),
       col.createIndex({ chatId: 1, createdAt: -1 }, { name: 'chatId_createdAt_desc' }),
     ])
   } catch {}
@@ -21,6 +22,12 @@ async function getQueriesCollection(): Promise<Collection<QueryLog>> {
 export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' | 'queryId'> & Partial<Pick<QueryLog, 'queryId' | 'status'>>): Promise<string> {
   const col = await getQueriesCollection()
   const queryId = doc.queryId || crypto.randomUUID()
+  
+  // Validierung: Entweder userEmail ODER sessionId muss vorhanden sein
+  if (!doc.userEmail && !doc.sessionId) {
+    throw new Error('Entweder userEmail oder sessionId muss angegeben werden')
+  }
+  
   const payload: QueryLog = {
     queryId,
     chatId: doc.chatId, // Required: chatId muss angegeben werden
@@ -28,6 +35,7 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
     status: doc.status || 'pending',
     libraryId: doc.libraryId,
     userEmail: doc.userEmail,
+    sessionId: doc.sessionId,
     question: doc.question,
     mode: doc.mode,
     queryType: doc.queryType || 'question', // Default: 'question', wenn nicht angegeben
@@ -49,6 +57,8 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
     timing: doc.timing,
     tokenUsage: doc.tokenUsage,
     error: doc.error,
+    questionAnalysis: doc.questionAnalysis,
+    storyTopicsData: doc.storyTopicsData, // Strukturierte Themenübersicht für TOC-Queries
     processingLogs: Array.isArray(doc.processingLogs) ? doc.processingLogs : undefined,
   }
   await col.insertOne(payload)
@@ -71,19 +81,35 @@ export async function updateQueryLogPartial(queryId: string, updateFields: Parti
   await col.updateOne({ queryId }, update)
 }
 
-export async function getQueryLogById(args: { libraryId: string; queryId: string; userEmail: string }): Promise<QueryLog | null> {
+export async function getQueryLogById(args: { libraryId: string; queryId: string; userEmail?: string; sessionId?: string }): Promise<QueryLog | null> {
   const col = await getQueriesCollection()
-  return await col.findOne({ queryId: args.queryId, libraryId: args.libraryId, userEmail: args.userEmail })
+  const filter: Record<string, unknown> = { queryId: args.queryId, libraryId: args.libraryId }
+  
+  if (args.userEmail) {
+    filter.userEmail = args.userEmail
+  } else if (args.sessionId) {
+    filter.sessionId = args.sessionId
+  } else {
+    throw new Error('Entweder userEmail oder sessionId muss angegeben werden')
+  }
+  
+  return await col.findOne(filter)
 }
 
 
-export async function listRecentQueries(args: { libraryId: string; userEmail: string; chatId?: string; limit?: number }): Promise<Array<Pick<QueryLog, 'queryId' | 'createdAt' | 'question' | 'mode' | 'status' | 'answer' | 'references' | 'suggestedQuestions' | 'answerLength' | 'retriever' | 'targetLanguage' | 'character' | 'socialContext' | 'processingLogs'>>> {
+export async function listRecentQueries(args: { libraryId: string; userEmail?: string; sessionId?: string; chatId?: string; limit?: number }): Promise<Array<Pick<QueryLog, 'queryId' | 'createdAt' | 'question' | 'mode' | 'status' | 'answer' | 'references' | 'suggestedQuestions' | 'answerLength' | 'retriever' | 'targetLanguage' | 'character' | 'socialContext' | 'processingLogs'>>> {
   const col = await getQueriesCollection()
   const lim = Math.max(1, Math.min(100, Number(args.limit ?? 20)))
   
   // Filter: Wenn chatId angegeben, filtere danach; sonst filtere nach libraryId
-  const filter: Record<string, unknown> = {
-    userEmail: args.userEmail,
+  const filter: Record<string, unknown> = {}
+  
+  if (args.userEmail) {
+    filter.userEmail = args.userEmail
+  } else if (args.sessionId) {
+    filter.sessionId = args.sessionId
+  } else {
+    throw new Error('Entweder userEmail oder sessionId muss angegeben werden')
   }
   
   if (args.chatId) {
@@ -123,9 +149,19 @@ export async function listRecentQueries(args: { libraryId: string; userEmail: st
  * @param userEmail E-Mail-Adresse des Benutzers (für Sicherheit)
  * @returns true, wenn Query gelöscht wurde, false wenn nicht gefunden
  */
-export async function deleteQueryLog(queryId: string, userEmail: string): Promise<boolean> {
+export async function deleteQueryLog(queryId: string, userEmail?: string, sessionId?: string): Promise<boolean> {
   const col = await getQueriesCollection()
-  const result = await col.deleteOne({ queryId, userEmail })
+  const filter: Record<string, unknown> = { queryId }
+  
+  if (userEmail) {
+    filter.userEmail = userEmail
+  } else if (sessionId) {
+    filter.sessionId = sessionId
+  } else {
+    throw new Error('Entweder userEmail oder sessionId muss angegeben werden')
+  }
+  
+  const result = await col.deleteOne(filter)
   return result.deletedCount > 0
 }
 
@@ -193,7 +229,8 @@ function compareFacetsSelected(
  */
 export async function findQueryByQuestionAndContext(args: {
   libraryId: string
-  userEmail: string
+  userEmail?: string
+  sessionId?: string
   question: string
   targetLanguage?: string
   character?: string
@@ -208,9 +245,16 @@ export async function findQueryByQuestionAndContext(args: {
   // Filter für die Suche: Frage muss exakt übereinstimmen, Kontext-Parameter müssen übereinstimmen
   const filter: Record<string, unknown> = {
     libraryId: args.libraryId,
-    userEmail: args.userEmail,
     question: args.question.trim(),
     status: 'ok', // Nur erfolgreiche Queries
+  }
+  
+  if (args.userEmail) {
+    filter.userEmail = args.userEmail
+  } else if (args.sessionId) {
+    filter.sessionId = args.sessionId
+  } else {
+    throw new Error('Entweder userEmail oder sessionId muss angegeben werden')
   }
   
   // Füge queryType-Filter hinzu, wenn angegeben

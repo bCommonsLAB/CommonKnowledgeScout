@@ -19,6 +19,10 @@ const librarySidebarItems = [
     title: "Chat",
     href: "/settings/chat",
   },
+  {
+    title: "Veröffentlichen",
+    href: "/settings/public",
+  },
   // Weitere bibliotheksbezogene Einstellungen können hier hinzugefügt werden
 ]
 

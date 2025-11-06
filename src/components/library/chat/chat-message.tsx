@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { User, Bot, Bug, FileText } from 'lucide-react'
 import { MarkdownPreview } from '../markdown-preview'
 import { ChatSuggestedQuestions } from './chat-suggested-questions'
@@ -11,8 +11,8 @@ import type { ChatResponse } from '@/types/chat-response'
 import { QueryDetailsDialog } from './query-details-dialog'
 import { ProcessingLogsDialog } from './processing-logs-dialog'
 import type { Character, TargetLanguage, SocialContext, AnswerLength, Retriever } from '@/lib/chat/constants'
-import type { ChatProcessingStep } from '@/types/chat-processing'
 import { characterColors, characterIconColors } from '@/lib/chat/constants'
+import { useUser } from '@clerk/nextjs'
 
 interface ChatMessageProps {
   type: 'question' | 'answer'
@@ -66,27 +66,11 @@ export function ChatMessage({
   targetLanguage,
   socialContext,
 }: ChatMessageProps) {
+  const { isSignedIn } = useUser()
   const [showDetails, setShowDetails] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
-  const lastMessageIdRef = useRef<string | undefined>(undefined)
 
-  // Automatisch Legende öffnen, wenn eine Antwort mit Referenzen angezeigt wird
-  useEffect(() => {
-    if (type === 'answer' && references && Array.isArray(references) && references.length > 0) {
-      // Nur auslösen, wenn es eine neue Nachricht ist (messageId hat sich geändert)
-      if (messageId && messageId !== lastMessageIdRef.current) {
-        lastMessageIdRef.current = messageId
-        // Kurze Verzögerung, damit die Komponente vollständig gerendert ist
-        const timer = setTimeout(() => {
-          const event = new CustomEvent('show-reference-legend', {
-            detail: { references, libraryId },
-          })
-          window.dispatchEvent(event)
-        }, 100)
-        return () => clearTimeout(timer)
-      }
-    }
-  }, [type, references, libraryId, messageId])
+  // Automatisches Öffnen des Quellenverzeichnisses wurde deaktiviert - Benutzer soll Zeit haben, die Antwort zu lesen
 
   if (type === 'question') {
     const bgColor = getCharacterColor(character)
@@ -150,9 +134,9 @@ export function ChatMessage({
               <MarkdownPreview content={content} compact />
             </div>
             
-            {/* Action-Buttons: Config, Legende, Logs, Debug */}
+            {/* Action-Buttons: Config, Quellenverzeichnis, Logs, Debug */}
             {(references && Array.isArray(references) && references.length > 0) || queryId || (answerLength || retriever || targetLanguage || character || socialContext) ? (
-              <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
+              <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
                 {/* Config-Anzeige bei historischen Antworten (mit queryId) */}
                 {queryId && (answerLength || retriever || targetLanguage || character || socialContext) && (
                   <div className="flex-1 min-w-0">
@@ -166,10 +150,11 @@ export function ChatMessage({
                   </div>
                 )}
                 
-                <div className="flex justify-end gap-2 flex-wrap">
+                <div className="flex justify-end gap-2 flex-wrap items-center">
+                  {/* Quelle-Button - prominent wie der Fragen-Button */}
                   {references && Array.isArray(references) && references.length > 0 && (
                     <Button
-                      variant="ghost"
+                      variant="default"
                       size="sm"
                       onClick={() => {
                         const event = new CustomEvent('show-reference-legend', {
@@ -177,36 +162,42 @@ export function ChatMessage({
                         })
                         window.dispatchEvent(event)
                       }}
-                      className="h-6 text-xs text-muted-foreground hover:text-foreground"
+                      className="h-9 px-4 gap-2 font-medium"
                     >
-                      <BookOpen className="h-3 w-3 mr-1" />
-                      Legende ({references.length})
+                      <BookOpen className="h-4 w-4" />
+                      Quelle ({references.length})
                     </Button>
                   )}
                   
                   {queryId && (
                     <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowLogs(true)}
-                        className="h-6 text-xs text-muted-foreground hover:text-foreground"
-                        title="Zeigt die Verarbeitungsschritte dieser Antwort"
-                      >
-                        <FileText className="h-3 w-3 mr-1" />
-                        Logs
-                      </Button>
+                      {/* Logs-Button nur für eingeloggte Benutzer */}
+                      {isSignedIn && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowLogs(true)}
+                          className="h-6 text-xs text-muted-foreground hover:text-foreground"
+                          title="Zeigt die Verarbeitungsschritte dieser Antwort"
+                        >
+                          <FileText className="h-3 w-3 mr-1" />
+                          Logs
+                        </Button>
+                      )}
                       
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowDetails(true)}
-                        className="h-6 text-xs text-muted-foreground hover:text-foreground"
-                        title="Zeigt technische Debug-Informationen zur Query"
-                      >
-                        <Bug className="h-3 w-3 mr-1" />
-                        Debug
-                      </Button>
+                      {/* Debug-Button nur für eingeloggte Benutzer */}
+                      {isSignedIn && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowDetails(true)}
+                          className="h-6 text-xs text-muted-foreground hover:text-foreground"
+                          title="Zeigt technische Debug-Informationen zur Query"
+                        >
+                          <Bug className="h-3 w-3 mr-1" />
+                          Debug
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>
@@ -233,8 +224,8 @@ export function ChatMessage({
         />
       )}
       
-      {/* Processing Logs Dialog */}
-      {queryId && (
+      {/* Processing Logs Dialog - nur für eingeloggte Benutzer */}
+      {queryId && isSignedIn && (
         <ProcessingLogsDialog
           open={showLogs}
           onOpenChange={setShowLogs}

@@ -11,14 +11,30 @@ export async function GET(
     const { userId } = await auth()
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress
-    if (!userId || !userEmail) {
+    
+    // Session-ID aus Header lesen (für anonyme Nutzer)
+    const sessionIdHeader = request.headers.get('x-session-id') || request.headers.get('X-Session-ID')
+    const sessionId = sessionIdHeader || undefined
+    
+    // Prüfe, ob Library öffentlich ist
+    const { loadLibraryChatContext } = await import('@/lib/chat/loader')
+    const ctx = await loadLibraryChatContext(userEmail || '', libraryId)
+    
+    // Wenn nicht öffentlich und nicht authentifiziert: Fehler
+    if (!ctx?.library.config?.publicPublishing?.isPublic && (!userId || !userEmail)) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
+    
+    // Für anonyme Nutzer: Session-ID muss vorhanden sein
+    if (!userEmail && !sessionId) {
+      return NextResponse.json({ error: 'Session-ID erforderlich für anonyme Nutzer' }, { status: 400 })
+    }
+    
     const url = new URL(request.url)
     const limitRaw = url.searchParams.get('limit')
     const limit = limitRaw ? Number(limitRaw) : 20
     const chatId = url.searchParams.get('chatId') // Optional: Filter nach chatId
-    const items = await listRecentQueries({ libraryId, userEmail, chatId: chatId || undefined, limit })
+    const items = await listRecentQueries({ libraryId, userEmail, sessionId, chatId: chatId || undefined, limit })
     return NextResponse.json({ items })
   } catch (error) {
     // eslint-disable-next-line no-console

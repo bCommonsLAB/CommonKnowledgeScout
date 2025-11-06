@@ -253,4 +253,151 @@ WICHTIG:
 ${languageInstruction}`
 }
 
+/**
+ * Erstellt einen speziellen Prompt für die TOC-Generierung (Table of Contents).
+ * Dieser Prompt fordert eine strukturierte StoryTopicsData-Struktur zurück.
+ * 
+ * @param libraryId Eindeutige ID der Library (wird als id in StoryTopicsData verwendet)
+ * @param sources Gefundene Quellen für die Themenübersicht
+ * @param options Optionale Konfiguration für Sprache, Charakter, Kontext und Filter
+ * @returns Prompt-String für LLM
+ */
+export function buildTOCPrompt(
+  libraryId: string,
+  sources: RetrievedSource[],
+  options?: {
+    targetLanguage?: TargetLanguage
+    character?: Character
+    socialContext?: SocialContext
+    genderInclusive?: boolean
+    filters?: Record<string, unknown>
+    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+  }
+): string {
+  const context = buildContext(sources)
+  
+  // Erstelle System-Prompt-Komponenten basierend auf Konfiguration
+  const characterInstruction = options?.character ? getCharacterInstruction(options.character) : ''
+  const socialContextInstruction = options?.socialContext ? getSocialContextInstruction(options.socialContext) : ''
+  const genderInclusiveInstruction = options?.genderInclusive !== undefined ? getGenderInclusiveInstruction(options.genderInclusive) : ''
+  const languageInstruction = options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Antworte auf Deutsch.'
+  
+  // Erstelle Filter-Text für den Prompt
+  let filterText = ''
+  if (options?.filters && options?.facetDefs && Object.keys(options.filters).length > 0) {
+    const filterParts: string[] = []
+    for (const def of options.facetDefs) {
+      const filterValue = options.filters[def.metaKey]
+      if (filterValue !== undefined && filterValue !== null) {
+        const label = def.label || def.metaKey
+        let valueText = ''
+        if (Array.isArray(filterValue)) {
+          valueText = filterValue.map(v => String(v)).join(', ')
+        } else if (typeof filterValue === 'object' && '$in' in filterValue && Array.isArray(filterValue.$in)) {
+          valueText = (filterValue.$in as unknown[]).map(v => String(v)).join(', ')
+        } else {
+          valueText = String(filterValue)
+        }
+        if (valueText) {
+          filterParts.push(`${label}: ${valueText}`)
+        }
+      }
+    }
+    if (filterParts.length > 0) {
+      filterText = `\n\nWICHTIG: Die Themenübersicht bezieht sich nur auf Dokumente, die folgenden Filterkriterien entsprechen:\n${filterParts.map(p => `- ${p}`).join('\n')}\nBitte berücksichtige dies bei der Themenauswahl und Formulierung.`
+    }
+  }
+  
+  // System-Prompt zusammenbauen
+  const systemParts: string[] = ['Du erstellst eine strukturierte Themenübersicht basierend auf den bereitgestellten Quellen. Analysiere die Inhalte und identifiziere die zentralen Themenfelder.']
+  if (characterInstruction) {
+    systemParts.push(`\n${characterInstruction}`)
+  }
+  if (socialContextInstruction) {
+    systemParts.push(`\n${socialContextInstruction}`)
+  }
+  if (genderInclusiveInstruction) {
+    systemParts.push(`\n${genderInclusiveInstruction}`)
+  }
+  
+  return `${systemParts.join('')}
+
+Aufgabe:
+Erstelle eine strukturierte Themenübersicht (Table of Contents) basierend auf den folgenden Quellen. 
+Identifiziere die zentralen Themenfelder und formuliere für jedes Thema relevante Fragen, die Nutzer stellen könnten.
+
+Quellen:
+${context}
+${filterText}
+
+Ausgabe-Format:
+Antworte AUSSCHLIESSLICH als JSON-Objekt mit genau dieser Struktur:
+
+{
+  "id": "${libraryId}",
+  "title": "Themenübersicht",
+  "tagline": "Kurze, prägnante Tagline (max. 50 Zeichen)",
+  "intro": "Einleitender Text, der beschreibt, wie die Themenübersicht strukturiert ist und wie sie verwendet werden kann (max. 300 Zeichen)",
+  "topics": [
+    {
+      "id": "topic-1",
+      "title": "Titel des ersten Themas",
+      "summary": "Kurze Zusammenfassung des Themas (optional, max. 200 Zeichen)",
+      "questions": [
+        {
+          "id": "q-1-1",
+          "text": "Formuliere eine konkrete Frage zu diesem Thema",
+          "intent": "what",
+          "retriever": "auto"
+        },
+        {
+          "id": "q-1-2",
+          "text": "Weitere Frage zu diesem Thema",
+          "intent": "why",
+          "retriever": "summary"
+        }
+      ]
+    },
+    {
+      "id": "topic-2",
+      "title": "Titel des zweiten Themas",
+      "summary": "Kurze Zusammenfassung",
+      "questions": [
+        {
+          "id": "q-2-1",
+          "text": "Frage zum zweiten Thema",
+          "intent": "how",
+          "retriever": "auto"
+        }
+      ]
+    }
+  ]
+}
+
+Anforderungen:
+- Erstelle 5-10 zentrale Themenfelder (topics), die sich aus den Quellen ergeben
+- Jedes Thema sollte 3-7 relevante Fragen (questions) enthalten
+- Die Fragen sollten konkret und beantwortbar sein
+- Verwende eindeutige IDs: "topic-1", "topic-2", etc. für Themen und "q-1-1", "q-1-2", etc. für Fragen
+- Der "intent" kann sein: "what", "why", "how", "compare" oder "recommend" (optional)
+- Der "retriever" kann sein: "summary", "chunk" oder "auto" (optional, Standard: "auto")
+- Die "summary" pro Thema ist optional, aber empfohlen für bessere UX
+- Der "tagline" sollte prägnant sein, z.B. "Sieben zentrale Themenfelder" oder "Überblick über die wichtigsten Themen"
+- Der "intro" sollte erklären, wie die Themenübersicht verwendet werden kann
+
+Beispiel-Struktur:
+- Wenn die Quellen über Open Source, KI, Nachhaltigkeit handeln, könnten Themen sein:
+  - "Open Source & Gesellschaft" mit Fragen wie "Warum Open Source mehr ist als Technologie?"
+  - "Künstliche Intelligenz & Ethik" mit Fragen wie "Wie kann KI Gemeinwohl fördern?"
+  - "Energie & Nachhaltigkeit" mit Fragen wie "Welche Rolle spielt Software für das Klima?"
+
+WICHTIG:
+- Antworte NUR als JSON-Objekt, kein Markdown, keine Code-Fences
+- Alle Strings müssen gültiges JSON sein (korrekte Escapes für Anführungszeichen)
+- Die Struktur muss exakt eingehalten werden
+- IDs müssen eindeutig sein und dem Muster folgen
+
+${languageInstruction}`
+}
+
 

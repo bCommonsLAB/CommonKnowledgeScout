@@ -123,7 +123,7 @@ export async function findDocs(
   libraryId: string,
   filter: Record<string, unknown>,
   options: FindDocsOptions = {}
-): Promise<Array<{ id: string; fileId: string; fileName?: string; title?: string; shortTitle?: string; authors?: string[]; speakers?: string[]; speakers_image_url?: string[]; year?: number | string; region?: string; upsertedAt?: string; docType?: string; source?: string; tags?: string[] }>> {
+): Promise<Array<{ id: string; fileId: string; fileName?: string; title?: string; shortTitle?: string; authors?: string[]; speakers?: string[]; speakers_image_url?: string[]; year?: number | string; track?: string; date?: string; region?: string; upsertedAt?: string; docType?: string; source?: string; tags?: string[] }>> {
   const col = await getDocMetaCollection(libraryKey)
   // PERFORMANCE: libraryId wird NICHT gefiltert, da die Collection bereits nur Dokumente dieser Library enthält
   // Die Collection selbst ist bereits nach Library getrennt (doc_meta__${libraryId})
@@ -140,15 +140,18 @@ export async function findDocs(
       speakers: 1, // Top-Level speakers Feld (für Sessions)
       speakers_image_url: 1, // Top-Level speakers_image_url Feld (für Sessions)
       year: 1,
+      track: 1, // Top-Level track Feld (für Sessions)
       region: 1,
       docType: 1,
       source: 1,
       tags: 1,
       upsertedAt: 1,
-      // Nur title, shortTitle, speakers und speakers_image_url aus docMetaJson laden, nicht das komplette Objekt
+      // Nur title, shortTitle, speakers, track, date und speakers_image_url aus docMetaJson laden, nicht das komplette Objekt
       'docMetaJson.title': 1,
       'docMetaJson.shortTitle': 1,
       'docMetaJson.speakers': 1, // speakers aus docMetaJson (für Sessions)
+      'docMetaJson.track': 1, // track aus docMetaJson (für Sessions)
+      'docMetaJson.date': 1, // date aus docMetaJson (für Sessions)
       'docMetaJson.speakers_image_url': 1, // speakers_image_url aus docMetaJson (für Sessions)
     }
   })
@@ -171,6 +174,16 @@ export async function findDocs(
     const speakersImageUrlTopLevel = toStrArr(r.speakers_image_url)
     const speakersImageUrlDocMeta = docMeta ? toStrArr(docMeta.speakers_image_url) : undefined
     const speakersImageUrl = speakersImageUrlTopLevel || speakersImageUrlDocMeta
+    // track: Priorität: Top-Level > docMetaJson.track
+    const trackTopLevel = typeof r.track === 'string' ? r.track : undefined
+    const trackDocMeta = docMeta && typeof (docMeta as { track?: unknown }).track === 'string' 
+      ? (docMeta as { track: string }).track 
+      : undefined
+    const track = trackTopLevel || trackDocMeta
+    // date: Aus docMetaJson.date extrahieren
+    const dateDocMeta = docMeta && typeof (docMeta as { date?: unknown }).date === 'string' 
+      ? (docMeta as { date: string }).date 
+      : undefined
     return {
       id: `${r.fileId}-meta`,
       fileId: r.fileId,
@@ -181,6 +194,8 @@ export async function findDocs(
       speakers: speakers ? speakers.filter((s): s is string => typeof s === 'string' && s.trim().length > 0) : undefined,
       speakers_image_url: speakersImageUrl || undefined,
       year: (typeof r.year === 'number' || typeof r.year === 'string') ? r.year : undefined,
+      track: track || undefined,
+      date: dateDocMeta || undefined,
       region: typeof r.region === 'string' ? r.region : undefined,
       upsertedAt: typeof r.upsertedAt === 'string' ? r.upsertedAt : undefined,
       docType: typeof r.docType === 'string' ? r.docType : undefined,

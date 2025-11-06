@@ -5,19 +5,20 @@ import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { ChatMessage } from './chat-message'
 import { ChatSelector } from './chat-selector'
 import { ChatConfigDisplay } from './chat-config-display'
 import { ProcessingStatus } from './processing-status'
 import { ChatConversationItem } from './chat-conversation-item'
+import { StoryTopics } from '../story/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
 import type { ChatProcessingStep } from '@/types/chat-processing'
-import { Loader2, Settings, Bot, BookOpen } from 'lucide-react'
+import type { StoryTopicsData } from '@/types/story-topics'
+import { Loader2, Settings } from 'lucide-react'
 import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import { Switch } from '@/components/ui/switch'
@@ -44,25 +45,25 @@ import {
   SOCIAL_CONTEXT_LABELS,
   SOCIAL_CONTEXT_DEFAULT,
 } from '@/lib/chat/constants'
+import { useStoryContext } from '@/hooks/use-story-context'
+import { storyPerspectiveOpenAtom } from '@/atoms/story-context-atom'
+import { useUser } from '@clerk/nextjs'
+import { Card, CardContent } from '@/components/ui/card'
+import { Send } from 'lucide-react'
 
 interface ChatPanelProps {
   libraryId: string
-  variant?: 'default' | 'compact'
+  variant?: 'default' | 'compact' | 'embedded'
 }
 
 interface ChatConfigResponse {
   library: { id: string; label: string }
   config: {
-    public: boolean
-    titleAvatarSrc?: string
-    welcomeMessage: string
-    errorMessage?: string
     placeholder?: string
     maxChars: number
     maxCharsWarningMessage?: string
     footerText?: string
     companyLink?: string
-    features?: { citations?: boolean; streaming?: boolean }
     targetLanguage?: TargetLanguage
     character?: Character
     socialContext?: SocialContext
@@ -92,7 +93,76 @@ interface ChatMessage {
   socialContext?: SocialContext
 }
 
+// Helper-Funktionen: Lade initiale Werte aus localStorage (client-side only)
+function getInitialTargetLanguage(): TargetLanguage {
+  if (typeof window === 'undefined') return TARGET_LANGUAGE_DEFAULT
+  try {
+    const stored = localStorage.getItem('story-context-targetLanguage')
+    if (stored) {
+      const parsed = JSON.parse(stored) as TargetLanguage
+      return parsed
+    }
+  } catch {
+    // Ignoriere Fehler
+  }
+  return TARGET_LANGUAGE_DEFAULT
+}
+
+function getInitialCharacter(): Character {
+  if (typeof window === 'undefined') return CHARACTER_DEFAULT
+  try {
+    const stored = localStorage.getItem('story-context-character')
+    if (stored) {
+      const parsed = JSON.parse(stored) as Character
+      return parsed
+    }
+  } catch {
+    // Ignoriere Fehler
+  }
+  return CHARACTER_DEFAULT
+}
+
+function getInitialSocialContext(): SocialContext {
+  if (typeof window === 'undefined') return SOCIAL_CONTEXT_DEFAULT
+  try {
+    const stored = localStorage.getItem('story-context-socialContext')
+    if (stored) {
+      const parsed = JSON.parse(stored) as SocialContext
+      return parsed
+    }
+  } catch {
+    // Ignoriere Fehler
+  }
+  return SOCIAL_CONTEXT_DEFAULT
+}
+
+function getInitialGenderInclusive(): boolean {
+  if (typeof window === 'undefined') return GENDER_INCLUSIVE_DEFAULT
+  try {
+    const stored = localStorage.getItem('story-context-genderInclusive')
+    if (stored !== null) {
+      const parsed = JSON.parse(stored) as boolean
+      return parsed
+    }
+  } catch {
+    // Ignoriere Fehler
+  }
+  return GENDER_INCLUSIVE_DEFAULT
+}
+
 export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
+  const isEmbedded = variant === 'embedded'
+  const storyContext = useStoryContext()
+  // Prüfe, ob Benutzer anonym ist (für localStorage-Persistenz)
+  const { isSignedIn } = useUser()
+  const isAnonymous = !isSignedIn
+  // State für Config-Popover (muss vor perspectiveOpen deklariert werden)
+  const [configPopoverOpen, setConfigPopoverOpen] = useState(false)
+  // Im embedded-Modus: Verfolge ob Perspektive-Popover geöffnet ist
+  // WICHTIG: Hooks müssen immer in der gleichen Reihenfolge aufgerufen werden
+  const storyPerspectiveOpen = useAtomValue(storyPerspectiveOpenAtom)
+  const perspectiveOpen = isEmbedded ? storyPerspectiveOpen : configPopoverOpen
+  
   const [cfg, setCfg] = useState<ChatConfigResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -102,15 +172,91 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [answerLength, setAnswerLength] = useState<AnswerLength>(ANSWER_LENGTH_DEFAULT)
   const setChatReferences = useSetAtom(chatReferencesAtom)
   const [retriever, setRetriever] = useState<Retriever>(RETRIEVER_DEFAULT)
-  const [targetLanguage, setTargetLanguage] = useState<TargetLanguage>(TARGET_LANGUAGE_DEFAULT)
-  const [character, setCharacter] = useState<Character>(CHARACTER_DEFAULT)
-  const [socialContext, setSocialContext] = useState<SocialContext>(SOCIAL_CONTEXT_DEFAULT)
-  const [genderInclusive, setGenderInclusive] = useState<boolean>(GENDER_INCLUSIVE_DEFAULT)
+  // Im embedded-Modus: Werte aus StoryContext, sonst lokaler State
+  // WICHTIG: Initial-Werte aus localStorage laden (falls vorhanden)
+  const [targetLanguageState, setTargetLanguageState] = useState<TargetLanguage>(getInitialTargetLanguage())
+  const [characterState, setCharacterState] = useState<Character>(getInitialCharacter())
+  const [socialContextState, setSocialContextState] = useState<SocialContext>(getInitialSocialContext())
+  
+  // Ref für verfolgen, ob localStorage-Werte bereits geladen wurden
+  const localStorageLoadedRef = useRef(false)
+  
+  // Prüfe beim initialen State, ob localStorage-Werte vorhanden sind
+  // (durch Vergleich der initialen Werte mit Default-Werten)
+  useEffect(() => {
+    if (isEmbedded || !isAnonymous) return
+    if (typeof window === 'undefined') return
+    
+    try {
+      // Prüfe, ob die initialen Werte von den Default-Werten abweichen
+      // (das bedeutet, sie wurden aus localStorage geladen)
+      const initialTargetLanguage = getInitialTargetLanguage()
+      const initialCharacter = getInitialCharacter()
+      const initialSocialContext = getInitialSocialContext()
+      
+      if (
+        initialTargetLanguage !== TARGET_LANGUAGE_DEFAULT ||
+        initialCharacter !== CHARACTER_DEFAULT ||
+        initialSocialContext !== SOCIAL_CONTEXT_DEFAULT
+      ) {
+        localStorageLoadedRef.current = true
+        console.log('[ChatPanel] localStorage-Werte erkannt beim initialen State:', {
+          targetLanguage: initialTargetLanguage,
+          character: initialCharacter,
+          socialContext: initialSocialContext,
+        })
+      }
+      
+      // Prüfe auch direkt localStorage (für den Fall, dass die Helper-Funktionen nicht funktionieren)
+      const hasLocalStorage = 
+        localStorage.getItem('story-context-targetLanguage') ||
+        localStorage.getItem('story-context-character') ||
+        localStorage.getItem('story-context-socialContext')
+      
+      if (hasLocalStorage && !localStorageLoadedRef.current) {
+        localStorageLoadedRef.current = true
+        console.log('[ChatPanel] localStorage-Werte erkannt durch direkte Prüfung')
+      }
+    } catch {
+      // Ignoriere Fehler
+    }
+  }, [isAnonymous, isEmbedded])
+  
+  const targetLanguage = isEmbedded ? storyContext.targetLanguage : targetLanguageState
+  const character = isEmbedded ? storyContext.character : characterState
+  const socialContext = isEmbedded ? storyContext.socialContext : socialContextState
+  const setTargetLanguage = isEmbedded ? storyContext.setTargetLanguage : setTargetLanguageState
+  const setCharacter = isEmbedded ? storyContext.setCharacter : setCharacterState
+  const setSocialContext = isEmbedded ? storyContext.setSocialContext : setSocialContextState
+  const [genderInclusive, setGenderInclusive] = useState<boolean>(getInitialGenderInclusive())
+  
+  // Handler für Config-Popover: Speichere Werte beim Schließen
+  function handleConfigPopoverChange(open: boolean) {
+    setConfigPopoverOpen(open)
+    
+    // Wenn Popover geschlossen wird: Speichere Werte (nur im anonymen Modus, non-embedded)
+    if (!open && !isEmbedded && isAnonymous) {
+      try {
+        localStorage.setItem('story-context-targetLanguage', JSON.stringify(targetLanguageState))
+        localStorage.setItem('story-context-character', JSON.stringify(characterState))
+        localStorage.setItem('story-context-socialContext', JSON.stringify(socialContextState))
+        localStorage.setItem('story-context-genderInclusive', JSON.stringify(genderInclusive))
+        console.log('[ChatPanel] Speichere Kontextfilter in localStorage beim Schließen des Popovers:', {
+          targetLanguage: targetLanguageState,
+          character: characterState,
+          socialContext: socialContextState,
+          genderInclusive,
+        })
+      } catch (error) {
+        console.error('[ChatPanel] Fehler beim Speichern in localStorage:', error)
+      }
+    }
+  }
+  
   const [isSending, setIsSending] = useState(false)
   const [processingSteps, setProcessingSteps] = useState<ChatProcessingStep[]>([])
   // State für geöffnete Accordions (conversationId -> boolean)
   const [openConversations, setOpenConversations] = useState<Set<string>>(new Set())
-  const [configPopoverOpen, setConfigPopoverOpen] = useState(false)
   // State für gecachtes Inhaltsverzeichnis
   const [cachedTOC, setCachedTOC] = useState<{
     answer: string
@@ -119,6 +265,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     queryId: string
     createdAt: string
   } | null>(null)
+  // State für strukturierte Themenübersicht (StoryTopicsData)
+  const [cachedStoryTopicsData, setCachedStoryTopicsData] = useState<StoryTopicsData | null>(null)
   const [isCheckingTOC, setIsCheckingTOC] = useState(false)
   const [tocOpen, setTocOpen] = useState(true) // TOC standardmäßig geöffnet
   const tocAccordionRef = useRef<HTMLDivElement>(null)
@@ -127,6 +275,12 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const galleryFilters = useAtomValue(galleryFiltersAtom)
   const prevMessagesLengthRef = useRef(0)
+  // Ref für synchrones Tracking, ob Cache-Check läuft (verhindert Race Conditions)
+  const isCheckingTOCRef = useRef(false)
+  // Ref für verfolgen, ob Popover vorher geöffnet war (um Schließen zu erkennen)
+  const prevPerspectiveOpenRef = useRef<boolean | undefined>(undefined)
+  // Ref für verfolgen, ob ein Cache-Check gerade abgeschlossen wurde und Generierung nötig ist
+  const shouldGenerateAfterCacheCheckRef = useRef(false)
 
   // Beobachte TOC-Accordion-Status über MutationObserver
   useEffect(() => {
@@ -165,30 +319,66 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           console.log('[ChatPanel] Config geladen:', {
             hasUserPreferences: !!data.config.userPreferences,
             userPreferences: data.config.userPreferences,
-            welcomeMessage: data.config.welcomeMessage,
           })
           // Setze Default-Werte aus Config, falls vorhanden
-          // Priorität: userPreferences > Config-Defaults
+          // Priorität: localStorage (anonym) > userPreferences > Config-Defaults
           const prefs = data.config.userPreferences
-          if (prefs?.targetLanguage) {
-            setTargetLanguage(prefs.targetLanguage)
-          } else if (data.config.targetLanguage) {
-            setTargetLanguage(data.config.targetLanguage)
+          
+          // WICHTIG: Prüfe direkt localStorage, ob Werte vorhanden sind
+          // (nicht nur State-Werte, da diese möglicherweise noch nicht geladen wurden)
+          let hasLocalStorageTargetLanguage = false
+          let hasLocalStorageCharacter = false
+          let hasLocalStorageSocialContext = false
+          let hasLocalStorageGenderInclusive = false
+          
+          if (isAnonymous && typeof window !== 'undefined') {
+            try {
+              hasLocalStorageTargetLanguage = !!localStorage.getItem('story-context-targetLanguage')
+              hasLocalStorageCharacter = !!localStorage.getItem('story-context-character')
+              hasLocalStorageSocialContext = !!localStorage.getItem('story-context-socialContext')
+              hasLocalStorageGenderInclusive = !!localStorage.getItem('story-context-genderInclusive')
+            } catch {
+              // Ignoriere Fehler
+            }
           }
-          if (prefs?.character) {
-            setCharacter(prefs.character)
-          } else if (data.config.character) {
-            setCharacter(data.config.character)
-          }
-          if (prefs?.socialContext) {
-            setSocialContext(prefs.socialContext)
-          } else if (data.config.socialContext) {
-            setSocialContext(data.config.socialContext)
-          }
-          if (prefs?.genderInclusive !== undefined) {
-            setGenderInclusive(prefs.genderInclusive)
-          } else if (data.config.genderInclusive !== undefined) {
-            setGenderInclusive(data.config.genderInclusive)
+          
+          const hasAnyLocalStorageValues = hasLocalStorageTargetLanguage || hasLocalStorageCharacter || hasLocalStorageSocialContext || hasLocalStorageGenderInclusive
+          
+          if (hasAnyLocalStorageValues) {
+            localStorageLoadedRef.current = true
+            console.log('[ChatPanel] Config-Logik übersprungen: localStorage-Werte vorhanden und haben Priorität', {
+              hasLocalStorageTargetLanguage,
+              hasLocalStorageCharacter,
+              hasLocalStorageSocialContext,
+              hasLocalStorageGenderInclusive,
+              currentTargetLanguage: isEmbedded ? storyContext.targetLanguage : targetLanguageState,
+              currentCharacter: isEmbedded ? storyContext.character : characterState,
+              currentSocialContext: isEmbedded ? storyContext.socialContext : socialContextState,
+            })
+            // KEINE Config-Werte setzen - localStorage-Werte haben Priorität
+          } else {
+            // Keine localStorage-Werte vorhanden: Setze Config-Werte
+            console.log('[ChatPanel] Config-Logik: Setze Config-Werte (keine localStorage-Werte vorhanden)')
+            if (prefs?.targetLanguage) {
+              setTargetLanguage(prefs.targetLanguage)
+            } else if (data.config.targetLanguage) {
+              setTargetLanguage(data.config.targetLanguage)
+            }
+            if (prefs?.character) {
+              setCharacter(prefs.character)
+            } else if (data.config.character) {
+              setCharacter(data.config.character)
+            }
+            if (prefs?.socialContext) {
+              setSocialContext(prefs.socialContext)
+            } else if (data.config.socialContext) {
+              setSocialContext(data.config.socialContext)
+            }
+            if (prefs?.genderInclusive !== undefined) {
+              setGenderInclusive(prefs.genderInclusive)
+            } else if (data.config.genderInclusive !== undefined) {
+              setGenderInclusive(data.config.genderInclusive)
+            }
           }
         }
       } catch (e) {
@@ -199,7 +389,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     }
     load()
     return () => { cancelled = true }
-  }, [libraryId])
+  }, [libraryId, isAnonymous, isEmbedded, setTargetLanguage, setCharacter, setSocialContext, targetLanguageState, characterState, socialContextState, storyContext.targetLanguage, storyContext.character, storyContext.socialContext])
 
   // Gemeinsame Hilfsfunktion: Erstelle ChatMessage aus QueryLog-Daten
   function createMessagesFromQueryLog(queryLog: { queryId: string; question: string; answer?: string; references?: ChatResponse['references']; suggestedQuestions?: string[]; createdAt: string | Date; answerLength?: AnswerLength; retriever?: Retriever; targetLanguage?: TargetLanguage; character?: string; socialContext?: SocialContext }): ChatMessage[] {
@@ -279,13 +469,27 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     let cancelled = false
     async function loadHistory() {
       if (!activeChatId) {
-        // Wenn kein aktiver Chat, setze Messages leer
-        if (!cancelled) setMessages([])
+        // Wenn kein aktiver Chat, behalte vorhandene Messages (z.B. neu hinzugefügte TOC-Queries)
+        // setze Messages nur leer, wenn keine vorhanden sind
+        if (!cancelled) {
+          setMessages(prev => prev.length > 0 ? prev : [])
+        }
         return
       }
       
       try {
-        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries?limit=20&chatId=${encodeURIComponent(activeChatId)}`, { cache: 'no-store' })
+        // Session-ID für anonyme Nutzer
+        const { getOrCreateSessionId } = await import('@/lib/session/session-utils')
+        const sessionId = getOrCreateSessionId()
+        const headers: Record<string, string> = {}
+        if (!sessionId.startsWith('temp-')) {
+          headers['X-Session-ID'] = sessionId
+        }
+        
+        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries?limit=20&chatId=${encodeURIComponent(activeChatId)}`, { 
+          cache: 'no-store',
+          headers: Object.keys(headers).length > 0 ? headers : undefined,
+        })
         const data = await res.json() as { items?: Array<{ queryId: string; createdAt: string; question: string; mode: string; status: string }>; error?: unknown }
         if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Laden der Historie')
         
@@ -296,7 +500,18 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           console.log('[ChatPanel] Lade Historie für Chat:', activeChatId, 'Anzahl Items:', data.items.length)
           for (const item of data.items) {
             try {
-              const queryRes = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(item.queryId)}`, { cache: 'no-store' })
+              // Session-ID für anonyme Nutzer
+              const { getOrCreateSessionId } = await import('@/lib/session/session-utils')
+              const sessionId = getOrCreateSessionId()
+              const headers: Record<string, string> = {}
+              if (!sessionId.startsWith('temp-')) {
+                headers['X-Session-ID'] = sessionId
+              }
+              
+              const queryRes = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(item.queryId)}`, { 
+                cache: 'no-store',
+                headers: Object.keys(headers).length > 0 ? headers : undefined,
+              })
               const queryData = await queryRes.json()
               if (queryRes.ok && typeof queryData?.answer === 'string') {
                 // Überspringe TOC-Queries - diese werden separat angezeigt
@@ -327,13 +542,30 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           historyMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
           console.log('[ChatPanel] Historie geladen:', historyMessages.length, 'Messages')
           if (!cancelled) {
-            setMessages(historyMessages)
+            // Merge mit vorhandenen Messages: Behalte neu hinzugefügte Messages (z.B. TOC-Queries)
+            // die noch nicht in der Historie sind
+            setMessages(prev => {
+              // Sammle alle queryIds aus der Historie
+              const historyQueryIds = new Set(historyMessages.map(m => m.queryId).filter((id): id is string => !!id))
+              
+              // Behalte Messages, die nicht in der Historie sind (neu hinzugefügte)
+              const newMessages = prev.filter(m => !m.queryId || !historyQueryIds.has(m.queryId))
+              
+              // Kombiniere neue Messages mit Historie und sortiere
+              const merged = [...newMessages, ...historyMessages]
+              merged.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+              
+              return merged
+            })
             // Setze prevMessagesLengthRef, damit beim ersten Laden nicht gescrollt wird
             prevMessagesLengthRef.current = historyMessages.length
           }
         }
       } catch {
-        if (!cancelled) setMessages([])
+        // Bei Fehlern behalte vorhandene Messages, setze nur leer wenn keine vorhanden sind
+        if (!cancelled) {
+          setMessages(prev => prev.length > 0 ? prev : [])
+        }
       }
     }
     loadHistory()
@@ -365,8 +597,17 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   // Handler für das Löschen einer Query
   async function handleDeleteQuery(queryId: string): Promise<void> {
     try {
+      // Session-ID für anonyme Nutzer
+      const { getOrCreateSessionId } = await import('@/lib/session/session-utils')
+      const sessionId = getOrCreateSessionId()
+      const headers: Record<string, string> = {}
+      if (!sessionId.startsWith('temp-')) {
+        headers['X-Session-ID'] = sessionId
+      }
+      
       const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`, {
         method: 'DELETE',
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
       })
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: 'Unbekannter Fehler' }))
@@ -419,11 +660,12 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     // Rufe onSend direkt auf - die Config-Parameter sollten jetzt gesetzt sein
     // Da React State-Updates asynchron sind, müssen wir sicherstellen, dass sie durch sind
     // Wir verwenden die aktuellen Werte direkt
-    const currentCharacter = config.character || character
-    const currentAnswerLength = config.answerLength || answerLength
-    const currentRetriever = config.retriever || retriever
-    const currentTargetLanguage = config.targetLanguage || targetLanguage
-    const currentSocialContext = config.socialContext || socialContext
+    // Hinweis: Diese Variablen werden für zukünftige Verwendung bereitgehalten
+    void (config.character || character)
+    void (config.answerLength || answerLength)
+    void (config.retriever || retriever)
+    void (config.targetLanguage || targetLanguage)
+    void (config.socialContext || socialContext)
     
     // Setze Input mit der Frage
     setInput(question)
@@ -455,24 +697,84 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             },
           },
         }),
-      })
-      if (!response.ok) {
+      }).catch(() => undefined)
+
+      // Wenn Request blockiert wurde (z.B. durch Middleware) oder nicht OK:
+      // Bei öffentlichen/anonymen Aufrufen: Lokal aktualisieren und früh zurückkehren (silent no-op)
+      if (!response || !response.ok) {
+        // Lokale Aktualisierung immer durchführen, damit UI reagiert
+        setTargetLanguage(settings.targetLanguage)
+        setCharacter(settings.character)
+        setSocialContext(settings.socialContext)
+        setGenderInclusive(settings.genderInclusive)
+        // Wenn kein Response oder ein Auth-Problem, kein Fehler werfen
+        if (!response || response.status === 401 || response.status === 403) return
+        // Sonst echter Fehler
         throw new Error('Fehler beim Speichern der Präferenzen')
       }
-      // Aktualisiere lokalen State
+
+      // Optional: Content-Type prüfen, falls Login-HTML zurückgegeben wurde
+      const contentType = response.headers.get('content-type') || ''
+      if (contentType.includes('text/html')) {
+        // Anscheinend Redirect zur Login-Seite – behandle wie anonym
+        setTargetLanguage(settings.targetLanguage)
+        setCharacter(settings.character)
+        setSocialContext(settings.socialContext)
+        setGenderInclusive(settings.genderInclusive)
+        return
+      }
+
+      // Erfolgreich: Lokale States setzen
       setTargetLanguage(settings.targetLanguage)
       setCharacter(settings.character)
       setSocialContext(settings.socialContext)
       setGenderInclusive(settings.genderInclusive)
     } catch (error) {
       console.error('[ChatPanel] Fehler beim Speichern der Präferenzen:', error)
-      throw error
+      // Bei Fehlern trotzdem lokale Präferenzen setzen, damit UI konsistent bleibt
+      setTargetLanguage(settings.targetLanguage)
+      setCharacter(settings.character)
+      setSocialContext(settings.socialContext)
+      setGenderInclusive(settings.genderInclusive)
+      // Fehler nicht weiterwerfen, um UX auf öffentlichen Seiten nicht zu stören
     }
   }
 
   // Handler für Inhaltsverzeichnis-Generierung
   async function handleGenerateTOC() {
-    if (isSending) return // Verhindere doppelte Ausführung
+    console.log('[ChatPanel] 🔵 handleGenerateTOC() aufgerufen', {
+      isSending,
+      isCheckingTOC,
+      isCheckingTOCRef: isCheckingTOCRef.current,
+      hasCachedStoryTopicsData: !!cachedStoryTopicsData,
+      hasCachedTOC: !!cachedTOC,
+    })
+    if (isSending) {
+      console.log('[ChatPanel] ⏸️ handleGenerateTOC() abgebrochen: isSending=true')
+      return // Verhindere doppelte Ausführung
+    }
+    // WICHTIG: Wenn Cache-Check noch läuft, abbrechen (Race Condition vermeiden)
+    // Prüfe sowohl State als auch Ref (Ref ist synchron verfügbar)
+    if (isCheckingTOC || isCheckingTOCRef.current) {
+      console.log('[ChatPanel] ⏸️ handleGenerateTOC() abgebrochen: Cache-Check läuft noch', {
+        isCheckingTOC,
+        isCheckingTOCRef: isCheckingTOCRef.current,
+      })
+      return
+    }
+    // Prüfe zuerst, ob bereits ein Cache vorhanden ist
+    // Wenn ja, keine Neuberechnung nötig
+    // WICHTIG: Verwende aktuellen State, nicht Closure-Werte
+    // Da State-Updates asynchron sind, prüfen wir direkt die aktuellen Werte
+    const hasCachedData = cachedStoryTopicsData || cachedTOC
+    if (hasCachedData) {
+      console.log('[ChatPanel] ✅ handleGenerateTOC() übersprungen: TOC bereits im Cache vorhanden', {
+        hasCachedStoryTopicsData: !!cachedStoryTopicsData,
+        hasCachedTOC: !!cachedTOC,
+      })
+      return
+    }
+    console.log('[ChatPanel] 🚀 handleGenerateTOC() startet TOC-Generierung (kein Cache vorhanden)')
     const tocQuestion = 'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
     // Starte die Anfrage direkt, OHNE sie als normale Message hinzuzufügen
     // Die Antwort wird über den TOC-Cache-Mechanismus unter der Kontextbar angezeigt
@@ -483,8 +785,23 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
 
   // Prüfe, ob Inhaltsverzeichnis bereits gecacht ist
   async function checkTOCCache() {
-    if (!cfg) return
+    if (!cfg) {
+      console.log('[ChatPanel] ⏸️ checkTOCCache() abgebrochen: cfg nicht vorhanden')
+      return
+    }
     
+    console.log('[ChatPanel] 🔍 checkTOCCache() gestartet', {
+      libraryId,
+      targetLanguage,
+      character,
+      socialContext,
+      genderInclusive,
+      hasGalleryFilters: !!galleryFilters,
+      galleryFiltersCount: galleryFilters ? Object.keys(galleryFilters).length : 0,
+    })
+    
+    // WICHTIG: Setze Ref synchron, bevor State-Update (verhindert Race Condition)
+    isCheckingTOCRef.current = true
     setIsCheckingTOC(true)
     try {
       const tocQuestion = 'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
@@ -507,13 +824,54 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         })
       }
       
-      const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/toc-cache?${params.toString()}`, {
+      // Session-ID für anonyme Nutzer
+      const { getOrCreateSessionId } = await import('@/lib/session/session-utils')
+      const sessionId = getOrCreateSessionId()
+      const headers: Record<string, string> = {}
+      if (!sessionId.startsWith('temp-')) {
+        headers['X-Session-ID'] = sessionId
+      }
+      
+      const cacheUrl = `/api/chat/${encodeURIComponent(libraryId)}/toc-cache?${params.toString()}`
+      console.log('[ChatPanel] 📡 checkTOCCache() sendet Anfrage:', cacheUrl)
+      
+      const res = await fetch(cacheUrl, {
         cache: 'no-store',
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
       })
       
       if (res.ok) {
-        const data = await res.json() as { found: boolean; answer?: string; references?: ChatResponse['references']; suggestedQuestions?: string[]; queryId?: string; createdAt?: string }
-        if (data.found && data.answer && data.queryId) {
+        const data = await res.json() as { found: boolean; answer?: string; references?: ChatResponse['references']; suggestedQuestions?: string[]; queryId?: string; createdAt?: string; storyTopicsData?: StoryTopicsData }
+        console.log('[ChatPanel] 📦 checkTOCCache() Antwort empfangen:', {
+          found: data.found,
+          hasQueryId: !!data.queryId,
+          hasStoryTopicsData: !!data.storyTopicsData,
+          hasAnswer: !!data.answer,
+        })
+        
+        if (data.found && data.queryId) {
+          // Priorisiere storyTopicsData über answer
+          if (data.storyTopicsData) {
+            console.log('[ChatPanel] ✅ checkTOCCache() Cache GEFUNDEN mit storyTopicsData:', {
+              title: data.storyTopicsData.title,
+              topicsCount: data.storyTopicsData.topics.length,
+              queryId: data.queryId,
+            })
+            setCachedStoryTopicsData(data.storyTopicsData)
+            // Setze auch cachedTOC für Rückwärtskompatibilität (falls benötigt)
+            setCachedTOC({
+              answer: data.answer || '',
+              references: data.references,
+              suggestedQuestions: data.suggestedQuestions,
+              queryId: data.queryId,
+              createdAt: data.createdAt || new Date().toISOString(),
+            })
+          } else if (data.answer) {
+            // Fallback: Normale Antwort (für alte Caches)
+            console.log('[ChatPanel] ✅ checkTOCCache() Cache GEFUNDEN mit answer (altes Format):', {
+              answerLength: data.answer.length,
+              queryId: data.queryId,
+            })
           setCachedTOC({
             answer: data.answer,
             references: data.references,
@@ -521,27 +879,116 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             queryId: data.queryId,
             createdAt: data.createdAt || new Date().toISOString(),
           })
+            setCachedStoryTopicsData(null)
         } else {
+            console.log('[ChatPanel] ⚠️ checkTOCCache() Cache gefunden, aber keine Daten:', { queryId: data.queryId })
           setCachedTOC(null)
+            setCachedStoryTopicsData(null)
         }
       } else {
+          console.log('[ChatPanel] ❌ checkTOCCache() KEIN Cache gefunden (found=false oder kein queryId)')
         setCachedTOC(null)
+          setCachedStoryTopicsData(null)
+          // KEIN Cache gefunden: Setze Flag, dass Generierung nötig ist
+          // Der useEffect wird dann reagieren, wenn der State aktualisiert wurde
+          if (isEmbedded && !isSending) {
+            console.log('[ChatPanel] 🚩 checkTOCCache() setzt Flag für Generierung nach Cache-Check')
+            shouldGenerateAfterCacheCheckRef.current = true
+          }
+        }
+      } else {
+        console.log('[ChatPanel] ❌ checkTOCCache() Anfrage fehlgeschlagen:', { status: res.status, statusText: res.statusText })
+        setCachedTOC(null)
+        setCachedStoryTopicsData(null)
+        // Bei Fehler: Setze Flag für Generierung
+        if (isEmbedded && !isSending) {
+          shouldGenerateAfterCacheCheckRef.current = true
+        }
       }
     } catch (error) {
-      console.error('[ChatPanel] Fehler beim Prüfen des TOC-Cache:', error)
+      console.error('[ChatPanel] ❌ checkTOCCache() Fehler:', error)
       setCachedTOC(null)
+      setCachedStoryTopicsData(null)
+      // Bei Exception: Setze Flag für Generierung
+      if (isEmbedded && !isSending) {
+        shouldGenerateAfterCacheCheckRef.current = true
+      }
     } finally {
+      console.log('[ChatPanel] ✅ checkTOCCache() abgeschlossen, setIsCheckingTOC(false)')
+      isCheckingTOCRef.current = false
       setIsCheckingTOC(false)
     }
   }
+  
+  // useEffect: Reagiere darauf, wenn Cache geleert wurde UND Generierung nötig ist
+  useEffect(() => {
+    // Nur wenn: kein Cache vorhanden, Cache-Check abgeschlossen, Flag gesetzt, embedded-Modus, nicht gerade sendend
+    if (
+      !cachedStoryTopicsData && 
+      !cachedTOC && 
+      !isCheckingTOC && 
+      shouldGenerateAfterCacheCheckRef.current &&
+      isEmbedded && 
+      !isSending
+    ) {
+      console.log('[ChatPanel] 🔄 useEffect [after-cache-cleared] Cache geleert und Flag gesetzt, rufe handleGenerateTOC() auf')
+      shouldGenerateAfterCacheCheckRef.current = false // Reset Flag
+      handleGenerateTOC()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cachedStoryTopicsData, cachedTOC, isCheckingTOC, isEmbedded, isSending])
 
   // Prüfe Cache bei Änderungen der Kontext-Parameter oder Filter
+  // UND beim ersten Laden (wenn cfg verfügbar ist)
+  // Im embedded-Modus: Nur wenn Perspektive-Popover geschlossen wird
   useEffect(() => {
-    if (!cfg) return
+    console.log('[ChatPanel] 🔄 useEffect [cache-check] ausgelöst', {
+      hasCfg: !!cfg,
+      targetLanguage,
+      character,
+      socialContext,
+      genderInclusive,
+      libraryId,
+      galleryFiltersCount: galleryFilters ? Object.keys(galleryFilters).length : 0,
+      isEmbedded,
+      perspectiveOpen,
+    })
+    if (!cfg) {
+      console.log('[ChatPanel] ⏸️ useEffect [cache-check] abgebrochen: cfg nicht vorhanden')
+      return
+    }
+    // Im embedded-Modus: Nur reagieren, wenn Popover geschlossen ist
+    // (verhindert mehrfache Generierungen während Filter-Änderungen)
+    if (isEmbedded && perspectiveOpen) {
+      console.log('[ChatPanel] ⏸️ useEffect [cache-check] abgebrochen: Popover ist noch geöffnet (embedded-Modus)')
+      return
+    }
     // Prüfe Cache, wenn sich Kontext-Parameter oder Filter ändern
+    // checkTOCCache() ruft automatisch handleGenerateTOC() auf, wenn kein Cache gefunden wird
+    console.log('[ChatPanel] 🔍 useEffect [cache-check] ruft checkTOCCache() auf')
     checkTOCCache()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg, targetLanguage, character, socialContext, genderInclusive, libraryId, galleryFilters])
+  }, [cfg, targetLanguage, character, socialContext, genderInclusive, libraryId, galleryFilters, perspectiveOpen])
+  
+  // Zusätzlicher useEffect für embedded-Modus: Reagiere auf Schließen des Popovers
+  useEffect(() => {
+    if (!isEmbedded || !cfg) {
+      prevPerspectiveOpenRef.current = perspectiveOpen
+      return
+    }
+    // Wenn Popover gerade geschlossen wurde (von true zu false), Cache prüfen
+    const wasOpen = prevPerspectiveOpenRef.current === true
+    const isNowClosed = perspectiveOpen === false
+    if (wasOpen && isNowClosed) {
+      console.log('[ChatPanel] 🔄 useEffect [popover-closed] Popover wurde geschlossen, prüfe Cache')
+      checkTOCCache()
+    }
+    prevPerspectiveOpenRef.current = perspectiveOpen
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perspectiveOpen, isEmbedded, cfg])
+  
+  // Automatische Generierung beim ersten Laden: wird direkt aus checkTOCCache() aufgerufen
+  // Kein separater useEffect mehr nötig - alles passiert synchron nach dem Cache-Check
   
   // Prüfe auch nach erfolgreicher Generierung
   useEffect(() => {
@@ -551,6 +998,34 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     // daher müssen wir den Cache anders prüfen
     // Cache wird nach erfolgreicher Generierung direkt geprüft (in handleGenerateTOC)
   }, [messages.length])
+
+  // Hilfsfunktion: Formatiert Fehlermeldungen für bessere Benutzerfreundlichkeit
+  function formatErrorMessage(errorMessage: string): string {
+    // Prüfe auf API-Key-Fehler
+    if (errorMessage.includes('invalid_api_key') || 
+        errorMessage.includes('Incorrect API key') ||
+        errorMessage.includes('Ungültiger OpenAI API-Key')) {
+      return 'Ungültiger OpenAI API-Key. Bitte überprüfe die API-Key-Konfiguration in den Einstellungen der Bibliothek.'
+    }
+    
+    // Prüfe auf andere häufige Fehler
+    if (errorMessage.includes('401') && errorMessage.includes('API key')) {
+      return 'Ungültiger OpenAI API-Key. Bitte überprüfe die API-Key-Konfiguration in den Einstellungen der Bibliothek.'
+    }
+    
+    // Entferne technische Details aus der Fehlermeldung für bessere Lesbarkeit
+    let formatted = errorMessage
+    
+    // Entferne lange API-Key-Maskierungen
+    formatted = formatted.replace(/sk-proj-\*{50,}/g, 'sk-proj-***')
+    
+    // Wenn die Meldung sehr lang ist, kürze sie
+    if (formatted.length > 200) {
+      formatted = formatted.substring(0, 197) + '...'
+    }
+    
+    return formatted
+  }
 
   // Direkter Versand einer Frage ohne Input-Feld
   async function sendQuestionDirectly(questionText: string, retrieverOverride?: Retriever, isTOCQuery = false): Promise<void> {
@@ -583,8 +1058,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     const questionId = `question-${Date.now()}`
     const effectiveRetriever = retrieverOverride || retriever
     
-    // Füge Frage als Message hinzu (nur für normale Fragen, nicht für TOC)
+    // Für TOC-Queries: NICHT als normale Message hinzufügen
+    // Die Antwort wird nur über den Cache-Mechanismus in StoryTopics angezeigt
     if (!isTOC) {
+      // Füge Frage als Message hinzu (nur für normale Fragen)
     const questionMessage: ChatMessage = {
       id: questionId,
       type: 'question',
@@ -638,9 +1115,19 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       const streamUrl = `/api/chat/${encodeURIComponent(libraryId)}/stream${params.toString() ? `?${params.toString()}` : ''}`
       setProcessingSteps([]) // Reset Steps
       
+      // Session-ID aus Utils holen (für anonyme Nutzer)
+      const { getOrCreateSessionId } = await import('@/lib/session/session-utils')
+      const sessionId = getOrCreateSessionId()
+      
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      // Füge Session-ID hinzu, wenn kein User authentifiziert ist
+      if (!sessionId.startsWith('temp-')) {
+        headers['X-Session-ID'] = sessionId
+      }
+      
       const res = await fetch(streamUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ 
           message: questionText, 
           answerLength,
@@ -676,6 +1163,87 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               const jsonStr = line.slice(6) // Entferne "data: "
               const step: ChatProcessingStep = JSON.parse(jsonStr)
               
+              // Console-Log für Debugging: Zeige alle Processing-Steps mit Details
+              const logPrefix = '[Chat-Processing]'
+              switch (step.type) {
+                case 'question_analysis_start':
+                  console.log(`${logPrefix} 🔍 Frage-Analyse gestartet:`, step.question)
+                  break
+                case 'question_analysis_result':
+                  console.log(`${logPrefix} ✅ Frage-Analyse Ergebnis:`, {
+                    recommendation: step.recommendation,
+                    confidence: step.confidence,
+                    chatTitle: step.chatTitle,
+                  })
+                  break
+                case 'retriever_selected':
+                  console.log(`${logPrefix} 🎯 Retriever ausgewählt:`, {
+                    retriever: step.retriever,
+                    reason: step.reason,
+                  })
+                  break
+                case 'retrieval_start':
+                  console.log(`${logPrefix} 🔎 Retrieval gestartet:`, step.retriever)
+                  break
+                case 'retrieval_progress':
+                  console.log(`${logPrefix} 📊 Retrieval Fortschritt:`, {
+                    sourcesFound: step.sourcesFound,
+                    message: step.message,
+                  })
+                  break
+                case 'retrieval_complete':
+                  console.log(`${logPrefix} ✅ Retrieval abgeschlossen:`, {
+                    sourcesCount: step.sourcesCount,
+                    timingMs: step.timingMs,
+                  })
+                  break
+                case 'prompt_building':
+                  console.log(`${logPrefix} 📝 Prompt wird erstellt:`, step.message)
+                  break
+                case 'prompt_complete':
+                  console.log(`${logPrefix} ✅ Prompt erstellt:`, {
+                    promptLength: step.promptLength,
+                    documentsUsed: step.documentsUsed,
+                    tokenCount: step.tokenCount,
+                  })
+                  break
+                case 'llm_start':
+                  console.log(`${logPrefix} 🤖 LLM-Aufruf gestartet:`, step.model)
+                  break
+                case 'llm_progress':
+                  console.log(`${logPrefix} ⚙️ LLM arbeitet:`, step.message)
+                  break
+                case 'llm_complete':
+                  console.log(`${logPrefix} ✅ LLM abgeschlossen:`, {
+                    timingMs: step.timingMs,
+                    promptTokens: step.promptTokens,
+                    completionTokens: step.completionTokens,
+                    totalTokens: step.totalTokens,
+                  })
+                  break
+                case 'parsing_response':
+                  console.log(`${logPrefix} 🔧 Antwort wird verarbeitet:`, step.message)
+                  break
+                case 'complete':
+                  console.log(`${logPrefix} ✅✅✅ Antwort vollständig:`, {
+                    answerLength: step.answer?.length,
+                    referencesCount: step.references?.length,
+                    suggestedQuestionsCount: step.suggestedQuestions?.length,
+                    queryId: step.queryId,
+                    chatId: step.chatId,
+                  })
+                  break
+                case 'error':
+                  const formattedError = formatErrorMessage(step.error || 'Unbekannter Fehler')
+                  console.error(`${logPrefix} ❌ Fehler:`, step.error)
+                  // Setze die formatierte Fehlermeldung bereits hier, damit sie schneller angezeigt wird
+                  setError(formattedError)
+                  break
+                default:
+                  // Fallback für unbekannte Step-Types
+                  console.log(`${logPrefix} 📦 Unbekannter Step:`, step)
+              }
+              
               setProcessingSteps(prev => [...prev, step])
 
               // Handle complete step
@@ -704,19 +1272,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
 
                 const finalQueryId = typeof step.queryId === 'string' ? step.queryId : `temp-${Date.now()}`
                 
-                // Für TOC-Queries: Antwort nicht als normale Message hinzufügen, nur Cache aktualisieren
-                if (isTOC) {
-                  // Cache wird automatisch durch checkTOCCache aktualisiert
-                  setProcessingSteps([])
-                  setIsSending(false)
-                  // Nach kurzer Verzögerung Cache prüfen, damit die Query in der DB gespeichert ist
-                  setTimeout(() => {
-                    checkTOCCache()
-                  }, 1000)
-                  return
-                }
+                // Type Guard für complete-Step mit storyTopicsData
+                const completeStep = step as ChatProcessingStep & { storyTopicsData?: StoryTopicsData }
                 
-                // Erstelle nur die Antwort-Message (die Frage wurde bereits hinzugefügt)
+                // Extrahiere Referenzen und suggestedQuestions
                 const refs: ChatResponse['references'] = Array.isArray(step.references) 
                   ? step.references.filter((r): r is ChatResponse['references'][number] => 
                       typeof r === 'object' && r !== null && 'number' in r && 'fileId' in r && 'description' in r
@@ -726,6 +1285,36 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                   ? step.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
                   : []
                 
+                // Für TOC-Queries: Extrahiere storyTopicsData und setze Cache
+                if (isTOC) {
+                  console.log('[ChatPanel] TOC complete-Step erhalten:', { 
+                    hasStoryTopicsData: !!completeStep.storyTopicsData,
+                    storyTopicsData: completeStep.storyTopicsData,
+                    queryId: finalQueryId 
+                  })
+                  if (completeStep.storyTopicsData) {
+                    setCachedStoryTopicsData(completeStep.storyTopicsData)
+                    // Setze auch cachedTOC für Rückwärtskompatibilität (falls benötigt)
+                    setCachedTOC({
+                      answer: step.answer,
+                      references: refs,
+                      suggestedQuestions,
+                      queryId: finalQueryId,
+                      createdAt: new Date().toISOString(),
+                    })
+                  } else {
+                    console.log('[ChatPanel] Kein storyTopicsData im complete-Step, prüfe Cache nach 1s')
+                    // Nach kurzer Verzögerung Cache prüfen, damit die Query in der DB gespeichert ist
+                    setTimeout(() => {
+                      checkTOCCache()
+                    }, 1000)
+                  }
+                  setProcessingSteps([])
+                  setIsSending(false)
+                  return
+                }
+
+                // Für normale Fragen: Erstelle Antwort-Message
                 const answerMessage: ChatMessage = {
                   id: `${finalQueryId}-answer`,
                   type: 'answer',
@@ -768,6 +1357,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                     }
                   }, 500)
                 }
+                
                 setProcessingSteps([]) // Clear steps after completion
                 setIsSending(false)
                 return
@@ -775,7 +1365,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
 
               // Handle error step
               if (step.type === 'error') {
-                throw new Error(step.error)
+                const formattedError = formatErrorMessage(step.error || 'Unbekannter Fehler')
+                throw new Error(formattedError)
               }
             } catch (parseError) {
               console.error('[ChatPanel] Fehler beim Parsen von SSE-Update:', parseError)
@@ -784,7 +1375,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
+      const errorMessage = e instanceof Error ? e.message : 'Unbekannter Fehler'
+      const formattedError = formatErrorMessage(errorMessage)
+      setError(formattedError)
       // Entferne die Frage nur, wenn es keine TOC-Query war
       if (!isTOC) {
       setMessages(prev => prev.filter(m => m.id !== questionId))
@@ -809,7 +1402,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   if (variant === 'compact') {
     return (
       <div className="flex flex-col h-full min-h-0 w-full">
-        {/* Kontextbar - ohne Rahmen, ähnlich wie Gallery */}
+        {/* Kontextbar - nur im non-embedded Modus anzeigen */}
+        {!isEmbedded && (
+          <>
         <div className="flex items-center gap-2 pb-2 flex-shrink-0">
           {/* Zielsprache */}
           <Select value={targetLanguage} onValueChange={(v) => setTargetLanguage(v as TargetLanguage)}>
@@ -854,7 +1449,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           </Select>
           
           {/* Config-Popover */}
-          <Popover open={configPopoverOpen} onOpenChange={setConfigPopoverOpen}>
+          <Popover open={configPopoverOpen} onOpenChange={handleConfigPopoverChange}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                 <Settings className="h-4 w-4" />
@@ -956,6 +1551,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           </Popover>
           
           {/* Chat-Selector rechts */}
+            {!isEmbedded && (
           <div className="ml-auto">
             <ChatSelector
               libraryId={libraryId}
@@ -974,99 +1570,38 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               }}
             />
           </div>
+            )}
         </div>
         
         {/* Trennlinie unter der Kontextbar */}
         <div className="border-b mb-4"></div>
+        </>
+        )}
         
         {/* Scrollbarer Chat-Verlauf */}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 h-full" ref={scrollRef}>
-          <div className="p-4">
-              {/* Inhaltsverzeichnis-Bereich im Scroll-Bereich */}
-              {(isCheckingTOC || cachedTOC || (!isCheckingTOC && !cachedTOC)) && (
-                <div className="mb-4">
-                  {isCheckingTOC ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Prüfe Inhaltsverzeichnis...</span>
-                    </div>
-                  ) : cachedTOC ? (
-                    <div ref={tocAccordionRef}>
-                      <Accordion 
-                        type="single" 
-                        collapsible 
-                        value={tocOpen ? 'toc' : undefined}
-                      >
-                        <AccordionItem value="toc" className="border-b">
-                          <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                            <div className="flex gap-3 items-center flex-1 min-w-0 mr-2">
-                              <div className="flex-shrink-0">
-                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                                  <Bot className="h-4 w-4 text-muted-foreground" />
-                                </div>
-                              </div>
-                              <div className="flex-1 min-w-0 text-left">
-                                <div className="text-sm font-medium">Themenübersicht</div>
-                              </div>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-4">
-                            <div className="space-y-4 pt-2">
-                              <ChatMessage
-                                type="answer"
-                                content={cachedTOC.answer}
-                                references={cachedTOC.references}
-                                suggestedQuestions={cachedTOC.suggestedQuestions}
-                                queryId={cachedTOC.queryId}
-                                createdAt={cachedTOC.createdAt}
+        <div className={`flex-1 min-h-0 flex flex-col overflow-hidden ${isEmbedded ? 'relative' : ''}`}>
+          <ScrollArea className="flex-1 min-h-0 h-full" ref={scrollRef}>
+            <div className={`p-4 ${isEmbedded ? 'pb-32' : ''}`}>
+              {/* StoryTopics im embedded Modus - oben im Scroll-Bereich */}
+              {isEmbedded && (
+                <div className="mb-6 pb-6 border-b">
+                  <StoryTopics 
                                 libraryId={libraryId}
-                                onQuestionClick={(question) => {
-                                  setInput(question)
+                    data={cachedStoryTopicsData}
+                    isLoading={isCheckingTOC}
+                    onSelectQuestion={(question) => {
+                      // Frage an Chat übergeben
+                      setInput(question.text)
                                   inputRef.current?.focus()
                                 }}
                               />
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between py-3">
-                      <div className="text-sm text-muted-foreground">
-                        Themenübersicht für die aktuellen Einstellungen noch nicht verfügbar
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          await saveUserPreferences({
-                            targetLanguage,
-                            character,
-                            socialContext,
-                            genderInclusive,
-                          })
-                          await handleGenerateTOC()
-                        }}
-                        disabled={isSending}
-                      >
-                        {isSending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Generiere...
-                          </>
-                        ) : (
-                          'Themenübersicht anzeigen'
-                        )}
-                      </Button>
-                    </div>
-                  )}
                 </div>
               )}
               
-              {/* Leerer Zustand / Startnachricht */}
-              {!isCheckingTOC && !cachedTOC && messages.length === 0 && !isSending && (
+              {/* Alte TOC-Anzeige entfernt - wird jetzt durch StoryTopics-Komponente ersetzt */}
+              
+              {/* Leerer Zustand / Startnachricht - nicht im embedded Modus */}
+              {!isEmbedded && !isCheckingTOC && !cachedTOC && messages.length === 0 && !isSending && (
                 <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
                   <div className="text-4xl mb-4">💡</div>
                   <h3 className="text-lg font-medium mb-2">Willkommen im Story Mode.</h3>
@@ -1186,7 +1721,83 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         </ScrollArea>
 
         {/* Fixierter Input-Bereich */}
+        {isEmbedded ? (
+          <Card className="border-2 absolute bottom-0 left-4 right-4 mb-4 flex-shrink-0 z-10 bg-background">
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Oder stelle deine eigene Frage:</p>
+                <div className="flex gap-2 items-end">
+                  <Input
+                    ref={inputRef}
+                    placeholder="z.B. Wie wurde Nachhaltigkeit diskutiert?"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !isSending) onSend()
+                    }}
+                    disabled={isSending}
+                    className="text-sm"
+                  />
+                  {/* Antwortlänge-Dropdown (dezent) */}
+                  <div className="flex flex-col gap-1 items-center">
+                    <label className="text-xs text-muted-foreground whitespace-nowrap">Antwort</label>
+                    <Select 
+                      value={answerLength} 
+                      onValueChange={(v) => setAnswerLength(v as AnswerLength)}
+                      disabled={isSending}
+                    >
+                      <SelectTrigger className="h-9 w-[130px] text-xs border-border/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ANSWER_LENGTH_VALUES.map((length) => (
+                          <SelectItem key={length} value={length}>
+                            {ANSWER_LENGTH_LABELS[length]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={onSend} size="sm" className="gap-2 shrink-0" disabled={isSending}>
+                    {isSending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Warten...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Fragen
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
         <div className="border-t p-3 bg-background flex-shrink-0">
+          {/* Header-Zeile: Antwortlänge rechts oben */}
+          <div className="flex items-center justify-end gap-2 mb-2">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Antwortlänge:</span>
+            <Select 
+              value={answerLength} 
+              onValueChange={(v) => setAnswerLength(v as AnswerLength)}
+              disabled={isSending}
+            >
+              <SelectTrigger className="h-8 w-[110px] text-xs border-border/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ANSWER_LENGTH_VALUES.map((length) => (
+                  <SelectItem key={length} value={length}>
+                    {ANSWER_LENGTH_LABELS[length]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Input-Bereich */}
           <div className="flex items-center gap-2">
             <Input
               ref={inputRef}
@@ -1209,14 +1820,17 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             </Button>
           </div>
         </div>
+        )}
       </div>
     </div>
   )
 }
 
   return (
-    <div className="w-full h-full flex flex-col min-h-[600px]">
-      {/* Kontextbar - ohne Rahmen, ähnlich wie Gallery */}
+    <div className="w-full h-full flex flex-col min-h-[600px] overflow-hidden">
+      {/* Kontextbar - nur im default/compact Modus anzeigen */}
+      {!isEmbedded && (
+        <>
       <div className="flex items-center gap-2 pb-2 flex-shrink-0">
         {/* Zielsprache */}
         <Select value={targetLanguage} onValueChange={(v) => setTargetLanguage(v as TargetLanguage)}>
@@ -1385,69 +1999,33 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       
       {/* Trennlinie unter der Kontextbar */}
       <div className="border-b mb-4"></div>
+        </>
+      )}
       
       {/* Scrollbarer Chat-Verlauf */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <div className={`flex-1 min-h-0 flex flex-col overflow-hidden ${isEmbedded ? 'relative' : ''}`}>
         <ScrollArea className="flex-1 h-full" ref={scrollRef}>
-          <div className="p-6">
-            {/* Inhaltsverzeichnis-Bereich im Scroll-Bereich */}
-            {(isCheckingTOC || cachedTOC || (!isCheckingTOC && !cachedTOC)) && (
-              <div className="mb-4 pb-4 border-b">
-                {isCheckingTOC ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Prüfe Inhaltsverzeichnis...</span>
-                  </div>
-                ) : cachedTOC ? (
-                  <ChatMessage
-                    type="answer"
-                    content={cachedTOC.answer}
-                    references={cachedTOC.references}
-                    suggestedQuestions={cachedTOC.suggestedQuestions}
-                    queryId={cachedTOC.queryId}
-                    createdAt={cachedTOC.createdAt}
+          <div className={`p-6 ${isEmbedded ? 'pb-32' : ''}`}>
+            {/* StoryTopics im embedded Modus - oben im Scroll-Bereich */}
+            {isEmbedded && (
+              <div className="mb-6 pb-6 border-b">
+                <StoryTopics 
                     libraryId={libraryId}
-                    onQuestionClick={(question) => {
-                      setInput(question)
+                  data={cachedStoryTopicsData}
+                  isLoading={isCheckingTOC}
+                  onSelectQuestion={(question) => {
+                    // Frage an Chat übergeben
+                    setInput(question.text)
                       inputRef.current?.focus()
                     }}
                   />
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      Themenübersicht für die aktuellen Einstellungen noch nicht verfügbar
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        await saveUserPreferences({
-                          targetLanguage,
-                          character,
-                          socialContext,
-                          genderInclusive,
-                        })
-                        await handleGenerateTOC()
-                      }}
-                      disabled={isSending}
-                    >
-                      {isSending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Generiere...
-                        </>
-                      ) : (
-                        'Themenübersicht anzeigen'
-                      )}
-                    </Button>
-                  </div>
-                )}
               </div>
             )}
             
-            {/* Leerer Zustand / Startnachricht für compact-Variante */}
-            {!isCheckingTOC && !cachedTOC && messages.length === 0 && !isSending && (
+            {/* Alte TOC-Anzeige entfernt - wird jetzt durch StoryTopics-Komponente ersetzt */}
+            
+            {/* Leerer Zustand / Startnachricht - nicht im embedded Modus */}
+            {!isEmbedded && !isCheckingTOC && !cachedTOC && messages.length === 0 && !isSending && (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
                 <div className="text-4xl mb-4">💡</div>
                 <h3 className="text-lg font-medium mb-2">Willkommen im Story Mode.</h3>
@@ -1557,7 +2135,87 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         </ScrollArea>
 
         {/* Fixierter Input-Bereich */}
+        {isEmbedded ? (
+          <Card className="border-2 flex-shrink-0 mb-4 absolute bottom-0 left-4 right-4 z-10 bg-background">
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                {/* Header-Zeile: Überschrift links, Antwortlänge rechts */}
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-sm font-medium">Oder stelle deine eigene Frage:</p>
+                  {/* Antwortlänge rechts oben */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">Antwortlänge:</span>
+                    <Select 
+                      value={answerLength} 
+                      onValueChange={(v) => setAnswerLength(v as AnswerLength)}
+                      disabled={isSending}
+                    >
+                      <SelectTrigger className="h-8 w-[110px] text-xs border-border/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ANSWER_LENGTH_VALUES.map((length) => (
+                          <SelectItem key={length} value={length}>
+                            {ANSWER_LENGTH_LABELS[length]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {/* Input-Bereich */}
+                <div className="flex gap-2 items-center">
+                  <Input
+                    ref={inputRef}
+                    placeholder="z.B. Wie wurde Nachhaltigkeit diskutiert?"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !isSending) onSend()
+                    }}
+                    disabled={isSending}
+                    className="text-sm"
+                  />
+                  <Button onClick={onSend} size="sm" className="gap-2 shrink-0" disabled={isSending}>
+                    {isSending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Warten...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Fragen
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
         <div className="border-t p-4 bg-background flex-shrink-0">
+          {/* Header-Zeile: Antwortlänge rechts oben */}
+          <div className="flex items-center justify-end gap-2 mb-2">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Antwortlänge:</span>
+            <Select 
+              value={answerLength} 
+              onValueChange={(v) => setAnswerLength(v as AnswerLength)}
+              disabled={isSending}
+            >
+              <SelectTrigger className="h-8 w-[110px] text-xs border-border/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ANSWER_LENGTH_VALUES.map((length) => (
+                  <SelectItem key={length} value={length}>
+                    {ANSWER_LENGTH_LABELS[length]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Input-Bereich */}
           <div className="flex items-center gap-2">
             <Input
               ref={inputRef}
@@ -1585,9 +2243,11 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   )
 }
+
 
 

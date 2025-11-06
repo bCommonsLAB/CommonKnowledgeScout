@@ -18,7 +18,7 @@ export function ChatSuggestedQuestions({ questions, onQuestionClick }: ChatSugge
     <div className="mt-4 p-3 rounded border bg-muted/30">
       <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
         <HelpCircle className="h-3 w-3" />
-        Mögliche weitere Fragen, die sich aus den Quellen ergeben zum Thema:
+        Mögliche weitere Fragen zum Thema, die sich aus den Quellen ergeben:
       </div>
       <div className="flex flex-wrap gap-2">
         {questions.map((question, index) => (

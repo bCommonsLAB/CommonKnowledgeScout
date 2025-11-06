@@ -9,15 +9,9 @@ import { analyzeQuestionForRetriever } from '@/lib/chat/common/question-analyzer
 import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
-  TARGET_LANGUAGE_VALUES,
-  CHARACTER_VALUES,
-  SOCIAL_CONTEXT_VALUES,
   isValidTargetLanguage,
   isValidCharacter,
   isValidSocialContext,
-  TargetLanguage,
-  Character,
-  SocialContext,
 } from '@/lib/chat/constants'
 import type { NeedsClarificationResponse } from '@/types/chat-response'
 
@@ -47,7 +41,7 @@ export async function POST(
     if (!userEmail) {
       // Prüfe erst, ob Chat öffentlich ist, bevor wir ablehnen
       const ctx = await loadLibraryChatContext('', libraryId)
-      if (!ctx || !ctx.chat.public) {
+      if (!ctx || !ctx.library.config?.publicPublishing?.isPublic) {
         return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
       }
       // Wenn öffentlich, können wir ohne Email fortfahren
@@ -58,7 +52,7 @@ export async function POST(
       return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
     }
 
-    if (!ctx.chat.public && !userId) {
+    if (!ctx.library.config?.publicPublishing?.isPublic && !userId) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
 
@@ -201,6 +195,8 @@ export async function POST(
           reasoning: questionAnalysis.reasoning,
         })
       }
+      // Verwende publicApiKey wenn vorhanden (für öffentliche Libraries)
+      const publicApiKey = ctx.library.config?.publicPublishing?.apiKey
       const { answer, sources, references, suggestedQuestions } = await runChatOrchestrated({
         retriever: 'summary',
         libraryId,
@@ -212,6 +208,7 @@ export async function POST(
         context: { vectorIndex: ctx.vectorIndex },
         chatConfig: effectiveChatConfig,
         chatHistory: chatHistory,
+        apiKey: publicApiKey,
       })
       return NextResponse.json({
         status: 'ok',
@@ -255,6 +252,8 @@ export async function POST(
       })
     }
 
+    // Verwende Library-spezifischen API-Key, falls vorhanden
+    const libraryApiKey = ctx.library.config?.publicPublishing?.apiKey
     // Verwende Orchestrator für einheitliche Verarbeitung (wie Summary-Flow)
     const { answer, sources, references, suggestedQuestions } = await runChatOrchestrated({
       retriever: 'chunk',
@@ -267,6 +266,7 @@ export async function POST(
       context: { vectorIndex: ctx.vectorIndex },
       chatConfig: effectiveChatConfig,
       chatHistory: chatHistory,
+      apiKey: libraryApiKey,
     })
     
     return NextResponse.json({
