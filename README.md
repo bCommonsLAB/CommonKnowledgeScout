@@ -71,6 +71,8 @@ Wichtige Variablen (Auszug, siehe Beispiel unten):
 - Pinecone / Embeddings
   - `PINECONE_API_KEY` (falls RAG genutzt wird)
   - `OPENAI_EMBEDDINGS_DIMENSION` (optional; Default 3072)
+  - `OPENAI_EMBEDDINGS_TIMEOUT_MS` (optional; Default 60000 = 60 Sekunden)
+  - `OPENAI_EMBEDDINGS_MAX_RETRIES` (optional; Default 3)
 - OpenAI Chat (optional)
   - `OPENAI_API_KEY`
   - `OPENAI_CHAT_MODEL_NAME` (Default: `gpt-4o-mini`)
@@ -112,6 +114,8 @@ MONGODB_COLLECTION_NAME=libraries
 # Pinecone / Embeddings
 PINECONE_API_KEY=
 OPENAI_EMBEDDINGS_DIMENSION=3072
+OPENAI_EMBEDDINGS_TIMEOUT_MS=60000
+OPENAI_EMBEDDINGS_MAX_RETRIES=3
 
 # OpenAI Chat (optional)
 OPENAI_API_KEY=
