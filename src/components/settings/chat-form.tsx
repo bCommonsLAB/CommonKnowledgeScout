@@ -619,10 +619,18 @@ export function ChatForm() {
               if (!activeLibrary) throw new Error('Keine Bibliothek ausgewählt')
               const res = await fetch(`/api/chat/${encodeURIComponent(activeLibrary.id)}/index`, { method: 'POST' })
               const data = await res.json()
-              if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Anlegen des Index')
+              if (!res.ok) {
+                // Detaillierte Fehlerinformationen anzeigen
+                const errorMsg = data?.message || data?.error || 'Fehler beim Anlegen des Index'
+                const errorDetails = data?.details ? `\nDetails: ${JSON.stringify(data.details, null, 2)}` : ''
+                const errorCode = data?.code ? `\nCode: ${data.code}` : ''
+                throw new Error(`${errorMsg}${errorCode}${errorDetails}`)
+              }
               toast({ title: data.status === 'exists' ? 'Index vorhanden' : 'Index angelegt', description: typeof data?.index === 'object' ? JSON.stringify(data.index) : undefined })
             } catch (e) {
-              toast({ title: 'Fehler', description: e instanceof Error ? e.message : 'Unbekannter Fehler', variant: 'destructive' })
+              const errorMessage = e instanceof Error ? e.message : 'Unbekannter Fehler'
+              console.error('[ChatForm] Fehler beim Anlegen des Index:', e)
+              toast({ title: 'Fehler', description: errorMessage, variant: 'destructive' })
             }
           }}>
             Index anlegen

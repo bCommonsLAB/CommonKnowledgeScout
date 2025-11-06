@@ -119,3 +119,5 @@ export function hasValidSession(): boolean {
   return getSessionId() !== null
 }
 
+
+

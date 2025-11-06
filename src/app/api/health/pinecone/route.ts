@@ -24,8 +24,18 @@ export async function GET() {
     const expectedIndex = process.env.PINECONE_INDEX
     const indexes: Array<{ name: string }> = Array.isArray(data?.indexes) ? data.indexes : []
     const hasExpected = expectedIndex ? indexes.some(i => i.name === expectedIndex) : undefined
+    const indexCount = indexes.length
+    const maxServerlessIndexes = 20 // Pinecone Limit für serverlose Indizes
 
-    return NextResponse.json({ ok: true, indexes, expectedIndex, exists: hasExpected })
+    return NextResponse.json({ 
+      ok: true, 
+      indexes, 
+      indexCount,
+      maxServerlessIndexes,
+      limitReached: indexCount >= maxServerlessIndexes,
+      expectedIndex, 
+      exists: hasExpected 
+    })
   } catch {
     return NextResponse.json({ ok: false, error: 'Interner Fehler' }, { status: 500 })
   }

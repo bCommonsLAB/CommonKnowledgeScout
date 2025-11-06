@@ -996,6 +996,7 @@ export class OneDriveProvider implements StorageProvider {
   async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string; }> {
     try {
       const accessToken = await this.ensureAccessToken();
+      await this.ensureBaseFolderResolved();
       
       if (fileId === 'root') {
         throw new StorageError(
@@ -1005,8 +1006,75 @@ export class OneDriveProvider implements StorageProvider {
         );
       }
 
+      // Prüfe, ob fileId ein Base64-kodierter Pfad ist (aus ingestion-service)
+      // Versuche zu dekodieren - wenn erfolgreich, handelt es sich um einen Pfad
+      let isPath = false
+      let normalizedPath = ''
+      try {
+        const decoded = Buffer.from(fileId, 'base64').toString('utf-8')
+        // Wenn Dekodierung erfolgreich ist und das Ergebnis wie ein Pfad aussieht
+        if (decoded && decoded.includes('/') && !decoded.match(/^[A-Za-z0-9_-]+$/)) {
+          isPath = true
+          normalizedPath = decoded
+        }
+      } catch {
+        // Nicht Base64-kodiert, behandele als Item-ID
+      }
+
+      let itemId = fileId
+      let itemPath = ''
+
+      // Wenn es ein Pfad ist, verwende Microsoft Graph's Pfad-Auflösung
+      if (isPath) {
+        // Pfad relativ zum baseFolder auflösen
+        const fullPath = this.basePath 
+          ? `${this.basePath.replace(/^\/+|\/+$/g, '')}/${normalizedPath}`.replace(/^\/+|\/+$/g, '')
+          : normalizedPath
+        
+        console.log('[OneDriveProvider] getBinary: Pfad erkannt', {
+          originalFileId: fileId,
+          decodedPath: normalizedPath,
+          basePath: this.basePath,
+          fullPath,
+        })
+        
+        // URL-encode den Pfad für Microsoft Graph
+        const encodedPath = encodeURIComponent(fullPath)
+        itemPath = `root:/${encodedPath}`
+        
+        // Versuche Item-ID über Pfad zu erhalten
+        const pathItemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/${itemPath}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        })
+
+        if (pathItemResponse.ok) {
+          const pathItem = await pathItemResponse.json() as OneDriveFile
+          itemId = pathItem.id
+          console.log('[OneDriveProvider] getBinary: Pfad erfolgreich aufgelöst', {
+            path: fullPath,
+            itemId,
+          })
+        } else {
+          // Fallback: Versuche direkt mit Pfad
+          const errorData = await pathItemResponse.json().catch(() => ({}))
+          console.error('[OneDriveProvider] getBinary: Fehler beim Auflösen des Pfads', {
+            path: fullPath,
+            itemPath,
+            status: pathItemResponse.status,
+            error: errorData,
+          })
+          throw new StorageError(
+            `Fehler beim Auflösen des Pfads "${fullPath}": ${errorData.error?.message || pathItemResponse.statusText}`,
+            "API_ERROR",
+            this.id
+          )
+        }
+      }
+
       // Dateiinformationen abrufen, um den MIME-Typ zu erhalten
-      const itemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`, {
+      const itemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -1032,7 +1100,7 @@ export class OneDriveProvider implements StorageProvider {
       }
 
       // Dateiinhalt abrufen
-      const contentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`, {
+      const contentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/content`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }

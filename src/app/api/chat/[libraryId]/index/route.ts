@@ -32,7 +32,10 @@ export async function POST(
     if (!listRes.ok) {
       return NextResponse.json({ error: 'Pinecone-Listing fehlgeschlagen', details: listData }, { status: 502 })
     }
-    const existing = Array.isArray(listData?.indexes) ? listData.indexes.find((i: { name: string }) => i.name === ctx.vectorIndex) : undefined
+    const indexes: Array<{ name: string }> = Array.isArray(listData?.indexes) ? listData.indexes : []
+    const indexCount = indexes.length
+    const maxServerlessIndexes = 20 // Pinecone Limit für serverlose Indizes
+    const existing = indexes.find((i: { name: string }) => i.name === ctx.vectorIndex)
     if (existing) {
       return NextResponse.json({ status: 'exists', index: existing })
     }
@@ -55,12 +58,46 @@ export async function POST(
     })
     const createData = await createRes.json().catch(() => ({}))
     if (!createRes.ok) {
-      return NextResponse.json({ error: 'Pinecone-Index konnte nicht erstellt werden', details: createData }, { status: 502 })
+      // Detaillierte Fehlerinformationen für Debugging
+      const errorMessage = createData?.message || createData?.error?.message || 'Unbekannter Fehler'
+      const errorCode = createData?.code || createData?.error?.code
+      
+      // Spezielle Behandlung für Quota-Limit (403 Fehler)
+      let userFriendlyMessage = errorMessage
+      if (createRes.status === 403) {
+        // Prüfe, ob es ein Quota-Problem ist
+        const messageLower = errorMessage.toLowerCase()
+        if (messageLower.includes('quota') || messageLower.includes('limit') || messageLower.includes('max') || messageLower.includes('reached')) {
+          // Versuche, das tatsächliche Limit aus der Fehlermeldung zu extrahieren
+          const limitMatch = errorMessage.match(/max serverless indexes allowed.*?\((\d+)\)/i)
+          const actualLimit = limitMatch ? parseInt(limitMatch[1], 10) : maxServerlessIndexes
+          
+          userFriendlyMessage = `Index-Limit erreicht: Ihr Pinecone-Projekt ist auf ${actualLimit} serverlose Indizes begrenzt. Aktuell sind ${indexCount} Indizes vorhanden.\n\nLösungsmöglichkeiten:\n1. Ungenutzte Indizes in der Pinecone-Konsole löschen\n2. Namespaces verwenden, um Daten in einem Index zu partitionieren\n3. Ihren Pinecone-Plan upgraden, um mehr Indizes zu erhalten`
+        } else {
+          userFriendlyMessage = `Berechtigungsfehler (403): ${errorMessage}. Mögliche Ursachen: API-Key hat keine Schreibberechtigung oder Index-Limit erreicht (${indexCount}/${maxServerlessIndexes}).`
+        }
+      }
+      
+      return NextResponse.json(
+        {
+          error: 'Pinecone-Index konnte nicht erstellt werden',
+          status: createRes.status,
+          message: userFriendlyMessage,
+          code: errorCode,
+          details: createData,
+          requestBody: body, // Request-Body für Debugging
+          indexCount,
+          maxServerlessIndexes,
+        },
+        { status: 502 }
+      )
     }
 
     return NextResponse.json({ status: 'created', index: createData })
-  } catch {
-    return NextResponse.json({ error: 'Interner Fehler' }, { status: 500 })
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler'
+    console.error('[POST /api/chat/[libraryId]/index] Fehler:', errorMessage, err)
+    return NextResponse.json({ error: 'Interner Fehler', message: errorMessage }, { status: 500 })
   }
 }
 
