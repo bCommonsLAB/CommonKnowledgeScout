@@ -6,7 +6,7 @@ export function HeroSection() {
   return (
     <section className="relative overflow-hidden">
       {/* Hintergrundbild */}
-      <div className="absolute inset-0 bg-[url('/media/FOSDEM_2025_Opening_Talk_from_the_speaker_perspective.jpg')] bg-cover bg-center" />
+      <div className="absolute inset-0 bg-[url('/images/FOSDEM_2025_Opening_Talk_from_the_speaker_perspective.jpg')] bg-cover bg-center" />
       
       {/* schwarzes Overlay mit 30% Transparenz zum Abschwächen des Bildes */}
       <div className="absolute inset-0 bg-black/60" />

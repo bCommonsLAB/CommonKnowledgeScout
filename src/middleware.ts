@@ -27,6 +27,8 @@ export default clerkMiddleware(async (auth, req) => {
   if (
     path.startsWith('/_next') ||
     path === '/favicon.ico' ||
+    path.startsWith('/images/') || // Explizit /images/ Verzeichnis erlauben
+    path.startsWith('/media/') || // Explizit /media/ Verzeichnis erlauben (Legacy-Support)
     /\.(?:css|js|map|png|jpg|jpeg|gif|webp|ico|svg|txt|woff|woff2|ttf)$/i.test(path)
   ) {
     return;
@@ -98,8 +100,8 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Empfohlenes Muster: schließt _next und alle Pfade mit Dateiendungen aus
-    '/((?!.+\\.[\\w]+$|_next).*)',
+    // Empfohlenes Muster: schließt _next, /images, /media und alle Pfade mit Dateiendungen aus
+    '/((?!.+\\.[\\w]+$|_next|images|media).*)',
     '/',
     '/(api|trpc)(.*)'
   ],
