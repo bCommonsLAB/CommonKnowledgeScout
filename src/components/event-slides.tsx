@@ -1,5 +1,8 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import type { Slide } from "@/components/library/slide-accordion";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 interface EventSlidesProps {
   slides: Slide[];
@@ -58,13 +61,15 @@ function resolveImageUrl(relativePath: string | undefined, libraryId: string | u
  * Zeigt Slides mit Thumbnails, Titel und Zusammenfassung
  */
 export function EventSlides({ slides, libraryId }: EventSlidesProps) {
+  const { t } = useTranslation()
+  
   if (!slides || slides.length === 0) {
     return null;
   }
 
   return (
     <div className="w-full max-w-full overflow-x-hidden">
-      <h2 className="text-2xl font-bold mb-6">Presentation Slides</h2>
+      <h2 className="text-2xl font-bold mb-6">{t('event.presentationSlides')}</h2>
       <div className="space-y-8 w-full max-w-full overflow-x-hidden">
         {slides.map((slide) => {
           // Resolve relative image paths to Storage API URLs
@@ -88,7 +93,7 @@ export function EventSlides({ slides, libraryId }: EventSlidesProps) {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                      Kein Bild
+                      {t('event.noImage')}
                     </div>
                   )}
                   <Badge className="absolute top-2 left-2 bg-black/70 text-white text-xs">

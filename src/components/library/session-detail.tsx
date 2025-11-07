@@ -10,6 +10,7 @@ import { EventSlides } from "@/components/event-slides";
 import { EventSummary } from "@/components/event-summary";
 import type { Slide } from "@/components/library/slide-accordion";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 /**
  * Interface für Session-Detail-Daten aus Event/Konferenz-Dokumenten
@@ -59,6 +60,7 @@ interface SessionDetailProps {
  * Moderne UI mit Hero-Section, Speakers mit Avataren, Event-Details Sidebar
  */
 export function SessionDetail({ data, backHref = "/library", showBackLink = false, libraryId }: SessionDetailProps) {
+  const { t } = useTranslation()
   const title = data.title || data.shortTitle || "—";
   const speakers = Array.isArray(data.speakers) ? data.speakers : [];
   const speakers_url = Array.isArray(data.speakers_url) ? data.speakers_url : [];
@@ -94,7 +96,7 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
         <div className="w-full px-4 pt-4">
           <Link href={backHref} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Zurück</span>
+            <span className="text-sm">{t('event.back')}</span>
           </Link>
         </div>
       )}
@@ -105,7 +107,7 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
           <div className="flex flex-col gap-8 items-start">
             {/* Left: Badge, Title, Teaser, and Speakers */}
             <div className="flex-1 w-full">
-              <Badge className="mb-4 bg-blue-500 text-white hover:bg-blue-600">TALK</Badge>
+              <Badge className="mb-4 bg-blue-500 text-white hover:bg-blue-600">{t('event.talk')}</Badge>
 
               <h1 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">{title}</h1>
 
@@ -201,7 +203,7 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
               </div>
             )}
             <div className="break-all">
-              File ID: <code className="px-0.5 py-0 bg-muted rounded text-[10px] break-all">{data.fileId}</code>
+              {t('event.fileId')}: <code className="px-0.5 py-0 bg-muted rounded text-[10px] break-all">{data.fileId}</code>
               {libraryId && (
                 <Link 
                   href={`/library?activeLibraryId=${encodeURIComponent(libraryId)}`}
@@ -218,7 +220,7 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
                   className="ml-2 text-primary hover:underline inline-flex items-center gap-1"
                 >
                   <ExternalLink className="h-3 w-3" />
-                  In Library öffnen
+                  {t('event.openInLibrary')}
                 </Link>
               )}
             </div>

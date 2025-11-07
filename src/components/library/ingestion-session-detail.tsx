@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { SessionDetail, type SessionDetailData } from "./session-detail";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 interface IngestionSessionDetailProps {
   libraryId: string;
@@ -15,6 +16,7 @@ interface IngestionSessionDetailProps {
  * Lädt Session-Daten via API und mappt sie auf das SessionDetailData-Format
  */
 export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt, onDataLoaded }: IngestionSessionDetailProps) {
+  const { t } = useTranslation()
   const [data, setData] = React.useState<SessionDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -33,7 +35,7 @@ export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt, onDat
       const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`;
       const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json();
-      if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Session-Daten konnten nicht geladen werden');
+      if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : t('event.errorLoadingSessionData'));
       const mapped = mapToSessionDetail(json as unknown);
       setData(mapped);
       // Callback aufrufen, wenn Daten geladen wurden (nach setState)
@@ -49,11 +51,11 @@ export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt, onDat
     } finally {
       setLoading(false);
     }
-  }, [libraryId, fileId, docModifiedAt]);
+  }, [libraryId, fileId, docModifiedAt, t]);
 
   React.useEffect(() => { void load(); }, [load]);
 
-  if (loading && !data) return <div className="text-sm text-muted-foreground">Lade Session-Daten…</div>;
+  if (loading && !data) return <div className="text-sm text-muted-foreground">{t('event.loadingSessionData')}</div>;
   if (error) return <div className="text-sm text-destructive">{error}</div>;
   if (!data) return null;
 

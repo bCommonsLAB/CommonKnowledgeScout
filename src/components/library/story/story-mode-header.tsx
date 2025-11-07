@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { StoryHeader } from './story-header'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface StoryModeHeaderProps {
   libraryId: string
@@ -19,6 +20,7 @@ interface StoryConfig {
  * Lädt die Texte aus der Config.
  */
 export function StoryModeHeader({ libraryId }: StoryModeHeaderProps) {
+  const { t } = useTranslation()
   const [storyConfig, setStoryConfig] = useState<StoryConfig | null>(null)
 
   // Lade Story-Config aus der API
@@ -41,8 +43,8 @@ export function StoryModeHeader({ libraryId }: StoryModeHeaderProps) {
   }, [libraryId])
 
   // Defaults für Texte (falls nicht in Config vorhanden)
-  const headline = storyConfig?.headline || 'Story Mode – Wissen verstehen aus den Talks der SFSCon'
-  const intro = storyConfig?.intro || 'Diese Übersicht wurde aus allen ausgewählten Talks generiert. Sie zeigt die zentralen Themen und öffnet den Dialog mit dem Wissen. Du kannst selbst eine Frage stellen oder dich entlang der Themen führen lassen.'
+  const headline = storyConfig?.headline || t('story.defaultHeadline')
+  const intro = storyConfig?.intro || t('story.defaultIntro')
 
   return (
     <div className="space-y-4 mb-6 flex-shrink-0">

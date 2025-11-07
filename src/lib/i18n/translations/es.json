@@ -1,0 +1,136 @@
+{
+  "home": {
+    "hero": {
+      "badge": "Common Knowledge Libraries",
+      "title": "No preguntes a la IA.",
+      "subtitle": "Pregunta al conocimiento colectivo.",
+      "description": "Cada biblioteca es una memoria colectiva – construida a partir de voces, textos y experiencias reales. Elige una biblioteca de conocimiento, explórala y comienza tu conversación.",
+      "buttonDiscover": "Descubrir conocimiento",
+      "buttonLearnMore": "Saber más sobre el proyecto",
+      "imageAttribution": "Imagen",
+      "imageAttributionCC": "CC BY 2.0 Belgium"
+    },
+    "libraryGrid": {
+      "title": "Elige tu biblioteca de conocimiento",
+      "description": "Cada biblioteca contiene contenido estructurado de charlas, estudios o proyectos – y puede ser consultada por ti como un compañero de conversación.",
+      "loading": "Cargando bibliotecas...",
+      "noLibraries": "Aún no hay bibliotecas públicas disponibles.",
+      "buttonQuery": "Consultar"
+    },
+    "howItWorks": {
+      "title": "Cómo funciona",
+      "subtitle": "Un proceso simple que hace accesible el conocimiento real",
+      "step1": {
+        "title": "Elige tu biblioteca",
+        "description": "Decide de qué área temática quieres recuperar conocimiento.",
+        "detail": "Cada biblioteca se basa en fuentes reales y verificables."
+      },
+      "step2": {
+        "title": "Haz tu pregunta",
+        "description": "Formula tu pregunta con tus propias palabras.",
+        "detail": "La plataforma entiende idioma, contexto y rol – como un periodista o investigador."
+      },
+      "step3": {
+        "title": "Descubre perspectivas",
+        "description": "Lee las respuestas desde diferentes perspectivas.",
+        "detail": "El conocimiento no se inventa, sino que se recombina y se vincula de manera verificable."
+      }
+    },
+    "philosophy": {
+      "title": "Transparencia en lugar de caja negra",
+      "subtitle": "Cada respuesta se basa en datos abiertos, fuentes verificables y personas que comparten su conocimiento. Creemos que el futuro del conocimiento no se genera, sino que se comparte.",
+      "transparent": {
+        "title": "Verificable",
+        "description": "Todas las fuentes son transparentes y verificables"
+      },
+      "human": {
+        "title": "Humano",
+        "description": "Basado en voces y experiencias reales"
+      },
+      "trustworthy": {
+        "title": "Confiable",
+        "description": "Curado por investigación y comunidades"
+      },
+      "behindLibraries": {
+        "title": "¿Quién está detrás de las bibliotecas?",
+        "description": "Estas bibliotecas se mantienen junto con instituciones de investigación, ONG y comunidades abiertas. Cada una puede contribuir con sus propios temas, metadatos y valores."
+      }
+    },
+    "cta": {
+      "title": "Un proyecto de aventura compartido",
+      "description1": "Knowledge Scout no es un producto terminado, sino un laboratorio abierto – un proyecto de aventura en desarrollo.",
+      "description2": "Experimentamos con tecnologías abiertas para descubrir cómo se experimentará el conocimiento colectivo en el futuro: a través de escuchar, leer, entender y reflexionar juntos.",
+      "description3": "Si esto te interesa, estás invitado a pensar junto, probar o contribuir bibliotecas tú mismo.",
+      "buttonResearch": "Investigar y probar",
+      "buttonContact": "Contacto",
+      "buttonView": "Ver proyecto"
+    }
+  },
+  "common": {
+    "backToHome": "Volver a la página de inicio",
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar"
+  },
+  "navigation": {
+    "home": "Inicio",
+    "docs": "Docs",
+    "library": "Biblioteca",
+    "gallery": "Galería",
+    "templates": "Plantillas",
+    "eventMonitor": "Monitor de eventos",
+    "sessionManager": "Gestor de sesiones"
+  },
+  "explore": {
+    "publicLibrary": "Biblioteca de conocimiento público",
+    "error": "Error",
+    "slugMissing": "Slug faltante",
+    "libraryNotFound": "Biblioteca no encontrada",
+    "libraryNotPublic": "La biblioteca no está públicamente disponible",
+    "errorLoadingLibrary": "Error al cargar la biblioteca"
+  },
+  "gallery": {
+    "gallery": "Galería",
+    "story": "Historia",
+    "switchToStoryMode": "Cambiar al modo Historia",
+    "storyModeTooltip": "Descubre el conocimiento de nuevo: el modo Historia cuenta las charlas desde tu perspectiva – en tu idioma y con tu enfoque.",
+    "backToGallery": "Volver a la Galería",
+    "searchPlaceholder": "Buscar por título, ponente, tema...",
+    "filter": "Filtro",
+    "reset": "Restablecer",
+    "noFiltersAvailable": "No hay filtros disponibles",
+    "documents": "documentos",
+    "document": "documento",
+    "filtered": "filtrado",
+    "references": "Referencias",
+    "referencesDescription": "La respuesta se generó a partir de estos documentos.",
+    "storyModeGalleryDescription": "Las respuestas se generan a partir de las charlas seleccionadas en la Galería.",
+    "documentDetails": "Detalles del documento",
+    "openDocument": "Abrir documento",
+    "openEventWebsite": "Abrir sitio web del evento",
+    "loading": "Cargando..."
+  },
+  "story": {
+    "defaultHeadline": "Modo Historia – Entender el conocimiento de las charlas de SFSCon",
+    "defaultIntro": "Esta visión general se generó a partir de todas las charlas seleccionadas. Muestra los temas centrales y abre el diálogo con el conocimiento. Puedes hacer tu propia pregunta o dejarte guiar a lo largo de los temas."
+  },
+  "event": {
+    "eventDetails": "Detalles del evento",
+    "minutes": "minutos",
+    "eventWebsite": "Sitio web del evento",
+    "downloadSlides": "Descargar diapositivas",
+    "watchVideo": "Ver video",
+    "talk": "TALK",
+    "back": "Volver",
+    "openInLibrary": "Abrir en biblioteca",
+    "fileId": "ID de archivo",
+    "loadingSessionData": "Cargando datos de sesión…",
+    "errorLoadingSessionData": "No se pudieron cargar los datos de la sesión",
+    "presentationSlides": "Diapositivas de presentación",
+    "noImage": "Sin imagen"
+  }
+}
+

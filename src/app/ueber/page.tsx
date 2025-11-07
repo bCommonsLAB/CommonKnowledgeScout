@@ -1,15 +1,19 @@
+'use client'
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
+import { useTranslation } from "@/lib/i18n/hooks"
 
 export default function UeberPage() {
+  const { t } = useTranslation()
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-12 max-w-4xl">
         <Link href="/">
           <Button variant="ghost" size="sm" className="mb-8">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Zurück zur Startseite
+            {t('common.backToHome')}
           </Button>
         </Link>
 
@@ -109,7 +113,7 @@ export default function UeberPage() {
               Wissensbibliotheken vorzuschlagen oder Feedback zu geben, freuen wir uns über deine Nachricht.
             </p>
             <Button asChild>
-              <a href="mailto:kontakt@knowledgescout.org">Kontakt aufnehmen</a>
+              <a href="mailto:kontakt@knowledgescout.org">{t('home.cta.buttonContact')}</a>
             </Button>
           </div>
         </article>
@@ -117,5 +121,6 @@ export default function UeberPage() {
     </div>
   )
 }
+
 
 

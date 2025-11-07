@@ -1,0 +1,136 @@
+{
+  "home": {
+    "hero": {
+      "badge": "Common Knowledge Libraries",
+      "title": "Befrage nicht die KI.",
+      "subtitle": "Befrage kollektives Wissen.",
+      "description": "Jede Library ist ein kollektives Gedächtnis – aufgebaut aus echten Stimmen, Texten und Erfahrungen. Wähle eine Wissensbibliothek, erkunde sie und beginne dein Gespräch.",
+      "buttonDiscover": "Wissen entdecken",
+      "buttonLearnMore": "Über das Projekt erfahren",
+      "imageAttribution": "Bild",
+      "imageAttributionCC": "CC BY 2.0 Belgium"
+    },
+    "libraryGrid": {
+      "title": "Wähle deine Wissensbibliothek",
+      "description": "Jede Library enthält strukturierte Inhalte aus Vorträgen, Studien oder Projekten – und kann von dir wie ein Gesprächspartner befragt werden.",
+      "loading": "Lade Libraries...",
+      "noLibraries": "Noch keine öffentlichen Libraries verfügbar.",
+      "buttonQuery": "Befragen"
+    },
+    "howItWorks": {
+      "title": "Wie es funktioniert",
+      "subtitle": "Ein einfacher Prozess, der echtes Wissen zugänglich macht",
+      "step1": {
+        "title": "Wähle deine Library",
+        "description": "Entscheide, aus welchem Themenbereich du Wissen abrufen möchtest.",
+        "detail": "Jede Library basiert auf echten, überprüfbaren Quellen."
+      },
+      "step2": {
+        "title": "Stelle deine Frage",
+        "description": "Formuliere deine Frage in deinen Worten.",
+        "detail": "Die Plattform versteht Sprache, Kontext und Rolle – wie ein Journalist oder Forscher."
+      },
+      "step3": {
+        "title": "Entdecke Perspektiven",
+        "description": "Lies die Antworten aus unterschiedlichen Blickwinkeln.",
+        "detail": "Wissen wird nicht erfunden, sondern rekombiniert und nachvollziehbar verlinkt."
+      }
+    },
+    "philosophy": {
+      "title": "Transparenz statt Blackbox",
+      "subtitle": "Jede Antwort basiert auf offenen Daten, nachvollziehbaren Quellen und Menschen, die ihr Wissen teilen. Wir glauben, dass die Zukunft des Wissens nicht generiert, sondern geteilt wird.",
+      "transparent": {
+        "title": "Nachvollziehbar",
+        "description": "Alle Quellen sind transparent und überprüfbar"
+      },
+      "human": {
+        "title": "Menschlich",
+        "description": "Basiert auf echten Stimmen und Erfahrungen"
+      },
+      "trustworthy": {
+        "title": "Vertrauenswürdig",
+        "description": "Kuratiert von Forschung und Communities"
+      },
+      "behindLibraries": {
+        "title": "Wer steht hinter den Libraries?",
+        "description": "Diese Libraries werden gemeinsam mit Forschungseinrichtungen, NGOs und offenen Communities gepflegt. Jede kann eigene Themen, Metadaten und Werte einbringen."
+      }
+    },
+    "cta": {
+      "title": "Ein gemeinsames Adventure-Projekt",
+      "description1": "Knowledge Scout ist kein fertiges Produkt, sondern ein offenes Labor – ein Adventure-Projekt in Entwicklung.",
+      "description2": "Wir experimentieren mit offenen Technologien, um herauszufinden, wie kollektives Wissen in Zukunft erfahrbar wird: durchs Hören, Lesen, Verstehen und gemeinsame Reflektieren.",
+      "description3": "Wenn dich das interessiert, bist du eingeladen, mitzudenken, zu testen oder selbst Libraries beizutragen.",
+      "buttonResearch": "Mitforschen & Testen",
+      "buttonContact": "Kontakt aufnehmen",
+      "buttonView": "Projekt ansehen"
+    }
+  },
+  "common": {
+    "backToHome": "Zurück zur Startseite",
+    "loading": "Lädt...",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "close": "Schließen"
+  },
+  "navigation": {
+    "home": "Home",
+    "docs": "Docs",
+    "library": "Bibliothek",
+    "gallery": "Gallery",
+    "templates": "Templates",
+    "eventMonitor": "Event-Monitor",
+    "sessionManager": "Session-Manager"
+  },
+  "explore": {
+    "publicLibrary": "Öffentliche Wissensbibliothek",
+    "error": "Fehler",
+    "slugMissing": "Slug fehlt",
+    "libraryNotFound": "Library nicht gefunden",
+    "libraryNotPublic": "Library ist nicht öffentlich verfügbar",
+    "errorLoadingLibrary": "Fehler beim Laden der Library"
+  },
+  "gallery": {
+    "gallery": "Gallery",
+    "story": "Story",
+    "switchToStoryMode": "In Story Mode wechseln",
+    "storyModeTooltip": "Entdecke Wissen neu: Der Story Mode erzählt die Talks aus deiner Sicht – in deiner Sprache und mit deinem Fokus.",
+    "backToGallery": "Zurück zur Gallery",
+    "searchPlaceholder": "Durchsuchen nach Titel, Speaker, Topic...",
+    "filter": "Filter",
+    "reset": "Zurücksetzen",
+    "noFiltersAvailable": "Keine Filter verfügbar",
+    "documents": "Dokumente",
+    "document": "Dokument",
+    "filtered": "gefiltert",
+    "references": "Quellenverzeichnis",
+    "referencesDescription": "Die Antwort wurde aus diesen Dokumenten generiert.",
+    "storyModeGalleryDescription": "Antworten werden aus den in der Gallery ausgewählten Talks generiert.",
+    "documentDetails": "Dokumentdetails",
+    "openDocument": "Dokument öffnen",
+    "openEventWebsite": "Event Webseite öffnen",
+    "loading": "Lade…"
+  },
+  "story": {
+    "defaultHeadline": "Story Mode – Wissen verstehen aus den Talks der SFSCon",
+    "defaultIntro": "Diese Übersicht wurde aus allen ausgewählten Talks generiert. Sie zeigt die zentralen Themen und öffnet den Dialog mit dem Wissen. Du kannst selbst eine Frage stellen oder dich entlang der Themen führen lassen."
+  },
+  "event": {
+    "eventDetails": "Event Details",
+    "minutes": "Minuten",
+    "eventWebsite": "Event Webseite",
+    "downloadSlides": "Folien herunterladen",
+    "watchVideo": "Video ansehen",
+    "talk": "TALK",
+    "back": "Zurück",
+    "openInLibrary": "In Library öffnen",
+    "fileId": "File ID",
+    "loadingSessionData": "Lade Session-Daten…",
+    "errorLoadingSessionData": "Session-Daten konnten nicht geladen werden",
+    "presentationSlides": "Präsentationsfolien",
+    "noImage": "Kein Bild"
+  }
+}
+

@@ -25,6 +25,7 @@ import { EventDetailsAccordion } from '@/components/library/event-details-accord
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ChatResponse } from '@/types/chat-response'
 import type { SessionDetailData } from '@/components/library/session-detail'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface DocCardMeta {
   id: string
@@ -68,11 +69,18 @@ function FacetGroup({ label, options, selected, onChange }: { label: string; opt
     if (next.has(v)) next.delete(v); else next.add(v)
     onChange(Array.from(next))
   }
+  
+  // useTranslation muss innerhalb der Komponente verwendet werden
+  // Da FacetGroup innerhalb von GalleryClient verwendet wird, können wir t als Prop übergeben
+  // Oder wir machen FacetGroup zu einer eigenen Client-Komponente
+  // Für jetzt: Verwende GalleryClient's t über Context oder mache es zu einer Client-Komponente
+  const { t } = useTranslation()
+  
   return (
     <div className='border rounded p-2 bg-gradient-to-br from-blue-50/30 to-cyan-50/30 dark:from-blue-950/10 dark:to-cyan-950/10'>
       <div className='flex items-center gap-2 mb-2 min-w-0'>
         <div className='text-sm font-medium truncate flex-1 min-w-0'>{label}</div>
-        <button className='text-xs text-muted-foreground hover:underline shrink-0' onClick={() => onChange([])}>Zurücksetzen</button>
+        <button className='text-xs text-muted-foreground hover:underline shrink-0' onClick={() => onChange([])}>{t('gallery.reset')}</button>
       </div>
       <div className='max-h-40 overflow-auto space-y-1'>
         {normalized.map((o) => {
@@ -196,6 +204,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
+  const { t } = useTranslation()
   const libraryIdFromAtom = useAtomValue(activeLibraryIdAtom)
   // Verwende Prop wenn vorhanden (für anonyme Zugriffe), sonst Atom
   const libraryId = libraryIdProp || libraryIdFromAtom
@@ -844,8 +853,8 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
       <div className='mb-6 flex items-center justify-between flex-shrink-0'>
         <Tabs value={mode} onValueChange={(value) => setMode(value as 'gallery' | 'story')} className="w-auto">
           <TabsList>
-            <TabsTrigger value="gallery">Gallery</TabsTrigger>
-            <TabsTrigger value="story">Story</TabsTrigger>
+            <TabsTrigger value="gallery">{t('gallery.gallery')}</TabsTrigger>
+            <TabsTrigger value="story">{t('gallery.story')}</TabsTrigger>
           </TabsList>
         </Tabs>
         
@@ -861,11 +870,11 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
                   className='flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all'
                 >
                   <Feather className='h-5 w-5' />
-                  In Story Mode wechseln
+                  {t('gallery.switchToStoryMode')}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Entdecke Wissen neu: Der Story Mode erzählt die Talks aus deiner Sicht – in deiner Sprache und mit deinem Fokus.</p>
+                <p>{t('gallery.storyModeTooltip')}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -880,7 +889,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
             className='flex items-center gap-2'
           >
             <ChevronLeft className='h-4 w-4' />
-            Zurück zur Gallery
+            {t('gallery.backToGallery')}
           </Button>
         )}
       </div>
@@ -903,7 +912,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
               <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
               <Input
                 type='text'
-                placeholder='Durchsuchen nach Titel, Speaker, Topic...'
+                placeholder={t('gallery.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className='pl-10'
@@ -934,7 +943,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
                           <Filter className="h-4 w-4" />
-                          Filter
+                          {t('gallery.filter')}
                         </CardTitle>
                             <CardDescription className="text-sm">
                               {galleryFilterDescription}
@@ -956,7 +965,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
                         })}
                         {facetDefs.length === 0 && (
                           <div className="text-sm text-muted-foreground text-center py-8">
-                            Keine Filter verfügbar
+                            {t('gallery.noFiltersAvailable')}
                           </div>
                         )}
                       </CardContent>
@@ -985,7 +994,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
                 {showReferenceLegend && chatReferences && chatReferences.length > 0 && (
                   <div className="flex-shrink-0 border-b bg-background px-4 py-3">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-base font-semibold">Quellenverzeichnis</h3>
+                      <h3 className="text-base font-semibold">{t('gallery.references')}</h3>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -996,7 +1005,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground mb-3">
-                      Die Antwort wurde aus diesen Dokumenten generiert.
+                      {t('gallery.referencesDescription')}
                     </p>
                     <ChatReferenceList
                       references={chatReferences}
@@ -1054,7 +1063,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
               {/* Überschrift für die Galerie im Story-Modus */}
               <div className="flex-shrink-0 px-4 py-3 border-b bg-background">
                 <h3 className="text-sm font-medium text-muted-foreground">
-                  Antworten werden aus den in der Gallery ausgewählten Talks generiert.
+                  {t('gallery.storyModeGalleryDescription')}
                 </h3>
               </div>
               
@@ -1076,7 +1085,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
               {showReferenceLegend && chatReferences && chatReferences.length > 0 && (
                 <div className="flex-shrink-0 border-b bg-background px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-base font-semibold">Quellenverzeichnis</h3>
+                    <h3 className="text-base font-semibold">{t('gallery.references')}</h3>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1087,7 +1096,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Die Antwort wurde aus diesen Dokumenten generiert.
+                    {t('gallery.referencesDescription')}
                   </p>
                   <ChatReferenceList
                     references={chatReferences}
@@ -1143,7 +1152,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Filter className="h-4 w-4" />
-              Filter
+              {t('gallery.filter')}
             </SheetTitle>
             <SheetDescription className="text-sm">
               {galleryFilterDescription}
@@ -1176,9 +1185,9 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
         }}>
           <SheetContent side="right" className="w-full sm:max-w-2xl overflow-hidden flex flex-col">
             <SheetHeader className="flex-shrink-0">
-              <SheetTitle>Quellenverzeichnis</SheetTitle>
+              <SheetTitle>{t('gallery.references')}</SheetTitle>
               <SheetDescription className="text-sm">
-                Die Antwort wurde aus diesen Dokumenten generiert.
+                {t('gallery.referencesDescription')}
               </SheetDescription>
             </SheetHeader>
             
@@ -1226,7 +1235,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
                   <EventDetailsAccordion data={sessionData} />
                 </div>
               ) : (
-                <h2 className='text-xl font-semibold'>Dokumentdetails</h2>
+                <h2 className='text-xl font-semibold'>{t('gallery.documentDetails')}</h2>
               )}
               <div className='flex items-center gap-2 shrink-0'>
                 {sessionUrl && detailViewType === 'session' ? (
@@ -1238,7 +1247,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
                   >
                     <a href={sessionUrl} target='_blank' rel='noopener noreferrer'>
                       <ExternalLink className='h-4 w-4' />
-                      Event Webseite öffnen
+                      {t('gallery.openEventWebsite')}
                     </a>
                   </Button>
                 ) : (
@@ -1249,7 +1258,7 @@ export default function GalleryClient(props: GalleryClientProps = {}) {
                     className='flex items-center gap-2'
                   >
                     <ExternalLink className='h-4 w-4' />
-                    Dokument öffnen
+                    {t('gallery.openDocument')}
                   </Button>
                 )}
                 <Button variant='ghost' size='icon' onClick={() => {

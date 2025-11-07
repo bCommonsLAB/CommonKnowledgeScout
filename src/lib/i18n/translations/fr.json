@@ -1,0 +1,136 @@
+{
+  "home": {
+    "hero": {
+      "badge": "Common Knowledge Libraries",
+      "title": "Ne demandez pas à l'IA.",
+      "subtitle": "Demandez à la connaissance collective.",
+      "description": "Chaque bibliothèque est une mémoire collective – construite à partir de voix, de textes et d'expériences réelles. Choisissez une bibliothèque de connaissances, explorez-la et commencez votre conversation.",
+      "buttonDiscover": "Découvrir la connaissance",
+      "buttonLearnMore": "En savoir plus sur le projet",
+      "imageAttribution": "Image",
+      "imageAttributionCC": "CC BY 2.0 Belgium"
+    },
+    "libraryGrid": {
+      "title": "Choisissez votre bibliothèque de connaissances",
+      "description": "Chaque bibliothèque contient du contenu structuré provenant de conférences, d'études ou de projets – et peut être interrogée par vous comme un partenaire de conversation.",
+      "loading": "Chargement des bibliothèques...",
+      "noLibraries": "Aucune bibliothèque publique disponible pour le moment.",
+      "buttonQuery": "Interroger"
+    },
+    "howItWorks": {
+      "title": "Comment ça marche",
+      "subtitle": "Un processus simple qui rend la vraie connaissance accessible",
+      "step1": {
+        "title": "Choisissez votre bibliothèque",
+        "description": "Décidez de quel domaine thématique vous souhaitez récupérer des connaissances.",
+        "detail": "Chaque bibliothèque est basée sur des sources réelles et vérifiables."
+      },
+      "step2": {
+        "title": "Posez votre question",
+        "description": "Formulez votre question dans vos propres mots.",
+        "detail": "La plateforme comprend la langue, le contexte et le rôle – comme un journaliste ou un chercheur."
+      },
+      "step3": {
+        "title": "Découvrez les perspectives",
+        "description": "Lisez les réponses sous différents angles.",
+        "detail": "La connaissance n'est pas inventée, mais recombinée et liée de manière vérifiable."
+      }
+    },
+    "philosophy": {
+      "title": "Transparence au lieu de boîte noire",
+      "subtitle": "Chaque réponse est basée sur des données ouvertes, des sources vérifiables et des personnes qui partagent leurs connaissances. Nous croyons que l'avenir de la connaissance n'est pas généré, mais partagé.",
+      "transparent": {
+        "title": "Vérifiable",
+        "description": "Toutes les sources sont transparentes et vérifiables"
+      },
+      "human": {
+        "title": "Humain",
+        "description": "Basé sur des voix et des expériences réelles"
+      },
+      "trustworthy": {
+        "title": "Digne de confiance",
+        "description": "Curaté par la recherche et les communautés"
+      },
+      "behindLibraries": {
+        "title": "Qui se cache derrière les bibliothèques ?",
+        "description": "Ces bibliothèques sont maintenues en collaboration avec des institutions de recherche, des ONG et des communautés ouvertes. Chacune peut contribuer ses propres sujets, métadonnées et valeurs."
+      }
+    },
+    "cta": {
+      "title": "Un projet d'aventure partagé",
+      "description1": "Knowledge Scout n'est pas un produit fini, mais un laboratoire ouvert – un projet d'aventure en développement.",
+      "description2": "Nous expérimentons avec des technologies ouvertes pour découvrir comment la connaissance collective sera vécue à l'avenir : par l'écoute, la lecture, la compréhension et la réflexion partagée.",
+      "description3": "Si cela vous intéresse, vous êtes invité à réfléchir ensemble, à tester ou à contribuer vous-même aux bibliothèques.",
+      "buttonResearch": "Rechercher et tester",
+      "buttonContact": "Contact",
+      "buttonView": "Voir le projet"
+    }
+  },
+  "common": {
+    "backToHome": "Retour à la page d'accueil",
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer"
+  },
+  "navigation": {
+    "home": "Accueil",
+    "docs": "Docs",
+    "library": "Bibliothèque",
+    "gallery": "Galerie",
+    "templates": "Modèles",
+    "eventMonitor": "Moniteur d'événements",
+    "sessionManager": "Gestionnaire de sessions"
+  },
+  "explore": {
+    "publicLibrary": "Bibliothèque de connaissances publique",
+    "error": "Erreur",
+    "slugMissing": "Slug manquant",
+    "libraryNotFound": "Bibliothèque non trouvée",
+    "libraryNotPublic": "La bibliothèque n'est pas publiquement disponible",
+    "errorLoadingLibrary": "Erreur lors du chargement de la bibliothèque"
+  },
+  "gallery": {
+    "gallery": "Galerie",
+    "story": "Histoire",
+    "switchToStoryMode": "Passer au mode Histoire",
+    "storyModeTooltip": "Découvrez la connaissance à nouveau : le mode Histoire raconte les conférences de votre point de vue – dans votre langue et avec votre focus.",
+    "backToGallery": "Retour à la Galerie",
+    "searchPlaceholder": "Rechercher par titre, conférencier, sujet...",
+    "filter": "Filtre",
+    "reset": "Réinitialiser",
+    "noFiltersAvailable": "Aucun filtre disponible",
+    "documents": "documents",
+    "document": "document",
+    "filtered": "filtré",
+    "references": "Références",
+    "referencesDescription": "La réponse a été générée à partir de ces documents.",
+    "storyModeGalleryDescription": "Les réponses sont générées à partir des conférences sélectionnées dans la Galerie.",
+    "documentDetails": "Détails du document",
+    "openDocument": "Ouvrir le document",
+    "openEventWebsite": "Ouvrir le site web de l'événement",
+    "loading": "Chargement..."
+  },
+  "story": {
+    "defaultHeadline": "Mode Histoire – Comprendre la connaissance des conférences SFSCon",
+    "defaultIntro": "Cette vue d'ensemble a été générée à partir de toutes les conférences sélectionnées. Elle montre les thèmes centraux et ouvre le dialogue avec la connaissance. Vous pouvez poser votre propre question ou vous laisser guider le long des thèmes."
+  },
+  "event": {
+    "eventDetails": "Détails de l'événement",
+    "minutes": "minutes",
+    "eventWebsite": "Site web de l'événement",
+    "downloadSlides": "Télécharger les diapositives",
+    "watchVideo": "Regarder la vidéo",
+    "talk": "TALK",
+    "back": "Retour",
+    "openInLibrary": "Ouvrir dans la bibliothèque",
+    "fileId": "ID fichier",
+    "loadingSessionData": "Chargement des données de session…",
+    "errorLoadingSessionData": "Impossible de charger les données de session",
+    "presentationSlides": "Diapositives de présentation",
+    "noImage": "Aucune image"
+  }
+}
+

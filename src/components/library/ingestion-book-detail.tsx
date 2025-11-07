@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { BookDetail, type BookDetailData } from "./book-detail";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 interface IngestionBookDetailProps {
   libraryId: string;
@@ -10,6 +11,7 @@ interface IngestionBookDetailProps {
 }
 
 export function IngestionBookDetail({ libraryId, fileId, docModifiedAt }: IngestionBookDetailProps) {
+  const { t } = useTranslation()
   const [data, setData] = React.useState<BookDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -33,7 +35,7 @@ export function IngestionBookDetail({ libraryId, fileId, docModifiedAt }: Ingest
 
   React.useEffect(() => { void load(); }, [load]);
 
-  if (loading && !data) return <div className="text-sm text-muted-foreground">Lade…</div>;
+  if (loading && !data) return <div className="text-sm text-muted-foreground">{t('gallery.loading')}</div>;
   if (error) return <div className="text-sm text-destructive">{error}</div>;
   if (!data) return null;
 

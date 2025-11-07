@@ -1,0 +1,136 @@
+{
+  "home": {
+    "hero": {
+      "badge": "Common Knowledge Libraries",
+      "title": "Don't ask the AI.",
+      "subtitle": "Ask collective knowledge.",
+      "description": "Every library is a collective memory – built from real voices, texts, and experiences. Choose a knowledge library, explore it, and start your conversation.",
+      "buttonDiscover": "Discover Knowledge",
+      "buttonLearnMore": "Learn about the project",
+      "imageAttribution": "Image",
+      "imageAttributionCC": "CC BY 2.0 Belgium"
+    },
+    "libraryGrid": {
+      "title": "Choose your knowledge library",
+      "description": "Each library contains structured content from talks, studies, or projects – and can be queried by you like a conversation partner.",
+      "loading": "Loading libraries...",
+      "noLibraries": "No public libraries available yet.",
+      "buttonQuery": "Query"
+    },
+    "howItWorks": {
+      "title": "How it works",
+      "subtitle": "A simple process that makes real knowledge accessible",
+      "step1": {
+        "title": "Choose your library",
+        "description": "Decide which topic area you want to retrieve knowledge from.",
+        "detail": "Each library is based on real, verifiable sources."
+      },
+      "step2": {
+        "title": "Ask your question",
+        "description": "Formulate your question in your own words.",
+        "detail": "The platform understands language, context, and role – like a journalist or researcher."
+      },
+      "step3": {
+        "title": "Discover perspectives",
+        "description": "Read answers from different perspectives.",
+        "detail": "Knowledge is not invented, but recombined and verifiably linked."
+      }
+    },
+    "philosophy": {
+      "title": "Transparency instead of black box",
+      "subtitle": "Every answer is based on open data, verifiable sources, and people who share their knowledge. We believe that the future of knowledge is not generated, but shared.",
+      "transparent": {
+        "title": "Verifiable",
+        "description": "All sources are transparent and verifiable"
+      },
+      "human": {
+        "title": "Human",
+        "description": "Based on real voices and experiences"
+      },
+      "trustworthy": {
+        "title": "Trustworthy",
+        "description": "Curated by research and communities"
+      },
+      "behindLibraries": {
+        "title": "Who stands behind the libraries?",
+        "description": "These libraries are maintained together with research institutions, NGOs, and open communities. Each can contribute their own topics, metadata, and values."
+      }
+    },
+    "cta": {
+      "title": "A shared adventure project",
+      "description1": "Knowledge Scout is not a finished product, but an open laboratory – an adventure project in development.",
+      "description2": "We experiment with open technologies to find out how collective knowledge will be experienced in the future: through listening, reading, understanding, and shared reflection.",
+      "description3": "If this interests you, you are invited to think along, test, or contribute libraries yourself.",
+      "buttonResearch": "Research & Test",
+      "buttonContact": "Contact",
+      "buttonView": "View Project"
+    }
+  },
+  "common": {
+    "backToHome": "Back to homepage",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close"
+  },
+  "navigation": {
+    "home": "Home",
+    "docs": "Docs",
+    "library": "Library",
+    "gallery": "Gallery",
+    "templates": "Templates",
+    "eventMonitor": "Event Monitor",
+    "sessionManager": "Session Manager"
+  },
+  "explore": {
+    "publicLibrary": "Public knowledge library",
+    "error": "Error",
+    "slugMissing": "Slug missing",
+    "libraryNotFound": "Library not found",
+    "libraryNotPublic": "Library is not publicly available",
+    "errorLoadingLibrary": "Error loading library"
+  },
+  "gallery": {
+    "gallery": "Gallery",
+    "story": "Story",
+    "switchToStoryMode": "Switch to Story Mode",
+    "storyModeTooltip": "Discover knowledge anew: Story Mode tells the talks from your perspective – in your language and with your focus.",
+    "backToGallery": "Back to Gallery",
+    "searchPlaceholder": "Search by title, speaker, topic...",
+    "filter": "Filter",
+    "reset": "Reset",
+    "noFiltersAvailable": "No filters available",
+    "documents": "documents",
+    "document": "document",
+    "filtered": "filtered",
+    "references": "References",
+    "referencesDescription": "The answer was generated from these documents.",
+    "storyModeGalleryDescription": "Answers are generated from the talks selected in the Gallery.",
+    "documentDetails": "Document Details",
+    "openDocument": "Open Document",
+    "openEventWebsite": "Open Event Website",
+    "loading": "Loading..."
+  },
+  "story": {
+    "defaultHeadline": "Story Mode – Understanding knowledge from SFSCon talks",
+    "defaultIntro": "This overview was generated from all selected talks. It shows the central topics and opens the dialogue with knowledge. You can ask your own question or be guided along the topics."
+  },
+  "event": {
+    "eventDetails": "Event Details",
+    "minutes": "minutes",
+    "eventWebsite": "Event Website",
+    "downloadSlides": "Download Slides",
+    "watchVideo": "Watch Video",
+    "talk": "TALK",
+    "back": "Back",
+    "openInLibrary": "Open in Library",
+    "fileId": "File ID",
+    "loadingSessionData": "Loading session data…",
+    "errorLoadingSessionData": "Session data could not be loaded",
+    "presentationSlides": "Presentation Slides",
+    "noImage": "No image"
+  }
+}
+

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Loader2 } from "lucide-react"
 import dynamic from "next/dynamic"
+import { useTranslation } from "@/lib/i18n/hooks"
 
 // Gallery dynamisch laden
 const GalleryClient = dynamic(() => import("@/app/library/gallery/client").then(m => ({ default: m.default })), {
@@ -24,6 +25,7 @@ interface PublicLibrary {
 
 export default function ExplorePage() {
   const params = useParams()
+  const { t } = useTranslation()
   const slug = params?.slug as string
   const [library, setLibrary] = useState<PublicLibrary | null>(null)
   const [loading, setLoading] = useState(true)
@@ -32,7 +34,7 @@ export default function ExplorePage() {
   useEffect(() => {
     async function loadLibrary() {
       if (!slug) {
-        setError("Slug fehlt")
+        setError(t('explore.slugMissing'))
         setLoading(false)
         return
       }
@@ -41,11 +43,11 @@ export default function ExplorePage() {
         const response = await fetch(`/api/public/libraries/${slug}`)
         if (!response.ok) {
           if (response.status === 404) {
-            setError("Library nicht gefunden")
+            setError(t('explore.libraryNotFound'))
           } else if (response.status === 403) {
-            setError("Library ist nicht öffentlich verfügbar")
+            setError(t('explore.libraryNotPublic'))
           } else {
-            setError("Fehler beim Laden der Library")
+            setError(t('explore.errorLoadingLibrary'))
           }
           setLoading(false)
           return
@@ -55,14 +57,14 @@ export default function ExplorePage() {
         setLibrary(data.library)
       } catch (err) {
         console.error("Fehler beim Laden der Library:", err)
-        setError("Fehler beim Laden der Library")
+        setError(t('explore.errorLoadingLibrary'))
       } finally {
         setLoading(false)
       }
     }
 
     loadLibrary()
-  }, [slug])
+  }, [slug, t])
 
   if (loading) {
     return (
@@ -77,8 +79,8 @@ export default function ExplorePage() {
       <div className="container mx-auto px-4 py-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Fehler</AlertTitle>
-          <AlertDescription>{error || "Library nicht gefunden"}</AlertDescription>
+          <AlertTitle>{t('explore.error')}</AlertTitle>
+          <AlertDescription>{error || t('explore.libraryNotFound')}</AlertDescription>
         </Alert>
       </div>
     )
@@ -91,7 +93,7 @@ export default function ExplorePage() {
         <div className="container mx-auto">
           <h1 className="text-2xl font-bold">{library.label}</h1>
           <p className="text-sm text-muted-foreground">
-            Öffentliche Wissensbibliothek
+            {t('explore.publicLibrary')}
           </p>
         </div>
       </div>

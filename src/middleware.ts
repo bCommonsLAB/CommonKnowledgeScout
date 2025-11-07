@@ -1,4 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { getLocale, SUPPORTED_LOCALES, type Locale } from '@/lib/i18n';
 
 // Startup-Log um zu bestätigen, dass Middleware geladen wird
 console.log(`[MIDDLEWARE] 🚀 Middleware wird geladen - ${new Date().toISOString()}`);
@@ -21,6 +23,40 @@ console.log(`[MIDDLEWARE] 🔧 Public routes configured:`, [
 
 // Verwende die offizielle Clerk-Middleware
 export default clerkMiddleware(async (auth, req) => {
+  // Sprachauswahl verarbeiten
+  const langParam = req.nextUrl.searchParams.get('lang');
+  const cookieLocale = req.cookies.get('locale')?.value;
+  const acceptLanguage = req.headers.get('accept-language') || undefined;
+  
+  // Ermittle aktuelle Sprache
+  const locale = getLocale(
+    req.nextUrl.searchParams,
+    cookieLocale,
+    acceptLanguage
+  );
+  
+  // Erstelle Response (wird später modifiziert)
+  const response = NextResponse.next();
+  
+  // Setze Cookie für Sprachauswahl (30 Tage Gültigkeit)
+  if (langParam && SUPPORTED_LOCALES.includes(langParam as Locale)) {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + 30 * 24 * 60 * 60 * 1000);
+    response.cookies.set('locale', langParam, {
+      expires,
+      path: '/',
+      sameSite: 'lax',
+    });
+  } else if (!cookieLocale) {
+    // Setze Standard-Sprache als Cookie wenn noch nicht gesetzt
+    const expires = new Date();
+    expires.setTime(expires.getTime() + 30 * 24 * 60 * 60 * 1000);
+    response.cookies.set('locale', locale, {
+      expires,
+      path: '/',
+      sameSite: 'lax',
+    });
+  }
 
   // Harte Ausschlüsse: Statische Assets & Next-Interna niemals durch Middleware schützen
   const path = req.nextUrl.pathname;
@@ -83,7 +119,7 @@ export default clerkMiddleware(async (auth, req) => {
 
   // console.debug(`[Middleware] isPublicRoute: ${isPublic}`);
   
-  if (isPublic) return;
+  if (isPublic) return response;
 
   try {
     await auth();
@@ -96,6 +132,8 @@ export default clerkMiddleware(async (auth, req) => {
     });
     throw error;
   }
+  
+  return response;
 });
 
 export const config = {

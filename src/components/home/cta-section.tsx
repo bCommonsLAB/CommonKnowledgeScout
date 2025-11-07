@@ -1,7 +1,11 @@
+'use client'
+
 import { Button } from "@/components/ui/button"
 import { Compass, Mail, Eye } from "lucide-react"
+import { useTranslation } from "@/lib/i18n/hooks"
 
 export function CTASection() {
+  const { t } = useTranslation()
   return (
     <section className="bg-gradient-to-b from-background to-muted/30 py-20 md:py-28">
       <div className="container mx-auto px-4">
@@ -15,21 +19,19 @@ export function CTASection() {
 
           {/* Headline */}
           <h2 className="mb-6 text-center text-3xl font-bold tracking-tight md:text-4xl text-balance">
-            Ein gemeinsames Adventure-Projekt
+            {t('home.cta.title')}
           </h2>
 
           {/* Description */}
           <div className="mb-10 space-y-4 text-center text-lg text-muted-foreground">
             <p className="text-pretty">
-              Knowledge Scout ist kein fertiges Produkt, sondern ein offenes Labor – ein Adventure-Projekt in
-              Entwicklung.
+              {t('home.cta.description1')}
             </p>
             <p className="text-pretty">
-              Wir experimentieren mit offenen Technologien, um herauszufinden, wie kollektives Wissen in Zukunft
-              erfahrbar wird: durchs Hören, Lesen, Verstehen und gemeinsame Reflektieren.
+              {t('home.cta.description2')}
             </p>
             <p className="text-pretty">
-              Wenn dich das interessiert, bist du eingeladen, mitzudenken, zu testen oder selbst Libraries beizutragen.
+              {t('home.cta.description3')}
             </p>
           </div>
 
@@ -37,15 +39,15 @@ export function CTASection() {
           <div className="flex flex-wrap justify-center gap-4">
             <Button size="lg" className="gap-2">
               <Compass className="h-5 w-5" />
-              Mitforschen & Testen
+              {t('home.cta.buttonResearch')}
             </Button>
             <Button size="lg" variant="outline" className="gap-2 bg-transparent">
               <Mail className="h-5 w-5" />
-              Kontakt aufnehmen
+              {t('home.cta.buttonContact')}
             </Button>
             <Button size="lg" variant="outline" className="gap-2 bg-transparent">
               <Eye className="h-5 w-5" />
-              Projekt ansehen
+              {t('home.cta.buttonView')}
             </Button>
           </div>
         </div>
@@ -53,6 +55,7 @@ export function CTASection() {
     </section>
   )
 }
+
 
 
 

@@ -1,38 +1,42 @@
+'use client'
+
 import { Card, CardContent } from "@/components/ui/card"
 import { Library, MessageSquare, Lightbulb } from "lucide-react"
-
-const steps = [
-  {
-    number: "1",
-    icon: Library,
-    title: "Wähle deine Library",
-    description: "Entscheide, aus welchem Themenbereich du Wissen abrufen möchtest.",
-    detail: "Jede Library basiert auf echten, überprüfbaren Quellen.",
-  },
-  {
-    number: "2",
-    icon: MessageSquare,
-    title: "Stelle deine Frage",
-    description: "Formuliere deine Frage in deinen Worten.",
-    detail: "Die Plattform versteht Sprache, Kontext und Rolle – wie ein Journalist oder Forscher.",
-  },
-  {
-    number: "3",
-    icon: Lightbulb,
-    title: "Entdecke Perspektiven",
-    description: "Lies die Antworten aus unterschiedlichen Blickwinkeln.",
-    detail: "Wissen wird nicht erfunden, sondern rekombiniert und nachvollziehbar verlinkt.",
-  },
-]
+import { useTranslation } from "@/lib/i18n/hooks"
 
 export function HowItWorks() {
+  const { t } = useTranslation()
+  
+  const steps = [
+    {
+      number: "1",
+      icon: Library,
+      title: t('home.howItWorks.step1.title'),
+      description: t('home.howItWorks.step1.description'),
+      detail: t('home.howItWorks.step1.detail'),
+    },
+    {
+      number: "2",
+      icon: MessageSquare,
+      title: t('home.howItWorks.step2.title'),
+      description: t('home.howItWorks.step2.description'),
+      detail: t('home.howItWorks.step2.detail'),
+    },
+    {
+      number: "3",
+      icon: Lightbulb,
+      title: t('home.howItWorks.step3.title'),
+      description: t('home.howItWorks.step3.description'),
+      detail: t('home.howItWorks.step3.detail'),
+    },
+  ]
   return (
     <section className="bg-muted/50 py-20 md:py-28">
       <div className="container mx-auto px-4">
         <div className="mx-auto mb-16 max-w-3xl text-center">
-          <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl text-balance">Wie es funktioniert</h2>
+          <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl text-balance">{t('home.howItWorks.title')}</h2>
           <p className="text-lg leading-relaxed text-muted-foreground text-pretty">
-            Ein einfacher Prozess, der echtes Wissen zugänglich macht
+            {t('home.howItWorks.subtitle')}
           </p>
         </div>
 
@@ -60,6 +64,7 @@ export function HowItWorks() {
     </section>
   )
 }
+
 
 
 

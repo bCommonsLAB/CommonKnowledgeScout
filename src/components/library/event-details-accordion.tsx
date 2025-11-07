@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, MapPin, ExternalLink, FileText, Video } from "lucide-react";
 import type { SessionDetailData } from "./session-detail";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 interface EventDetailsAccordionProps {
   data: SessionDetailData;
@@ -18,6 +19,7 @@ interface EventDetailsAccordionProps {
  * Standardmäßig zugeklappt, beim Öffnen als Overlay
  */
 export function EventDetailsAccordion({ data }: EventDetailsAccordionProps) {
+  const { t } = useTranslation()
   const tags = Array.isArray(data.tags) ? data.tags : [];
 
   return (
@@ -25,7 +27,7 @@ export function EventDetailsAccordion({ data }: EventDetailsAccordionProps) {
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="details" className="border-none">
           <AccordionTrigger className="text-sm font-semibold text-muted-foreground uppercase tracking-wide py-1 hover:no-underline px-2">
-            Event Details
+            {t('event.eventDetails')}
           </AccordionTrigger>
           <AccordionContent className="absolute left-0 top-full mt-2 z-50">
             <Card className="w-80 shadow-lg bg-background border">
@@ -49,11 +51,11 @@ export function EventDetailsAccordion({ data }: EventDetailsAccordionProps) {
                             {data.starttime} - {data.endtime}
                           </div>
                           {data.duration && (
-                            <div className="text-xs text-muted-foreground">{data.duration} minutes</div>
+                            <div className="text-xs text-muted-foreground">{data.duration} {t('event.minutes')}</div>
                           )}
                         </>
                       ) : data.duration ? (
-                        <div className="font-medium">{data.duration} minutes</div>
+                        <div className="font-medium">{data.duration} {t('event.minutes')}</div>
                       ) : null}
                     </div>
                   </div>
@@ -94,7 +96,7 @@ export function EventDetailsAccordion({ data }: EventDetailsAccordionProps) {
                       <Button asChild variant="ghost" size="sm" className="w-full justify-start h-8 px-2">
                         <a href={data.url} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="h-3 w-3 mr-2" />
-                          Event Website
+                          {t('event.eventWebsite')}
                         </a>
                       </Button>
                     )}
@@ -102,7 +104,7 @@ export function EventDetailsAccordion({ data }: EventDetailsAccordionProps) {
                       <Button asChild variant="ghost" size="sm" className="w-full justify-start h-8 px-2">
                         <a href={data.attachments_url} target="_blank" rel="noopener noreferrer">
                           <FileText className="h-3 w-3 mr-2" />
-                          Download Slides
+                          {t('event.downloadSlides')}
                         </a>
                       </Button>
                     )}
@@ -110,7 +112,7 @@ export function EventDetailsAccordion({ data }: EventDetailsAccordionProps) {
                       <Button asChild variant="ghost" size="sm" className="w-full justify-start h-8 px-2">
                         <a href={data.video_url} target="_blank" rel="noopener noreferrer">
                           <Video className="h-3 w-3 mr-2" />
-                          Watch Video
+                          {t('event.watchVideo')}
                         </a>
                       </Button>
                     )}

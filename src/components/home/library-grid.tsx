@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import * as LucideIcons from "lucide-react"
+import { useTranslation } from "@/lib/i18n/hooks"
 
 interface PublicLibrary {
   id: string
@@ -25,6 +26,7 @@ const ICON_COLORS = [
 
 export function LibraryGrid() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [libraries, setLibraries] = useState<PublicLibrary[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -79,7 +81,7 @@ export function LibraryGrid() {
     return (
       <section className="py-20 md:py-28">
         <div className="container mx-auto px-4">
-          <div className="text-center text-muted-foreground">Lade Libraries...</div>
+          <div className="text-center text-muted-foreground">{t('home.libraryGrid.loading')}</div>
         </div>
       </section>
     )
@@ -90,7 +92,7 @@ export function LibraryGrid() {
       <section className="py-20 md:py-28">
         <div className="container mx-auto px-4">
           <div className="text-center text-muted-foreground">
-            Noch keine öffentlichen Libraries verfügbar.
+            {t('home.libraryGrid.noLibraries')}
           </div>
         </div>
       </section>
@@ -102,11 +104,10 @@ export function LibraryGrid() {
       <div className="container mx-auto px-4">
         <div className="mx-auto mb-16 max-w-3xl text-center">
           <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl text-balance">
-            Wähle deine Wissensbibliothek
+            {t('home.libraryGrid.title')}
           </h2>
           <p className="text-lg leading-relaxed text-muted-foreground text-pretty">
-            Jede Library enthält strukturierte Inhalte aus Vorträgen, Studien oder Projekten – und kann von dir wie ein
-            Gesprächspartner befragt werden.
+            {t('home.libraryGrid.description')}
           </p>
         </div>
 
@@ -132,7 +133,7 @@ export function LibraryGrid() {
                     className="group/btn gap-2"
                     onClick={() => router.push(`/explore/${library.slugName}`)}
                   >
-                    Befragen
+                    {t('home.libraryGrid.buttonQuery')}
                     <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
                   </Button>
                 </CardContent>

@@ -1,0 +1,136 @@
+{
+  "home": {
+    "hero": {
+      "badge": "Common Knowledge Libraries",
+      "title": "Non chiedere all'IA.",
+      "subtitle": "Chiedi alla conoscenza collettiva.",
+      "description": "Ogni libreria è una memoria collettiva – costruita da voci, testi ed esperienze reali. Scegli una biblioteca di conoscenza, esplorala e inizia la tua conversazione.",
+      "buttonDiscover": "Scopri la conoscenza",
+      "buttonLearnMore": "Scopri di più sul progetto",
+      "imageAttribution": "Immagine",
+      "imageAttributionCC": "CC BY 2.0 Belgium"
+    },
+    "libraryGrid": {
+      "title": "Scegli la tua biblioteca di conoscenza",
+      "description": "Ogni libreria contiene contenuti strutturati da conferenze, studi o progetti – e può essere interrogata da te come un partner di conversazione.",
+      "loading": "Caricamento librerie...",
+      "noLibraries": "Nessuna libreria pubblica disponibile ancora.",
+      "buttonQuery": "Interroga"
+    },
+    "howItWorks": {
+      "title": "Come funziona",
+      "subtitle": "Un processo semplice che rende accessibile la vera conoscenza",
+      "step1": {
+        "title": "Scegli la tua libreria",
+        "description": "Decidi da quale area tematica vuoi recuperare conoscenza.",
+        "detail": "Ogni libreria si basa su fonti reali e verificabili."
+      },
+      "step2": {
+        "title": "Fai la tua domanda",
+        "description": "Formula la tua domanda con le tue parole.",
+        "detail": "La piattaforma comprende lingua, contesto e ruolo – come un giornalista o ricercatore."
+      },
+      "step3": {
+        "title": "Scopri le prospettive",
+        "description": "Leggi le risposte da diverse prospettive.",
+        "detail": "La conoscenza non viene inventata, ma ricombinata e collegata in modo verificabile."
+      }
+    },
+    "philosophy": {
+      "title": "Trasparenza invece di scatola nera",
+      "subtitle": "Ogni risposta si basa su dati aperti, fonti verificabili e persone che condividono le loro conoscenze. Crediamo che il futuro della conoscenza non sia generato, ma condiviso.",
+      "transparent": {
+        "title": "Verificabile",
+        "description": "Tutte le fonti sono trasparenti e verificabili"
+      },
+      "human": {
+        "title": "Umano",
+        "description": "Basato su voci ed esperienze reali"
+      },
+      "trustworthy": {
+        "title": "Affidabile",
+        "description": "Curato da ricerca e comunità"
+      },
+      "behindLibraries": {
+        "title": "Chi sta dietro le librerie?",
+        "description": "Queste librerie sono mantenute insieme a istituzioni di ricerca, ONG e comunità aperte. Ognuna può contribuire con i propri argomenti, metadati e valori."
+      }
+    },
+    "cta": {
+      "title": "Un progetto di avventura condiviso",
+      "description1": "Knowledge Scout non è un prodotto finito, ma un laboratorio aperto – un progetto di avventura in sviluppo.",
+      "description2": "Sperimentiamo con tecnologie aperte per scoprire come la conoscenza collettiva sarà sperimentata in futuro: attraverso l'ascolto, la lettura, la comprensione e la riflessione condivisa.",
+      "description3": "Se questo ti interessa, sei invitato a pensare insieme, testare o contribuire tu stesso alle librerie.",
+      "buttonResearch": "Ricerca e test",
+      "buttonContact": "Contatto",
+      "buttonView": "Visualizza progetto"
+    }
+  },
+  "common": {
+    "backToHome": "Torna alla homepage",
+    "loading": "Caricamento...",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "close": "Chiudi"
+  },
+  "navigation": {
+    "home": "Home",
+    "docs": "Docs",
+    "library": "Biblioteca",
+    "gallery": "Galleria",
+    "templates": "Modelli",
+    "eventMonitor": "Monitor eventi",
+    "sessionManager": "Gestore sessioni"
+  },
+  "explore": {
+    "publicLibrary": "Biblioteca di conoscenza pubblica",
+    "error": "Errore",
+    "slugMissing": "Slug mancante",
+    "libraryNotFound": "Libreria non trovata",
+    "libraryNotPublic": "La libreria non è pubblicamente disponibile",
+    "errorLoadingLibrary": "Errore nel caricamento della libreria"
+  },
+  "gallery": {
+    "gallery": "Galleria",
+    "story": "Storia",
+    "switchToStoryMode": "Passa alla modalità Storia",
+    "storyModeTooltip": "Scopri la conoscenza in modo nuovo: la modalità Storia racconta i talk dal tuo punto di vista – nella tua lingua e con il tuo focus.",
+    "backToGallery": "Torna alla Galleria",
+    "searchPlaceholder": "Cerca per titolo, relatore, argomento...",
+    "filter": "Filtro",
+    "reset": "Reimposta",
+    "noFiltersAvailable": "Nessun filtro disponibile",
+    "documents": "documenti",
+    "document": "documento",
+    "filtered": "filtrato",
+    "references": "Riferimenti",
+    "referencesDescription": "La risposta è stata generata da questi documenti.",
+    "storyModeGalleryDescription": "Le risposte vengono generate dai talk selezionati nella Galleria.",
+    "documentDetails": "Dettagli documento",
+    "openDocument": "Apri documento",
+    "openEventWebsite": "Apri sito web evento",
+    "loading": "Caricamento..."
+  },
+  "story": {
+    "defaultHeadline": "Modalità Storia – Comprendere la conoscenza dai talk di SFSCon",
+    "defaultIntro": "Questa panoramica è stata generata da tutti i talk selezionati. Mostra i temi centrali e apre il dialogo con la conoscenza. Puoi fare una domanda o farti guidare lungo i temi."
+  },
+  "event": {
+    "eventDetails": "Dettagli evento",
+    "minutes": "minuti",
+    "eventWebsite": "Sito web evento",
+    "downloadSlides": "Scarica diapositive",
+    "watchVideo": "Guarda video",
+    "talk": "TALK",
+    "back": "Indietro",
+    "openInLibrary": "Apri nella libreria",
+    "fileId": "ID file",
+    "loadingSessionData": "Caricamento dati sessione…",
+    "errorLoadingSessionData": "Impossibile caricare i dati della sessione",
+    "presentationSlides": "Diapositive presentazione",
+    "noImage": "Nessuna immagine"
+  }
+}
+

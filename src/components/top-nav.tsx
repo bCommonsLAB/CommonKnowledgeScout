@@ -21,49 +21,16 @@ import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
 import { libraryAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { LanguageSwitcher } from "@/components/shared/language-switcher"
+import { useTranslation } from "@/lib/i18n/hooks"
 
-
-// Öffentliche Navigationselemente (immer sichtbar)
-const publicNavItems = [
-  {
-    name: "Home",
-    href: "/",
-  },
-  {
-    name: "Docs",
-    href: "/docs/index.html",
-  },
-];
-
-// Geschützte Navigationselemente (nur für angemeldete Benutzer)
-const protectedNavItems = [
-  {
-    name: "Bibliothek",
-    href: "/library",
-  },
-  {
-    name: "Gallery",
-    href: "/library/gallery",
-  },
-  {
-    name: "Templates",
-    href: "/templates",
-  },
-  {
-    name: "Event-Monitor",
-    href: "/event-monitor",
-  },
-  {
-    name: "Session-Manager",
-    href: "/session-manager",
-  },
-];
 
 export function TopNav() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { theme, setTheme } = useTheme()
+  const { t } = useTranslation()
   
   // Statt Events verwenden wir Jotai
   const [libraryContext] = useAtom(libraryAtom)
@@ -74,6 +41,41 @@ export function TopNav() {
   const isStoryMode = searchParams?.get('mode') === 'story'
 
   const [open, setOpen] = React.useState(false)
+  
+  // Navigationselemente mit Übersetzungen
+  const publicNavItems = [
+    {
+      name: t('navigation.home'),
+      href: "/",
+    },
+    {
+      name: t('navigation.docs'),
+      href: "/docs/index.html",
+    },
+  ];
+  
+  const protectedNavItems = [
+    {
+      name: t('navigation.library'),
+      href: "/library",
+    },
+    {
+      name: t('navigation.gallery'),
+      href: "/library/gallery",
+    },
+    {
+      name: t('navigation.templates'),
+      href: "/templates",
+    },
+    {
+      name: t('navigation.eventMonitor'),
+      href: "/event-monitor",
+    },
+    {
+      name: t('navigation.sessionManager'),
+      href: "/session-manager",
+    },
+  ];
 
   return (
     <>
@@ -316,6 +318,9 @@ export function TopNav() {
                 </div>
               )}
             </SignedIn>
+            
+            {/* Sprachumschalter - immer sichtbar */}
+            <LanguageSwitcher />
             
             {/* Theme Toggle nur Desktop */}
             <Button

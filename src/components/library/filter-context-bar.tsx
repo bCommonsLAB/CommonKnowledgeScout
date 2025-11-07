@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Filter, X } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface FilterContextBarProps {
   docCount: number
@@ -21,6 +22,7 @@ interface FilterContextBarProps {
  */
 export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferenceLegend = false, hideFilterButton = false, facetDefs = [] }: FilterContextBarProps) {
   const filters = useAtomValue(galleryFiltersAtom)
+  const { t } = useTranslation()
   
   // Erstelle eine Map für schnelles Label-Lookup
   const labelMap = new Map<string, string>()
@@ -36,7 +38,7 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
       if (key === 'fileId') {
         if (showReferenceLegend) {
           // Zeige Anzahl der referenzierten Dokumente (nur einmal hinzufügen)
-          activeFilters.push({ key: 'Referenzen', value: `${values.length} ${values.length === 1 ? 'Dokument' : 'Dokumente'}` })
+          activeFilters.push({ key: t('gallery.references'), value: `${values.length} ${values.length === 1 ? t('gallery.document') : t('gallery.documents')}` })
         }
         // Sonst nicht anzeigen (nur für interne Filterung)
       } else {
@@ -64,14 +66,14 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
             className="h-7 px-2 shrink-0"
           >
             <Filter className="h-3 w-3 mr-1" />
-            Filter
+            {t('gallery.filter')}
           </Button>
         )}
 
         {/* Dokumentenanzahl */}
         <div className="text-sm text-muted-foreground shrink-0">
-          {docCount} {docCount === 1 ? 'Dokument' : 'Dokumente'}
-          {hasActiveFilters && ' gefiltert'}
+          {docCount} {docCount === 1 ? t('gallery.document') : t('gallery.documents')}
+          {hasActiveFilters && ` ${t('gallery.filtered')}`}
         </div>
 
         {/* Gesetzte Filter als Badges */}
@@ -99,7 +101,7 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
           className="h-7 px-2 shrink-0"
         >
           <X className="h-3 w-3 mr-1" />
-          Zurücksetzen
+          {t('gallery.reset')}
         </Button>
       )}
     </div>
