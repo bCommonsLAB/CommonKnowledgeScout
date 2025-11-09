@@ -1,3 +1,28 @@
+/**
+ * @fileoverview Secretary Service Adapter - Low-level API Call Functions
+ * 
+ * @description
+ * Low-level adapter functions for calling Secretary Service API endpoints. Provides
+ * wrapper functions for PDF processing and template transformation with timeout
+ * handling, authentication, and error management. Used by SecretaryServiceClient
+ * for actual HTTP requests.
+ * 
+ * @module secretary
+ * 
+ * @exports
+ * - callPdfProcess: Calls PDF processing endpoint
+ * - callTemplateTransform: Calls template transformation endpoint
+ * - PdfProcessParams: Parameters interface for PDF processing
+ * - TemplateTransformParams: Parameters interface for template transformation
+ * 
+ * @usedIn
+ * - src/lib/secretary/client.ts: Client uses adapter functions
+ * - src/lib/external-jobs/template-run.ts: Template runner uses adapter
+ * 
+ * @dependencies
+ * - @/lib/utils/fetch-with-timeout: Timeout-aware fetch utility with error types
+ */
+
 import { fetchWithTimeout, HttpError, NetworkError, TimeoutError } from '@/lib/utils/fetch-with-timeout';
 
 export interface PdfProcessParams {

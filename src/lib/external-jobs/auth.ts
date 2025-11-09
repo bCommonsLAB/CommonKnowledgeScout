@@ -1,3 +1,35 @@
+/**
+ * @fileoverview External Jobs Authentication - Authorization and Bypass Checks
+ * 
+ * @description
+ * Provides authentication and authorization utilities for external job processing.
+ * Handles internal token validation, external job header checks, callback token
+ * authorization, and process ID guarding. Supports bypass mechanisms for internal
+ * worker requests and template callbacks.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - isInternalAuthorized: Checks if request is from internal worker
+ * - hasInternalTokenBypass: Checks for internal token bypass
+ * - hasExternalJobHeader: Checks for external job header
+ * - isInternalOrExternalJobBypass: Combined bypass check
+ * - authorizeCallback: Authorizes callback request with token validation
+ * - guardProcessId: Guards against process ID mismatches
+ * - InternalAuthCheck: Interface for internal auth check result
+ * - BypassCheck: Interface for bypass check result
+ * 
+ * @usedIn
+ * - src/app/api/external/jobs/[jobId]/route.ts: Job callback uses auth checks
+ * - src/app/api/external/jobs/[jobId]/start/route.ts: Job start uses auth checks
+ * - src/lib/external-jobs/context.ts: Context reader uses bypass checks
+ * 
+ * @dependencies
+ * - @/lib/external-jobs-repository: Job repository for token validation
+ * - @/lib/external-jobs-log-buffer: Log buffering for auth failures
+ * - @/types/external-jobs: RequestContext type
+ */
+
 import type { NextRequest } from 'next/server'
 
 export interface InternalAuthCheck { isInternal: boolean }

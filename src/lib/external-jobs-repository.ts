@@ -1,3 +1,29 @@
+/**
+ * @fileoverview External Jobs Repository - MongoDB Repository for External Job Management
+ * 
+ * @description
+ * Repository for managing external jobs in MongoDB. Handles CRUD operations, status updates,
+ * job claiming, step tracking, trace logging, and ingestion management. Provides optimized
+ * queries with indexes for performance. Manages job lifecycle from creation to completion.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - ExternalJobsRepository: Main repository class for external jobs
+ * 
+ * @usedIn
+ * - src/lib/external-jobs-worker.ts: Worker uses repository for job claiming
+ * - src/lib/external-jobs-watchdog.ts: Watchdog uses repository for status updates
+ * - src/app/api/external/jobs: API routes use repository for job operations
+ * - src/lib/external-jobs: Orchestration modules use repository
+ * 
+ * @dependencies
+ * - @/lib/mongodb-service: MongoDB connection and collection access
+ * - @/types/external-job: External job type definitions
+ * - mongodb: MongoDB driver types
+ * - crypto: Hash generation for secrets
+ */
+
 import { Collection } from 'mongodb';
 import type { UpdateOptions } from 'mongodb';
 import crypto from 'crypto';

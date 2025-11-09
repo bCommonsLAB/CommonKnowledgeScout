@@ -1,3 +1,30 @@
+/**
+ * @fileoverview Chat Configuration - Configuration Normalization and Validation
+ * 
+ * @description
+ * Provides Zod schemas and normalization functions for chat configuration.
+ * Validates and normalizes library chat configuration with defaults. Handles
+ * vector index name derivation and configuration merging.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - chatConfigSchema: Zod schema for chat configuration
+ * - NormalizedChatConfig: Normalized chat configuration type
+ * - normalizeChatConfig: Function to normalize chat configuration
+ * - getVectorIndexForLibrary: Function to get vector index name for library
+ * 
+ * @usedIn
+ * - src/lib/chat/loader.ts: Loader uses config normalization
+ * - src/lib/chat/orchestrator.ts: Orchestrator uses normalized config
+ * - src/app/api/chat: API routes use config validation
+ * 
+ * @dependencies
+ * - zod: Schema validation library
+ * - @/types/library: LibraryChatConfig type
+ * - @/lib/chat/constants: Chat constants for defaults
+ */
+
 import * as z from 'zod'
 import { LibraryChatConfig } from '@/types/library'
 import {

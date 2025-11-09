@@ -1,3 +1,27 @@
+/**
+ * @fileoverview External Jobs Storage - Markdown File Storage
+ * 
+ * @description
+ * Saves transformed markdown files (shadow twins) to storage. Uploads markdown content
+ * as files to the specified parent folder, logs the operation, and emits job update events.
+ * Returns the saved item ID for further processing.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - saveMarkdown: Saves markdown file to storage
+ * 
+ * @usedIn
+ * - src/app/api/external/jobs/[jobId]/route.ts: Job callback saves markdown
+ * 
+ * @dependencies
+ * - @/lib/storage/server-provider: Storage provider creation
+ * - @/lib/external-jobs-repository: Job repository for logging
+ * - @/lib/events/job-event-bus: Event bus for status updates
+ * - @/lib/external-jobs-log-buffer: Log buffering
+ * - @/types/external-jobs: Storage types
+ */
+
 import type { SaveMarkdownArgs, SaveMarkdownResult } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'

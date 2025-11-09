@@ -1,3 +1,29 @@
+/**
+ * @fileoverview External Jobs Start API Route - Job Execution Trigger
+ * 
+ * @description
+ * Endpoint for starting external job execution. Handles job preprocessing, Secretary Service
+ * request initiation, watchdog setup, and initial job state management. Called by the worker
+ * to trigger job processing. Supports both authenticated users and internal worker requests.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - POST: Starts job execution and triggers Secretary Service processing
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/external/jobs/[jobId]/start
+ * - src/lib/external-jobs-worker.ts: Worker calls this endpoint to start jobs
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Authentication utilities
+ * - @/lib/external-jobs-repository: Job repository
+ * - @/lib/external-jobs/preprocess: Job preprocessing
+ * - @/lib/external-jobs/auth: Internal authorization check
+ * - @/lib/external-jobs-watchdog: Watchdog for timeout monitoring
+ * - @/lib/secretary/client: Secretary Service client
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuth, currentUser } from '@clerk/nextjs/server'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'

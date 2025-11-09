@@ -53,6 +53,15 @@ nav:
       - Batch Session Import: guide/batch-session-import.md
       - Troubleshooting: guide/troubleshooting.md
       - FAQ: guide/faq.md
+  - Use Cases:
+      - Overview: use-cases/index.md
+      - Library Setup: use-cases/library-setup.md
+      - PDF Transformation: use-cases/file-transformation-pdf.md
+      - Media Transformation: use-cases/file-transformation-media.md
+      - Web Scraping: use-cases/web-scraping.md
+      - Publishing: use-cases/publishing.md
+      - Chat & Story Mode: use-cases/chat-exploration.md
+      - Batch Operations: use-cases/batch-operations.md
   - Concepts:
       - Start: concepts/index.md
       - Storage Provider: concepts/storage-provider.md

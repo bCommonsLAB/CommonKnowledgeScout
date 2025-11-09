@@ -1,3 +1,29 @@
+/**
+ * @fileoverview External Jobs Chapters Analysis - Chapter Detection and Merging
+ * 
+ * @description
+ * Analyzes document content to detect and normalize chapters. Calls internal chapter
+ * analysis endpoint, merges detected chapters with existing chapters, and updates
+ * frontmatter metadata. Handles chapter matching by order and title, page number
+ * extraction, and TOC generation.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - analyzeAndMergeChapters: Analyzes and merges chapters into frontmatter
+ * 
+ * @usedIn
+ * - src/app/api/external/jobs/[jobId]/route.ts: Job callback uses chapter analysis
+ * 
+ * @dependencies
+ * - @/lib/utils/fetch-with-timeout: Timeout-aware fetch utility
+ * - @/lib/external-jobs-repository: Job repository for logging
+ * - @/lib/markdown/frontmatter: Frontmatter stripping utilities
+ * - @/lib/processing/phase-policy: Policy checking
+ * - @/lib/env: Environment helpers for base URL
+ * - @/types/external-jobs: Chapters types
+ */
+
 import type { ChaptersArgs, ChaptersResult, Frontmatter } from '@/types/external-jobs'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout'

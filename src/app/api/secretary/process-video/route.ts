@@ -1,3 +1,25 @@
+/**
+ * @fileoverview Secretary Video Processing API Route - Video Transformation Endpoint
+ * 
+ * @description
+ * API endpoint for processing video files via Secretary Service. Proxies video
+ * processing requests to Secretary Service with authentication. Handles file uploads,
+ * language configuration (source/target), template options, and response forwarding.
+ * 
+ * @module secretary
+ * 
+ * @exports
+ * - POST: Processes video file via Secretary Service
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/secretary/process-video
+ * - src/components/library: Library components call this endpoint
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Authentication utilities
+ * - process.env: Environment variables for Secretary Service URL and API key
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { env } from 'process';

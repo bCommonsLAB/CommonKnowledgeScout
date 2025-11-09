@@ -1,3 +1,29 @@
+/**
+ * @fileoverview External Jobs Watchdog - Timeout Monitoring for External Jobs
+ * 
+ * @description
+ * Watchdog system for monitoring external job execution timeouts. Tracks active jobs and
+ * automatically fails jobs that exceed their timeout threshold. Supports dynamic timeout
+ * updates and cleanup. Integrates with job event bus for real-time status updates.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - startWatchdog: Starts watchdog timer for a job
+ * - bumpWatchdog: Updates watchdog timer (heartbeat)
+ * - clearWatchdog: Clears watchdog timer for completed jobs
+ * 
+ * @usedIn
+ * - src/app/api/external/jobs/[jobId]/route.ts: Job callback uses watchdog
+ * - src/app/api/external/jobs/[jobId]/start/route.ts: Job start uses watchdog
+ * - src/lib/external-jobs: Orchestration modules use watchdog
+ * 
+ * @dependencies
+ * - @/lib/external-jobs-repository: Job repository for status updates
+ * - @/lib/events/job-event-bus: Event bus for status updates
+ * - @/lib/external-jobs-log-buffer: Log buffer for draining logs
+ */
+
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { drainBufferedLogs } from '@/lib/external-jobs-log-buffer';

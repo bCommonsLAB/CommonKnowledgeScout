@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
@@ -357,18 +358,22 @@ export const MarkdownMetadata = React.memo(function MarkdownMetadata({
                                           const resolvedUrl = resolveImageUrl(cellString, libraryId);
                                           return resolvedUrl ? (
                                             <div className="flex items-center gap-2">
-                                              <img
-                                                src={resolvedUrl}
-                                                alt={cellString}
-                                                className="h-12 w-auto max-w-[12rem] object-cover rounded border border-muted-foreground/20"
-                                                onError={(e) => {
-                                                  // Fallback: Zeige Text, wenn Bild nicht geladen werden kann
-                                                  const target = e.target as HTMLImageElement;
-                                                  target.style.display = 'none';
-                                                  const fallback = target.nextSibling as HTMLElement;
-                                                  if (fallback) fallback.style.display = 'block';
-                                                }}
-                                              />
+                                              <div className="relative h-12 w-auto max-w-[12rem]">
+                                                <Image
+                                                  src={resolvedUrl}
+                                                  alt={cellString}
+                                                  width={192}
+                                                  height={48}
+                                                  className="h-12 w-auto max-w-[12rem] object-cover rounded border border-muted-foreground/20"
+                                                  onError={(e) => {
+                                                    // Fallback: Zeige Text, wenn Bild nicht geladen werden kann
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.style.display = 'none';
+                                                    const fallback = target.nextSibling as HTMLElement;
+                                                    if (fallback) fallback.style.display = 'block';
+                                                  }}
+                                                />
+                                              </div>
                                               <span className="text-primary/80 break-all max-w-[20rem] block font-medium hidden text-xs" title={cellString}>
                                                 🖼️ {truncate(cellString.split('/').pop() || cellString, 30)}
                                               </span>

@@ -1,3 +1,27 @@
+/**
+ * @fileoverview MongoDB Storage Factory - MongoDB-based Storage Provider Factory
+ * 
+ * @description
+ * MongoDBStorageFactory provides storage provider creation with MongoDB integration.
+ * Used for server-side operations where library data is stored in MongoDB. Creates
+ * providers that can access MongoDB-stored library configurations.
+ * 
+ * @module storage
+ * 
+ * @exports
+ * - MongoDBStorageFactory: MongoDB-based storage factory class
+ * - LocalStorageProvider: Local filesystem provider for MongoDB context
+ * 
+ * @usedIn
+ * - src/app/api: API routes use MongoDB factory for server-side operations
+ * - src/lib/services/library-service.ts: Library service may use MongoDB factory
+ * 
+ * @dependencies
+ * - @/lib/storage/types: StorageProvider interface and types
+ * - @/types/library: Library type definitions
+ * - @/lib/services/library-service: Library service for MongoDB access
+ */
+
 import { StorageProvider, StorageItem, StorageValidationResult } from './types';
 import { Library, ClientLibrary } from '@/types/library';
 import { LibraryService } from '@/lib/services/library-service';

@@ -1,3 +1,31 @@
+/**
+ * @fileoverview Processing Gates - Phase Gate Checking Utilities
+ * 
+ * @description
+ * Utilities for checking processing gates before executing transformation phases.
+ * Determines if extraction, template transformation, or RAG ingestion should be skipped
+ * based on existing artifacts (shadow twins, frontmatter, ingestion status). Prevents
+ * redundant processing and supports policy-based phase control.
+ * 
+ * @module processing
+ * 
+ * @exports
+ * - gateExtractPdf: Checks if PDF extraction should be skipped
+ * - gateTransformTemplate: Checks if template transformation should be skipped
+ * - gateIngestRag: Checks if RAG ingestion should be skipped
+ * - GateContext: Context interface for gate checking
+ * - GateResult: Result interface for gate checks
+ * 
+ * @usedIn
+ * - src/lib/external-jobs/template-decision.ts: Template decision uses gates
+ * - src/lib/external-jobs: External jobs use gates
+ * 
+ * @dependencies
+ * - @/lib/external-jobs-repository: Job repository for artifact checking
+ * - @/lib/storage/server-provider: Storage provider for file checking
+ * - @/types/library: Library type definitions
+ */
+
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import type { Library } from '@/types/library';

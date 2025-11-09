@@ -1,11 +1,12 @@
 'use client'
 
+import { Suspense } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { useTranslation } from "@/lib/i18n/hooks"
 
-export default function UeberPage() {
+function UeberPageContent() {
   const { t } = useTranslation()
   return (
     <div className="min-h-screen bg-background">
@@ -119,6 +120,14 @@ export default function UeberPage() {
         </article>
       </div>
     </div>
+  )
+}
+
+export default function UeberPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <UeberPageContent />
+    </Suspense>
   )
 }
 

@@ -1,3 +1,28 @@
+/**
+ * @fileoverview External Jobs Template Decision - Template Execution Decision Logic
+ * 
+ * @description
+ * Decides whether to run template transformation based on policies, existing artifacts,
+ * and repair needs. Checks for existing shadow twins, evaluates gate conditions, and
+ * determines if template execution is necessary. Handles repair scenarios for incomplete
+ * existing documents.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - decideTemplateRun: Main function to decide template execution
+ * 
+ * @usedIn
+ * - src/app/api/external/jobs/[jobId]/route.ts: Job callback uses template decision
+ * 
+ * @dependencies
+ * - @/lib/external-jobs-repository: Job repository for logging
+ * - @/lib/external-jobs-log-buffer: Log buffering
+ * - @/lib/processing/gates: Gate checking utilities
+ * - @/lib/storage/server-provider: Storage provider for artifact checking
+ * - @/types/external-jobs: Template decision types
+ */
+
 import type { TemplateDecisionArgs, TemplateDecisionResult } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'

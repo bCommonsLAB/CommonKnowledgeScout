@@ -1,3 +1,28 @@
+/**
+ * @fileoverview Prompt Building Utilities - Chat Prompt Construction
+ * 
+ * @description
+ * Provides utilities for building chat prompts including context formatting,
+ * source descriptions, and prompt templates. Handles character instructions,
+ * social context, target language, and gender-inclusive formulations.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - buildPrompt: Builds regular chat prompt
+ * - buildTOCPrompt: Builds TOC (Table of Contents) prompt for story mode
+ * - getSourceDescription: Creates user-friendly source descriptions
+ * - buildContext: Formats sources into context string
+ * 
+ * @usedIn
+ * - src/lib/chat/orchestrator.ts: Orchestrator uses prompt builders
+ * - src/app/api/chat: API routes may use prompt utilities
+ * 
+ * @dependencies
+ * - @/types/retriever: RetrievedSource type
+ * - @/lib/chat/constants: Chat constants for instructions
+ */
+
 import type { RetrievedSource } from '@/types/retriever'
 import type { Character, TargetLanguage } from '../constants'
 import {

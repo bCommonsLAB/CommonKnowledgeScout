@@ -1,3 +1,29 @@
+/**
+ * @fileoverview Secretary Service Types - Type Definitions for Secretary Service
+ * 
+ * @description
+ * Type definitions for Secretary Service API requests and responses. Includes
+ * interfaces for audio, video, image, PDF, and session processing. Defines
+ * transformation request/response structures and error types.
+ * 
+ * @module secretary
+ * 
+ * @exports
+ * - AudioTransformationRequest: Request interface for audio processing
+ * - AudioTransformationResponse: Response interface for audio processing
+ * - TransformationError: Error interface for transformation failures
+ * - StructuredSessionData: Interface for structured session data
+ * - TemplateExtractionResponse: Response interface for template extraction
+ * 
+ * @usedIn
+ * - src/lib/secretary/client.ts: Client uses type definitions
+ * - src/app/api/secretary: API routes use type definitions
+ * - src/lib/external-jobs: External jobs use type definitions
+ * 
+ * @dependencies
+ * - None (pure type definitions)
+ */
+
 export interface AudioTransformationRequest {
   file: File;
   target_language: string;

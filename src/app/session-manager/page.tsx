@@ -699,7 +699,7 @@ export default function SessionManagerPage() {
                       <div className="space-y-2">
                         {session.image_url && (
                           <div className="flex items-center gap-2">
-                            <Image className="w-3 h-3 text-gray-500" />
+                            <Image className="w-3 h-3 text-gray-500" aria-label="Bild-URL" />
                             <a 
                               href={session.image_url} 
                               target="_blank" 

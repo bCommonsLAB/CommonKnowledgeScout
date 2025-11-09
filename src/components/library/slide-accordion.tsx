@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Presentation } from "lucide-react";
 import { MarkdownPreview } from "@/components/library/markdown-preview";
@@ -63,10 +64,11 @@ export function SlideAccordion({ slides, baseUrl = '' }: SlideAccordionProps) {
                 {/* Thumbnail-Vorschau falls verfügbar */}
                 {fullImageUrl && (
                   <div className="relative w-full aspect-video bg-muted rounded border border-border overflow-hidden">
-                    <img
+                    <Image
                       src={fullImageUrl}
                       alt={`Vorschau Folie ${slide.page_num}: ${slide.title}`}
-                      className="w-full h-full object-contain"
+                      fill
+                      className="object-contain"
                       loading="lazy"
                       onError={(e) => {
                         // Fallback bei Ladefehler: Icon anzeigen

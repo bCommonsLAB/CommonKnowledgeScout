@@ -1,3 +1,24 @@
+/**
+ * @fileoverview File System Client - Client-side Filesystem Storage Provider
+ * 
+ * @description
+ * Client-side implementation of StorageProvider for filesystem operations.
+ * Uses fetch API to communicate with server-side filesystem API routes.
+ * Implements caching for improved performance and reduces redundant API calls.
+ * 
+ * @module storage
+ * 
+ * @exports
+ * - FileSystemClient: Client-side filesystem storage provider
+ * 
+ * @usedIn
+ * - src/lib/storage/storage-factory.ts: Created by factory for client-side operations
+ * - src/components/library: Components may use client directly
+ * 
+ * @dependencies
+ * - @/lib/storage/types: StorageProvider interface and types
+ */
+
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError } from './types';
 
 export class FileSystemClient implements StorageProvider {

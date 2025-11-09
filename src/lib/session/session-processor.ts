@@ -1,3 +1,27 @@
+/**
+ * @fileoverview Session Processor - Session Data Processing Utilities
+ * 
+ * @description
+ * Utilities for processing session data for event jobs. Converts VTT transcripts to
+ * plain text, extracts video transcripts from Vimeo, and builds session payloads for
+ * Secretary Service processing. Handles client-side and server-side transcript extraction.
+ * 
+ * @module event-job
+ * 
+ * @exports
+ * - vttToPlainText: Converts VTT format to plain text
+ * - extractVideoTranscript: Extracts video transcript from Vimeo URL
+ * - buildSessionPayload: Builds session processing payload from job parameters
+ * 
+ * @usedIn
+ * - src/app/api/event-job: Event job API routes use processor
+ * - src/components/event-monitor: Event monitor components use processor
+ * 
+ * @dependencies
+ * - @/lib/secretary/client: ProcessSessionInput type
+ * - @/types/event-job: Job and JobParameters types
+ */
+
 import type { ProcessSessionInput } from '@/lib/secretary/client';
 import type { JobParameters, Job } from '@/types/event-job';
 

@@ -128,7 +128,7 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
 
     void run();
     return () => { cancelled = true; };
-  }, [src]);
+  }, [src, scale]);
 
   // Bei Scale-Änderung Seiten neu rendern und aktuelle Seite beibehalten
   React.useEffect(() => {
@@ -166,7 +166,7 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
       window.setTimeout(() => { programmaticScrollRef.current = false; }, 150);
     }
     void rerender();
-  }, [scale]);
+  }, [scale, currentPage]);
 
   // Rerender beim Umschalten Vollbild (neues Container-Element)
   React.useEffect(() => {
@@ -202,8 +202,7 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
     }
     // Wenn sich der Fullscreen-Container ändert, rendere neu
     if (pdfDocRef.current) void rerenderFullscreen();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFullscreen]);
+  }, [isFullscreen, currentPage, scale]);
 
   function scrollToPage(page: number) {
     const container = containerRef.current;

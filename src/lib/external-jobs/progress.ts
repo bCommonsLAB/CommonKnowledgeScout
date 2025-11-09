@@ -1,3 +1,27 @@
+/**
+ * @fileoverview External Jobs Progress Handler - Progress Update Processing
+ * 
+ * @description
+ * Handles progress updates from external job callbacks. Extracts progress values,
+ * phase information, and messages from callback body. Updates job status, emits
+ * events, and bumps watchdog timer. Returns early response for progress-only updates.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - handleProgressIfAny: Processes progress updates if present
+ * 
+ * @usedIn
+ * - src/app/api/external/jobs/[jobId]/route.ts: Job callback handles progress
+ * 
+ * @dependencies
+ * - @/lib/external-jobs-watchdog: Watchdog timer management
+ * - @/lib/external-jobs-repository: Job repository for status updates
+ * - @/lib/events/job-event-bus: Event bus for real-time updates
+ * - @/lib/external-jobs-log-buffer: Log buffering
+ * - @/types/external-jobs: RequestContext type
+ */
+
 import type { RequestContext } from '@/types/external-jobs'
 import { bumpWatchdog } from '@/lib/external-jobs-watchdog'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'

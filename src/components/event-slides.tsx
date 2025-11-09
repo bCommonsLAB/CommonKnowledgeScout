@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import type { Slide } from "@/components/library/slide-accordion";
 import { useTranslation } from "@/lib/i18n/hooks";
@@ -80,11 +81,12 @@ export function EventSlides({ slides, libraryId }: EventSlidesProps) {
               <div className="flex-shrink-0 w-64">
                 <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden">
                   {imageUrl ? (
-                    // Verwende Storage-API-URL für relative Pfade oder normale img Tag für externe URLs
-                    <img
+                    // Verwende Storage-API-URL für relative Pfade oder next/image für externe URLs
+                    <Image
                       src={imageUrl}
                       alt={slide.title || `Slide ${slide.page_num}`}
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                       onError={(e) => {
                         // Fallback bei fehlerhaftem Bild
                         const target = e.target as HTMLImageElement;

@@ -1,3 +1,26 @@
+/**
+ * @fileoverview OneDrive Provider - Microsoft OneDrive Storage Implementation
+ * 
+ * @description
+ * OneDriveProvider implements the StorageProvider interface for Microsoft OneDrive.
+ * Handles OAuth authentication, token management, and file/folder operations through
+ * the Microsoft Graph API. Supports token refresh and automatic authentication.
+ * 
+ * @module storage
+ * 
+ * @exports
+ * - OneDriveProvider: OneDrive storage provider implementation
+ * 
+ * @usedIn
+ * - src/lib/storage/storage-factory.ts: Created by factory for OneDrive libraries
+ * - src/app/api/auth/onedrive: OneDrive authentication routes
+ * - src/app/api/storage: Storage API routes
+ * 
+ * @dependencies
+ * - @/lib/storage/types: StorageProvider interface and types
+ * - @/types/library: ClientLibrary type definition
+ */
+
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata } from './types';
 import { ClientLibrary } from '@/types/library';
 import * as process from 'process';

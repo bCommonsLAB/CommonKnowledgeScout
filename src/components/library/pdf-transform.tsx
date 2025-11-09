@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
@@ -58,7 +58,7 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
   });
 
   // Lade Templates aus /templates und setze Default (pdfanalyse.md > erstes .md)
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     if (!provider) return;
     try {
       setIsLoadingTemplates(true);
@@ -86,12 +86,12 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     } finally {
       setIsLoadingTemplates(false);
     }
-  };
+  }, [provider]);
 
   // Templates laden bei Provider-/Library-Wechsel
   useEffect(() => {
     void loadTemplates();
-  }, [provider, activeLibrary?.id]);
+  }, [provider, activeLibrary?.id, loadTemplates]);
   
   // Prüfe ob item vorhanden ist
   if (!item) {

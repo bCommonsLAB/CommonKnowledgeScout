@@ -1,3 +1,30 @@
+/**
+ * @fileoverview Chat Streaming API Route - Server-Sent Events Endpoint for Chat
+ * 
+ * @description
+ * POST endpoint for chat streaming using Server-Sent Events (SSE). Handles authentication,
+ * question analysis, retriever selection, chat orchestration, and streaming response generation.
+ * Supports both authenticated users and anonymous users (for public libraries). Manages chat
+ * creation, query logging, and error handling.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - POST: Chat streaming endpoint handler
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/chat/[libraryId]/stream
+ * - src/components/library/chat: Chat components call this endpoint
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Authentication utilities
+ * - @/lib/chat/loader: Library chat context loading
+ * - @/lib/chat/orchestrator: Chat orchestration
+ * - @/lib/chat/common/question-analyzer: Question analysis
+ * - @/lib/db/chats-repo: Chat repository
+ * - @/lib/logging/query-logger: Query logging
+ */
+
 import { NextRequest } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'

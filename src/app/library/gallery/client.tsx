@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import Image from 'next/image'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
@@ -175,12 +176,13 @@ function SpeakerIcon({ name, imageUrl }: { name: string; imageUrl?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className='flex items-center justify-center h-20 w-20 rounded-full bg-primary/10 text-primary text-base font-medium border-2 border-background hover:border-primary/30 transition-colors overflow-hidden shrink-0 shadow-sm'>
+        <div className='flex items-center justify-center h-20 w-20 rounded-full bg-primary/10 text-primary text-base font-medium border-2 border-background hover:border-primary/30 transition-colors overflow-hidden shrink-0 shadow-sm relative'>
           {imageUrl && !imageError ? (
-            <img 
+            <Image 
               src={imageUrl} 
               alt={name}
-              className='w-full h-full object-cover'
+              fill
+              className='object-cover'
               onError={() => setImageError(true)}
             />
           ) : (

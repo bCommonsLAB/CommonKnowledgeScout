@@ -50,7 +50,7 @@ export function TopNav() {
     },
     {
       name: t('navigation.docs'),
-      href: "/docs/index.html",
+      href: "/docs/",
     },
   ];
   

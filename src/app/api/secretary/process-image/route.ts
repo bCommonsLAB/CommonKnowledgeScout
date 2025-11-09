@@ -1,3 +1,25 @@
+/**
+ * @fileoverview Secretary Image Processing API Route - Image OCR Endpoint
+ * 
+ * @description
+ * API endpoint for processing image files via Secretary Service OCR. Proxies image
+ * OCR requests to Secretary Service with authentication. Handles file uploads,
+ * target language configuration, extraction method selection, and context passing.
+ * 
+ * @module secretary
+ * 
+ * @exports
+ * - POST: Processes image file via Secretary Service OCR
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/secretary/process-image
+ * - src/components/library: Library components call this endpoint
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Authentication utilities
+ * - process.env: Environment variables for Secretary Service URL and API key
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 

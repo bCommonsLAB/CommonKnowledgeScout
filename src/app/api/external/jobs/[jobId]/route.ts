@@ -1,3 +1,31 @@
+/**
+ * @fileoverview External Jobs Callback API Route - Main Job Processing Endpoint
+ * 
+ * @description
+ * Main callback endpoint for external job processing. Orchestrates the complete job execution
+ * pipeline including authorization, template decision, transformation, chapter analysis,
+ * markdown storage, image processing, and RAG ingestion. Handles progress updates and
+ * error recovery. This is the central orchestration point for all external job processing.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - GET: Retrieves job status and details
+ * - POST: Processes job callback from external service (Secretary Service)
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/external/jobs/[jobId]
+ * - Secretary Service: Calls this endpoint with job results
+ * - src/lib/external-jobs-worker.ts: Worker triggers job execution
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Authentication utilities
+ * - @/lib/external-jobs-repository: Job repository
+ * - @/lib/external-jobs: All orchestration modules
+ * - @/lib/storage/server-provider: Storage provider creation
+ * - @/lib/services/library-service: Library service
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { currentUser } from '@clerk/nextjs/server';

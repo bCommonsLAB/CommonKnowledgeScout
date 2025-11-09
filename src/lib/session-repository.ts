@@ -1,3 +1,27 @@
+/**
+ * @fileoverview Session Repository - MongoDB Repository for Session Management
+ * 
+ * @description
+ * Repository for managing event sessions in MongoDB. Handles CRUD operations for sessions,
+ * filtering by event, track, day, language, and search queries. Supports pagination and
+ * bulk operations for session import.
+ * 
+ * @module event-job
+ * 
+ * @exports
+ * - SessionRepository: Main repository class for session management
+ * 
+ * @usedIn
+ * - src/app/api/event-job: Event job API routes use repository
+ * - src/components/event-monitor: Event monitor components use repository
+ * 
+ * @dependencies
+ * - @/lib/mongodb-service: MongoDB connection and collection access
+ * - @/types/session: Session type definitions
+ * - mongodb: MongoDB driver types
+ * - uuid: UUID generation
+ */
+
 import { Collection } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 import { Session, SessionFilterOptions } from '@/types/session';

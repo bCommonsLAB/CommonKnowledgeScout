@@ -1,3 +1,33 @@
+/**
+ * @fileoverview Chat Orchestrator - Coordinates Chat Response Generation
+ * 
+ * @description
+ * Orchestrates the complete chat response generation process including retrieval,
+ * prompt building, LLM calls, and response parsing. Handles both regular chat queries
+ * and TOC (Table of Contents) queries for story mode. Manages retriever selection,
+ * source filtering, and error handling.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - runChatOrchestrated: Main orchestration function
+ * - OrchestratorInput: Input interface for orchestration
+ * - OrchestratorOutput: Output interface for orchestration results
+ * 
+ * @usedIn
+ * - src/app/api/chat/[libraryId]/stream/route.ts: Chat streaming endpoint uses orchestrator
+ * - src/lib/chat/loader.ts: Chat loader may use orchestrator
+ * 
+ * @dependencies
+ * - @/lib/chat/common/prompt: Prompt building utilities
+ * - @/lib/chat/common/llm: LLM calling utilities
+ * - @/lib/chat/retrievers/summaries-mongo: Summary retriever
+ * - @/lib/chat/retrievers/chunks: Chunk retriever
+ * - @/lib/logging/query-logger: Query logging utilities
+ * - @/types/retriever: Retriever types
+ * - @/types/chat-response: Chat response types
+ */
+
 import { buildPrompt, buildTOCPrompt, getSourceDescription } from '@/lib/chat/common/prompt'
 import { callOpenAI, parseStructuredLLMResponse, parseOpenAIResponseWithUsage } from '@/lib/chat/common/llm'
 import { parseStoryTopicsData } from '@/lib/chat/common/toc-parser'

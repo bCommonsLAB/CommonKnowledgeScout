@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { Suspense } from 'react'
 
 // TopNav dynamisch laden, um SSR-Probleme zu vermeiden
 const TopNav = dynamic(() => import('./top-nav').then(mod => ({ default: mod.TopNav })), {
@@ -17,5 +18,10 @@ export function TopNavWrapper() {
     return null;
   }
 
-  return <TopNav />;
+  // TopNav verwendet useSearchParams(), daher muss es in Suspense gewrappt werden
+  return (
+    <Suspense fallback={null}>
+      <TopNav />
+    </Suspense>
+  );
 } 

@@ -189,7 +189,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         }));
       }
     }
-  }, [content, template, saveOptions.targetLanguage, saveOptions.createShadowTwin, currentItem, generateTransformationFileName]);
+  }, [content, template, saveOptions.targetLanguage, saveOptions.createShadowTwin, saveOptions.fileName, currentItem, generateTransformationFileName]);
   
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const { refreshItems } = useStorage();
@@ -958,7 +958,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       currentItemName: currentItem?.metadata.name
     });
     setActiveTab("preview");
-  }, [currentItem?.id]);
+  }, [currentItem?.id, currentItem?.metadata.name]);
   
   // Memoize the markdown renderer
   const renderedContent = React.useMemo(() => {
@@ -1010,19 +1010,19 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     }
   };
 
-  const scrollContainerTo = (el: HTMLElement) => {
+  const scrollContainerTo = React.useCallback((el: HTMLElement) => {
     const root = containerRef.current;
     if (!root) return;
     const top = el.offsetTop - 16;
     root.scrollTo({ top, behavior: 'smooth' });
-  };
+  }, []);
 
-  const scrollToPage = (n: number | string) => {
+  const scrollToPage = React.useCallback((n: number | string) => {
     const el = contentRef.current?.querySelector(`[data-page-marker="${String(n)}"]`) as HTMLElement | null;
     if (el) scrollContainerTo(el);
-  };
+  }, [scrollContainerTo]);
 
-  const scrollToText = (q: string) => {
+  const scrollToText = React.useCallback((q: string) => {
     const root = contentRef.current;
     if (!root || !q) return;
     removeOldHit();
@@ -1051,9 +1051,9 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       }
       node = walker.nextNode();
     }
-  };
+  }, [scrollContainerTo]);
 
-  const setQueryAndSearch = (q: string) => { setQuery(q); scrollToText(q); };
+  const setQueryAndSearch = React.useCallback((q: string) => { setQuery(q); scrollToText(q); }, [scrollToText]);
 
   const getVisiblePage = (): number | null => {
     const root = containerRef.current;
@@ -1074,7 +1074,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
 
   React.useEffect(() => {
     onRegisterApi?.({ scrollToText, scrollToPage, setQueryAndSearch, getVisiblePage });
-  }, [onRegisterApi]);
+  }, [onRegisterApi, scrollToText, scrollToPage, setQueryAndSearch]);
 
   const handleTransformComplete = () => {
     FileLogger.info('MarkdownPreview', 'Transform abgeschlossen', {

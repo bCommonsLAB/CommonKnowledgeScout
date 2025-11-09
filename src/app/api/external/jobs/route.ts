@@ -1,3 +1,27 @@
+/**
+ * @fileoverview External Jobs List API Route - Job Query Endpoint
+ * 
+ * @description
+ * Endpoint for querying external jobs with filtering and pagination. Supports filtering by
+ * status, batch, library, source item, result item, and text search. Returns paginated
+ * job lists with metadata. Used by UI components for displaying job history and status.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - GET: Lists external jobs with filtering and pagination
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/external/jobs
+ * - src/components/event-monitor: Event monitor components query jobs
+ * - src/app/event-monitor: Event monitor pages query jobs
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Authentication utilities
+ * - @/lib/external-jobs-repository: Job repository for queries
+ * - @/types/external-job: External job type definitions
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, currentUser } from '@clerk/nextjs/server';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';

@@ -1,6 +1,27 @@
 /**
- * Zentrale, typisierte Env-/Konfig-Helfer für Servercode.
- * Einheitliche Normalisierung von URLs und Secrets, damit Call-Sites schlank bleiben.
+ * @fileoverview Environment Variables and Configuration Helpers
+ * 
+ * @description
+ * Centralized, typed environment variable helpers for server-side code.
+ * Provides unified normalization of URLs and secrets to keep call sites clean.
+ * Handles configuration for public app URLs, internal server URLs, Secretary Service,
+ * and Vimeo API access.
+ * 
+ * @module core
+ * 
+ * @exports
+ * - getPublicAppUrl(): Returns public base URL of the application
+ * - getSelfBaseUrl(): Returns internal base URL for server-to-server requests
+ * - getSecretaryConfig(): Returns Secretary Service configuration
+ * - getVimeoConfig(): Returns Vimeo API configuration
+ * 
+ * @usedIn
+ * - src/app/api: API routes use these helpers for configuration
+ * - src/lib/secretary/client.ts: Uses Secretary configuration
+ * - src/lib/external-jobs: External jobs use URL helpers
+ * 
+ * @dependencies
+ * - process.env: Node.js environment variables
  */
 
 interface SecretaryConfig {

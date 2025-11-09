@@ -1,3 +1,32 @@
+/**
+ * @fileoverview Chats Repository - MongoDB Repository for Chat Management
+ * 
+ * @description
+ * Repository for managing chats in MongoDB. Handles CRUD operations for chats,
+ * supports both authenticated users (userEmail) and anonymous users (sessionId).
+ * Provides chat listing, creation, retrieval, and update operations with optimized
+ * indexes for performance.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - createChat: Creates a new chat
+ * - listChats: Lists chats for a library and user/session
+ * - getChatById: Retrieves a chat by ID
+ * - touchChat: Updates chat timestamp
+ * - deleteChat: Deletes a chat
+ * 
+ * @usedIn
+ * - src/app/api/chat: Chat API routes use repository
+ * - src/components/library/chat: Chat components use repository
+ * 
+ * @dependencies
+ * - @/lib/mongodb-service: MongoDB connection and collection access
+ * - @/types/chat: Chat type definitions
+ * - mongodb: MongoDB driver types
+ * - crypto: UUID generation
+ */
+
 import { getCollection } from '@/lib/mongodb-service'
 import crypto from 'crypto'
 import type { Collection, UpdateFilter } from 'mongodb'

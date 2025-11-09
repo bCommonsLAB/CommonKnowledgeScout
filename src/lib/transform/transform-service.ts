@@ -1,3 +1,33 @@
+/**
+ * @fileoverview Transform Service - Central Transformation Service
+ * 
+ * @description
+ * Central service for file transformations. Handles PDF, audio, video, image, and text
+ * transformations via Secretary Service. Manages shadow twin creation, markdown storage,
+ * image extraction, and RAG ingestion. Provides unified interface for all transformation
+ * types with consistent error handling and progress tracking.
+ * 
+ * @module transform
+ * 
+ * @exports
+ * - TransformService: Main transformation service class
+ * - TransformSaveOptions: Options interface for transformations
+ * - PdfTransformOptions: PDF-specific transformation options
+ * - VideoTransformOptions: Video-specific transformation options
+ * - ImageTransformOptions: Image-specific transformation options
+ * - TransformResult: Result interface for transformations
+ * 
+ * @usedIn
+ * - src/components/library: Library components use transform service
+ * - src/app/api/transform: Transform API routes use service
+ * 
+ * @dependencies
+ * - @/lib/secretary/client: Secretary Service client for transformations
+ * - @/lib/transform/image-extraction-service: Image extraction service
+ * - @/lib/storage/types: Storage types
+ * - @/lib/debug/logger: Logging utilities
+ */
+
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { transformAudio, transformText, transformVideo, transformPdf, transformImage, SecretaryAudioResponse, SecretaryVideoResponse, SecretaryPdfResponse, SecretaryImageResponse } from "@/lib/secretary/client";
 import { ImageExtractionService, ImageExtractionResult } from "./image-extraction-service";

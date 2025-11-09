@@ -1,3 +1,32 @@
+/**
+ * @fileoverview Secretary Service Client - HTTP Client for Secretary Service API
+ * 
+ * @description
+ * HTTP client for communicating with the Secretary Service. Provides methods for
+ * processing PDFs, audio, video, images, and sessions. Handles authentication,
+ * request formatting, response parsing, and error handling. Supports streaming
+ * responses and callback URL configuration.
+ * 
+ * @module secretary
+ * 
+ * @exports
+ * - SecretaryServiceClient: Main client class for Secretary Service API
+ * - SecretaryServiceError: Error class for Secretary Service errors
+ * - SecretaryAudioResponse: Interface for audio processing responses
+ * - SecretaryVideoResponse: Interface for video processing responses
+ * - SecretaryImageResponse: Interface for image processing responses
+ * - SecretaryPdfResponse: Interface for PDF processing responses
+ * 
+ * @usedIn
+ * - src/app/api/secretary: Secretary API routes use client
+ * - src/lib/external-jobs: External jobs use client for processing
+ * 
+ * @dependencies
+ * - @/lib/utils/fetch-with-timeout: Timeout-aware fetch utility
+ * - @/lib/env: Environment helpers for Secretary config
+ * - @/lib/secretary/types: Secretary type definitions
+ */
+
 import { 
   TemplateExtractionResponse 
 } from './types';

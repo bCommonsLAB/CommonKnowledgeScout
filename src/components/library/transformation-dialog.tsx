@@ -194,7 +194,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
       // Validiere den generierten Namen
       setFileNameError(validateFileName(defaultName));
     }
-  }, [effectiveItems, selectedLanguage]);
+  }, [effectiveItems, selectedLanguage, availableLanguages]);
 
   // Validierung des Dateinamens
   const validateFileName = (fileName: string): string => {
@@ -319,7 +319,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
         description: `Kombinierte Transformation fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       });
     }
-  }, [provider, activeLibraryId, effectiveItems, baseOptions, selectedTemplate, refreshItems, customFileName, selectedLanguage]);
+  }, [provider, activeLibraryId, effectiveItems, baseOptions, selectedTemplate, refreshItems, customFileName, selectedLanguage, onRefreshFolder, selectedItems.length]);
 
   // Dialog schließen und State zurücksetzen
   const handleClose = useCallback(() => {

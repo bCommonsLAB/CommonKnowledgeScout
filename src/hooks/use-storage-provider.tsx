@@ -1,3 +1,27 @@
+/**
+ * @fileoverview useStorageProvider Hook - React Hook for Storage Provider Access
+ * 
+ * @description
+ * React hook that provides access to the current storage provider based on the
+ * active library. Automatically updates when the active library changes and handles
+ * provider initialization and error states gracefully.
+ * 
+ * @module storage
+ * 
+ * @exports
+ * - useStorageProvider: Hook that returns the current storage provider
+ * 
+ * @usedIn
+ * - src/contexts/storage-context.tsx: Uses hook for provider access
+ * - src/components/library: Library components use hook
+ * 
+ * @dependencies
+ * - @/atoms/library-atom: Library state atoms
+ * - @/lib/storage/storage-factory: Storage provider factory
+ * - @/lib/storage/types: Storage types
+ * - @/lib/storage/supported-types: Supported library types
+ */
+
 "use client"
 
 import { useEffect, useState } from "react"

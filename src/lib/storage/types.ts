@@ -1,6 +1,29 @@
 /**
- * Storage system type definitions.
- * Contains all types related to storage operations and providers.
+ * @fileoverview Storage System Type Definitions
+ * 
+ * @description
+ * Contains all TypeScript types and interfaces related to storage operations and providers.
+ * Defines the core StorageProvider interface and related types for files, folders, and
+ * storage operations. Used throughout the storage layer for type safety.
+ * 
+ * @module storage
+ * 
+ * @exports
+ * - StorageItemMetadata: Metadata for storage items (files/folders)
+ * - StorageItem: Unified type for files and folders
+ * - StorageValidationResult: Result of storage validation operations
+ * - StorageProvider: Core interface for storage providers
+ * 
+ * @usedIn
+ * - src/lib/storage/storage-factory.ts: Factory uses StorageProvider interface
+ * - src/lib/storage/filesystem-provider.ts: Implements StorageProvider
+ * - src/lib/storage/onedrive-provider.ts: Implements StorageProvider
+ * - src/lib/storage/filesystem-client.ts: Uses StorageItem types
+ * - src/contexts/storage-context.tsx: Uses storage types
+ * - src/components/library: Components use storage types
+ * 
+ * @dependencies
+ * - None (pure type definitions)
  */
 
 /**

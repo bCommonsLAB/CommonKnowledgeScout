@@ -1,3 +1,25 @@
+/**
+ * @fileoverview Secretary Audio Processing API Route - Audio Transformation Endpoint
+ * 
+ * @description
+ * API endpoint for processing audio files via Secretary Service. Proxies audio
+ * processing requests to Secretary Service with authentication. Handles file uploads,
+ * target language configuration, and response forwarding.
+ * 
+ * @module secretary
+ * 
+ * @exports
+ * - POST: Processes audio file via Secretary Service
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/secretary/process-audio
+ * - src/components/library: Library components call this endpoint
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Authentication utilities
+ * - process.env: Environment variables for Secretary Service URL and API key
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { env } from 'process';

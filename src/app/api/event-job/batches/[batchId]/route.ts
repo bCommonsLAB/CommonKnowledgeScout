@@ -1,3 +1,24 @@
+/**
+ * @fileoverview Event Batch Management API Route - Individual Batch Operations
+ * 
+ * @description
+ * API endpoint for managing individual event batches. Provides GET for batch details
+ * and DELETE for batch deletion. Handles batch access control and cascading operations.
+ * 
+ * @module event-job
+ * 
+ * @exports
+ * - GET: Retrieves batch details
+ * - DELETE: Deletes a batch and associated jobs
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/event-job/batches/[batchId]
+ * - src/components/event-monitor: Event monitor components call this endpoint
+ * 
+ * @dependencies
+ * - @/lib/event-job-repository: Event job repository for operations
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { EventJobRepository } from '@/lib/event-job-repository';
 

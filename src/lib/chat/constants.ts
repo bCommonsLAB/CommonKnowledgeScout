@@ -1,4 +1,33 @@
 /**
+ * @fileoverview Chat Constants - Central Chat Configuration Definitions
+ * 
+ * @description
+ * Central definition of all chat configuration parameters. This file is the single
+ * source of truth for answer length, retriever methods, target language, character
+ * perspective, and social context. All other files should import and use these definitions.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - AnswerLength: Answer length type and values
+ * - Retriever: Retriever method type and values
+ * - TargetLanguage: Target language type and values
+ * - Character: Character type and values
+ * - SocialContext: Social context type and values
+ * - Zod enums for validation
+ * - Labels and defaults for UI
+ * 
+ * @usedIn
+ * - src/lib/chat/orchestrator.ts: Uses constants for configuration
+ * - src/lib/chat/config.ts: Uses constants for configuration normalization
+ * - src/components/library/chat: Chat components use constants
+ * - src/app/api/chat: Chat API routes use constants
+ * 
+ * @dependencies
+ * - zod: Schema validation library
+ */
+
+/**
  * Zentrale Definition aller Chat-Konfigurationsparameter
  * 
  * Diese Datei enthält die einzige Quelle der Wahrheit für:

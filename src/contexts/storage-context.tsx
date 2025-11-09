@@ -1,3 +1,32 @@
+/**
+ * @fileoverview Storage Context - React Context for Storage Provider Management
+ * 
+ * @description
+ * Provides React context for storage provider management across the application.
+ * Handles library loading, provider initialization, authentication status, and
+ * storage operations. Integrates with Jotai atoms for state management and Clerk
+ * for authentication.
+ * 
+ * @module storage
+ * 
+ * @exports
+ * - StorageContextProvider: React context provider component
+ * - useStorage: Hook to access storage context
+ * - isStorageError: Type guard for storage errors
+ * - LibraryStatus: Type for library loading states
+ * 
+ * @usedIn
+ * - src/app/layout.tsx: Wraps application with storage context
+ * - src/components/library: Library components use storage context
+ * - src/hooks/use-storage-provider.tsx: Uses storage context
+ * 
+ * @dependencies
+ * - @/lib/storage/storage-factory: Storage provider factory
+ * - @/atoms/library-atom: Library state atoms
+ * - @clerk/nextjs: Authentication hooks
+ * - @/lib/storage/types: Storage types
+ */
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';

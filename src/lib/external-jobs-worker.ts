@@ -1,3 +1,27 @@
+/**
+ * @fileoverview External Jobs Worker - Background Worker for Processing External Jobs
+ * 
+ * @description
+ * Singleton worker that processes queued external jobs in the background. Polls MongoDB
+ * for queued jobs, claims them atomically, and triggers job execution via API routes.
+ * Supports configurable concurrency and polling interval. Auto-starts on server initialization
+ * unless explicitly disabled.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - ExternalJobsWorker: Singleton worker instance
+ * 
+ * @usedIn
+ * - src/instrumentation.ts: Auto-starts worker on server initialization
+ * - src/app/api/external/jobs/worker/route.ts: Worker status endpoint
+ * 
+ * @dependencies
+ * - @/lib/external-jobs-repository: Job repository for claiming jobs
+ * - @/lib/debug/logger: Logging utilities
+ * - @/lib/env: Environment helpers for base URL
+ */
+
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { FileLogger } from '@/lib/debug/logger';
 import { getPublicAppUrl } from '@/lib/env'

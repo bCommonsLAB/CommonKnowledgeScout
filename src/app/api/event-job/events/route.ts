@@ -1,3 +1,24 @@
+/**
+ * @fileoverview Event Management API Route - Event List and Migration
+ * 
+ * @description
+ * API endpoint for managing events. Provides GET for listing available events
+ * and POST for migrating event names in existing jobs and batches.
+ * 
+ * @module event-job
+ * 
+ * @exports
+ * - GET: Lists all available event names
+ * - POST: Migrates event names in existing jobs and batches
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/event-job/events
+ * - src/components/event-monitor: Event monitor components call this endpoint
+ * 
+ * @dependencies
+ * - @/lib/event-job-repository: Event job repository for operations
+ */
+
 import { NextResponse } from 'next/server';
 import { EventJobRepository } from '@/lib/event-job-repository';
 

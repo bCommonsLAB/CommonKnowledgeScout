@@ -1,3 +1,30 @@
+/**
+ * @fileoverview Library Component - Main Library Interface Component
+ * 
+ * @description
+ * Main library component providing the file browser interface. Combines file tree,
+ * file list, and file preview in a resizable panel layout. Handles folder navigation,
+ * file selection, transformation dialogs, and mobile responsiveness. Integrates with
+ * storage context and Jotai atoms for state management.
+ * 
+ * @module library
+ * 
+ * @exports
+ * - Library: Main library component
+ * 
+ * @usedIn
+ * - src/app/library/page.tsx: Library page uses this component
+ * 
+ * @dependencies
+ * - @/components/library/library-header: Library header component
+ * - @/components/library/file-tree: File tree component
+ * - @/components/library/file-list: File list component
+ * - @/components/library/file-preview: File preview component
+ * - @/contexts/storage-context: Storage context for provider access
+ * - @/atoms/library-atom: Library state atoms
+ * - @/hooks/use-folder-navigation: Folder navigation hook
+ */
+
 "use client"
 
 import * as React from "react"
@@ -276,7 +303,6 @@ export function Library() {
     }
   }, [
     currentFolderId,
-    lastLoadedFolder,
     listItems,
     libraryState.folderCache,
     providerInstance,
@@ -286,7 +312,8 @@ export function Library() {
     setLastLoadedFolder,
     setLoadingState,
     toast,
-    currentLibrary
+    currentLibrary,
+    activeLibraryId
   ]);
 
   // Effect für Initial-Load (entkoppelt vom FileTree)
@@ -340,7 +367,7 @@ export function Library() {
     // WICHTIG: Ordnerauswahl und Shadow-Twin zurücksetzen
     setSelectedFile(null);
     setSelectedShadowTwin(null);
-  }, [activeLibraryId, setLastLoadedFolder, setFolderItems, setLibraryState, currentFolderId]);
+  }, [activeLibraryId, setLastLoadedFolder, setFolderItems, setLibraryState, currentFolderId, setSelectedFile, setSelectedShadowTwin]);
 
   // Reset Cache wenn sich die Library ändert
   useEffect(() => {

@@ -1,3 +1,28 @@
+/**
+ * @fileoverview Event Job Repository - MongoDB Repository for Event Job Management
+ * 
+ * @description
+ * Repository for managing event jobs and batches in MongoDB. Handles CRUD operations
+ * for event jobs, batch management, job status updates, progress tracking, and access
+ * control. Provides optimized queries with filtering, pagination, and sorting.
+ * 
+ * @module event-job
+ * 
+ * @exports
+ * - EventJobRepository: Main repository class for event jobs and batches
+ * 
+ * @usedIn
+ * - src/app/api/event-job: Event job API routes use repository
+ * - src/lib/session/session-processor.ts: Session processor uses repository
+ * - src/components/event-monitor: Event monitor components use repository
+ * 
+ * @dependencies
+ * - @/lib/mongodb-service: MongoDB connection and collection access
+ * - @/types/event-job: Event job type definitions
+ * - mongodb: MongoDB driver types
+ * - uuid: UUID generation
+ */
+
 import { Collection, UpdateFilter } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 import { 

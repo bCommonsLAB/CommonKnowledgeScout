@@ -123,7 +123,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     }
 
     return { total, skipped, selected, previews };
-  }, [provider, getBaseName, hasTwinInFolder, runMetaPhase, runIngestionPhase]);
+  }, [provider, getBaseName, hasTwinInFolder, activeLibraryId]);
 
   const handleScan = useCallback(async () => {
     if (!provider || !rootFolderId) return;
@@ -182,7 +182,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         }
       })();
     }
-  }, [open, handleScan]);
+  }, [open, handleScan, provider, rootFolderId]);
 
   // keine lokale Optionsbearbeitung nötig; Änderungen erfolgen im Settings-Dialog
 
@@ -232,7 +232,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     } finally {
       setIsEnqueuing(false);
     }
-  }, [activeLibraryId, candidates, runMetaPhase, runIngestionPhase, forceExtract, forceMeta, batchName, onOpenChange, pdfOverrides, provider]);
+  }, [activeLibraryId, candidates, runMetaPhase, runIngestionPhase, forceExtract, forceMeta, batchName, onOpenChange, pdfOverrides]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

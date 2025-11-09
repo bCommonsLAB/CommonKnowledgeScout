@@ -1,3 +1,26 @@
+/**
+ * @fileoverview Secretary Session Processing API Route - Session Import Endpoint
+ * 
+ * @description
+ * API endpoint for processing session data via Secretary Service. Proxies session
+ * processing requests to Secretary Service for event/session data extraction and
+ * transformation. Handles structured session data with event, session, speakers,
+ * and metadata information.
+ * 
+ * @module secretary
+ * 
+ * @exports
+ * - POST: Processes session data via Secretary Service
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/secretary/session/process
+ * - src/components/event-monitor: Event monitor components call this endpoint
+ * - src/lib/session: Session processing modules call this endpoint
+ * 
+ * @dependencies
+ * - @/lib/env: Environment helpers for Secretary config
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSecretaryConfig } from '@/lib/env';
 

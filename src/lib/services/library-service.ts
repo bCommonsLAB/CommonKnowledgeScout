@@ -1,3 +1,28 @@
+/**
+ * @fileoverview Library Service - MongoDB-based Library Management Service
+ * 
+ * @description
+ * Service for managing libraries in MongoDB. Handles CRUD operations for libraries,
+ * user library associations, and library configuration. Uses singleton pattern for
+ * consistent service access across the application.
+ * 
+ * @module library
+ * 
+ * @exports
+ * - LibraryService: Main library service class
+ * - UserLibraries: Interface for user library associations
+ * 
+ * @usedIn
+ * - src/app/api/libraries: Library API routes use service
+ * - src/lib/storage/server-provider.ts: Server provider uses service
+ * - src/components/settings/library-form.tsx: Settings form uses service
+ * - src/contexts/storage-context.tsx: Storage context uses service
+ * 
+ * @dependencies
+ * - @/lib/mongodb-service: MongoDB connection and collection access
+ * - @/types/library: Library type definitions
+ */
+
 import { getCollection } from '@/lib/mongodb-service';
 import { Library, ClientLibrary } from '@/types/library';
 

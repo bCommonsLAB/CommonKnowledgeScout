@@ -1,3 +1,27 @@
+/**
+ * @fileoverview Next.js Middleware - Authentication, routing, and locale handling
+ * 
+ * @description
+ * This middleware handles authentication, public route access, locale detection,
+ * and dynamic route exceptions for the Common Knowledge Scout application.
+ * It uses Clerk for authentication and provides locale cookie management.
+ * 
+ * @module core
+ * 
+ * @exports
+ * - default: Clerk middleware function with authentication and locale handling
+ * - config: Next.js middleware configuration with route matcher
+ * 
+ * @usedIn
+ * - Next.js framework: Automatically executed by Next.js for all requests
+ * - All API routes: Protected by authentication middleware
+ * - All pages: Protected by authentication middleware
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Clerk authentication middleware
+ * - @/lib/i18n: Locale detection and supported locales
+ */
+
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { getLocale, SUPPORTED_LOCALES, type Locale } from '@/lib/i18n';

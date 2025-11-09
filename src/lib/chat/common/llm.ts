@@ -1,3 +1,27 @@
+/**
+ * @fileoverview LLM Calling Utilities - OpenAI API Integration
+ * 
+ * @description
+ * Provides utilities for calling OpenAI API and parsing responses. Handles
+ * structured response parsing, token usage extraction, and error handling.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - callOpenAI: Calls OpenAI API with prompt
+ * - parseOpenAIResponseWithUsage: Parses response with token usage
+ * - parseStructuredLLMResponse: Parses structured JSON response
+ * - LlmCallArgs: Arguments interface for LLM calls
+ * - LlmCallResult: Result interface for LLM calls
+ * - ParsedLLMResponse: Parsed response interface
+ * 
+ * @usedIn
+ * - src/lib/chat/orchestrator.ts: Orchestrator uses LLM utilities
+ * 
+ * @dependencies
+ * - None (pure utility functions)
+ */
+
 export interface LlmCallArgs {
   model: string
   temperature: number

@@ -1,3 +1,27 @@
+/**
+ * @fileoverview Secretary Response Parser - Markdown Response Parsing
+ * 
+ * @description
+ * Parses markdown responses from Secretary Service transformer. Extracts frontmatter
+ * blocks, parses key-value pairs, and handles JSON arrays/objects in frontmatter
+ * (chapters, TOC, etc.). Provides strict parsing with error reporting for invalid
+ * JSON structures.
+ * 
+ * @module secretary
+ * 
+ * @exports
+ * - parseSecretaryMarkdownStrict: Strictly parses Secretary markdown responses
+ * - FrontmatterParseResult: Interface for parsing results
+ * 
+ * @usedIn
+ * - src/lib/external-jobs: External jobs parse Secretary responses
+ * - src/app/api/secretary: Secretary API routes parse responses
+ * 
+ * @dependencies
+ * - @/lib/markdown/frontmatter: Frontmatter extraction utilities
+ * - @/lib/debug/logger: Logging utilities
+ */
+
 import { extractFrontmatterBlock } from '@/lib/markdown/frontmatter'
 import { UILogger } from '@/lib/debug/logger'
 

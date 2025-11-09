@@ -1,3 +1,33 @@
+/**
+ * @fileoverview Queries Repository - MongoDB Repository for Query Logging
+ * 
+ * @description
+ * Repository for managing query logs in MongoDB. Handles CRUD operations for query logs,
+ * supports retrieval step appending, partial updates, and query listing. Provides optimized
+ * indexes for query retrieval by library, user, session, and chat. Supports both
+ * authenticated and anonymous users.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - insertQueryLog: Creates a new query log entry
+ * - appendRetrievalStep: Appends a retrieval step to a query log
+ * - updateQueryLogPartial: Updates query log fields partially
+ * - getQueryLogById: Retrieves a query log by ID
+ * - listRecentQueries: Lists recent queries with filtering
+ * 
+ * @usedIn
+ * - src/app/api/chat: Chat API routes use repository
+ * - src/lib/chat: Chat modules use repository for logging
+ * - src/lib/logging/query-logger.ts: Query logger uses repository
+ * 
+ * @dependencies
+ * - @/lib/mongodb-service: MongoDB connection and collection access
+ * - @/types/query-log: QueryLog type definitions
+ * - mongodb: MongoDB driver types
+ * - crypto: UUID generation
+ */
+
 import { getCollection } from '@/lib/mongodb-service'
 import crypto from 'crypto'
 import type { Collection, UpdateFilter } from 'mongodb'

@@ -7,7 +7,6 @@ import { useTranslation } from "@/lib/i18n/hooks";
 interface IngestionSessionDetailProps {
   libraryId: string;
   fileId: string;
-  docModifiedAt?: string;
   onDataLoaded?: (data: SessionDetailData) => void;
 }
 
@@ -15,7 +14,7 @@ interface IngestionSessionDetailProps {
  * Wrapper-Komponente für SessionDetail
  * Lädt Session-Daten via API und mappt sie auf das SessionDetailData-Format
  */
-export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt, onDataLoaded }: IngestionSessionDetailProps) {
+export function IngestionSessionDetail({ libraryId, fileId, onDataLoaded }: IngestionSessionDetailProps) {
   const { t } = useTranslation()
   const [data, setData] = React.useState<SessionDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -51,7 +50,7 @@ export function IngestionSessionDetail({ libraryId, fileId, docModifiedAt, onDat
     } finally {
       setLoading(false);
     }
-  }, [libraryId, fileId, docModifiedAt, t]);
+  }, [libraryId, fileId, t]);
 
   React.useEffect(() => { void load(); }, [load]);
 

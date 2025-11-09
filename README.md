@@ -183,56 +183,37 @@ See [`docker-compose.example.yml`](./docker-compose.example.yml) for a complete 
 
 Create and configure a library to organize your knowledge base. Libraries serve as containers for documents, media files, and transformed content. Each library can have its own storage provider, access settings, and vector database configuration.
 
-**Learn more:** [Library Setup Guide](./docs/guide/library.md)
-
-### Local File Management
-
-Work with local filesystems to upload, organize, and manage files directly from your computer. The system supports hierarchical folder structures, file previews, and batch operations.
-
-**Learn more:** [Getting Started Guide](./docs/guide/getting-started.md)
+**Learn more:** [Library Setup Use Case](./docs/use-cases/library-setup.md)
 
 ### File Transformation
 
 Transform various file formats into structured Markdown documents:
 
-- **PDFs**: Extract text, images, and structure from PDF documents
-- **Audio**: Transcribe audio files to text with speaker identification
-- **Video**: Extract transcripts and metadata from video files
+- **PDFs**: Extract text, images, and structure from PDF documents → [PDF Transformation Use Case](./docs/use-cases/file-transformation-pdf.md)
+- **Audio/Video**: Transcribe audio and video files to text with speaker identification → [Media Transformation Use Case](./docs/use-cases/file-transformation-media.md)
 - **Images**: Extract text using OCR and generate descriptions
 
 Transformed files are saved as "shadow twins" alongside the original files, preserving the source while providing searchable, structured content.
 
-**Learn more:** [File Transformation Guide](./docs/guide/library.md#transformation)
+**Batch Processing:** Process multiple files simultaneously → [Batch Operations Use Case](./docs/use-cases/batch-operations.md)
 
-### Session Manager
+### Web Scraping & Event Import
 
-Scrape and import content from websites using the Session Manager. Extract structured data from web pages, convert them to Markdown format, and import them into your library. Useful for capturing event information, session data, and web-based content.
+Scrape and import content from websites using the Event Monitor. Extract structured data from web pages, convert them to Markdown format, and import them into your library. Useful for capturing event information, session data, and web-based content.
 
-**Learn more:** [Session Manager Guide](./docs/guide/batch-session-import.md)
-
-### Event Conversion
-
-Convert event data (conferences, workshops, meetings) into structured Markdown files. The system can process event metadata, session information, speaker details, and associated media files.
-
-**Learn more:** [Event Monitor Guide](./docs/guide/event-monitor.md)
-
-### Book Generation
-
-Create structured books from PDF documents by transforming them into Markdown format with chapters, table of contents, and metadata. Books can be organized, published, and made searchable through the gallery.
-
-**Learn more:** [PDF Transformation Guide](./docs/concepts/pdf/)
+**Learn more:** [Web Scraping Use Case](./docs/use-cases/web-scraping.md)
 
 ### Gallery Publishing
 
 Publish and organize transformed content in public or private galleries. Galleries provide a web interface for browsing, searching, and accessing knowledge. Content can be organized by tags, categories, and custom metadata.
 
-**Learn more:** [Gallery Publishing Guide](./docs/guide/settings.md#public-publishing)
+**Learn more:** [Publishing Use Case](./docs/use-cases/publishing.md)
 
-### Chat & story mode
+### Chat & Story Mode
 
 Query your knowledge base using natural language. The Chat & story interface uses RAG (Retrieval-Augmented Generation) to find relevant content and generate answers based on your library's documents. Supports filtering by metadata, facets, and custom queries.
 
-**Learn more:** [Chat Documentation](./docs/chat-response-generation-process.md)
+**Learn more:** [Chat & Story Mode Use Case](./docs/use-cases/chat-exploration.md)
 
 ---
 
@@ -273,28 +254,35 @@ For partnership or academic collaboration requests, contact:
 
 ## 📚 Further Documentation
 
-### User Guides
+### Use Cases
 
-- [Getting Started](./docs/guide/getting-started.md) – Quick start guide for new users
-- [Library Usage](./docs/guide/library.md) – How to use the library interface
-- [Settings](./docs/guide/settings.md) – Configuration and settings
-- [Troubleshooting](./docs/guide/troubleshooting.md) – Common issues and solutions
-- [FAQ](./docs/guide/faq.md) – Frequently asked questions
+Practical step-by-step guides for common tasks:
 
-### Developer Documentation
+- [Use Cases Overview](./docs/use-cases/index.md) – Complete list of available use cases
+- [Library Setup](./docs/use-cases/library-setup.md) – Create and configure a library
+- [PDF Transformation](./docs/use-cases/file-transformation-pdf.md) – Transform PDF files into Markdown
+- [Media Transformation](./docs/use-cases/file-transformation-media.md) – Transcribe audio and video files
+- [Web Scraping](./docs/use-cases/web-scraping.md) – Scrape web content and import events
+- [Publishing](./docs/use-cases/publishing.md) – Publish your library publicly
+- [Chat & Story Mode](./docs/use-cases/chat-exploration.md) – Explore knowledge with chat
+- [Batch Operations](./docs/use-cases/batch-operations.md) – Process multiple files simultaneously
 
-- [Architecture](./docs/architecture/) – System architecture and design
-- [Core Components](./docs/architecture/core-components.md) – Key components overview
-- [PDF Ingestion](./docs/architecture/pdf-ingestion.md) – PDF processing pipeline
-- [API Reference](./docs/reference/api/) – API documentation
+### Architecture Documentation
 
-### Concepts
+System design and module documentation:
 
-- [Storage Provider System](./docs/concepts/storage-provider.md) – Storage abstraction layer
-- [Metadata System](./docs/concepts/metadata.md) – Metadata handling
-- [PDF Workflow](./docs/concepts/pdf/) – PDF transformation concepts
-- [Video Transformation](./docs/concepts/video-transformation.md) – Video processing
-- [Image Transformation](./docs/concepts/image-transformation.md) – Image OCR and processing
+- [Documentation Index](./docs/index.md) – Main documentation entry point
+- [Module Hierarchy](./docs/architecture/module-hierarchy.md) – Application module structure
+- [Dependency Graph](./docs/architecture/dependency-graph.md) – Module dependencies visualization
+
+### Reference Documentation
+
+Technical reference for developers:
+
+- [File Index](./docs/reference/file-index.md) – Complete index of documented source files
+- [Storage Module](./docs/reference/modules/storage.md) – Storage provider system documentation
+- [Library Module](./docs/reference/modules/library.md) – Library management documentation
+- [Chat Module](./docs/reference/modules/chat.md) – Chat and RAG system documentation
 
 ---
 

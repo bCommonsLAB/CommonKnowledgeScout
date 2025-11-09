@@ -73,7 +73,7 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
     }
     void loadTwin();
     return () => { cancelled = true; };
-  }, [provider, shadowTwin?.id]);
+  }, [provider, shadowTwin?.id, shadowTwin?.metadata?.name]);
 
   // Status aus Frontmatter ableiten
   React.useEffect(() => {
@@ -135,7 +135,7 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
     }, { root: container, threshold: [0, 0.25, 0.5, 0.75, 1] });
     markers.forEach(m => observer.observe(m));
     return () => observer.disconnect();
-  }, [twinContent]);
+  }, [twinContent, currentPage, setCurrentPage]);
 
   // Scroll Sync von links (PDF) → rechts (Markdown)
   React.useEffect(() => {
@@ -163,7 +163,7 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
     }, { root: container, threshold: [0, 0.25, 0.5, 0.75, 1] });
     markers.forEach(m => observer.observe(m));
     return () => observer.disconnect();
-  }, [pdfUrl]);
+  }, [pdfUrl, currentPage, setCurrentPage]);
 
   return (
     <div className="flex h-full flex-col gap-2">

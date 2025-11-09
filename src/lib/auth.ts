@@ -1,5 +1,24 @@
 /**
- * Authentifizierungs- und Bibliotheks-Hilfsfunktionen
+ * @fileoverview Authentication and Library Helper Functions
+ * 
+ * @description
+ * Provides helper functions for authentication and library management.
+ * Currently handles library ID retrieval from cookies and basic authentication
+ * checks. Can be extended in the future for full authentication functionality.
+ * 
+ * @module core
+ * 
+ * @exports
+ * - getLibraryId(): Retrieves active library ID from cookies
+ * - isAuthenticated(): Checks if user is authenticated
+ * - getUserInfo(): Retrieves user information
+ * 
+ * @usedIn
+ * - src/app/api: API routes use authentication helpers
+ * - src/components: Components may use library ID helpers
+ * 
+ * @dependencies
+ * - next/headers: Next.js cookie handling
  */
 
 import { cookies } from 'next/headers';

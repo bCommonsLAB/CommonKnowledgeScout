@@ -1,3 +1,29 @@
+/**
+ * @fileoverview Secretary PDF Processing API Route - PDF Transformation Endpoint
+ * 
+ * @description
+ * API endpoint for processing PDF files via Secretary Service. Creates external jobs
+ * for PDF extraction, handles authentication, job creation, and triggers Secretary
+ * Service processing. Supports batch processing, policy configuration, and callback
+ * URL setup.
+ * 
+ * @module secretary
+ * 
+ * @exports
+ * - POST: Creates PDF processing job and triggers Secretary Service
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/secretary/process-pdf
+ * - src/components/library: Library components call this endpoint
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Authentication utilities
+ * - @/lib/external-jobs-repository: Job repository for job creation
+ * - @/lib/secretary/client: Secretary Service client
+ * - @/lib/processing/phase-policy: Policy configuration
+ * - @/lib/events/job-event-bus: Event bus for status updates
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth, currentUser } from '@clerk/nextjs/server';
 import { FileLogger } from '@/lib/debug/logger';

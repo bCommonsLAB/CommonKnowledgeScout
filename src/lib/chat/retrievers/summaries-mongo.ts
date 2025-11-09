@@ -1,3 +1,28 @@
+/**
+ * @fileoverview Summaries MongoDB Retriever - Document Summary Retriever
+ * 
+ * @description
+ * Implements summary-based retrieval using MongoDB. Searches for document summaries
+ * and chapter summaries. Supports two modes: 'chapters' (uses chapter summaries)
+ * and 'docs' (uses document summaries). Handles event mode for session-based documents.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - summariesMongoRetriever: Summary-based retriever implementation
+ * 
+ * @usedIn
+ * - src/lib/chat/orchestrator.ts: Orchestrator uses retriever for summary mode
+ * - src/app/api/chat/[libraryId]/stream/route.ts: Chat endpoint uses retriever
+ * 
+ * @dependencies
+ * - @/lib/repositories/doc-meta-repo: Document metadata repository
+ * - @/lib/chat/common/budget: Budget management
+ * - @/lib/logging/query-logger: Query logging
+ * - @/lib/chat/retrievers/metadata-extractor: Metadata extraction
+ * - @/lib/chat/loader: Library context loading
+ */
+
 import type { ChatRetriever, RetrieverInput, RetrieverOutput, RetrievedSource } from '@/types/retriever'
 import { appendRetrievalStep as logAppend, markStepStart, markStepEnd } from '@/lib/logging/query-logger'
 import { getBaseBudget, canAccumulate, getTokenBudget, estimateTokensFromText, canAccumulateTokens } from '@/lib/chat/common/budget'

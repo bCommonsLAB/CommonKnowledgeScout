@@ -1,3 +1,29 @@
+/**
+ * @fileoverview Image Extraction Service - PDF Image Extraction and Storage
+ * 
+ * @description
+ * Service for extracting images from PDF ZIP archives and storing them with associated
+ * text content. Handles ZIP archive parsing, image file extraction, markdown file creation
+ * for text content, and folder organization. Creates structured folder hierarchies for
+ * extracted images and their metadata.
+ * 
+ * @module transform
+ * 
+ * @exports
+ * - ImageExtractionService: Main image extraction service class
+ * - ExtractedPageImage: Interface for extracted page images
+ * - ImageExtractionResult: Result interface for image extraction
+ * 
+ * @usedIn
+ * - src/lib/transform/transform-service.ts: Transform service uses image extraction
+ * - src/lib/external-jobs/images.ts: External jobs use image extraction
+ * 
+ * @dependencies
+ * - @/lib/storage/types: Storage types
+ * - @/lib/debug/logger: Logging utilities
+ * - jszip: ZIP archive parsing library
+ */
+
 import { StorageProvider, StorageItem } from "@/lib/storage/types";
 import { FileLogger } from "@/lib/debug/logger";
 

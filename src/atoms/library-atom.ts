@@ -1,3 +1,36 @@
+/**
+ * @fileoverview Library State Atoms - Jotai State Management for Libraries
+ * 
+ * @description
+ * Provides Jotai atoms for managing library state across the application. Handles
+ * active library selection, folder navigation, file caching, and library status.
+ * Uses atomFamily for folder-specific state management and provides derived atoms
+ * for computed values.
+ * 
+ * @module library
+ * 
+ * @exports
+ * - libraryAtom: Main library state atom
+ * - activeLibraryIdAtom: Active library ID atom
+ * - librariesAtom: Libraries list atom
+ * - activeLibraryAtom: Active library object atom
+ * - currentFolderIdAtom: Current folder ID atom
+ * - currentPathAtom: Current path atom
+ * - libraryStatusAtom: Library loading status atom
+ * - folderItemsAtom: Folder items atom family
+ * 
+ * @usedIn
+ * - src/contexts/storage-context.tsx: Uses library atoms for state management
+ * - src/components/library: Library components use atoms
+ * - src/hooks/use-storage-provider.tsx: Uses library atoms
+ * 
+ * @dependencies
+ * - jotai: State management library
+ * - @/lib/storage/types: StorageItem type
+ * - @/types/library: ClientLibrary type
+ * - @/atoms/transcription-options: File category filter
+ */
+
 import { atom } from "jotai"
 import { atomFamily } from "jotai/utils"
 import { StorageItem } from "@/lib/storage/types"

@@ -1,3 +1,33 @@
+/**
+ * @fileoverview Filesystem Storage API Route - Server-side Filesystem Operations
+ * 
+ * @description
+ * API route handler for filesystem storage operations. Provides server-side file and folder
+ * management including list, get, create, delete, move, rename, and upload operations.
+ * Handles authentication, library validation, and file system access. Uses FileSystemProvider
+ * for actual file operations.
+ * 
+ * @module storage
+ * 
+ * @exports
+ * - GET: List items, get item, download file
+ * - POST: Create folder, upload file
+ * - DELETE: Delete item
+ * - PATCH: Move item, rename item
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/storage/filesystem
+ * - src/lib/storage/filesystem-provider.ts: Provider calls this API
+ * - src/lib/storage/filesystem-client.ts: Client calls this API
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Authentication utilities
+ * - @/lib/services/library-service: Library service for validation
+ * - @/lib/storage/types: Storage types
+ * - @/types/library: Library types
+ * - fs/promises: Node.js filesystem operations
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import { Stats } from 'fs';

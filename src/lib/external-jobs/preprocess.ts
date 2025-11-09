@@ -1,3 +1,31 @@
+/**
+ * @fileoverview External Jobs Preprocessing - Job Preprocessing and Analysis
+ * 
+ * @description
+ * Preprocesses job context to determine processing needs. Checks for existing markdown
+ * files, validates frontmatter, determines which processing steps are needed (extraction,
+ * template, chapters, save, images, ingestion), and returns preprocessing result with
+ * reasons. Handles facet validation and existing file detection.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - preprocess: Main preprocessing function
+ * - PreprocessResult: Interface for preprocessing result
+ * 
+ * @usedIn
+ * - src/app/api/external/jobs/[jobId]/start/route.ts: Job start uses preprocessing
+ * - src/app/api/external/jobs/[jobId]/route.ts: Job callback may use preprocessing
+ * 
+ * @dependencies
+ * - @/lib/external-jobs/provider: Provider building utilities
+ * - @/lib/markdown/frontmatter: Frontmatter parsing
+ * - @/lib/chat/dynamic-facets: Facet definition parsing
+ * - @/lib/services/library-service: Library service for facet definitions
+ * - @/lib/external-jobs-repository: Job repository for logging
+ * - @/types/external-jobs: RequestContext type
+ */
+
 import type { RequestContext } from '@/types/external-jobs'
 import { buildProvider } from '@/lib/external-jobs/provider'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'

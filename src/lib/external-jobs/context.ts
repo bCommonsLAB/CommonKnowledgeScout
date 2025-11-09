@@ -1,3 +1,25 @@
+/**
+ * @fileoverview External Jobs Context Reader - Request Context Parsing
+ * 
+ * @description
+ * Parses and validates request context for external job callbacks. Extracts job data,
+ * callback tokens, and request body. Handles internal bypass checks and validates
+ * job existence. Creates RequestContext object used throughout the orchestration pipeline.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - readContext: Main function to read and parse request context
+ * 
+ * @usedIn
+ * - src/app/api/external/jobs/[jobId]/route.ts: Job callback uses context reader
+ * 
+ * @dependencies
+ * - @/lib/external-jobs-repository: Job repository for job lookup
+ * - @/lib/external-jobs/auth: Internal bypass check
+ * - @/types/external-jobs: RequestContext and callback body types
+ */
+
 import type { NextRequest } from 'next/server'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import type { RequestContext, ExternalCallbackBody, createExternalJobError } from '@/types/external-jobs'

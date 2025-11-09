@@ -1,3 +1,26 @@
+/**
+ * @fileoverview Server Provider Helper - Server-side Storage Provider Creation
+ * 
+ * @description
+ * Helper function for creating storage providers in server-side contexts (API routes).
+ * Handles library loading, factory configuration, and provider validation. Ensures
+ * proper user email and base URL configuration for server-to-server operations.
+ * 
+ * @module storage
+ * 
+ * @exports
+ * - getServerProvider: Creates and validates a storage provider for server-side use
+ * 
+ * @usedIn
+ * - src/app/api: API routes use this helper for server-side storage access
+ * - src/lib/external-jobs: External jobs use server providers
+ * 
+ * @dependencies
+ * - @/lib/storage/storage-factory: Storage provider factory
+ * - @/lib/services/library-service: Library service for loading libraries
+ * - @/lib/env: Environment helpers for base URL
+ */
+
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import type { StorageProvider } from '@/lib/storage/types';
 import { LibraryService } from '@/lib/services/library-service';

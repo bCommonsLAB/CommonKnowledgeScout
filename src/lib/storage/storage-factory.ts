@@ -1,3 +1,32 @@
+/**
+ * @fileoverview Storage Factory - Creates and manages storage provider instances
+ * 
+ * @description
+ * The StorageFactory is responsible for creating and caching storage provider
+ * instances based on library configuration. It supports multiple storage backends
+ * (local filesystem, OneDrive) and provides a unified interface for file operations.
+ * Uses singleton pattern to maintain a single factory instance across the application.
+ * 
+ * @module storage
+ * 
+ * @exports
+ * - StorageFactory: Main factory class for creating storage providers
+ * - LocalStorageProvider: Local filesystem provider implementation
+ * 
+ * @usedIn
+ * - src/contexts/storage-context.tsx: Creates providers for React context
+ * - src/app/api/storage: Server-side storage operations
+ * - src/components/library/library.tsx: Client-side storage access
+ * - src/lib/storage/server-provider.ts: Server-side provider creation
+ * 
+ * @dependencies
+ * - @/lib/storage/types: StorageProvider interface and types
+ * - @/lib/storage/filesystem-provider: Local filesystem implementation
+ * - @/lib/storage/onedrive-provider: OneDrive implementation
+ * - @/types/library: ClientLibrary type definition
+ * - @/lib/debug/logger: Authentication logging
+ */
+
 import { StorageProvider, StorageItem, StorageValidationResult } from './types';
 import { ClientLibrary } from '@/types/library';
 import { OneDriveProvider } from './onedrive-provider';

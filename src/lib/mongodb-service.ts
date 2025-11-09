@@ -1,3 +1,30 @@
+/**
+ * @fileoverview MongoDB Database Service
+ * 
+ * @description
+ * Provides MongoDB connection management and collection access for the application.
+ * Handles connection pooling, error handling, and database operations. Uses singleton
+ * pattern to maintain a single MongoDB client connection across the application.
+ * 
+ * @module core
+ * 
+ * @exports
+ * - connectToDatabase(): Establishes connection to MongoDB database
+ * - getCollection(): Retrieves a collection from the database
+ * 
+ * @usedIn
+ * - src/lib/services/library-service.ts: Library data operations
+ * - src/lib/db/chats-repo.ts: Chat repository operations
+ * - src/lib/db/queries-repo.ts: Query repository operations
+ * - src/lib/external-jobs-repository.ts: External jobs repository
+ * - src/lib/event-job-repository.ts: Event job repository
+ * - src/app/api: API routes use database collections
+ * 
+ * @dependencies
+ * - mongodb: MongoDB Node.js driver
+ * - dotenv: Environment variable loading
+ */
+
 import { MongoClient, Db, Collection, Document } from 'mongodb';
 import * as dotenv from 'dotenv';
 

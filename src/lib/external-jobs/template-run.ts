@@ -1,3 +1,27 @@
+/**
+ * @fileoverview External Jobs Template Run - Template Transformation Execution
+ * 
+ * @description
+ * Executes template transformation via Secretary Service. Calls the template transformer
+ * endpoint with extracted text and template content, normalizes the structured data response,
+ * and returns frontmatter metadata. Handles response parsing and error cases.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - runTemplateTransform: Executes template transformation
+ * 
+ * @usedIn
+ * - src/app/api/external/jobs/[jobId]/route.ts: Job callback uses template runner
+ * 
+ * @dependencies
+ * - @/lib/secretary/adapter: Secretary Service adapter for API calls
+ * - @/lib/env: Environment helpers for Secretary config
+ * - @/lib/external-jobs-repository: Job repository for logging
+ * - @/lib/external-jobs-log-buffer: Log buffering
+ * - @/types/external-jobs: Template run types
+ */
+
 import type { TemplateRunArgs, TemplateRunResult, Frontmatter } from '@/types/external-jobs'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'

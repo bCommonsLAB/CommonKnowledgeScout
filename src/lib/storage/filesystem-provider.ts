@@ -1,3 +1,28 @@
+/**
+ * @fileoverview File System Provider - Local Filesystem Storage Implementation
+ * 
+ * @description
+ * FileSystemProvider implements the StorageProvider interface for local filesystems.
+ * Uses an intelligent ID system and caching for optimal performance. Provides stable,
+ * unique IDs for files and folders that persist across moves and updates.
+ * 
+ * @module storage
+ * 
+ * @exports
+ * - FileSystemProvider: Local filesystem storage provider implementation
+ * 
+ * @usedIn
+ * - src/lib/storage/storage-factory.ts: Created by factory for local storage libraries
+ * - src/app/api/storage/filesystem/route.ts: Server-side filesystem operations
+ * 
+ * @dependencies
+ * - @/lib/storage/types: StorageProvider interface and types
+ * - fs/promises: Node.js filesystem operations
+ * - path: Path manipulation utilities
+ * - mime-types: MIME type detection
+ * - crypto: Hash generation for file IDs
+ */
+
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError } from './types';
 import * as fs from 'fs/promises';
 import { Stats } from 'fs';

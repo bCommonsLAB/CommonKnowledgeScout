@@ -1,3 +1,34 @@
+/**
+ * @fileoverview Document Metadata Repository - MongoDB Repository for Document Metadata
+ * 
+ * @description
+ * Repository for managing document metadata in MongoDB. Handles CRUD operations for
+ * document metadata, supports facet-based filtering, and provides optimized queries
+ * with dynamic facet indexes. Uses per-library or per-tenant collection strategies
+ * for data isolation.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - computeDocMetaCollectionName: Computes collection name for library/tenant
+ * - ensureFacetIndexes: Ensures facet indexes exist for dynamic facets
+ * - upsertDocMeta: Upserts document metadata
+ * - findDocs: Finds documents with filtering and pagination
+ * - deleteDocMeta: Deletes document metadata
+ * 
+ * @usedIn
+ * - src/lib/chat/retrievers/summaries-mongo.ts: Summary retriever uses repository
+ * - src/lib/chat/ingestion-service.ts: Ingestion service uses repository
+ * - src/app/api/chat: Chat API routes may use repository
+ * 
+ * @dependencies
+ * - @/lib/mongodb-service: MongoDB connection and collection access
+ * - @/types/doc-meta: DocMeta type definitions
+ * - @/lib/chat/dynamic-facets: Facet definition types
+ * - mongodb: MongoDB driver types
+ * - crypto: Hash generation for collection names
+ */
+
 import type { Collection, Document } from 'mongodb'
 import { getCollection } from '@/lib/mongodb-service'
 import type { DocMeta } from '@/types/doc-meta'

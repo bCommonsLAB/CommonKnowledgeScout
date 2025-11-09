@@ -1,3 +1,29 @@
+/**
+ * @fileoverview Chat Loader - Library Chat Context Loading
+ * 
+ * @description
+ * Loads library chat context including library configuration, vector index name, and
+ * normalized chat configuration. Handles both authenticated users and anonymous users
+ * (for public libraries). Supports loading by library ID or slug name.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - loadLibraryChatContext: Main function to load library chat context
+ * - LibraryChatContext: Interface for library chat context
+ * 
+ * @usedIn
+ * - src/app/api/chat/[libraryId]/stream/route.ts: Chat endpoint loads context
+ * - src/lib/chat/orchestrator.ts: Orchestrator uses context
+ * - src/lib/chat/retrievers: Retrievers use context for configuration
+ * 
+ * @dependencies
+ * - @/lib/services/library-service: Library service for loading libraries
+ * - @/lib/mongodb-service: MongoDB access for public library lookup
+ * - @/lib/chat/config: Chat configuration normalization
+ * - @/types/library: Library type definitions
+ */
+
 import { Library } from '@/types/library'
 import { LibraryService, type UserLibraries } from '@/lib/services/library-service'
 import { normalizeChatConfig, getVectorIndexForLibrary } from '@/lib/chat/config'

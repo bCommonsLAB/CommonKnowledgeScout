@@ -1,3 +1,28 @@
+/**
+ * @fileoverview Libraries API Route - Library Management Endpoints
+ * 
+ * @description
+ * API route handler for library management operations. Provides CRUD operations for libraries
+ * including getting user libraries, creating new libraries, and updating existing libraries.
+ * Handles authentication and user email extraction for library ownership.
+ * 
+ * @module library
+ * 
+ * @exports
+ * - GET: Get all libraries for the current user
+ * - POST: Create or update a library
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/libraries
+ * - src/components/settings/library-form.tsx: Settings form calls this API
+ * - src/contexts/storage-context.tsx: Storage context loads libraries from this API
+ * 
+ * @dependencies
+ * - @clerk/nextjs/server: Authentication utilities
+ * - @/lib/services/library-service: Library service for CRUD operations
+ * - @/types/library: Library type definitions
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { LibraryService } from '@/lib/services/library-service';
 import { auth, currentUser } from '@clerk/nextjs/server';

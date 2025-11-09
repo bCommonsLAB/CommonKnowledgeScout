@@ -1,3 +1,26 @@
+/**
+ * @fileoverview Event Job Management API Route - Individual Job Operations
+ * 
+ * @description
+ * API endpoint for managing individual event jobs. Provides GET for job details,
+ * DELETE for job deletion, and PATCH for job updates. Handles authentication
+ * and job access control.
+ * 
+ * @module event-job
+ * 
+ * @exports
+ * - GET: Retrieves job details
+ * - DELETE: Deletes a job
+ * - PATCH: Updates a job
+ * 
+ * @usedIn
+ * - Next.js framework: Route handler for /api/event-job/jobs/[jobId]
+ * - src/components/event-monitor: Event monitor components call this endpoint
+ * 
+ * @dependencies
+ * - @/lib/event-job-repository: Event job repository for operations
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { EventJobRepository } from '@/lib/event-job-repository';
 

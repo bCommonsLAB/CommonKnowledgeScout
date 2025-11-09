@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSetAtom } from 'jotai';
 import { upsertJobStatusAtom } from '@/atoms/job-status';
 import { cn } from "@/lib/utils";
@@ -200,7 +200,7 @@ export function JobMonitorPanel() {
     return () => { active = false; clearInterval(t); };
   }, [isOpen, liveUpdates]);
 
-  const refreshNow = async () => {
+  const refreshNow = useCallback(async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
@@ -216,7 +216,7 @@ export function JobMonitorPanel() {
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [isRefreshing, statusFilter, batchFilter]);
 
   // SSE verbinden nur wenn Panel geöffnet ist und Live-Updates aktiv sind; bei Schließen sofort beenden
   useEffect(() => {
@@ -349,7 +349,7 @@ export function JobMonitorPanel() {
       if (eventRef.current) try { eventRef.current.close(); } catch {}
       window.removeEventListener('job_update_local', onLocal as unknown as EventListener);
     };
-  }, [isOpen, liveUpdates, upsertJobStatus, statusFilter, batchFilter]);
+  }, [isOpen, liveUpdates, upsertJobStatus, statusFilter, batchFilter, refreshNow]);
 
   const handleToggle = () => setIsOpen(v => !v);
   const queuedCount = items.filter(i => i.status === 'queued').length;
@@ -390,7 +390,7 @@ export function JobMonitorPanel() {
     const unsub = () => { lastEventTsRef.current = Date.now(); };
     window.addEventListener('job_update_local', unsub as unknown as EventListener);
     return () => { clearInterval(timer); window.removeEventListener('job_update_local', unsub as unknown as EventListener); };
-  }, [isOpen, liveUpdates]);
+  }, [isOpen, liveUpdates, refreshNow]);
 
   function JobTypeIcon({ jobType }: { jobType?: string }) {
     const type = (jobType || '').toLowerCase();

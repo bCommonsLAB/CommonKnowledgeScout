@@ -1,3 +1,29 @@
+/**
+ * @fileoverview Root Layout Component - Application Shell
+ * 
+ * @description
+ * The root layout component for the Next.js application. Provides the application shell
+ * with authentication (Clerk), theming, storage context, and layout components.
+ * Handles build-time rendering without Clerk and runtime rendering with full providers.
+ * 
+ * @module core
+ * 
+ * @exports
+ * - default: RootLayout component
+ * - metadata: Page metadata for SEO
+ * 
+ * @usedIn
+ * - Next.js framework: Automatically wraps all pages
+ * - All pages: Inherit layout structure and providers
+ * 
+ * @dependencies
+ * - @clerk/nextjs: Clerk authentication provider
+ * - @/components/theme-provider: Theme management
+ * - @/contexts/storage-context: Storage context provider
+ * - @/components/layouts/app-layout: Main application layout
+ * - @/components/layouts/home-layout: Home page layout
+ */
+
 import "@/styles/globals.css"
 import { GeistSans } from 'geist/font/sans';
 import { ThemeProvider } from "@/components/theme-provider"

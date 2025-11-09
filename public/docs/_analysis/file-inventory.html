@@ -1,0 +1,2989 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/_analysis/file-inventory.html">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>File Inventory - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/print-site.css">
+    
+      <link rel="stylesheet" href="../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#file-inventory" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              File Inventory
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Overview
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/intro.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intro
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/features.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/architecture.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/core-components.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Core Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/setup.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/getting-started.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/settings.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/library.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using the Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/event-monitor.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Event Monitor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/batch-session-import.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Session Import
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/troubleshooting.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/faq.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Use Cases
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Use Cases
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/library-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/file-transformation-pdf.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/file-transformation-media.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Media Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/web-scraping.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Web Scraping
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/publishing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Publishing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/chat-exploration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/batch-operations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Operations
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/storage-provider.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage Provider
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/localstorage.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileSystem (Local)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/image-transformation.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/pdf/extraction-methods.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Extraction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/metadata.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/overview.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/global-state.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Global State
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/header.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Header
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/breadcrumb.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Breadcrumb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-tree.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileTree
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-list.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileList
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/upload.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upload
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-preview.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FilePreview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transcription.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transform.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transform
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/batch-transcription.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/error-handling-logging-testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Error Handling & Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/initialization-sequence.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Initialization
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/components.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/shadowtwins.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/extended-shadowtwin.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extended Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/transformation-service.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transformation Service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/video-transformation.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/glossary.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/secretary-services.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secretary Services
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/track-processor.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Track Processor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chat-response-generation-process.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Operations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Operations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/deployment/docker.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/quick-setup.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Quick Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/package-strategy.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Package Strategy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      Entry Points
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-routes" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Routes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Routes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authentication
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chat-api-srcappapichatlibraryid" class="md-nav__link">
+    <span class="md-ellipsis">
+      Chat API (src/app/api/chat/[libraryId]/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-jobs-srcappapievent-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event Jobs (src/app/api/event-job/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-jobs-srcappapiexternaljobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      External Jobs (src/app/api/external/jobs/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#libraries-srcappapilibraries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Libraries (src/app/api/libraries/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#public-api-srcappapipublic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Public API (src/app/api/public/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretary-srcappapisecretary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Secretary (src/app/api/secretary/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sessions-srcappapisessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sessions (src/app/api/sessions/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storage-srcappapistorage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Storage (src/app/api/storage/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-api-routes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Other API Routes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pages-srcapp" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pages (src/app/)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pages (src/app/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#main-pages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Main Pages
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#settings-pages-srcappsettings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Settings Pages (src/app/settings/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-pages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Other Pages
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error-pages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error Pages
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-app-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Other App Files
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#components-srccomponents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Components (src/components/)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Components (src/components/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#library-components-srccomponentslibrary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Library Components (src/components/library/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#library-chat-components-srccomponentslibrarychat" class="md-nav__link">
+    <span class="md-ellipsis">
+      Library Chat Components (src/components/library/chat/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#library-story-components-srccomponentslibrarystory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Library Story Components (src/components/library/story/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#settings-components-srccomponentssettings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Settings Components (src/components/settings/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-monitor-components-srccomponentsevent-monitor" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event Monitor Components (src/components/event-monitor/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#home-components-srccomponentshome" class="md-nav__link">
+    <span class="md-ellipsis">
+      Home Components (src/components/home/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shared-components-srccomponentsshared" class="md-nav__link">
+    <span class="md-ellipsis">
+      Shared Components (src/components/shared/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui-components-srccomponentsui" class="md-nav__link">
+    <span class="md-ellipsis">
+      UI Components (src/components/ui/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Other Components
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#library-code-srclib" class="md-nav__link">
+    <span class="md-ellipsis">
+      Library Code (src/lib/)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Library Code (src/lib/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#storage-srclibstorage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Storage (src/lib/storage/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chat-srclibchat" class="md-nav__link">
+    <span class="md-ellipsis">
+      Chat (src/lib/chat/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-jobs-srclibexternal-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      External Jobs (src/lib/external-jobs/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretary-srclibsecretary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Secretary (src/lib/secretary/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-srclibdb" class="md-nav__link">
+    <span class="md-ellipsis">
+      Database (src/lib/db/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#services-srclibservices" class="md-nav__link">
+    <span class="md-ellipsis">
+      Services (src/lib/services/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session-srclibsession" class="md-nav__link">
+    <span class="md-ellipsis">
+      Session (src/lib/session/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transform-srclibtransform" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transform (src/lib/transform/)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-library-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Other Library Files
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#types-srctypes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Types (src/types/)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hooks-srchooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hooks (src/hooks/)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#atoms-srcatoms" class="md-nav__link">
+    <span class="md-ellipsis">
+      Atoms (src/atoms/)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contexts-srccontexts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contexts (src/contexts/)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#providers-srcproviders" class="md-nav__link">
+    <span class="md-ellipsis">
+      Providers (src/providers/)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Notes
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="file-inventory">File Inventory<a class="headerlink" href="#file-inventory" title="Permanent link">&para;</a></h1>
+<p>This document provides a complete inventory of all source files in the <code>src/</code> directory, categorized by type and purpose.</p>
+<p><strong>Total Files</strong>: ~424 files (233 .ts files + 191 .tsx files)</p>
+<h2 id="entry-points">Entry Points<a class="headerlink" href="#entry-points" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>File Path</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/middleware.ts</code></td>
+<td>Middleware</td>
+<td>Authentication and routing middleware</td>
+</tr>
+<tr>
+<td><code>src/app/layout.tsx</code></td>
+<td>Layout</td>
+<td>Root layout component</td>
+</tr>
+<tr>
+<td><code>src/instrumentation.ts</code></td>
+<td>Instrumentation</td>
+<td>Next.js instrumentation</td>
+</tr>
+</tbody>
+</table>
+<h2 id="api-routes">API Routes<a class="headerlink" href="#api-routes" title="Permanent link">&para;</a></h2>
+<h3 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/app/api/auth/onedrive/callback/route.ts</code></li>
+<li><code>src/app/api/auth/onedrive/refresh/route.ts</code></li>
+<li><code>src/app/api/auth-test/route.ts</code></li>
+</ul>
+<h3 id="chat-api-srcappapichatlibraryid">Chat API (<code>src/app/api/chat/[libraryId]/</code>)<a class="headerlink" href="#chat-api-srcappapichatlibraryid" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>adhoc/route.ts</code> - Ad-hoc chat operations</li>
+<li><code>analyze-chapters/route.ts</code> - Chapter analysis</li>
+<li><code>chats/[chatId]/route.ts</code> - Individual chat operations</li>
+<li><code>chats/route.ts</code> - Chat list operations</li>
+<li><code>config/route.ts</code> - Chat configuration</li>
+<li><code>doc-meta/route.ts</code> - Document metadata</li>
+<li><code>docs/route.ts</code> - Document operations</li>
+<li><code>document-status/route.ts</code> - Document status check</li>
+<li><code>facets/route.ts</code> - Facet operations</li>
+<li><code>file-status/route.ts</code> - File status check</li>
+<li><code>index/route.ts</code> - Index operations</li>
+<li><code>index-status/route.ts</code> - Index status check</li>
+<li><code>ingest/route.ts</code> - Ingestion operations</li>
+<li><code>ingestion-status/route.ts</code> - Ingestion status</li>
+<li><code>ingest-markdown/route.ts</code> - Markdown ingestion</li>
+<li><code>queries/[queryId]/explain/route.ts</code> - Query explanation</li>
+<li><code>queries/[queryId]/route.ts</code> - Individual query operations</li>
+<li><code>queries/route.ts</code> - Query list operations</li>
+<li><code>route.ts</code> - Main chat route</li>
+<li><code>stats/route.ts</code> - Chat statistics</li>
+<li><code>stream/route.ts</code> - Chat streaming endpoint</li>
+<li><code>toc-cache/route.ts</code> - Table of contents cache</li>
+<li><code>upsert-doc-meta/route.ts</code> - Upsert document metadata</li>
+<li><code>upsert-file/route.ts</code> - Upsert file</li>
+</ul>
+<h3 id="event-jobs-srcappapievent-job">Event Jobs (<code>src/app/api/event-job/</code>)<a class="headerlink" href="#event-jobs-srcappapievent-job" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>batches/[batchId]/archive/route.ts</code></li>
+<li><code>batches/[batchId]/archive-status/route.ts</code></li>
+<li><code>batches/[batchId]/change-language/route.ts</code></li>
+<li><code>batches/[batchId]/jobs/route.ts</code></li>
+<li><code>batches/[batchId]/restart/route.ts</code></li>
+<li><code>batches/[batchId]/route.ts</code></li>
+<li><code>batches/[batchId]/toggle-active/route.ts</code></li>
+<li><code>batches/change-language-all/route.ts</code></li>
+<li><code>batches/fail-all/route.ts</code></li>
+<li><code>batches/pending-all/route.ts</code></li>
+<li><code>batches/reset-all/route.ts</code></li>
+<li><code>batches/route.ts</code></li>
+<li><code>events/[eventName]/restart-all-batches/route.ts</code></li>
+<li><code>events/route.ts</code></li>
+<li><code>jobs/[jobId]/download-archive/route.ts</code></li>
+<li><code>jobs/[jobId]/process-direct/route.ts</code></li>
+<li><code>jobs/[jobId]/restart/route.ts</code></li>
+<li><code>jobs/[jobId]/route.ts</code></li>
+</ul>
+<h3 id="external-jobs-srcappapiexternaljobs">External Jobs (<code>src/app/api/external/jobs/</code>)<a class="headerlink" href="#external-jobs-srcappapiexternaljobs" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>[jobId]/download-archive/route.ts</code></li>
+<li><code>[jobId]/markdown/route.ts</code></li>
+<li><code>[jobId]/route.ts</code></li>
+<li><code>[jobId]/start/route.ts</code></li>
+<li><code>[jobId]/trace/route.ts</code></li>
+<li><code>batches/route.ts</code></li>
+<li><code>counters/route.ts</code></li>
+<li><code>internal/create/route.ts</code></li>
+<li><code>retry-batch/route.ts</code></li>
+<li><code>route.ts</code></li>
+<li><code>start-batch/route.ts</code></li>
+<li><code>stream/route.ts</code></li>
+<li><code>worker/route.ts</code></li>
+</ul>
+<h3 id="libraries-srcappapilibraries">Libraries (<code>src/app/api/libraries/</code>)<a class="headerlink" href="#libraries-srcappapilibraries" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>[id]/public/check-slug/route.ts</code></li>
+<li><code>[id]/public/route.ts</code></li>
+<li><code>[id]/route.ts</code></li>
+<li><code>[id]/tokens/route.ts</code></li>
+<li><code>route.ts</code></li>
+</ul>
+<h3 id="public-api-srcappapipublic">Public API (<code>src/app/api/public/</code>)<a class="headerlink" href="#public-api-srcappapipublic" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>libraries/[slug]/route.ts</code></li>
+<li><code>libraries/route.ts</code></li>
+</ul>
+<h3 id="secretary-srcappapisecretary">Secretary (<code>src/app/api/secretary/</code>)<a class="headerlink" href="#secretary-srcappapisecretary" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>import-from-url/route.ts</code></li>
+<li><code>process-audio/route.ts</code></li>
+<li><code>process-image/route.ts</code></li>
+<li><code>process-pdf/batch/route.ts</code></li>
+<li><code>process-pdf/route.ts</code></li>
+<li><code>process-text/route.ts</code></li>
+<li><code>process-video/route.ts</code></li>
+<li><code>session/process/route.ts</code></li>
+<li><code>tracks/[...track]/route.ts</code></li>
+</ul>
+<h3 id="sessions-srcappapisessions">Sessions (<code>src/app/api/sessions/</code>)<a class="headerlink" href="#sessions-srcappapisessions" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>[id]/route.ts</code></li>
+<li><code>events/route.ts</code></li>
+<li><code>generate-jobs/route.ts</code></li>
+<li><code>route.ts</code></li>
+<li><code>transcript/route.ts</code></li>
+</ul>
+<h3 id="storage-srcappapistorage">Storage (<code>src/app/api/storage/</code>)<a class="headerlink" href="#storage-srcappapistorage" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>filesystem/route.ts</code></li>
+<li><code>filesystem/upload-archive/route.ts</code></li>
+<li><code>route.ts</code></li>
+</ul>
+<h3 id="other-api-routes">Other API Routes<a class="headerlink" href="#other-api-routes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/app/api/add-library/route.ts</code></li>
+<li><code>src/app/api/db-test/route.ts</code></li>
+<li><code>src/app/api/debug-libraries/route.ts</code></li>
+<li><code>src/app/api/env-test/route.ts</code></li>
+<li><code>src/app/api/health/pinecone/route.ts</code></li>
+<li><code>src/app/api/metadata/template/run/route.ts</code></li>
+<li><code>src/app/api/settings/oauth-defaults/route.ts</code></li>
+<li><code>src/app/api/settings/storage-test/route.ts</code></li>
+<li><code>src/app/api/test-route/route.ts</code></li>
+<li><code>src/app/api/teststorage/route.ts</code></li>
+<li><code>src/app/api/user/route.ts</code></li>
+<li><code>src/app/api/user-info/route.ts</code></li>
+<li><code>src/app/api/video/resolve/route.ts</code></li>
+<li><code>src/app/api/video/transcript/route.ts</code></li>
+</ul>
+<h2 id="pages-srcapp">Pages (<code>src/app/</code>)<a class="headerlink" href="#pages-srcapp" title="Permanent link">&para;</a></h2>
+<h3 id="main-pages">Main Pages<a class="headerlink" href="#main-pages" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/app/page.tsx</code> - Home page</li>
+<li><code>src/app/library/page.tsx</code> - Library main page</li>
+<li><code>src/app/library/chat/page.tsx</code> - Chat page</li>
+<li><code>src/app/library/chat/client.tsx</code> - Chat client component</li>
+<li><code>src/app/library/gallery/page.tsx</code> - Gallery page</li>
+<li><code>src/app/library/gallery/client.tsx</code> - Gallery client component</li>
+<li><code>src/app/library/gallery/ensure-library.tsx</code> - Library ensure component</li>
+</ul>
+<h3 id="settings-pages-srcappsettings">Settings Pages (<code>src/app/settings/</code>)<a class="headerlink" href="#settings-pages-srcappsettings" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>appearance/page.tsx</code></li>
+<li><code>chat/page.tsx</code></li>
+<li><code>display/page.tsx</code></li>
+<li><code>layout.tsx</code></li>
+<li><code>library/page.tsx</code></li>
+<li><code>notifications/page.tsx</code></li>
+<li><code>owner/page.tsx</code></li>
+<li><code>page.tsx</code></li>
+<li><code>public/page.tsx</code></li>
+<li><code>secretary-service/page.tsx</code></li>
+<li><code>settings-client.tsx</code></li>
+<li><code>storage/page.tsx</code></li>
+</ul>
+<h3 id="other-pages">Other Pages<a class="headerlink" href="#other-pages" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/app/add-test-library/page.tsx</code></li>
+<li><code>src/app/datenschutz/page.tsx</code></li>
+<li><code>src/app/event-monitor/page.tsx</code></li>
+<li><code>src/app/event-monitor/batches/[batchId]/page.tsx</code></li>
+<li><code>src/app/event-monitor/jobs/[jobId]/page.tsx</code></li>
+<li><code>src/app/explore/[slug]/page.tsx</code></li>
+<li><code>src/app/impressum/page.tsx</code></li>
+<li><code>src/app/rechtliche-hinweise/page.tsx</code></li>
+<li><code>src/app/session-manager/page.tsx</code></li>
+<li><code>src/app/templates/page.tsx</code></li>
+<li><code>src/app/ueber/page.tsx</code></li>
+</ul>
+<h3 id="error-pages">Error Pages<a class="headerlink" href="#error-pages" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/app/global-error.tsx</code></li>
+<li><code>src/app/not-found.tsx</code></li>
+</ul>
+<h3 id="other-app-files">Other App Files<a class="headerlink" href="#other-app-files" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/app/auth/microsoft/callback/route.ts</code></li>
+<li><code>src/app/pdf.worker.mjs/route.ts</code></li>
+</ul>
+<h2 id="components-srccomponents">Components (<code>src/components/</code>)<a class="headerlink" href="#components-srccomponents" title="Permanent link">&para;</a></h2>
+<h3 id="library-components-srccomponentslibrary">Library Components (<code>src/components/library/</code>)<a class="headerlink" href="#library-components-srccomponentslibrary" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>audio-player.tsx</code></li>
+<li><code>audio-recorder-client.tsx</code></li>
+<li><code>audio-transform.tsx</code></li>
+<li><code>book-detail.tsx</code></li>
+<li><code>breadcrumb.tsx</code></li>
+<li><code>chapter-accordion.tsx</code></li>
+<li><code>combined-chat-dialog.tsx</code></li>
+<li><code>document-preview.tsx</code></li>
+<li><code>event-details-accordion.tsx</code></li>
+<li><code>file-category-filter.tsx</code></li>
+<li><code>file-list.tsx</code></li>
+<li><code>file-preview.tsx</code></li>
+<li><code>file-tree.tsx</code></li>
+<li><code>filter-context-bar.tsx</code></li>
+<li><code>image-preview.tsx</code></li>
+<li><code>image-transform.tsx</code></li>
+<li><code>ingestion-book-detail.tsx</code></li>
+<li><code>ingestion-dialog.tsx</code></li>
+<li><code>ingestion-session-detail.tsx</code></li>
+<li><code>ingestion-status.tsx</code></li>
+<li><code>job-report-tab.tsx</code></li>
+<li><code>library.tsx</code> - Main library component</li>
+<li><code>library-header.tsx</code></li>
+<li><code>library-switcher.tsx</code></li>
+<li><code>markdown-audio.tsx</code></li>
+<li><code>markdown-metadata.tsx</code></li>
+<li><code>markdown-preview.tsx</code></li>
+<li><code>pdf-bulk-import-dialog.tsx</code></li>
+<li><code>pdf-canvas-viewer.tsx</code></li>
+<li><code>pdf-phase-settings.tsx</code></li>
+<li><code>pdf-phases-view.tsx</code></li>
+<li><code>pdf-transform.tsx</code></li>
+<li><code>phase-stepper.tsx</code></li>
+<li><code>session-detail.tsx</code></li>
+<li><code>slide-accordion.tsx</code></li>
+<li><code>template-management.tsx</code></li>
+<li><code>text-editor.tsx</code></li>
+<li><code>transcription-dialog.tsx</code></li>
+<li><code>transformation-dialog.tsx</code></li>
+<li><code>transform-result-handler.tsx</code></li>
+<li><code>transform-save-options.tsx</code></li>
+<li><code>types.tsx</code></li>
+<li><code>upload-area.tsx</code></li>
+<li><code>upload-dialog.tsx</code></li>
+<li><code>video-player.tsx</code></li>
+<li><code>video-transform.tsx</code></li>
+</ul>
+<h3 id="library-chat-components-srccomponentslibrarychat">Library Chat Components (<code>src/components/library/chat/</code>)<a class="headerlink" href="#library-chat-components-srccomponentslibrarychat" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>chat-config-bar.tsx</code></li>
+<li><code>chat-config-display.tsx</code></li>
+<li><code>chat-config-popover.tsx</code></li>
+<li><code>chat-conversation-item.tsx</code></li>
+<li><code>chat-document-sources.tsx</code></li>
+<li><code>chat-input.tsx</code></li>
+<li><code>chat-message.tsx</code></li>
+<li><code>chat-messages-list.tsx</code></li>
+<li><code>chat-panel.tsx</code></li>
+<li><code>chat-reference-list.tsx</code></li>
+<li><code>chat-selector.tsx</code></li>
+<li><code>chat-suggested-questions.tsx</code></li>
+<li><code>chat-welcome-assistant.tsx</code></li>
+<li><code>debug-panel.tsx</code></li>
+<li><code>debug-step-table.tsx</code></li>
+<li><code>debug-timeline.tsx</code></li>
+<li><code>debug-trace.tsx</code></li>
+<li><code>processing-logs-dialog.tsx</code></li>
+<li><code>processing-status.tsx</code></li>
+<li><code>query-details-dialog.tsx</code></li>
+<li><code>hooks/use-chat-scroll.ts</code></li>
+<li><code>utils/chat-storage.ts</code></li>
+<li><code>utils/chat-utils.ts</code></li>
+</ul>
+<h3 id="library-story-components-srccomponentslibrarystory">Library Story Components (<code>src/components/library/story/</code>)<a class="headerlink" href="#library-story-components-srccomponentslibrarystory" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>story-header.tsx</code></li>
+<li><code>story-mode-header.tsx</code></li>
+<li><code>story-topics.tsx</code></li>
+</ul>
+<h3 id="settings-components-srccomponentssettings">Settings Components (<code>src/components/settings/</code>)<a class="headerlink" href="#settings-components-srccomponentssettings" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>appearance-form.tsx</code></li>
+<li><code>chat-form.tsx</code></li>
+<li><code>display-form.tsx</code></li>
+<li><code>FacetDefsEditor.tsx</code></li>
+<li><code>library-form.tsx</code></li>
+<li><code>notifications-form.tsx</code></li>
+<li><code>owner-form.tsx</code></li>
+<li><code>public-form.tsx</code></li>
+<li><code>secretary-service-form.tsx</code></li>
+<li><code>sidebar-nav.tsx</code></li>
+<li><code>storage-form.tsx</code></li>
+</ul>
+<h3 id="event-monitor-components-srccomponentsevent-monitor">Event Monitor Components (<code>src/components/event-monitor/</code>)<a class="headerlink" href="#event-monitor-components-srccomponentsevent-monitor" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>batch-archive-dialog.tsx</code></li>
+<li><code>batch-list.tsx</code></li>
+<li><code>batch-process-dialog.tsx</code></li>
+<li><code>event-filter-dropdown.tsx</code></li>
+<li><code>job-archive-test.tsx</code></li>
+<li><code>job-details-panel.tsx</code></li>
+</ul>
+<h3 id="home-components-srccomponentshome">Home Components (<code>src/components/home/</code>)<a class="headerlink" href="#home-components-srccomponentshome" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>conditional-footer.tsx</code></li>
+<li><code>cta-section.tsx</code></li>
+<li><code>footer.tsx</code></li>
+<li><code>hero-section.tsx</code></li>
+<li><code>how-it-works.tsx</code></li>
+<li><code>library-grid.tsx</code></li>
+<li><code>philosophy-section.tsx</code></li>
+</ul>
+<h3 id="shared-components-srccomponentsshared">Shared Components (<code>src/components/shared/</code>)<a class="headerlink" href="#shared-components-srccomponentsshared" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>ai-generated-notice.tsx</code></li>
+<li><code>chat-panel.tsx</code></li>
+<li><code>job-monitor-panel.tsx</code></li>
+<li><code>job-trace.tsx</code></li>
+<li><code>key-value-table.tsx</code></li>
+<li><code>language-switcher.tsx</code></li>
+<li><code>storage-auth-button.tsx</code></li>
+<li><code>trace-viewer.tsx</code></li>
+</ul>
+<h3 id="ui-components-srccomponentsui">UI Components (<code>src/components/ui/</code>)<a class="headerlink" href="#ui-components-srccomponentsui" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>accordion.tsx</code></li>
+<li><code>alert.tsx</code></li>
+<li><code>alert-dialog.tsx</code></li>
+<li><code>avatar.tsx</code></li>
+<li><code>badge.tsx</code></li>
+<li><code>button.tsx</code></li>
+<li><code>calendar.tsx</code></li>
+<li><code>card.tsx</code></li>
+<li><code>chart.tsx</code></li>
+<li><code>checkbox.tsx</code></li>
+<li><code>collapsible.tsx</code></li>
+<li><code>command.tsx</code></li>
+<li><code>context-menu.tsx</code></li>
+<li><code>dialog.tsx</code></li>
+<li><code>dropdown-menu.tsx</code></li>
+<li><code>form.tsx</code></li>
+<li><code>hover-card.tsx</code></li>
+<li><code>input.tsx</code></li>
+<li><code>label.tsx</code></li>
+<li><code>menubar.tsx</code></li>
+<li><code>popover.tsx</code></li>
+<li><code>progress.tsx</code></li>
+<li><code>radio-group.tsx</code></li>
+<li><code>resizable.tsx</code></li>
+<li><code>scroll-area.tsx</code></li>
+<li><code>select.tsx</code></li>
+<li><code>separator.tsx</code></li>
+<li><code>sheet.tsx</code></li>
+<li><code>skeleton.tsx</code></li>
+<li><code>slider.tsx</code></li>
+<li><code>switch.tsx</code></li>
+<li><code>table.tsx</code></li>
+<li><code>tabs.tsx</code></li>
+<li><code>textarea.tsx</code></li>
+<li><code>toast.tsx</code></li>
+<li><code>toaster.tsx</code></li>
+<li><code>tooltip.tsx</code></li>
+<li><code>tree.tsx</code></li>
+<li><code>use-toast.ts</code></li>
+</ul>
+<h3 id="other-components">Other Components<a class="headerlink" href="#other-components" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/components/debug/debug-footer.tsx</code></li>
+<li><code>src/components/debug/debug-footer-client.tsx</code></li>
+<li><code>src/components/debug/debug-footer-wrapper.tsx</code></li>
+<li><code>src/components/event-slides.tsx</code></li>
+<li><code>src/components/event-summary.tsx</code></li>
+<li><code>src/components/icons.tsx</code></li>
+<li><code>src/components/layouts/app-layout.tsx</code></li>
+<li><code>src/components/layouts/home-layout.tsx</code></li>
+<li><code>src/components/login-button.tsx</code></li>
+<li><code>src/components/session/session-event-filter.tsx</code></li>
+<li><code>src/components/session/session-import-modal.tsx</code></li>
+<li><code>src/components/templates/structured-template-editor.tsx</code></li>
+<li><code>src/components/templates/template-management.tsx</code></li>
+<li><code>src/components/theme-provider.tsx</code></li>
+<li><code>src/components/top-nav.tsx</code></li>
+<li><code>src/components/top-nav-wrapper.tsx</code></li>
+</ul>
+<h2 id="library-code-srclib">Library Code (<code>src/lib/</code>)<a class="headerlink" href="#library-code-srclib" title="Permanent link">&para;</a></h2>
+<h3 id="storage-srclibstorage">Storage (<code>src/lib/storage/</code>)<a class="headerlink" href="#storage-srclibstorage" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>filesystem-client.ts</code></li>
+<li><code>filesystem-provider.ts</code></li>
+<li><code>onedrive-provider.ts</code></li>
+<li><code>onedrive-provider-server.ts</code></li>
+<li><code>server-provider.ts</code></li>
+<li><code>shadow-twin.ts</code></li>
+<li><code>storage-factory.ts</code></li>
+<li><code>storage-factory-mongodb.ts</code></li>
+<li><code>storage-service.ts</code></li>
+<li><code>supported-types.ts</code></li>
+<li><code>types.ts</code></li>
+</ul>
+<h3 id="chat-srclibchat">Chat (<code>src/lib/chat/</code>)<a class="headerlink" href="#chat-srclibchat" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>config.ts</code></li>
+<li><code>constants.ts</code></li>
+<li><code>debug-stats.ts</code></li>
+<li><code>dynamic-facets.ts</code></li>
+<li><code>embeddings.ts</code></li>
+<li><code>facets.ts</code></li>
+<li><code>ingestion-service.ts</code></li>
+<li><code>loader.ts</code></li>
+<li><code>orchestrator.ts</code></li>
+<li><code>pinecone.ts</code></li>
+<li><code>vector-stats.ts</code></li>
+<li><code>common/budget.ts</code></li>
+<li><code>common/filters.ts</code></li>
+<li><code>common/llm.ts</code></li>
+<li><code>common/prompt.ts</code></li>
+<li><code>common/question-analyzer.ts</code></li>
+<li><code>common/toc-parser.ts</code></li>
+<li><code>retrievers/chunks.ts</code></li>
+<li><code>retrievers/metadata-extractor.ts</code></li>
+<li><code>retrievers/summaries-mongo.ts</code></li>
+</ul>
+<h3 id="external-jobs-srclibexternal-jobs">External Jobs (<code>src/lib/external-jobs/</code>)<a class="headerlink" href="#external-jobs-srclibexternal-jobs" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>auth.ts</code></li>
+<li><code>chapters.ts</code></li>
+<li><code>complete.ts</code></li>
+<li><code>context.ts</code></li>
+<li><code>images.ts</code></li>
+<li><code>ingest.ts</code></li>
+<li><code>policies.ts</code></li>
+<li><code>preprocess.ts</code></li>
+<li><code>progress.ts</code></li>
+<li><code>provider.ts</code></li>
+<li><code>storage.ts</code></li>
+<li><code>template-decision.ts</code></li>
+<li><code>template-files.ts</code></li>
+<li><code>template-run.ts</code></li>
+</ul>
+<h3 id="secretary-srclibsecretary">Secretary (<code>src/lib/secretary/</code>)<a class="headerlink" href="#secretary-srclibsecretary" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>adapter.ts</code></li>
+<li><code>client.ts</code></li>
+<li><code>constants.ts</code></li>
+<li><code>response-parser.ts</code></li>
+<li><code>types.ts</code></li>
+</ul>
+<h3 id="database-srclibdb">Database (<code>src/lib/db/</code>)<a class="headerlink" href="#database-srclibdb" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>chats-repo.ts</code></li>
+<li><code>queries-repo.ts</code></li>
+</ul>
+<h3 id="services-srclibservices">Services (<code>src/lib/services/</code>)<a class="headerlink" href="#services-srclibservices" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>azure-storage-service.ts</code></li>
+<li><code>library-service.ts</code></li>
+</ul>
+<h3 id="session-srclibsession">Session (<code>src/lib/session/</code>)<a class="headerlink" href="#session-srclibsession" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>session-processor.ts</code></li>
+<li><code>session-utils.ts</code></li>
+</ul>
+<h3 id="transform-srclibtransform">Transform (<code>src/lib/transform/</code>)<a class="headerlink" href="#transform-srclibtransform" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>batch-transform-service.ts</code></li>
+<li><code>image-extraction-service.ts</code></li>
+<li><code>transform-service.ts</code></li>
+</ul>
+<h3 id="other-library-files">Other Library Files<a class="headerlink" href="#other-library-files" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/lib/atoms/library.ts</code></li>
+<li><code>src/lib/auth.ts</code></li>
+<li><code>src/lib/config/azure-storage.ts</code></li>
+<li><code>src/lib/debug/logger.ts</code></li>
+<li><code>src/lib/debug/wdyr.ts</code></li>
+<li><code>src/lib/env.ts</code></li>
+<li><code>src/lib/event-job-repository.ts</code></li>
+<li><code>src/lib/events/job-event-bus.ts</code></li>
+<li><code>src/lib/external-jobs-log-buffer.ts</code></li>
+<li><code>src/lib/external-jobs-repository.ts</code></li>
+<li><code>src/lib/external-jobs-watchdog.ts</code></li>
+<li><code>src/lib/external-jobs-worker.ts</code></li>
+<li><code>src/lib/i18n/hooks.ts</code></li>
+<li><code>src/lib/i18n/index.ts</code></li>
+<li><code>src/lib/i18n/server.ts</code></li>
+<li><code>src/lib/i18n/types.ts</code></li>
+<li><code>src/lib/ingestion/page-split.ts</code></li>
+<li><code>src/lib/library/favorites.ts</code></li>
+<li><code>src/lib/logging/query-logger.ts</code></li>
+<li><code>src/lib/markdown/compose.ts</code></li>
+<li><code>src/lib/markdown/frontmatter.ts</code></li>
+<li><code>src/lib/mongodb-service.ts</code></li>
+<li><code>src/lib/pdf-defaults.ts</code></li>
+<li><code>src/lib/pdfjs-worker-setup.ts</code></li>
+<li><code>src/lib/processing/gates.ts</code></li>
+<li><code>src/lib/processing/phase-policy.ts</code></li>
+<li><code>src/lib/repositories/doc-meta-repo.ts</code></li>
+<li><code>src/lib/session-repository.ts</code></li>
+<li><code>src/lib/templates/placeholders.ts</code></li>
+<li><code>src/lib/test-env.ts</code></li>
+<li><code>src/lib/text/chunk.ts</code></li>
+<li><code>src/lib/utils.ts</code></li>
+<li><code>src/lib/utils/fetch-with-timeout.ts</code></li>
+</ul>
+<h2 id="types-srctypes">Types (<code>src/types/</code>)<a class="headerlink" href="#types-srctypes" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>chat.ts</code></li>
+<li><code>chat-processing.ts</code></li>
+<li><code>chat-response.ts</code></li>
+<li><code>doc-meta.ts</code></li>
+<li><code>event-job.ts</code></li>
+<li><code>external-job.ts</code></li>
+<li><code>external-jobs.ts</code></li>
+<li><code>library.ts</code></li>
+<li><code>query-log.ts</code></li>
+<li><code>retriever.ts</code></li>
+<li><code>session.ts</code></li>
+<li><code>story-topics.ts</code></li>
+<li>Type definitions: <code>@welldone-software__why-did-you-render.d.ts</code>, <code>better-sqlite3.d.ts</code>, <code>pdfjs-dist.d.ts</code>, <code>react-volume-meter.d.ts</code></li>
+</ul>
+<h2 id="hooks-srchooks">Hooks (<code>src/hooks/</code>)<a class="headerlink" href="#hooks-srchooks" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>use-folder-navigation.ts</code></li>
+<li><code>use-selected-file.ts</code></li>
+<li><code>use-storage-provider.tsx</code></li>
+<li><code>use-story-context.ts</code></li>
+<li><code>use-toast.ts</code></li>
+<li><code>use-transcription-twins.ts</code></li>
+</ul>
+<h2 id="atoms-srcatoms">Atoms (<code>src/atoms/</code>)<a class="headerlink" href="#atoms-srcatoms" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>chat-references-atom.ts</code></li>
+<li><code>combined-chat-atom.ts</code></li>
+<li><code>create-library-atom.ts</code></li>
+<li><code>debug-atom.ts</code></li>
+<li><code>event-filter-atom.ts</code></li>
+<li><code>gallery-filters.ts</code></li>
+<li><code>job-status.ts</code></li>
+<li><code>library-atom.ts</code></li>
+<li><code>pdf-defaults.ts</code></li>
+<li><code>pdf-phases.ts</code></li>
+<li><code>pdf-viewer.ts</code></li>
+<li><code>story-context-atom.ts</code></li>
+<li><code>template-atom.ts</code></li>
+<li><code>template-context-atom.ts</code></li>
+<li><code>transcription-options.ts</code></li>
+<li><code>ui-prefs-atom.ts</code></li>
+</ul>
+<h2 id="contexts-srccontexts">Contexts (<code>src/contexts/</code>)<a class="headerlink" href="#contexts-srccontexts" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>storage-context.tsx</code></li>
+</ul>
+<h2 id="providers-srcproviders">Providers (<code>src/providers/</code>)<a class="headerlink" href="#providers-srcproviders" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>debug-provider.tsx</code></li>
+</ul>
+<h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Files are organized by functional area</li>
+<li>API routes follow Next.js App Router conventions</li>
+<li>Components are organized by feature area</li>
+<li>Library code is organized by domain (storage, chat, etc.)</li>
+<li>Type definitions are centralized in <code>src/types/</code></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

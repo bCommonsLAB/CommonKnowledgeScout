@@ -1,6 +1,30 @@
 /**
- * Core library type definitions.
- * Contains all types related to library configuration and management.
+ * @fileoverview Library Type Definitions
+ * 
+ * @description
+ * Contains all TypeScript types and interfaces related to library configuration and management.
+ * Defines library structure, storage configuration, chat configuration, and public publishing
+ * settings. Used throughout the application for type-safe library operations.
+ * 
+ * @module library
+ * 
+ * @exports
+ * - StorageProviderType: Supported storage provider types
+ * - LibraryChatConfig: Chat/RAG configuration per library
+ * - StorageConfig: Storage provider configuration
+ * - Library: Complete library type with all configurations
+ * - ClientLibrary: Client-side library type
+ * - PublicLibraryConfig: Public publishing configuration
+ * 
+ * @usedIn
+ * - src/lib/services/library-service.ts: Library service uses these types
+ * - src/atoms/library-atom.ts: Library state atoms use these types
+ * - src/lib/storage/storage-factory.ts: Storage factory uses library types
+ * - src/components/library: Library components use these types
+ * - src/app/api/libraries: Library API routes use these types
+ * 
+ * @dependencies
+ * - @/lib/chat/constants: Character and SocialContext types
  */
 
 import { ReactNode } from 'react';

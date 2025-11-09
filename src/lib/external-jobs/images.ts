@@ -1,3 +1,27 @@
+/**
+ * @fileoverview External Jobs Images Processing - Image Archive Extraction
+ * 
+ * @description
+ * Processes image archives from Secretary Service. Downloads ZIP archives containing
+ * extracted images, saves them to storage using ImageExtractionService, and associates
+ * them with the original document. Handles URL normalization and authentication.
+ * 
+ * @module external-jobs
+ * 
+ * @exports
+ * - maybeProcessImages: Processes images if archive URL is provided
+ * 
+ * @usedIn
+ * - src/app/api/external/jobs/[jobId]/route.ts: Job callback processes images
+ * 
+ * @dependencies
+ * - @/lib/transform/image-extraction-service: Image extraction service
+ * - @/lib/storage/server-provider: Storage provider creation
+ * - @/lib/env: Environment helpers for Secretary config
+ * - @/lib/external-jobs-log-buffer: Log buffering
+ * - @/types/external-jobs: Images types
+ */
+
 import type { ImagesArgs, ImagesResult } from '@/types/external-jobs'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { getServerProvider } from '@/lib/storage/server-provider'

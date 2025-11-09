@@ -1,3 +1,28 @@
+/**
+ * @fileoverview Chunks Retriever - Semantic Search Retriever for Chunks
+ * 
+ * @description
+ * Implements chunk-based retrieval using Pinecone vector search. Searches for semantically
+ * similar text chunks based on question embeddings. Supports facet filtering and metadata
+ * extraction. Handles both regular chunks and chapter summaries.
+ * 
+ * @module chat
+ * 
+ * @exports
+ * - chunksRetriever: Chunk-based retriever implementation
+ * 
+ * @usedIn
+ * - src/lib/chat/orchestrator.ts: Orchestrator uses retriever for chunk mode
+ * - src/app/api/chat/[libraryId]/stream/route.ts: Chat endpoint uses retriever
+ * 
+ * @dependencies
+ * - @/lib/chat/embeddings: Text embedding generation
+ * - @/lib/chat/pinecone: Pinecone vector search operations
+ * - @/lib/chat/common/budget: Budget management
+ * - @/lib/logging/query-logger: Query logging
+ * - @/lib/chat/retrievers/metadata-extractor: Metadata extraction
+ */
+
 import type { ChatRetriever, RetrieverInput, RetrieverOutput, RetrievedSource } from '@/types/retriever'
 import { embedTexts } from '@/lib/chat/embeddings'
 import { describeIndex, queryVectors, fetchVectors } from '@/lib/chat/pinecone'

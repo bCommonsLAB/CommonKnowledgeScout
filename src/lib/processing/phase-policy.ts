@@ -1,3 +1,31 @@
+/**
+ * @fileoverview Phase Policy - Processing Phase Control Policies
+ * 
+ * @description
+ * Central policy system for controlling processing phases (extract, metadata, ingest).
+ * Defines phase directives (ignore, do, force) and provides utilities for policy
+ * extraction from job parameters. Supports legacy flag conversion and gate-based
+ * phase execution decisions.
+ * 
+ * @module processing
+ * 
+ * @exports
+ * - PhaseDirective: Type for phase directives
+ * - PhasePolicies: Interface for phase policies
+ * - shouldRunWithGate: Determines if phase should run based on gate and directive
+ * - shouldRunExtract: Determines if extraction should run
+ * - legacyToPolicies: Converts legacy flags to policies
+ * - getPolicies: Extracts policies from job parameters
+ * 
+ * @usedIn
+ * - src/lib/external-jobs: External jobs use phase policies
+ * - src/lib/processing/gates.ts: Gates use phase policies
+ * - src/app/api/secretary: Secretary API routes use policies
+ * 
+ * @dependencies
+ * - @/types/external-job: ExternalJob type definitions
+ */
+
 import type { ExternalJob } from '@/types/external-job';
 
 // Zentrale, typisierte Steuerung je Phase

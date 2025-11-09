@@ -4,27 +4,32 @@ Welcome to the Common Knowledge Scout documentation.
 
 ## Quick Start
 
-- [Getting Started](./guide/getting-started.md) - Quick start guide for new users
-- [Using the Library](./guide/library.md) - How to use the library interface
-- [Settings](./guide/settings.md) - Configuration and settings
+- **[Use Cases](use-cases/index.md)** - Step-by-step guides for common tasks
+- **[Architecture](architecture/module-hierarchy.md)** - System architecture and module structure
+- **[Reference](reference/file-index.md)** - Complete file index and API reference
 
-## Workflows
+## Documentation Structure
 
-- [File Transformation](./guide/library.md#transformation) - Transform PDFs, audio, video, and images
-- [Session Manager](./guide/batch-session-import.md) - Web scraping and batch import
-- [Event Monitor](./guide/event-monitor.md) - Job management and event conversion
-- [Gallery Publishing](./guide/settings.md#public-publishing) - Publish content publicly
-- [Chat & Story Mode](./chat-response-generation-process.md) - Query knowledge with RAG
+### Use Cases
+Practical guides for end users:
+- Library Setup
+- File Transformation (PDF, Audio, Video)
+- Web Scraping & Event Import
+- Publishing & Gallery
+- Chat & Story Mode
+- Batch Operations
 
-## Architecture
+### Architecture
+System design and module documentation:
+- Module Hierarchy
+- Dependency Graph
 
-- [Architecture Overview](./architecture/architecture.md) - System architecture
-- [Core Components](./architecture/core-components.md) - Key components
-- [Storage Provider System](./concepts/storage-provider.md) - Storage abstraction layer
+### Reference
+Technical reference documentation:
+- File Index
+- Module Documentation (Storage, Library, Chat)
 
-## Reference
+## Getting Help
 
-- [Troubleshooting](./guide/troubleshooting.md) - Common issues and solutions
-- [FAQ](./guide/faq.md) - Frequently asked questions
-- [API Reference](./reference/api/) - API documentation
+For detailed technical information, see the [Reference Documentation](reference/file-index.md).
 
