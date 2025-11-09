@@ -1,0 +1,2102 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/concepts/pdf/pdf_batch_transformation.html">
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Externe Medien-Transformation (Batch) – Architektur, Webhooks und Speicherung - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../css/print-site.css">
+    
+      <link rel="stylesheet" href="../../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ziel-und-kontext" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Externe Medien-Transformation (Batch) – Architektur, Webhooks und Speicherung
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Overview
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intro
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/features.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/core-components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Core Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using the Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/event-monitor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Event Monitor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/batch-session-import.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Session Import
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/troubleshooting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/faq.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-provider.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage Provider
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../localstorage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileSystem (Local)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../image-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="extraction-methods.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Extraction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/global-state.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Global State
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/header.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Header
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/breadcrumb.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Breadcrumb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/file-tree.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileTree
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/file-list.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileList
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/upload.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upload
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/file-preview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FilePreview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/transform.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transform
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/batch-transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/error-handling-logging-testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Error Handling & Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/initialization-sequence.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Initialization
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/shadowtwins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/extended-shadowtwin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extended Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/transformation-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transformation Service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../video-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/glossary.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/secretary-services.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secretary Services
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/track-processor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Track Processor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../chat-response-generation-process.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Operations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Operations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/deployment/docker.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/desktop/quick-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Quick Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/desktop/package-strategy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Package Strategy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ziel-und-kontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ziel und Kontext
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#varianten-design-optionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Varianten (Design-Optionen)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architekturuberblick" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architekturüberblick
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architekturüberblick">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequenz-einzel-job-worker-secretary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sequenz (Einzel-Job, Worker: secretary)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datenmodell-jobstore-mongodb" class="md-nav__link">
+    <span class="md-ellipsis">
+      Datenmodell (JobStore, MongoDB)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-anderungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      API-Änderungen
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-storage-layer-vereinheitlicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      Server-Storage-Layer (vereinheitlicht)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sicherheit" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sicherheit
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      Logging (Server)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ui-verhalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      UI-Verhalten
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#umsetzungsschritte" class="md-nav__link">
+    <span class="md-ellipsis">
+      Umsetzungsschritte
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bulk-import" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bulk-Import
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uimonitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      UI/Monitoring
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frontmatter-und-inhalte" class="md-nav__link">
+    <span class="md-ellipsis">
+      Frontmatter und Inhalte
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testplan-kritisch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Testplan (kritisch)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#risiken-und-mitigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Risiken und Mitigation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimaler-implementationsschnitt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Minimaler Implementationsschnitt
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>Externe Medien-Transformation (Batch) – Architektur, Webhooks und Speicherung</h1>
+
+<hr />
+<h2 id="ziel-und-kontext">Ziel und Kontext<a class="headerlink" href="#ziel-und-kontext" title="Permanent link">&para;</a></h2>
+<p>Langlaufende Medien-Verarbeitungen (PDF, Audio, Video, Bild, Text) über den Secretary Service sollen robust, wiederaufnehmbar und nutzerfreundlich abgebildet werden – ohne, dass der Client online bleiben muss. Ergebnisse sollen automatisch in der Ziel-Bibliothek landen (lokal oder Cloud wie OneDrive). Zusätzlich benötigen wir Transparenz über den Status einzelner Jobs (wartend, laufend, abgeschlossen, fehlgeschlagen).</p>
+<p>Diese Seite beschreibt ein generisches Konzept, das sowohl für Einzel-Jobs als auch für Bulk-Imports funktioniert. Es priorisiert einfache, robuste Server-Mechanik und minimale Client-Abhängigkeiten und ist kompatibel mit dem generischen JobWorker (Jobs/Batches).</p>
+<h2 id="varianten-design-optionen">Varianten (Design-Optionen)<a class="headerlink" href="#varianten-design-optionen" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Variante A – Direkter Serverspeicher (empfohlen):</li>
+<li>Pro Job wird serverseitig ein Eintrag mit zufälligem Job-Secret erzeugt. Secretary ruft unseren Webhook mit <code>jobId</code> und <code>callback_token</code> auf. Der Webhook speichert sofort ins Ziel (lokal via FileSystemProvider; OneDrive via Server-Writer mit Refresh-Token). Fallback bei Fehler: Puffer in DB.</li>
+<li>Variante B – Hybrid (Server-Puffer + Server-Worker):</li>
+<li>Webhook validiert und legt Ergebnis in DB ab. Ein Server-Worker speichert (mit Refresh-Token) asynchron in die Bibliothek. Bei Engpässen greift der Client optional ein.</li>
+<li>Variante C – Minimal (Client-Speicherung):</li>
+<li>Webhook speichert nur in DB. Ein Client pollt und speichert. Geringe Server-Komplexität, aber abhängig vom Client-Online-Zustand.</li>
+</ul>
+<p>Empfehlung: Variante A. Sie ist am einfachsten im Alltag: Ergebnisse landen auch bei Client-Abbruch automatisch am Ziel.</p>
+<h2 id="architekturuberblick">Architekturüberblick<a class="headerlink" href="#architekturuberblick" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Entities</li>
+<li>Library (lokal/Cloud), ServerStorageProvider (vereinheitlichte Server-API), External Job (Secretary), JobStore (MongoDB), Webhook-Secret pro Job.</li>
+<li>ServerStorageFactory: liefert je Library den passenden Provider (Filesystem/OneDrive/…)</li>
+<li>Prinzip
+  1) Start: Anfrage erzeugt Job (mit <code>jobId</code>, <code>jobSecret</code>, Korrelation).
+  2) Secretary verarbeitet und ruft Webhook mit <code>jobId</code>/<code>callback_token</code>/Payload.
+  3) Webhook validiert und speichert Ergebnis direkt in der Bibliothek. Fehler → Job als „pending-storage“ in DB.
+  4) Statusanzeige visualisiert alle offenen/abgeschlossenen Jobs.</li>
+</ul>
+<h3 id="sequenz-einzel-job-worker-secretary">Sequenz (Einzel-Job, Worker: secretary)<a class="headerlink" href="#sequenz-einzel-job-worker-secretary" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+  autonumber
+  participant UI as UI (Client)
+  participant API as App API
+  participant SEC as Secretary Service
+  participant WH as Webhook (/api/external/webhook)
+  participant SP as Storage Provider (Server)
+  participant DB as JobStore (Mongo)
+
+  UI-&gt;&gt;API: POST /api/external/secretary/process-{media}
+  API-&gt;&gt;DB: create Job { jobId, jobSecret, correlation, job_type, operation, worker }
+  API-&gt;&gt;SEC: forward (payload, jobId, callback_url, callback_token=jobSecret)
+  SEC--&gt;&gt;WH: POST callback (jobId, callback_token, payload)
+  WH-&gt;&gt;DB: validate jobId + token, mark running
+  WH-&gt;&gt;SP: save shadow twin (+ images optional) via ServerStorageProvider
+  SP--&gt;&gt;WH: savedItem
+  WH-&gt;&gt;DB: mark completed (saved refs)
+  UI--&gt;&gt;API: Optional Poll Status
+  API--&gt;&gt;UI: Status/Ergebnis</code></pre>
+<h2 id="datenmodell-jobstore-mongodb">Datenmodell (JobStore, MongoDB)<a class="headerlink" href="#datenmodell-jobstore-mongodb" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Collection: <code>external_jobs</code></li>
+<li><code>jobId: string</code></li>
+<li><code>jobSecretHash: string</code> (kein Klartext; Hash/HMAC)</li>
+<li><code>job_type: 'pdf'|'audio'|'video'|'image'|'text'|'session'|string</code></li>
+<li><code>operation: 'extract'|'transcribe'|'transform'|'summarize'|string</code></li>
+<li><code>worker: 'secretary'|string</code></li>
+<li><code>status: "queued"|"running"|"completed"|"failed"|"pending-storage"</code></li>
+<li><code>libraryId: string</code></li>
+<li><code>correlation: { source: { itemId: string, parentId: string, mediaType?: string, mimeType?: string, name?: string }, options: object }</code></li>
+<li><code>processId?: string</code> (vom externen Worker)</li>
+<li><code>payload?: { extractedText?: string, imagesArchiveData?: string, meta?: object }</code></li>
+<li><code>result?: { savedItemId?: string, savedItems?: string[] }</code></li>
+<li><code>createdAt, updatedAt</code></li>
+</ul>
+<p>Idempotenz: Der Webhook prüft <code>jobId</code> und <code>status</code>; doppelte Calls werden erkannt und ignoriert.</p>
+<h2 id="api-anderungen">API-Änderungen<a class="headerlink" href="#api-anderungen" title="Permanent link">&para;</a></h2>
+<p>1) Proxy-Start (z. B. <code>POST /api/external/secretary/process-{media}</code>)
+   - Vor dem Forward an den Secretary: Job erzeugen (<code>jobId</code>, zufälliges <code>jobSecret</code>).
+   - An Secretary zusätzlich senden (minimiert):
+     - <code>jobId</code>
+     - <code>callback_url = &lt;APP_URL&gt;/api/external/webhook</code>
+     - <code>callback_token = jobSecret</code>
+     - Optional: <code>X-Signature</code> (HMAC über Raw-Body) und <code>X-Timestamp</code> (Replay-Schutz)
+   - Media-spezifisches Payload bleibt pro Endpunkt (z. B. PDF: Datei + extractionMethod/includeImages; Audio/Video: Flags).</p>
+<p>2) Generischer Webhook (<code>POST /api/external/webhook</code>)
+   - Header: <code>X-Worker: secretary</code>, optional <code>X-Signature</code>, <code>X-Timestamp</code>
+   - Body: <code>jobId</code>, <code>callback_token</code>, <code>process</code>, <code>data</code> (z. B. PDF: <code>extracted_text</code>, optional <code>images_archive_data</code>).
+   - Schritte:
+     - Job lookup + Token-Validierung (Hash), optional HMAC-Prüfung, Statuswechsel <code>running</code>.
+     - Interne Parameter (libraryId, correlation.source.parentId, …) ausschließlich aus DB laden.
+     - Ergebnis aufbereiten (Markdown + YAML-Frontmatter).
+     - Speicherung:
+       - Lokal: FileSystemProvider (Shadow Twin + ggf. Bilder in <code>.{basename}</code>).
+       - OneDrive: Server-Writer (Refresh-Token → Access-Token);
+       - Bilder optional via <code>ImageExtractionService.saveZipArchive</code>.
+     - Erfolg: <code>completed</code> (mit Referenzen), Fehler: <code>pending-storage</code> oder <code>failed</code> (mit Error).</p>
+<p>3) Job-Status-API (optional)
+   - <code>GET /api/external/jobs?libraryId=...</code> → offene/zuletzt geänderte Jobs
+   - <code>GET /api/external/jobs/{jobId}</code> → Detailstatus</p>
+<h2 id="server-storage-layer-vereinheitlicht">Server-Storage-Layer (vereinheitlicht)<a class="headerlink" href="#server-storage-layer-vereinheitlicht" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Interface (ServerStorageProvider – Teilmenge von StorageProvider):</li>
+<li><code>uploadFile(parentId: string, file: File)</code></li>
+<li><code>createFolder(parentId: string, name: string)</code></li>
+<li><code>getPathById(itemId: string)</code> (für Logging/Pfade)</li>
+<li>Implementierungen:</li>
+<li>Filesystem: Wrap des bestehenden <code>FileSystemProvider</code> (serverfähig)</li>
+<li>OneDrive: Server-Variante (Access-Token via Refresh; Upload/CreateFolder per Graph API)</li>
+<li>Factory:</li>
+<li><code>ServerStorageFactory.getProvider(library)</code> → liefert passenden Provider anhand <code>library.type</code></li>
+<li>Webhook nutzt ausschließlich den Provider:</li>
+<li>Shadow‑Twin: <code>uploadFile(source.parentId, markdown)</code></li>
+<li>Bilder: <code>createFolder(source.parentId, .{basename})</code>, dann <code>uploadFile(...)</code> je Bild und Seiten‑Markdown</li>
+<li>Keine Provider‑Sonderfälle mehr im Webhook; nur Logs bleiben spezifisch (z. B. IDs/Pfade)</li>
+</ul>
+<h2 id="sicherheit">Sicherheit<a class="headerlink" href="#sicherheit" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Data Minimization: Externe Dienste sehen nur <code>jobId</code>, <code>callback_url</code>, <code>callback_token</code>.</li>
+<li>Pro-Job-Secret (<code>jobSecret</code>) statt globaler Library-Secrets. Speicherung als Hash.</li>
+<li>HTTPS erzwingen; Secret nicht loggen.</li>
+<li>Optional: <code>X-Signature</code> HMAC über Raw-Body + <code>X-Timestamp</code> (Replay‑Schutz).</li>
+<li>Refresh-Token in <code>library.config</code> verschlüsselt (ENV <code>WEBHOOK_KMS_KEY</code>).</li>
+<li>Webhook verarbeitet nur Rückgaben; keine Client-Secrets verlassen den Server.</li>
+</ul>
+<h2 id="logging-server">Logging (Server)<a class="headerlink" href="#logging-server" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Job Logs (DB <code>external_jobs.logs</code>): <code>request_sent</code>, <code>request_ack</code>, <code>webhook_received</code>, <code>stored_local</code>/<code>stored_cloud</code>, <code>images_extracted</code>.</li>
+</ul>
+<h2 id="ui-verhalten">UI-Verhalten<a class="headerlink" href="#ui-verhalten" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Hinweis: Client bleibt storage‑agnostisch; Speicherung läuft vollständig serverseitig über den Provider.</li>
+</ul>
+<h2 id="umsetzungsschritte">Umsetzungsschritte<a class="headerlink" href="#umsetzungsschritte" title="Permanent link">&para;</a></h2>
+<p>1) Interface definieren: <code>ServerStorageProvider</code> (uploadFile, createFolder, getPathById)
+2) Factory implementieren: <code>ServerStorageFactory.getProvider(library)</code>
+3) Provider bauen/anpassen:
+   - Filesystem: Adapter um bestehenden <code>FileSystemProvider</code>
+   - OneDrive: Server‑Provider (Token‑Refresh intern, Upload/CreateFolder via Graph)
+4) Webhook refaktorieren:
+   - Provider über Factory beziehen (statt Branches im Code)
+   - Shadow‑Twin/Bilder nur über Provider‑Methoden speichern
+5) Tests:
+   - Lokal + OneDrive (mit/ohne Bilder) → Logs <code>stored_local</code>/<code>stored_cloud</code>, <code>images_extracted</code>
+   - Fehlerpfade (409/Token‑Refresh) → <code>pending-storage</code>/Retry</p>
+<ul>
+<li>Client zeigt sofort „Job eingereicht“ (Toast) nach <code>accepted</code>; Abschluss/Links via Statusansicht oder Auto-Refresh.</li>
+</ul>
+<h2 id="bulk-import">Bulk-Import<a class="headerlink" href="#bulk-import" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Für jedes enqueued Item (egal welcher Medientyp) entsteht ein eigenständiger Job mit eigenem Secret.</li>
+<li>Secretary erhält eine Liste von Items (oder verarbeitet sequenziell) – der Callback erfolgt pro Item/Job.</li>
+<li>UI zeigt Fortschritt: „Wartend“, „Laufend“, „Fertig“, „Fehler“ inkl. Links zu gespeicherten Items.</li>
+</ul>
+<h2 id="uimonitoring">UI/Monitoring<a class="headerlink" href="#uimonitoring" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Neue Seite „Externe Jobs“ pro Bibliothek (Filter/Sortierung):</li>
+<li>Spalten: Datei (Original), Status, Start/Ende, Prozess-ID, Fehler, Ergebnis-Links.</li>
+<li>Optional: Auto-Refresh.</li>
+</ul>
+<h2 id="frontmatter-und-inhalte">Frontmatter und Inhalte<a class="headerlink" href="#frontmatter-und-inhalte" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Frontmatter-Felder analog <code>TransformService</code> (Quelle, process_id, cache_used, tokens, etc.).</li>
+<li>PDF-Beispiel: Bilder in Ordner <code>.{pdfname-ohne-ext}</code>, Dateien <code>page_###.png/jpg</code> + optionale <code>page_###.{lang}.md</code> (seitenweise Text).</li>
+</ul>
+<h2 id="testplan-kritisch">Testplan (kritisch)<a class="headerlink" href="#testplan-kritisch" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Einzel-Job (PDF) lokal: Secretary ruft Webhook → Shadow-Twin + Bilder vorhanden; Client offline währenddessen.</li>
+<li>Einzel-Job (PDF) OneDrive: Refresh-Token vorhanden → Datei wird hochgeladen; Ordner und Dateinamen korrekt.</li>
+<li>Idempotenz: Doppelte Webhook-Calls ändern Status nicht und erzeugen keine Duplikate.</li>
+<li>Fehlerfall (Rate-Limit/Token): Job <code>pending-storage</code>; manuelle Retry-Funktion speichert erfolgreich.</li>
+<li>Bulk: 10–100 PDFs; Statusverläufe korrekt, parallele Jobs kollidieren nicht.</li>
+<li>Sicherheit: Falsches Token → 401; Logs ohne Secret.</li>
+</ul>
+<h2 id="risiken-und-mitigation">Risiken und Mitigation<a class="headerlink" href="#risiken-und-mitigation" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Token-Verwaltung: Refresh-Token müssen sicher verschlüsselt sein → ENV-Key-basierte Verschlüsselung, Rotation.</li>
+<li>Graph-API-Limits: Exponentielles Backoff + Retry-Queue.</li>
+<li>Duplikate: Eindeutige Namen, Idempotenz über <code>jobId</code> und vorhandene Datei-Checks.</li>
+<li>Payload-Größen (images_archive_data): Streaming/Chunking möglich; aktuell Base64 bis zu sinnvollen Limits.</li>
+</ul>
+<h2 id="minimaler-implementationsschnitt">Minimaler Implementationsschnitt<a class="headerlink" href="#minimaler-implementationsschnitt" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Proxies (<code>/api/external/secretary/process-{media}</code>): Job anlegen, Callback-Felder mitsenden.</li>
+<li>Webhook (<code>/api/external/webhook</code>): Validieren, speichern (lokal/OneDrive), Job updaten.</li>
+<li>OneDrive-ProviderWriter (Server): Upload/CreateFolder + Token-Refresh</li>
+<li>Monitoring: einfache Jobs-API + Tabelle.</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,2126 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/_analysis/retriever-flows.html">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Retriever flows - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/print-site.css">
+    
+      <link rel="stylesheet" href="../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#zwei-retriever-flows-im-chat-modul-architektur-varianten-plan" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Retriever flows
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Overview
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intro
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/features.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/core-components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Core Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using the Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/event-monitor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Event Monitor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/batch-session-import.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Session Import
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/troubleshooting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/faq.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/storage-provider.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage Provider
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/localstorage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileSystem (Local)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/image-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/pdf/extraction-methods.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Extraction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/global-state.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Global State
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/header.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Header
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/breadcrumb.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Breadcrumb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-tree.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileTree
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-list.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileList
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/upload.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upload
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-preview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FilePreview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transform.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transform
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/batch-transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/error-handling-logging-testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Error Handling & Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/initialization-sequence.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Initialization
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/shadowtwins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/extended-shadowtwin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extended Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/transformation-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transformation Service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/video-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/glossary.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/secretary-services.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secretary Services
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/track-processor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Track Processor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chat-response-generation-process.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Operations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Operations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/deployment/docker.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/quick-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Quick Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/package-strategy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Package Strategy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#zwei-retriever-flows-im-chat-modul-architektur-varianten-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      Zwei Retriever-Flows im Chat-Modul – Architektur, Varianten, Plan
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Zwei Retriever-Flows im Chat-Modul – Architektur, Varianten, Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ausgangslage-heute" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ausgangslage (heute)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anforderungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Anforderungen
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zielarchitektur" class="md-nav__link">
+    <span class="md-ellipsis">
+      Zielarchitektur
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Zielarchitektur">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kern-schnittstellen-typescript-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      Kern-Schnittstellen (TypeScript-Interfaces)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modulstruktur-dateien" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modulstruktur (Dateien)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flow-beschreibungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Flow-Beschreibungen
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Flow-Beschreibungen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-chunk-retriever-klassischer-rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      1) Chunk-Retriever (klassischer RAG)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-summary-retriever-kapitel-summaries-als-gesamt-kontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      2) Summary-Retriever (Kapitel-Summaries als Gesamt-Kontext)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gemeinsame-utilities-einmalig-implementieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gemeinsame Utilities (einmalig implementieren)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fehlertypen-typed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fehlertypen (typed)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orchestrator-verhalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      Orchestrator-Verhalten
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#varianten-der-umsetzung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Varianten der Umsetzung
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#konkreter-umsetzungsplan-inkrementell-risikoarm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Konkreter Umsetzungsplan (inkrementell, risikoarm)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mongodb-basierter-summary-flow-kapitelschwelle-und-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      MongoDB-basierter Summary-Flow: Kapitel‑Schwelle und Fallback
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>Retriever flows</h1>
+
+<h2 id="zwei-retriever-flows-im-chat-modul-architektur-varianten-plan">Zwei Retriever-Flows im Chat-Modul – Architektur, Varianten, Plan<a class="headerlink" href="#zwei-retriever-flows-im-chat-modul-architektur-varianten-plan" title="Permanent link">&para;</a></h2>
+<p>Ziel: Die zwei konzeptionell unterschiedlichen Retrieval-Methoden klar trennen, robuste Gemeinsame Utilities schaffen und einen Orchestrator etablieren, der je nach Konfiguration/Query-Param den passenden Flow ausführt. So minimieren wir Kopplung, senken Änderungsrisiken und verbessern Debuggability/Tests.</p>
+<h3 id="ausgangslage-heute">Ausgangslage (heute)<a class="headerlink" href="#ausgangslage-heute" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Ein einzelner Route-Handler (<code>src/app/api/chat/[libraryId]/route.ts</code>) enthält beide Pfade:</li>
+<li>Chunk-Flow: Klassische RAG-Suche via Embedding der Frage → Vektor-Query auf Chunks → Nachbarfenster laden → Scoring/Boosts → Quellen-Budget → Prompt → LLM.</li>
+<li>Summary-Flow: Kapitel-Summaries der gefilterten Dokumente listen (ohne Ranking), knappen Gesamt-Kontext bauen → Prompt → LLM.</li>
+<li>Gemeinsame Aspekte (heute verstreut im Handler): Auth/Context-Laden, Facetten/Filter, Budgetsteuerung, Prompt-Erstellung, Logging/Tracing, LLM-Aufruf, Fehlerbehandlung.</li>
+</ul>
+<h3 id="anforderungen">Anforderungen<a class="headerlink" href="#anforderungen" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Saubere Trennung: Jeder Flow in eigener Datei mit klarer, gemeinsamer Schnittstelle.</li>
+<li>Wiederverwendung: Gemeinsame Utilities (Filter, Prompt, Budget, Ranking/Boosting, LLM-Call, Logging-Hooks) nur einmal implementieren.</li>
+<li>Typensicherheit: Strikte Interfaces, typed Errors, kein <code>any</code>.</li>
+<li>Testbarkeit: Unit- und Integrationstests je Flow, Mocks für Vektor-/LLM-Backends.</li>
+<li>Observability: Bestehendes Query-Logging unverändert weiter nutzbar; Orchestrator schreibt die gleichen Schritte.</li>
+</ul>
+<hr />
+<h3 id="zielarchitektur">Zielarchitektur<a class="headerlink" href="#zielarchitektur" title="Permanent link">&para;</a></h3>
+<h4 id="kern-schnittstellen-typescript-interfaces">Kern-Schnittstellen (TypeScript-Interfaces)<a class="headerlink" href="#kern-schnittstellen-typescript-interfaces" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1">// src/types/retriever.ts</span>
+<span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">RetrieverInput</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">libraryId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="nx">userEmail</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="nx">question</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="nx">answerLength</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;kurz&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;mittel&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;ausführlich&#39;</span>
+<span class="w">  </span><span class="nx">filters</span><span class="o">:</span><span class="w"> </span><span class="kt">Record</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">unknown</span><span class="o">&gt;</span><span class="w"> </span><span class="c1">// normalisierte Pinecone-ähnliche Filter</span>
+<span class="w">  </span><span class="nx">queryId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="c1">// für Logging; wird vom Orchestrator gesetzt</span>
+<span class="w">  </span><span class="nx">context</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">vectorIndex</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">RetrievedSource</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="nx">fileName?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="nx">chunkIndex?</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span>
+<span class="w">  </span><span class="nx">score?</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span>
+<span class="w">  </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">RetrieverOutput</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">sources</span><span class="o">:</span><span class="w"> </span><span class="kt">RetrievedSource</span><span class="p">[]</span>
+<span class="w">  </span><span class="nx">timing</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">retrievalMs</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">ChatRetriever</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">retrieve</span><span class="p">(</span><span class="nx">input</span><span class="o">:</span><span class="w"> </span><span class="kt">RetrieverInput</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">RetrieverOutput</span><span class="o">&gt;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h4 id="modulstruktur-dateien">Modulstruktur (Dateien)<a class="headerlink" href="#modulstruktur-dateien" title="Permanent link">&para;</a></h4>
+<ul>
+<li><code>src/lib/chat/orchestrator.ts</code> – Strategy/Delegator, wählt Flow anhand Param/Config und koordiniert Logging + LLM.</li>
+<li><code>src/lib/chat/retrievers/chunks.ts</code> – Implementierung „klassischer RAG“-Flow.</li>
+<li><code>src/lib/chat/retrievers/summaries.ts</code> – Implementierung „Summaries zusammenführen“-Flow.</li>
+<li><code>src/lib/chat/common/filters.ts</code> – URL/Facet → Filter; Normalisierung; Mapping Mongo/Pinecone.</li>
+<li><code>src/lib/chat/common/budget.ts</code> – Zeichen-/Token-Budgets pro Antwortlänge; Reduktionsstrategie.</li>
+<li><code>src/lib/chat/common/prompt.ts</code> – Prompt-Builder (stilabhängig), Context-Composer (Quellenformatierung).</li>
+<li><code>src/lib/chat/common/ranking.ts</code> – Scoring/Boosts (Kapitel-Boost, lexikalischer Zusatz, Sortierung, Nachbarfenster-Bestimmung).</li>
+<li><code>src/lib/chat/common/llm.ts</code> – Provider-agnostischer Chat-Aufruf (zunächst OpenAI), mit einheitlicher Fehlerform.</li>
+<li><code>src/types/retriever.ts</code> – Interfaces (s. oben) und Fehlertypen.</li>
+</ul>
+<p>Hinweis: Bereits vorhandene Bausteine (<code>embedTexts</code>, <code>pinecone</code>-Adapter, <code>query-logger</code>, <code>loader</code>, <code>doc-meta-repo</code>) werden direkt wiederverwendet und nicht verdoppelt.</p>
+<hr />
+<h3 id="flow-beschreibungen">Flow-Beschreibungen<a class="headerlink" href="#flow-beschreibungen" title="Permanent link">&para;</a></h3>
+<h4 id="1-chunk-retriever-klassischer-rag">1) Chunk-Retriever (klassischer RAG)<a class="headerlink" href="#1-chunk-retriever-klassischer-rag" title="Permanent link">&para;</a></h4>
+<p>Schritte:
+1. Frage-Embedding berechnen.
+2. Vektor-Query auf Chunks mit Filtern (Top-K).
+3. Optional: Parallel Kapitel-Summary-Query (Top-K) → Kapitel-Boost-Map aufbauen.
+4. Nachbarfenster für Top-Treffer bestimmen (±w) und vollständige Metadaten via <code>fetchVectors</code> laden.
+5. Scoring-Phase: Kapitel-Boost und leichter lexikalischer Boost anwenden; Sortierung.
+6. Budgetakkumulation: Snippets in Reihenfolge einfügen bis Budget erreicht.
+7. Logging: embed → query(chunks) → query(summary, optional) → fetchNeighbors → KPIs.</p>
+<p>Output: <code>sources[]</code> mit Texten und Metadaten; <code>retrievalMs</code>.</p>
+<h4 id="2-summary-retriever-kapitel-summaries-als-gesamt-kontext">2) Summary-Retriever (Kapitel-Summaries als Gesamt-Kontext)<a class="headerlink" href="#2-summary-retriever-kapitel-summaries-als-gesamt-kontext" title="Permanent link">&para;</a></h4>
+<p>Schritte:
+1. Vektoren listen (oder gefiltert selektieren) und clientseitig nach <code>kind=chapterSummary</code> + Filter einschränken.
+2. Zu den gefundenen Kapiteln ergänzende Metadaten aus <code>doc-meta-repo</code> laden (Titel, ShortTitle, Summary-Felder).
+3. Kurz-Text für jedes Kapitel komponieren (Kapitel-Header, Summary-Content, ggf. Fallbacks).
+4. Budgetakkumulation: Summaries der Reihe nach, bis Zeichenziel erreicht.
+5. Logging: list(summary) → KPIs.</p>
+<p>Output: <code>sources[]</code> als lange, aber komprimierte Kapitelkontexte; <code>retrievalMs</code>.</p>
+<hr />
+<h3 id="gemeinsame-utilities-einmalig-implementieren">Gemeinsame Utilities (einmalig implementieren)<a class="headerlink" href="#gemeinsame-utilities-einmalig-implementieren" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Filter-Normalisierung: Query/Facets → Pinecone-Filter; besondere Regeln für Summary-Flow (libraryId optional).</li>
+<li>Budgetsteuerung: Basierend auf <code>answerLength</code> und adaptiver Reduktion bei LLM-Kontextfehlern.</li>
+<li>Prompt-Builder: Stilhinweise je Antwortlänge; Quellenformatierung einheitlich.</li>
+<li>Ranking/Boosting: Kapitel-Boost aus Summary-Query, lexikalische Zusatzpunkte, Nachbarn (Fenstergröße abhängig von Antwortlänge).</li>
+<li>LLM-Adapter: Einheitliche Schnittstelle, Fehlerklassifizierung, Token-Limits-Handling (Retry mit reduziertem Kontext).</li>
+<li>Logging-Hooks: <code>startQueryLog</code>, <code>logAppend</code>, <code>finalizeQueryLog</code>, <code>failQueryLog</code>, <code>markStepStart/End</code>.</li>
+</ul>
+<hr />
+<h3 id="fehlertypen-typed">Fehlertypen (typed)<a class="headerlink" href="#fehlertypen-typed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>NotAuthenticatedError</code>, <code>MissingApiKeyError</code>, <code>IndexNotFoundError</code>, <code>OpenAIChatError</code>, <code>NoSourcesFoundError</code>.</li>
+<li>Orchestrator mappt bekannte Fehler auf HTTP-Status (401/404/422/429/500) und persistiert sie über <code>failQueryLog</code>.</li>
+</ul>
+<hr />
+<h3 id="orchestrator-verhalten">Orchestrator-Verhalten<a class="headerlink" href="#orchestrator-verhalten" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Liest Request-Parameter (insb. <code>retriever=chunk|doc</code>) und Library-Konfiguration (Default-Mode).</li>
+<li>Initialisiert Logging und übergibt <code>queryId</code> an den gewählten Retriever.</li>
+<li>Übernimmt Prompt-Erstellung, LLM-Aufruf, Budget-Reduktion bei Bedarf sowie finalisiert das Logging.</li>
+<li>Route-Handler wird dadurch dünn (Auth + Param-Parsing + Orchestrator-Aufruf + Response).</li>
+</ul>
+<hr />
+<h3 id="varianten-der-umsetzung">Varianten der Umsetzung<a class="headerlink" href="#varianten-der-umsetzung" title="Permanent link">&para;</a></h3>
+<p>1) Strategy-Pattern mit Interface (empfohlen)
+- Zwei Module implementieren <code>ChatRetriever</code> und werden im Orchestrator registriert.
+- Vorteile: Sehr klare Trennung, einfache Austauschbarkeit, gute Testbarkeit.
+- Nachteile: Ein zusätzlicher Delegationslayer.</p>
+<p>2) Funktionale Pipeline (Steps-Array)
+- Jeder Step ist eine reine Funktion; Flow ist ein Array von Steps, das der Orchestrator ausführt.
+- Vorteile: Hohe Wiederverwendbarkeit und Kombinierbarkeit einzelner Steps.
+- Nachteile: Höhere Komplexität bei State-Passing und Logging-Konsistenz.</p>
+<p>3) Konfigurationsgetriebener Super-Flow
+- Ein „Super“-Retriever mit Flags für „chunk“ vs. „summary“ Pfad; interne if-Zweige und konfigurierbare Steps.
+- Vorteile: Weniger Dateien.
+- Nachteile: Hohe Kopplung, Risiko erneuter Vermischung – explizit nicht empfohlen.</p>
+<p>Entscheidung: Variante 1 (Strategy) – prägnant, modular, minimal-invasiv bei Refactor des Route-Handlers.</p>
+<hr />
+<h3 id="konkreter-umsetzungsplan-inkrementell-risikoarm">Konkreter Umsetzungsplan (inkrementell, risikoarm)<a class="headerlink" href="#konkreter-umsetzungsplan-inkrementell-risikoarm" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Types &amp; Errors anlegen: <code>src/types/retriever.ts</code> (Interfaces, Fehlertypen).</li>
+<li>Shared Utilities: <code>filters.ts</code>, <code>budget.ts</code>, <code>prompt.ts</code>, <code>ranking.ts</code>, <code>llm.ts</code> in <code>src/lib/chat/common/</code>.</li>
+<li>Retriever implementieren:</li>
+<li><code>retrievers/chunks.ts</code> (unter Nutzung bestehender <code>embedTexts</code>, <code>pinecone</code>-Adapter, <code>query-logger</code>).</li>
+<li><code>retrievers/summaries.ts</code> (unter Nutzung <code>listVectors</code>, <code>doc-meta-repo</code>).</li>
+<li>Orchestrator: <code>src/lib/chat/orchestrator.ts</code> – Strategy-Registrierung, Logging-Integration, LLM-Aufruf.</li>
+<li>Route-Refactor: <code>src/app/api/chat/[libraryId]/route.ts</code> auf Orchestrator umstellen (Auth/Params bleiben dort).</li>
+<li>Tests:</li>
+<li>Unit-Tests für Utilities (Budget, Prompt, Ranking).</li>
+<li>Unit-Tests für beide Retriever (Pinecone/LLM gemockt).</li>
+<li>Integrationstest über Orchestrator (beide Flows, Budget-Reduktion, Logging-Schritte).</li>
+<li>Debug-UI: Prüfen, ob Step-Namen/Level konsistent bleiben (sollten sie; keine UI-Änderung nötig).</li>
+<li>Feature-Flag: Default-Flow aus ENV (z. B. <code>CHAT_DEFAULT_RETRIEVER=chunk</code>), Overwrite via Query-Param.</li>
+</ol>
+<p>Akzeptanzkriterien
+- Beide Flows laufen isoliert; Refactor bricht keine bestehende Funktion.
+- Query-Logs behalten kompatible Step-Struktur; Debug-Panel zeigt beide Flows korrekt an.
+- Tests decken zentrale Pfade ab; Linter/Type-Checks sind sauber.</p>
+<p>Risiken &amp; Mitigation
+- <code>listVectors</code>-Kosten im Summary-Flow: ggf. Pagination/Server-Filter ergänzen; harte Obergrenze für Summaries.
+- Kontextlängenfehler: Bereits abgedeckte Reduktionsstrategie; in Tests erzwingen und verifizieren.
+- Filter-Divergenz: Single-Source-of-Truth in <code>filters.ts</code>.</p>
+<p>Rollout
+- Hinter Feature-Flag entwickeln, lokal testen, dann Staging, schließlich Produktion.
+- Metriken beobachten (retrievalMs, llmMs, fehlerhafte Requests, Kontext-Reduktionen).</p>
+<hr />
+<h3 id="mongodb-basierter-summary-flow-kapitelschwelle-und-fallback">MongoDB-basierter Summary-Flow: Kapitel‑Schwelle und Fallback<a class="headerlink" href="#mongodb-basierter-summary-flow-kapitelschwelle-und-fallback" title="Permanent link">&para;</a></h3>
+<p>Motivation: Bei vielen Dokumenten und/oder sehr vielen Kapiteln kann ein Kapitel‑Summaries‑Prompt zu groß werden. Daher entscheidet der Summary‑Retriever dynamisch:
+- Wenn die Summen‑Kapitelanzahl (über gefilterte Dokumente) klein genug ist → Kapitel‑Summaries verwenden.
+- Sonst → auf Dokument‑Summaries zurückfallen.</p>
+<p>Datenquellen (MongoDB)
+- Pro Dokument: <code>chaptersCount</code>, <code>docMetaJson.summary</code>, optional <code>docMetaJson.shortTitle/title</code>, <code>chapters[].summary</code> (falls mitpersistiert), <code>upsertedAt</code>, <code>fileId</code>, <code>fileName</code>, Facetten (<code>authors</code>, <code>region</code>, <code>year</code>, <code>docType</code>, <code>source</code>, <code>tags</code>).</p>
+<p>Konfigurierbare Schwellwerte (ENV)
+- <code>SUMMARY_MAX_DOCS</code> (z. B. 150) – Obergrenze der in Betracht gezogenen Dokumente nach Filterung.
+- <code>SUMMARY_CHAPTERS_THRESHOLD</code> (z. B. 300) – Max. Summe aller Kapitel, ab der auf Doc‑Summaries gewechselt wird.
+- <code>SUMMARY_PER_DOC_CHAPTER_CAP</code> (z. B. 8) – Max. Kapitel pro Dokument, wenn Kapitel‑Summaries genutzt werden.
+- <code>SUMMARY_ESTIMATE_CHARS_PER_CHAPTER</code> (z. B. 800) – Schätzlänge pro Kapitel‑Summary zur Prompt‑Budgetabschätzung.
+- <code>SUMMARY_ESTIMATE_CHARS_PER_DOC</code> (z. B. 1200) – Schätzlänge pro Doc‑Summary.
+- <code>SUMMARY_MAX_PROMPT_CHARS</code> – Abgeleitet vom Antwortlängen‑Budget; aus <code>budget.ts</code> beziehen.</p>
+<p>Entscheidungslogik (vereinfacht)
+<div class="highlight"><pre><span></span><code><span class="kd">function</span><span class="w"> </span><span class="nx">decideSummaryMode</span><span class="p">(</span><span class="nx">docs</span><span class="o">:</span><span class="w"> </span><span class="kt">Array</span><span class="o">&lt;</span><span class="p">{</span><span class="w"> </span><span class="nx">chaptersCount?</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">}</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="nx">budgetChars</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;chapters&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;docs&#39;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">docCap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">env</span><span class="p">.</span><span class="nx">SUMMARY_MAX_DOCS</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">perDocCap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">env</span><span class="p">.</span><span class="nx">SUMMARY_PER_DOC_CHAPTER_CAP</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">chaptersThreshold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">env</span><span class="p">.</span><span class="nx">SUMMARY_CHAPTERS_THRESHOLD</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">perChapterChars</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">env</span><span class="p">.</span><span class="nx">SUMMARY_ESTIMATE_CHARS_PER_CHAPTER</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">perDocChars</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">env</span><span class="p">.</span><span class="nx">SUMMARY_ESTIMATE_CHARS_PER_DOC</span>
+
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">limitedDocs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">docs</span><span class="p">.</span><span class="nx">slice</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="nx">docCap</span><span class="p">)</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">estChapters</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">limitedDocs</span>
+<span class="w">    </span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">d</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nb">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="nx">d</span><span class="p">.</span><span class="nx">chaptersCount</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="mf">0</span><span class="p">),</span><span class="w"> </span><span class="nx">perDocCap</span><span class="p">))</span>
+<span class="w">    </span><span class="p">.</span><span class="nx">reduce</span><span class="p">((</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span>
+
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">estCharsChapters</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">estChapters</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">perChapterChars</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">estCharsDocs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">limitedDocs</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">perDocChars</span>
+
+<span class="w">  </span><span class="c1">// Kapitelmodus nur, wenn unter Kapitel‑Schwelle und im Budget günstiger</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">estChapters</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="nx">chaptersThreshold</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">estCharsChapters</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="nx">budgetChars</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s1">&#39;chapters&#39;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="s1">&#39;docs&#39;</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>Ablauf im Summary‑Retriever (Mongo‑Variante)
+1. Facettenfilter anwenden (Mongo‑Query). Nur benötigte Felder projizieren: <code>fileId</code>, <code>fileName</code>, <code>chaptersCount</code>, <code>docMetaJson.summary</code>, optional <code>chapters.summary</code>, <code>upsertedAt</code>.
+2. Obergrenzen anwenden: <code>SUMMARY_MAX_DOCS</code> (Server‑seitig limitieren, z. B. <code>sort: { upsertedAt: -1 }</code>).
+3. Budget aus Antwortlänge beziehen (<code>budget.ts</code>). Mit <code>decideSummaryMode</code> Modus wählen.
+4. Wenn <code>chapters</code>:
+   - Pro Dokument höchstens <code>SUMMARY_PER_DOC_CHAPTER_CAP</code> Kapitel nehmen.
+   - Kapitel‑Summaries kürzen (Hard Cap, z. B. 800 Zeichen) und mit Titel/Metadaten labeln.
+   - In Reihenfolge akkumulieren, bis Budget.
+   - Logging‑Step: <code>list</code>/<code>summary</code> mit <code>topKReturned = numberOfChaptersUsed</code>.
+5. Wenn <code>docs</code>:
+   - Pro Dokument <code>docMetaJson.summary</code> (oder Short Summary) kürzen (z. B. 1200 Zeichen).
+   - Akkumulieren, bis Budget.
+   - Logging‑Step: <code>list</code>/<code>summary</code> mit <code>topKReturned = numberOfDocsUsed</code>.
+6. Prompt bauen (einheitlicher <code>prompt.ts</code>), LLM aufrufen, Reduktion bei Kontextfehlern aus <code>budget.ts</code> nutzen.</p>
+<p>Selektion/Sortierung
+- Standard: <code>upsertedAt</code> absteigend (neuere zuerst) oder regelbar über ENV.
+- Optional: einfache Heuristik nach Facetten‑Match‑Dichte (keywords/tags) – nur wenn ohne großen Aufwand.</p>
+<p>Fehlerfälle
+- Kein <code>summary</code> vorhanden → kurzer Fallback aus <code>title/shortTitle</code> + <code>docMetaJson.summary</code>‑ähnlichen Feldern; wenn leer: Dokument überspringen.
+- Sehr hohe Dokumentzahl → Harde Caps greifen; Logging vermerkt Trunkierung.</p>
+<p>Beobachtbarkeit
+- Loggt genutzten Modus (<code>mode: 'summaries'</code> bleibt konsistent), zusätzlich <code>decision: 'chapters' | 'docs'</code> in <code>retrieval</code>‑Step‑Metadata aufnehmen.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

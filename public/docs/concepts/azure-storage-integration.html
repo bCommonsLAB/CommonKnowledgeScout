@@ -1,0 +1,2694 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/concepts/azure-storage-integration.html">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Azure Storage Integration für Bilder - Übertragungsanleitung - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/print-site.css">
+    
+      <link rel="stylesheet" href="../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#azure-storage-integration-fur-bilder-ubertragungsanleitung" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Azure Storage Integration für Bilder - Übertragungsanleitung
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Overview
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intro
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/features.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/core-components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Core Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using the Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/event-monitor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Event Monitor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/batch-session-import.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Session Import
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/troubleshooting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/faq.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="storage-provider.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage Provider
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="localstorage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileSystem (Local)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="image-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pdf/extraction-methods.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Extraction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/global-state.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Global State
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/header.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Header
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/breadcrumb.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Breadcrumb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/file-tree.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileTree
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/file-list.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileList
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/upload.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upload
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/file-preview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FilePreview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/transform.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transform
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/batch-transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/error-handling-logging-testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Error Handling & Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/initialization-sequence.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Initialization
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library/components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="features/shadowtwins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="features/extended-shadowtwin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extended Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="features/transformation-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transformation Service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="video-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/glossary.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/secretary-services.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secretary Services
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/track-processor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Track Processor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chat-response-generation-process.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Operations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Operations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/deployment/docker.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/quick-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Quick Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/package-strategy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Package Strategy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ubersicht-der-involvierten-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      Übersicht der involvierten Module
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Übersicht der involvierten Module">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-core-service-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Core Service Module
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Core Service Module">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#srclibservicesazure-storage-servicets" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/lib/services/azure-storage-service.ts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srclibconfigts" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/lib/config.ts
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-api-routes" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. API Routes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. API Routes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#srcappapiuploadroutets" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/app/api/upload/route.ts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srcappapiadminimagesrotateroutets" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/app/api/admin/images/rotate/route.ts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srcappapiadminimagesroutets" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/app/api/admin/images/route.ts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srcappapiadminstorage-cleanuproutets" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/app/api/admin/storage-cleanup/route.ts
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-frontend-komponenten" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Frontend-Komponenten
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Frontend-Komponenten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#srccomponentsimageuploadtsx" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/components/ImageUpload.tsx
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#abhangigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abhängigkeiten
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Abhängigkeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#npm-pakete" class="md-nav__link">
+    <span class="md-ellipsis">
+      NPM-Pakete
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typescript-typen" class="md-nav__link">
+    <span class="md-ellipsis">
+      TypeScript-Typen
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#konfiguration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Konfiguration
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Konfiguration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#umgebungsvariablen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Umgebungsvariablen
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Umgebungsvariablen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#erforderlich" class="md-nav__link">
+    <span class="md-ellipsis">
+      Erforderlich:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optional:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#azure-storage-account-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Azure Storage Account Setup
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-fur-schritt-ubertragung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schritt-für-Schritt Übertragung
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schritt-für-Schritt Übertragung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#schritt-1-dependencies-installieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schritt 1: Dependencies installieren
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schritt-2-konfigurationsdatei-erstellenkopieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schritt 2: Konfigurationsdatei erstellen/kopieren
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schritt-3-azure-storage-service-erstellenkopieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schritt 3: Azure Storage Service erstellen/kopieren
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schritt-4-upload-route-erstellenkopieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schritt 4: Upload-Route erstellen/kopieren
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schritt-5-umgebungsvariablen-konfigurieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schritt 5: Umgebungsvariablen konfigurieren
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schritt-6-frontend-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schritt 6: Frontend-Integration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wichtige-hinweise" class="md-nav__link">
+    <span class="md-ellipsis">
+      Wichtige Hinweise
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Wichtige Hinweise">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sicherheit" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sicherheit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fehlerbehandlung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fehlerbehandlung
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Testing
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lokales-testen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lokales Testen
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Troubleshooting
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#haufige-probleme" class="md-nav__link">
+    <span class="md-ellipsis">
+      Häufige Probleme
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#erweiterte-funktionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Erweiterte Funktionen
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Erweiterte Funktionen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#admin-routes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Admin-Routes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#zusammenfassung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Zusammenfassung
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="azure-storage-integration-fur-bilder-ubertragungsanleitung">Azure Storage Integration für Bilder - Übertragungsanleitung<a class="headerlink" href="#azure-storage-integration-fur-bilder-ubertragungsanleitung" title="Permanent link">&para;</a></h1>
+<p>Diese Dokumentation beschreibt die Azure Storage-Integration für Bilder in diesem Projekt und wie diese in ein anderes Projekt übertragen werden kann.</p>
+<h2 id="ubersicht-der-involvierten-module">Übersicht der involvierten Module<a class="headerlink" href="#ubersicht-der-involvierten-module" title="Permanent link">&para;</a></h2>
+<h3 id="1-core-service-module">1. Core Service Module<a class="headerlink" href="#1-core-service-module" title="Permanent link">&para;</a></h3>
+<h4 id="srclibservicesazure-storage-servicets"><code>src/lib/services/azure-storage-service.ts</code><a class="headerlink" href="#srclibservicesazure-storage-servicets" title="Permanent link">&para;</a></h4>
+<p>Dies ist der zentrale Service für alle Azure Storage-Operationen. Er stellt folgende Funktionen bereit:</p>
+<ul>
+<li><strong>Upload von Bildern</strong>: <code>uploadImage(filename: string, buffer: Buffer): Promise&lt;string&gt;</code></li>
+<li><strong>URL-Generierung</strong>: <code>getImageUrl(filename: string): string</code></li>
+<li><strong>Bilder auflisten</strong>: <code>getStoredImages(): Promise&lt;Array&lt;...&gt;&gt;</code></li>
+<li><strong>Bilder löschen</strong>: <code>deleteImage(imageUrl: string): Promise&lt;boolean&gt;</code></li>
+</ul>
+<h4 id="srclibconfigts"><code>src/lib/config.ts</code><a class="headerlink" href="#srclibconfigts" title="Permanent link">&para;</a></h4>
+<p>Konfigurationsdatei, die die Azure Storage-Einstellungen aus Umgebungsvariablen lädt:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">STORAGE</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">containerName</span><span class="o">:</span><span class="w"> </span><span class="kt">process.env.AZURE_STORAGE_CONTAINER_NAME</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">connectionString</span><span class="o">:</span><span class="w"> </span><span class="kt">process.env.AZURE_STORAGE_CONNECTION_STRING</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">uploadDir</span><span class="o">:</span><span class="w"> </span><span class="kt">process.env.UPLOAD_DIR</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s1">&#39;naturescout&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;azure&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">baseUrl</span><span class="o">:</span><span class="w"> </span><span class="kt">process.env.AZURE_STORAGE_CONNECTION_STRING</span><span class="w"> </span>
+<span class="w">        </span><span class="o">?</span><span class="w"> </span><span class="sb">`https://</span><span class="si">${</span><span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">AZURE_STORAGE_CONNECTION_STRING</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/AccountName=([^;]+)/</span><span class="p">)</span><span class="o">?</span><span class="p">.[</span><span class="mf">1</span><span class="p">]</span><span class="si">}</span><span class="sb">.blob.core.windows.net/</span><span class="si">${</span><span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">AZURE_STORAGE_CONTAINER_NAME</span><span class="si">}</span><span class="sb">`</span>
+<span class="w">        </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="2-api-routes">2. API Routes<a class="headerlink" href="#2-api-routes" title="Permanent link">&para;</a></h3>
+<h4 id="srcappapiuploadroutets"><code>src/app/api/upload/route.ts</code><a class="headerlink" href="#srcappapiuploadroutets" title="Permanent link">&para;</a></h4>
+<p>Hauptroute für den Bild-Upload. Führt folgende Schritte aus:</p>
+<ol>
+<li>Empfängt Bild über FormData</li>
+<li>Verarbeitet Bild mit Sharp (Rotation, Resize, Optimierung)</li>
+<li>Erstellt Low-Resolution-Version (max 360px)</li>
+<li>Lädt beide Versionen in Azure Storage hoch</li>
+<li>Gibt URLs zurück</li>
+</ol>
+<h4 id="srcappapiadminimagesrotateroutets"><code>src/app/api/admin/images/rotate/route.ts</code><a class="headerlink" href="#srcappapiadminimagesrotateroutets" title="Permanent link">&para;</a></h4>
+<p>Admin-Route zum Rotieren von Bildern in Azure Storage.</p>
+<h4 id="srcappapiadminimagesroutets"><code>src/app/api/admin/images/route.ts</code><a class="headerlink" href="#srcappapiadminimagesroutets" title="Permanent link">&para;</a></h4>
+<p>Admin-Route zum Auflisten aller Bilder in Azure Storage.</p>
+<h4 id="srcappapiadminstorage-cleanuproutets"><code>src/app/api/admin/storage-cleanup/route.ts</code><a class="headerlink" href="#srcappapiadminstorage-cleanuproutets" title="Permanent link">&para;</a></h4>
+<p>Admin-Route für Storage-Cleanup und Verwaltung.</p>
+<h3 id="3-frontend-komponenten">3. Frontend-Komponenten<a class="headerlink" href="#3-frontend-komponenten" title="Permanent link">&para;</a></h3>
+<h4 id="srccomponentsimageuploadtsx"><code>src/components/ImageUpload.tsx</code><a class="headerlink" href="#srccomponentsimageuploadtsx" title="Permanent link">&para;</a></h4>
+<p>Client-Komponente für direkten Upload (optional, verwendet SAS-Tokens).</p>
+<h2 id="abhangigkeiten">Abhängigkeiten<a class="headerlink" href="#abhangigkeiten" title="Permanent link">&para;</a></h2>
+<h3 id="npm-pakete">NPM-Pakete<a class="headerlink" href="#npm-pakete" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;@azure/storage-blob&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^12.25.0&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;sharp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^0.33.5&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="typescript-typen">TypeScript-Typen<a class="headerlink" href="#typescript-typen" title="Permanent link">&para;</a></h3>
+<p>Für <code>sharp</code> sind keine zusätzlichen Types nötig (Paket enthält eigene Typen).</p>
+<h2 id="konfiguration">Konfiguration<a class="headerlink" href="#konfiguration" title="Permanent link">&para;</a></h2>
+<h3 id="umgebungsvariablen">Umgebungsvariablen<a class="headerlink" href="#umgebungsvariablen" title="Permanent link">&para;</a></h3>
+<p>Folgende Umgebungsvariablen müssen gesetzt werden:</p>
+<h4 id="erforderlich">Erforderlich:<a class="headerlink" href="#erforderlich" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong><code>AZURE_STORAGE_CONNECTION_STRING</code></strong></li>
+<li>Format: <code>DefaultEndpointsProtocol=https;AccountName=&lt;account&gt;;AccountKey=&lt;key&gt;;EndpointSuffix=core.windows.net</code></li>
+<li>
+<p>Wo zu finden: Azure Portal → Storage Account → Access Keys → Connection String</p>
+</li>
+<li>
+<p><strong><code>AZURE_STORAGE_CONTAINER_NAME</code></strong></p>
+</li>
+<li>Name des Blob-Containers (z.B. <code>biodiv</code>, <code>naturescout</code>)</li>
+<li>Container muss in Azure Storage Account erstellt werden (Blob-Public-Zugriff sollte aktiviert sein)</li>
+</ol>
+<h4 id="optional">Optional:<a class="headerlink" href="#optional" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong><code>UPLOAD_DIR</code></strong></li>
+<li>Unterverzeichnis im Container für Bilder (Standard: <code>naturescout</code>)</li>
+<li>
+<p>Beispiel: Wenn <code>UPLOAD_DIR=naturescout</code>, werden Bilder unter <code>naturescout/1234567890.jpg</code> gespeichert</p>
+</li>
+<li>
+<p><strong><code>NEXT_PUBLIC_MAX_IMAGE_WIDTH</code></strong></p>
+</li>
+<li>
+<p>Maximale Bildbreite nach Verarbeitung (Standard: 2000)</p>
+</li>
+<li>
+<p><strong><code>NEXT_PUBLIC_MAX_IMAGE_HEIGHT</code></strong></p>
+</li>
+<li>
+<p>Maximale Bildhöhe nach Verarbeitung (Standard: 2000)</p>
+</li>
+<li>
+<p><strong><code>NEXT_PUBLIC_MAX_IMAGE_QUALITY</code></strong></p>
+</li>
+<li>JPEG-Qualität 0-1 (Standard: 0.8)</li>
+</ol>
+<h3 id="azure-storage-account-setup">Azure Storage Account Setup<a class="headerlink" href="#azure-storage-account-setup" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Storage Account erstellen</strong> im Azure Portal</li>
+<li><strong>Container erstellen</strong> mit öffentlichem Blob-Zugriff:</li>
+<li>Container-Name festlegen (z.B. <code>biodiv</code>)</li>
+<li>Access Level: <strong>Blob</strong> (öffentlicher Zugriff für einzelne Blobs)</li>
+<li><strong>Connection String kopieren</strong> aus Access Keys</li>
+</ol>
+<h2 id="schritt-fur-schritt-ubertragung">Schritt-für-Schritt Übertragung<a class="headerlink" href="#schritt-fur-schritt-ubertragung" title="Permanent link">&para;</a></h2>
+<h3 id="schritt-1-dependencies-installieren">Schritt 1: Dependencies installieren<a class="headerlink" href="#schritt-1-dependencies-installieren" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>npm<span class="w"> </span>install<span class="w"> </span>@azure/storage-blob<span class="w"> </span>sharp
+<span class="c1"># oder</span>
+pnpm<span class="w"> </span>add<span class="w"> </span>@azure/storage-blob<span class="w"> </span>sharp
+<span class="c1"># oder</span>
+yarn<span class="w"> </span>add<span class="w"> </span>@azure/storage-blob<span class="w"> </span>sharp
+</code></pre></div>
+<h3 id="schritt-2-konfigurationsdatei-erstellenkopieren">Schritt 2: Konfigurationsdatei erstellen/kopieren<a class="headerlink" href="#schritt-2-konfigurationsdatei-erstellenkopieren" title="Permanent link">&para;</a></h3>
+<p>Erstelle <code>src/lib/config.ts</code> (oder passe vorhandene an):</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// Server-side Konfiguration</span>
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">serverConfig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">STORAGE</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">containerName</span><span class="o">:</span><span class="w"> </span><span class="kt">process.env.AZURE_STORAGE_CONTAINER_NAME</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">connectionString</span><span class="o">:</span><span class="w"> </span><span class="kt">process.env.AZURE_STORAGE_CONNECTION_STRING</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">uploadDir</span><span class="o">:</span><span class="w"> </span><span class="kt">process.env.UPLOAD_DIR</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s1">&#39;uploads&#39;</span><span class="p">,</span><span class="w"> </span><span class="c1">// Dein Standard-Verzeichnis</span>
+<span class="w">        </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;azure&#39;</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">baseUrl</span><span class="o">:</span><span class="w"> </span><span class="kt">process.env.AZURE_STORAGE_CONNECTION_STRING</span><span class="w"> </span>
+<span class="w">            </span><span class="o">?</span><span class="w"> </span><span class="sb">`https://</span><span class="si">${</span><span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">AZURE_STORAGE_CONNECTION_STRING</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/AccountName=([^;]+)/</span><span class="p">)</span><span class="o">?</span><span class="p">.[</span><span class="mf">1</span><span class="p">]</span><span class="si">}</span><span class="sb">.blob.core.windows.net/</span><span class="si">${</span><span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">AZURE_STORAGE_CONTAINER_NAME</span><span class="si">}</span><span class="sb">`</span>
+<span class="w">            </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// Validierung auf Server-Seite</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="ow">typeof</span><span class="w"> </span><span class="nb">window</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;undefined&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">serverConfig</span><span class="p">.</span><span class="nx">STORAGE</span><span class="p">.</span><span class="nx">connectionString</span><span class="w"> </span><span class="o">||</span><span class="w"> </span>
+<span class="w">         </span><span class="o">!</span><span class="nx">serverConfig</span><span class="p">.</span><span class="nx">STORAGE</span><span class="p">.</span><span class="nx">containerName</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">console</span><span class="p">.</span><span class="nx">warn</span><span class="p">(</span><span class="s1">&#39;Warnung: Azure Storage Konfiguration ist unvollständig&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="schritt-3-azure-storage-service-erstellenkopieren">Schritt 3: Azure Storage Service erstellen/kopieren<a class="headerlink" href="#schritt-3-azure-storage-service-erstellenkopieren" title="Permanent link">&para;</a></h3>
+<p>Erstelle <code>src/lib/services/azure-storage-service.ts</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BlobServiceClient</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;@azure/storage-blob&#39;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">serverConfig</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;../config&#39;</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">class</span><span class="w"> </span><span class="nx">AzureStorageService</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">private</span><span class="w"> </span><span class="nx">blobServiceClient</span><span class="o">:</span><span class="w"> </span><span class="kt">BlobServiceClient</span><span class="p">;</span>
+<span class="w">  </span><span class="k">private</span><span class="w"> </span><span class="nx">containerClient</span><span class="p">;</span>
+<span class="w">  </span><span class="k">private</span><span class="w"> </span><span class="nx">uploadDir</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="k">private</span><span class="w"> </span><span class="nx">baseUrl</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+
+<span class="w">  </span><span class="kr">constructor</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">serverConfig</span><span class="p">.</span><span class="nx">STORAGE</span><span class="p">.</span><span class="nx">connectionString</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="s1">&#39;Azure Storage connection string ist nicht konfiguriert&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">this</span><span class="p">.</span><span class="nx">blobServiceClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">BlobServiceClient</span><span class="p">.</span><span class="nx">fromConnectionString</span><span class="p">(</span>
+<span class="w">      </span><span class="nx">serverConfig</span><span class="p">.</span><span class="nx">STORAGE</span><span class="p">.</span><span class="nx">connectionString</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">this</span><span class="p">.</span><span class="nx">containerClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">blobServiceClient</span><span class="p">.</span><span class="nx">getContainerClient</span><span class="p">(</span>
+<span class="w">      </span><span class="nx">serverConfig</span><span class="p">.</span><span class="nx">STORAGE</span><span class="p">.</span><span class="nx">containerName</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">this</span><span class="p">.</span><span class="nx">uploadDir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">serverConfig</span><span class="p">.</span><span class="nx">STORAGE</span><span class="p">.</span><span class="nx">uploadDir</span><span class="p">;</span>
+<span class="w">    </span><span class="k">this</span><span class="p">.</span><span class="nx">baseUrl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">serverConfig</span><span class="p">.</span><span class="nx">STORAGE</span><span class="p">.</span><span class="nx">baseUrl</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="nx">uploadImage</span><span class="p">(</span><span class="nx">filename</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">buffer</span><span class="o">:</span><span class="w"> </span><span class="kt">Buffer</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">blobName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="k">this</span><span class="p">.</span><span class="nx">uploadDir</span><span class="si">}</span><span class="sb">/</span><span class="si">${</span><span class="nx">filename</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">blockBlobClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">containerClient</span><span class="p">.</span><span class="nx">getBlockBlobClient</span><span class="p">(</span><span class="nx">blobName</span><span class="p">);</span>
+
+<span class="w">      </span><span class="k">await</span><span class="w"> </span><span class="nx">blockBlobClient</span><span class="p">.</span><span class="nx">uploadData</span><span class="p">(</span><span class="nx">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">blobHTTPHeaders</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="nx">blobContentType</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;image/jpeg&#39;</span><span class="p">,</span>
+<span class="w">          </span><span class="nx">blobCacheControl</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;no-cache, no-store, must-revalidate&#39;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">});</span>
+
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="k">this</span><span class="p">.</span><span class="nx">baseUrl</span><span class="si">}</span><span class="sb">/</span><span class="si">${</span><span class="nx">blobName</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;Fehler beim Upload des Bildes:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="w">      </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="sb">`Upload fehlgeschlagen: </span><span class="si">${</span><span class="nx">error</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="ne">Error</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;Unbekannter Fehler&#39;</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="nx">getImageUrl</span><span class="p">(</span><span class="nx">filename</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="k">this</span><span class="p">.</span><span class="nx">baseUrl</span><span class="si">}</span><span class="sb">/</span><span class="si">${</span><span class="k">this</span><span class="p">.</span><span class="nx">uploadDir</span><span class="si">}</span><span class="sb">/</span><span class="si">${</span><span class="nx">filename</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="nx">getStoredImages</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nb">Array</span><span class="o">&lt;</span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">filename</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">size</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span><span class="w"> </span><span class="nx">lastModified</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">}</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">images</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">dirPrefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="k">this</span><span class="p">.</span><span class="nx">uploadDir</span><span class="si">}</span><span class="sb">/`</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">blob</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">containerClient</span><span class="p">.</span><span class="nx">listBlobsFlat</span><span class="p">({</span><span class="w"> </span><span class="nx">prefix</span><span class="o">:</span><span class="w"> </span><span class="kt">dirPrefix</span><span class="w"> </span><span class="p">}))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="k">this</span><span class="p">.</span><span class="nx">baseUrl</span><span class="si">}</span><span class="sb">/</span><span class="si">${</span><span class="nx">blob</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">blob</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="nx">dirPrefix</span><span class="p">.</span><span class="nx">length</span><span class="p">);</span>
+
+<span class="w">        </span><span class="nx">images</span><span class="p">.</span><span class="nx">push</span><span class="p">({</span><span class="w"> </span>
+<span class="w">          </span><span class="nx">url</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="nx">filename</span><span class="p">,</span>
+<span class="w">          </span><span class="nx">size</span><span class="o">:</span><span class="w"> </span><span class="kt">blob.properties.contentLength</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="mf">0</span><span class="p">,</span>
+<span class="w">          </span><span class="nx">lastModified</span><span class="o">:</span><span class="w"> </span><span class="kt">blob.properties.lastModified?.toISOString</span><span class="p">()</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Date</span><span class="p">().</span><span class="nx">toISOString</span><span class="p">()</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;Fehler beim Abrufen der gespeicherten Bilder:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">images</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="nx">deleteImage</span><span class="p">(</span><span class="nx">imageUrl</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="kt">boolean</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">urlObj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">URL</span><span class="p">(</span><span class="nx">imageUrl</span><span class="p">);</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">pathSegments</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">urlObj</span><span class="p">.</span><span class="nx">pathname</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">);</span>
+
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">containerIndex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pathSegments</span><span class="p">.</span><span class="nx">findIndex</span><span class="p">(</span><span class="nx">segment</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span>
+<span class="w">        </span><span class="nx">segment</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">serverConfig</span><span class="p">.</span><span class="nx">STORAGE</span><span class="p">.</span><span class="nx">containerName</span><span class="p">);</span>
+
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">containerIndex</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="o">-</span><span class="mf">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="sb">`Container </span><span class="si">${</span><span class="nx">serverConfig</span><span class="p">.</span><span class="nx">STORAGE</span><span class="p">.</span><span class="nx">containerName</span><span class="si">}</span><span class="sb"> nicht in URL gefunden`</span><span class="p">);</span>
+<span class="w">      </span><span class="p">}</span>
+
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">blobPath</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pathSegments</span><span class="p">.</span><span class="nx">slice</span><span class="p">(</span><span class="nx">containerIndex</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1</span><span class="p">).</span><span class="nx">join</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">);</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">blockBlobClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">containerClient</span><span class="p">.</span><span class="nx">getBlockBlobClient</span><span class="p">(</span><span class="nx">blobPath</span><span class="p">);</span>
+
+<span class="w">      </span><span class="k">await</span><span class="w"> </span><span class="nx">blockBlobClient</span><span class="p">.</span><span class="ow">delete</span><span class="p">();</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="sb">`Fehler beim Löschen des Bildes </span><span class="si">${</span><span class="nx">imageUrl</span><span class="si">}</span><span class="sb">:`</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="schritt-4-upload-route-erstellenkopieren">Schritt 4: Upload-Route erstellen/kopieren<a class="headerlink" href="#schritt-4-upload-route-erstellenkopieren" title="Permanent link">&para;</a></h3>
+<p>Erstelle <code>src/app/api/upload/route.ts</code> (Next.js App Router):</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">AzureStorageService</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;@/lib/services/azure-storage-service&#39;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="nx">sharp</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;sharp&#39;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">publicConfig</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;@/lib/config&#39;</span><span class="p">;</span><span class="w"> </span><span class="c1">// Falls vorhanden</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">maxWidth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2000</span><span class="p">,</span><span class="w"> </span><span class="nx">maxHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2000</span><span class="p">,</span><span class="w"> </span><span class="nx">quality</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.8</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">publicConfig</span><span class="o">?</span><span class="p">.</span><span class="nx">imageSettings</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">{};</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">LOW_RES_MAX_SIZE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">360</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">POST</span><span class="p">(</span><span class="nx">request</span><span class="o">:</span><span class="w"> </span><span class="kt">Request</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">formData</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">request</span><span class="p">.</span><span class="nx">formData</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">formData</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;image&#39;</span><span class="p">)</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="nx">File</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">file</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">Response</span><span class="p">(</span><span class="s1">&#39;Keine Datei gefunden&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="kt">400</span><span class="w"> </span><span class="p">});</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Buffer</span><span class="p">.</span><span class="kr">from</span><span class="p">(</span><span class="k">await</span><span class="w"> </span><span class="nx">file</span><span class="p">.</span><span class="nx">arrayBuffer</span><span class="p">());</span>
+
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="c1">// Bild-Metadaten ermitteln</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">metadata</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">sharp</span><span class="p">(</span><span class="nx">buffer</span><span class="p">).</span><span class="nx">metadata</span><span class="p">();</span>
+
+<span class="w">      </span><span class="c1">// EXIF-Orientierung korrigieren</span>
+<span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="nx">sharpInstance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">sharp</span><span class="p">(</span><span class="nx">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">failOnError</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">}).</span><span class="nx">rotate</span><span class="p">();</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">rotatedMetadata</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">sharpInstance</span><span class="p">.</span><span class="nx">metadata</span><span class="p">();</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">width</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">rotatedMetadata</span><span class="p">.</span><span class="nx">width</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="mf">0</span><span class="p">;</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">height</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">rotatedMetadata</span><span class="p">.</span><span class="nx">height</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="mf">0</span><span class="p">;</span>
+
+<span class="w">      </span><span class="c1">// Berechne neue Dimensionen</span>
+<span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="nx">newWidth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">width</span><span class="p">;</span>
+<span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="nx">newHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">height</span><span class="p">;</span>
+
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">width</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">width</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">maxWidth</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="nx">newHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">round</span><span class="p">((</span><span class="nx">height</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">maxWidth</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">width</span><span class="p">);</span>
+<span class="w">          </span><span class="nx">newWidth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">maxWidth</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">height</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">maxHeight</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="nx">newWidth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">round</span><span class="p">((</span><span class="nx">width</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">maxHeight</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">height</span><span class="p">);</span>
+<span class="w">          </span><span class="nx">newHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">maxHeight</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">}</span>
+
+<span class="w">      </span><span class="c1">// Format bestimmen</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">outputFormat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">metadata</span><span class="p">.</span><span class="nx">format</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;jpeg&#39;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">metadata</span><span class="p">.</span><span class="nx">format</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;jpg&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">&#39;jpeg&#39;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span>
+<span class="w">                          </span><span class="p">(</span><span class="nx">metadata</span><span class="p">.</span><span class="nx">format</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;png&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">&#39;png&#39;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;jpeg&#39;</span><span class="p">;</span>
+
+<span class="w">      </span><span class="c1">// Bild optimieren</span>
+<span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="nx">processedBuffer</span><span class="p">;</span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">outputFormat</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;jpeg&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">processedBuffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">sharp</span><span class="p">(</span><span class="nx">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">failOnError</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">rotate</span><span class="p">()</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">resize</span><span class="p">(</span><span class="nx">newWidth</span><span class="p">,</span><span class="w"> </span><span class="nx">newHeight</span><span class="p">)</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">jpeg</span><span class="p">({</span><span class="w"> </span><span class="nx">quality</span><span class="o">:</span><span class="w"> </span><span class="kt">Math.round</span><span class="p">(</span><span class="nx">quality</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100</span><span class="p">)</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">toBuffer</span><span class="p">();</span>
+<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">outputFormat</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;png&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">processedBuffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">sharp</span><span class="p">(</span><span class="nx">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">failOnError</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">rotate</span><span class="p">()</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">resize</span><span class="p">(</span><span class="nx">newWidth</span><span class="p">,</span><span class="w"> </span><span class="nx">newHeight</span><span class="p">)</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">png</span><span class="p">({</span><span class="w"> </span><span class="nx">quality</span><span class="o">:</span><span class="w"> </span><span class="kt">Math.round</span><span class="p">(</span><span class="nx">quality</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100</span><span class="p">)</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">toBuffer</span><span class="p">();</span>
+<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">processedBuffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">sharp</span><span class="p">(</span><span class="nx">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">failOnError</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">rotate</span><span class="p">()</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">resize</span><span class="p">(</span><span class="nx">newWidth</span><span class="p">,</span><span class="w"> </span><span class="nx">newHeight</span><span class="p">)</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">jpeg</span><span class="p">({</span><span class="w"> </span><span class="nx">quality</span><span class="o">:</span><span class="w"> </span><span class="kt">Math.round</span><span class="p">(</span><span class="nx">quality</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100</span><span class="p">)</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">toBuffer</span><span class="p">();</span>
+<span class="w">      </span><span class="p">}</span>
+
+<span class="w">      </span><span class="c1">// Low-Resolution Version erstellen</span>
+<span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="nx">lowResWidth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">width</span><span class="p">;</span>
+<span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="nx">lowResHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">height</span><span class="p">;</span>
+
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">width</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">height</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">width</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">LOW_RES_MAX_SIZE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="nx">lowResHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">round</span><span class="p">((</span><span class="nx">height</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">LOW_RES_MAX_SIZE</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">width</span><span class="p">);</span>
+<span class="w">          </span><span class="nx">lowResWidth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">LOW_RES_MAX_SIZE</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">height</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">LOW_RES_MAX_SIZE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="nx">lowResWidth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">round</span><span class="p">((</span><span class="nx">width</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">LOW_RES_MAX_SIZE</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">height</span><span class="p">);</span>
+<span class="w">          </span><span class="nx">lowResHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">LOW_RES_MAX_SIZE</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">}</span>
+
+<span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="nx">lowResBuffer</span><span class="p">;</span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">outputFormat</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;jpeg&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">lowResBuffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">sharp</span><span class="p">(</span><span class="nx">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">failOnError</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">rotate</span><span class="p">()</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">resize</span><span class="p">(</span><span class="nx">lowResWidth</span><span class="p">,</span><span class="w"> </span><span class="nx">lowResHeight</span><span class="p">)</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">jpeg</span><span class="p">({</span><span class="w"> </span><span class="nx">quality</span><span class="o">:</span><span class="w"> </span><span class="kt">Math.round</span><span class="p">(</span><span class="nx">quality</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">80</span><span class="p">)</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">toBuffer</span><span class="p">();</span>
+<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">outputFormat</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;png&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">lowResBuffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">sharp</span><span class="p">(</span><span class="nx">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">failOnError</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">rotate</span><span class="p">()</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">resize</span><span class="p">(</span><span class="nx">lowResWidth</span><span class="p">,</span><span class="w"> </span><span class="nx">lowResHeight</span><span class="p">)</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">png</span><span class="p">({</span><span class="w"> </span><span class="nx">quality</span><span class="o">:</span><span class="w"> </span><span class="kt">Math.round</span><span class="p">(</span><span class="nx">quality</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">80</span><span class="p">)</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">toBuffer</span><span class="p">();</span>
+<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">lowResBuffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">sharp</span><span class="p">(</span><span class="nx">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">failOnError</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">rotate</span><span class="p">()</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">resize</span><span class="p">(</span><span class="nx">lowResWidth</span><span class="p">,</span><span class="w"> </span><span class="nx">lowResHeight</span><span class="p">)</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">jpeg</span><span class="p">({</span><span class="w"> </span><span class="nx">quality</span><span class="o">:</span><span class="w"> </span><span class="kt">Math.round</span><span class="p">(</span><span class="nx">quality</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">80</span><span class="p">)</span><span class="w"> </span><span class="p">})</span>
+<span class="w">          </span><span class="p">.</span><span class="nx">toBuffer</span><span class="p">();</span>
+<span class="w">      </span><span class="p">}</span>
+
+<span class="w">      </span><span class="c1">// In Azure Storage hochladen</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">timestamp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Date</span><span class="p">.</span><span class="nx">now</span><span class="p">();</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">extension</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">outputFormat</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;png&#39;</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">&#39;png&#39;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;jpg&#39;</span><span class="p">;</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">timestamp</span><span class="si">}</span><span class="sb">.</span><span class="si">${</span><span class="nx">extension</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">lowResFilename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">timestamp</span><span class="si">}</span><span class="sb">_low.</span><span class="si">${</span><span class="nx">extension</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">azureStorage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">AzureStorageService</span><span class="p">();</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">azureStorage</span><span class="p">.</span><span class="nx">uploadImage</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">processedBuffer</span><span class="p">);</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">lowResUrl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">azureStorage</span><span class="p">.</span><span class="nx">uploadImage</span><span class="p">(</span><span class="nx">lowResFilename</span><span class="p">,</span><span class="w"> </span><span class="nx">lowResBuffer</span><span class="p">);</span>
+
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="nx">Response</span><span class="p">.</span><span class="nx">json</span><span class="p">({</span><span class="w"> </span>
+<span class="w">        </span><span class="nx">filename</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">url</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">lowResFilename</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">lowResUrl</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">success</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span>
+<span class="w">      </span><span class="p">});</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">imageError</span><span class="o">:</span><span class="w"> </span><span class="kt">unknown</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;Fehler bei der Bildverarbeitung:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">imageError</span><span class="p">);</span>
+
+<span class="w">      </span><span class="c1">// Fallback: Upload ohne Verarbeitung</span>
+<span class="w">      </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">timestamp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Date</span><span class="p">.</span><span class="nx">now</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">timestamp</span><span class="si">}</span><span class="sb">_original.jpg`</span><span class="p">;</span>
+
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">azureStorage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">AzureStorageService</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">azureStorage</span><span class="p">.</span><span class="nx">uploadImage</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span><span class="w"> </span><span class="nx">buffer</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">Response</span><span class="p">.</span><span class="nx">json</span><span class="p">({</span><span class="w"> </span>
+<span class="w">          </span><span class="nx">filename</span><span class="p">,</span>
+<span class="w">          </span><span class="nx">url</span><span class="p">,</span>
+<span class="w">          </span><span class="nx">success</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">          </span><span class="nx">message</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;Bild ohne Optimierung hochgeladen aufgrund eines Verarbeitungsfehlers&#39;</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">uploadError</span><span class="o">:</span><span class="w"> </span><span class="kt">unknown</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="sb">`Bildverarbeitung fehlgeschlagen: </span><span class="si">${</span><span class="nx">imageError</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="ne">Error</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">imageError</span><span class="p">.</span><span class="nx">message</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;Unbekannter Fehler&#39;</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;Fehler beim Upload:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">Response</span><span class="p">(</span>
+<span class="w">      </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span><span class="w"> </span>
+<span class="w">        </span><span class="nx">success</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="nx">error</span><span class="o">:</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="ne">Error</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;Unbekannter Fehler beim Upload&#39;</span>
+<span class="w">      </span><span class="p">}),</span><span class="w"> </span>
+<span class="w">      </span><span class="p">{</span><span class="w"> </span>
+<span class="w">        </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="kt">500</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="s1">&#39;Content-Type&#39;</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;application/json&#39;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="schritt-5-umgebungsvariablen-konfigurieren">Schritt 5: Umgebungsvariablen konfigurieren<a class="headerlink" href="#schritt-5-umgebungsvariablen-konfigurieren" title="Permanent link">&para;</a></h3>
+<p>Erstelle <code>.env.local</code> (oder <code>.env</code> für Produktion):</p>
+<div class="highlight"><pre><span></span><code>AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=&lt;dein-account&gt;;AccountKey=&lt;dein-key&gt;;EndpointSuffix=core.windows.net
+AZURE_STORAGE_CONTAINER_NAME=&lt;dein-container-name&gt;
+UPLOAD_DIR=uploads
+NEXT_PUBLIC_MAX_IMAGE_WIDTH=2000
+NEXT_PUBLIC_MAX_IMAGE_HEIGHT=2000
+NEXT_PUBLIC_MAX_IMAGE_QUALITY=0.8
+</code></pre></div>
+<h3 id="schritt-6-frontend-integration">Schritt 6: Frontend-Integration<a class="headerlink" href="#schritt-6-frontend-integration" title="Permanent link">&para;</a></h3>
+<p>Beispiel für Upload im Frontend:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">uploadImage</span><span class="p">(</span><span class="nx">file</span><span class="o">:</span><span class="w"> </span><span class="kt">File</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">formData</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">FormData</span><span class="p">();</span>
+<span class="w">  </span><span class="nx">formData</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s1">&#39;image&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">file</span><span class="p">);</span>
+
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/api/upload&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;POST&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">formData</span>
+<span class="w">  </span><span class="p">});</span>
+
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">result</span><span class="p">.</span><span class="nx">success</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;Hochgeladen:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">result</span><span class="p">.</span><span class="nx">url</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;Low-Res:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">result</span><span class="p">.</span><span class="nx">lowResUrl</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">result</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="nx">result</span><span class="p">.</span><span class="nx">error</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s1">&#39;Upload fehlgeschlagen&#39;</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="wichtige-hinweise">Wichtige Hinweise<a class="headerlink" href="#wichtige-hinweise" title="Permanent link">&para;</a></h2>
+<h3 id="sicherheit">Sicherheit<a class="headerlink" href="#sicherheit" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Connection String niemals im Client-Code verwenden</strong></li>
+<li>Nur in Server-seitigen Komponenten/Routes verwenden</li>
+<li>
+<p>Keine Environment-Variablen mit <code>NEXT_PUBLIC_</code> Präfix für Connection Strings</p>
+</li>
+<li>
+<p><strong>Container-Zugriff</strong></p>
+</li>
+<li>Container sollte auf "Blob" (öffentlich) gesetzt sein für direkten Zugriff auf Bilder</li>
+<li>
+<p>Oder SAS-Tokens verwenden für zeitlich begrenzten Zugriff</p>
+</li>
+<li>
+<p><strong>Validierung</strong></p>
+</li>
+<li>Upload-Route sollte Authentifizierung/Authorization prüfen</li>
+<li>Dateitypen validieren (nur Bilder erlauben)</li>
+<li>Dateigröße begrenzen</li>
+</ol>
+<h3 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Bildoptimierung</strong></li>
+<li>Sharp wird verwendet für automatische Rotation, Resize und Kompression</li>
+<li>
+<p>Low-Resolution-Versionen werden automatisch erstellt für schnellere Ladezeiten</p>
+</li>
+<li>
+<p><strong>Cache-Control</strong></p>
+</li>
+<li>Aktuell: <code>no-cache, no-store, must-revalidate</code> (für Development)</li>
+<li>Für Produktion: Anpassen je nach Anforderung</li>
+</ol>
+<h3 id="fehlerbehandlung">Fehlerbehandlung<a class="headerlink" href="#fehlerbehandlung" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Der Service wirft Fehler, die in den API-Routes gefangen werden sollten</li>
+<li>Fallback-Mechanismus: Falls Bildverarbeitung fehlschlägt, wird Original hochgeladen</li>
+</ul>
+<h2 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">&para;</a></h2>
+<h3 id="lokales-testen">Lokales Testen<a class="headerlink" href="#lokales-testen" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Azure Storage Account erstellen</li>
+<li>Container erstellen mit öffentlichem Zugriff</li>
+<li>Connection String kopieren</li>
+<li>Umgebungsvariablen setzen</li>
+<li>Upload-Route testen:</li>
+</ol>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:3000/api/upload<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">&quot;image=@/path/to/test-image.jpg&quot;</span>
+</code></pre></div>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="haufige-probleme">Häufige Probleme<a class="headerlink" href="#haufige-probleme" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>"Azure Storage connection string ist nicht konfiguriert"</strong></li>
+<li>Prüfe: <code>AZURE_STORAGE_CONNECTION_STRING</code> gesetzt?</li>
+<li>
+<p>Prüfe: <code>.env.local</code> geladen? (Next.js lädt automatisch)</p>
+</li>
+<li>
+<p><strong>"Container nicht gefunden"</strong></p>
+</li>
+<li>Container muss in Azure Portal erstellt werden</li>
+<li>
+<p>Container-Name muss exakt übereinstimmen</p>
+</li>
+<li>
+<p><strong>"Upload fehlgeschlagen: 403 Forbidden"</strong></p>
+</li>
+<li>Prüfe: Connection String korrekt?</li>
+<li>
+<p>Prüfe: Container-Zugriff auf "Blob" gesetzt?</p>
+</li>
+<li>
+<p><strong>Sharp-Fehler</strong></p>
+</li>
+<li>Sharp benötigt native Dependencies</li>
+<li>Bei Docker: Sicherstellen, dass Sharp-binary installiert ist</li>
+<li>Bei Windows: Möglicherweise Build-Tools erforderlich</li>
+</ol>
+<h2 id="erweiterte-funktionen">Erweiterte Funktionen<a class="headerlink" href="#erweiterte-funktionen" title="Permanent link">&para;</a></h2>
+<h3 id="admin-routes">Admin-Routes<a class="headerlink" href="#admin-routes" title="Permanent link">&para;</a></h3>
+<p>Für Admin-Funktionen können folgende Routes übertragen werden:</p>
+<ul>
+<li><code>src/app/api/admin/images/route.ts</code> - Bilder auflisten</li>
+<li><code>src/app/api/admin/images/rotate/route.ts</code> - Bilder rotieren</li>
+<li><code>src/app/api/admin/storage-cleanup/route.ts</code> - Storage-Cleanup</li>
+</ul>
+<p>Diese sind optional und sollten entsprechend angepasst werden.</p>
+<h2 id="zusammenfassung">Zusammenfassung<a class="headerlink" href="#zusammenfassung" title="Permanent link">&para;</a></h2>
+<p>Die Azure Storage-Integration besteht aus:</p>
+<ol>
+<li><strong>Core Service</strong>: <code>AzureStorageService</code> für alle Storage-Operationen</li>
+<li><strong>Konfiguration</strong>: <code>serverConfig.STORAGE</code> aus Umgebungsvariablen</li>
+<li><strong>Upload-Route</strong>: <code>/api/upload</code> für Bild-Upload mit Verarbeitung</li>
+<li><strong>Dependencies</strong>: <code>@azure/storage-blob</code> und <code>sharp</code></li>
+</ol>
+<p>Die Hauptfunktionalität ist unabhängig vom Rest der Anwendung und kann einfach übertragen werden.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

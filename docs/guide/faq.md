@@ -4,19 +4,18 @@ title: FAQ
 
 # FAQ
 
-## Warum sehe ich keine Bibliothek?
-Prüfe `/settings` → Bibliothek und `/settings/storage`. Mindestens eine Bibliothek muss aktiv konfiguriert sein.
+## Why don't I see a library?
+Check `/settings` → Library and `/settings/storage`. At least one library must be actively configured.
 
-## Wie wechsle ich die Bibliothek?
-Im Header die Bibliothek auswählen (Dropdown). Alternativ URL-Parameter `?activeLibraryId=...` einmalig setzen.
+## How do I switch libraries?
+Select library in header (dropdown). Alternatively, set URL parameter `?activeLibraryId=...` once.
 
-## Warum startet die Transkription/Transformation nicht?
-Fehlende Konfiguration oder Berechtigungen. Prüfe Event-Monitor auf Fehlermeldungen und `/settings/secretary-service`.
+## Why doesn't transcription/transformation start?
+Missing configuration or permissions. Check Event Monitor for error messages and `/settings/secretary-service`.
 
-## Wo sehe ich den Fortschritt von Jobs?
-Im `/event-monitor`. Dort Batches/Jobs filtern, Details anschauen und ggf. neu starten.
+## Where do I see job progress?
+In `/event-monitor`. There you can filter batches/jobs, view details, and restart if needed.
 
-## Unterstützte Dateiformate?
-Audio (z. B. MP3/WAV), Bilder (PNG/JPG), PDF, Markdown/Text. Für weitere Formate siehe Konzepte oder Release Notes.
-
+## Supported file formats?
+Audio (e.g., MP3/WAV), Images (PNG/JPG), PDF, Markdown/Text. For additional formats see Concepts or Release Notes.
 

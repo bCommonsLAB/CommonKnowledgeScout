@@ -1,46 +1,45 @@
 ---
-title: Erste Schritte
+title: Getting Started
 ---
 
-# Erste Schritte
+# Getting Started
 
-Ein kompakter End-to-End-Überblick für Anwender.
+A compact end-to-end overview for users.
 
-## 1) Anmelden und erste Bibliothek anlegen
-1. Anmeldung in der App.
-2. Öffne Einstellungen → `/settings`.
-3. Trage Basisdaten ein (Name/Ordner/Provider) und speichere.
+## 1) Sign In and Create First Library
+1. Sign in to the app.
+2. Open Settings → `/settings`.
+3. Enter basic data (Name/Folder/Provider) and save.
 
-![Einstellungen – Bibliothek](/docs/assets/images/screenshots/settings-library.png)
+![Settings – Library](/docs/assets/images/screenshots/settings-library.png)
 
-## 2) Storage verbinden
-1. Öffne `/settings/storage`.
-2. Wähle Storage-Provider (z. B. Dateisystem, OneDrive) und konfiguriere.
+## 2) Connect Storage
+1. Open `/settings/storage`.
+2. Select storage provider (e.g., File System, OneDrive) and configure.
 
-![Einstellungen – Storage](/docs/assets/images/screenshots/settings-storage.png)
+![Settings – Storage](/docs/assets/images/screenshots/settings-storage.png)
 
-## 3) Bibliothek nutzen
-1. Öffne `/library`.
-2. Wechsle bei Bedarf die Bibliothek über den Header.
-3. Navigiere im Dateibaum, lade Dateien hoch, wähle eine Datei zur Vorschau.
+## 3) Use Library
+1. Open `/library`.
+2. Switch library via header if needed.
+3. Navigate in file tree, upload files, select a file for preview.
 
-![Bibliothek – Übersicht](/docs/assets/images/screenshots/library-overview.png)
+![Library – Overview](/docs/assets/images/screenshots/library-overview.png)
 
-## 4) Transformation/Transkription starten
-1. Datei auswählen → Aktion „Transkribieren/Transformieren“.
-2. Optionen prüfen und auslösen.
+## 4) Start Transformation/Transcription
+1. Select file → Action "Transcribe/Transform".
+2. Review options and trigger.
 
-![Bibliothek – Transformation](/docs/assets/images/screenshots/library-transform.png)
+![Library – Transformation](/docs/assets/images/screenshots/library-transform.png)
 
-## 5) Fortschritt überwachen
-1. Öffne `/event-monitor`.
-2. Wähle Batch/Job und prüfe Status/Fehler.
+## 5) Monitor Progress
+1. Open `/event-monitor`.
+2. Select Batch/Job and check status/errors.
 
 ![Event Monitor](/docs/assets/images/screenshots/event-monitor.png)
 
 ## Troubleshooting
-- Keine Bibliothek sichtbar: In `/settings` Bibliothek und Storage prüfen.
-- Fehlende Berechtigungen: Anmeldung/Provider-Rechte prüfen.
-- Keine Vorschau: Datei-Typ prüfen; Datei ggf. herunterladen.
-
+- No library visible: Check Library and Storage in `/settings`.
+- Missing permissions: Check sign-in/provider rights.
+- No preview: Check file type; download file if needed.
 

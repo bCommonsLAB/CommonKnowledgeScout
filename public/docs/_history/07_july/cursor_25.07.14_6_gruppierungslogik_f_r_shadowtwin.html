@@ -1,0 +1,3123 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/_history/07_july/cursor_25.07.14_6_gruppierungslogik_f_r_shadowtwin.html">
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Gruppierungslogik für ShadowTwins verstehen - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../css/print-site.css">
+    
+      <link rel="stylesheet" href="../../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#gruppierungslogik-fur-shadowtwins-verstehen" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Gruppierungslogik für ShadowTwins verstehen
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Overview
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intro
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/features.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/core-components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Core Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using the Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/event-monitor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Event Monitor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/batch-session-import.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Session Import
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/troubleshooting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/faq.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/storage-provider.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage Provider
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/localstorage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileSystem (Local)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/image-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/pdf/extraction-methods.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Extraction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/global-state.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Global State
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/header.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Header
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/breadcrumb.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Breadcrumb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/file-tree.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileTree
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/file-list.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileList
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/upload.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upload
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/file-preview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FilePreview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/transform.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transform
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/batch-transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/error-handling-logging-testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Error Handling & Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/initialization-sequence.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Initialization
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/library/components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/features/shadowtwins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/features/extended-shadowtwin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extended Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/features/transformation-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transformation Service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/video-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/glossary.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/secretary-services.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secretary Services
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/track-processor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Track Processor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../chat-response-generation-process.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Operations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Operations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/deployment/docker.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/desktop/quick-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Quick Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/desktop/package-strategy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Package Strategy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-wie-funktioniert-die-gruppierungslogik" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Wie funktioniert die Gruppierungslogik?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-wie-wird-ein-shadowtwin-erkannt" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Wie wird ein ShadowTwin erkannt?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-warum-ist-das-ein-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Warum ist das ein Problem?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-fazit-problemursache" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Fazit &amp; Problemursache
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-empfehlung-fur-die-losung" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Empfehlung für die Lösung
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Empfehlung für die Lösung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#analyse-der-aktuellen-logik" class="md-nav__link">
+    <span class="md-ellipsis">
+      Analyse der aktuellen Logik
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#korrekte-gruppierungslogik-gewunscht" class="md-nav__link">
+    <span class="md-ellipsis">
+      Korrekte Gruppierungslogik (gewünscht):
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#beispiel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Beispiel
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#empfohlene-anpassung-der-gruppierungslogik" class="md-nav__link">
+    <span class="md-ellipsis">
+      Empfohlene Anpassung der Gruppierungslogik
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fehleranalyse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fehleranalyse
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#was-ist-vermutlich-das-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      Was ist vermutlich das Problem?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#was-ist-zu-tun" class="md-nav__link">
+    <span class="md-ellipsis">
+      Was ist zu tun?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#empfehlung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Empfehlung
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Empfehlung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#was-mochtest-du" class="md-nav__link">
+    <span class="md-ellipsis">
+      Was möchtest du?
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#losungsidee-variante-2-robust-einfach" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lösungsidee (Variante 2, robust &amp; einfach):
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vorgehen-im-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vorgehen im Code
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nachster-schritt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Nächster Schritt
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="gruppierungslogik-fur-shadowtwins-verstehen">Gruppierungslogik für ShadowTwins verstehen<a class="headerlink" href="#gruppierungslogik-fur-shadowtwins-verstehen" title="Permanent link">&para;</a></h1>
+<p><em>Exported on 7/14/2025 at 17:34:02 GMT+2 from Cursor (1.2.4)</em></p>
+<hr />
+<p><strong>User</strong></p>
+<p>@file-list.tsx 
+Ich habe da diese 5 Dateien. In der Anwednung werden richtigerweise 2 ShadowTwins Erkannt und dem PDF als Symbol zugewiesen, Diese "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.Kataloganalyse.de.md" ist aber kein Transcript, sondern Transformiert, dürfte nicht als Shadowtwin erkannt werden und sollte in der Liste separat erscheinen.</p>
+<p>Wie funktioniert diese gruppierungslogik?</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<p>Sehr gute und wichtige Frage!<br />
+Ich analysiere zunächst, wie die Gruppierungslogik in deiner Datei <code>file-list.tsx</code> funktioniert und warum die Datei<br />
+<code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.Kataloganalyse.de.md</code> fälschlicherweise als ShadowTwin/Transkript erkannt wird.</p>
+<hr />
+<h2 id="1-wie-funktioniert-die-gruppierungslogik">1. <strong>Wie funktioniert die Gruppierungslogik?</strong><a class="headerlink" href="#1-wie-funktioniert-die-gruppierungslogik" title="Permanent link">&para;</a></h2>
+<p>Die Gruppierung der Dateien erfolgt im Abschnitt:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">fileGroups</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMemo</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">items</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">FileGroup</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">  </span><span class="c1">// Gruppiere Dateien nach Basisnamen</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">groupsMap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">StorageItem</span><span class="p">[]</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nx">items</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">item</span><span class="p">.</span><span class="kr">type</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;file&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">item</span><span class="p">.</span><span class="nx">metadata</span><span class="p">.</span><span class="nx">name</span><span class="p">;</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">baseName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">getBaseName</span><span class="p">(</span><span class="nx">name</span><span class="p">);</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">groupsMap</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">baseName</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">[];</span>
+<span class="w">      </span><span class="nx">group</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span>
+<span class="w">      </span><span class="nx">groupsMap</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="nx">baseName</span><span class="p">,</span><span class="w"> </span><span class="nx">group</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="c1">// Erstelle FileGroups für jede Gruppe</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">fileGroupsMap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">FileGroup</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">  </span><span class="nx">groupsMap</span><span class="p">.</span><span class="nx">forEach</span><span class="p">((</span><span class="nx">groupItems</span><span class="o">:</span><span class="w"> </span><span class="kt">StorageItem</span><span class="p">[],</span><span class="w"> </span><span class="nx">baseName</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Finde die Hauptdatei (nicht Shadow-Twin)</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">mainFile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">groupItems</span><span class="p">.</span><span class="nx">find</span><span class="p">((</span><span class="nx">item</span><span class="o">:</span><span class="w"> </span><span class="kt">StorageItem</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">isMainFile</span><span class="p">(</span><span class="nx">item</span><span class="p">.</span><span class="nx">metadata</span><span class="p">.</span><span class="nx">name</span><span class="p">));</span>
+<span class="w">    </span><span class="c1">// Finde Shadow-Twins (Markdown mit Sprachkürzel)</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">shadowTwins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">groupItems</span><span class="p">.</span><span class="nx">filter</span><span class="p">((</span><span class="nx">item</span><span class="o">:</span><span class="w"> </span><span class="kt">StorageItem</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">isShadowTwin</span><span class="p">(</span><span class="nx">item</span><span class="p">.</span><span class="nx">metadata</span><span class="p">.</span><span class="nx">name</span><span class="p">));</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">mainFile</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="c1">// Erstelle FileGroup mit Hauptdatei und allen Transkripten</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">fileGroup</span><span class="o">:</span><span class="w"> </span><span class="kt">FileGroup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">baseItem</span><span class="o">:</span><span class="w"> </span><span class="kt">mainFile</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">transcriptFiles</span><span class="o">:</span><span class="w"> </span><span class="kt">shadowTwins</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">transformed</span><span class="o">:</span><span class="w"> </span><span class="kt">undefined</span><span class="w"> </span><span class="c1">// Keine transformierten Dateien für jetzt</span>
+<span class="w">      </span><span class="p">};</span>
+<span class="w">      </span><span class="nx">fileGroupsMap</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="nx">baseName</span><span class="p">,</span><span class="w"> </span><span class="nx">fileGroup</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// KEIN else: Shadow-Twins ohne Hauptdatei werden ignoriert!</span>
+<span class="w">  </span><span class="p">});</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">fileGroupsMap</span><span class="p">;</span>
+<span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">items</span><span class="p">]);</span>
+</code></pre></div>
+<p><strong>Kernpunkte:</strong>
+- Dateien werden nach einem "Basisnamen" gruppiert (<code>getBaseName</code>).
+- Innerhalb jeder Gruppe wird unterschieden zwischen:
+  - <strong>mainFile</strong>: Die Hauptdatei (nicht ShadowTwin)
+  - <strong>shadowTwins</strong>: Alle Dateien, die von <code>isShadowTwin</code> als ShadowTwin erkannt werden</p>
+<hr />
+<h2 id="2-wie-wird-ein-shadowtwin-erkannt">2. <strong>Wie wird ein ShadowTwin erkannt?</strong><a class="headerlink" href="#2-wie-wird-ein-shadowtwin-erkannt" title="Permanent link">&para;</a></h2>
+<p><div class="highlight"><pre><span></span><code><span class="kd">function</span><span class="w"> </span><span class="nx">isShadowTwin</span><span class="p">(</span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Pattern: name.de.md, name.en.md, etc.</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">shadowTwinPattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sr">/^(.+)\.(de|en|fr|es|it)\.md$/</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">shadowTwinPattern</span><span class="p">.</span><span class="nx">test</span><span class="p">(</span><span class="nx">name</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<strong>Das bedeutet:</strong><br />
+Jede Datei, die auf <code>.de.md</code>, <code>.en.md</code>, <code>.fr.md</code>, <code>.es.md</code> oder <code>.it.md</code> endet, wird als ShadowTwin erkannt – <strong>unabhängig davon, was davor steht</strong>.</p>
+<hr />
+<h2 id="3-warum-ist-das-ein-problem">3. <strong>Warum ist das ein Problem?</strong><a class="headerlink" href="#3-warum-ist-das-ein-problem" title="Permanent link">&para;</a></h2>
+<p>Deine Datei<br />
+<code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.Kataloganalyse.de.md</code><br />
+wird von diesem Pattern als ShadowTwin erkannt, weil sie auf <code>.de.md</code> endet.<br />
+<strong>Inhaltlich ist sie aber keine Transkription, sondern eine transformierte Datei.</strong></p>
+<hr />
+<h2 id="4-fazit-problemursache">4. <strong>Fazit &amp; Problemursache</strong><a class="headerlink" href="#4-fazit-problemursache" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Die Gruppierungslogik ist zu simpel: Sie unterscheidet nicht zwischen echten Transkripten und anderen <code>.de.md</code>-Dateien.</li>
+<li>Es wird <strong>nur auf die Endung</strong> geschaut, nicht auf den Zweck oder die Entstehung der Datei.</li>
+<li>Dadurch werden auch transformierte oder anderweitig generierte <code>.de.md</code>-Dateien als ShadowTwin/Transkript behandelt.</li>
+</ul>
+<hr />
+<h2 id="5-empfehlung-fur-die-losung">5. <strong>Empfehlung für die Lösung</strong><a class="headerlink" href="#5-empfehlung-fur-die-losung" title="Permanent link">&para;</a></h2>
+<p><strong>Du brauchst eine robustere Unterscheidung!</strong><br />
+Mögliche Ansätze:
+- <strong>Dateinamen-Konventionen</strong>: Nur Dateien, die exakt dem Muster <code>basename.llm.de.md</code> (oder ähnlich) folgen, als Transkript erkennen.
+- <strong>Metadaten</strong>: Prüfe, ob im Storage-Objekt ein Feld wie <code>isTranscript</code> oder <code>origin</code> existiert.
+- <strong>Whitelist/Blacklist</strong>: Schließe bestimmte Suffixe wie <code>.Kataloganalyse.de.md</code> explizit aus.</p>
+<hr />
+<p><strong>Zusammengefasst:</strong><br />
+Die Gruppierungslogik erkennt alle <code>.de.md</code>-Dateien als ShadowTwin, unabhängig vom eigentlichen Zweck.<br />
+Das ist zu ungenau und führt dazu, dass auch transformierte Dateien als Transkript/ShadowTwin behandelt werden.</p>
+<p><strong>Nächster Schritt:</strong><br />
+Ich kann dir drei konkrete Varianten für eine robustere Erkennung vorschlagen und eine Analyse im <code>docs/</code>-Ordner dokumentieren – möchtest du das?<br />
+Oder möchtest du direkt eine Anpassung der Gruppierungslogik?</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">fileGroups</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMemo</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">items</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">FileGroup</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">  </span><span class="c1">// Gruppiere Dateien nach Basisnamen</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">groupsMap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">StorageItem</span><span class="p">[]</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nx">items</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">item</span><span class="p">.</span><span class="kr">type</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;file&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">item</span><span class="p">.</span><span class="nx">metadata</span><span class="p">.</span><span class="nx">name</span><span class="p">;</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">baseName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">getBaseName</span><span class="p">(</span><span class="nx">name</span><span class="p">);</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">groupsMap</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">baseName</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">[];</span>
+<span class="w">      </span><span class="nx">group</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span>
+<span class="w">      </span><span class="nx">groupsMap</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="nx">baseName</span><span class="p">,</span><span class="w"> </span><span class="nx">group</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="c1">// Erstelle FileGroups für jede Gruppe</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">fileGroupsMap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">FileGroup</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">  </span><span class="nx">groupsMap</span><span class="p">.</span><span class="nx">forEach</span><span class="p">((</span><span class="nx">groupItems</span><span class="o">:</span><span class="w"> </span><span class="kt">StorageItem</span><span class="p">[],</span><span class="w"> </span><span class="nx">baseName</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Finde die Hauptdatei (nicht Shadow-Twin)</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">mainFile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">groupItems</span><span class="p">.</span><span class="nx">find</span><span class="p">((</span><span class="nx">item</span><span class="o">:</span><span class="w"> </span><span class="kt">StorageItem</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">isMainFile</span><span class="p">(</span><span class="nx">item</span><span class="p">.</span><span class="nx">metadata</span><span class="p">.</span><span class="nx">name</span><span class="p">));</span>
+<span class="w">    </span><span class="c1">// Finde Shadow-Twins (Markdown mit Sprachkürzel)</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">shadowTwins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">groupItems</span><span class="p">.</span><span class="nx">filter</span><span class="p">((</span><span class="nx">item</span><span class="o">:</span><span class="w"> </span><span class="kt">StorageItem</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">isShadowTwin</span><span class="p">(</span><span class="nx">item</span><span class="p">.</span><span class="nx">metadata</span><span class="p">.</span><span class="nx">name</span><span class="p">));</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">mainFile</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="c1">// Erstelle FileGroup mit Hauptdatei und allen Transkripten</span>
+<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">fileGroup</span><span class="o">:</span><span class="w"> </span><span class="kt">FileGroup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">baseItem</span><span class="o">:</span><span class="w"> </span><span class="kt">mainFile</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">transcriptFiles</span><span class="o">:</span><span class="w"> </span><span class="kt">shadowTwins</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">transformed</span><span class="o">:</span><span class="w"> </span><span class="kt">undefined</span><span class="w"> </span><span class="c1">// Keine transformierten Dateien für jetzt</span>
+<span class="w">      </span><span class="p">};</span>
+<span class="w">      </span><span class="nx">fileGroupsMap</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="nx">baseName</span><span class="p">,</span><span class="w"> </span><span class="nx">fileGroup</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// KEIN else: Shadow-Twins ohne Hauptdatei werden ignoriert!</span>
+<span class="w">  </span><span class="p">});</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">fileGroupsMap</span><span class="p">;</span>
+<span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">items</span><span class="p">]);</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="kd">function</span><span class="w"> </span><span class="nx">isShadowTwin</span><span class="p">(</span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Pattern: name.de.md, name.en.md, etc.</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">shadowTwinPattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sr">/^(.+)\.(de|en|fr|es|it)\.md$/</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">shadowTwinPattern</span><span class="p">.</span><span class="nx">test</span><span class="p">(</span><span class="nx">name</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr />
+<p><strong>User</strong></p>
+<p>Nein, das mit der Endung Sprachkürzel.md ist richtig, dass es ein potenzielles Shadow Twin ist. Es muss aber ein passendes Basis Basename dafür existieren. Das heißt, eine Datei, die genau den selben Basename.md hat, ohne diese Sprachkürzel. Nur dann werden sie grobiert, sonst müssen sie angezeigt werden.</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<p>Danke für die Klarstellung!<br />
+Das ist ein sehr wichtiger Punkt und macht die Logik deutlich robuster:</p>
+<p><strong>Nur wenn eine Datei mit Sprachkürzel (<code>basename.de.md</code>) UND eine Datei mit exakt demselben Basename (<code>basename.md</code>) existiert, wird sie als ShadowTwin/Transkript gruppiert.</strong><br />
+Andernfalls (wenn es kein passendes <code>basename.md</code> gibt), soll die Datei als eigenständige Datei in der Liste erscheinen.</p>
+<hr />
+<h3 id="analyse-der-aktuellen-logik"><strong>Analyse der aktuellen Logik</strong><a class="headerlink" href="#analyse-der-aktuellen-logik" title="Permanent link">&para;</a></h3>
+<p><strong>Aktuell:</strong><br />
+- Es werden alle <code>.de.md</code>, <code>.en.md</code> etc. als ShadowTwin erkannt und mit anderen Dateien mit gleichem Basename gruppiert – unabhängig davon, ob ein <code>basename.md</code> existiert.</p>
+<p><strong>Problem:</strong><br />
+- Dadurch werden auch Dateien wie <code>basename.irgendwas.de.md</code> als ShadowTwin gruppiert, obwohl es kein <code>basename.md</code> gibt.</p>
+<hr />
+<h3 id="korrekte-gruppierungslogik-gewunscht"><strong>Korrekte Gruppierungslogik (gewünscht):</strong><a class="headerlink" href="#korrekte-gruppierungslogik-gewunscht" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Finde alle Hauptdateien:</strong>  </li>
+<li>Alle Dateien, die auf <code>.md</code> enden, aber NICHT auf <code>.de.md</code>, <code>.en.md</code> etc.  </li>
+<li>
+<p>Beispiel: <code>basename.md</code></p>
+</li>
+<li>
+<p><strong>Finde alle potenziellen ShadowTwins:</strong>  </p>
+</li>
+<li>
+<p>Alle Dateien, die auf <code>.de.md</code>, <code>.en.md</code> etc. enden.</p>
+</li>
+<li>
+<p><strong>Gruppiere NUR dann:</strong>  </p>
+</li>
+<li>
+<p>Wenn für einen ShadowTwin (<code>basename.de.md</code>) auch ein <code>basename.md</code> existiert.</p>
+</li>
+<li>
+<p><strong>Alle anderen Dateien (ohne passendes Basename.md):</strong>  </p>
+</li>
+<li>Werden als eigenständige Datei angezeigt.</li>
+</ol>
+<hr />
+<h3 id="beispiel"><strong>Beispiel</strong><a class="headerlink" href="#beispiel" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Datei</th>
+<th>Basename</th>
+<th>Wird gruppiert?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>foo.md</code></td>
+<td>foo</td>
+<td>ja (Hauptdatei)</td>
+</tr>
+<tr>
+<td><code>foo.de.md</code></td>
+<td>foo</td>
+<td>ja (ShadowTwin)</td>
+</tr>
+<tr>
+<td><code>foo.irgendwas.de.md</code></td>
+<td>foo.irgendwas</td>
+<td>nein (kein foo.irgendwas.md)</td>
+</tr>
+<tr>
+<td><code>bar.de.md</code></td>
+<td>bar</td>
+<td>nein (kein bar.md)</td>
+</tr>
+<tr>
+<td><code>baz.md</code></td>
+<td>baz</td>
+<td>ja (Hauptdatei)</td>
+</tr>
+<tr>
+<td><code>baz.en.md</code></td>
+<td>baz</td>
+<td>ja (ShadowTwin)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="empfohlene-anpassung-der-gruppierungslogik"><strong>Empfohlene Anpassung der Gruppierungslogik</strong><a class="headerlink" href="#empfohlene-anpassung-der-gruppierungslogik" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Schritt 1:</strong> Erstelle eine Map aller Hauptdateien (<code>basename.md</code>).</li>
+<li><strong>Schritt 2:</strong> Iteriere über alle ShadowTwins (<code>basename.de.md</code> etc.).</li>
+<li><strong>Schritt 3:</strong> Prüfe, ob es ein passendes <code>basename.md</code> gibt.</li>
+<li><strong>Ja:</strong> Gruppiere als ShadowTwin.</li>
+<li><strong>Nein:</strong> Zeige als Einzeldatei.</li>
+</ul>
+<hr />
+<p><strong>Möchtest du, dass ich diese Logik direkt im Code anpasse?</strong><br />
+Oder soll ich dir erst eine Analyse/Skizze als Markdown im <code>docs/</code>-Ordner ablegen?<br />
+Bitte gib kurz Bescheid, wie du vorgehen möchtest!</p>
+<hr />
+<p><strong>User</strong></p>
+<p>ja bitte</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<div class="highlight"><pre><span></span><code>// ... existing code ...
+  // Gruppiere die Dateien mit Shadow-Twin-Logik
+  const fileGroups = useMemo(() =&gt; {
+    if (!items) return new Map&lt;string, FileGroup&gt;();
+
+    // Schritt 1: Finde alle Hauptdateien (basename.md, aber nicht basename.de.md etc.)
+    const mainFileMap = new Map&lt;string, StorageItem&gt;();
+    // Schritt 2: Sammle alle potenziellen ShadowTwins (basename.de.md etc.)
+    const shadowTwinsMap = new Map&lt;string, StorageItem[]&gt;();
+    // Schritt 3: Sammle alle anderen Dateien (die nicht in die obigen Kategorien fallen)
+    const otherFiles: StorageItem[] = [];
+
+    for (const item of items) {
+      if (item.type !== &#39;file&#39;) continue;
+      const name = item.metadata.name;
+      // ShadowTwin: name.de.md, name.en.md, etc.
+      const shadowTwinMatch = name.match(/^(.*)\.(de|en|fr|es|it)\.md$/);
+      if (shadowTwinMatch) {
+        const base = shadowTwinMatch[1];
+        if (!shadowTwinsMap.has(base)) shadowTwinsMap.set(base, []);
+        shadowTwinsMap.get(base)!.push(item);
+        continue;
+      }
+      // Hauptdatei: endet auf .md, aber nicht auf .de.md etc.
+      if (name.endsWith(&#39;.md&#39;)) {
+        const base = name.slice(0, -3); // Entferne .md
+        mainFileMap.set(base, item);
+        continue;
+      }
+      // Sonstige Datei
+      otherFiles.push(item);
+    }
+
+    // Schritt 4: Erstelle FileGroups nur für Basen, die sowohl Hauptdatei als auch ShadowTwins haben
+    const fileGroupsMap = new Map&lt;string, FileGroup&gt;();
+    // Hauptdateien mit passenden ShadowTwins
+    for (const [base, mainFile] of mainFileMap.entries()) {
+      const twins = shadowTwinsMap.get(base) || [];
+      fileGroupsMap.set(base, {
+        baseItem: mainFile,
+        transcriptFiles: twins.length &gt; 0 ? twins : undefined,
+        transformed: undefined
+      });
+      // Entferne diese ShadowTwins aus der Map, damit sie nicht doppelt auftauchen
+      shadowTwinsMap.delete(base);
+    }
+    // Schritt 5: ShadowTwins ohne passende Hauptdatei als Einzeldateien hinzufügen
+    for (const [base, twins] of shadowTwinsMap.entries()) {
+      for (const twin of twins) {
+        fileGroupsMap.set(`${base}__shadow_${twin.id}`, {
+          baseItem: twin,
+          transcriptFiles: undefined,
+          transformed: undefined
+        });
+      }
+    }
+    // Schritt 6: Sonstige Dateien als Einzeldateien hinzufügen
+    for (const item of otherFiles) {
+      fileGroupsMap.set(`other__${item.id}`, {
+        baseItem: item,
+        transcriptFiles: undefined,
+        transformed: undefined
+      });
+    }
+    // Debug-Logging für Gruppierung
+    FileLogger.debug(&#39;FileList&#39;, &#39;Gruppierung Ergebnis (angepasst)&#39;, {
+      groups: Array.from(fileGroupsMap.entries()).map(([base, group]) =&gt; ({
+        base,
+        baseItem: group.baseItem?.metadata.name,
+        transcripts: group.transcriptFiles?.map(t =&gt; t.metadata.name)
+      }))
+    });
+    return fileGroupsMap;
+  }, [items]);
+// ... existing code ...
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>// ... existing code ...
+    // Hauptdateien mit passenden ShadowTwins
+-    for (const [base, mainFile] of mainFileMap.entries()) {
++    for (const [base, mainFile] of Array.from(mainFileMap.entries())) {
+       const twins = shadowTwinsMap.get(base) || [];
+       fileGroupsMap.set(base, {
+         baseItem: mainFile,
+         transcriptFiles: twins.length &gt; 0 ? twins : undefined,
+         transformed: undefined
+       });
+       // Entferne diese ShadowTwins aus der Map, damit sie nicht doppelt auftauchen
+       shadowTwinsMap.delete(base);
+     }
+-    // Schritt 5: ShadowTwins ohne passende Hauptdatei als Einzeldateien hinzufügen
+-    for (const [base, twins] of shadowTwinsMap.entries()) {
++    // Schritt 5: ShadowTwins ohne passende Hauptdatei als Einzeldateien hinzufügen
++    for (const [base, twins] of Array.from(shadowTwinsMap.entries())) {
+       for (const twin of twins) {
+         fileGroupsMap.set(`${base}__shadow_${twin.id}`, {
+           baseItem: twin,
+           transcriptFiles: undefined,
+           transformed: undefined
+         });
+       }
+     }
+// ... existing code ...
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>// ... existing code ...
+-    for (const [base, mainFile] of Array.from(mainFileMap.entries())) {
++    for (const [base, mainFile] of Array.from(mainFileMap.entries() as Iterable&lt;[string, StorageItem]&gt;)) {
+// ... existing code ...
+-    for (const [base, twins] of Array.from(shadowTwinsMap.entries())) {
++    for (const [base, twins] of Array.from(shadowTwinsMap.entries() as Iterable&lt;[string, StorageItem[]]&gt;)) {
+// ... existing code ...
+-  }, [items]);
++  }, [items]);
+// ... existing code ...
+-  const isAllSelected = useMemo(() =&gt; {
+-    if (!fileGroups.size) return false;
++  const isAllSelected = useMemo(() =&gt; {
++    if (!fileGroups || !fileGroups.size) return false;
+// ... existing code ...
+-    const mainItems = Array.from(fileGroups.values())
++    const mainItems = Array.from((fileGroups ?? new Map()).values())
+// ... existing code ...
+-  }, [fileGroups, selectedBatchItems, selectedTransformationItems, currentCategoryFilter]);
++  }, [fileGroups, selectedBatchItems, selectedTransformationItems, currentCategoryFilter]);
+// ... existing code ...
+-  const handleSelect = useCallback((item: StorageItem, group?: FileGroup) =&gt; {
++  const handleSelect = useCallback((item: StorageItem, group?: FileGroup) =&gt; {
+// ... existing code ...
+-  }, [setSelectedFile, setSelectedShadowTwin]);
++  }, [setSelectedFile, setSelectedShadowTwin]);
+// ... existing code ...
+-  const findFileGroup = (map: Map&lt;string, FileGroup&gt;, stem: string): FileGroup | undefined =&gt; {
+-    return Array.from(map.values()).find(group =&gt; 
+-      group.baseItem &amp;&amp; getBaseName(group.baseItem.metadata.name) === stem
+-    );
+-  };
++  const findFileGroup = (map: Map&lt;string, FileGroup&gt;, stem: string): FileGroup | undefined =&gt; {
++    return Array.from((map ?? new Map()).values()).find(group =&gt; 
++      group.baseItem &amp;&amp; getBaseName(group.baseItem.metadata.name) === stem
++    );
++  };
+// ... existing code ...
+-  }, [provider, handleRefresh, fileGroups, setSelectedFile, setSelectedBatchItems]);
++  }, [provider, handleRefresh, fileGroups, setSelectedFile, setSelectedBatchItems]);
+// ... existing code ...
+-  }, [provider, handleRefresh, fileGroups]);
++  }, [provider, handleRefresh, fileGroups]);
+// ... existing code ...
+-            {Array.from(fileGroups.values())
++            {Array.from((fileGroups ?? new Map()).values())
+// ... existing code ...
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>// ... existing code ...
+  // Vereinfachte Funktion zum Extrahieren des Basisnamens
+-  function getBaseName(name: string): string {
+-    // Shadow-Twin: .de.md, .en.md, etc.
+-    const match = name.match(/^(.*)\.(de|en|fr|es|it)\.md$/);
+-    if (match) return match[1];
+-    // Sonst: alles vor dem letzten Punkt
+-    const lastDot = name.lastIndexOf(&#39;.&#39;);
+-    return lastDot === -1 ? name : name.substring(0, lastDot);
+-  }
++  function getBaseName(name: string): string {
++    // Shadow-Twin: .de.md, .en.md, etc.
++    const match = name.match(/^(.*)\.(de|en|fr|es|it)\.md$/);
++    if (match) return match[1];
++    // Sonst: alles vor dem letzten Punkt
++    const lastDot = name.lastIndexOf(&#39;.&#39;);
++    if (lastDot === -1) return name;
++    return name.substring(0, lastDot);
++  }
+// ... existing code ...
+-            {Array.from((fileGroups ?? new Map()).values())
+-              .map((group) =&gt; {
+-                // Zeige nur die Hauptdatei (baseItem) an
+-                const item = group.baseItem;
+-                if (!item) return null;
+-                return (
+-                  &lt;FileRow
+-                    key={item.id}
+-                    item={item as StorageItem}
+-                    isSelected={isItemSelected(item)}
+-                    onSelect={() =&gt; handleSelect(item, group)}
+-                    onCreateTranscript={handleCreateTranscript}
+-                    onDelete={(e) =&gt; handleDeleteClick(e, item)}
+-                    fileGroup={group}
+-                    onSelectRelatedFile={handleSelectRelatedFile}
+-                    onRename={handleRename}
+-                    compact={compact}
+-                  /&gt;
+-                );
+-              })}
++            {Array.from((fileGroups ?? new Map()).values())
++              .map((group) =&gt; {
++                // Zeige nur die Hauptdatei (baseItem) an
++                const item = group.baseItem;
++                if (!item) return null;
++                return (
++                  &lt;FileRow
++                    key={item.id}
++                    item={item as StorageItem}
++                    isSelected={isItemSelected(item)}
++                    onSelect={() =&gt; handleSelect(item, group)}
++                    onCreateTranscript={handleCreateTranscript}
++                    onDelete={(e) =&gt; handleDeleteClick(e, item)}
++                    fileGroup={group}
++                    onSelectRelatedFile={handleSelectRelatedFile}
++                    onRename={handleRename}
++                    compact={compact}
++                  /&gt;
++                );
++              })}
+// ... existing code ...
+</code></pre></div>
+<p>Die Gruppierungslogik wurde jetzt wie von dir gewünscht angepasst:</p>
+<ul>
+<li><strong>ShadowTwins (z.B. <code>foo.de.md</code>) werden nur dann als Transkript zur Hauptdatei (<code>foo.md</code>) gruppiert, wenn die passende Hauptdatei existiert.</strong></li>
+<li><strong>ShadowTwins ohne passende Hauptdatei erscheinen als eigenständige Datei in der Liste.</strong></li>
+<li>Die Iterationen und Typen wurden so angepasst, dass keine Linter-Fehler mehr auftreten sollten.</li>
+</ul>
+<p><strong>Wie kannst du das testen?</strong>
+1. Lade die Dateiansicht neu.
+2. Prüfe, ob z.B. <code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.Kataloganalyse.de.md</code> jetzt als Einzeldatei erscheint, wenn kein passendes <code>basename.md</code> existiert.
+3. ShadowTwins werden nur gruppiert, wenn die Hauptdatei vorhanden ist.</p>
+<p><strong>Erklärung im Code:</strong><br />
+Die Gruppierung erfolgt jetzt in mehreren Schritten:
+- Hauptdateien (<code>basename.md</code>) werden gesammelt.
+- ShadowTwins (<code>basename.de.md</code> etc.) werden gesammelt.
+- Nur wenn beide existieren, wird gruppiert.
+- Alle anderen ShadowTwins und sonstige Dateien erscheinen einzeln.</p>
+<p><strong>Wenn du weitere Anpassungen oder eine Dokumentation im <code>docs/</code>-Ordner möchtest, gib Bescheid!</strong></p>
+<hr />
+<p><strong>User</strong></p>
+<p>jetzt werden keine shadowtwins mehr erkannt:
+{
+  "timestamp": "2025-07-14T14:40:36.497Z",
+  "system": {
+    "library": {
+      "Library": "Archiv Peter (502a1384-553b-493e-bc66-75d48345b47e)",
+      "Provider": "Local Filesystem",
+      "Provider-Key": "local",
+      "Status": "ready",
+      "Token vorhanden": "Nein",
+      "Aktive Library-ID": "502a1384-553b-493e-bc66-75d48345b47e",
+      "Auth": "Keine Auth-Info",
+      "Ordner": "dGVtcA=="
+    }
+  },
+  "visibleComponents": [
+    "FileTree",
+    "Breadcrumb",
+    "FileList",
+    "FileRow"
+  ],
+  "visibleAreas": [
+    "nav",
+    "state",
+    "file"
+  ],
+  "duplicates": [],
+  "errors": 0,
+  "logs": [
+    {
+      "timestamp": "2025-07-14T14:40:23.666Z",
+      "area": "file",
+      "sequence": 270,
+      "component": "FileList",
+      "level": "debug",
+      "message": "Already initialized",
+      "details": {
+        "hasProvider": true,
+        "hasItems": true,
+        "isInitialized": true
+      },
+      "id": "1752504023707-mnn44i35b",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 269,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Vertrauensräume.docx"
+      },
+      "id": "1752504023707-hpok6nerk",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 268,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Strategien zur Gewinnung von Unterstützern für Friedensinitiativen.docx"
+      },
+      "id": "1752504023707-wvs3qpk7z",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 267,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "StrackEtAl_1989_AnthocyaninPatternsInEuropeanOrchidsAndTheirTaxonomicAndPhylogeneticRelevance_Phytochemistry_28.8_k_1_1.tif"
+      },
+      "id": "1752504023707-cieryog0k",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 266,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "st-ives-uk-26th-may-2023-a-mural-by-cas-students-photographed-by-mohamed-melehi-with-untitled-1960s-and-70s-works-by-abderrahman-rahoule-the-casablanca-art-school-platforms-and-patterns-for-a-postcolonial-a.jpg"
+      },
+      "id": "1752504023707-bavcglex3",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 265,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Neue Aufnahme 26.m4a"
+      },
+      "id": "1752504023707-wbn6d5jhc",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 264,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Neue Aufnahme 25.m4a"
+      },
+      "id": "1752504023707-2va6kv9hu",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 263,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Knowledge scout Verbesserungen.m4a"
+      },
+      "id": "1752504023707-uq20o7cg3",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 262,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Huemer_2004_DieTagfalterSüdtirols_Naturmuseum_2018_c.pdf"
+      },
+      "id": "1752504023707-rm6svsdis",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 261,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Coopbund Startup Fragebogen.pdf"
+      },
+      "id": "1752504023706-iuxr1dsp5",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 260,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Commoning vs. Kommerz.pdf"
+      },
+      "id": "1752504023706-hg1wr04bd",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 259,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Commoning vs. Kommerz - LLM.pdf"
+      },
+      "id": "1752504023706-xkmo72nyz",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 258,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Boho_Werbetexte.xlsx"
+      },
+      "id": "1752504023706-3w4vjycrc",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 257,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Agentin der Verbundenheit (1).csv"
+      },
+      "id": "1752504023706-hwlm4c2kj",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 256,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "A Taxonomy of Retrieval Augmented Generation 2024-10-23 07_11_39.pdf"
+      },
+      "id": "1752504023706-yoqm20rks",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 255,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.pdf"
+      },
+      "id": "1752504023706-zbjz3eftr",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 254,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_EK_Netto_250704_v00003New.pdf"
+      },
+      "id": "1752504023706-qjyt8j8vj",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 253,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "Commoning vs. Kommerz.de.md"
+      },
+      "id": "1752504023706-ebx9ym0uh",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 252,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.Kataloganalyse.de.md"
+      },
+      "id": "1752504023706-im4xdlub3",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 251,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.de.md"
+      },
+      "id": "1752504023706-yxw2399hx",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 250,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_EK_Netto_250704_v00003New.de.md"
+      },
+      "id": "1752504023706-e90aym2q6",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.665Z",
+      "area": "file",
+      "sequence": 249,
+      "component": "FileRow",
+      "level": "debug",
+      "message": "Transkripte für Zeile",
+      "details": {
+        "baseItem": "KnowledgeScout.md"
+      },
+      "id": "1752504023706-echdz91z7",
+      "remarks": "",
+      "isDuplicate": false
+    },
+    {
+      "timestamp": "2025-07-14T14:40:23.625Z",
+      "area": "file",
+      "sequence": 247,
+      "component": "FileList",
+      "level": "debug",
+      "message": "Gruppierung Ergebnis (angepasst)",
+      "details": {
+        "groups": [
+          {
+            "base": "KnowledgeScout",
+            "baseItem": "KnowledgeScout.md"
+          },
+          {
+            "base": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_EK_Netto_250704_v00003New__shadow_dGVtcC8wMU9LVDIwMjRfTGl2aXF1ZV9Tw7hyZW5zZW4gQmVkZGluZ19Cb3hzcHJpbmdiZXR0X0VLX05ldHRvXzI1MDcwNF92MDAwMDNOZXcuZGUubWQ=",
+            "baseItem": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_EK_Netto_250704_v00003New.de.md"
+          },
+          {
+            "base": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm__shadow_dGVtcC8wMU9LVDIwMjRfTGl2aXF1ZV9Tw7hyZW5zZW4gQmVkZGluZ19Cb3hzcHJpbmdiZXR0X2xsbS5kZS5tZA==",
+            "baseItem": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.de.md"
+          },
+          {
+            "base": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.Kataloganalyse__shadow_dGVtcC8wMU9LVDIwMjRfTGl2aXF1ZV9Tw7hyZW5zZW4gQmVkZGluZ19Cb3hzcHJpbmdiZXR0X2xsbS5LYXRhbG9nYW5hbHlzZS5kZS5tZA==",
+            "baseItem": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.Kataloganalyse.de.md"
+          },
+          {
+            "base": "Commoning vs. Kommerz__shadow_dGVtcC9Db21tb25pbmcgdnMuIEtvbW1lcnouZGUubWQ=",
+            "baseItem": "Commoning vs. Kommerz.de.md"
+          },
+          {
+            "base": "other__dGVtcC8wMU9LVDIwMjRfTGl2aXF1ZV9Tw7hyZW5zZW4gQmVkZGluZ19Cb3hzcHJpbmdiZXR0X0VLX05ldHRvXzI1MDcwNF92MDAwMDNOZXcucGRm",
+            "baseItem": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_EK_Netto_250704_v00003New.pdf"
+          },
+          {
+            "base": "other__dGVtcC8wMU9LVDIwMjRfTGl2aXF1ZV9Tw7hyZW5zZW4gQmVkZGluZ19Cb3hzcHJpbmdiZXR0X2xsbS5wZGY=",
+            "baseItem": "01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.pdf"
+          },
+          {
+            "base": "other__dGVtcC9BIFRheG9ub215IG9mIFJldHJpZXZhbCBBdWdtZW50ZWQgR2VuZXJhdGlvbiAyMDI0LTEwLTIzIDA3XzExXzM5LnBkZg==",
+            "baseItem": "A Taxonomy of Retrieval Augmented Generation 2024-10-23 07_11_39.pdf"
+          },
+          {
+            "base": "other__dGVtcC9BZ2VudGluIGRlciBWZXJidW5kZW5oZWl0ICgxKS5jc3Y=",
+            "baseItem": "Agentin der Verbundenheit (1).csv"
+          },
+          {
+            "base": "other__dGVtcC9Cb2hvX1dlcmJldGV4dGUueGxzeA==",
+            "baseItem": "Boho_Werbetexte.xlsx"
+          },
+          {
+            "base": "other__dGVtcC9Db21tb25pbmcgdnMuIEtvbW1lcnogLSBMTE0ucGRm",
+            "baseItem": "Commoning vs. Kommerz - LLM.pdf"
+          },
+          {
+            "base": "other__dGVtcC9Db21tb25pbmcgdnMuIEtvbW1lcnoucGRm",
+            "baseItem": "Commoning vs. Kommerz.pdf"
+          },
+          {
+            "base": "other__dGVtcC9Db29wYnVuZCBTdGFydHVwIEZyYWdlYm9nZW4ucGRm",
+            "baseItem": "Coopbund Startup Fragebogen.pdf"
+          },
+          {
+            "base": "other__dGVtcC9IdWVtZXJfMjAwNF9EaWVUYWdmYWx0ZXJTw7xkdGlyb2xzX05hdHVybXVzZXVtXzIwMThfYy5wZGY=",
+            "baseItem": "Huemer_2004_DieTagfalterSüdtirols_Naturmuseum_2018_c.pdf"
+          },
+          {
+            "base": "other__dGVtcC9Lbm93bGVkZ2Ugc2NvdXQgVmVyYmVzc2VydW5nZW4ubTRh",
+            "baseItem": "Knowledge scout Verbesserungen.m4a"
+          },
+          {
+            "base": "other__dGVtcC9OZXVlIEF1Zm5haG1lIDI1Lm00YQ==",
+            "baseItem": "Neue Aufnahme 25.m4a"
+          },
+          {
+            "base": "other__dGVtcC9OZXVlIEF1Zm5haG1lIDI2Lm00YQ==",
+            "baseItem": "Neue Aufnahme 26.m4a"
+          },
+          {
+            "base": "other__dGVtcC9zdC1pdmVzLXVrLTI2dGgtbWF5LTIwMjMtYS1tdXJhbC1ieS1jYXMtc3R1ZGVudHMtcGhvdG9ncmFwaGVkLWJ5LW1vaGFtZWQtbWVsZWhpLXdpdGgtdW50aXRsZWQtMTk2MHMtYW5kLTcwcy13b3Jrcy1ieS1hYmRlcnJhaG1hbi1yYWhvdWxlLXRoZS1jYXNhYmxhbmNhLWFydC1zY2hvb2wtcGxhdGZvcm1zLWFuZC1wYXR0ZXJucy1mb3ItYS1wb3N0Y29sb25pYWwtYS5qcGc=",
+            "baseItem": "st-ives-uk-26th-may-2023-a-mural-by-cas-students-photographed-by-mohamed-melehi-with-untitled-1960s-and-70s-works-by-abderrahman-rahoule-the-casablanca-art-school-platforms-and-patterns-for-a-postcolonial-a.jpg"
+          },
+          {
+            "base": "other__dGVtcC9TdHJhY2tFdEFsXzE5ODlfQW50aG9jeWFuaW5QYXR0ZXJuc0luRXVyb3BlYW5PcmNoaWRzQW5kVGhlaXJUYXhvbm9taWNBbmRQaHlsb2dlbmV0aWNSZWxldmFuY2VfUGh5dG9jaGVtaXN0cnlfMjguOF9rXzFfMS50aWY=",
+            "baseItem": "StrackEtAl_1989_AnthocyaninPatternsInEuropeanOrchidsAndTheirTaxonomicAndPhylogeneticRelevance_Phytochemistry_28.8_k_1_1.tif"
+          },
+          {
+            "base": "other__dGVtcC9TdHJhdGVnaWVuIHp1ciBHZXdpbm51bmcgdm9uIFVudGVyc3TDvHR6ZXJuIGbDvHIgRnJpZWRlbnNpbml0aWF0aXZlbi5kb2N4",
+            "baseItem": "Strategien zur Gewinnung von Unterstützern für Friedensinitiativen.docx"
+          },
+          {
+            "base": "other__dGVtcC9WZXJ0cmF1ZW5zcsOkdW1lLmRvY3g=",
+            "baseItem": "Vertrauensräume.docx"
+          }
+        ]
+      },
+      "id": "1752504023706-3ba9xt6ry",
+      "remarks": "",
+      "isDuplicate": false
+    }
+  ]
+}</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<p>Danke für die ausführliche Log-Ausgabe!<br />
+Dein Debug-Log zeigt, dass <strong>keine ShadowTwin-Gruppierung</strong> mehr stattfindet – alle <code>.de.md</code>-Dateien erscheinen als Einzeldateien (mit <code>__shadow_...</code> im Gruppennamen), <strong>auch wenn die passende Hauptdatei existiert</strong>.<br />
+Das ist nicht korrekt und liegt an einem kleinen, aber entscheidenden Fehler in der Gruppierungslogik.</p>
+<hr />
+<h2 id="fehleranalyse"><strong>Fehleranalyse</strong><a class="headerlink" href="#fehleranalyse" title="Permanent link">&para;</a></h2>
+<p><strong>Was ist passiert?</strong>
+- Die Gruppierung prüft, ob eine Hauptdatei (<code>basename.md</code>) existiert.
+- Die ShadowTwins werden nach dem Basenamen vor <code>.de.md</code> gruppiert.
+- <strong>ABER:</strong> Die Hauptdatei wird als <code>basename.md</code> gespeichert, der ShadowTwin als <code>basename</code> (ohne <code>.md</code>).<br />
+  → Beim Vergleich wird also <code>"basename"</code> mit <code>"basename.md"</code> verglichen – das passt nie!</p>
+<p><strong>Beispiel:</strong>
+- Hauptdatei: <code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.md</code> → Basename <code>"01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm"</code>
+- ShadowTwin: <code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.de.md</code> → Basename <code>"01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm"</code></p>
+<p><strong>ABER:</strong><br />
+In der aktuellen Logik wird die Hauptdatei mit <code>mainFileMap.set(base, item)</code> gespeichert, wobei <code>base = name.slice(0, -3)</code> ist (also <code>"basename"</code>).<br />
+Der ShadowTwin wird mit <code>base = shadowTwinMatch[1]</code> gespeichert (ebenfalls <code>"basename"</code>).</p>
+<p><strong>Das ist eigentlich korrekt!</strong><br />
+<strong>Aber:</strong><br />
+Wenn du in deiner Dateiliste keine Datei <code>basename.md</code> hast, sondern z.B. nur <code>basename.pdf</code>, dann wird nie gruppiert.</p>
+<hr />
+<h2 id="was-ist-vermutlich-das-problem"><strong>Was ist vermutlich das Problem?</strong><a class="headerlink" href="#was-ist-vermutlich-das-problem" title="Permanent link">&para;</a></h2>
+<p><strong>Vermutung:</strong><br />
+In deinem Testfall gibt es keine Datei <code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.md</code>, sondern nur<br />
+- <code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.pdf</code><br />
+- <code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.de.md</code><br />
+- <code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.Kataloganalyse.de.md</code></p>
+<p><strong>Ergebnis:</strong><br />
+→ Es gibt <strong>keine Hauptdatei</strong> (<code>basename.md</code>), daher werden alle <code>.de.md</code>-Dateien als Einzeldateien behandelt.</p>
+<hr />
+<h2 id="was-ist-zu-tun"><strong>Was ist zu tun?</strong><a class="headerlink" href="#was-ist-zu-tun" title="Permanent link">&para;</a></h2>
+<p><strong>Wenn du möchtest, dass ShadowTwins zu PDFs oder anderen Dateitypen gruppiert werden,</strong><br />
+muss die Gruppierungslogik erweitert werden:</p>
+<ul>
+<li><strong>ShadowTwins werden zu einer Datei gruppiert, wenn es eine Datei mit demselben Basename und einer der Haupt-Erweiterungen gibt</strong> (z.B. <code>.md</code>, <code>.pdf</code>, <code>.docx</code>, <code>.txt</code>, ...).</li>
+</ul>
+<p><strong>Oder:</strong><br />
+- Du möchtest wirklich NUR <code>.md</code> als Hauptdatei – dann ist das aktuelle Verhalten korrekt.</p>
+<hr />
+<h2 id="empfehlung"><strong>Empfehlung</strong><a class="headerlink" href="#empfehlung" title="Permanent link">&para;</a></h2>
+<p><strong>Variante 1 (nur <code>.md</code> als Hauptdatei):</strong><br />
+- Dann ist das Verhalten korrekt.<br />
+- ShadowTwins werden nur gruppiert, wenn <code>basename.md</code> existiert.</p>
+<p><strong>Variante 2 (auch <code>.pdf</code>, <code>.docx</code>, <code>.txt</code> als Hauptdatei):</strong><br />
+- Passe die Gruppierungslogik an, sodass auch andere Hauptdateitypen als „Basename“ akzeptiert werden.</p>
+<hr />
+<h3 id="was-mochtest-du"><strong>Was möchtest du?</strong><a class="headerlink" href="#was-mochtest-du" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Nur <code>.md</code> als Hauptdatei</strong> (aktuelles Verhalten, ShadowTwins werden selten gruppiert)</li>
+<li><strong>Auch <code>.pdf</code>, <code>.docx</code>, <code>.txt</code> etc. als Hauptdatei</strong> (ShadowTwins werden zu diesen gruppiert)</li>
+</ol>
+<p>Bitte gib kurz Bescheid, welche Variante du möchtest – dann passe ich die Gruppierungslogik entsprechend an!</p>
+<hr />
+<p><strong>User</strong></p>
+<p>Variante 2 ist richtig. Basename muss immer ohne Endung analysiert werden. Shaddowtwin ist auch das transcript einer Binären datei - kann ja nicht md sein.</p>
+<hr />
+<p><strong>Cursor</strong></p>
+<p>Perfekt, das ist jetzt klar!<br />
+<strong>Ziel:</strong><br />
+- Der Basename ist immer der Dateiname ohne Endung (egal ob <code>.pdf</code>, <code>.mp3</code>, <code>.md</code>, <code>.docx</code> usw.).
+- ShadowTwins (<code>basename.de.md</code>, <code>basename.en.md</code> etc.) werden zu allen Dateien mit demselben Basename gruppiert – egal, welche Hauptdateiendung sie haben.
+- Es kann also z.B. ein PDF und ein <code>.de.md</code>-Transkript als Gruppe erscheinen.</p>
+<hr />
+<h2 id="losungsidee-variante-2-robust-einfach"><strong>Lösungsidee (Variante 2, robust &amp; einfach):</strong><a class="headerlink" href="#losungsidee-variante-2-robust-einfach" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Basename extrahieren:</strong>  </li>
+<li>Für alle Dateien: alles vor der ersten Sprachendung (<code>.de.md</code>, <code>.en.md</code>, ...) oder vor der letzten Endung.</li>
+<li>
+<p>Beispiele:</p>
+<ul>
+<li><code>foo.pdf</code> → Basename: <code>foo</code></li>
+<li><code>foo.de.md</code> → Basename: <code>foo</code></li>
+<li><code>foo.Kataloganalyse.de.md</code> → Basename: <code>foo.Kataloganalyse</code></li>
+<li><code>foo.txt</code> → Basename: <code>foo</code></li>
+<li><code>foo</code> → Basename: <code>foo</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Gruppierung:</strong>  </p>
+</li>
+<li>Alle Dateien mit gleichem Basename werden zusammengefasst.</li>
+<li>
+<p>Innerhalb der Gruppe:</p>
+<ul>
+<li>Die „Hauptdatei“ ist die erste Binärdatei (<code>pdf</code>, <code>docx</code>, <code>mp3</code>, etc.) oder <code>.md</code> (ohne Sprachkürzel).</li>
+<li>ShadowTwins sind alle <code>.de.md</code>, <code>.en.md</code> etc.</li>
+</ul>
+</li>
+<li>
+<p><strong>ShadowTwin nur, wenn Basename in der Gruppe auch eine Nicht-ShadowTwin-Datei hat.</strong></p>
+</li>
+</ol>
+<hr />
+<h2 id="vorgehen-im-code"><strong>Vorgehen im Code</strong><a class="headerlink" href="#vorgehen-im-code" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Basename-Extraktion vereinheitlichen:</strong>  </li>
+<li>
+<p>Für alle Dateien:  </p>
+<ul>
+<li>Wenn <code>.de.md</code>/<code>.en.md</code>/… → alles davor ist Basename  </li>
+<li>Sonst: alles vor der letzten Endung ist Basename</li>
+</ul>
+</li>
+<li>
+<p><strong>Gruppieren nach Basename:</strong>  </p>
+</li>
+<li>
+<p>Alle Dateien mit gleichem Basename in eine Gruppe.</p>
+</li>
+<li>
+<p><strong>Innerhalb der Gruppe:</strong>  </p>
+</li>
+<li>Hauptdatei: erste Datei, die <strong>nicht</strong> <code>.de.md</code>/<code>.en.md</code>/… ist  </li>
+<li>ShadowTwins: alle <code>.de.md</code>/<code>.en.md</code>/…  </li>
+<li>Wenn keine Hauptdatei: alle als Einzeldateien anzeigen</li>
+</ul>
+<hr />
+<h2 id="nachster-schritt"><strong>Nächster Schritt</strong><a class="headerlink" href="#nachster-schritt" title="Permanent link">&para;</a></h2>
+<p>Ich passe die Gruppierungslogik im Code jetzt entsprechend an.<br />
+<strong>Danach werden ShadowTwins zu allen passenden Hauptdateien (egal ob PDF, DOCX, etc.) gruppiert.</strong></p>
+<p>Ich setze das jetzt um!</p>
+<div class="highlight"><pre><span></span><code>// ... existing code ...
+  // Vereinfachte Funktion zum Extrahieren des Basisnamens (ohne Endung, auch für Binärdateien)
+  function getBaseName(name: string): string {
+    // ShadowTwin: .de.md, .en.md, etc.
+    const shadowTwinMatch = name.match(/^(.*)\.(de|en|fr|es|it)\.md$/);
+    if (shadowTwinMatch) return shadowTwinMatch[1];
+    // Sonst: alles vor der letzten Endung
+    const lastDot = name.lastIndexOf(&#39;.&#39;);
+    if (lastDot === -1) return name;
+    return name.substring(0, lastDot);
+  }
+
+  // Prüft ob eine Datei ein ShadowTwin ist (Markdown mit Sprachkürzel)
+  function isShadowTwin(name: string): boolean {
+    // Pattern: name.de.md, name.en.md, etc.
+    const shadowTwinPattern = /^(.+)\.(de|en|fr|es|it)\.md$/;
+    return shadowTwinPattern.test(name);
+  }
+
+  // Gruppiere die Dateien nach Basename
+  const fileGroups = useMemo(() =&gt; {
+    if (!items) return new Map&lt;string, FileGroup&gt;();
+
+    // Schritt 1: Gruppiere alle Dateien nach Basename
+    const groupsMap = new Map&lt;string, StorageItem[]&gt;();
+    for (const item of items) {
+      if (item.type !== &#39;file&#39;) continue;
+      const base = getBaseName(item.metadata.name);
+      if (!groupsMap.has(base)) groupsMap.set(base, []);
+      groupsMap.get(base)!.push(item);
+    }
+
+    // Schritt 2: Erstelle FileGroups
+    const fileGroupsMap = new Map&lt;string, FileGroup&gt;();
+    for (const [base, groupItems] of Array.from(groupsMap.entries())) {
+      // Finde Hauptdatei (erste Nicht-ShadowTwin-Datei)
+      const mainFile = groupItems.find((item) =&gt; !isShadowTwin(item.metadata.name));
+      // Finde alle ShadowTwins
+      const shadowTwins = groupItems.filter((item) =&gt; isShadowTwin(item.metadata.name));
+      if (mainFile) {
+        fileGroupsMap.set(base, {
+          baseItem: mainFile,
+          transcriptFiles: shadowTwins.length &gt; 0 ? shadowTwins : undefined,
+          transformed: undefined
+        });
+      } else {
+        // Keine Hauptdatei: Jede ShadowTwin einzeln anzeigen
+        for (const twin of shadowTwins) {
+          fileGroupsMap.set(`${base}__shadow_${twin.id}`, {
+            baseItem: twin,
+            transcriptFiles: undefined,
+            transformed: undefined
+          });
+        }
+      }
+    }
+    // Debug-Logging für Gruppierung
+    FileLogger.debug(&#39;FileList&#39;, &#39;Gruppierung Ergebnis (Basename, alle Endungen)&#39;, {
+      groups: Array.from(fileGroupsMap.entries()).map(([base, group]) =&gt; ({
+        base,
+        baseItem: group.baseItem?.metadata.name,
+        transcripts: group.transcriptFiles?.map(t =&gt; t.metadata.name)
+      }))
+    });
+    return fileGroupsMap;
+  }, [items]);
+// ... existing code ...
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>// ... existing code ...
+  // Intelligente Batch-Auswahl basierend auf Filter
+  const handleSelectAll = useCallback((checked: boolean) =&gt; {
+    const startTime = performance.now();
+    if (checked) {
+      // Verwende nur die Hauptdateien (baseItem) aus den FileGroups
+      const mainItems = Array.from((fileGroups ?? new Map()).values())
+        .map(group =&gt; group.baseItem)
+        .filter((item): item is StorageItem =&gt; item !== undefined);
+      const selectableItems = mainItems.filter(item =&gt; {
+        try {
+          const mediaType = getMediaType(item);
+          // Je nach Filter unterschiedliche Dateien auswählen
+          switch (currentCategoryFilter) {
+            case &#39;media&#39;:
+              return item.type === &#39;file&#39; &amp;&amp; (mediaType === &#39;audio&#39; || mediaType === &#39;video&#39;);
+            case &#39;text&#39;:
+              return item.type === &#39;file&#39; &amp;&amp; mediaType === &#39;text&#39;;
+            case &#39;documents&#39;:
+              return item.type === &#39;file&#39; &amp;&amp; mediaType === &#39;document&#39;;
+            default:
+              // Bei &#39;all&#39; alle Dateien auswählen, die für eine Operation geeignet sind
+              return item.type === &#39;file&#39; &amp;&amp; (
+                mediaType === &#39;audio&#39; || 
+                mediaType === &#39;video&#39; || 
+                mediaType === &#39;text&#39; || 
+                mediaType === &#39;document&#39;
+              );
+          }
+        } catch {
+          return false;
+        }
+      });
+      StateLogger.info(&#39;FileList&#39;, &#39;Selecting all items based on filter&#39;, {
+        filter: currentCategoryFilter,
+        totalItems: items.length,
+        selectableCount: selectableItems.length,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      // Je nach Filter unterschiedliche Atome verwenden
+      if (currentCategoryFilter === &#39;media&#39;) {
+        setSelectedBatchItems(selectableItems.map(item =&gt; ({
+          item,
+          type: getMediaType(item)
+        })));
+      } else if (currentCategoryFilter === &#39;text&#39;) {
+        setSelectedTransformationItems(selectableItems.map(item =&gt; ({
+          item,
+          type: getMediaType(item)
+        })));
+      } else {
+        // Bei &#39;all&#39; oder &#39;documents&#39; beide Atome füllen
+        const mediaItems = selectableItems.filter(item =&gt; {
+          const mediaType = getMediaType(item);
+          return mediaType === &#39;audio&#39; || mediaType === &#39;video&#39;;
+        });
+        const textItems = selectableItems.filter(item =&gt; {
+          const mediaType = getMediaType(item);
+          return mediaType === &#39;text&#39; || mediaType === &#39;document&#39;;
+        });
+        setSelectedBatchItems(mediaItems.map(item =&gt; ({
+          item,
+          type: getMediaType(item)
+        })));
+        setSelectedTransformationItems(textItems.map(item =&gt; ({
+          item,
+          type: getMediaType(item)
+        })));
+      }
+    } else {
+      StateLogger.info(&#39;FileList&#39;, &#39;Deselecting all items&#39;, {
+        previouslySelected: selectedBatchItems.length + selectedTransformationItems.length,
+        duration: `${(performance.now() - startTime).toFixed(2)}ms`
+      });
+      setSelectedBatchItems([]);
+      setSelectedTransformationItems([]);
+    }
+  }, [fileGroups, currentCategoryFilter, setSelectedBatchItems, setSelectedTransformationItems, selectedBatchItems.length, selectedTransformationItems.length]);
+// ... existing code ...
+</code></pre></div>
+<p>Die Gruppierungslogik ist jetzt wie folgt umgesetzt:</p>
+<ul>
+<li><strong>Basename</strong> wird immer ohne Endung analysiert (egal ob <code>.pdf</code>, <code>.md</code>, <code>.docx</code>, etc.).</li>
+<li><strong>Alle Dateien mit gleichem Basename</strong> werden gruppiert.</li>
+<li><strong>ShadowTwins</strong> (<code>.de.md</code>, <code>.en.md</code>, ...) werden zu jeder Datei mit gleichem Basename gruppiert – egal, welche Hauptdateiendung sie hat (z.B. PDF, DOCX, MP3, ...).</li>
+<li><strong>Innerhalb der Gruppe</strong> ist die Hauptdatei die erste Nicht-ShadowTwin-Datei.</li>
+<li><strong>ShadowTwins ohne passende Hauptdatei</strong> erscheinen als Einzeldatei.</li>
+</ul>
+<p><strong>Das bedeutet:</strong><br />
+- Ein PDF und ein <code>.de.md</code>-Transkript mit gleichem Basename werden jetzt korrekt als Gruppe angezeigt.
+- Die Funktion <code>handleSelectAll</code> funktioniert weiterhin wie gewohnt.</p>
+<hr />
+<p><strong>Bitte teste jetzt die Dateiansicht erneut.</strong><br />
+Du solltest sehen, dass z.B.<br />
+- <code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.pdf</code><br />
+- <code>01OKT2024_Livique_Sørensen Bedding_Boxspringbett_llm.de.md</code><br />
+<strong>als Gruppe</strong> erscheinen (mit Transkript-Icon).</p>
+<p>Wenn noch etwas nicht wie gewünscht gruppiert wird, gib mir bitte ein Beispiel – dann passe ich die Logik weiter an!</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,230 +1,337 @@
-# Next.js Document Management System
+# Common Knowledge Stack
 
-Ein modernes, erweiterbares Dokumentenmanagementsystem, gebaut mit Next.js 14, TypeScript und Tailwind CSS. Das System ermöglicht die einheitliche Verwaltung von Dokumenten über verschiedene Storage-Provider hinweg.
+**An open research and development project for commons-oriented knowledge infrastructures.**
 
-## ✨ Hauptfunktionen
+The Common Knowledge Stack explores how distributed information (audio, video, documents, and images) can be transformed into structured, accessible, and collectively negotiated knowledge — outside commercial logic and with transparency at every step.
 
-- 📁 **Multi-Provider Storage System**
-  - Lokales Dateisystem
-  - SharePoint Integration (vorbereitet)
-  - Google Drive Integration (vorbereitet)
-  - OneDrive Integration (vorbereitet)
+---
 
-- 🔍 **Erweiterte Dokumentenverwaltung**
-  - Hierarchische Ordnerstruktur
-  - Datei-Vorschau
-  - Metadaten-Verwaltung
-  - Volltextsuche
+## 🧩 Structure
 
-- 👥 **Benutzer & Berechtigungen**
-  - Rollenbasierte Zugriffssteuerung
-  - Benutzer- und Gruppenverwaltung
-  - Feingranulare Berechtigungen
+The Common Knowledge Stack follows a file-sharing approach to knowledge distribution, designed to work both server-side and **locally** (with a planned Electron-based desktop implementation). The architecture consists of:
 
-- 🛠 **Technische Features**
-  - Modern UI mit Tailwind & shadcn/ui
-  - TypeScript & Next.js 14
-  - Server Components
-  - API Routes
+### Core Components
 
-## 🚀 Quick Start
+- **Knowledge Scout** – Next.js web application that currently runs server-side but is **prepared for local execution** with a planned Electron implementation. It provides the main interface for organizing, publishing, and exploring knowledge. It features an **abstracted storage layer** with three drivers:
+  - **Local File System** – Direct access to files on your computer
+  - **OneDrive** – Integration with Microsoft OneDrive for cloud storage
+  - **Nextcloud** – Integration with Nextcloud for self-hosted cloud storage (in development)
+  
+  This storage abstraction allows you to organize files locally and share knowledge through file sharing, independent of where the files are physically stored. The abstraction layer enables seamless transition between server-side and local desktop deployment. **The goal is to achieve absolute sovereignty over your own data** and migrate from locked-in scenarios to self-organized scenarios where you can share knowledge with others while maintaining full control over your information.
+
+- **Secretary Service** – External Python service that helps transform media files (audio, video, PDFs, images) in your file system into structured Markdown documents. It processes raw materials and creates "shadow twin" Markdown files alongside the originals.
+
+- **Knowledge Library & Chat** – Built on top of the transformed Markdown files, these tools enable:
+  - **Gallery** – Publishing and organizing knowledge for discovery
+  - **Chat & story mode** – Dialog-based exploration using RAG (Retrieval-Augmented Generation)
+
+### Workflow
+
+The typical workflow follows this path:
+
+1. **Content Collection** → 
+   - **File Organization**: Store media files (PDFs, audio, video) in your chosen storage (local, OneDrive, or Nextcloud)
+   - **Web Scraping**: Scrape websites to collect event data, talks, slides, video transcripts, and web content (e.g., using the Session Manager)
+2. **Transformation** → Secretary Service transforms these files and scraped content into structured Markdown documents. For events and talks, this includes extracting slides, video transcripts, web text, and metadata into organized Markdown files
+3. **Knowledge Layer** → Use the Markdown files to build galleries and enable chat-based exploration
+4. **Sharing** → Share knowledge through file sharing, making the transformed content accessible to others
+
+---
+
+## 🚀 Installation
+
+### Docker (Recommended for Production)
+
+The easiest way to deploy Common Knowledge Scout is using Docker. A pre-built image is available on GitHub Container Registry:
 
 ```bash
-# Repository klonen
-git clone [repository-url]
-cd [projekt-verzeichnis]
+docker pull ghcr.io/bcommonslab/commonkno:latest
+```
 
-# Dependencies installieren
+### Docker Compose
+
+For a complete setup with all required environment variables, use Docker Compose. An example configuration file is provided: [`docker-compose.example.yml`](./docker-compose.example.yml)
+
+Copy the example file and customize it with your configuration:
+
+```bash
+cp docker-compose.example.yml docker-compose.yml
+# Edit docker-compose.yml with your settings
+docker-compose up -d
+```
+
+### Local Development
+
+For local development and contribution:
+
+```bash
+# Clone the repository
+git clone [repository-url]
+cd CommonKnowledgeScout
+
+# Install dependencies
 pnpm install
 
-# Umgebungsvariablen konfigurieren
+# Configure environment variables
 cp .env.example .env.local
-# .env.local anpassen
+# Edit .env.local with your configuration
 
-# Entwicklungsserver starten
+# Start development server
 pnpm dev
 ```
-Die Anwendung ist nun unter `http://localhost:3000` verfügbar.
 
+The application will be available at `http://localhost:3000`.
 
-## ⚙️ Umgebungsvariablen (.env)
+---
 
-Lege eine `.env.local` (Entwicklung) bzw. `.env` (Produktion) an. Eine Vorlage findest du in `.env.example`.
+## ⚙️ Configuration
 
-Wichtige Variablen (Auszug, siehe Beispiel unten):
-- Anwendung
-  - `NEXT_PUBLIC_APP_URL` (erforderlich, z. B. `http://localhost:3000` oder Produktions‑URL)
-  - `PORT` (optional; Next.js Port)
-- Interner Bypass/Callbacks
-  - `INTERNAL_TEST_TOKEN` (empfohlen): Shared Secret für interne Server‑zu‑Server‑Aufrufe. Wird als `X-Internal-Token` gesetzt und auf `/api/external/jobs/[jobId]` geprüft. Fehlt diese Variable, schlagen interne Callbacks mit 401 fehl (z. B. Meldung „callback_token fehlt“), und Jobs bleiben u. U. im Status „running“.
-  - `INTERNAL_SELF_BASE_URL` (optional, empfohlen in Prod): Basis‑URL für interne Self‑Calls (z. B. `http://127.0.0.1:3000` oder interne Service‑URL). Fallbacks: Request‑Origin → `NEXT_PUBLIC_APP_URL` → `http://127.0.0.1:${PORT||3000}`. Wird u. a. für den Analyze‑Endpoint genutzt.
-- Secretary Service
-  - `SECRETARY_SERVICE_URL` (erforderlich)
-  - `SECRETARY_SERVICE_API_KEY` (erforderlich)
-  - `EXTERNAL_REQUEST_TIMEOUT_MS` (optional; Default 600000 empfohlen)
-  - `EXTERNAL_TEMPLATE_TIMEOUT_MS` (optional; überschreibt Template‑Timeout)
-  - `ANALYZE_REQUEST_TIMEOUT_MS` (optional; Timeout für internen Analyze‑Self‑Call, Default 120000)
-- MongoDB
-  - `MONGODB_URI` (erforderlich)
-  - `MONGODB_DATABASE_NAME` (erforderlich)
-  - `MONGODB_COLLECTION_NAME` (optional; Default: `libraries`)
-- Pinecone / Embeddings
-  - `PINECONE_API_KEY` (falls RAG genutzt wird)
-  - `OPENAI_EMBEDDINGS_DIMENSION` (optional; Default 3072)
-  - `OPENAI_EMBEDDINGS_TIMEOUT_MS` (optional; Default 60000 = 60 Sekunden)
-  - `OPENAI_EMBEDDINGS_MAX_RETRIES` (optional; Default 3)
-- OpenAI Chat (optional)
-  - `OPENAI_API_KEY`
-  - `OPENAI_CHAT_MODEL_NAME` (Default: `gpt-4o-mini`)
-  - `OPENAI_CHAT_TEMPERATURE` (Default: `0.2`)
-- Worker Steuerung (optional)
-  - `JOBS_WORKER_INTERVAL_MS` (Default: `2000`)
-  - `JOBS_WORKER_CONCURRENCY` (Default: `3`)
-  - `JOBS_WORKER_AUTOSTART` (Default: `true`)
-- Auth (Clerk)
-  - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-  - `CLERK_SECRET_KEY`
-  - `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL`
-- Debug (optional)
-  - `DEBUG_FILESYSTEM` (Default: `false`)
+### Environment Variables
 
-Beispiel:
+The application requires several environment variables to be configured. Create a `.env.local` file (for development) or `.env` file (for production) based on `.env.example`.
 
-```bash
-# Anwendung
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-PORT=3000
+#### Application Settings
 
-# Interner Bypass für interne Callbacks (Server‑zu‑Server)
-INTERNAL_TEST_TOKEN=change_me_for_prod
-# Interne Self‑Calls (optional; überschreibt Origin)
-INTERNAL_SELF_BASE_URL=http://127.0.0.1:3000
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_APP_URL` | Yes | Application URL (e.g., `http://localhost:3000` or production URL) |
+| `PORT` | No | Next.js port (default: 3000) |
 
-# Secretary Service
-SECRETARY_SERVICE_URL=http://127.0.0.1:5001/api
-SECRETARY_SERVICE_API_KEY=your_secretary_key
-EXTERNAL_REQUEST_TIMEOUT_MS=600000
-EXTERNAL_TEMPLATE_TIMEOUT_MS=600000
+#### Internal Security
 
-# MongoDB
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/your-db
-MONGODB_DATABASE_NAME=your-db
-MONGODB_COLLECTION_NAME=libraries
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `INTERNAL_TEST_TOKEN` | Recommended | Shared secret for internal server-to-server calls. Used as `X-Internal-Token` header. **Required in production** to prevent callback failures. |
+| `INTERNAL_SELF_BASE_URL` | No | Base URL for internal self-calls (e.g., `http://127.0.0.1:3000`). Falls back to request origin or `NEXT_PUBLIC_APP_URL`. |
 
-# Pinecone / Embeddings
-PINECONE_API_KEY=
-OPENAI_EMBEDDINGS_DIMENSION=3072
-OPENAI_EMBEDDINGS_TIMEOUT_MS=60000
-OPENAI_EMBEDDINGS_MAX_RETRIES=3
+#### Secretary Service
 
-# OpenAI Chat (optional)
-OPENAI_API_KEY=
-OPENAI_CHAT_MODEL_NAME=gpt-4o-mini
-OPENAI_CHAT_TEMPERATURE=0.2
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRETARY_SERVICE_URL` | Yes | URL of the Secretary Service API endpoint |
+| `SECRETARY_SERVICE_API_KEY` | Yes | API key for authenticating with the Secretary Service |
+| `EXTERNAL_REQUEST_TIMEOUT_MS` | No | Timeout for external requests (default: 600000 ms) |
+| `EXTERNAL_TEMPLATE_TIMEOUT_MS` | No | Timeout for template processing (default: 600000 ms) |
+| `ANALYZE_REQUEST_TIMEOUT_MS` | No | Timeout for internal analyze calls (default: 120000 ms) |
 
-# Worker
-JOBS_WORKER_INTERVAL_MS=2000
-JOBS_WORKER_CONCURRENCY=3
-JOBS_WORKER_AUTOSTART=true
+#### MongoDB
 
-# Clerk (optional, falls Login aktiviert ist)
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MONGODB_URI` | Yes | MongoDB connection string |
+| `MONGODB_DATABASE_NAME` | Yes | Database name |
+| `MONGODB_COLLECTION_NAME` | No | Collection name (default: `libraries`) |
 
-# Debug
-DEBUG_FILESYSTEM=false
-```
+#### Pinecone / Vector Database (for RAG)
 
-Hinweis zur Fehlermeldung „callback_token fehlt“: In der Template‑Only/Idempotenz‑Pfadführung wird ein interner Callback an `/api/external/jobs/[jobId]` gesendet. Ist `INTERNAL_TEST_TOKEN` nicht gesetzt, wird kein `X-Internal-Token` Header mitgesendet, der Callback wird mit 401 abgewiesen und der Job kann im Status „running“ verbleiben. Setze daher in Produktion unbedingt `INTERNAL_TEST_TOKEN` (gleich auf Sender‑ und Empfängerseite; hier derselbe Server) und starte die App neu.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PINECONE_API_KEY` | Yes* | Pinecone API key (*required if RAG features are used) |
+| `OPENAI_EMBEDDINGS_DIMENSION` | No | Embedding dimension (default: 3072) |
+| `OPENAI_EMBEDDINGS_TIMEOUT_MS` | No | Embedding timeout (default: 60000 ms) |
+| `OPENAI_EMBEDDINGS_MAX_RETRIES` | No | Maximum retry attempts (default: 3) |
 
+#### OpenAI Chat (Optional)
 
-### Cursor‑IDE Chats exportieren (Utility)
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | No | OpenAI API key for chat features |
+| `OPENAI_CHAT_MODEL_NAME` | No | Chat model name (default: `gpt-4o-mini`) |
+| `OPENAI_CHAT_TEMPERATURE` | No | Chat temperature (default: `0.2`) |
 
-Zur Bequemlichkeit liegt ein optionales Skript bei, das lokale Cursor‑Chats aus der SQLite‑DB exportiert.
+#### Authentication (Clerk)
 
-Voraussetzungen:
-- Windows, Cursor geschlossen
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes* | Clerk publishable key (*required if authentication is enabled) |
+| `CLERK_SECRET_KEY` | Yes* | Clerk secret key (*required if authentication is enabled) |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | No | Sign-in URL path (default: `/sign-in`) |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | No | Sign-up URL path (default: `/sign-up`) |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | No | Redirect after sign-in (default: `/`) |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | No | Redirect after sign-up (default: `/`) |
 
-Schritte (PowerShell):
+#### Job Worker Configuration
 
-```powershell
-$env:CURSOR_DB="$env:APPDATA\Cursor\User\globalStorage\state.vscdb"
-pnpm install
-pnpm run export:cursor-chats -- --out "@cursor-chats" --only-md --messages-only
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `JOBS_EXECUTION_MODE` | No | Execution mode: `worker` or `direct` (default: `worker`) |
+| `JOBS_WORKER_AUTOSTART` | No | Auto-start worker (default: `true`) |
+| `JOBS_WORKER_INTERVAL_MS` | No | Worker polling interval (default: 2000 ms) |
+| `JOBS_WORKER_CONCURRENCY` | No | Number of concurrent jobs (default: 3) |
 
-CLI‑Optionen:
-- `--out <pfad>`: Zielordner (Standard: `exports/cursor-chats`). Tipp: `"@cursor-chats"`.
-- `--only-md`: Keine Rohdateien speichern, nur Markdown.
-- `--messages-only`: Nur Einträge exportieren, die als Nachrichten erkennbar sind.
-- `--pattern <teilstring>`: Zusätzliche Key‑Filter, mehrfach nutzbar (Default: chat, conversation, history, messages, session, cursor).
+#### Debug Settings
 
-Ergebnis:
-- `<out>/*.md`: Eine Markdown‑Datei pro erkannten Chat inkl. Frontmatter (`source`, `key`, `createdAt`).
-- `<out>/raw/*`: Nur ohne `--only-md` – Rohdaten (JSON/TXT/BIN).
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DEBUG_FILESYSTEM` | No | Enable filesystem debug logging (default: `false`) |
 
+#### Additional Optional Services
 
-## Package deployen
-1. Githuvb Token setzen
-$env:GITHUB_TOKEN="ghp_YOUR_TOKEN_HERE"
+- **Vimeo Integration**: `VIMEO_ACCESS_TOKEN` for video transcript extraction
+- **Azure Storage**: `AZURE_STORAGE_CONNECTION_STRING` and `AZURE_STORAGE_CONTAINER_NAME` for cloud storage
+- **Microsoft OneDrive**: `MS_REDIRECT_URI` for OneDrive integration
 
-2. Token prüfen
-echo "Token gesetzt: $env:GITHUB_TOKEN"
+### Example Configuration
 
-3. Package veröffentlichen
-pnpm run package:publish
+See [`docker-compose.example.yml`](./docker-compose.example.yml) for a complete example configuration.
 
+---
 
-## 📚 Dokumentation
+## 📖 Workflows
 
-Detaillierte Dokumentation finden Sie in den folgenden Bereichen:
+### Library Setup
 
-### Architektur & Setup
-- [Projektübersicht](docs/01_project_overview.md)
-- [Technische Architektur](docs/02_architecture.md)
-- [Kernkomponenten](docs/03_core_components.md)
-- [Storage Provider System](docs/04_storage-provider.md)
+Create and configure a library to organize your knowledge base. Libraries serve as containers for documents, media files, and transformed content. Each library can have its own storage provider, access settings, and vector database configuration.
 
-### Benutzer & Features
-- [Funktionen und Benutzergruppen](docs/05_features.md)
-- [Entwickler Setup Guide](docs/05_setup.md)
-- [API Dokumentation](docs/07_api.md)
+**Learn more:** [Library Setup Guide](./docs/guide/library.md)
 
-## 🛠 Technologie-Stack
+### Local File Management
+
+Work with local filesystems to upload, organize, and manage files directly from your computer. The system supports hierarchical folder structures, file previews, and batch operations.
+
+**Learn more:** [Getting Started Guide](./docs/guide/getting-started.md)
+
+### File Transformation
+
+Transform various file formats into structured Markdown documents:
+
+- **PDFs**: Extract text, images, and structure from PDF documents
+- **Audio**: Transcribe audio files to text with speaker identification
+- **Video**: Extract transcripts and metadata from video files
+- **Images**: Extract text using OCR and generate descriptions
+
+Transformed files are saved as "shadow twins" alongside the original files, preserving the source while providing searchable, structured content.
+
+**Learn more:** [File Transformation Guide](./docs/guide/library.md#transformation)
+
+### Session Manager
+
+Scrape and import content from websites using the Session Manager. Extract structured data from web pages, convert them to Markdown format, and import them into your library. Useful for capturing event information, session data, and web-based content.
+
+**Learn more:** [Session Manager Guide](./docs/guide/batch-session-import.md)
+
+### Event Conversion
+
+Convert event data (conferences, workshops, meetings) into structured Markdown files. The system can process event metadata, session information, speaker details, and associated media files.
+
+**Learn more:** [Event Monitor Guide](./docs/guide/event-monitor.md)
+
+### Book Generation
+
+Create structured books from PDF documents by transforming them into Markdown format with chapters, table of contents, and metadata. Books can be organized, published, and made searchable through the gallery.
+
+**Learn more:** [PDF Transformation Guide](./docs/concepts/pdf/)
+
+### Gallery Publishing
+
+Publish and organize transformed content in public or private galleries. Galleries provide a web interface for browsing, searching, and accessing knowledge. Content can be organized by tags, categories, and custom metadata.
+
+**Learn more:** [Gallery Publishing Guide](./docs/guide/settings.md#public-publishing)
+
+### Chat & story mode
+
+Query your knowledge base using natural language. The Chat & story interface uses RAG (Retrieval-Augmented Generation) to find relevant content and generate answers based on your library's documents. Supports filtering by metadata, facets, and custom queries.
+
+**Learn more:** [Chat Documentation](./docs/chat-response-generation-process.md)
+
+---
+
+## ⚖️ License
+
+This repository uses a **dual-license model**:
+
+- **Source Code** → [GNU Affero General Public License v3.0](./LICENSE_AGPL.txt)  
+  - You are free to use, modify, and distribute the code **as long as you publish your modifications** under the same license.  
+  - If you run a modified version as a web service, the corresponding source code **must be made available** to users (AGPL requirement).
+
+- **Documentation, Texts, Slides, and Media** → [Creative Commons BY-NC-SA 4.0](./LICENSE_CONTENT.txt)  
+  - You may share and adapt these materials **for non-commercial purposes**,  
+    as long as you provide **proper attribution** and distribute derivatives under the same license.  
+  - Commercial use requires **explicit written permission**.
+
+---
+
+## 🧠 Attribution
+
+When reusing or citing materials from this repository, please include the following attribution:
+
+> "Common Knowledge Stack by Peter Aichner (B*commonsLAB), licensed under CC BY-NC-SA 4.0 / AGPL v3."
+
+If you use or extend the codebase, please keep the author credits in the source headers.
+
+---
+
+## 🤝 Contributing
+
+We welcome non-commercial collaboration in the spirit of commons and open research.  
+Pull requests, feedback, and local experiments are encouraged.
+
+For partnership or academic collaboration requests, contact:  
+📧 **peter.aichner@crystal-design.com**
+
+---
+
+## 📚 Further Documentation
+
+### User Guides
+
+- [Getting Started](./docs/guide/getting-started.md) – Quick start guide for new users
+- [Library Usage](./docs/guide/library.md) – How to use the library interface
+- [Settings](./docs/guide/settings.md) – Configuration and settings
+- [Troubleshooting](./docs/guide/troubleshooting.md) – Common issues and solutions
+- [FAQ](./docs/guide/faq.md) – Frequently asked questions
+
+### Developer Documentation
+
+- [Architecture](./docs/architecture/) – System architecture and design
+- [Core Components](./docs/architecture/core-components.md) – Key components overview
+- [PDF Ingestion](./docs/architecture/pdf-ingestion.md) – PDF processing pipeline
+- [API Reference](./docs/reference/api/) – API documentation
+
+### Concepts
+
+- [Storage Provider System](./docs/concepts/storage-provider.md) – Storage abstraction layer
+- [Metadata System](./docs/concepts/metadata.md) – Metadata handling
+- [PDF Workflow](./docs/concepts/pdf/) – PDF transformation concepts
+- [Video Transformation](./docs/concepts/video-transformation.md) – Video processing
+- [Image Transformation](./docs/concepts/image-transformation.md) – Image OCR and processing
+
+---
+
+## 🛠 Technology Stack
 
 - **Frontend**: Next.js 14, React 18, TypeScript
 - **UI**: Tailwind CSS, shadcn/ui, Radix UI
-- **State**: Jotai, React Hook Form
-- **Auth**: Clerk
-- **Build**: pnpm
+- **State Management**: Jotai, React Hook Form
+- **Authentication**: Clerk
+- **Database**: MongoDB
+- **Vector Database**: Pinecone
+- **AI/ML**: OpenAI (GPT models, embeddings)
+- **Build Tool**: pnpm
 
-## 📋 Systemanforderungen
+---
+
+## 📋 System Requirements
 
 - Node.js >= 18
 - pnpm >= 9.15
 - Git
+- MongoDB (or MongoDB Atlas)
+- Pinecone account (for RAG features)
+- OpenAI API key (for chat and embeddings)
 
-## 🤝 Beitragen
+---
 
-1. Fork das Repository
-2. Feature Branch erstellen (`git checkout -b feature/AmazingFeature`)
-3. Änderungen committen (`git commit -m 'Add some AmazingFeature'`)
-4. Branch pushen (`git push origin feature/AmazingFeature`)
-5. Pull Request erstellen
+## 🌍 Project Home
 
-## 📝 Lizenz
+Part of the **b*commonsLAB** initiative – developing open infrastructures for shared knowledge and digital sovereignty.
 
-Dieses Projekt ist unter der MIT Lizenz lizenziert - siehe die [LICENSE](LICENSE) Datei für Details.
+---
 
-## 🙏 Danksagungen
+## 🙏 Acknowledgments
 
 - [Next.js](https://nextjs.org/)
 - [Tailwind CSS](https://tailwindcss.com/)
 - [shadcn/ui](https://ui.shadcn.com/)
 - [Clerk](https://clerk.dev/)
 - [Radix UI](https://www.radix-ui.com/)
-

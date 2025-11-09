@@ -1,0 +1,2140 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/_analysis/wiki-publish-design.html">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Wiki publish design - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/print-site.css">
+    
+      <link rel="stylesheet" href="../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#verzeichnis-veroffentlichen-konzeption-fur-wiki-web-publishing" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Wiki publish design
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Overview
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intro
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/features.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/core-components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Core Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using the Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/event-monitor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Event Monitor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/batch-session-import.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Session Import
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/troubleshooting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/faq.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/storage-provider.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage Provider
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/localstorage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileSystem (Local)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/image-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/pdf/extraction-methods.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Extraction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/global-state.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Global State
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/header.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Header
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/breadcrumb.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Breadcrumb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-tree.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileTree
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-list.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileList
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/upload.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upload
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-preview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FilePreview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transform.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transform
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/batch-transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/error-handling-logging-testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Error Handling & Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/initialization-sequence.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Initialization
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/shadowtwins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/extended-shadowtwin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extended Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/transformation-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transformation Service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/video-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/glossary.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/secretary-services.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secretary Services
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/track-processor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Track Processor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chat-response-generation-process.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Operations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Operations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/deployment/docker.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/quick-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Quick Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/package-strategy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Package Strategy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#verzeichnis-veroffentlichen-konzeption-fur-wiki-web-publishing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Verzeichnis veröffentlichen – Konzeption für Wiki-/Web-Publishing
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Verzeichnis veröffentlichen – Konzeption für Wiki-/Web-Publishing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#anforderungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Anforderungen
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datenmodell-mongodb" class="md-nav__link">
+    <span class="md-ellipsis">
+      Datenmodell (MongoDB)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#erkennung-von-shadow-twins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Erkennung von „Shadow Twins“
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline-varianten-verarbeitung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pipeline-Varianten (Verarbeitung)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-design-nextjs-app-router" class="md-nav__link">
+    <span class="md-ellipsis">
+      API-Design (Next.js App Router)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uinavigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      UI/Navigation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extraktion-und-sanitization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Extraktion und Sanitization
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#idempotenz-upsert-versionierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Idempotenz, Upsert, Versionierung
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sicherheit-und-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sicherheit und Auth
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests-pflicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tests (Pflicht)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schrittweise-einfuhrung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schrittweise Einführung
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#offene-punkte-entscheidungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Offene Punkte / Entscheidungen
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kurzfazit-kritisch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Kurzfazit (kritisch)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>Wiki publish design</h1>
+
+<h2 id="verzeichnis-veroffentlichen-konzeption-fur-wiki-web-publishing">Verzeichnis veröffentlichen – Konzeption für Wiki-/Web-Publishing<a class="headerlink" href="#verzeichnis-veroffentlichen-konzeption-fur-wiki-web-publishing" title="Permanent link">&para;</a></h2>
+<p>Ziel: Aus bereits erzeugten Markdown-„Shadow Twins“ (z. B. <code>*.de.md</code>) ein öffentliches, durchsuchbares Wiki erzeugen. Die Markdown-Dateien werden identifiziert, mit Metadaten (Titel, Kurz-Titel, Summary, Cover-Bild, Original-Link) angereichert und als Einträge in MongoDB gespeichert. Frontend liefert eine Übersicht (dreizeiliger Teaser) und Detailseiten mit Summary, Link zum Original und vollem Markdown.</p>
+<h3 id="anforderungen">Anforderungen<a class="headerlink" href="#anforderungen" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Funktional</li>
+<li>Scan eines Wurzelordners (wie beim PDF-Dialog), rekursiv.</li>
+<li>Identifikation von Markdown-Shadow-Twins zu Originaldokumenten (Namensschema, Metadaten).</li>
+<li>Erzeugung von stabilen <code>slug</code>s und Kurz-Titeln; Mehrsprachigkeit (z. B. <code>*.de.md</code>).</li>
+<li>Extraktion von: Titel, Summary (3–5 Sätze oder ~320 Zeichen), Teaser (3 Zeilen), Cover (erstes Bild), Original-Link.</li>
+<li>Idempotentes „Publish“ (Re-Run überschreibt/aktualisiert denselben Eintrag statt Duplikat).</li>
+<li>API-Endpunkte zum Enqueue/Publish sowie zum Listen/Lesen.</li>
+<li>Öffentliche Web-Ansicht: Übersicht, Detail, Suche/Filter.</li>
+<li>Nicht-funktional</li>
+<li>Typensichere Schemas (Zod + Interfaces), strikte TS.</li>
+<li>Indizes für schnelle Queries (slug, lang, libraryId, tags).</li>
+<li>Sanitisierung von HTML beim Rendern; sichere Markdown-Pipeline.</li>
+<li>Geringe Laufzeitlast beim Scan (paginierte/gestreamte Verarbeitung optional).</li>
+</ul>
+<hr />
+<h3 id="datenmodell-mongodb">Datenmodell (MongoDB)<a class="headerlink" href="#datenmodell-mongodb" title="Permanent link">&para;</a></h3>
+<p>Collection: <code>wiki_entries</code></p>
+<p>Sinnvolle Minimalfelder (alle strikt typisiert und validiert):</p>
+<div class="highlight"><pre><span></span><code><span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">WikiEntry</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">_id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                      </span><span class="c1">// Mongo ObjectId als String (serverseitig)</span>
+<span class="w">  </span><span class="nx">libraryId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                </span><span class="c1">// Zuordnung zur aktiven Library</span>
+<span class="w">  </span><span class="nx">sourceItemId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">             </span><span class="c1">// Storage-Item-ID des Originaldokuments (wenn vorhanden)</span>
+<span class="w">  </span><span class="nx">sourcePath</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">               </span><span class="c1">// Vollständiger Pfad im Storage (rekonstruiert)</span>
+<span class="w">  </span><span class="nx">originalUrl?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">             </span><span class="c1">// Deeplink zurück ins Library-UI</span>
+<span class="w">  </span><span class="nx">lang</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                     </span><span class="c1">// z. B. &quot;de&quot;, &quot;en&quot;</span>
+
+<span class="w">  </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                    </span><span class="c1">// Aus Frontmatter/H1/Dateiname</span>
+<span class="w">  </span><span class="nx">shortTitle</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">               </span><span class="c1">// Knapp, UI-tauglich (~30–40 Zeichen)</span>
+<span class="w">  </span><span class="nx">slug</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                     </span><span class="c1">// Eindeutig pro (libraryId, lang)</span>
+<span class="w">  </span><span class="nx">summary</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 3–5 Sätze oder ~320 Zeichen</span>
+<span class="w">  </span><span class="nx">teaser</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                   </span><span class="c1">// Dreizeiler für Karten/Listen</span>
+
+<span class="w">  </span><span class="nx">coverImageUrl?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">           </span><span class="c1">// Erstes Bild im Markdown oder generiert</span>
+<span class="w">  </span><span class="nx">tags</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span><span class="w">                   </span><span class="c1">// Aus Frontmatter/Heuristik</span>
+<span class="w">  </span><span class="nx">authors?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span><span class="w">               </span><span class="c1">// Optional, aus Frontmatter</span>
+
+<span class="w">  </span><span class="nx">markdown</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                 </span><span class="c1">// Voller Markdown-Inhalt</span>
+<span class="w">  </span><span class="nx">wordCount</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span><span class="w">                </span><span class="c1">// Heuristik</span>
+<span class="w">  </span><span class="nx">readingTimeMinutes</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span><span class="w">       </span><span class="c1">// Heuristik (z. B. 200 WpM)</span>
+
+<span class="w">  </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;draft&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;published&#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">version</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span><span class="w">                  </span><span class="c1">// Hochzählen bei Re-Publish</span>
+<span class="w">  </span><span class="nx">checksum</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                 </span><span class="c1">// Hash über Markdown + relevante Metadaten (Idempotenz)</span>
+
+<span class="w">  </span><span class="nx">createdAt</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                </span><span class="c1">// ISO</span>
+<span class="w">  </span><span class="nx">updatedAt</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">                </span><span class="c1">// ISO</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Indizes:
+- <code>{ libraryId: 1, lang: 1, slug: 1 }</code> unique
+- <code>{ libraryId: 1, updatedAt: -1 }</code>
+- <code>{ tags: 1 }</code></p>
+<p>Checksum-Strategie:
+- SHA-256 über <code>markdown</code> + <code>title</code> + <code>lang</code> + optional <code>sourceItemId</code>.
+- Bei identischer Checksum: nur <code>updatedAt</code> anpassen, kein Versionsbump.</p>
+<p>Kurz-Titel/Slug:
+- <code>shortTitle</code>: heuristisch aus Titel (Trunkierung bei ~40 Zeichen, Wortgrenzen, Suffix-Entfernung wie „- v2“).
+- <code>slug</code>: <code>kebab-case</code> aus <code>shortTitle</code> + Kollisionen über Zähler lösen (<code>slug</code>, <code>slug-2</code>, ...). Uniqueness per Index.</p>
+<p>Cover-Bild:
+- Erstes Markdown-Bild <code>![](url)</code> als <code>coverImageUrl</code>.
+- Fallback: generiertes OG-Image (später), oder leer lassen.</p>
+<hr />
+<h3 id="erkennung-von-shadow-twins">Erkennung von „Shadow Twins“<a class="headerlink" href="#erkennung-von-shadow-twins" title="Permanent link">&para;</a></h3>
+<p>Namenskonventionen:
+- <code>name.&lt;lang&gt;.md</code> (z. B. <code>bericht.de.md</code>) → <code>lang = de</code>, Basename = <code>bericht</code>.
+- Alternativ: <code>name.md</code> mit Frontmatter <code>lang</code>.</p>
+<p>Zugehörigkeit zum Original:
+- Gleicher Ordner wie Original-PDF oder verlinkt über <code>sourceItemId</code> in Frontmatter.
+- Für die erste Phase reicht: Ablage neben dem PDF und Ableitung über Basename.</p>
+<p>Frontmatter (optional):
+- Unterstützt <code>title</code>, <code>shortTitle</code>, <code>tags</code>, <code>authors</code>, <code>originalUrl</code>, <code>lang</code>.
+- Frontmatter überschreibt Heuristiken.</p>
+<hr />
+<h3 id="pipeline-varianten-verarbeitung">Pipeline-Varianten (Verarbeitung)<a class="headerlink" href="#pipeline-varianten-verarbeitung" title="Permanent link">&para;</a></h3>
+<p>1) Direkt in API (synchron, sequentiell)
+- Client scannt, sendet pro Markdown-Datei <code>POST /api/web/publish</code>.
+- API extrahiert Metadaten, persistiert; UI zeigt Fortschritt.
+- Pros: Einfach, wenig Infrastruktur. Cons: Längere Requests, weniger robust.</p>
+<p>2) Job-Queue (empfohlen, integriert in bestehende External-Jobs)
+- Client enqueued Items (ähnlich PDF-Flow). Worker verarbeitet nacheinander.
+- Pros: Robust, throttling, Retry, Logging. Cons: Etwas mehr Setup.</p>
+<p>3) Batch-Import (Server-initiierter Scan)
+- <code>POST /api/web/publish-folder</code> triggert serverseitigen rekursiven Scan + Batch-Inserts.
+- Pros: Sehr schnell. Cons: Serverlast/Timeouts, weniger feingranulares Feedback.</p>
+<p>Empfehlung: Start mit (2) Job-Queue. UI bleibt responsiv, Re-Runs sind idempotent, Logging/Fehlerbehandlung konsistent mit PDF-Prozess.</p>
+<pre class="mermaid"><code>flowchart TD
+  A[Client: PublishFolderDialog] --&gt;|scan md| B(Enqueue per Datei)
+  B --&gt; C[API /api/web/publish]
+  C --&gt; D[Job angelegt]
+  D --&gt; E[Worker: Parse MD]
+  E --&gt; F[Extract meta + compute checksum]
+  F --&gt; G[Upsert in wiki_entries]
+  G --&gt; H[UI/"Web" liest aus DB]</code></pre>
+<hr />
+<h3 id="api-design-nextjs-app-router">API-Design (Next.js App Router)<a class="headerlink" href="#api-design-nextjs-app-router" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>POST /api/web/publish</code></li>
+<li>Headers: <code>X-Library-Id</code>, Auth via Clerk</li>
+<li>Body (FormData oder JSON): <code>{ markdownFile, path, sourceItemId?, originalUrl? }</code></li>
+<li>
+<p>Ergebnis: <code>{ ok: true, entryId, slug, status }</code></p>
+</li>
+<li>
+<p><code>POST /api/web/publish-folder</code> (optional, wenn serverseitiger Scan gewünscht)</p>
+</li>
+<li>Headers: <code>X-Library-Id</code></li>
+<li>Body: <code>{ rootFolderId, ignoreExisting: boolean }</code></li>
+<li>
+<p>Ergebnis: <code>{ ok: true, enqueued: number }</code></p>
+</li>
+<li>
+<p><code>GET /api/web/entries?query=&amp;tag=&amp;lang=&amp;page=&amp;limit=</code></p>
+</li>
+<li>
+<p>Für UI-Listen (RSC konsumierbar).</p>
+</li>
+<li>
+<p><code>GET /api/web/entries/[slug]?lang=de</code></p>
+</li>
+<li>Detail-Abruf.</li>
+</ul>
+<p>Antwortschema (typisiert, standardisiert):
+<div class="highlight"><pre><span></span><code><span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">ApiList</span><span class="o">&lt;</span><span class="nx">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">items</span><span class="o">:</span><span class="w"> </span><span class="kt">T</span><span class="p">[];</span><span class="w"> </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span><span class="w"> </span><span class="nx">page</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span><span class="w"> </span><span class="nx">limit</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">}</span>
+<span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">ApiResult</span><span class="o">&lt;</span><span class="nx">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ok</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">;</span><span class="w"> </span><span class="nx">data</span><span class="o">:</span><span class="w"> </span><span class="kt">T</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ok</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="p">;</span><span class="w"> </span><span class="nx">error</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div></p>
+<hr />
+<h3 id="uinavigation">UI/Navigation<a class="headerlink" href="#uinavigation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Neuer Hauptmenüpunkt: „Web“</li>
+<li>Route: <code>/web</code></li>
+<li>Übersicht: Karten-Layout (cover, shortTitle, teaser, tags). Suche/Filter (nuqs).</li>
+<li>
+<p>Detail: <code>/web/[slug]</code> – Title, Summary, Cover, Original-Link, Render des Markdown (serverseitig, sanitized), Tags.</p>
+</li>
+<li>
+<p>Neuer Dialog analog <code>PdfBulkImportDialog</code>: <code>PublishFolderDialog</code></p>
+</li>
+<li>Komponente: <code>src/components/library/publish-folder-dialog.tsx</code></li>
+<li>
+<p>Funktionen:</p>
+<ul>
+<li>Rekursiver Scan nach <code>*.md</code> (optional Filter <code>*.{de,en,fr,es,it}.md</code>).</li>
+<li>Erkennen bereits veröffentlichter Einträge (per Checksum/Slug) → „Ignorieren“.</li>
+<li>Vorschau (max. 10) mit relativem Pfad, Name.</li>
+<li>Optionen: <code>ignoreExisting</code>, Standardsprache, Tags-Default.</li>
+<li>Aktion: „Einträge veröffentlichen (N)“ → enqueue <code>POST /api/web/publish</code>.</li>
+</ul>
+</li>
+<li>
+<p>Library-Header-Erweiterung</p>
+</li>
+<li>Button „Verzeichnis veröffentlichen“ (Icon: <code>Globe</code> o. ä.), öffnet <code>PublishFolderDialog</code>.</li>
+</ul>
+<p>Komponentenstruktur (Vorschlag):
+- <code>src/app/web/page.tsx</code> (RSC) – Liste mit Server-Abfrage
+- <code>src/app/web/[slug]/page.tsx</code> (RSC) – Detail mit Server-Abfrage
+- <code>src/components/web/wiki-card.tsx</code> – Karte/Teaser
+- <code>src/components/web/wiki-list.tsx</code> – Listengrid + Paginierung
+- <code>src/components/web/wiki-detail.tsx</code> – Detail-Layout</p>
+<hr />
+<h3 id="extraktion-und-sanitization">Extraktion und Sanitization<a class="headerlink" href="#extraktion-und-sanitization" title="Permanent link">&para;</a></h3>
+<p>Reihenfolge für <code>title</code>/<code>summary</code>/<code>teaser</code>:
+1. YAML-Frontmatter (falls vorhanden)
+2. H1-Überschrift
+3. Dateiname als Fallback</p>
+<p><code>summary</code>:
+- Erste 1–2 Absätze, bereinigt (ohne Bilder/Links), auf ~320 Zeichen begrenzen, Satzende respektieren.</p>
+<p><code>teaser</code> (dreizeilig):
+- Aus <code>summary</code>, Hart-Umbruch für UI (CSS <code>line-clamp-3</code>).</p>
+<p>Sanitization:
+- Markdown → HTML via <code>remark/rehype</code> auf dem Server, mit <code>rehype-sanitize</code>.
+- Bilder/Links whitelisten, <code>target=_blank</code>-Policy, rel-Attribute.</p>
+<hr />
+<h3 id="idempotenz-upsert-versionierung">Idempotenz, Upsert, Versionierung<a class="headerlink" href="#idempotenz-upsert-versionierung" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Einzigartigkeit: <code>(libraryId, lang, slug)</code>.</li>
+<li>Upsert-Logik:</li>
+<li>Gleicher <code>slug</code> + <code>lang</code> + <code>libraryId</code>: <ul>
+<li>Wenn <code>checksum</code> gleich → kein Versionsbump, nur <code>updatedAt</code>.</li>
+<li>Sonst: <code>version++</code>, Felder aktualisieren.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h3 id="sicherheit-und-auth">Sicherheit und Auth<a class="headerlink" href="#sicherheit-und-auth" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Schreiben (Publish): Clerk-geschützte Routen, nur Rollen: Admin/Editor.</li>
+<li>Lesen (Web): öffentlich oder per Feature-Flag. Nie Secrets leaken.</li>
+<li>CSP und XSS-Schutz bei Markdown-Rendering strikt.</li>
+</ul>
+<hr />
+<h3 id="tests-pflicht">Tests (Pflicht)<a class="headerlink" href="#tests-pflicht" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Unit</li>
+<li>Parser: Frontmatter/H1/Absatz-Erkennung, Slug/Kurz-Titel, Summary/Teaser.</li>
+<li>Checksum/Idempotenz.</li>
+<li>
+<p>Sanitization-Pipeline (Whitelist). </p>
+</li>
+<li>
+<p>Integration</p>
+</li>
+<li><code>POST /api/web/publish</code> mit Beispiel-Markdown (mit/ohne Frontmatter).</li>
+<li>Upsert-Szenarien (gleich/verschieden Checksum).</li>
+<li>
+<p>Listen- und Detail-Endpunkte.</p>
+</li>
+<li>
+<p>E2E (Playwright)</p>
+</li>
+<li>Übersicht lädt, Such-/Filter-Interaktion (nuqs) funktioniert.</li>
+<li>Detail zeigt Summary, Cover, Original-Link, Markdown-Render ohne XSS.</li>
+</ul>
+<p>Abdeckungsschwellen gem. Projektvorgaben einhalten.</p>
+<hr />
+<h3 id="schrittweise-einfuhrung">Schrittweise Einführung<a class="headerlink" href="#schrittweise-einfuhrung" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Datenmodell + Repo-Funktionen (Insert/Upsert + Indizes)</li>
+<li><code>POST /api/web/publish</code> (einzeln), einfacher Worker/Job-Integration</li>
+<li><code>PublishFolderDialog</code> + Button im Library-Header</li>
+<li><code>/web</code> Übersicht + <code>/web/[slug]</code> Detail (RSC)</li>
+<li>Suche/Filter/Tags + SEO/OG-Metadaten</li>
+</ol>
+<hr />
+<h3 id="offene-punkte-entscheidungen">Offene Punkte / Entscheidungen<a class="headerlink" href="#offene-punkte-entscheidungen" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Mehrsprachige Konsolidierung (ein Slug über mehrere <code>lang</code> oder getrennte Slugs?)</li>
+<li>OG-Image-Generator (später)</li>
+<li>Volltextsuche (Mongo Text-Index vs. externe Suche)</li>
+<li>Rechte/ACL auf Einträge (öffentlich vs. intern)</li>
+</ul>
+<hr />
+<h3 id="kurzfazit-kritisch">Kurzfazit (kritisch)<a class="headerlink" href="#kurzfazit-kritisch" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Variante mit Job-Queue ist robust und deckt sich mit bestehendem PDF-Flow.</li>
+<li>Datenmodell ist minimal, aber erweiterbar (Versionierung, Tags, Autoren).</li>
+<li>Risiken liegen primär in konsistenter Erkennung der Shadow Twins und sicherem Markdown-Rendering. Tests und Idempotenz-Checks mitigieren das.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

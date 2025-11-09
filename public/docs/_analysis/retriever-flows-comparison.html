@@ -1,0 +1,2450 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/_analysis/retriever-flows-comparison.html">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Vergleich: Chunk-Flow vs. Summary-Flow - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/print-site.css">
+    
+      <link rel="stylesheet" href="../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#vergleich-chunk-flow-vs-summary-flow" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Vergleich: Chunk-Flow vs. Summary-Flow
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Overview
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intro
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/features.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/core-components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Core Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using the Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/event-monitor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Event Monitor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/batch-session-import.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Session Import
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/troubleshooting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/faq.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/storage-provider.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage Provider
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/localstorage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileSystem (Local)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/image-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/pdf/extraction-methods.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Extraction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/global-state.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Global State
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/header.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Header
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/breadcrumb.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Breadcrumb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-tree.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileTree
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-list.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileList
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/upload.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upload
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-preview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FilePreview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transform.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transform
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/batch-transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/error-handling-logging-testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Error Handling & Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/initialization-sequence.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Initialization
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/shadowtwins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/extended-shadowtwin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extended Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/transformation-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transformation Service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/video-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/glossary.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/secretary-services.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secretary Services
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/track-processor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Track Processor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chat-response-generation-process.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Operations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Operations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/deployment/docker.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/quick-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Quick Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/package-strategy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Package Strategy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      Übersicht
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chunk-flow-klassischer-rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      Chunk-Flow (klassischer RAG)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Chunk-Flow (klassischer RAG)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spezifische-schritte-nur-chunk-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spezifische Schritte (nur Chunk-Flow)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Spezifische Schritte (nur Chunk-Flow)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-embedding-generierung-chunksts19-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Embedding-Generierung (chunks.ts:19-22)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-parallele-vektor-queries-chunksts24-43" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Parallele Vektor-Queries (chunks.ts:24-43)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-kapitel-boost-berechnung-chunksts75-86" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Kapitel-Boost-Berechnung (chunks.ts:75-86)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-nachbarfenster-extraktion-chunksts91-100" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Nachbarfenster-Extraktion (chunks.ts:91-100)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-fetch-neighbors-chunksts101-104" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Fetch Neighbors (chunks.ts:101-104)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-scoring-reranking-chunksts106-133" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Scoring &amp; Reranking (chunks.ts:106-133)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-budget-akkumulation-chunksts135-190" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Budget-Akkumulation (chunks.ts:135-190)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gemeinsame-schritte-orchestrator" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gemeinsame Schritte (Orchestrator)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Gemeinsame Schritte (Orchestrator)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#8-prompt-building-orchestratorts45" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Prompt-Building (orchestrator.ts:45)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-llm-aufruf-orchestratorts57-82" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. LLM-Aufruf (orchestrator.ts:57-82)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-response-parsing-orchestratorts85-86" class="md-nav__link">
+    <span class="md-ellipsis">
+      10. Response-Parsing (orchestrator.ts:85-86)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-referenz-filterung-orchestratorts91-104" class="md-nav__link">
+    <span class="md-ellipsis">
+      11. Referenz-Filterung (orchestrator.ts:91-104)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-logging-finalisierung-orchestratorts106-112" class="md-nav__link">
+    <span class="md-ellipsis">
+      12. Logging &amp; Finalisierung (orchestrator.ts:106-112)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary-flow-dokumentkapitel-ubersichten" class="md-nav__link">
+    <span class="md-ellipsis">
+      Summary-Flow (Dokument/Kapitel-Übersichten)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Summary-Flow (Dokument/Kapitel-Übersichten)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spezifische-schritte-nur-summary-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spezifische Schritte (nur Summary-Flow)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Spezifische Schritte (nur Summary-Flow)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-mongodb-abfrage-summaries-mongots53-56" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. MongoDB-Abfrage (summaries-mongo.ts:53-56)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-modus-entscheidung-summaries-mongots60" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Modus-Entscheidung (summaries-mongo.ts:60)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-budget-akkumulation-ohne-abbruch-summaries-mongots68-101" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Budget-Akkumulation (ohne Abbruch) (summaries-mongo.ts:68-101)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gemeinsame-schritte-orchestrator_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gemeinsame Schritte (Orchestrator)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Gemeinsame Schritte (Orchestrator)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#4-prompt-building-orchestratorts45" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Prompt-Building (orchestrator.ts:45)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-llm-aufruf-orchestratorts57-82" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. LLM-Aufruf (orchestrator.ts:57-82)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-response-parsing-orchestratorts85-86" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Response-Parsing (orchestrator.ts:85-86)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-referenz-filterung-orchestratorts91-104" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Referenz-Filterung (orchestrator.ts:91-104)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-logging-finalisierung-orchestratorts106-112" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Logging &amp; Finalisierung (orchestrator.ts:106-112)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vergleichsmatrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vergleichsmatrix
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bestatigung-chunk-flow-funktionalitat-erhalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bestätigung: Chunk-Flow-Funktionalität erhalten
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bestätigung: Chunk-Flow-Funktionalität erhalten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#alle-wichtigen-features-bleiben-erhalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Alle wichtigen Features bleiben erhalten:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#was-sich-geandert-hat-nur-struktur" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔄 Was sich geändert hat (nur Struktur):
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-flow-diagramm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Code-Flow-Diagramm
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#zusammenfassung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Zusammenfassung
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Zusammenfassung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gemeinsame-schritte-orchestrator_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gemeinsame Schritte (Orchestrator):
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spezifische-schritte" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spezifische Schritte:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bestatigung" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Bestätigung:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="vergleich-chunk-flow-vs-summary-flow">Vergleich: Chunk-Flow vs. Summary-Flow<a class="headerlink" href="#vergleich-chunk-flow-vs-summary-flow" title="Permanent link">&para;</a></h1>
+<h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
+<p>Beide Flows verwenden jetzt den <strong>Orchestrator</strong> (<code>runChatOrchestrated</code>) für die gemeinsame LLM-Verarbeitung. Die Unterschiede liegen in der Retrieval-Phase, die durch spezifische Retriever-Implementierungen abgedeckt wird.</p>
+<hr />
+<h2 id="chunk-flow-klassischer-rag">Chunk-Flow (klassischer RAG)<a class="headerlink" href="#chunk-flow-klassischer-rag" title="Permanent link">&para;</a></h2>
+<h3 id="spezifische-schritte-nur-chunk-flow">Spezifische Schritte (nur Chunk-Flow)<a class="headerlink" href="#spezifische-schritte-nur-chunk-flow" title="Permanent link">&para;</a></h3>
+<h4 id="1-embedding-generierung-chunksts19-22">1. <strong>Embedding-Generierung</strong> (<code>chunks.ts:19-22</code>)<a class="headerlink" href="#1-embedding-generierung-chunksts19-22" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Frage wird in einen Vektor eingebettet</li>
+<li><strong>Zweck</strong>: Semantische Suche in Pinecone</li>
+</ul>
+<h4 id="2-parallele-vektor-queries-chunksts24-43">2. <strong>Parallele Vektor-Queries</strong> (<code>chunks.ts:24-43</code>)<a class="headerlink" href="#2-parallele-vektor-queries-chunksts24-43" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Chunk-Query</strong>: Top-20 Chunks mit semantischer Ähnlichkeit</li>
+<li><strong>Summary-Query</strong>: Top-10 Kapitel-Summaries (parallel, für Boost)</li>
+<li><strong>Zweck</strong>: Initiale Kandidaten-Sammlung</li>
+</ul>
+<h4 id="3-kapitel-boost-berechnung-chunksts75-86">3. <strong>Kapitel-Boost-Berechnung</strong> (<code>chunks.ts:75-86</code>)<a class="headerlink" href="#3-kapitel-boost-berechnung-chunksts75-86" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Berechnet Boost-Werte für Kapitel basierend auf Summary-Query-Rankings</li>
+<li>Formel: <code>base (1.0) - i * step (0.05)</code> pro Kapitel</li>
+<li><strong>Zweck</strong>: Chunks aus relevanten Kapiteln höher gewichten</li>
+</ul>
+<h4 id="4-nachbarfenster-extraktion-chunksts91-100">4. <strong>Nachbarfenster-Extraktion</strong> (<code>chunks.ts:91-100</code>)<a class="headerlink" href="#4-nachbarfenster-extraktion-chunksts91-100" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Bestimmt Kontext-Window (±w) basierend auf <code>answerLength</code>:</li>
+<li><code>ausführlich</code>: ±3 Chunks</li>
+<li><code>mittel</code>: ±2 Chunks</li>
+<li><code>kurz</code>: ±1 Chunk</li>
+<li><strong>Zweck</strong>: Vollständige Kontext-Snippets für Top-Treffer</li>
+</ul>
+<h4 id="5-fetch-neighbors-chunksts101-104">5. <strong>Fetch Neighbors</strong> (<code>chunks.ts:101-104</code>)<a class="headerlink" href="#5-fetch-neighbors-chunksts101-104" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Lädt vollständige Metadaten für alle Nachbar-Chunks</li>
+<li><strong>Zweck</strong>: Vollständige Text-Inhalte für Scoring</li>
+</ul>
+<h4 id="6-scoring-reranking-chunksts106-133">6. <strong>Scoring &amp; Reranking</strong> (<code>chunks.ts:106-133</code>)<a class="headerlink" href="#6-scoring-reranking-chunksts106-133" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Initial Score</strong>: Vektor-Similarity-Score aus Query</li>
+<li><strong>Kapitel-Boost</strong>: <code>score + (chapterAlpha * chapterBoost)</code> (wenn Kapitel gefunden)</li>
+<li><strong>Lexikalischer Boost</strong>: </li>
+<li>+0.02 wenn Frage im Kapitel-Titel enthalten</li>
+<li>+0.02 pro Keyword-Match (max. +0.06)</li>
+<li><strong>Finale Sortierung</strong>: Nach boosted Score (absteigend)</li>
+<li><strong>Zweck</strong>: Kombiniert semantische und lexikalische Signale</li>
+</ul>
+<h4 id="7-budget-akkumulation-chunksts135-190">7. <strong>Budget-Akkumulation</strong> (<code>chunks.ts:135-190</code>)<a class="headerlink" href="#7-budget-akkumulation-chunksts135-190" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Fügt Chunks sequenziell hinzu bis Budget erreicht</li>
+<li><strong>Budget</strong>: Abhängig von <code>answerLength</code> (30k/90k/180k Zeichen)</li>
+<li><strong>Abbruch</strong>: Wenn Budget überschritten wird (<code>break</code>)</li>
+<li><strong>Zweck</strong>: Begrenzt Prompt-Größe</li>
+</ul>
+<h3 id="gemeinsame-schritte-orchestrator">Gemeinsame Schritte (Orchestrator)<a class="headerlink" href="#gemeinsame-schritte-orchestrator" title="Permanent link">&para;</a></h3>
+<h4 id="8-prompt-building-orchestratorts45">8. <strong>Prompt-Building</strong> (<code>orchestrator.ts:45</code>)<a class="headerlink" href="#8-prompt-building-orchestratorts45" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Verwendet <code>buildPrompt()</code> mit Quellen und Antwortlänge</li>
+<li><strong>Hinweis</strong>: Nur für Chunk-Flow: Wenn <code>usedInPrompt &lt; candidatesCount</code>, wird Warnung hinzugefügt</li>
+</ul>
+<h4 id="9-llm-aufruf-orchestratorts57-82">9. <strong>LLM-Aufruf</strong> (<code>orchestrator.ts:57-82</code>)<a class="headerlink" href="#9-llm-aufruf-orchestratorts57-82" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Strukturierte JSON-Response erzwingen (<code>response_format: json_object</code>)</li>
+<li><strong>Retry-Logik</strong>: Bei "maximum context length" Budget schrittweise reduzieren</li>
+</ul>
+<h4 id="10-response-parsing-orchestratorts85-86">10. <strong>Response-Parsing</strong> (<code>orchestrator.ts:85-86</code>)<a class="headerlink" href="#10-response-parsing-orchestratorts85-86" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Extrahiert <code>answer</code>, <code>suggestedQuestions</code>, <code>usedReferences</code></li>
+<li>Verwendet <code>parseStructuredLLMResponse()</code></li>
+</ul>
+<h4 id="11-referenz-filterung-orchestratorts91-104">11. <strong>Referenz-Filterung</strong> (<code>orchestrator.ts:91-104</code>)<a class="headerlink" href="#11-referenz-filterung-orchestratorts91-104" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Generiert vollständige Referenzen-Liste aus allen Quellen</li>
+<li>Filtert basierend auf <code>usedReferences</code> aus LLM-Response</li>
+<li><strong>Fallback</strong>: Wenn keine <code>usedReferences</code>, zeige alle</li>
+</ul>
+<h4 id="12-logging-finalisierung-orchestratorts106-112">12. <strong>Logging &amp; Finalisierung</strong> (<code>orchestrator.ts:106-112</code>)<a class="headerlink" href="#12-logging-finalisierung-orchestratorts106-112" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Speichert Antwort, Quellen, Referenzen, Timing</li>
+<li>Finalisiert Query-Log</li>
+</ul>
+<hr />
+<h2 id="summary-flow-dokumentkapitel-ubersichten">Summary-Flow (Dokument/Kapitel-Übersichten)<a class="headerlink" href="#summary-flow-dokumentkapitel-ubersichten" title="Permanent link">&para;</a></h2>
+<h3 id="spezifische-schritte-nur-summary-flow">Spezifische Schritte (nur Summary-Flow)<a class="headerlink" href="#spezifische-schritte-nur-summary-flow" title="Permanent link">&para;</a></h3>
+<h4 id="1-mongodb-abfrage-summaries-mongots53-56">1. <strong>MongoDB-Abfrage</strong> (<code>summaries-mongo.ts:53-56</code>)<a class="headerlink" href="#1-mongodb-abfrage-summaries-mongots53-56" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Lädt Dokument-Metadaten aus MongoDB</li>
+<li><strong>Filter</strong>: Basierend auf <code>input.filters</code> (z.B. <code>libraryId</code>, <code>user</code>, etc.)</li>
+<li><strong>Optimierung</strong>: Im Event-Modus werden <code>chapters</code> nicht geladen (<code>skipChapters: true</code>)</li>
+</ul>
+<h4 id="2-modus-entscheidung-summaries-mongots60">2. <strong>Modus-Entscheidung</strong> (<code>summaries-mongo.ts:60</code>)<a class="headerlink" href="#2-modus-entscheidung-summaries-mongots60" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Entscheidet zwischen <code>'chapters'</code> und <code>'docs'</code> Modus:</li>
+<li><strong>Event-Modus</strong>: Immer <code>'docs'</code> (nutzt <code>docMetaJson.summary</code>)</li>
+<li><strong>Keine Chapters</strong>: Immer <code>'docs'</code></li>
+<li><strong>Sonst</strong>: Basierend auf Budget und Kapitel-Anzahl</li>
+<li><strong>Zweck</strong>: Optimiert für verschiedene Dokument-Strukturen</li>
+</ul>
+<h4 id="3-budget-akkumulation-ohne-abbruch-summaries-mongots68-101">3. <strong>Budget-Akkumulation (ohne Abbruch)</strong> (<code>summaries-mongo.ts:68-101</code>)<a class="headerlink" href="#3-budget-akkumulation-ohne-abbruch-summaries-mongots68-101" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>WICHTIG</strong>: Im Summary-Modus werden <strong>ALLE</strong> gefilterten Dokumente übernommen</li>
+<li>Budget wird nur als Warnung verwendet, nicht als harte Grenze</li>
+<li><strong>Zweck</strong>: Vollständiger Überblick über alle relevanten Dokumente</li>
+</ul>
+<h3 id="gemeinsame-schritte-orchestrator_1">Gemeinsame Schritte (Orchestrator)<a class="headerlink" href="#gemeinsame-schritte-orchestrator_1" title="Permanent link">&para;</a></h3>
+<h4 id="4-prompt-building-orchestratorts45">4. <strong>Prompt-Building</strong> (<code>orchestrator.ts:45</code>)<a class="headerlink" href="#4-prompt-building-orchestratorts45" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Gleiche Funktion wie Chunk-Flow</li>
+<li><strong>KEIN</strong> Hinweis bei Budget-Überschreitung (weil alle Dokumente übernommen werden)</li>
+</ul>
+<h4 id="5-llm-aufruf-orchestratorts57-82">5. <strong>LLM-Aufruf</strong> (<code>orchestrator.ts:57-82</code>)<a class="headerlink" href="#5-llm-aufruf-orchestratorts57-82" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Identisch zu Chunk-Flow</li>
+</ul>
+<h4 id="6-response-parsing-orchestratorts85-86">6. <strong>Response-Parsing</strong> (<code>orchestrator.ts:85-86</code>)<a class="headerlink" href="#6-response-parsing-orchestratorts85-86" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Identisch zu Chunk-Flow</li>
+</ul>
+<h4 id="7-referenz-filterung-orchestratorts91-104">7. <strong>Referenz-Filterung</strong> (<code>orchestrator.ts:91-104</code>)<a class="headerlink" href="#7-referenz-filterung-orchestratorts91-104" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Identisch zu Chunk-Flow</li>
+</ul>
+<h4 id="8-logging-finalisierung-orchestratorts106-112">8. <strong>Logging &amp; Finalisierung</strong> (<code>orchestrator.ts:106-112</code>)<a class="headerlink" href="#8-logging-finalisierung-orchestratorts106-112" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Identisch zu Chunk-Flow</li>
+</ul>
+<hr />
+<h2 id="vergleichsmatrix">Vergleichsmatrix<a class="headerlink" href="#vergleichsmatrix" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Schritt</th>
+<th>Chunk-Flow</th>
+<th>Summary-Flow</th>
+<th>Gemeinsam</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Embedding</strong></td>
+<td>✅ Ja</td>
+<td>❌ Nein</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Vektor-Query</strong></td>
+<td>✅ Ja (Top-20)</td>
+<td>❌ Nein</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Kapitel-Boost</strong></td>
+<td>✅ Ja</td>
+<td>❌ Nein</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Nachbarfenster</strong></td>
+<td>✅ Ja (±w)</td>
+<td>❌ Nein</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Fetch Neighbors</strong></td>
+<td>✅ Ja</td>
+<td>❌ Nein</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Scoring &amp; Reranking</strong></td>
+<td>✅ Ja (semantisch + lexikalisch)</td>
+<td>❌ Nein</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>MongoDB-Abfrage</strong></td>
+<td>❌ Nein</td>
+<td>✅ Ja</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Modus-Entscheidung</strong></td>
+<td>❌ Nein</td>
+<td>✅ Ja (<code>chapters</code> vs <code>docs</code>)</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Budget-Limitierung</strong></td>
+<td>✅ Ja (harte Grenze)</td>
+<td>❌ Nein (alle Dokumente)</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Prompt-Building</strong></td>
+<td>✅ Ja</td>
+<td>✅ Ja</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>LLM-Aufruf</strong></td>
+<td>✅ Ja</td>
+<td>✅ Ja</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Response-Parsing</strong></td>
+<td>✅ Ja</td>
+<td>✅ Ja</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Referenz-Filterung</strong></td>
+<td>✅ Ja</td>
+<td>✅ Ja</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Logging</strong></td>
+<td>✅ Ja</td>
+<td>✅ Ja</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="bestatigung-chunk-flow-funktionalitat-erhalten">Bestätigung: Chunk-Flow-Funktionalität erhalten<a class="headerlink" href="#bestatigung-chunk-flow-funktionalitat-erhalten" title="Permanent link">&para;</a></h2>
+<h3 id="alle-wichtigen-features-bleiben-erhalten">✅ Alle wichtigen Features bleiben erhalten:<a class="headerlink" href="#alle-wichtigen-features-bleiben-erhalten" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>✅ Embedding</strong>: Frage wird weiterhin eingebettet (<code>chunks.ts:19-22</code>)</li>
+<li><strong>✅ Parallele Queries</strong>: Chunk + Summary-Query laufen parallel (<code>chunks.ts:24-43</code>)</li>
+<li><strong>✅ Kapitel-Boost</strong>: Boost-Berechnung unverändert (<code>chunks.ts:75-86</code>)</li>
+<li><strong>✅ Nachbarfenster</strong>: ±w Window-Extraktion unverändert (<code>chunks.ts:91-100</code>)</li>
+<li><strong>✅ Fetch Neighbors</strong>: Vollständige Metadaten werden geladen (<code>chunks.ts:101-104</code>)</li>
+<li><strong>✅ Scoring &amp; Reranking</strong>: </li>
+<li>Initial Score aus Vektor-Similarity (<code>chunks.ts:89</code>)</li>
+<li>Kapitel-Boost (<code>chunks.ts:118-120</code>)</li>
+<li>Lexikalischer Boost (<code>chunks.ts:122-130</code>)</li>
+<li>Sortierung nach boosted Score (<code>chunks.ts:133</code>)</li>
+<li><strong>✅ Budget-Akkumulation</strong>: Sequenzielle Hinzufügung bis Budget (<code>chunks.ts:135-190</code>)</li>
+</ol>
+<h3 id="was-sich-geandert-hat-nur-struktur">🔄 Was sich geändert hat (nur Struktur):<a class="headerlink" href="#was-sich-geandert-hat-nur-struktur" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Vorher</strong>: LLM-Aufruf und Parsing direkt in <code>route.ts</code></li>
+<li><strong>Nachher</strong>: LLM-Aufruf und Parsing im Orchestrator (<code>orchestrator.ts</code>)</li>
+<li><strong>Ergebnis</strong>: Gleiche Funktionalität, aber zentralisiert und wiederverwendbar</li>
+</ul>
+<hr />
+<h2 id="code-flow-diagramm">Code-Flow-Diagramm<a class="headerlink" href="#code-flow-diagramm" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
+│                    API Route (route.ts)                     │
+│  - Auth, Validierung, Filter-Parsing                        │
+│  - Retriever-Analyse (optional)                            │
+│  - Retriever-Auswahl (chunk/summary)                       │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Orchestrator (orchestrator.ts)                 │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │  Retriever-Auswahl                                  │  │
+│  │  - chunksRetriever (für chunk)                      │  │
+│  │  - summariesMongoRetriever (für summary)            │  │
+│  └──────────────────┬──────────────────────────────────┘  │
+│                     │                                       │
+│                     ▼                                       │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │  SPECIFISCHE RETRIEVAL-PHASE                        │  │
+│  │                                                      │  │
+│  │  ┌─────────────────┐    ┌──────────────────────┐   │  │
+│  │  │ Chunk-Flow      │    │ Summary-Flow         │   │  │
+│  │  │                 │    │                      │   │  │
+│  │  │ • Embedding     │    │ • MongoDB-Abfrage    │   │  │
+│  │  │ • Vektor-Query  │    │ • Modus-Entscheidung │   │  │
+│  │  │ • Kapitel-Boost │    │ • Alle Dokumente     │   │  │
+│  │  │ • Nachbarn      │    │                      │   │  │
+│  │  │ • Scoring       │    │                      │   │  │
+│  │  │ • Reranking     │    │                      │   │  │
+│  │  │ • Budget-Limit  │    │                      │   │  │
+│  │  └─────────────────┘    └──────────────────────┘   │  │
+│  └──────────────────┬──────────────────────────────────┘  │
+│                     │                                       │
+│                     ▼                                       │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │  GEMEINSAME LLM-PHASE                               │  │
+│  │                                                      │  │
+│  │  • Prompt-Building                                   │  │
+│  │  • LLM-Aufruf (mit Retry)                           │  │
+│  │  • Response-Parsing (strukturiert)                  │  │
+│  │  • Referenz-Filterung                                │  │
+│  │  • Logging &amp; Finalisierung                           │  │
+│  └─────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr />
+<h2 id="zusammenfassung">Zusammenfassung<a class="headerlink" href="#zusammenfassung" title="Permanent link">&para;</a></h2>
+<h3 id="gemeinsame-schritte-orchestrator_2">Gemeinsame Schritte (Orchestrator):<a class="headerlink" href="#gemeinsame-schritte-orchestrator_2" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Prompt-Building</li>
+<li>LLM-Aufruf mit strukturierter JSON-Response</li>
+<li>Response-Parsing (<code>answer</code>, <code>suggestedQuestions</code>, <code>usedReferences</code>)</li>
+<li>Referenz-Filterung basierend auf <code>usedReferences</code></li>
+<li>Logging &amp; Finalisierung</li>
+</ol>
+<h3 id="spezifische-schritte">Spezifische Schritte:<a class="headerlink" href="#spezifische-schritte" title="Permanent link">&para;</a></h3>
+<p><strong>Chunk-Flow:</strong>
+- Embedding, Vektor-Query, Kapitel-Boost, Nachbarfenster, Scoring, Reranking
+- <strong>Zweck</strong>: Präzise, semantische Suche mit Kontext</p>
+<p><strong>Summary-Flow:</strong>
+- MongoDB-Abfrage, Modus-Entscheidung, alle Dokumente übernehmen
+- <strong>Zweck</strong>: Überblick über alle relevanten Dokumente/Kapitel</p>
+<h3 id="bestatigung">✅ Bestätigung:<a class="headerlink" href="#bestatigung" title="Permanent link">&para;</a></h3>
+<p><strong>Die Funktionalität des Chunk-Flows bleibt vollständig erhalten.</strong> Alle Scoring-, Reranking- und Boost-Mechanismen wurden unverändert aus der Route in den <code>chunksRetriever</code> verschoben. Die einzige Änderung ist die Zentralisierung der LLM-Verarbeitung im Orchestrator.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

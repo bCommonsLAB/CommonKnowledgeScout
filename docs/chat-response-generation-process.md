@@ -1,269 +1,264 @@
-# Chat-Antwort-Generierung: Prozess-Analyse
+# Chat & Story Mode: Response Generation Process Analysis
 
-## Übersicht
+## Overview
 
-Dieses Dokument beschreibt den vollständigen Ablauf der Chat-Antwort-Generierung in der CommonKnowledgeScout-Anwendung.
+This document describes the complete process of chat response generation in the CommonKnowledgeScout application. The application supports both **Chat Mode** for direct question-answer interactions and **Story Mode** for narrative knowledge exploration.
 
-## Haupt-Endpoint
+## Main Endpoint
 
 **POST** `/api/chat/[libraryId]/stream`
 
-Dieser Endpoint verwendet Server-Sent Events (SSE) für Streaming von Status-Updates während der Antwortgenerierung.
+This endpoint uses Server-Sent Events (SSE) for streaming status updates during response generation.
 
-## Verarbeitungsschritte
+## Processing Steps
 
-### Phase 1: Initialisierung & Validierung
+### Phase 1: Initialization & Validation
 
-**Schritt 1.1: Authentifizierung & Bibliotheks-Kontext laden**
-- Prüfung der Authentifizierung (optional für öffentliche Libraries)
-- Laden des Library-Kontexts via `loadLibraryChatContext()`
-- Unterstützt sowohl authentifizierte als auch anonyme Benutzer (für öffentliche Libraries)
-- Prüfung, ob Library öffentlich ist oder Authentifizierung erforderlich
+**Step 1.1: Authentication & Load Library Context**
+- Authentication check (optional for public libraries)
+- Load library context via `loadLibraryChatContext()`
+- Supports both authenticated and anonymous users (for public libraries)
+- Check if library is public or authentication is required
 
-**Schritt 1.2: Request-Validierung**
-- Validierung des Request-Bodys mit Zod-Schema
-- Extraktion der Parameter: `message`, `answerLength`, `chatHistory`, `chatId`
-- Parsen der Query-Parameter aus der URL
+**Step 1.2: Request Validation**
+- Validate request body with Zod schema
+- Extract parameters: `message`, `answerLength`, `chatHistory`, `chatId`
+- Parse query parameters from URL
 
-**Schritt 1.3: Facetten-Filter extrahieren**
-- Parsen der Facetten-Definitionen aus der Library
-- Extraktion der ausgewählten Facetten aus Query-Parametern
-- Filtern von Chat-Konfigurations-Parametern (retriever, targetLanguage, etc.)
+**Step 1.3: Extract Facet Filters**
+- Parse facet definitions from library
+- Extract selected facets from query parameters
+- Filter chat configuration parameters (retriever, targetLanguage, etc.)
 
-### Phase 2: Intelligente Frage-Analyse
+### Phase 2: Intelligent Question Analysis
 
-**Schritt 2.1: Frage-Analyse starten**
+**Step 2.1: Start Question Analysis**
 - Event: `question_analysis_start`
-- Prüfung, ob automatische Retriever-Analyse aktiviert ist
-- Prüfung, ob expliziter Retriever gesetzt wurde
+- Check if automatic retriever analysis is enabled
+- Check if explicit retriever is set
 
-**Schritt 2.2: Automatische Retriever-Empfehlung** (optional)
-- Aufruf von `analyzeQuestionForRetriever()` wenn aktiviert
-- Analyse der Frage, um den besten Retriever zu empfehlen:
-  - `'chunk'`: Für spezifische, detaillierte Fragen
-  - `'summary'`: Für überblicksartige Fragen
-  - `'unclear'`: Wenn die Frage unklar ist (löst Clarification-Flow aus)
-- Event: `question_analysis_result` mit Empfehlung und Confidence-Level
+**Step 2.2: Automatic Retriever Recommendation** (optional)
+- Call `analyzeQuestionForRetriever()` if enabled
+- Analyze question to recommend best retriever:
+  - `'chunk'`: For specific, detailed questions
+  - `'summary'`: For overview questions
+  - `'unclear'`: If question is unclear (triggers clarification flow)
+- Event: `question_analysis_result` with recommendation and confidence level
 
-**Schritt 2.3: Clarification-Flow** (falls Frage unklar)
-- Wenn `recommendation === 'unclear'`:
-  - Senden von vorgeschlagenen Präzisierungsfragen
-  - Event: `complete` mit `clarification`-Flag
-  - Prozess endet hier
+**Step 2.3: Clarification Flow** (if question unclear)
+- If `recommendation === 'unclear'`:
+  - Send suggested clarification questions
+  - Event: `complete` with `clarification` flag
+  - Process ends here
 
-### Phase 3: Chat-Verwaltung
+### Phase 3: Chat Management
 
-**Schritt 3.1: Chat erstellen oder laden**
-- Wenn kein `chatId` vorhanden: Erstellen eines neuen Chats
-  - Chat-Titel: Von Frage-Analyse oder erste 60 Zeichen der Frage
-- Wenn `chatId` vorhanden: Laden des bestehenden Chats
-  - Prüfung, ob Chat existiert
-  - `touchChat()`: Aktualisierung des Last-Access-Zeitstempels
+**Step 3.1: Create or Load Chat**
+- If no `chatId`: Create new chat
+  - Chat title: From question analysis or first 60 characters of question
+- If `chatId` exists: Load existing chat
+  - Check if chat exists
+  - `touchChat()`: Update last access timestamp
 
-### Phase 4: Retriever-Auswahl
+### Phase 4: Retriever Selection
 
-**Schritt 4.1: Effektiven Retriever bestimmen**
-- Priorität:
-  1. Explizit gesetzter Retriever (Query-Parameter)
-  2. Von Frage-Analyse empfohlener Retriever
-  3. Standard: `'chunk'`
-- Event: `retriever_selected` mit Retriever und Begründung
+**Step 4.1: Determine Effective Retriever**
+- Priority:
+  1. Explicitly set retriever (query parameter)
+  2. Question analysis recommended retriever
+  3. Default: `'chunk'`
+- Event: `retriever_selected` with retriever and reasoning
 
-**Schritt 4.2: Chat-Konfiguration bestimmen**
-- Zusammenführen von:
-  - Library-Standard-Konfiguration
-  - Query-Parameter (targetLanguage, character, socialContext)
-- Validierung der Parameter-Werte
+**Step 4.2: Determine Chat Configuration**
+- Merge:
+  - Library default configuration
+  - Query parameters (targetLanguage, character, socialContext)
+- Validate parameter values
 
-### Phase 5: Filter-Aufbau
+### Phase 5: Filter Building
 
-**Schritt 5.1: Filter erstellen**
-- Aufruf von `buildFilters()` mit:
-  - Query-Parametern
-  - Library-Kontext
-  - User-Email (leer für anonyme Benutzer)
-  - Library-ID
-  - Effektivem Retriever
-- Generierung von:
-  - Normalisierten Filtern (für MongoDB)
-  - Pinecone-Filtern (für Vector-Search)
-- Bestimmung des Modus: `'summaries'` oder `'chunks'`
+**Step 5.1: Create Filters**
+- Call `buildFilters()` with:
+  - Query parameters
+  - Library context
+  - User email (empty for anonymous users)
+  - Library ID
+  - Effective retriever
+- Generate:
+  - Normalized filters (for MongoDB)
+  - Pinecone filters (for vector search)
+- Determine mode: `'summaries'` or `'chunks'`
 
-### Phase 6: Query-Logging starten
+### Phase 6: Start Query Logging
 
-**Schritt 6.1: Query-Log erstellen**
-- Aufruf von `startQueryLog()` mit allen relevanten Parametern:
-  - Library-ID, Chat-ID, User-Email
-  - Frage, Modus, Query-Type (TOC oder Frage)
-  - Retriever, Chat-Konfiguration
-  - Facetten-Filter, normalisierte Filter, Pinecone-Filter
-- Speicherung der Frage-Analyse-Ergebnisse (falls vorhanden)
+**Step 6.1: Create Query Log**
+- Call `startQueryLog()` with all relevant parameters:
+  - Library ID, Chat ID, User Email
+  - Question, mode, query type (TOC or question)
+  - Retriever, chat configuration
+  - Facet filters, normalized filters, Pinecone filters
+- Store question analysis results (if available)
 
-### Phase 7: Retrieval (Quellensuche)
+### Phase 7: Retrieval (Source Search)
 
-**Schritt 7.1: Retrieval starten**
+**Step 7.1: Start Retrieval**
 - Event: `retrieval_start`
-- Event: `llm_start` (für spätere Verwendung)
-- Auswahl des Retriever-Implementierung:
-  - `summariesMongoRetriever`: Für Summary-Modus
-  - `chunksRetriever`: Für Chunk-Modus
+- Event: `llm_start` (for later use)
+- Select retriever implementation:
+  - `summariesMongoRetriever`: For summary mode
+  - `chunksRetriever`: For chunk mode
 
-**Schritt 7.2: Vector-Search ausführen**
-- Aufruf von `retrieverImpl.retrieve()`
-- Event: `retrieval_progress` während der Suche
-- Status-Updates: "Suche nach relevanten Quellen..."
-- Rückgabe von:
-  - `sources`: Array von gefundenen Quellen
-  - `stats`: Statistik-Informationen (candidatesCount, usedInPrompt, etc.)
+**Step 7.2: Execute Vector Search**
+- Call `retrieverImpl.retrieve()`
+- Event: `retrieval_progress` during search
+- Status updates: "Searching for relevant sources..."
+- Return:
+  - `sources`: Array of found sources
+  - `stats`: Statistics information (candidatesCount, usedInPrompt, etc.)
 
-**Schritt 7.3: Retrieval-Ergebnisse verarbeiten**
-- Event: `retrieval_complete` mit Anzahl der Quellen und Timing
-- Prüfung: Wenn keine Quellen gefunden → Früher Abbruch
-- Logging der Query-Steps (für Chunk-Modus)
+**Step 7.3: Process Retrieval Results**
+- Event: `retrieval_complete` with number of sources and timing
+- Check: If no sources found → Early termination
+- Log query steps (for chunk mode)
 
-### Phase 8: Prompt-Erstellung
+### Phase 8: Prompt Creation
 
-**Schritt 8.1: Prompt bauen**
-- Status-Update: "Erstelle Prompt..."
-- Aufruf von `buildPrompt()` mit:
-  - Frage
-  - Gefundene Quellen
-  - Antwortlänge (normalisiert: 'unbegrenzt' → 'ausführlich')
-  - Chat-Konfiguration (Sprache, Charakter, sozialer Kontext, Gender-Inclusive)
-  - Chat-Historie (falls vorhanden)
-  - Facetten-Filter (für Kontext im Prompt)
-- Hinweis hinzufügen (nur Chunk-Modus): Wenn weniger Dokumente verwendet wurden als gefunden
+**Step 8.1: Build Prompt**
+- Status update: "Creating prompt..."
+- Call `buildPrompt()` with:
+  - Question
+  - Found sources
+  - Answer length (normalized: 'unlimited' → 'detailed')
+  - Chat configuration (language, character, social context, gender-inclusive)
+  - Chat history (if available)
+  - Facet filters (for context in prompt)
+- Add note (chunk mode only): If fewer documents used than found
 
-**Schritt 8.2: Prompt-Logging**
-- Speicherung des Prompts in der Datenbank
-- Event: `prompt_complete` mit:
-  - Prompt-Länge
-  - Anzahl der verwendeten Dokumente
-  - Geschätzte Token-Anzahl
+**Step 8.2: Prompt Logging**
+- Store prompt in database
+- Event: `prompt_complete` with:
+  - Prompt length
+  - Number of documents used
+  - Estimated token count
 
-### Phase 9: LLM-Aufruf
+### Phase 9: LLM Call
 
-**Schritt 9.1: API-Key bestimmen**
-- Priorität:
-  1. Public API-Key (aus Library-Konfiguration)
-  2. Globaler API-Key (aus Umgebungsvariablen)
-- Modell: `OPENAI_CHAT_MODEL_NAME` oder Standard: `'gpt-4o-mini'`
-- Temperatur: `OPENAI_CHAT_TEMPERATURE` oder Standard: `0.3`
+**Step 9.1: Determine API Key**
+- Priority:
+  1. Public API key (from library configuration)
+  2. Global API key (from environment variables)
+- Model: `OPENAI_CHAT_MODEL_NAME` or default: `'gpt-4o-mini'`
+- Temperature: `OPENAI_CHAT_TEMPERATURE` or default: `0.3`
 
-**Schritt 9.2: OpenAI-API aufrufen**
-- Status-Update: "Generiere Antwort..."
-- Aufruf von `callOpenAI()` mit Modell, Temperatur, Prompt und API-Key
-- Parsen der Response mit Token-Usage-Informationen
+**Step 9.2: Call OpenAI API**
+- Status update: "Generating answer..."
+- Call `callOpenAI()` with model, temperature, prompt, and API key
+- Parse response with token usage information
 
-**Schritt 9.3: Fehlerbehandlung bei Context-Length-Überschreitung**
-- Wenn `maximum context length` Fehler:
-  - Automatische Retry-Logik mit reduzierten Budgets
-  - Reduzierung der Quellen nach Budget
-  - Neuer Prompt mit reduzierten Quellen und 'kurz' Antwortlänge
-  - Wiederholung des LLM-Aufrufs
+**Step 9.3: Handle Context Length Exceeded Error**
+- If `maximum context length` error:
+  - Automatic retry logic with reduced budgets
+  - Reduce sources by budget
+  - New prompt with reduced sources and 'short' answer length
+  - Retry LLM call
 
-**Schritt 9.4: LLM-Complete**
-- Event: `llm_complete` mit:
-  - Timing (LLM-Millisekunden)
-  - Prompt-Tokens
-  - Completion-Tokens
-  - Total-Tokens
+**Step 9.4: LLM Complete**
+- Event: `llm_complete` with:
+  - Timing (LLM milliseconds)
+  - Prompt tokens
+  - Completion tokens
+  - Total tokens
 
-### Phase 10: Antwort-Verarbeitung
+### Phase 10: Response Processing
 
-**Schritt 10.1: Strukturierte Response parsen**
-- Status-Update: "Verarbeite Antwort..."
-- Aufruf von `parseStructuredLLMResponse()`:
-  - Extraktion der Antwort
-  - Extraktion der vorgeschlagenen Fragen
-  - Extraktion der verwendeten Referenzen (Nummern)
+**Step 10.1: Parse Structured Response**
+- Status update: "Processing answer..."
+- Call `parseStructuredLLMResponse()`:
+  - Extract answer
+  - Extract suggested questions
+  - Extract used references (numbers)
 
-**Schritt 10.2: Referenzen aufbauen**
-- Generierung einer vollständigen Referenzen-Liste aus allen Quellen
-- Mapping der tatsächlich verwendeten Referenzen (falls vorhanden)
-- Fallback: Alle Referenzen anzeigen, wenn keine explizit verwendet wurden
+**Step 10.2: Build References**
+- Generate complete references list from all sources
+- Map actually used references (if available)
+- Fallback: Show all references if none explicitly used
 
-**Schritt 10.3: Query-Log finalisieren**
-- Aufruf von `finalizeQueryLog()` mit:
-  - Antwort
-  - Quellen (mit Metadaten)
-  - Referenzen
-  - Vorgeschlagene Fragen
-  - Timing-Informationen
-  - Token-Usage
+**Step 10.3: Finalize Query Log**
+- Call `finalizeQueryLog()` with:
+  - Answer
+  - Sources (with metadata)
+  - References
+  - Suggested questions
+  - Timing information
+  - Token usage
 
-### Phase 11: Finalisierung
+### Phase 11: Finalization
 
-**Schritt 11.1: Complete-Event senden**
-- Event: `complete` mit:
-  - Antwort
-  - Referenzen
-  - Vorgeschlagene Fragen
-  - Query-ID
-  - Chat-ID
+**Step 11.1: Send Complete Event**
+- Event: `complete` with:
+  - Answer
+  - References
+  - Suggested questions
+  - Query ID
+  - Chat ID
 
-**Schritt 11.2: Processing-Logs speichern**
-- Speicherung aller Processing-Steps in der Datenbank
-- Stream schließen
+**Step 11.2: Save Processing Logs**
+- Store all processing steps in database
+- Close stream
 
-## Retriever-Implementierungen
+## Retriever Implementations
 
-### Summary-Retriever (`summariesMongoRetriever`)
-- Sucht in MongoDB nach Summary-Dokumenten
-- Filtert nach Facetten und anderen Filtern
-- Sortiert nach Relevanz
-- Gibt alle passenden Dokumente zurück
+### Summary Retriever (`summariesMongoRetriever`)
+- Searches MongoDB for summary documents
+- Filters by facets and other filters
+- Sorts by relevance
+- Returns all matching documents
 
-### Chunk-Retriever (`chunksRetriever`)
-- Nutzt Vector-Search in Pinecone
-- Sucht nach semantisch ähnlichen Text-Chunks
-- Filtert nach Metadaten (Facetten, etc.)
-- Gibt Top-K relevanteste Chunks zurück
-- Kann Quellen nach Budget reduzieren
+### Chunk Retriever (`chunksRetriever`)
+- Uses vector search in Pinecone
+- Searches for semantically similar text chunks
+- Filters by metadata (facets, etc.)
+- Returns top-K most relevant chunks
+- Can reduce sources by budget
 
-## Processing-Events (SSE)
+## Processing Events (SSE)
 
-Die folgenden Events werden während der Verarbeitung gesendet:
+The following events are sent during processing:
 
-1. `question_analysis_start` - Frage-Analyse beginnt
-2. `question_analysis_result` - Analyse-Ergebnis mit Empfehlung
-3. `retriever_selected` - Retriever wurde ausgewählt
-4. `retrieval_start` - Retrieval beginnt
-5. `retrieval_progress` - Fortschritt beim Retrieval
-6. `retrieval_complete` - Retrieval abgeschlossen
-7. `prompt_complete` - Prompt erstellt
-8. `llm_start` - LLM-Aufruf beginnt
-9. `llm_progress` - Fortschritt beim LLM-Aufruf
-10. `llm_complete` - LLM-Aufruf abgeschlossen
-11. `parsing_response` - Antwort wird verarbeitet
-12. `complete` - Vollständige Antwort bereit
-13. `error` - Fehler aufgetreten
+1. `question_analysis_start` - Question analysis begins
+2. `question_analysis_result` - Analysis result with recommendation
+3. `retriever_selected` - Retriever was selected
+4. `retrieval_start` - Retrieval begins
+5. `retrieval_progress` - Progress during retrieval
+6. `retrieval_complete` - Retrieval completed
+7. `prompt_complete` - Prompt created
+8. `llm_start` - LLM call begins
+9. `llm_progress` - Progress during LLM call
+10. `llm_complete` - LLM call completed
+11. `parsing_response` - Answer is being processed
+12. `complete` - Complete answer ready
+13. `error` - Error occurred
 
-## Fehlerbehandlung
+## Error Handling
 
-- **Keine Quellen gefunden**: Früher Abbruch mit entsprechender Nachricht
-- **Context-Length-Überschreitung**: Automatische Retry-Logik mit reduzierten Budgets
-- **API-Fehler**: Fehler-Event wird gesendet, Query-Log wird aktualisiert
-- **Ungültige Anfrage**: Validierungsfehler wird zurückgegeben
+- **No Sources Found**: Early termination with appropriate message
+- **Context Length Exceeded**: Automatic retry logic with reduced budgets
+- **API Error**: Error event is sent, query log is updated
+- **Invalid Request**: Validation error is returned
 
-## Performance-Metriken
+## Performance Metrics
 
-- **Retrieval-Zeit**: Gemessen von Retrieval-Start bis Ende
-- **LLM-Zeit**: Gemessen von LLM-Aufruf bis Response-Parsing
-- **Token-Usage**: Prompt-Tokens, Completion-Tokens, Total-Tokens
-- **Query-Logging**: Alle Schritte werden in der Datenbank gespeichert
+- **Retrieval Time**: Measured from retrieval start to end
+- **LLM Time**: Measured from LLM call to response parsing
+- **Token Usage**: Prompt tokens, completion tokens, total tokens
+- **Query Logging**: All steps are stored in database
 
-## Besonderheiten
+## Special Features
 
-- **Öffentliche Libraries**: Unterstützung für anonyme Benutzer mit Public API-Key
-- **TOC-Fragen**: Spezielle Behandlung für Inhaltsverzeichnis-Fragen
-- **Chat-Historie**: Kontext aus vorherigen Fragen/Antworten wird im Prompt verwendet
-- **Facetten-Filter**: Werden sowohl für Retrieval als auch für Prompt-Kontext verwendet
-- **Gender-Inclusive**: Optionale geschlechtsneutrale Formulierungen in Antworten
-
-
-
-
-
-
+- **Public Libraries**: Support for anonymous users with public API key
+- **TOC Questions**: Special handling for table of contents questions
+- **Chat History**: Context from previous questions/answers is used in prompt
+- **Facet Filters**: Used both for retrieval and prompt context
+- **Gender-Inclusive**: Optional gender-neutral formulations in answers
+- **Story Mode**: Narrative exploration of knowledge topics with structured topic overview
 

@@ -4,16 +4,22 @@ title: Storage Provider System
 
 # Storage Provider System
 
-Das Storage Provider System ist eine modulare Architektur zur Abstraktion verschiedener Dateispeicher-Backends. Es ermöglicht die einheitliche Handhabung von Dateien und Ordnern über verschiedene Speichersysteme hinweg.
+The Storage Provider System is a modular architecture for abstracting various file storage backends. It enables unified handling of files and folders across different storage systems.
 
 ## Core Features
 
-- Modulare Provider-Architektur
-- Intelligentes Caching (Client/Server)
-- Robuste, typisierte Fehlerbehandlung
-- Performance-Optimierungen (Streaming, Chunk-Upload, Parallelisierung)
+- Modular provider architecture
+- Intelligent caching (Client/Server)
+- Robust, typed error handling
+- Performance optimizations (Streaming, Chunk-Upload, Parallelization)
 
-## Architektur-Übersicht
+## Supported Storage Providers
+
+- **Local File System**: Direct access to local filesystem (✅ Implemented)
+- **OneDrive**: Integration with Microsoft OneDrive (✅ Implemented)
+- **Nextcloud**: Integration with Nextcloud for self-hosted cloud storage (🚧 In Development)
+
+## Architecture Overview
 
 ```mermaid
 graph TB
@@ -30,30 +36,27 @@ graph TB
     
     subgraph "Provider Layer"
         FSP[Filesystem Provider]
-        SPP[SharePoint Provider]
-        GDP[Google Drive Provider]
         ODP[OneDrive Provider]
+        NCP[Nextcloud Provider]
     end
     
     subgraph "Storage Layer"
         FS[Local Filesystem]
-        SP[SharePoint]
-        GD[Google Drive]
         OD[OneDrive]
+        NC[Nextcloud]
     end
 
     UI --> Factory
     Factory --> Client
     Client --> API
     API --> Auth
-    Auth --> FSP & SPP & GDP & ODP
+    Auth --> FSP & ODP & NCP
     FSP --> FS
-    SPP --> SP
-    GDP --> GD
     ODP --> OD
+    NCP --> NC
 ```
 
-## Datenfluss und Interaktionen
+## Data Flow and Interactions
 
 ```mermaid
 sequenceDiagram
@@ -70,7 +73,7 @@ sequenceDiagram
     Factory->>Factory: checkProviderType
     Factory->>Client: createProvider(config)
     
-    Note over UI,Client: Datei-Listung anfordern
+    Note over UI,Client: Request file listing
     UI->>Client: listItemsById(folderId)
     Client->>Cache: checkCache(key)
     
@@ -91,15 +94,15 @@ sequenceDiagram
     end
 ```
 
-## Implementierungsebenen (Auszug)
+## Implementation Layers (Excerpt)
 
-1. UI (`src/components/library/*`): Interaktion, State, Provider-Auswahl
-2. Factory (`src/lib/storage/storage-factory.ts`): Instanziierung, Konfiguration
-3. Client (`src/lib/storage/filesystem-client.ts`): HTTP, Caching, Fehlerbehandlung
-4. API (`app/api/storage/[provider]/route.ts`): Endpunkte, Auth, Logging
-5. Provider (`src/lib/storage/providers/*`): Backend-Integration, Datei-Operationen
+1. UI (`src/components/library/*`): Interaction, State, Provider selection
+2. Factory (`src/lib/storage/storage-factory.ts`): Instantiation, Configuration
+3. Client (`src/lib/storage/filesystem-client.ts`): HTTP, Caching, Error handling
+4. API (`app/api/storage/[provider]/route.ts`): Endpoints, Auth, Logging
+5. Provider (`src/lib/storage/providers/*`): Backend integration, File operations
 
-## Fehlerbehandlung (Typisiert)
+## Error Handling (Typed)
 
 ```typescript
 class StorageError extends Error {
@@ -114,5 +117,4 @@ class StorageError extends Error {
   }
 }
 ```
-
 

@@ -1,0 +1,71 @@
+services:
+  commonknowledgeservices:
+    image: ghcr.io/bcommonslab/commonkno:latest
+    pull_policy: always
+    restart: always
+    networks:
+      - dokploy-network
+    ports:
+      - 3000
+    environment:
+      # Clerk Authentication
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_YOUR_PUBLISHABLE_KEY_HERE
+      - CLERK_SECRET_KEY=sk_test_YOUR_SECRET_KEY_HERE
+      - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+      - NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+      
+      # MongoDB Configuration
+      - MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database-name
+      - MONGODB_DATABASE_NAME=common-knowledge-scout-prod
+      - MONGODB_COLLECTION_NAME=libraries
+      
+      # Microsoft OneDrive Integration (optional)
+      - MS_REDIRECT_URI=https://your-domain.org/api/auth/onedrive/callback
+      
+      # Secretary Service Configuration
+      - SECRETARY_SERVICE_URL=https://secretaryservices.your-domain.org/api
+      - SECRETARY_SERVICE_API_KEY=your_secretary_api_key_here
+      
+      # Application URLs
+      - NEXT_PUBLIC_APP_URL=https://knowledgescout.your-domain.org
+      - NEXT_PUBLIC_BASE_URL=https://knowledgescout.your-domain.org
+      
+      # Pinecone Vector Database (for RAG)
+      - PINECONE_API_KEY=pcsk_your_pinecone_api_key_here
+      
+      # Internal Security Token
+      - INTERNAL_TEST_TOKEN=your_internal_security_token_here
+      
+      # Debug Settings
+      - DEBUG_FILESYSTEM=true
+      
+      # Job Worker Configuration
+      - JOBS_EXECUTION_MODE=worker
+      - JOBS_WORKER_AUTOSTART=true
+      - JOBS_WORKER_INTERVAL_MS=2000
+      - JOBS_WORKER_CONCURRENCY=6
+      
+      # OpenAI Configuration
+      - OPENAI_API_KEY=sk-proj-your_openai_api_key_here
+      - OPENAI_CHAT_MODEL_NAME=gpt-4.1
+      - OPENAI_CHAT_TEMPERATURE=0.3
+      - OPENAI_EMBEDDINGS_MODEL_NAME=text-embedding-3-large
+      
+      # RAG Configuration
+      - SUMMARY_MAX_DOCS=1500
+      - SUMMARY_ESTIMATE_CHARS_PER_DOC=2000
+      - CHAT_MAX_INPUT_TOKENS=1000000
+      
+      # Vimeo Integration (optional)
+      - VIMEO_ACCESS_TOKEN=your_vimeo_access_token_here
+      
+      # Azure Storage (optional)
+      - AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=your_account;AccountKey=your_key;EndpointSuffix=core.windows.net
+      - AZURE_STORAGE_CONTAINER_NAME=your_container_name
+      
+networks:
+  dokploy-network:
+    external: true
+

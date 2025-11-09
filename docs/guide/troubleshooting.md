@@ -4,23 +4,22 @@ title: Troubleshooting
 
 # Troubleshooting
 
-## Anmeldung fehlgeschlagen
-- Erneut anmelden und Browser-Blocker prüfen.
-- Server-Logs prüfen (Auth-Routen).
+## Sign-In Failed
+- Sign in again and check browser blockers.
+- Check server logs (Auth routes).
 
-## Bibliothek nicht konfiguriert
-- Hinweis „Bitte konfigurieren Sie die Bibliothek...“: `/settings` → Bibliothek und Storage prüfen.
-- Provider-Anmeldestatus im Header/Storage-Kontext prüfen.
+## Library Not Configured
+- Message "Please configure the library...": Check `/settings` → Library and Storage.
+- Check provider authentication status in header/storage context.
 
-## Upload schlägt fehl
-- Dateigröße/Format prüfen.
-- Storage-Provider-Berechtigungen prüfen.
+## Upload Fails
+- Check file size/format.
+- Check storage provider permissions.
 
-## Vorschau zeigt nichts
-- Datei-Typ unterstützen? Für Binärformate ggf. Download nutzen.
+## Preview Shows Nothing
+- Is file type supported? For binary formats, use download if needed.
 
-## Transformation/Transkription läuft nicht an
-- Event-Monitor prüfen (Batch/Job-Status, Fehler).
-- `Secretary Service` Konfiguration und API-Erreichbarkeit prüfen.
-
+## Transformation/Transcription Doesn't Start
+- Check Event Monitor (Batch/Job status, errors).
+- Check `Secretary Service` configuration and API availability.
 

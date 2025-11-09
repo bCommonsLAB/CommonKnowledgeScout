@@ -1,0 +1,2693 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/concepts/pdf/new_workflow-pdf-to-markdown-and-rag.html">
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>New workflow pdf to markdown and rag - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../css/print-site.css">
+    
+      <link rel="stylesheet" href="../../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ziel" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              New workflow pdf to markdown and rag
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Overview
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/intro.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intro
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/features.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/core-components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Core Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using the Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/event-monitor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Event Monitor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/batch-session-import.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Session Import
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/troubleshooting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/faq.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-provider.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage Provider
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../localstorage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileSystem (Local)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../image-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="extraction-methods.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Extraction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/global-state.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Global State
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/header.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Header
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/breadcrumb.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Breadcrumb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/file-tree.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileTree
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/file-list.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileList
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/upload.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upload
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/file-preview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FilePreview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/transform.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transform
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/batch-transcription.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/error-handling-logging-testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Error Handling & Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/initialization-sequence.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Initialization
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/components.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/shadowtwins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/extended-shadowtwin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extended Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/transformation-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transformation Service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../video-transformation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/glossary.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/secretary-services.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secretary Services
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/track-processor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Track Processor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../chat-response-generation-process.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Operations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Operations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/deployment/docker.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/desktop/quick-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Quick Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ops/desktop/package-strategy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Package Strategy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ziel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ziel
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uberblick-schematisch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Überblick (Schematisch)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#komponenten-und-verantwortlichkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      Komponenten und Verantwortlichkeiten
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#yamlfrontmatter-struktur-beispiel" class="md-nav__link">
+    <span class="md-ellipsis">
+      YAML‑Frontmatter Struktur (Beispiel)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      yaml
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extrahierte-felder-vereinheitlicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      Extrahierte Felder (vereinheitlicht)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inhalt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inhalt …
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inhalt …">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pinecone-schema-und-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pinecone Schema und Ingestion
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#facettentaxonomie-konsistenzregeln" class="md-nav__link">
+    <span class="md-ellipsis">
+      Facetten‑Taxonomie (Konsistenzregeln)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#endanwender-flows" class="md-nav__link">
+    <span class="md-ellipsis">
+      Endanwender-Flows
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schnittstellen-referenz" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schnittstellen (Referenz)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qualitatssicherung-und-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Qualitätssicherung und Logging
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#offene-punkte-nachste-schritte" class="md-nav__link">
+    <span class="md-ellipsis">
+      Offene Punkte / Nächste Schritte
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uberblick" class="md-nav__link">
+    <span class="md-ellipsis">
+      Überblick
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prozessubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prozessübersicht
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uberblick_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Überblick
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prozessubersicht_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prozessübersicht
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<p>Ich habe diese PDF Ingestion Pipeline gebaut:</p>
+<hr />
+<p>title: PDF → Markdown → RAG Workflow
+status: draft
+lastUpdated: 2025-09-06</p>
+<hr />
+<h2 id="ziel">Ziel<a class="headerlink" href="#ziel" title="Permanent link">&para;</a></h2>
+<p>Dieser Leitfaden beschreibt den technischen End-to-End‑Workflow: PDF‑Extraktion → Markdown mit YAML‑Frontmatter → Metadaten-/Kapitelanalyse → Ingestion in Pinecone (Chunks + Dokumenteintrag) → Nutzung in Galerie und Chat. Er dient als Referenz für Entwickler und als Anwenderbeschreibung.</p>
+<h2 id="uberblick-schematisch">Überblick (Schematisch)<a class="headerlink" href="#uberblick-schematisch" title="Permanent link">&para;</a></h2>
+<p>mermaid
+flowchart LR
+  A[User Start PDF Transformation] --&gt; B[API process pdf]
+  B --&gt; C[Secretary PDF to Text]
+  C --&gt; D[Callback external jobs]
+  D --&gt; E[Template Transform Chapters TOC Metadata]
+  E --&gt; F[Markdown with YAML Frontmatter]
+  F --&gt; G[Store Shadow Twin]
+  G --&gt; H{Use Ingestion Pipeline}
+  H --&gt;|yes| I[Pinecone Upsert chunks and doc]
+  H --&gt;|no| J[Finish Job]
+  I --&gt; K[Gallery doc facets]
+  I --&gt; L[Chat Retrieval chunks summaries]</p>
+<h2 id="komponenten-und-verantwortlichkeiten">Komponenten und Verantwortlichkeiten<a class="headerlink" href="#komponenten-und-verantwortlichkeiten" title="Permanent link">&para;</a></h2>
+<ul>
+<li>API POST /api/secretary/process-pdf: Legt ExternalJob an, initialisiert Schritte (extract_pdf, transform_template, store_shadow_twin, ingest_rag), persistiert parameters.</li>
+<li>Callback POST /api/external/jobs/[jobId]: Orchestriert Schritte, reichert metaHistory, cumulativeMeta an, erzeugt Markdown (Frontmatter), speichert Shadow‑Twin, optional Ingestion.</li>
+<li>Ingestion IngestionService.upsertMarkdown: Chunking, Embedding, Upsert in Pinecone; zusätzlich Dokumenteintrag kind:"doc" inkl. kompakter Metadaten (docMetaJson).</li>
+<li>Galerie GET /api/chat/[libraryId]/docs: Liest kind:"doc" aus Pinecone, aggregiert Facetten.</li>
+<li>Chat POST /api/chat/[libraryId]: Retrieval über retriever=chunk|doc, Facettenfilter via Query‑Parameter.</li>
+</ul>
+<h2 id="yamlfrontmatter-struktur-beispiel">YAML‑Frontmatter Struktur (Beispiel)<a class="headerlink" href="#yamlfrontmatter-struktur-beispiel" title="Permanent link">&para;</a></h2>
+<p>Frontmatter wird in TransformService.createMarkdownWithFrontmatter erzeugt. Werte sind flach (primitive Typen), komplexe Strukturen vermeiden.</p>
+<h2 id="yaml">yaml<a class="headerlink" href="#yaml" title="Permanent link">&para;</a></h2>
+<p>source_file: "MyPaper.pdf"
+source_file_id: "base64id=="
+source_file_type: "application/pdf"
+target_language: "de"
+process_id: "sec-12345"
+processor: "secretary:template/pdfanalyse.md"
+processing_duration_ms: 53210
+model_used: "gpt-4o-mini"
+cache_used: true
+cache_key: "hash:..."</p>
+<h1 id="extrahierte-felder-vereinheitlicht">Extrahierte Felder (vereinheitlicht)<a class="headerlink" href="#extrahierte-felder-vereinheitlicht" title="Permanent link">&para;</a></h1>
+<p>title: "A Taxonomy of RAG"
+authors: "Doe, Jane; Smith, John"
+year: 2024
+short_title: "RAG Taxonomy"
+region: "EU"
+doc_type: "paper"
+tags: "rag, retrieval, taxonomy"
+chapters_count: 12
+toc_pages: 3</p>
+<hr />
+<h1 id="inhalt">Inhalt …<a class="headerlink" href="#inhalt" title="Permanent link">&para;</a></h1>
+<p>Hinweise:
+- Strings escapen; Zahlen/Booleans als Literale; keine geschachtelten Objekte.
+- Kapitel/TOC werden primär als strukturierte Metadaten in cumulativeMeta gepflegt und für Pinecone als JSON serialisiert (siehe unten).</p>
+<h2 id="pinecone-schema-und-ingestion">Pinecone Schema und Ingestion<a class="headerlink" href="#pinecone-schema-und-ingestion" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Chunk‑Vektoren: id = ${fileId}-${i}</li>
+<li>metadata: { kind: 'chunk', user, libraryId, fileId, fileName, chunkIndex, text(&lt;=1000), upsertedAt }</li>
+<li>Dokument‑Vektor: id = ${fileId}-doc (oder -meta in älteren Pfaden)</li>
+<li>metadata: { kind: 'doc', user, libraryId, fileId, fileName, upsertedAt, docMetaJson }</li>
+<li>docMetaJson ist stets ein komprimierter JSON‑String (max ~8KB), enthält u. a.: title, authors[], year, shortTitle, region, docType, source, tags[], chapters[], toc[].</li>
+</ul>
+<p>Idempotenz:
+- Schlüsselbasis ist das ursprüngliche PDF (correlation.source.itemId) → stabile fileId über Re‑Runs.
+- Vor Neu‑Ingestion ggf. deleteByFilter einsetzen, wenn vollständige Ersetzung gewünscht ist.</p>
+<h2 id="facettentaxonomie-konsistenzregeln">Facetten‑Taxonomie (Konsistenzregeln)<a class="headerlink" href="#facettentaxonomie-konsistenzregeln" title="Permanent link">&para;</a></h2>
+<p>Problem: Uneinheitliche Metadaten (Freitext, unterschiedliche Schreibweisen). Lösung: Normalisierungsschicht vor Frontmatter/Ingestion.</p>
+<p>Vorschlag Facetten und Typen:
+- authors: Liste<string> (Form „Nachname, Vorname“)
+- year: Zahl (YYYY)
+- region: Enum-ähnliche Liste (z. B. EU, US, Global)
+- docType: Liste<string> kontrolliert (z. B. paper, report, slide, web)
+- source: Liste<string> (Herkunft/Publisher)
+- tags: Liste<string> (kleinbuchstaben, kebab‑case)</p>
+<p>Normalisierung (Beispiele):
+- Whitespace trimmen, Unicode‑Normalize (NFKC), Klein-/Großschreibung vereinheitlichen.
+- authors: Split an ;, Namen in „Nachname, Vorname“ bringen.
+- region: Mapping‑Tabelle ("EU", "Europe" → EU).
+- docType: Map Freitext → kontrolliertes Vokabular.
+- tags: Klein schreiben, Leerzeichen → -, Duplikate entfernen.</p>
+<p>Persistenzorte:
+- Frontmatter: flache, lesbare Felder (titel, authors, year …) für Menschen.
+- Pinecone: docMetaJson mit vollständigen, normalisierten Strukturen für Facetten.
+- Jobs: cumulativeMeta + metaHistory zur Nachvollziehbarkeit.</p>
+<h2 id="endanwender-flows">Endanwender-Flows<a class="headerlink" href="#endanwender-flows" title="Permanent link">&para;</a></h2>
+<p>1) PDF transformieren
+- In der Library PDF auswählen → Dialog „PDF transformieren“.
+- Option „Use Ingestion Pipeline“ aktivieren, Template wählen (z. B. pdfanalyse.md).
+- Nach Abschluss: Shadow‑Twin .md im selben Ordner; Report‑Tab zeigt Metadaten, Schritte, Logs.</p>
+<p>2) Galerie nutzen
+- Menü „Gallery“: zeigt kind:"doc"‑Einträge als Karten (Titel, Autoren, Jahr, Short‑Title).
+- Linke Filterleiste: Facetten nach obigem Schema (autoren, region, year, docType, source, tags).</p>
+<p>3) Chat verwenden
+- Chat im Gallery‑Layout oder eigener Seite.
+- Retriever‑Umschalter: „Chunks“ (semantische Suche) oder „Summaries/Dokumente“.
+- Filter werden aus der Galerie übernommen und auf Retrieval angewendet.
+- Bei fehlenden Quellen antwortet das System: „Keine passenden Inhalte gefunden“.</p>
+<h2 id="schnittstellen-referenz">Schnittstellen (Referenz)<a class="headerlink" href="#schnittstellen-referenz" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Start: POST /api/secretary/process-pdf</li>
+<li>Callback: POST /api/external/jobs/[jobId]</li>
+<li>Galerie Docs: GET /api/chat/[libraryId]/docs?author=...&amp;year=...</li>
+<li>Galerie Facets: GET /api/chat/[libraryId]/facets</li>
+<li>Chat: POST /api/chat/[libraryId]?retriever=chunk|doc&amp;author=...</li>
+</ul>
+<h2 id="qualitatssicherung-und-logging">Qualitätssicherung und Logging<a class="headerlink" href="#qualitatssicherung-und-logging" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Zentral: FileLogger/UILogger mit Phasen (extract_pdf, transform_template, store_shadow_twin, ingest_rag).</li>
+<li>Job‑Detail: steps, parameters, cumulativeMeta, metaHistory, ingestion (Vektorzähler, Index).</li>
+<li>Fehlerpfade klar loggen; Pinecone‑Fehlertexte durchreichen.</li>
+</ul>
+<h2 id="offene-punkte-nachste-schritte">Offene Punkte / Nächste Schritte<a class="headerlink" href="#offene-punkte-nachste-schritte" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Vollständige Normalisierungspipeline (Mapping‑Tabellen, Validierung, Tests).</li>
+<li>Konfigurierbare Facetten je Library (config.chat.gallery.facets).</li>
+<li>Konsistenzprüfungen bei Re‑Runs (Stale‑Check mit docModifiedAt).</li>
+</ul>
+<p>ChatGPT:</p>
+<p>Deine PDF → Markdown → RAG Workflow Beschreibung ist schon sehr konsistent. Ich sehe, dass du die Konzepte aus beiden Projektdokumentationen elegant zusammengeführt hast:</p>
+<p>Secretary Service (Backend) liefert dir die Extraktion, OCR, Templates, Metadaten und Shadow-Twins.</p>
+<p>Knowledge Scout (Frontend/UI) kümmert sich um Library, Gallery, Facettenfilter, Chat und Event-Monitoring.</p>
+<p>In deinen Folien hast du die Architektur bereits so gezeigt: Secretary Service = Worker + API, Knowledge Scout = Dashboard + Organizer.</p>
+<p>Stärken deines Dokuments</p>
+<p>Klare End-to-End-Chain: vom PDF bis ins RAG-System (Pinecone) mit Shadow-Twin und Galerie.</p>
+<p>Trennung Mensch/Maschine: Frontmatter für Menschen, docMetaJson für Maschinen.</p>
+<p>Normalisierung: Du hast Regeln für Autoren, Regionen, docType und Tags eingebaut – das löst das Chaos in Facetten.</p>
+<p>Idempotenz: Stabiler Schlüssel über fileId, mit optionalem Delete-Replace.</p>
+<p>Ergänzungsvorschläge</p>
+<p>Secretary ↔ Knowledge Scout Abgleich</p>
+<p>Dein Flow startet mit /api/secretary/process-pdf. Im Knowledge Scout gibt es schon /api/secretary/process-* Endpunkte für Audio, Image, PDF. Du könntest explizit notieren, dass dein Callback external/jobs direkt in die Event-Monitor-Integration geht.</p>
+<p>Facetten-Taxonomie matchen</p>
+<p>In Knowledge Scout wird resource_type (Book, Article, Video) statt docType vorgeschlagen. Evtl. ein Mapping aufnehmen (docType.paper → resource_type.Article).</p>
+<p>Shadow-Twin erweiterbar halten</p>
+<p>Der Extended Shadow-Twin sieht Qualitätsmetriken, Versionierung, Modellinfos vor. Das passt perfekt zu deinem metaHistory.</p>
+<p>Deployment-Realität</p>
+<p>In Secretary Doku: REST API über Flask-RESTX + MongoDB + Docker.</p>
+<p>In Knowledge Scout: Next.js 14 + Clerk + Storage Providers.
+→ In deinem Schema evtl. eine „Ops“-Sektion einfügen: „Secretary läuft als Python-Service, Knowledge Scout als Next.js-App; verbunden über REST APIs.“</p>
+<p>Next Steps offen lassen</p>
+<p>Roadmaps aus beiden Projekten enthalten:</p>
+<p>mehr Medienformate (Books, Slides)</p>
+<p>lokale LLM-Plugins</p>
+<p>Nextcloud-Community-Plugin
+→ kannst du direkt unter „Offene Punkte / Nächste Schritte“ aufnehmen.</p>
+<p>👉 Soll ich dir dein Paper so umschreiben, dass es klarer die Brücke zwischen Secretary Service (Backend) und Knowledge Scout (Frontend) macht, also eine Art „Joint Ingestion Blueprint“? Dann hättest du ein Dokument, das beide Stränge sauber integriert.</p>
+<p>Du:
+Ich möchte ein spezielles Problem ansprechen. Das ist diese Facetten-Taxonomie. Habe ich nicht wirklich im Griff. Ich möchte wirklich nach vielen Metadaten filtern können. Nicht nur nach IH und Autor. Das wäre vielleicht noch sinnvoll. Aber auch nach Themen. Nach Orten. Nach Quellen. Und irgendwie würde ich das gerne mit einer Graph-Datenbank lösen. Dass wir hier eigentlich Entitäten generieren, die gewisse Unschärfe zulassen an der PDF-Quelle. Was wäre denn das für ein Vorteil und wie würde man denn eine Markdown-Datei analysieren, um bestimmte Metadaten zu generieren, die in einem Graphen gespeichert sind. Wie würde denn das funktionieren? Welche sonstigen Vorteile bietet denn so ein Knowledge Graph?
+ChatGPT:
+Nachgedacht für 14s</p>
+<p>Super Punkt — eine Facetten-Taxonomie wird mit reinen Flach-Feldern schnell spröde. Ein Knowledge Graph löst genau das: du modellierst Entitäten (Autor:innen, Themen, Orte, Quellen, Events, Organisationen, Dokumente, …) und Beziehungen zwischen ihnen. Facetten sind dann nur noch Graph-Traversalen.</p>
+<p>Warum Graph (kurz &amp; knackig)</p>
+<p>Beliebig viele Facetten &amp; Kombis: „Autor: X“ ∧ „Thema: Bildung“ ∧ „Ort: Südtirol“ ∧ „Quelle: EURAC“ ist eine einfache Pfadabfrage statt nester JSON-Filter.</p>
+<p>Synonyme &amp; Unschärfe: Entitäten haben Aliase („Bozen“, „Bolzano“), fuzzy String-Scores, Embeddings; du verlinkst sie auf denselben Knoten.</p>
+<p>Hierarchien &amp; Ontologien: Themenbäume (SKOS), Geo-Containment (Brixen ∈ Südtirol ∈ IT), Organisations-Strukturen → Facetten „rollen“ sauber hoch.</p>
+<p>Erklärbarkeit &amp; Provenienz: Jede Kante kann wo/warum entstanden ist (Quelle, Seiten/Token-Offsets, Confidence).</p>
+<p>Hybrid Retrieval: Graph filtert Kandidaten, Vektorindex (Pinecone) liefert dann die besten Textstellen — beides verbunden über fileId/chunkId.</p>
+<p>Wartbarkeit: Neue Facetten = neue Knoten/Relationen, kein Schema-Refactor.</p>
+<p>Wie aus Markdown → Graph wird</p>
+<p>Dein System hat bereits:</p>
+<p>Extraktion/Transformation (Secretary: PDF/OCR/Template/Metadata) — hier hängen wir an.</p>
+<p>Shadow-Twins/Frontmatter (Knowledge Scout) — perfekte Startdaten.</p>
+<p>Pipeline (MVP)</p>
+<p>Markdown parsen</p>
+<p>YAML-Frontmatter lesen (flache Felder) → sofort Knoten/Kanten anlegen (Document, year, docType, erste tags, source).</p>
+<p>NER &amp; Entity Linking (Body)</p>
+<p>NER/Classifier (z. B. spaCy/transformer) für PERSON, ORG, PLACE, WORK, EVENT, TOPIC.</p>
+<p>Kandidaten via:</p>
+<p>Lookup/Gazetteers (GeoNames/Wikidata/firmeneigene Listen),</p>
+<p>String-Fuzzy (Levenshtein/Trigramme) und</p>
+<p>Embedding-Cosine (Knotenbeschreibung vs. Erwähnung).</p>
+<p>Disambiguation: Scoring = w1·string + w2·alias + w3·geo-Dist + w4·embedding; setze confidence.</p>
+<p>Relationen schreiben + Provenienz</p>
+<p>(:Document)-[:AUTHORED_BY {source:"frontmatter", confidence:1.0}]-&gt;(:Person)</p>
+<p>(:Document)-[:ABOUT {confidence:0.82, spans:[{page:3,start:120,end:188}]}]-&gt;(:Topic)</p>
+<p>(:Document)-[:PUBLISHED_BY]-&gt;(:Organization)</p>
+<p>(:Document)-[:LOCATED_IN]-&gt;(:Place)</p>
+<p>(:Document)-[:CITES]-&gt;(:Document) (wenn Zitate erkannt)</p>
+<p>(:Document)-[:HAS_CHUNK]-&gt;(:Chunk {chunkId, vectorId}) → Brücke zu Pinecone.</p>
+<p>Normalisieren</p>
+<p>Autorenformat („Nachname, Vorname“), tags in kebab-case, region-Mapping, docType-Vokabular. (Das ergänzt deine bestehende Normalisierung vor Ingestion.)</p>
+<p>Synchronisieren mit Pinecone</p>
+<p>Chunk.vectorId = ${fileId}-${i}; Document.vectorId = ${fileId}-doc (entspricht deinem Schema).</p>
+<p>Graph hält Struktur, Pinecone den Inhalt.</p>
+<p>Beispiel-Schema (Property Graph)</p>
+<p>Knoten: Document(fileId, title, year, docType, source, region, shortTitle, ... ),
+Person(names[], aliases[]), Organization(names[], aliases[]), Place(name, geo:{lat,lon}, aliases[]),
+Topic(prefLabel, altLabels[], scheme), Source(name, url), Chunk(chunkId, vectorId, textRange).</p>
+<p>Kanten (Auszug):</p>
+<p>(:Document)-[:AUTHORED_BY]-&gt;(:Person)</p>
+<p>(:Document)-[:PUBLISHED_BY]-&gt;(:Organization)</p>
+<p>(:Document)-[:ABOUT]-&gt;(:Topic)</p>
+<p>(:Document)-[:LOCATED_IN]-&gt;(:Place)</p>
+<p>(:Document)-[:FROM_SOURCE]-&gt;(:Source)</p>
+<p>(:Document)-[:HAS_CHUNK]-&gt;(:Chunk)</p>
+<p>Alle Kanten haben optional: {confidence, provenance:{method, frontmatter|ocr|llm, page/spans}}.</p>
+<p>Beispiel-Abfragen (Cypher, Neo4j-Denke)</p>
+<p>Facetten-Drilldown (Autor + Thema + Jahrbereich + Ort in Radius):</p>
+<p>MATCH (d:Document)-[:AUTHORED_BY]-&gt;(p:Person {canonical:"Doe, Jane"})
+MATCH (d)-[:ABOUT]-&gt;(t:Topic)
+MATCH (d)-[:LOCATED_IN]-&gt;(pl:Place)
+WHERE t.prefLabel IN ["bildung","open-source"] 
+  AND d.year &gt;= 2022 AND d.year &lt;= 2025
+  AND distance(point(pl.geo), point({latitude:46.49, longitude:11.34})) &lt; 50000
+RETURN d.title, d.year, collect(t.prefLabel) AS topics, pl.name
+ORDER BY d.year DESC
+LIMIT 50;</p>
+<p>Hybrid Query (Graph filtert, dann Vektor-RAG)</p>
+<p>MATCH (d:Document)-[:ABOUT]-&gt;(:Topic {prefLabel:"rag"})
+WITH d LIMIT 200
+MATCH (d)-[:HAS_CHUNK]-&gt;(c:Chunk)
+RETURN c.vectorId;   // diese IDs an Pinecone Retrieval übergeben</p>
+<p>Einpassen in deine Architektur</p>
+<p>Secretary Service: Nach transform_template/metadata einen Schritt GraphIngestionService einfügen, der Frontmatter + Body extrahiert, NER/Linking ausführt und Knoten/Kanten schreibt. (Metadaten-Endpoint/Transformer existieren bereits.)</p>
+<p>Knowledge Scout – Gallery &amp; Facets: Die Facettenleiste fragt Aggregationen aus dem Graphen ab (z. B. Top-Topics, Orte, Quellen, Jahre). Der Klick baut eine Graph-Abfrage; Ergebnisliste liefert fileId/vectorId, die du im Chat/Retriever nutzt. (Shadow-Twin &amp; Metadaten-Konzepte sind bereits vorgesehen.)</p>
+<p>Fuzzy &amp; Qualität</p>
+<p>Alias-Management pro Entität (auch mehrsprachig).</p>
+<p>Confidence-Schwellen: unter x → „unscharf“, im UI als filterbarer Status.</p>
+<p>Human-in-the-Loop: Review-UI für „Ambiguous Matches“.</p>
+<p>Versionierung: Entitäten/Kanten mit valid_from/valid_to (Namenswechsel, Fusionen, Geo-Grenzen).</p>
+<p>Weitere Vorteile</p>
+<p>Empfehlungen („Nutzer, die Dokumente zu Thema A in Region B lesen, interessieren sich auch für …“ → K-step Nachbarschaften).</p>
+<p>Lineage/Provenienz bis zur PDF-Seite (Auditierbarkeit).</p>
+<p>Einfache Erweiterbarkeit um neue Facetten (Projects, Funding, Lizenzen, SDG-Mappungen).</p>
+<p>Saubere Rechte-Modelle (ACLs an Knoten/Kanten, vererbt entlang Pfaden).</p>
+<p>Mini-Fahrplan (pragmatisch)</p>
+<p>Graph-Schema fixieren (Knoten/Kanten + Pflicht-Properties).</p>
+<p>Frontmatter→Graph (100% deterministisch).</p>
+<p>NER/Linking auf Body (Person/Org/Place/Topic), Confidence + Review.</p>
+<p>Gallery-Facetten direkt aus Graph-Aggregationen.</p>
+<p>Hybrid-Retrieval: Graph-Filter → Pinecone-Vektorabruf.</p>
+<p>Alias-/Synonym-Pflege &amp; Mappings (EU↔Europe; docType-Vokabular).</p>
+<p>Wenn du magst, skizziere ich dir das konkrete Graph-Schema (.cypher) und den GraphIngestionService als Pseudocode passend zu deinen bestehenden Steps (extract_pdf → transform_template → store_shadow_twin → ingest_rag).</p>
+<p>Du:
+Bevor wir das noch aufskizzieren, möchte ich nochmal auf meine spezifische Problematik eingehen. Ich habe z.B. viele Dokumente aus Südtirol, aus vielen mit Ortsangaben und auch Flurnamen. Es gibt eine Datenbank, die diese Flurnamen auflöst in Gemeinde. Und es wäre toll, wenn wir diese geografischen Informationen zumindest auf Gemeindebegriff mappen könnten und auf eine DALL schafft. Also es gibt so DALL, Finschgall, Eisackdall. Sodass ich dann, wenn ich am Ende mein Rack bediene, ich einen Filter setzen kann und ich dann nur Informationen zu einem bestimmten Ort oder Gemeinde bekomme. Und die Frage ist es, wie man so einen Fließtext von einem wissenschaftlichen Dokument analysiert. Hat dann jede Seite seine geografische Bestimmung? D.h. ich würde auf jeder Seite schauen, ob irgendwo eine geografische Benahmung ist. Oder ich könnte auch das Gesamtdokument analysieren lassen und eben diese Kapitel. Aber das Problem ist es, dass manche Publikationen von Ortschaft zu Ortschaft gehen. Und wie kann ich danach Informationen gezielt den jeweiligen Ortschaft zuordnen? Wie grenzt man das ab?
+ChatGPT:
+Nachgedacht für 9s</p>
+<p>Mega gutes, sehr konkretes Use-Case – und gut lösbar. Unten ist ein praxistauglicher Plan, der zu deiner bestehenden Pipeline (Secretary Service → Shadow-Twin → Ingestion/Gallery/Chat) passt. Ich baue auf Seiten-/Kapitel-Scoping, einer lokalen Gazetteer (Gemeinden, Flurnamen, Täler), klaren Regeln zur Abgrenzung und Confidence-Scores – und schreibe die Ergebnisse bis auf Chunk-Ebene zurück, damit du im RAG sauber nach Gemeinde/Tal filtern kannst. (Einbinden lässt sich das als zusätzlicher Schritt nach transform_template, vor ingest_rag im Secretary-Flow. / die Gallery-Filter kommen dann aus diesem neuen Metadaten-Layer. )</p>
+<p>Zielbild (knapp)</p>
+<p>Gazetteer: Einheitliche Liste von {Flurname ↔ GemeindeID, Gemeinde ↔ TalID}, inkl. Alias-Namen (de/it/ladin/dialektisch).</p>
+<p>Toponym-Detektor: Erkenne Orts-/Flur-Nennungen im Markdown-Text (Frontmatter + Body) robust, auch unscharf.</p>
+<p>Scoping &amp; Abgrenzung: Weise Nennungen Segmenten zu (Seite, Kapitel, Überschrifts-Abschnitt) – nicht nur „Dokument-weit“.</p>
+<p>Aggregation → Facetten: Schreibe pro Chunk konsolidierte municipality[]/valley[] + pro Dokument eine Gesamtübersicht.</p>
+<p>Confidence &amp; Review: Jede Zuweisung hat Score + Provenienz (Seite/Span), Ambiguitäten kommen in einen Review-Bucket.</p>
+<p>1) Gazetteer (Datenbasis)</p>
+<p>Du brauchst drei Tabellen (kann JSON/CSV/DB sein):</p>
+<p>Municipalities: {id, canonical_name_de, name_it, name_ladin?, aliases:[], centroid:{lat,lon}, polygon?}</p>
+<p>Valleys (Täler): {id, canonical_name, aliases:[], polygon?, members:[municipality_id...]}
+– Falls keine offiziellen Polygone: einfache Mitgliedslisten per Gemeinde reichen; alternativ „Centroid ∈ Tal-Polygon“.</p>
+<p>Flurnamen: {id, name, aliases:[], municipality_id, geom?}
+– Deine bestehende Flurnamen-→-Gemeinde Datenbank wird hier integriert.</p>
+<p>Alias-Regeln: alle Namen NFKC-normalisieren, klein schreiben; Umlaute/Dialektvarianten als Aliase (bozen/bolzano; eisacktal/eisackdall/eisacktål; vinschgau/finschgall/vintschgau).</p>
+<p>2) Erkennung im Markdown (Toponym-NLP)</p>
+<p>Kombination aus schneller Lexikon-Suche + fuzzy Matching + optional NER:</p>
+<p>Lexikon-Trie (präfix-Baum) aus allen Gazetteer-Namen/Aliasen → sehr schnell für exakte/teil-exakte Treffer.</p>
+<p>Fuzzy: Damerau-Levenshtein / Trigram-Ähnlichkeit (z. B. ≥0.85) für Tippfehler/Dialektformen.</p>
+<p>Kontext-Heuristik: Boost, wenn Wörter wie in, bei, Gemeinde, Ort, Tal, im, bei vor/nach dem Treffer stehen.</p>
+<p>NER fallback (optional): ein deutsch/italienisch-taugliches Modell, das LOC/GPE markiert; Ergebnis per Entity Linking gegen Gazetteer „andocken“.</p>
+<p>Output pro Treffer:
+{surface:"Eisackdall", canonical:"Eisacktal", entity_type:"valley", candidates:[{id,score}], page, start,end, sentence_id}</p>
+<p>3) Disambiguierung (Entity Linking)</p>
+<p>Für jeden Treffer (z. B. „St. Jakob“) wählst du Kandidat*innen aus dem Gazetteer und scorst sie:</p>
+<p>Score =
+w1<em>string_sim + w2</em>alias_bonus + w3<em>context_pattern + w4</em>geo_prox + w5*co_mention</p>
+<p>string_sim: exakter Treffer 1.0; alias 0.95; fuzzy 0.8…</p>
+<p>context_pattern: „Gemeinde X“ → +0.1; „im Tal Y“ → +0.1.</p>
+<p>geo_prox (optional): Wenn im Dokument bereits ein „Scope-Ort“ aktiv (s.u.), bevorzugt nahe Kandidaten.</p>
+<p>co_mention: Gemeinsame Nennung von Flurname + Gemeinde/Tal in derselben Zeile/Absatz → +0.15.</p>
+<p>Schwellen:</p>
+<p>score ≥ 0.9 → match</p>
+<p>0.7–0.9 → ambiguous (Review)</p>
+<p>&lt; 0.7 → ignore</p>
+<p>4) Scoping &amp; Abgrenzung (Seite/Kapitel/Abschnitt)</p>
+<p>Damit Publikationen, die „von Ortschaft zu Ortschaft gehen“, sauber segmentiert werden, benutze hierarchische Scopes:</p>
+<p>Scopes (absteigend):</p>
+<p>Heading-Abschnitt: Von einer Überschrift (H1–H4) bis zur nächsten.</p>
+<p>Seite: Falls PDF-Seitenstruktur verfügbar, nutze sie zusätzlich.</p>
+<p>Absatz-Fenster: Sliding-Window von N Sätzen (z. B. 5–8), um lokale Häufung zu erkennen.</p>
+<p>State-Machine (einfach &amp; effektiv):</p>
+<p>Wenn in einer Überschrift ein Ort/Tal genannt wird (oder „Kapitel: Gemeinde X“): setze active_scope.location=X bis zur nächsten Überschrift.</p>
+<p>Innerhalb eines Scopes bekommen gleichlautende/nahe Treffer prior (geo_prox w4).</p>
+<p>Wenn eine Seite keine Nennungen hat, erbt sie keinen Ort (keine Zuweisung, außer es ist ausdrücklich ein globaler Dokument-Ort im Frontmatter).</p>
+<p>Konflikt-Regel: Wird in einem Abschnitt mehrfach unterschiedliche Gemeinden stark genannt (≥2 mentions mit score ≥0.9), dann markiere den Abschnitt als multi-location.</p>
+<p>Ergebnis pro Abschnitt:
+section_locations = [{municipality_id, confidence, count}, {valley_id,...}]
+→ „dominanter Ort“ = Top-1, „sekundäre Orte“ = Top-n mit lower confidence.</p>
+<p>5) Von Abschnitten zu Chunks &amp; Seiten</p>
+<p>Du chunkst ohnehin (z. B. ≤1000 Zeichen). Nutze die Span-Koordinaten:</p>
+<p>Ein Chunk erhält alle Orte/Täler, deren Erwähnungen in seinen Textbereich fallen.</p>
+<p>Wenn keine direkten Treffer im Chunk, aber sein übergeordneter Abschnitt einen dominanten Ort hat → inherit mit reduziertem Confidence (z. B. ×0.7).</p>
+<p>Seiten-ID mitgeben: hilfreich für Provenienz.</p>
+<p>Chunk-Metadata (für Pinecone)
+{ kind:'chunk', ..., municipalities:['bz-021','bz-034'], valleys:['eisacktal'], geo_confidence:0.82 }
+Doc-Metadata (für Gallery/Facets)
+docMetaJson.geo = { municipalities:[{id,name,count}], valleys:[...], mentions:[{surface, canonical, page, span, score}] }</p>
+<p>Das fügt sich sauber in dein bestehendes Pinecone-Schema (Chunk- und Doc-Vektor, docMetaJson bis ~8 KB).</p>
+<p>6) Filter &amp; Retrieval (UX)</p>
+<p>Gallery-Facetten: Tal, Gemeinde, optional Flurname (autocomplete). Quelle: aggregierte docMetaJson.geo über alle kind:'doc' Einträge. (Dein Gallery-Endpoint zieht die Doc-Einträge ohnehin. )</p>
+<p>Chat/RAG:</p>
+<p>Graph/Facets wählen (z. B. municipality = „Brixen“ ∧ valley = „Eisacktal“).</p>
+<p>Query filtert Chunks auf diese Facetten, dann Vektor-Retrieval.</p>
+<p>Antwort zitiert Seiten/Spans (Erklärbarkeit).</p>
+<p>7) Qualität &amp; Review</p>
+<p>Ambiguity-Queue: Alles 0.7–0.9 landet in einer Review-Liste mit Kontextsnippet, Vorschlag Top-3.</p>
+<p>False-Positive-Guards: Blacklist (z. B. „Jakob“ als Vorname vs. „St. Jakob“ als Ort → erfordert Punkt/„St.“).</p>
+<p>Mehrsprachigkeit: Erkenne de/it/ladin; Gazetteer liefert mehrsprachige Aliase (Bozen/Bolzano/Bulsan).</p>
+<p>Confidence-Heatmap: Seiten mit geringer Zuverlässigkeit im UI markieren.</p>
+<p>8) Abgrenzungslogik – „Wer bekommt den Absatz?“ (Entscheidungsregeln)</p>
+<p>Explizite Marker in Überschriften &gt; alle anderen (z. B. „3.2 Gemeinde Klausen“).</p>
+<p>Häufigkeit im Abschnitt: mind. 2 starke Nennungen schlagen vereinzelte.</p>
+<p>Flurname + Gemeinde zusammen in einem Satz → starke Bindung an diese Gemeinde.</p>
+<p>Tal-Zuweisung: immer über Gemeinde (Gemeinde → Tal), nicht direkt aus freiem Text, es sei denn eindeutig („im Eisacktal zwischen Brixen und Klausen“).</p>
+<p>Seiten-Scope: Wenn Seite A zu 80 % Gemeinde X, Seite B zu 70 % Gemeinde Y, dann beide getrennt behandeln – kein globales „Dokument = X“.</p>
+<p>9) Integration in deine Pipeline (konkret)</p>
+<p>Secretary Service – füge nach transform_template einen Schritt geotag_markdown ein:</p>
+<p>Input: {markdown, frontmatter, fileId}</p>
+<p>Output: {geo: {mentions[], sections[], page_map[], municipalities[], valleys[]}} + Span-Offsets</p>
+<p>Speicherung: in cumulativeMeta.geo &amp; metaHistory (für Nachvollziehbarkeit). Beim ingest_rag die Chunk-Metadaten um municipalities/valleys/geo_confidence ergänzen. (Passt zu deinen bestehenden Step-Logs &amp; Idempotenz. )</p>
+<p>Knowledge Scout – Facetten:</p>
+<p>GET /api/chat/[libraryId]/facets erweitert um municipality, valley (beide Mehrfachauswahl).</p>
+<p>POST /api/chat/[libraryId]?retriever=chunk&amp;municipality=...&amp;valley=... filtert vor dem Vektorabruf. (Schließt an dein Facetten-Konzept an. )</p>
+<p>10) Datenmodell-Beispiele</p>
+<p>Frontmatter (Dokument-lesbar, flach)</p>
+<p>municipalities: "Brixen; Klausen"
+valleys: "eisacktal"
+geo_confidence: 0.86</p>
+<p>docMetaJson.geo (kompakt, maschinenlesbar)</p>
+<p>{
+  "municipalities":[{"id":"bz-021","name":"Brixen","count":12},{"id":"bz-034","name":"Klausen","count":7}],
+  "valleys":[{"id":"eisacktal","name":"Eisacktal","count":19}],
+  "mentions":[
+    {"surface":"Eisackdall","canonical":"Eisacktal","type":"valley","page":4,"span":[238,258],"score":0.94},
+    {"surface":"St. Jakob","canonical":"St. Jakob (Brixen)","type":"flurname","page":5,"span":[12,22],"score":0.88,"municipality_id":"bz-021"}
+  ],
+  "sections":[
+    {"heading":"3.2 Gemeinde Klausen","municipalities":[{"id":"bz-034","confidence":0.92}],"pages":[6,7]}
+  ]
+}</p>
+<p>Chunk-Metadata (Pinecone)</p>
+<p>{
+  "kind":"chunk",
+  "fileId":"file-123",
+  "chunkIndex":7,
+  "municipalities":["bz-021","bz-034"],
+  "valleys":["eisacktal"],
+  "geo_confidence":0.81
+}</p>
+<p>11) Warum das gut skaliert</p>
+<p>Beliebig feine Granularität: Seite/Abschnitt/Chunk; du musst nicht jede Seite märkern – nur dort, wo Signale sind.</p>
+<p>Robust bei „wandernden“ Publikationen: Scopes folgen Überschriften/Nennungs-Clustern.</p>
+<p>Wenig Schema-Änderungen: Du erweiterst nur docMetaJson und Chunk-Metadaten; der Rest deiner Architektur bleibt. turn8file4</p>
+<p>Perfekt für Facetten: Gallery und Chat können präzise filtern (Gemeinde/Tal) – zusätzlich zu Autor/Jahr/Quelle/Tags.</p>
+<p>Wenn du willst, mache ich dir im nächsten Schritt:</p>
+<p>ein kleines Pseudocode-Modul GeoTagger (Tokenisierung → Treffer → Disambiguierung → Scoping → Aggregation),</p>
+<p>plus Mappings/Enums für Gemeinden/Täler (Stub),</p>
+<p>und die Erweiterung deiner Ingestion-Schnittstellen (TypeScript/JSON-Schemas) – exakt zu deinen Endpunkten passend.</p>
+<p>Du:
+Okay, aber ich habe noch ein Problem, und zwar, wenn ich das Markdown erzeuge, habe ich noch kein Front Matter. Ich bekomme das Markdown vom Von Mistral OCR, d.h. ich bekomme ein sauberes Markdown von BDF. Jetzt wäre ich hergegangen und hätte das gesamte Markdown verwendet und ein Large Language Model gesendet, um Structured Data, diese FrontMatter Felder abzufragen. Macht das jetzt noch Sinn oder gehen wir sowieso Seite für Seite durch und generieren diesen FrontMatter kumulativ und wird jetzt diese verarbeiten. Ist das noch LLM oder ist das reine Textverarbeitung? Das Erforschen dieser Metadaten.
+ChatGPT:</p>
+<p>Das ist eine sehr zentrale Fragestellung in deiner Pipeline: Wann und wie entstehen Metadaten?
+Ich sehe aus deinen Dokumentationen und Folien, dass du zwei Werkzeuge hast:</p>
+<p>Secretary Services: Sie liefern die Roh-Extraktion (OCR, PDF-Text, Transformer) und können über Templates auch strukturierte Metadaten erzeugen.</p>
+<p>Knowledge Scout: Dort gibt es ein Metadatenkonzept mit flacher, typisierter Struktur (ähnlich Dublin Core), das als YAML-Frontmatter in Markdown geschrieben wird.</p>
+<p>Optionen für deine Pipeline</p>
+<p>Ganzes Dokument → LLM (Frontmatter-Extraktion)</p>
+<p>Vorteil: Kontext über das gesamte Dokument, Autoren/Lizenzen/Orte leichter konsistent erkennbar.</p>
+<p>Nachteil: Teuer, da ein LLM große Mengen Text analysieren muss; Kontextbegrenzung (Token-Limit).</p>
+<p>Seite für Seite → Metadaten sammeln und kumulieren</p>
+<p>Vorteil: Präzise Lokalisierung (z. B. Ortsnamen auf Seite 12). Besser für dein Südtirol-Ortsmapping.</p>
+<p>Nachteil: Muss später zusammengeführt werden (Konsolidierung von widersprüchlichen Angaben).</p>
+<p>Hybrid</p>
+<p>Erst technische Metadaten automatisch (Seitenanzahl, Dateigröße, Jahr).</p>
+<p>Dann LLM nur auf gezielten Passagen (Abstract, Introduction, TOC) laufen lassen.</p>
+<p>Für Ortsangaben: Regex + Gazetteer (Flurnamen → Gemeinde/Dall) als reine Textverarbeitung; LLM nur zur Validierung.</p>
+<p>Was ist noch LLM, was nicht?</p>
+<p>Reine Textverarbeitung: Dinge wie Regex, Gazetteer-Matching, Named Entity Recognition (NER) mit Spacy/Stanza – kein LLM nötig.</p>
+<p>LLM: Wenn du komplexe, mehrdeutige Aufgaben hast („Welches ist der wichtigste Ort im Abstract?“ oder „Welche Kapitelthemen ergeben sich?“).</p>
+<p>Vorteile, wenn du einen Knowledge Graph einsetzt</p>
+<p>Unschärfe: Ein Ort kann verschiedene Schreibweisen haben, der Graph verbindet sie über Kanten.</p>
+<p>Relationen: „Ort gehört zu Gemeinde“, „Gemeinde gehört zu Tal“, „Tal gehört zu Region“. So kannst du auf jeder Ebene filtern.</p>
+<p>Mehrfachzuordnung: Ein Dokumentkapitel kann mit mehreren Orten verknüpft sein.</p>
+<p>Erweiterbarkeit: Später kannst du auch Themen, Personen, Quellen, Organisationen als Entitäten aufnehmen.</p>
+<p>👉 Empfehlung:</p>
+<p>Baue dein Frontmatter weiter über LLM-Templates (z. B. Secretary /transformer/metadata).</p>
+<p>Ergänze seitenweise Geodaten-Erkennung mit klassischer Textanalyse + Gazetteer.</p>
+<p>Führe beide Ströme in einem Graph-Schema zusammen (Dokument → Kapitel → Orte → Gemeinde → Tal).</p>
+<p>Willst du, dass ich dir ein konkretes Schema (Graph-Modell in Neo4j-Notation) aufzeichne, wie Dokumente, Kapitel, Orte, Gemeinden und Talschaften verknüpft wären? Das würde dir direkt zeigen, wie die Abfrage nach „alle Dokumentstellen zum Eisacktal“ funktioniert.</p>
+<p>Du:
+verzeichnisstruktur.md
+Datei
+Projektstand.docx
+Dokument
+AkronymeTabelle1
+Okay, dann gibt es da noch eine spezifische Sache. Ich habe Dokumente in einer Verzeichnungsstruktur organisiert. Und der Dateiname enthält auch Akronyme, die ich hier als Legende mal auslege.
+Wie könnten wir diese Verzeichnisstruktur in sinnvolle Metadaten verwerten?
+ChatGPT:</p>
+<p>Sehr spannend, das ist ein Schatz an impliziten Metadaten!
+Ich sehe drei Ebenen, wie wir aus deiner Verzeichnisstruktur und der Akronym-Legende systematisch Metadaten gewinnen können:</p>
+<ol>
+<li>Ableitung aus der Ordnerstruktur</li>
+</ol>
+<p>Jeder übergeordnete Ordner trägt semantische Bedeutung, z. B.:</p>
+<p>Berichte Landesämter / Bevölk.Schutz → Quelle = Landesamt, Abteilung Bevölkerungsschutz</p>
+<p>Fachart / ZeitschrBZ / Forest Observer / 2006 → Quelle = Fachzeitschrift, Serie = Forest Observer, Jahr = 2006</p>
+<p>Projektspezifisch / Puflatsch Biotop / Ortsspezifisch → Thema = Projekt, Ort = Puflatsch, Kategorie = Ortsspezifisch</p>
+<p>👉 Diese Ordnerpfade lassen sich direkt in FrontMatter-Felder wie source, category, year, project umwandeln.</p>
+<ol>
+<li>Ableitung aus Dateinamen nach Namensschema</li>
+</ol>
+<p>Im Projektstand-Dokument ist die Dateibenennungsstruktur beschrieben:
+Autor_Jahr_Titel#Thematik_Erscheinungsorgan_Ausgabe_Status</p>
+<p>Beispiel:
+Huber_2023_DurchDieKlimakrise#KlimazieleUndPhotovoltaik_Naturschutzblatt_1_p.pdf</p>
+<p>→</p>
+<p>author: Huber<br />
+year: 2023<br />
+title: Durch die Klimakrise<br />
+topic: Klimaziele und Photovoltaik<br />
+source: Naturschutzblatt<br />
+issue: 1<br />
+status: public  </p>
+<ol>
+<li>Einbindung der Akronym-Legende</li>
+</ol>
+<p>Im Excel Akronyme.xlsx liegt deine Legende. Damit kannst du Kürzel wie NSB → „Naturschutzblatt“, BZ → „Bozen“, GEWP → „Gewässerplanung“ usw. automatisch auflösen.
+Das bringt Klarheit, wenn Verzeichnisse oder Dateinamen nur Abkürzungen enthalten.</p>
+<ol>
+<li>Vorschlag für ein FrontMatter-Schema</li>
+</ol>
+<p>Damit alles zusammenfließt (Struktur + Dateiname + Akronyme):</p>
+<hr />
+<p>author: "Staffler et al."
+year: 2008
+title: "Die Prader Sand – Revitalisierung des Suldenbaches"
+topic: "Gewässerökologie"
+source: "Amt für Bevölkerungsschutz"
+journal: "Abteilung Wasserschutzbauten"
+location: "Prader Sand, Gemeinde Prad am Stilfserjoch, Vinschgau, Südtirol"
+region: "Vinschgau"
+status: "public"
+path: "Berichte Landesämter/Bevölk.Schutz/"
+filename: "StafflerEtAl_2008_DiePraderSand-RevitalisierungDesSuldenbachesDurchGerinneaufweitung_ProvinzBZ_2008_p.pdf"
+acronyms_resolved:
+  - Bevölk.Schutz: "Abteilung Bevölkerungsschutz"
+  - BZ: "Bozen"</p>
+<hr />
+<ol>
+<li>Verarbeitungsschritte</li>
+</ol>
+<p>Parser für Ordnerpfade → extrahiert Quelle, Kategorie, Projekt.</p>
+<p>Parser für Dateinamen → zerlegt nach Schema.</p>
+<p>Akronym-Mapping → ersetzt Abkürzungen aus Excel durch Klartext.</p>
+<p>Zusammenführung → generiert YAML FrontMatter pro Dokument.</p>
+<p>(Optional) Geodaten-Anreicherung → Ortsnamen aus Dateiname/Ordner gegen deine Flurnamen-Datenbank mappen.</p>
+<p>👉 Frage an dich:
+Willst du, dass ich dir für diesen Workflow ein automatisches Parsing-Skript (Python) aufsetze, das die Verzeichnisstruktur + Akronym-Tabelle kombiniert und dir pro Dokument ein FrontMatter erzeugt?</p>
+<p>Du:
+Programmieren nicht, wir konzipieren. Ich würde gerne folgende Schritte vorgehen, und zwar ich bekomme die Metadatei von unserem OCR-Methode als schön strukturierte Datei. Und jetzt kann ich unsere Template Latch Language Model Analyse verwenden, um bestimmte Daten aus dem Dokument auszulesen. Ich gebe aber diesem Latch Language Model Analyse im Kontext auch meinen OpenAPFAD mit, meinen Dateinamen mit, und würde jetzt in dem Structured Output genau nach diesen Metadaten da oben fragen, z.B. Autor und Ja und Titel und Topic, und auch einen erklärenden Text mitgeben, wie, welche Bedeutung die ONA-Struktur hat, und würde dann das LLM entscheiden lassen, ob er jetzt den Metadateninhalt aus dem Verzeichnis oder aus dem Dokument befüllt. Ich könnte ja auch so formulieren, dass er dieses Merkmal, also dieses Metafeld immer aus dem Verzeichnispfad verwenden soll, oder nur aus dem Dokument, wenn es in der Überschrift steht, oder in einer Einleitung oder im Inhaltsverzeichnis genannt wird. Also das wäre dann für mich reine, das würde ich in Prosa formulieren, für das LLM-Modell, aber alle diese Markdown, aber dann alle diese Frontmatter-Felder einmal generieren lassen. Und danach gehen wir das Dokument durch, normal, und versuchen nochmal diese Geolocation und vielleicht andere Inhalte nochmal zu verfeinern, aber das sind dann keine LLM-Abfragen mehr, sondern das ist reine Textverarbeitung.
+ChatGPT:
+Nachgedacht für 16s</p>
+<p>Top—das ist genau der richtige Hybrid-Ansatz: einmal LLM für „Frontmatter aus Gesamt-Kontext + Pfad/Dateiname mit klaren Prioritätsregeln“, danach rein deterministische (nicht-LLM) Verfeinerung für Geo &amp; Co. Unten bekommst du eine schlanke, umsetzbare Spezifikation mit Prompt-Baustein, Output-Schema, Prioritätenmatrix, Provenienz/Confidence und Validierung.</p>
+<p>Zielbild in 2 Phasen</p>
+<p>LLM-Pass (einmalig pro Dokument)</p>
+<p>Eingang: Full-Markdown aus OCR, kompletter Verzeichnispfad (OpenAPFAD), Dateiname, Akronym-Legende.</p>
+<p>Aufgabe: Erzeuge YAML-Frontmatter (flach, typisiert) via strikten Structured-Output Regeln + quellenbasierte Prioritäten.</p>
+<p>Deterministische Verfeinerung (ohne LLM)</p>
+<p>Geo-Tagging, Kapitel/Seiten-Scoping, Gazetteer-Mapping (Flurnamen→Gemeinde→Tal), Chunk-Anreicherung.</p>
+<p>A) Frontmatter per LLM – mit klaren Prioritäten
+1) Felder &amp; Typen (Beispiel)</p>
+<hr />
+<p>author: "Nachname, Vorname; Nachname, Vorname"   # string
+year: 2024                                       # number (YYYY)
+title: "…"                                       # string
+topic: "…"                                       # string
+source: "Naturschutzblatt"                       # string
+journal: "Forest Observer"                       # string
+issue: "1"                                       # string/number
+status: "public|commons|commercial"              # enum
+region: "Südtirol"                               # string
+project: "Puflatsch Biotop"                      # string
+path: "Berichte Landesämter/Bevölk.Schutz"       # string (OpenAPFAD)
+filename: "Huber_2023_..."                       # string (Originaldatei)
+acronyms_resolved:                             <br />
+  - "NLRWebpage: Natur – Landesportal Webseite"
+  - "VZSBJahrbuch: Jahrbuch Vereinigung Südtiroler Botaniker:innen"
+provenance:                                      # siehe unten
+  author: "doc.heading|doc.toc|filename|path"
+  title: "doc.heading|filename"
+  source: "filename|path"
+  …
+confidence:
+  author: 0.94
+  title: 0.98
+  source: 0.92</p>
+<hr />
+<p>Die Dateibenennungsstruktur, auf die du dich stützt (Autor_Jahr_Titel#Thematik_Erscheinungsorgan_Ausgabe_Status), ist in deinem „Projektstand.docx“ dokumentiert; die können wir als verlässliche Signalquelle nutzen.</p>
+<p>Die reale Ordnerstruktur samt Beispieldateien liefert weitere starke Hinweise (Quelle, Serie, Jahr/Gruppe).</p>
+<p>2) Prioritätenmatrix je Feld</p>
+<p>Formuliere diese Logik explizit im Prompt; das LLM muss sich daran halten:</p>
+<p>Feld    1. Quelle (höchste Prio)    2. Quelle   3. Quelle   Konvertierung/Normierung
+author  Dokument-Heading/Frontseite Dokument-TOC/Meta   Dateiname („Autor…“)    „Nachname, Vorname“, mehrere mit ;
+year    Dokument-Impressum/Heading  Dateiname   Ordner (Jahresordner)   YYYY (Zahl)
+title   Dokument-Titel  Dateiname   —   :→-, ?→？ (Datei-Konvention)
+topic   #Thematik im Dateinamen Abstract/Keywords   Ordner („Thema/Projekt“)    Klein halten, prägnant
+source  Erscheinungsorgan im Dateinamen Ordner („Forest Observer“, „Amt für Natur“) Dokument-Publisher  Akronyme auflösen
+journal Ordner/Serie („Forest Observer“, „Webbia“ …)    Dokument-Masthead   —   Originalschreibweise
+issue   Dateiname (<em>1</em>, 158.3-4)    Dokument-Impressum  —   String beibehalten
+status  Dateiname (<code>_p  c   k</code>) Dokument-Lizenztext
+project Projektordner („Puflatsch Biotop“)  Titelzusätze    —   String
+region  (falls im Pfad/Datei)   Dokumenttext (z. B. Südtirol)   —   String</p>
+<p>Beispiele aus deiner Struktur: Serien/Zeitschriften wie „Forest Observer“, „Webbia“, „VierteljahrschriftenNGZH“ stehen im Pfad – ideal für journal. turn0file17</p>
+<p>3) Provenienz &amp; Confidence (zwingend)</p>
+<p>Pro Provenienzfeld (author, title, …) speichert das LLM, aus welcher Quelle es den Wert genommen hat: doc.heading, doc.toc, doc.meta, filename, path.</p>
+<p>Confidence 0.0–1.0 pro Feld (einfach: High=0.95/ Mid=0.85/ Low=0.7 je nach Trefferart).</p>
+<p>So kannst du später nachvollziehen, warum ein Wert gesetzt wurde—und ggf. in einer Review-UI gezielt Low-Confidence Fälle sichten.</p>
+<p>4) Structured-Output (strict)</p>
+<p>Kein Freitext, nur das definierte JSON/YAML.</p>
+<p>Feld-Whitelist (alles andere ignorieren).</p>
+<p>Typ-Checks (z. B. year numeric, sonst leer + confidence.year=0.0).</p>
+<p>Output-Schema (JSON für LLM; du wandelst es zu YAML)
+{
+  "author": "string",
+  "year": 0,
+  "title": "string",
+  "topic": "string",
+  "source": "string",
+  "journal": "string",
+  "issue": "string",
+  "status": "public|commons|commercial",
+  "region": "string",
+  "project": "string",
+  "path": "string",
+  "filename": "string",
+  "acronyms_resolved": ["string"],
+  "provenance": {"author":"doc.heading|filename|path|doc.toc|doc.meta", "title":"...", "...":"..."},
+  "confidence": {"author":0.0, "title":0.0, "...":0.0}
+}</p>
+<p>B) Prompt-Gerüst (einfach übernehmbar)</p>
+<p>System:
+Du bist ein Extraktor für bibliographische Metadaten. Halte dich strikt an das Ausgabeschema. Nutze die Prioritätenregeln je Feld. Keine Erfindungen. Wenn unsicher, lasse das Feld leer und setze einen niedrigen Confidence-Wert.</p>
+<p>Kontext:
+Pfad (OpenAPFAD): {FULL_PATH}
+Dateiname: {FILENAME}
+Akronym-Legende (Auszug): {ACRONYM_JSON}
+Markdown (vollständig, inkl. Kopf/TOC):</p>
+<p>{MARKDOWN}</p>
+<p>Prioritätenregeln je Feld:
+(Tabellarisch einfügen—siehe Matrix oben.)</p>
+<p>Ausgabe strikt als JSON mit diesem Schema:
+(Schema einfügen—siehe oben.)</p>
+<p>Hinweis: Die Akronym-Legende löst Kürzel aus Pfad/Dateiname/Dokument auf (z. B. NLRWebpage, VZSBJahrbuch, NGZH); damit befüllst du source/journal normiert. Beispiele dafür sieht man in deinen Pfaden/Dateinamen. turn0file18</p>
+<p>C) Validierung &amp; Idempotenz</p>
+<p>Nach dem LLM-Output prüfst du deterministisch:</p>
+<p>Typen (year ist Zahl; status ∈ {public, commons, commercial}).</p>
+<p>Normalisierung (Autorenformat, Titelzeichenersatz gemäß Dateikonvention aus deiner Benennungsrichtlinie).</p>
+<p>Akronyme: alle in acronyms_resolved müssen im Text/Pfad vorkommen oder sauber gemappt sein.</p>
+<p>Idempotenz: fileId stabil; Frontmatter nur überschreiben, wenn neuer Output höhere Confidence besitzt oder die Provenienz „doc.heading“/„doc.meta“ (höherwertig) wurde.</p>
+<p>D) Danach: deterministische Geo-Verfeinerung (ohne LLM)</p>
+<p>Direkt im Anschluss (neuer Pipeline-Step):</p>
+<p>Toponym-Erkennung über Gazetteer (Flurnamen→Gemeinde; Gemeinde→Tal).</p>
+<p>Scoping: Heading-Abschnitte &gt; Seite &gt; Absatz-Fenster (N Sätze).</p>
+<p>Disambiguierung mit Regeln &amp; Scores; Ambiguity-Queue &lt;0.9.</p>
+<p>Verteilung auf Chunks (inherit vom Abschnitt bei Leer-Treffer).</p>
+<p>Anreicherung:</p>
+<p>docMetaJson.geo sammelt alle Gemeinden/Täler + Mentions;</p>
+<p>Chunk-Metadaten: municipalities[], valleys[], geo_confidence.</p>
+<p>(Das spielt dann perfekt in Gallery/Chat-Filter.)</p>
+<p>Warum fix? Geo in deinen Beständen folgt klaren Mustern (Datei/Pfad, häufige Serien/Orte) – deterministisch ist günstiger, reproduzierbarer, erklärbarer.</p>
+<p>E) Minimal-Schnittpunkte zu deiner bestehenden Struktur</p>
+<p>Deine Ordner liefern schon Quelle/Serie/Projekt (z. B. „Berichte Landesämter/Forstwirtschaft/Forest Observer“).</p>
+<p>Deine Dateinamen sind stark strukturiert (Autor, Jahr, Thema, Erscheinungsorgan, Ausgabe, Status).</p>
+<p>LLM muss nur noch Lücken schließen oder Konflikte entscheiden (mit Provenienz/Confidence).</p>
+<p>Alles Weitere (Geo, Scoping, Chunk-Zuweisung) ist nicht-LLM.</p>
+<p>F) „Was tun bei Konflikt?“ (praktische Regeln)</p>
+<p>Titel: Falls Dokument-Titel ≠ Dateiname-Titel → nimm Dokument-Titel (Provenienz doc.heading), Dateititel nur als Fallback.</p>
+<p>Autor: „et al.“ im Dateinamen → sofern Dokument-Heading Autorenliste hat, nutze diese.</p>
+<p>Quelle/Journal: Bevorzuge Erscheinungsorgan aus Dateiname; wenn Pfad eine klare Serie/Journallinie hat (z. B. „Forest Observer“), setze journal aus dem Pfad und source ggf. gleich.</p>
+<p>Status: Immer aus Dateinamen-Suffix _p|c|k; nur wenn fehlt, versuche Lizenztext zu erkennen; sonst leer + low confidence.</p>
+<p>G) Warum das sinnvoll ist</p>
+<p>Kosteneffizient: Ein LLM-Durchlauf pro Dokument, danach günstige deterministische Schritte.</p>
+<p>Erklärbar: Provenienz + Confidence pro Feld.</p>
+<p>Robust: Deine Pfad/Dateinamen-Konventionen sind stark—LLM dient nur als „Schiedsrichter“.</p>
+<p>Skalierbar: Neue Felder? Nur Matrix/Schema erweitern, Geo-Schicht bleibt deterministisch.</p>
+<p>Wenn du willst, schreibe ich dir daraus eine kompakte Spec-Datei (z. B. frontmatter_extraction.spec.md) inkl. der Prompt-Blocks (System/Developer/User) und der Prioritätenmatrix als YAML, damit du es 1:1 in deinen Secretary-Step „transform_template“ einhängen kannst—und im nächsten Schritt skizziere ich den deterministischen Geo-Tagger-Step formal (Input/Output-Contracts, Fehlertoleranz, Loggingfelder).</p>
+<p>Du:
+Okay, ich möchte jetzt dieses Konzept dokumentieren, weil ich es mit einer anderen Anwendung umsetzen möchte. Wie könnten wir diese ganzen Erkenntnisse dokumentieren? Sollen wir diesen PDF-Verarbeitungsprozess skizzieren nochmal? Die einzelnen Schritte und genau formulieren, bei welchem Schritt wir was machen. Ich möchte nämlich im ersten Schritt diese reine PDF-Transformation zu Markdown ohne grosse Front-Matter-Metadaten in einem Schritt erledigen und in einem Batch-Prozess alle Dokumente so erzeugen und dann noch in einem zweiten Schritt eben diese LLM-basierte Metadatengenerierung und dann die Dokumenten-Analyse, Kapitel- und Zeitenweise-Analyse machen und die analysierten Ergebnisse als Front-Matter speichern bei demselben Metadaten um das eventuell auch als Prüfansicht zu verwenden und im dritten Schritt dann diesen Absurd in ein Graph-Datenbank und in eine Bind-Code-Datenbank zu implementieren. Diese drei Schritte würde ich gerne getrennt oder strukturiert dokumentieren damit zwischen jedem Schritt wir den Keep the Human in the Loop eine Prüfansicht haben und wir die Daten eventuell noch korrigieren können in der Verarbeitung. Können wir das als Markdown irgendwie konzipieren? Können auch mehrere Dokumente sein, aber ich muss sie in einem anderen System programmieren.
+ChatGPT:</p>
+<p>Sehr gut – wir können deine drei Schritte als dokumentiertes Prozessmodell in Markdown strukturieren. Dabei nutzen wir die Sprache und Konzepte aus den vorhandenen Dokus (Secretary Service = Backend-Verarbeitung, Knowledge Scout = Frontend/Review, Folien = Vision + Human-in-the-Loop).</p>
+<p>Hier ein Vorschlag für ein zentrales Dokument (pdf_ingestion_process.md), das du auch in mehrere Unterdokumente splitten kannst:</p>
+<hr />
+<p>title: PDF Ingestion Process (3-Phase Model)
+status: draft
+lastUpdated: 2025-09-06</p>
+<hr />
+<h1 id="uberblick">Überblick<a class="headerlink" href="#uberblick" title="Permanent link">&para;</a></h1>
+<p>Dieser Leitfaden beschreibt die schrittweise Verarbeitung von PDF-Dokumenten in drei getrennten Phasen.<br />
+Ziel: Klare Trennung von Extraktion, Metadatenanreicherung und Wissensmodellierung – mit Human-in-the-Loop-Prüfansichten zwischen den Schritten.</p>
+<h1 id="prozessubersicht">Prozessübersicht<a class="headerlink" href="#prozessubersicht" title="Permanent link">&para;</a></h1>
+<p>```mermaid
+flowchart TD
+  A[PDFs im Filesystem] --&gt; B[Phase 1: PDF → Markdown]
+  B --&gt; C[Phase 2: LLM-Metadaten &amp; Dokumentanalyse]
+  C --&gt; D[Phase 3: Graph + Vektor-Ingestion]
+  B -.-&gt;|Prüfansicht| B1[Batch Markdown Review]
+  C -.-&gt;|Prüfansicht| C1[Frontmatter + Kapitel Review]
+  D -.-&gt;|Prüfansicht| D1[Graph- und Facetten-Ansicht]</p>
+<p>Phase 1: PDF → Markdown</p>
+<p>Ziel: Reine Textextraktion ohne aufwändige Metadaten.</p>
+<p>Eingabe: Original-PDF</p>
+<p>Verarbeitung: PDFProcessor (native | OCR)</p>
+<p>Ausgabe: Markdown-Dateien (Shadow-Twins)</p>
+<p>Speicherung: Im selben Verzeichnis wie PDF; Dateiname original.md</p>
+<p>Human-in-the-Loop: Batch-Review der Markdown-Qualität (Layout, OCR-Fehler, Vollständigkeit)</p>
+<p>Beispiel Frontmatter (minimal, automatisch):</p>
+<hr />
+<p>source_file: "original.pdf"
+process_id: "sec-12345"
+extraction_method: "ocr"
+pages: 23</p>
+<hr />
+<p>Phase 2: LLM-Metadaten &amp; Dokumentanalyse</p>
+<p>Ziel: Vollständiges YAML-Frontmatter generieren + inhaltliche Struktur (Kapitel, Abschnitte, Zeiten).</p>
+<p>Eingabe: Markdown aus Phase 1 + Kontext (Dateiname, Verzeichnispfad, Akronym-Legende)</p>
+<p>Verarbeitung: LLM mit Template/Prompt (Prioritätenmatrix, Quellenhierarchie)</p>
+<p>Ausgabe: Erweitertes Frontmatter (Titel, Autoren, Jahr, Quelle, Topic, Status, Projekt, Region, Tags)</p>
+<p>Speichern: Im Shadow-Twin (Markdown + YAML-Frontmatter)</p>
+<p>Human-in-the-Loop: Prüfansicht für alle Metadaten-Felder, mit Provenienz &amp; Confidence (Low-Confidence-Fälle markieren)</p>
+<p>Beispiel Frontmatter (vollständig, nach Review):</p>
+<hr />
+<p>title: "Die Prader Sand – Revitalisierung des Suldenbaches"
+authors: "Staffler, A.; Müller, B."
+year: 2008
+topic: "Gewässerökologie"
+source: "Amt für Bevölkerungsschutz"
+journal: "Forest Observer"
+issue: "2006-1"
+status: "public"
+region: "Vinschgau"
+project: "Puflatsch Biotop"
+municipalities: ["Prad am Stilfserjoch"]
+valleys: ["Vinschgau"]
+confidence:
+  title: 0.98
+  author: 0.94
+  source: 0.92
+provenance:
+  title: "doc.heading"
+  author: "doc.meta"
+  source: "filename"</p>
+<hr />
+<p>Phase 3: Graph + Vektor-Ingestion</p>
+<p>Ziel: Speicherung und Abfrage über semantische Facetten.</p>
+<p>Eingabe: Angereicherte Shadow-Twins (Markdown + Frontmatter + Geo-Metadaten)</p>
+<p>Verarbeitung:</p>
+<p>Chunking + Embedding → Vektor-Datenbank (z. B. Pinecone)</p>
+<p>Entitäten (Orte, Autoren, Themen, Quellen) → Graph-Datenbank (Neo4j o. ä.)</p>
+<p>Ausgabe:</p>
+<p>chunk-Vektoren mit Metadaten (Gemeinde, Tal, Jahr, Tags)</p>
+<p>doc-Knoten mit normalisierten Facetten (docMetaJson)</p>
+<p>Human-in-the-Loop: Prüfansicht in der Galerie (Filter nach Autor, Jahr, Gemeinde, Tal, Quelle, Thema)</p>
+<p>Human-in-the-Loop Prinzip</p>
+<p>Phase 1: Kontrolle von Markdown-Qualität (OCR/Extraktion).</p>
+<p>Phase 2: Kontrolle von LLM-Metadaten (Frontmatter-Felder mit Provenienz &amp; Confidence).</p>
+<p>Phase 3: Kontrolle von Facetten-/Graph-Struktur (z. B. Geomapping der Gemeinden/Täler).</p>
+<p>So bleibt der Mensch in allen kritischen Schritten eingebunden, während Routine-Aufgaben automatisiert werden.</p>
+<p>Offene Punkte / Nächste Schritte</p>
+<p>Vollständige Prioritätenmatrix für alle Metadaten-Felder (LLM Prompt)</p>
+<p>Mapping-Tabellen (Akronyme, Regionen, DocTypes)</p>
+<p>Gazetteer-Integration für Flurnamen → Gemeinden → Täler</p>
+<p>Graph-Schema finalisieren (Entitäten + Relationen)</p>
+<p>Prüfansichten (UI/Workflow) spezifizieren</p>
+<hr />
+<p>👉 Das Dokument trennt die drei Phasen klar und beschreibt <em>wann</em> LLM zum Einsatz kommt und <em>wann</em> deterministische Schritte folgen. Es baut logisch auf deinen Secretary- und Knowledge Scout Konzepten auf:contentReference[oaicite:7]{index=7}:contentReference[oaicite:8]{index=8}.  </p>
+<p>Soll ich dir zusätzlich eine <strong>zweite Markdown-Datei</strong> skizzieren, die nur das <strong>Graph-Schema</strong> beschreibt (Knoten, Kanten, Beispiele), damit Phase 3 auch separat dokumentiert ist?</p>
+<p>Du:
+ok, wie können wir das Konzept in ein md Dokument zusammenbringen?
+ChatGPT:</p>
+<p>Dann lass uns alles, was wir bisher herausgearbeitet haben, in ein sauberes Markdown-Dokument gießen. Es dient dir als Konzeptpapier und kann bei Bedarf später modularisiert werden.</p>
+<p>Hier ein Vorschlag (pdf_ingestion_concept.md):</p>
+<hr />
+<p>title: Konzept – PDF Ingestion &amp; Metadata Workflow
+status: draft
+lastUpdated: 2025-09-06</p>
+<hr />
+<h1 id="uberblick_1">Überblick<a class="headerlink" href="#uberblick_1" title="Permanent link">&para;</a></h1>
+<p>Dieses Dokument beschreibt den mehrstufigen Verarbeitungsprozess für PDF-Dokumente.<br />
+Ziel: strukturierte, nachvollziehbare Transformation von PDFs in Markdown, Anreicherung durch LLM-Metadatenanalyse, sowie Speicherung in Vektor- und Graph-Datenbanken – jeweils mit Human-in-the-Loop-Prüfschritten.</p>
+<hr />
+<h1 id="prozessubersicht_1">Prozessübersicht<a class="headerlink" href="#prozessubersicht_1" title="Permanent link">&para;</a></h1>
+<p>```mermaid
+flowchart TD
+  A[PDFs im Filesystem] --&gt; B[Phase 1: PDF → Markdown]
+  B --&gt; C[Phase 2: LLM-Metadaten &amp; Dokumentanalyse]
+  C --&gt; D[Phase 3: Graph + Vektor-Ingestion]
+  B -.-&gt;|Prüfansicht| B1[Batch Markdown Review]
+  C -.-&gt;|Prüfansicht| C1[Frontmatter Review]
+  D -.-&gt;|Prüfansicht| D1[Graph &amp; Facetten Review]</p>
+<p>Phase 1 – PDF → Markdown</p>
+<p>Ziel: Reine Textextraktion ohne umfangreiche Metadaten.</p>
+<p>Eingabe: Original-PDF</p>
+<p>Verarbeitung: OCR/Extraktion (z. B. Secretary Service)</p>
+<p>Ausgabe: Markdown (Shadow-Twin), minimaler Frontmatter (source_file, pages, extraction_method)</p>
+<p>Speicherung: Im gleichen Ordner wie das PDF</p>
+<p>Human-in-the-Loop: Batch-Review auf Vollständigkeit und OCR-Qualität</p>
+<p>Beispiel Frontmatter (minimal):</p>
+<hr />
+<p>source_file: "original.pdf"
+process_id: "sec-12345"
+extraction_method: "ocr"
+pages: 23</p>
+<hr />
+<p>Phase 2 – LLM-Metadaten &amp; Dokumentanalyse</p>
+<p>Ziel: Vollständige Metadatengenerierung + Strukturierung des Inhalts.</p>
+<p>Eingabe: Markdown aus Phase 1, inkl. Verzeichnispfad &amp; Dateiname (Akronym-Legende verfügbar)</p>
+<p>Verarbeitung: LLM mit Template-basiertem Prompt; Prioritätenmatrix für Quellen (Dateiname, Pfad, Dokumenttext)</p>
+<p>Ausgabe: YAML-Frontmatter mit vollständigen Metadaten (author, year, title, topic, source, journal, issue, status, region, project)</p>
+<p>Provenienz &amp; Confidence pro Feld speichern (für spätere Validierung)</p>
+<p>Speicherung: Als erweitertes Frontmatter im Shadow-Twin</p>
+<p>Human-in-the-Loop: Prüfansicht für Metadaten (inkl. Low-Confidence-Fälle)</p>
+<p>Beispiel Frontmatter (vollständig, nach Review):</p>
+<hr />
+<p>title: "Die Prader Sand – Revitalisierung des Suldenbaches"
+authors: "Staffler, A.; Müller, B."
+year: 2008
+topic: "Gewässerökologie"
+source: "Amt für Bevölkerungsschutz"
+journal: "Forest Observer"
+issue: "2006-1"
+status: "public"
+region: "Vinschgau"
+project: "Puflatsch Biotop"
+municipalities: ["Prad am Stilfserjoch"]
+valleys: ["Vinschgau"]
+confidence:
+  title: 0.98
+  author: 0.94
+  source: 0.92
+provenance:
+  title: "doc.heading"
+  author: "doc.meta"
+  source: "filename"</p>
+<hr />
+<p>Phase 3 – Graph + Vektor-Ingestion</p>
+<p>Ziel: Kombination aus semantischer Suche und facettierter Filterung.</p>
+<p>Eingabe: Angereicherte Shadow-Twins (Markdown + Frontmatter + Geo-Metadaten)</p>
+<p>Verarbeitung:</p>
+<p>Chunking + Embedding → Vektor-Datenbank (z. B. Pinecone)</p>
+<p>Entitäten (Orte, Autoren, Themen, Quellen) → Graph-Datenbank</p>
+<p>Ausgabe:</p>
+<p>Chunk-Vektoren mit Metadaten (Gemeinde, Tal, Jahr, Tags)</p>
+<p>Dokument-Knoten mit normalisierten Facetten (docMetaJson)</p>
+<p>Human-in-the-Loop: Galerie/Facetten-Ansicht zur Validierung der Graph-Zuordnungen</p>
+<p>Human-in-the-Loop Prinzip</p>
+<p>Phase 1: Kontrolle der OCR-Qualität</p>
+<p>Phase 2: Kontrolle der LLM-Metadaten (Frontmatter)</p>
+<p>Phase 3: Kontrolle der Facetten/Graph-Struktur</p>
+<p>So bleibt der Mensch in allen kritischen Schritten eingebunden, während Routine-Aufgaben automatisiert ablaufen.</p>
+<p>Offene Punkte</p>
+<p>Vollständige Definition der Prioritätenmatrix für alle Felder</p>
+<p>Mapping-Tabellen (Akronyme, Regionen, DocTypes)</p>
+<p>Gazetteer-Integration (Flurnamen → Gemeinde → Tal)</p>
+<p>Definition des Graph-Schemas (Knoten, Relationen, Provenienz)</p>
+<p>UI für Prüfansichten spezifizieren</p>
+<hr />
+<p>👉 Dieses Markdown ist dein <strong>zentrales Konzeptdokument</strong>.<br />
+Wenn du möchtest, können wir daraus noch ein <strong>zweites Dokument nur für das Graph-Schema</strong> anlegen (mit Knoten, Relationen und Beispiel-Abfragen).  </p>
+<p>Soll ich dir gleich das ergänzende <strong>Graph-Schema-Dokument</strong> vorschlagen?</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>
