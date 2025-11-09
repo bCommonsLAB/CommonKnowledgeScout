@@ -27,7 +27,7 @@ export function HeroSection() {
           <h1 className="mb-6 text-4xl font-bold tracking-tight text-balance text-white sm:text-5xl md:text-6xl lg:text-7xl">
             {t('home.hero.title')}
             <br />
-            <span className="whitespace-nowrap">{t('home.hero.subtitle')}</span>
+            {t('home.hero.subtitle')}
           </h1>
 
           {/* Beschreibungstext in hellem Grau/Weiß */}
