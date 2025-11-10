@@ -5,7 +5,6 @@ import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { StoryTopics } from '../story/story-topics'
-import type { ChatResponse } from '@/types/chat-response'
 import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import {
@@ -105,9 +104,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [openConversations, setOpenConversations] = useState<Set<string>>(new Set())
   
   // Chat Stream (muss vor useChatTOC sein, da sendQuestion benötigt wird)
-  const checkTOCCacheRef = useRef<(() => Promise<void>) | null>(null)
-  
-  // Chat Stream
   const {
     isSending,
     processingSteps,
@@ -129,11 +125,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     setOpenConversations,
     setChatReferences,
     onTOCComplete: async () => {
-      // Wird von useChatTOC behandelt - prüfe Cache nach kurzer Verzögerung
+      // Cache wird von useChatTOC geprüft - prüfe nach kurzer Verzögerung
       setTimeout(() => {
-        if (checkTOCCacheRef.current) {
-          checkTOCCacheRef.current()
-        }
+        checkTOCCache()
       }, 1000)
     },
     onError: (err) => {
@@ -148,7 +142,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     isCheckingTOC,
     generateTOC,
     checkCache: checkTOCCache,
-    setTOCData,
   } = useChatTOC({
     libraryId,
     cfg,
@@ -161,49 +154,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     isSending,
     sendQuestion,
   })
-  
-  // Setze Ref für späteren Zugriff
-  checkTOCCacheRef.current = checkTOCCache
-  
-  // Setze TOC-Daten direkt, wenn sie aus dem Stream kommen
-  useEffect(() => {
-    if (processingSteps.length > 0) {
-      const lastStep = processingSteps[processingSteps.length - 1]
-      if (lastStep.type === 'complete') {
-        const completeStep = lastStep as import('@/types/chat-processing').ChatProcessingStep & {
-          storyTopicsData?: import('@/types/story-topics').StoryTopicsData
-        }
-        if (completeStep.storyTopicsData) {
-          // Prüfe, ob dies eine TOC-Query war
-          const tocQuestion = 'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
-          const isTOCQuery = messages.some(
-            (msg) => msg.type === 'question' && msg.content.trim() === tocQuestion.trim()
-          )
-          if (isTOCQuery || completeStep.storyTopicsData) {
-            setTOCData({
-              storyTopicsData: completeStep.storyTopicsData,
-              answer: lastStep.answer,
-              references: Array.isArray(lastStep.references)
-                ? lastStep.references.filter(
-                    (r): r is ChatResponse['references'][number] =>
-                      typeof r === 'object' &&
-                      r !== null &&
-                      'number' in r &&
-                      'fileId' in r &&
-                      'description' in r
-                  )
-                : [],
-              suggestedQuestions: Array.isArray(lastStep.suggestedQuestions)
-                ? lastStep.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
-                : [],
-              queryId: typeof lastStep.queryId === 'string' ? lastStep.queryId : `temp-${Date.now()}`,
-            })
-          }
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processingSteps.length])
   
   
   // Refs
@@ -224,28 +174,13 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   })
   
   // Prüfe Cache bei Änderungen der Kontext-Parameter oder Filter
-  // UND beim ersten Laden (wenn cfg verfügbar ist)
   useEffect(() => {
     if (!cfg) return
     if (isEmbedded && perspectiveOpen) return // Im embedded-Modus: Nur wenn Popover geschlossen
     
-    // Prüfe Cache - wenn kein Cache gefunden wird, wird automatisch generiert (über useChatTOC)
     checkTOCCache()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg, targetLanguage, character, socialContext, genderInclusive, libraryId, galleryFilters, perspectiveOpen])
-  
-  // Zusätzlicher useEffect: Wenn sendQuestion verfügbar wird und noch kein TOC vorhanden ist, prüfe/generiere
-  useEffect(() => {
-    if (!cfg || !isEmbedded) return
-    if (perspectiveOpen) return // Nur wenn Popover geschlossen
-    if (!sendQuestion) return // sendQuestion noch nicht verfügbar
-    if (cachedStoryTopicsData || cachedTOC) return // TOC bereits vorhanden
-    if (isCheckingTOC) return // Cache-Check läuft bereits
-    
-    // Prüfe Cache erneut (falls sendQuestion jetzt verfügbar ist)
-    checkTOCCache()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sendQuestion, cfg, isEmbedded, perspectiveOpen])
   
   // Zusätzlicher useEffect für embedded-Modus: Reagiere auf Schließen des Popovers
   useEffect(() => {

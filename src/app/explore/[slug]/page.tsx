@@ -87,9 +87,9 @@ export default function ExplorePage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       {/* Header */}
-      <div className="border-b bg-background px-6 py-4">
+      <div className="border-b bg-background px-6 py-4 flex-shrink-0">
         <div className="container mx-auto">
           <h1 className="text-2xl font-bold">{library.label}</h1>
           <p className="text-sm text-muted-foreground">
@@ -100,7 +100,7 @@ export default function ExplorePage() {
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-hidden p-4">
-        <div className="h-full min-h-0">
+        <div className="h-full min-h-0 overflow-hidden">
           <GalleryClient libraryIdProp={library.id} />
         </div>
       </div>

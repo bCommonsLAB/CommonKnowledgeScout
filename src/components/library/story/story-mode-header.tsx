@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react'
 import { StoryHeader } from './story-header'
 import { useTranslation } from '@/lib/i18n/hooks'
+import { Button } from '@/components/ui/button'
+import { ChevronLeft } from 'lucide-react'
 
 interface StoryModeHeaderProps {
   libraryId: string
+  onBackToGallery?: () => void
 }
 
 interface StoryConfig {
@@ -19,7 +22,7 @@ interface StoryConfig {
  * Zeigt Titel, Beschreibung und Action-Buttons oben im Story-Tab.
  * Lädt die Texte aus der Config.
  */
-export function StoryModeHeader({ libraryId }: StoryModeHeaderProps) {
+export function StoryModeHeader({ libraryId, onBackToGallery }: StoryModeHeaderProps) {
   const { t } = useTranslation()
   const [storyConfig, setStoryConfig] = useState<StoryConfig | null>(null)
 
@@ -54,9 +57,21 @@ export function StoryModeHeader({ libraryId }: StoryModeHeaderProps) {
         <p className="text-sm text-muted-foreground leading-relaxed max-w-3xl">{intro}</p>
       </div>
 
-      {/* Buttons: Zurück + Perspektive */}
-      <div className="flex items-center gap-3">
+      {/* Buttons: Perspektive links, Zurück rechts */}
+      <div className="flex items-center justify-between gap-3">
         <StoryHeader />
+        {/* Zurück-Button im Story-Modus - rechtsbündig */}
+        {onBackToGallery && (
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={onBackToGallery}
+            className='flex items-center gap-2 flex-shrink-0 ml-auto'
+          >
+            <ChevronLeft className='h-4 w-4' />
+            {t('gallery.backToGallery')}
+          </Button>
+        )}
       </div>
     </div>
   )

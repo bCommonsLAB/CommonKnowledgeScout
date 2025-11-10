@@ -8,17 +8,18 @@ import { Footer } from './footer'
  * 
  * Wird NICHT angezeigt auf:
  * - /library/gallery/* (Gallery und Story-Modus)
+ * - /explore/* (Explore-Seiten mit Gallery-Komponente)
  * 
  * Wird angezeigt auf:
  * - Homepage (/)
- * - Explore-Seiten (/explore/*)
  * - Alle anderen Seiten (About, Datenschutz, etc.)
  */
 export function ConditionalFooter() {
   const pathname = usePathname()
   
   // Footer nicht anzeigen im Gallery/Story-Modus
-  const isGalleryOrStoryMode = pathname?.startsWith('/library/gallery')
+  // Prüfe sowohl /library/gallery als auch /explore/* (beide verwenden die Gallery-Komponente)
+  const isGalleryOrStoryMode = pathname?.startsWith('/library/gallery') || pathname?.startsWith('/explore/')
   
   if (isGalleryOrStoryMode) {
     return null

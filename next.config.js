@@ -10,13 +10,14 @@ const nextConfig = {
   },
   images: {
     // Für Kompatibilität: domains (veraltet, aber manchmal noch benötigt)
-    domains: ['www.sfscon.it'],
+    domains: ['www.sfscon.it', 'ragtempproject.blob.core.windows.net'],
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'www.youtube.com' },
       { protocol: 'https', hostname: 'img.youtube.com' },
       { protocol: 'https', hostname: 'i.ytimg.com' },
       { protocol: 'https', hostname: 'www.sfscon.it', pathname: '/**' },
+      { protocol: 'https', hostname: 'ragtempproject.blob.core.windows.net', pathname: '/**' },
     ],
   },
   webpack: (config) => {
