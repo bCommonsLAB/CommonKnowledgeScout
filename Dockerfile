@@ -26,8 +26,9 @@ ENV NEXT_RUNTIME=build
 RUN corepack enable && corepack prepare pnpm@9.15.3 --activate
 
 # Python und MkDocs für Dokumentations-Build installieren
+# Verwende --break-system-packages, da wir in einem isolierten Docker-Container sind
 RUN apk add --no-cache python3 py3-pip && \
-    pip3 install --no-cache-dir mkdocs-material mkdocs-print-site-plugin
+    pip3 install --break-system-packages --no-cache-dir mkdocs-material mkdocs-print-site-plugin
 
 # Nur die notwendigen Dateien kopieren
 COPY package.json pnpm-lock.yaml ./
