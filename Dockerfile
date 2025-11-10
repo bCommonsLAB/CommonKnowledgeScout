@@ -25,6 +25,10 @@ ENV NEXT_RUNTIME=build
 # pnpm installieren
 RUN corepack enable && corepack prepare pnpm@9.15.3 --activate
 
+# Python und MkDocs für Dokumentations-Build installieren
+RUN apk add --no-cache python3 py3-pip && \
+    pip3 install --no-cache-dir mkdocs-material mkdocs-print-site-plugin
+
 # Nur die notwendigen Dateien kopieren
 COPY package.json pnpm-lock.yaml ./
 # COPY .npmrc ./  # entfernt, da nicht vorhanden
@@ -32,6 +36,9 @@ RUN pnpm install --frozen-lockfile
 
 # Restlichen Code kopieren
 COPY . .
+
+# Dokumentation bauen (muss vor Next.js Build passieren, damit public/docs vorhanden ist)
+RUN pnpm docs:build || echo "Warnung: Docs-Build fehlgeschlagen, fahre fort..."
 
 # Next.js Build
 RUN pnpm build
@@ -67,11 +74,10 @@ RUN corepack enable && corepack prepare pnpm@8.15.5 --activate
 # Nur die notwendigen Dateien kopieren
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/next.config.js ./next.config.js
 COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
-
-# Public-Verzeichnis erstellen (falls nicht vorhanden)
-RUN mkdir -p ./public
 
 # Optional: falls du eine .env.production hast
 # COPY .env.production .env
