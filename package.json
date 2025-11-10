@@ -25,6 +25,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "private": false,
+  "license": "AGPL-3.0-only",
   "packageManager": "pnpm@9.15.3",
   "scripts": {
     "dev": "next dev",

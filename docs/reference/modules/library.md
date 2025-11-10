@@ -112,3 +112,4 @@ Libraries are managed through:
 - `PUT /api/libraries/[id]`: Update library
 - `DELETE /api/libraries/[id]`: Delete library
 
+

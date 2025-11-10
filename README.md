@@ -221,7 +221,7 @@ Query your knowledge base using natural language. The Chat & story interface use
 
 This repository uses a **dual-license model**:
 
-- **Source Code** → [GNU Affero General Public License v3.0](./LICENSE_AGPL.txt)  
+- **Source Code** → [GNU Affero General Public License v3.0](./LICENSE)  
   - You are free to use, modify, and distribute the code **as long as you publish your modifications** under the same license.  
   - If you run a modified version as a web service, the corresponding source code **must be made available** to users (AGPL requirement).
 

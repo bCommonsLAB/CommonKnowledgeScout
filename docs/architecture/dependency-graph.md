@@ -148,3 +148,4 @@ graph TB
 - Components depend on hooks, contexts, and library code
 - API routes depend on services, storage, and chat systems
 
+
