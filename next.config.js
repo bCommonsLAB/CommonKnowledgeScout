@@ -9,12 +9,14 @@ const nextConfig = {
     IS_PACKAGE_BUILD: process.env.IS_PACKAGE_BUILD || 'false'
   },
   images: {
+    // Für Kompatibilität: domains (veraltet, aber manchmal noch benötigt)
+    domains: ['www.sfscon.it'],
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'www.youtube.com' },
       { protocol: 'https', hostname: 'img.youtube.com' },
       { protocol: 'https', hostname: 'i.ytimg.com' },
-      { protocol: 'https', hostname: 'www.sfscon.it' },
+      { protocol: 'https', hostname: 'www.sfscon.it', pathname: '/**' },
     ],
   },
   webpack: (config) => {
