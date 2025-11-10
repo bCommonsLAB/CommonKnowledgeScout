@@ -22,7 +22,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CI_PAT }}
 
       - uses: pnpm/action-setup@v4
 
@@ -70,6 +70,7 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email github-actions[bot]@users.noreply.github.com
+          git remote set-url origin https://${{ secrets.CI_PAT }}@github.com/${{ github.repository }}.git
           git add VERSION
           git commit -m "Bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
           git tag -a -m "${{ steps.bump.outputs.new_version }}" v${{ steps.bump.outputs.new_version }}
