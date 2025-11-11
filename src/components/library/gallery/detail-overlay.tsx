@@ -17,6 +17,13 @@ export interface DetailOverlayProps {
 }
 
 export function DetailOverlay({ open, onClose, libraryId, fileId, viewType, title = 'Dokument-Details' }: DetailOverlayProps) {
+  // Debug: Logge viewType
+  React.useEffect(() => {
+    if (open) {
+      console.log('[DetailOverlay] Rendering with viewType:', viewType, 'fileId:', fileId)
+    }
+  }, [open, viewType, fileId])
+  
   if (!open) return null
   return (
     <div className='fixed inset-0 z-50'>

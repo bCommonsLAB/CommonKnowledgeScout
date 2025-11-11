@@ -39,8 +39,8 @@ export async function GET(
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
 
-    // Chat-Kontext laden (nutzt userEmail für nicht-öffentliche Bibliotheken)
-    const ctx = await loadLibraryChatContext(userEmail, libraryId)
+    // Chat-Kontext laden (unterstützt auch öffentliche Libraries ohne Email)
+    const ctx = await loadLibraryChatContext(userEmail || '', libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 
     // Zugriff: wenn nicht public, Auth erforderlich
@@ -54,9 +54,25 @@ export async function GET(
       return NextResponse.json({ error: 'fileId erforderlich' }, { status: 400 })
     }
 
-    // MongoDB Collection-Name bestimmen (für öffentliche Libraries ohne userEmail)
+    // Für öffentliche Libraries: Verwende Owner-Email für MongoDB-Collection
+    // Für authentifizierte Nutzer: Verwende ihre Email
+    let effectiveUserEmail = userEmail
+    if (!effectiveUserEmail && ctx.library.config?.publicPublishing?.isPublic) {
+      // Versuche Owner-Email zu ermitteln (für öffentliche Libraries)
+      const { findLibraryOwnerEmail } = await import('@/lib/chat/loader')
+      const ownerEmail = await findLibraryOwnerEmail(libraryId)
+      if (ownerEmail) {
+        effectiveUserEmail = ownerEmail
+      }
+    }
+
+    if (!effectiveUserEmail) {
+      return NextResponse.json({ error: 'Benutzer-Email erforderlich' }, { status: 400 })
+    }
+
+    // MongoDB Collection-Name bestimmen
     const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(userEmail, libraryId, strategy)
+    const libraryKey = computeDocMetaCollectionName(effectiveUserEmail, libraryId, strategy)
 
     // Dokument aus MongoDB laden
     const map = await getByFileIds(libraryKey, libraryId, [fileId])

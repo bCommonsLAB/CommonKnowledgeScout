@@ -10,7 +10,7 @@ interface IngestionBookDetailProps {
   docModifiedAt?: string;
 }
 
-export function IngestionBookDetail({ libraryId, fileId, docModifiedAt }: IngestionBookDetailProps) {
+export function IngestionBookDetail({ libraryId, fileId }: IngestionBookDetailProps) {
   const { t } = useTranslation()
   const [data, setData] = React.useState<BookDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -20,10 +20,12 @@ export function IngestionBookDetail({ libraryId, fileId, docModifiedAt }: Ingest
     try {
       setLoading(true);
       setError(null);
-      const url = `/api/chat/${encodeURIComponent(libraryId)}/ingestion-status?fileId=${encodeURIComponent(fileId)}${docModifiedAt ? `&docModifiedAt=${encodeURIComponent(docModifiedAt)}` : ''}&stats=1`;
+      // Verwende den schnellen doc-meta Endpunkt (nur MongoDB, kein Pinecone)
+      // docModifiedAt wird ignoriert, da doc-meta nur MongoDB-Daten liefert
+      const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`;
       const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json();
-      if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Ingestion-Status konnte nicht geladen werden');
+      if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Dokument-Metadaten konnten nicht geladen werden');
       const mapped = mapToBookDetail(json as unknown);
       setData(mapped);
     } catch (e) {
@@ -31,7 +33,7 @@ export function IngestionBookDetail({ libraryId, fileId, docModifiedAt }: Ingest
     } finally {
       setLoading(false);
     }
-  }, [libraryId, fileId, docModifiedAt]);
+  }, [libraryId, fileId]);
 
   React.useEffect(() => { void load(); }, [load]);
 
@@ -42,9 +44,24 @@ export function IngestionBookDetail({ libraryId, fileId, docModifiedAt }: Ingest
   return <BookDetail data={data} showBackLink={false} />;
 }
 
+/**
+ * Mapper: API-Response → BookDetailData
+ * Extrahiert Buch-spezifische Felder aus docMetaJson
+ * 
+ * Erwartet Struktur von /api/chat/${libraryId}/doc-meta:
+ * {
+ *   exists: boolean
+ *   docMetaJson: { ... }  // Alle Buch-Felder
+ *   chapters: [ ... ]      // Kapitel-Array
+ *   fileName, chunkCount, upsertedAt, ...
+ * }
+ */
 function mapToBookDetail(input: unknown): BookDetailData {
   const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
-  const doc = (root.doc && typeof root.doc === 'object') ? root.doc as Record<string, unknown> : {};
+  // Direkter Zugriff auf docMetaJson (nicht mehr verschachtelt unter .doc)
+  const docMetaJson = (root.docMetaJson && typeof root.docMetaJson === 'object') 
+    ? root.docMetaJson as Record<string, unknown> 
+    : {};
   const chaptersIn = Array.isArray(root.chapters) ? root.chapters as Array<unknown> : [];
 
   const toStr = (v: unknown): string | undefined => typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined;
@@ -52,31 +69,33 @@ function mapToBookDetail(input: unknown): BookDetailData {
   const toStrArr = (v: unknown): string[] | undefined => Array.isArray(v) ? (v as Array<unknown>).map(x => toStr(x) || '').filter(Boolean) : undefined;
 
   const data: BookDetailData = {
-    title: toStr(doc.title) || toStr(doc.fileName) || '—',
-    authors: toStrArr(doc.authors) || [],
-    year: ((): number | string | undefined => {
-      if (typeof doc.year === 'number') return doc.year;
-      if (typeof doc.year === 'string' && doc.year.trim()) return doc.year.trim();
-      return undefined;
-    })() ?? '',
-    pages: toNum(doc.pages),
-    region: toStr(doc.region),
-    summary: toStr(doc.summary),
-    source: toStr(doc.source),
+    title: toStr(docMetaJson.title) || toStr(root.fileName) || '—',
+    authors: toStrArr(docMetaJson.authors) || [],
+    year: ((): number | string => {
+      const y = docMetaJson.year ?? root.year;
+      if (typeof y === 'number') return y;
+      if (typeof y === 'string' && y.trim()) return y.trim();
+      return '';
+    })(),
+    pages: toNum(docMetaJson.pages),
+    region: toStr(docMetaJson.region),
+    summary: toStr(docMetaJson.summary),
+    source: toStr(docMetaJson.source),
     issue: ((): string | number | undefined => {
-      if (typeof doc.issue === 'number') return doc.issue;
-      if (typeof doc.issue === 'string' && doc.issue.trim()) return doc.issue.trim();
+      const i = docMetaJson.issue;
+      if (typeof i === 'number') return i;
+      if (typeof i === 'string' && i.trim()) return i.trim();
       return undefined;
     })(),
-    language: toStr(doc.language),
-    docType: toStr(doc.docType),
-    commercialStatus: toStr((doc as { commercialStatus?: unknown }).commercialStatus),
-    topics: toStrArr(doc.topics) || [],
-    chunkCount: typeof doc.chunkCount === 'number' ? (doc.chunkCount as number) : undefined,
-    chaptersCount: typeof doc.chaptersCount === 'number' ? (doc.chaptersCount as number) : undefined,
-    fileId: toStr((doc as { fileId?: unknown }).fileId) || toStr((root as { fileId?: unknown }).fileId),
-    fileName: toStr(doc.fileName),
-    upsertedAt: toStr((doc as { upsertedAt?: unknown }).upsertedAt),
+    language: toStr(docMetaJson.language),
+    docType: toStr(docMetaJson.docType),
+    commercialStatus: toStr((docMetaJson as { commercialStatus?: unknown }).commercialStatus),
+    topics: toStrArr(docMetaJson.topics) || [],
+    chunkCount: typeof root.chunkCount === 'number' ? root.chunkCount : undefined,
+    chaptersCount: typeof root.chaptersCount === 'number' ? root.chaptersCount : undefined,
+    fileId: toStr(root.fileId),
+    fileName: toStr(root.fileName),
+    upsertedAt: toStr(root.upsertedAt),
     chapters: chaptersIn.map((c, i) => {
       const ch = (c && typeof c === 'object') ? c as Record<string, unknown> : {};
       const order = toNum(ch.order) ?? (i + 1);

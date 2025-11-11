@@ -29,12 +29,12 @@ import { NextRequest } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { startQueryLog, setQuestionAnalysis } from '@/lib/logging/query-logger'
+import { startQueryLog } from '@/lib/logging/query-logger'
 import { updateQueryLogPartial } from '@/lib/db/queries-repo'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { buildFilters } from '@/lib/chat/common/filters'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
-import { analyzeQuestionForRetriever } from '@/lib/chat/common/question-analyzer'
+import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
 import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
@@ -53,6 +53,7 @@ const chatRequestSchema = z.object({
     answer: z.string(),
   })).optional(),
   chatId: z.string().optional(),
+  asTOC: z.boolean().optional(), // Optional: Antwort als Themenübersicht formatieren
 })
 
 /**
@@ -75,12 +76,31 @@ export async function POST(
       // queryId wird später gesetzt, muss aber im catch-Block verfügbar sein
       let queryId: string | undefined = undefined
       
+      // Flag um zu prüfen, ob der Stream noch aktiv ist
+      let isStreamActive = true
+      
       function send(status: ChatProcessingStep) {
+        // Prüfe, ob der Stream noch aktiv ist, bevor gesendet wird
+        if (!isStreamActive) {
+          return
+        }
+        
+        try {
         // Sammle alle Steps (außer complete und error, die werden separat behandelt)
         if (status.type !== 'complete' && status.type !== 'error') {
           collectedSteps.push(status)
         }
         controller.enqueue(encoder.encode(formatSSE(status)))
+        } catch (error) {
+          // Wenn der Controller bereits geschlossen ist, ignoriere den Fehler
+          // und markiere den Stream als inaktiv
+          if (error instanceof TypeError && error.message.includes('closed')) {
+            isStreamActive = false
+            return
+          }
+          // Andere Fehler weiterwerfen
+          throw error
+        }
       }
 
       try {
@@ -98,6 +118,7 @@ export async function POST(
         if (!ctx) {
           send({ type: 'error', error: 'Bibliothek nicht gefunden' })
           controller.close()
+          isStreamActive = false
           return
         }
 
@@ -105,6 +126,7 @@ export async function POST(
         if (!ctx.library.config?.publicPublishing?.isPublic && !userId) {
           send({ type: 'error', error: 'Nicht authentifiziert' })
           controller.close()
+          isStreamActive = false
           return
         }
 
@@ -112,6 +134,7 @@ export async function POST(
         if (!userEmail && !sessionId) {
           send({ type: 'error', error: 'Session-ID erforderlich für anonyme Nutzer' })
           controller.close()
+          isStreamActive = false
           return
         }
 
@@ -121,10 +144,11 @@ export async function POST(
         if (!body.success) {
           send({ type: 'error', error: 'Ungültige Anfrage' })
           controller.close()
+          isStreamActive = false
           return
         }
 
-        const { message, answerLength, chatHistory, chatId: bodyChatId } = body.data
+        const { message, answerLength, chatHistory, chatId: bodyChatId, asTOC } = body.data
 
         // Query-Parameter parsen
         const parsedUrl = new URL(request.url)
@@ -149,94 +173,28 @@ export async function POST(
           }
         })
 
-        // Schritt 1: Frage-Analyse
-        // Prüfe ZUERST, ob es eine TOC-Query ist, bevor wir Steps senden
-        const tocQuestion = 'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
-        const isTOCQuery = message.trim() === tocQuestion.trim()
-        
-        // Nur für normale Fragen: Frage-Analyse starten
-        if (!isTOCQuery) {
-          send({ type: 'question_analysis_start', question: message })
-        }
+        // Schritt 1: TOC-Query bestimmen
+        // Prüfe ZUERST, ob es eine TOC-Query ist (explizite TOC-Frage ODER asTOC Flag)
+        const { TOC_QUESTION } = await import('@/lib/chat/constants')
+        const isTOCQuery = message.trim() === TOC_QUESTION.trim() || (asTOC === true)
         
         const retrieverParamRaw = (parsedUrl.searchParams.get('retriever') || '').toLowerCase()
-        const autoRetrieverEnabled = parsedUrl.searchParams.get('autoRetriever') !== 'false'
-        const explicitRetriever = retrieverParamRaw === 'summary' || retrieverParamRaw === 'doc' || retrieverParamRaw === 'chunk'
-        
-        let analyzedRetriever: 'chunk' | 'summary' | null = null
-        // Schritt 1: Frage-Analyse (nur für normale Fragen, nicht für TOC-Queries)
+        // Bestimme expliziten Retriever: nur wenn nicht leer und nicht 'auto'
+        const explicitRetrieverValue: 'summary' | 'chunk' | null = 
+          retrieverParamRaw === 'summary' || retrieverParamRaw === 'doc'
+            ? 'summary'
+            : retrieverParamRaw === 'chunk'
+            ? 'chunk'
+            : null // 'auto' oder leer → null (automatische Entscheidung)
         
         // Verwende Library-spezifischen API-Key, falls vorhanden
         const libraryApiKey = ctx.library.config?.publicPublishing?.apiKey
         
-        let questionAnalysis: Awaited<ReturnType<typeof analyzeQuestionForRetriever>> | undefined = undefined
-        
-        // Für TOC-Queries: Überspringe Frage-Analyse, verwende immer Summary-Modus
-        if (!isTOCQuery && !explicitRetriever && autoRetrieverEnabled && process.env.ENABLE_AUTO_RETRIEVER_ANALYSIS !== 'false') {
-          try {
-            const isEventMode = ctx.chat.gallery.detailViewType === 'session'
-            questionAnalysis = await analyzeQuestionForRetriever(message, {
-              isEventMode,
-              libraryType: ctx.library.type,
-            }, libraryApiKey)
-            
-            send({
-              type: 'question_analysis_result',
-              recommendation: questionAnalysis.recommendation,
-              confidence: questionAnalysis.confidence,
-              chatTitle: questionAnalysis.chatTitle,
-            })
-            
-            if (questionAnalysis.recommendation === 'unclear') {
-              // Für clarification müssen wir die Frage-Analyse-Daten zurückgeben
-              // Aber das Frontend erwartet eine normale Response-Struktur
-              // Wir senden einen error-step mit clarification-Info, den das Frontend erkennen kann
-              // Oder besser: Wir senden einen speziellen complete-step mit clarification-Flag
-              const clarificationStep: ChatProcessingStep & { clarification?: { explanation: string; suggestedQuestions: { chunk?: string; summary?: string } } } = {
-                type: 'complete',
-                answer: `**${questionAnalysis.explanation}**\n\n**Vorgeschlagene präzisierte Fragen:**`,
-                references: [],
-                suggestedQuestions: [
-                  questionAnalysis.suggestedQuestionChunk,
-                  questionAnalysis.suggestedQuestionSummary,
-                ].filter((q): q is string => typeof q === 'string' && q.length > 0),
-                queryId: '',
-                chatId: '',
-                clarification: {
-                  explanation: questionAnalysis.explanation,
-                  suggestedQuestions: {
-                    chunk: questionAnalysis.suggestedQuestionChunk,
-                    summary: questionAnalysis.suggestedQuestionSummary,
-                  },
-                },
-              }
-              
-              // Bei clarification gibt es keine queryId, daher keine Logs speichern
-              collectedSteps.push(clarificationStep)
-              send(clarificationStep)
-              controller.close()
-              return
-            }
-            
-            analyzedRetriever = questionAnalysis.recommendation === 'summary' ? 'summary' : 'chunk'
-          } catch (error) {
-            console.error('[api/chat/stream] Frage-Analyse fehlgeschlagen:', error)
-            // Nur für normale Queries: Frage-Analyse-Ergebnis senden
-            if (!isTOCQuery) {
-              send({ type: 'question_analysis_result', recommendation: 'chunk', confidence: 'low' })
-            }
-          }
-        } else {
-          // Nur für normale Queries: Frage-Analyse-Ergebnis senden
-          if (!isTOCQuery) {
-            send({ type: 'question_analysis_result', recommendation: explicitRetriever ? (retrieverParamRaw === 'summary' || retrieverParamRaw === 'doc' ? 'summary' : 'chunk') : 'chunk', confidence: 'high' })
-          }
-        }
-
-        // Schritt 2: Chat-Verwaltung
+        // Schritt 1: Chat-Verwaltung
         let activeChatId: string
         if (!chatId) {
-          const chatTitle = questionAnalysis?.chatTitle || message.slice(0, 60)
+          // Chat-Title direkt aus Frage generieren (erste 60 Zeichen)
+          const chatTitle = message.slice(0, 60)
           // Verwende userEmail oder sessionId für Chat-Erstellung
           activeChatId = await createChat(libraryId, userEmail || sessionId || '', chatTitle)
         } else {
@@ -245,30 +203,11 @@ export async function POST(
           if (!existingChat) {
             send({ type: 'error', error: 'Chat nicht gefunden' })
             controller.close()
+            isStreamActive = false
             return
           }
           await touchChat(chatId)
         }
-
-        // Schritt 3: Retriever bestimmen
-        // Für TOC-Queries: Immer Summary-Modus verwenden
-        const effectiveRetriever: 'chunk' | 'summary' = isTOCQuery
-          ? 'summary'
-          : explicitRetriever 
-          ? (retrieverParamRaw === 'summary' || retrieverParamRaw === 'doc' ? 'summary' : 'chunk')
-          : (analyzedRetriever ?? 'chunk')
-
-        send({
-          type: 'retriever_selected',
-          retriever: effectiveRetriever,
-          reason: isTOCQuery 
-            ? 'TOC query: Always summary mode'
-            : explicitRetriever 
-            ? 'Explicitly set' 
-            : questionAnalysis 
-            ? `Recommended by analysis (${questionAnalysis.confidence})` 
-            : 'Default',
-        })
 
         // Chat-Config bestimmen
         const targetLanguageParam = parsedUrl.searchParams.get('targetLanguage')
@@ -288,11 +227,44 @@ export async function POST(
             : ctx.chat.socialContext,
         }
 
-        // Schritt 4: Filter aufbauen
-        const built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, effectiveRetriever)
-        const modeNow = effectiveRetriever === 'summary' ? 'summaries' as const : 'chunks' as const
+        // Schritt 2: Filter aufbauen (für Retriever-Entscheidung benötigt)
+        // Verwende temporären Retriever für Filter-Aufbau (wird später überschrieben)
+        // Bei Auto-Modus (explicitRetrieverValue === null): TOC-Queries verwenden 'summary', normale Fragen 'chunk'
+        // HINWEIS: chunkSummary wird hier noch nicht verwendet, da die Entscheidung erst nach Filter-Aufbau getroffen wird.
+        // chunkSummary benötigt die gleichen Filter wie summary (beide filtern auf Dokumentebene).
+        const tempRetrieverForFilters: 'chunk' | 'summary' | 'chunkSummary' = explicitRetrieverValue 
+          ? explicitRetrieverValue 
+          : (isTOCQuery ? 'summary' : 'chunk')
+        const built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, tempRetrieverForFilters)
 
-        // Schritt 5: Query-Log starten
+        // Schritt 3: Retriever-Modus automatisch entscheiden
+        const retrieverDecision = await decideRetrieverMode({
+          libraryId,
+          userEmail: userEmail || '',
+          filter: built.mongo,
+          isTOCQuery,
+          explicitRetriever: explicitRetrieverValue, // null bei 'auto' oder leer → automatische Entscheidung
+        })
+
+        // Konvertiere chunkSummary zu 'chunk' für UI-Kompatibilität (interne Option)
+        const effectiveRetriever: 'chunk' | 'summary' = retrieverDecision.mode === 'chunkSummary' 
+          ? 'chunk' 
+          : retrieverDecision.mode === 'summary'
+          ? 'summary'
+          : 'chunk'
+
+        // Interner Retriever-Modus (kann chunkSummary sein)
+        const internalRetriever: 'chunk' | 'chunkSummary' | 'summary' = retrieverDecision.mode
+
+        send({
+          type: 'retriever_selected',
+          retriever: effectiveRetriever, // UI-kompatibel (chunkSummary → chunk)
+          reason: retrieverDecision.reason,
+        })
+
+        const modeNow = internalRetriever === 'summary' ? 'summaries' as const : 'chunks' as const
+
+        // Schritt 4: Query-Log starten
         // Prüfe, ob es eine TOC-Frage ist (bereits oben definiert)
         
         queryId = await startQueryLog({
@@ -304,7 +276,7 @@ export async function POST(
           mode: modeNow,
           queryType: isTOCQuery ? 'toc' : 'question', // Setze queryType basierend auf der Frage
           answerLength,
-          retriever: effectiveRetriever,
+          retriever: internalRetriever, // Verwende internen Retriever (kann chunkSummary sein)
           targetLanguage: effectiveChatConfig.targetLanguage,
           character: effectiveChatConfig.character,
           socialContext: effectiveChatConfig.socialContext,
@@ -314,23 +286,14 @@ export async function POST(
           filtersPinecone: { ...built.pinecone },
         })
 
-        // Nur für normale Queries: Frage-Analyse speichern
-        if (questionAnalysis && !isTOCQuery) {
-          await setQuestionAnalysis(queryId, {
-            recommendation: questionAnalysis.recommendation,
-            confidence: questionAnalysis.confidence,
-            reasoning: questionAnalysis.reasoning,
-          })
-        }
-
-        // Schritt 6: Retriever ausführen (mit Status-Updates)
+        // Schritt 5: Retriever ausführen (mit Status-Updates)
         send({ type: 'retrieval_start', retriever: effectiveRetriever })
         
         const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
         send({ type: 'llm_start', model })
 
         const { answer, references, suggestedQuestions, storyTopicsData } = await runChatOrchestrated({
-          retriever: effectiveRetriever,
+          retriever: internalRetriever, // Verwende internen Retriever (kann chunkSummary sein)
           libraryId,
           userEmail: userEmail,
           question: message,
@@ -345,6 +308,11 @@ export async function POST(
           isTOCQuery: isTOCQuery,
           apiKey: libraryApiKey,
           onStatusUpdate: (msg) => {
+            // Prüfe, ob der Stream noch aktiv ist
+            if (!isStreamActive) {
+              return
+            }
+            
             // Send progress updates - Timing will be set later
             if (msg.includes('Searching for relevant sources')) {
               send({ type: 'retrieval_progress', sourcesFound: 0, message: msg })
@@ -362,6 +330,11 @@ export async function POST(
             }
           },
           onProcessingStep: (step) => {
+            // Prüfe, ob der Stream noch aktiv ist
+            if (!isStreamActive) {
+              return
+            }
+            
             // Sende complete-Steps direkt, wenn sie verfügbar sind
             collectedSteps.push(step)
             send(step)
@@ -389,7 +362,17 @@ export async function POST(
         
         send(completeStep)
 
+        // Prüfe, ob der Stream noch aktiv ist, bevor geschlossen wird
+        // (kann bereits geschlossen sein, wenn der Client die Verbindung abgebrochen hat)
+        if (isStreamActive) {
+          try {
         controller.close()
+          } catch (error) {
+            // Ignoriere Fehler beim Schließen (Controller könnte bereits geschlossen sein)
+            console.error('[api/chat/stream] Fehler beim Schließen des Controllers:', error)
+          }
+          isStreamActive = false
+        }
       } catch (error) {
         console.error('[api/chat/stream] Error:', error)
         const errorStep: ChatProcessingStep = { type: 'error', error: error instanceof Error ? error.message : String(error) }
@@ -409,8 +392,22 @@ export async function POST(
           // Ignoriere Fehler beim Speichern der Error-Logs
         }
         
+        // Prüfe, ob der Stream noch aktiv ist, bevor der Error-Step gesendet wird
+        if (isStreamActive) {
+          try {
         send(errorStep)
+            try {
         controller.close()
+            } catch (closeError) {
+              // Ignoriere Fehler beim Schließen (Controller könnte bereits geschlossen sein)
+              console.error('[api/chat/stream] Fehler beim Schließen des Controllers im catch-Block:', closeError)
+            }
+            isStreamActive = false
+          } catch {
+            // Ignoriere Fehler beim Senden des Error-Steps (z.B. wenn Controller bereits geschlossen)
+            isStreamActive = false
+          }
+        }
       }
     },
   })

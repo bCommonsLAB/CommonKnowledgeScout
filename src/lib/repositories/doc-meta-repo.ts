@@ -295,6 +295,44 @@ export async function findDocSummaries(
   })
 }
 
+/**
+ * Summiert die chunkCount aller gefilterten Dokumente
+ * 
+ * Performance-optimiert: Lädt nur das chunkCount-Feld (minimale Projection)
+ * 
+ * @param libraryKey - Collection-Name für die Library
+ * @param filter - MongoDB-Filter für Dokumente
+ * @returns Summe aller chunkCount-Werte und Anzahl der Dokumente
+ */
+export async function sumChunkCounts(
+  libraryKey: string,
+  filter: Record<string, unknown>
+): Promise<{ totalChunks: number; docCount: number }> {
+  const col = await getDocMetaCollection(libraryKey)
+  // PERFORMANCE: Nur chunkCount Feld abrufen (minimale Projection)
+  const q: Record<string, unknown> = { ...(filter || {}) }
+  const cursor = col.find(q, {
+    projection: {
+      _id: 0,
+      chunkCount: 1,
+    }
+  })
+  const rows = await cursor.toArray()
+  
+  let totalChunks = 0
+  let docCount = 0
+  
+  for (const r of rows) {
+    docCount++
+    const chunkCount = typeof (r as unknown as { chunkCount?: unknown }).chunkCount === 'number' 
+      ? (r as unknown as { chunkCount: number }).chunkCount 
+      : 0
+    totalChunks += chunkCount
+  }
+  
+  return { totalChunks, docCount }
+}
+
 export async function getByFileIds(
   libraryKey: string,
   libraryId: string,

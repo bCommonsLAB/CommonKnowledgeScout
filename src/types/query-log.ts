@@ -14,7 +14,7 @@ export interface QueryRetrievalStep {
   indexName: string;
   namespace?: string;
   stage: 'embed' | 'list' | 'query' | 'fetchNeighbors' | 'rerank' | 'aggregate' | 'llm';
-  level: 'question' | 'chapter' | 'summary' | 'chunk' | 'answer';
+  level: 'question' | 'chapter' | 'summary' | 'chunk' | 'chunkSummary' | 'answer';
   topKRequested?: number;
   topKReturned?: number;
   // Erweiterte Observability

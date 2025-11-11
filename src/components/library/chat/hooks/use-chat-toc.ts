@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
 import type { TargetLanguage, Character, SocialContext } from '@/lib/chat/constants'
+import { TOC_QUESTION } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { useStoryTopicsCache } from '@/hooks/use-story-topics-cache'
 
@@ -75,8 +76,6 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
 
   // Ref für synchrones Tracking, ob Cache-Check läuft (verhindert Race Conditions)
   const isCheckingTOCRef = useRef(false)
-  // Ref für verfolgen, ob ein Cache-Check gerade abgeschlossen wurde und Generierung nötig ist
-  const shouldGenerateAfterCacheCheckRef = useRef(false)
   // Ref für sendQuestion, falls es später gesetzt wurde
   const sendQuestionRef = useRef(sendQuestion)
   // Ref für Debounce-Timer
@@ -85,14 +84,54 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
   const lastCheckTimeRef = useRef<number>(0)
   // Ref für Cache-Key (verhindert Checks mit identischen Parametern)
   const lastCacheKeyRef = useRef<string>('')
+  // Ref für Tracking, ob gerade eine TOC-Generierung läuft (verhindert Endlosschleife)
+  const isGeneratingTOCRef = useRef(false)
   
   // Aktualisiere Ref, wenn sendQuestion sich ändert
   useEffect(() => {
     sendQuestionRef.current = sendQuestion
   }, [sendQuestion])
 
+  // Reset Generierungs-Flag, wenn isSending von true auf false geht (Generierung abgebrochen/fehlgeschlagen)
+  // WICHTIG: Timeout hinzufügen, um Endlosschleifen zu verhindern
+  const lastResetTimeRef = useRef<number>(0)
+  useEffect(() => {
+    // Wenn isSending von true auf false geht UND eine Generierung läuft,
+    // bedeutet das, dass die Generierung abgebrochen wurde oder fehlgeschlagen ist
+    if (!isSending && isGeneratingTOCRef.current) {
+      // Prüfe, ob bereits Daten vorhanden sind (dann wurde setTOCData() bereits aufgerufen)
+      if (!cachedStoryTopicsData && !cachedTOC) {
+        // Verhindere zu häufige Resets (max. alle 5 Sekunden)
+        const now = Date.now()
+        if (now - lastResetTimeRef.current > 5000) {
+          // Keine Daten vorhanden → Generierung wurde abgebrochen oder fehlgeschlagen
+          console.log('[useChatTOC] Generierung abgebrochen oder fehlgeschlagen, reset Flag')
+          isGeneratingTOCRef.current = false
+          lastResetTimeRef.current = now
+        }
+      } else {
+        // Daten vorhanden → Generierung erfolgreich, Flag wird von setTOCData zurückgesetzt
+        isGeneratingTOCRef.current = false
+      }
+    }
+  }, [isSending, cachedStoryTopicsData, cachedTOC])
+
   const checkCache = useCallback(async () => {
     if (!cfg) {
+      return
+    }
+
+    // Wenn bereits eine Generierung läuft, überspringe Check komplett
+    // WICHTIG: Im Story-Mode können Facetten sich ändern (vom Gallery-Mode), aber wir sollten
+    // keine neue Generierung starten, wenn bereits eine läuft
+    if (isGeneratingTOCRef.current) {
+      console.log('[useChatTOC] checkCache übersprungen: Generierung läuft bereits')
+      return
+    }
+    
+    // Wenn bereits Daten vorhanden sind, überspringe Check
+    if (cachedStoryTopicsData || cachedTOC) {
+      console.log('[useChatTOC] checkCache übersprungen: Cache bereits vorhanden')
       return
     }
 
@@ -112,8 +151,9 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     }
     
     // Wenn derselbe Cache-Key wie beim letzten Check, überspringe (Debounce)
+    // Erhöhe Debounce-Zeit auf 2 Sekunden, um häufige Filter-Änderungen abzufangen
     const now = Date.now()
-    if (cacheKey === lastCacheKeyRef.current && now - lastCheckTimeRef.current < 1000) {
+    if (cacheKey === lastCacheKeyRef.current && now - lastCheckTimeRef.current < 2000) {
       return
     }
     
@@ -163,19 +203,41 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
         // KEIN Cache gefunden
         setCachedTOC(null)
         setCachedStoryTopicsData(null)
-        // Setze Flag für Generierung (nur im embedded-Modus)
-        if (isEmbedded && !isSending) {
-          shouldGenerateAfterCacheCheckRef.current = true
+        // Generiere TOC direkt, wenn im embedded-Modus UND keine Generierung läuft
+        // WICHTIG: Im Story-Mode können Facetten sich ändern (vom Gallery-Mode), aber wir sollten
+        // keine neue Generierung starten, wenn bereits eine läuft
+        // HINWEIS: isCheckingTOCRef wird im finally-Block zurückgesetzt, daher können wir hier
+        // die Generierung starten, auch wenn der Check gerade läuft (der Check ist ja abgeschlossen)
+        if (isEmbedded && !isSending && !isGeneratingTOCRef.current) {
+          const currentSendQuestion = sendQuestionRef.current || sendQuestion
+          if (currentSendQuestion) {
+            // Setze Flag BEVOR wir sendQuestion aufrufen (verhindert parallele Aufrufe)
+            isGeneratingTOCRef.current = true
+            // Rufe generateTOC direkt auf (ohne Flag-Mechanismus)
+            currentSendQuestion(TOC_QUESTION, 'auto', true).catch((error) => {
+              console.error('[useChatTOC] Fehler bei TOC-Generierung:', error)
+              isGeneratingTOCRef.current = false
+            })
+          }
         }
       }
     } catch {
-      // Bei Fehler: Setze Flag für Generierung
+      // Bei Fehler: Generiere TOC direkt, wenn im embedded-Modus UND keine Generierung läuft
       setCachedTOC(null)
       setCachedStoryTopicsData(null)
-      if (isEmbedded && !isSending) {
-        shouldGenerateAfterCacheCheckRef.current = true
+      if (isEmbedded && !isSending && !isGeneratingTOCRef.current) {
+        const currentSendQuestion = sendQuestionRef.current || sendQuestion
+        if (currentSendQuestion) {
+          // Setze Flag BEVOR wir sendQuestion aufrufen (verhindert parallele Aufrufe)
+          isGeneratingTOCRef.current = true
+          currentSendQuestion(TOC_QUESTION, 'auto', true).catch((error) => {
+            console.error('[useChatTOC] Fehler bei TOC-Generierung:', error)
+            isGeneratingTOCRef.current = false
+          })
+        }
       }
     } finally {
+      // Reset Check-Flag NACH der Generierungs-Entscheidung
       isCheckingTOCRef.current = false
       setIsCheckingTOC(false)
     }
@@ -190,6 +252,9 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     isEmbedded,
     isSending,
     checkCacheAPI,
+    sendQuestion,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // cachedStoryTopicsData und cachedTOC sind nur Setter (stabil), nicht als Werte verwendet
   ])
 
   // Exponiere checkCache für externe Aufrufe (z.B. nach TOC-Query-Löschung)
@@ -221,6 +286,11 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       return // Verhindere doppelte Ausführung
     }
 
+    // Wenn bereits eine Generierung läuft, abbrechen
+    if (isGeneratingTOCRef.current) {
+      return
+    }
+
     // Wenn Cache-Check noch läuft, abbrechen
     if (isCheckingTOC || isCheckingTOCRef.current) {
       return
@@ -238,36 +308,25 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       return // sendQuestion noch nicht verfügbar
     }
 
-    const tocQuestion =
-      'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
-    // Starte die Anfrage direkt als TOC-Query
-    await currentSendQuestion(tocQuestion, 'summary', true) // true = isTOCQuery
-    // Nach erfolgreicher Generierung Cache prüfen
-    setTimeout(() => {
-      checkCache()
-    }, 1000)
-  }, [isSending, isCheckingTOC, cachedStoryTopicsData, cachedTOC, sendQuestion, checkCache])
+    // Markiere Generierung als gestartet
+    isGeneratingTOCRef.current = true
 
-  // useEffect: Reagiere darauf, wenn Cache geleert wurde UND Generierung nötig ist
-  useEffect(() => {
-    // Nur wenn: kein Cache vorhanden, Cache-Check abgeschlossen, Flag gesetzt, embedded-Modus, nicht gerade sendend
-    if (
-      !cachedStoryTopicsData &&
-      !cachedTOC &&
-      !isCheckingTOC &&
-      shouldGenerateAfterCacheCheckRef.current &&
-      isEmbedded &&
-      !isSending
-    ) {
-      // Prüfe, ob sendQuestion verfügbar ist (über Ref)
-      const currentSendQuestion = sendQuestionRef.current || sendQuestion
-      if (currentSendQuestion) {
-        shouldGenerateAfterCacheCheckRef.current = false // Reset Flag
-        generateTOC()
-      }
+    try {
+    // Starte die Anfrage direkt als TOC-Query
+      // Verwende 'auto' für automatische Retriever-Entscheidung basierend auf Token-Budget
+      await currentSendQuestion(TOC_QUESTION, 'auto', true) // true = isTOCQuery
+      // HINWEIS: Kein automatischer checkCache() Aufruf mehr!
+      // Stattdessen wird setTOCData() verwendet, wenn die Generierung abgeschlossen ist
+      // (siehe chat-panel.tsx useEffect für processingSteps)
+    } catch (error) {
+      console.error('[useChatTOC] Fehler bei TOC-Generierung:', error)
+      // Bei Fehler: Reset Flag, damit erneut versucht werden kann
+      isGeneratingTOCRef.current = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cachedStoryTopicsData, cachedTOC, isCheckingTOC, isEmbedded, isSending, sendQuestion, generateTOC])
+    // HINWEIS: isGeneratingTOCRef wird zurückgesetzt, wenn setTOCData() aufgerufen wird
+    // oder wenn die Generierung fehlschlägt (siehe catch-Block oben)
+  }, [isSending, isCheckingTOC, cachedStoryTopicsData, cachedTOC, sendQuestion])
+
 
   // Funktion zum direkten Setzen von TOC-Daten (z.B. nach Stream-Complete)
   const setTOCData = useCallback(
@@ -278,6 +337,10 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       suggestedQuestions: string[]
       queryId: string
     }) => {
+      // Reset Generierungs-Flag IMMER, da die Generierung jetzt abgeschlossen ist
+      // (auch wenn keine Daten vorhanden sind, z.B. "No matching content found")
+      isGeneratingTOCRef.current = false
+      
       if (data.storyTopicsData) {
         setCachedStoryTopicsData(data.storyTopicsData)
         // Setze auch cachedTOC für Rückwärtskompatibilität
@@ -289,7 +352,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
           createdAt: new Date().toISOString(),
         })
       } else if (data.answer) {
-        // Fallback: Normale Antwort
+        // Fallback: Normale Antwort (auch wenn leer, z.B. "No matching content found")
         setCachedTOC({
           answer: data.answer,
           references: data.references,
@@ -297,6 +360,11 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
           queryId: data.queryId,
           createdAt: new Date().toISOString(),
         })
+        setCachedStoryTopicsData(null)
+      } else {
+        // Keine Daten vorhanden (z.B. Fehler oder keine Chunks gefunden)
+        // Setze trotzdem cachedTOC auf null, um Flag zurückzusetzen
+        setCachedTOC(null)
         setCachedStoryTopicsData(null)
       }
     },

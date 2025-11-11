@@ -58,8 +58,15 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const initialDetailViewType = useMemo(() => {
     const galleryConfig = activeLibrary?.config?.chat?.gallery
     const vt = galleryConfig?.detailViewType
-    return (vt === 'book' || vt === 'session') ? vt : 'book'
-  }, [activeLibrary?.config?.chat?.gallery])
+    const result = (vt === 'book' || vt === 'session') ? vt : 'book'
+    console.log('[GalleryRoot] initialDetailViewType:', {
+      libraryId,
+      detailViewType: vt,
+      result,
+      galleryConfig: JSON.stringify(galleryConfig),
+    })
+    return result
+  }, [activeLibrary?.config?.chat?.gallery, libraryId])
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode()
@@ -70,6 +77,20 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     libraryId,
     initialDetailViewType
   )
+  
+  // Debug: Logge detailViewType wenn sich selected ändert
+  useEffect(() => {
+    if (selected) {
+      console.log('[GalleryRoot] DetailOverlay wird geöffnet:', {
+        fileId: selected.fileId || selected.id,
+        detailViewType,
+        initialDetailViewType,
+        activeLibraryId: activeLibrary?.id,
+        galleryConfig: activeLibrary?.config?.chat?.gallery,
+        fullLibraryConfig: JSON.stringify(activeLibrary?.config?.chat, null, 2),
+      })
+    }
+  }, [selected, detailViewType, initialDetailViewType, activeLibrary])
   const { docs, loading, error, filteredDocs, docsByYear } = useGalleryData(filters, mode, searchQuery, libraryId)
   const { facetDefs } = useGalleryFacets(libraryId, filters)
 
@@ -199,20 +220,6 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                   </div>
                 )}
 
-                {showReferenceLegend && chatReferences && chatReferences.length > 0 && (
-                  <ReferencesLegend
-                    references={chatReferences}
-                    libraryId={libraryId || ''}
-                    onClose={handleCloseReferenceLegend}
-                    onOpenDocument={(fileId) => {
-                      const doc = docs.find(d => d.id === fileId)
-                      if (doc) handleOpenDocument(doc)
-                    }}
-                    title={t('gallery.references')}
-                    description={t('gallery.referencesDescription')}
-                  />
-                )}
-
                 <section
                   className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
                   data-gallery-section
@@ -267,6 +274,19 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                     facetDefs={facetDefs}
                   />
                 </div>
+              )}
+              {showReferenceLegend && chatReferences && chatReferences.length > 0 && (
+                <ReferencesLegend
+                  references={chatReferences}
+                  libraryId={libraryId || ''}
+                  onClose={handleCloseReferenceLegend}
+                  onOpenDocument={(fileId) => {
+                    const doc = docs.find(d => d.id === fileId)
+                    if (doc) handleOpenDocument(doc)
+                  }}
+                  title={t('gallery.references')}
+                  description={t('gallery.referencesDescription')}
+                />
               )}
               <section
                 className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"

@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2, Send, MessageCircle, X } from 'lucide-react'
 import type { AnswerLength } from '@/lib/chat/constants'
 import { ANSWER_LENGTH_VALUES } from '@/lib/chat/constants'
@@ -13,7 +14,7 @@ import { useTranslation } from '@/lib/i18n/hooks'
 interface ChatInputProps {
   input: string
   setInput: (value: string) => void
-  onSend: () => void
+  onSend: (asTOC?: boolean) => void
   isSending: boolean
   answerLength: AnswerLength
   setAnswerLength: (value: AnswerLength) => void
@@ -48,6 +49,7 @@ export function ChatInput({
   const internalInputRef = useRef<HTMLTextAreaElement>(null)
   const inputRef = externalInputRef || internalInputRef
   const [internalIsOpen, setInternalIsOpen] = useState(false)
+  const [asTOC, setAsTOC] = useState(false)
   
   // Verwende externen State wenn vorhanden, sonst internen
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen
@@ -82,7 +84,7 @@ export function ChatInput({
 
   const handleSend = () => {
     if (input.trim() && !isSending) {
-      onSend()
+      onSend(asTOC)
       // Panel sofort schließen nach dem Absenden (nur im embedded Modus)
       if (variant === 'embedded') {
         setIsOpen(false)
@@ -151,7 +153,21 @@ export function ChatInput({
                     rows={3}
                     className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
                   />
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="asTOC"
+                        checked={asTOC}
+                        onCheckedChange={(checked) => setAsTOC(checked === true)}
+                        disabled={isSending}
+                      />
+                      <label
+                        htmlFor="asTOC"
+                        className="text-xs text-muted-foreground cursor-pointer select-none"
+                      >
+                        {t('chat.input.showAsTopics')}
+                      </label>
+                    </div>
                     <Button onClick={handleSend} size="sm" className="gap-2 shrink-0" disabled={isSending}>
                       {isSending ? (
                         <>
@@ -225,14 +241,28 @@ export function ChatInput({
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isSending) {
               e.preventDefault()
-              onSend()
+              onSend(asTOC)
             }
           }}
           disabled={isSending}
           rows={3}
         />
-        <div className="flex justify-end">
-          <Button type="button" size="sm" onClick={onSend} disabled={isSending}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="asTOC-default"
+              checked={asTOC}
+              onCheckedChange={(checked) => setAsTOC(checked === true)}
+              disabled={isSending}
+            />
+            <label
+              htmlFor="asTOC-default"
+              className="text-xs text-muted-foreground cursor-pointer select-none"
+            >
+              {t('chat.input.showAsTopics')}
+            </label>
+          </div>
+          <Button type="button" size="sm" onClick={() => onSend(asTOC)} disabled={isSending}>
             {isSending ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

@@ -39,7 +39,7 @@ export interface LibraryChatContext {
  * @param libraryId Die Library-ID
  * @returns Die Owner-Email oder null wenn nicht gefunden
  */
-async function findLibraryOwnerEmail(libraryId: string): Promise<string | null> {
+export async function findLibraryOwnerEmail(libraryId: string): Promise<string | null> {
   const { getCollection } = await import('@/lib/mongodb-service')
   
   try {

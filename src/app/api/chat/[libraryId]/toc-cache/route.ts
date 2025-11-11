@@ -100,15 +100,36 @@ export async function GET(
       })
     }
 
-    if (cachedQuery && cachedQuery.answer) {
+    // Prüfe, ob die Query eine Antwort oder storyTopicsData hat
+    // (storyTopicsData ist wichtiger für TOC-Queries, auch wenn answer noch null ist)
+    if (cachedQuery && (cachedQuery.answer || cachedQuery.storyTopicsData)) {
+      console.log('[toc-cache] ✅ Query gefunden:', {
+        queryId: cachedQuery.queryId,
+        retriever: cachedQuery.retriever,
+        status: cachedQuery.status,
+        hasAnswer: !!cachedQuery.answer,
+        hasStoryTopicsData: !!cachedQuery.storyTopicsData,
+        answerLength: cachedQuery.answer?.length || 0,
+      })
       return NextResponse.json({
         found: true,
         queryId: cachedQuery.queryId,
-        answer: cachedQuery.answer,
+        answer: cachedQuery.answer || null,
         references: cachedQuery.references,
         suggestedQuestions: cachedQuery.suggestedQuestions,
         storyTopicsData: cachedQuery.storyTopicsData, // Strukturierte Themenübersicht, falls vorhanden
         createdAt: cachedQuery.createdAt.toISOString(),
+      })
+    }
+    
+    // Debug: Logge, wenn Query gefunden wurde, aber keine Daten hat
+    if (cachedQuery) {
+      console.log('[toc-cache] ⚠️ Query gefunden, aber keine Daten:', {
+        queryId: cachedQuery.queryId,
+        retriever: cachedQuery.retriever,
+        status: cachedQuery.status,
+        hasAnswer: !!cachedQuery.answer,
+        hasStoryTopicsData: !!cachedQuery.storyTopicsData,
       })
     }
 

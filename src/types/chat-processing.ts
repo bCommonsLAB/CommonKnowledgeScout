@@ -7,7 +7,7 @@ export type ChatProcessingStep =
   | { type: 'retriever_selected'; retriever: 'chunk' | 'summary'; reason?: string }
   | { type: 'retrieval_start'; retriever: 'chunk' | 'summary' }
   | { type: 'retrieval_progress'; sourcesFound: number; message?: string }
-  | { type: 'retrieval_complete'; sourcesCount: number; timingMs: number }
+  | { type: 'retrieval_complete'; sourcesCount: number; uniqueFileIdsCount?: number; timingMs: number }
   | { type: 'prompt_building'; message?: string }
   | { type: 'prompt_complete'; promptLength: number; documentsUsed: number; tokenCount: number }
   | { type: 'llm_start'; model: string }

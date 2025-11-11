@@ -276,7 +276,7 @@ export async function findQueryByQuestionAndContext(args: {
   const filter: Record<string, unknown> = {
     libraryId: args.libraryId,
     question: args.question.trim(),
-    status: 'ok', // Nur erfolgreiche Queries
+    status: { $in: ['ok', 'pending'] }, // Auch pending Queries, falls sie bereits eine Antwort haben
   }
   
   if (args.userEmail) {
@@ -319,8 +319,9 @@ export async function findQueryByQuestionAndContext(args: {
   if (args.facetsSelected !== undefined) {
     for (const candidate of candidates) {
       if (compareFacetsSelected(candidate.facetsSelected, args.facetsSelected)) {
-        // Prüfe, ob die Query eine Antwort hat
-        if (candidate.answer && candidate.answer.trim().length > 0) {
+        // Prüfe, ob die Query eine Antwort oder storyTopicsData hat
+        // (storyTopicsData ist wichtiger für TOC-Queries, auch wenn answer noch null ist)
+        if ((candidate.answer && candidate.answer.trim().length > 0) || candidate.storyTopicsData) {
           return candidate
         }
       }
@@ -333,7 +334,7 @@ export async function findQueryByQuestionAndContext(args: {
   for (const candidate of candidates) {
     // Wenn keine Filter angegeben sind, prüfe ob facetsSelected leer oder undefined ist
     if (!candidate.facetsSelected || Object.keys(candidate.facetsSelected).length === 0) {
-      if (candidate.answer && candidate.answer.trim().length > 0) {
+      if ((candidate.answer && candidate.answer.trim().length > 0) || candidate.storyTopicsData) {
         return candidate
       }
     }
@@ -341,7 +342,7 @@ export async function findQueryByQuestionAndContext(args: {
   
   // Fallback: Gib die erste passende Query zurück (auch wenn sie Filter hat)
   const firstCandidate = candidates[0]
-  if (firstCandidate && firstCandidate.answer && firstCandidate.answer.trim().length > 0) {
+  if (firstCandidate && ((firstCandidate.answer && firstCandidate.answer.trim().length > 0) || firstCandidate.storyTopicsData)) {
     return firstCandidate
   }
   

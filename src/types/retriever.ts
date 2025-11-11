@@ -34,6 +34,7 @@ export interface RetrieverOutput {
   sources: RetrievedSource[]
   timing: { retrievalMs: number }
   stats?: { candidatesCount?: number; usedInPrompt?: number; decision?: 'chapters' | 'docs' }
+  warning?: string // Warnung bei zu wenig relevanten Dokumenten
 }
 
 export interface ChatRetriever {

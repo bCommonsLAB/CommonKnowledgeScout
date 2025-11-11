@@ -11,6 +11,7 @@ import type { ChatMessage } from '../utils/chat-utils'
 import type { ChatResponse } from '@/types/chat-response'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { AnswerLength, Retriever, TargetLanguage, Character, SocialContext } from '@/lib/chat/constants'
+import { TOC_QUESTION } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { parseSSELines } from '@/utils/sse'
 import { formatChatError } from '@/utils/error-format'
@@ -53,7 +54,8 @@ interface UseChatStreamResult {
   sendQuestion: (
     questionText: string,
     retrieverOverride?: Retriever,
-    isTOCQuery?: boolean
+    isTOCQuery?: boolean,
+    asTOC?: boolean
   ) => Promise<void>
   setProcessingSteps: React.Dispatch<React.SetStateAction<ChatProcessingStep[]>>
 }
@@ -93,7 +95,8 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
     async (
       questionText: string,
       retrieverOverride?: Retriever,
-      isTOCQuery = false
+      isTOCQuery = false,
+      asTOC = false
     ): Promise<void> => {
       if (!cfg) return
       if (isSending) return // Verhindere doppelte Anfragen
@@ -107,9 +110,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
       setProcessingSteps([])
 
       // Für TOC-Queries: Nicht als normale Message hinzufügen
-      const tocQuestion =
-        'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
-      const isTOC = isTOCQuery || questionText.trim() === tocQuestion.trim()
+      const isTOC = isTOCQuery || questionText.trim() === TOC_QUESTION.trim()
 
       // Prüfe, ob diese Frage bereits vorhanden ist (nur für normale Fragen)
       if (!isTOC) {
@@ -191,6 +192,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
           method: 'POST',
           headers,
           body: JSON.stringify({
+            asTOC: asTOC || undefined, // Sende asTOC Flag, wenn gesetzt
             message: questionText,
             answerLength,
             chatHistory: limitedChatHistory.length > 0 ? limitedChatHistory : undefined,

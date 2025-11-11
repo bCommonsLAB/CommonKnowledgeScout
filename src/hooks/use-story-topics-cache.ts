@@ -10,6 +10,7 @@ import type { StoryTopicsData } from '@/types/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { useSessionHeaders } from './use-session-headers'
+import { TOC_QUESTION } from '@/lib/chat/constants'
 
 interface TOCCacheResult {
   found: boolean
@@ -46,15 +47,14 @@ export function useStoryTopicsCache() {
       const { libraryId, targetLanguage, character, socialContext, genderInclusive, galleryFilters } =
         params
 
-      const tocQuestion =
-        'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
       const urlParams = new URLSearchParams()
-      urlParams.set('question', tocQuestion)
+      urlParams.set('question', TOC_QUESTION)
       urlParams.set('targetLanguage', targetLanguage)
       urlParams.set('character', character)
       urlParams.set('socialContext', socialContext)
       urlParams.set('genderInclusive', String(genderInclusive))
-      urlParams.set('retriever', 'summary')
+      // WICHTIG: Kein retriever-Parameter mehr, da TOC-Queries mit verschiedenen Retrievern
+      // (summary, chunkSummary) gespeichert werden können. Der Cache-Check sollte alle finden.
 
       // Füge Filter-Parameter hinzu
       if (galleryFilters) {

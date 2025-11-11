@@ -25,10 +25,11 @@
 
 import type { ChatRetriever, RetrieverInput, RetrieverOutput, RetrievedSource } from '@/types/retriever'
 import { embedTexts } from '@/lib/chat/embeddings'
-import { describeIndex, queryVectors, fetchVectors } from '@/lib/chat/pinecone'
+import { queryPineconeByFileIds, fetchVectors, describeIndex } from '@/lib/chat/pinecone'
 import { getBaseBudget } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend } from '@/lib/logging/query-logger'
 import { extractFacetMetadata } from './metadata-extractor'
+import { computeDocMetaCollectionName, findDocs } from '@/lib/repositories/doc-meta-repo'
 
 export const chunksRetriever: ChatRetriever = {
   async retrieve(input: RetrieverInput): Promise<RetrieverOutput> {
@@ -42,36 +43,63 @@ export const chunksRetriever: ChatRetriever = {
 
     const apiKey = process.env.PINECONE_API_KEY
     if (!apiKey) throw new Error('PINECONE_API_KEY fehlt')
-    const idx = await describeIndex(input.context.vectorIndex, apiKey)
-    if (!idx?.host) {
-      throw new Error(
-        `Index nicht gefunden: "${input.context.vectorIndex}". ` +
-        `Bitte prüfe, ob der Index in Pinecone existiert oder ob der Index-Name in der Library-Konfiguration korrekt ist. ` +
-        `Tipp: Verwende config.vectorStore.indexOverride in der Library-Konfiguration, um einen spezifischen Index-Namen festzulegen.`
-      )
-    }
 
     const budget = getBaseBudget(input.answerLength)
     const baseTopK = 20
 
+    // Schritt 1: MongoDB-Filter anwenden → FileIDs extrahieren
+    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
+    const libraryKey = computeDocMetaCollectionName(input.userEmail || '', input.libraryId, strategy)
+    
+    const docs = await findDocs(libraryKey, input.libraryId, input.filters || {}, {
+      limit: 1000, // Maximal 1000 Dokumente für FileID-Extraktion
+      sort: { upsertedAt: -1 },
+    })
+    
+    const fileIds = docs.map(d => d.fileId).filter((id): id is string => typeof id === 'string' && id.length > 0)
+    
+    if (fileIds.length === 0) {
+      // Keine Dokumente gefunden → Keine Ergebnisse
+      return { sources: [], timing: { retrievalMs: Date.now() - t0 }, stats: { candidatesCount: 0, usedInPrompt: 0 } }
+    }
+
+    // Schritt 2: Embedding-Vektor generieren
     let stepEmbed = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'embed', level: 'question' })
     // Verwende Library-spezifischen API-Key für Embeddings, falls vorhanden
     const [qVec] = await embedTexts([input.question], undefined, input.apiKey)
     stepEmbed = markStepEnd(stepEmbed)
     await logAppend(input.queryId, { indexName: input.context.vectorIndex, namespace: '', stage: 'embed', level: 'question', timingMs: stepEmbed.timingMs, startedAt: stepEmbed.startedAt, endedAt: stepEmbed.endedAt })
 
+    // Schritt 3: Pinecone-Abfragen mit zentraler Funktion (parallel für Chunks und Chapter-Summaries)
     const chunkTask = (async () => {
-      let s = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'query', level: 'chunk', filtersEffective: { pinecone: { ...input.filters } }, queryVectorInfo: { source: 'question' } })
-      const res = await queryVectors(idx.host, apiKey, qVec, baseTopK, input.filters)
+      let s = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'query', level: 'chunk', filtersEffective: { normalized: input.filters || {}, pinecone: { fileId: { $in: fileIds } } }, queryVectorInfo: { source: 'question' } })
+      const res = await queryPineconeByFileIds(
+        input.context.vectorIndex,
+        apiKey,
+        fileIds,
+        qVec, // Embedding-Vektor für semantische Suche
+        baseTopK,
+        input.libraryId,
+        input.userEmail || '',
+        'chunk'
+      )
       s = markStepEnd({ ...s, topKRequested: baseTopK, topKReturned: res.length })
       return { matches: res, step: s }
     })()
 
     const summaryTask = (async () => {
       try {
-        const flt = { ...(input.filters || {}), kind: { $eq: 'chapterSummary' } }
-        let s = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'query', level: 'summary', filtersEffective: { pinecone: { ...flt } }, queryVectorInfo: { source: 'question' } })
-        const res = await queryVectors(idx.host, apiKey, qVec, 10, flt)
+        let s = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'query', level: 'summary', filtersEffective: { normalized: input.filters || {}, pinecone: { fileId: { $in: fileIds }, kind: { $eq: 'chapterSummary' } } }, queryVectorInfo: { source: 'question' } })
+        const res = await queryPineconeByFileIds(
+          input.context.vectorIndex,
+          apiKey,
+          fileIds,
+          qVec, // Embedding-Vektor für semantische Suche
+          10,
+          input.libraryId,
+          input.userEmail || '',
+          'chapterSummary'
+        )
         s = markStepEnd({ ...s, topKRequested: 10, topKReturned: res.length })
         return { chapterMatches: res, step: s }
       } catch {
@@ -87,7 +115,7 @@ export const chunksRetriever: ChatRetriever = {
       level: 'chunk',
       topKRequested: baseTopK,
       topKReturned: matches.length,
-      filtersEffective: { pinecone: { ...(input.filters || {}) } },
+      filtersEffective: { normalized: input.filters || {}, pinecone: { fileId: { $in: fileIds } } },
       queryVectorInfo: { source: 'question' },
       timingMs: stepQ.timingMs,
       startedAt: stepQ.startedAt,
@@ -102,7 +130,7 @@ export const chunksRetriever: ChatRetriever = {
         level: 'summary',
         topKRequested: 10,
         topKReturned: chapterMatches.length,
-        filtersEffective: { pinecone: { ...(input.filters || {}), kind: { $eq: 'chapterSummary' } } },
+        filtersEffective: { normalized: input.filters || {}, pinecone: { fileId: { $in: fileIds }, kind: { $eq: 'chapterSummary' } } },
         queryVectorInfo: { source: 'question' },
         timingMs: stepC?.timingMs,
         startedAt: stepC?.startedAt,
@@ -138,6 +166,11 @@ export const chunksRetriever: ChatRetriever = {
     }
     const ids = Array.from(idSet)
     let stepF = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'fetchNeighbors', level: 'chunk' })
+    // Index-Host für fetchVectors beschreiben
+    const idx = await describeIndex(input.context.vectorIndex, apiKey)
+    if (!idx?.host) {
+      throw new Error(`Index nicht gefunden für fetchVectors: "${input.context.vectorIndex}"`)
+    }
     const fetched = await fetchVectors(idx.host, apiKey, ids)
     stepF = markStepEnd({ ...stepF, topKRequested: ids.length, topKReturned: Object.keys(fetched).length })
     await logAppend(input.queryId, { indexName: input.context.vectorIndex, namespace: '', stage: 'fetchNeighbors', level: 'chunk', topKRequested: ids.length, topKReturned: Object.keys(fetched).length, timingMs: stepF.timingMs, startedAt: stepF.startedAt, endedAt: stepF.endedAt })
@@ -267,7 +300,14 @@ export const chunksRetriever: ChatRetriever = {
       used += t.length
     }
 
-    return { sources, timing: { retrievalMs: Date.now() - t0 } }
+    // Prüfe auf Warnung: Wenn alle Scores < 0.7, generiere Warnung
+    const RAG_MIN_SCORE_THRESHOLD = 0.7
+    const hasRelevantDocs = sources.some(s => typeof s.score === 'number' && s.score >= RAG_MIN_SCORE_THRESHOLD)
+    const warning = !hasRelevantDocs && sources.length > 0
+      ? 'Die zugrundeliegenden Dokumente enthalten zu wenig passenden Inhalt. Bitte formulieren Sie die Frage um oder erweitern Sie die Anzahl der zugrundeliegenden Dokumente (Facettenfilter anpassen).'
+      : undefined
+
+    return { sources, timing: { retrievalMs: Date.now() - t0 }, warning }
   }
 }
 

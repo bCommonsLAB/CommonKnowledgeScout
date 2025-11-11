@@ -15,6 +15,7 @@ import {
   type SocialContext,
   ANSWER_LENGTH_DEFAULT,
   RETRIEVER_DEFAULT,
+  TOC_QUESTION,
 } from '@/lib/chat/constants'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { storyPerspectiveOpenAtom } from '@/atoms/story-context-atom'
@@ -210,8 +211,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         throw new Error(errorMessage)
       }
       
-      const tocQuestion = 'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
-      const wasTOCQuery = messages.some(msg => msg.queryId === queryId && msg.type === 'question' && msg.content.trim() === tocQuestion.trim())
+      const wasTOCQuery = messages.some(msg => msg.queryId === queryId && msg.type === 'question' && msg.content.trim() === TOC_QUESTION.trim())
       
       setMessages(prev => prev.filter(msg => msg.queryId !== queryId))
       

@@ -68,9 +68,28 @@ export function ProcessingStatus({ steps }: ProcessingStatusProps) {
   const retrievalComplete = steps.find(s => s.type === 'retrieval_complete')
   if (retrievalStart || retrievalProgress || retrievalComplete) {
     const details = retrievalComplete 
-      ? (retrievalComplete.sourcesCount === 1
-          ? t('processing.chunkFound', { count: retrievalComplete.sourcesCount, timingMs: retrievalComplete.timingMs })
-          : t('processing.chunksFound', { count: retrievalComplete.sourcesCount, timingMs: retrievalComplete.timingMs }))
+      ? (() => {
+          const count = retrievalComplete.sourcesCount
+          const fileCount = retrievalComplete.uniqueFileIdsCount
+          const timingMs = retrievalComplete.timingMs
+          
+          // Wenn fileCount verfügbar ist, zeige erweiterte Information
+          if (fileCount !== undefined && fileCount > 0) {
+            // Verwende manuelle Pluralisierung für bessere Kompatibilität
+            const documentLabel = fileCount === 1 
+              ? t('processing.documentSingular')
+              : t('processing.documentPlural')
+            
+            return count === 1
+              ? t('processing.chunkFoundWithFiles', { count, fileCount, documentLabel, timingMs })
+              : t('processing.chunksFoundWithFiles', { count, fileCount, documentLabel, timingMs })
+          }
+          
+          // Fallback: Standard-Format ohne fileCount
+          return count === 1
+            ? t('processing.chunkFound', { count, timingMs })
+            : t('processing.chunksFound', { count, timingMs })
+        })()
       : retrievalProgress?.message || t('processing.searchingRelevant')
     
     displaySteps.push({

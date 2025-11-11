@@ -65,21 +65,23 @@ export const ANSWER_LENGTH_ZOD_ENUM = z.enum(['kurz', 'mittel', 'ausführlich', 
 // RETRIEVER-METHODE (Retriever)
 // ============================================================================
 
-export type Retriever = 'chunk' | 'doc' | 'summary' | 'auto'
+export type Retriever = 'chunk' | 'chunkSummary' | 'doc' | 'summary' | 'auto'
 
-export const RETRIEVER_VALUES: readonly Retriever[] = ['auto', 'chunk', 'doc', 'summary'] as const
+export const RETRIEVER_VALUES: readonly Retriever[] = ['auto', 'chunk', 'chunkSummary', 'doc', 'summary'] as const
 
 export const RETRIEVER_DEFAULT: Retriever = 'auto'
 
 export const RETRIEVER_LABELS: Record<Retriever, string> = {
   auto: 'Auto',
   chunk: 'Spezifisch',
+  chunkSummary: 'Alle Chunks', // Interne Option, wird im UI als 'chunk' angezeigt
   doc: 'Übersichtlich',
   summary: 'Übersichtlich',
 }
 
 /**
- * Retriever-Werte für Zod-Validierung (ohne 'auto')
+ * Retriever-Werte für Zod-Validierung (ohne 'auto' und 'chunkSummary')
+ * chunkSummary ist eine interne Option und wird nicht über API gesetzt
  */
 export const RETRIEVER_VALUES_FOR_API: readonly ('chunk' | 'doc' | 'summary')[] = ['chunk', 'doc', 'summary'] as const
 
@@ -354,4 +356,14 @@ export function isValidAnswerLength(value: unknown): value is AnswerLength {
 export function isValidRetriever(value: unknown): value is Retriever {
   return typeof value === 'string' && RETRIEVER_VALUES.includes(value as Retriever)
 }
+
+// ============================================================================
+// TOC QUESTION (Table of Contents)
+// ============================================================================
+
+/**
+ * Standard question used to generate Table of Contents (TOC) / Topic Overview
+ * This question is sent to the LLM to generate a structured topic overview
+ */
+export const TOC_QUESTION = 'What topics are covered here? Can we output them as a table of contents.'
 

@@ -200,7 +200,8 @@
       "ask": "Fragen",
       "send": "Senden",
       "closeChat": "Chat schließen",
-      "askQuestion": "Frage stellen"
+      "askQuestion": "Frage stellen",
+      "showAsTopics": "Als Themenübersicht anzeigen"
     },
     "answerLengthLabels": {
       "kurz": "Kurz",
@@ -279,6 +280,10 @@
     "retrieveChunks": "Text-Chunks abrufen",
     "chunksFound": "{count} Text-Chunks gefunden ({timingMs}ms)",
     "chunkFound": "{count} Text-Chunk gefunden ({timingMs}ms)",
+    "chunksFoundWithFiles": "{count} Text-Chunks aus {fileCount} {documentLabel} gefunden ({timingMs}ms)",
+    "chunkFoundWithFiles": "{count} Text-Chunk aus {fileCount} {documentLabel} gefunden ({timingMs}ms)",
+    "documentSingular": "Dokument",
+    "documentPlural": "Dokumenten",
     "searchingRelevant": "Suche nach relevanten Inhalten...",
     "buildPrompt": "Prompt zusammenstellen",
     "chunksUsed": "{count} Text-Chunks verwendet, {tokenCount} Token",

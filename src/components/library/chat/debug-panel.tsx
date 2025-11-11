@@ -14,12 +14,14 @@ export function DebugPanel({ log }: { log: QueryLog }) {
   const kpis = useMemo(() => computeKpis(log), [log])
   const filterDiff = useMemo(() => hasFilterDiff(log), [log])
   function simplifyLabel(stage: string, level: string): string {
-    if (stage === 'embed' && level === 'question') return 'Schritt 1: Frage einbetten'
-    if (stage === 'query' && level === 'chunk') return 'Schritt 2a: Chunks suchen'
-    if (stage === 'query' && level === 'summary') return 'Schritt 2b: Summaries laden'
-    if (stage === 'list' && level === 'summary') return 'Summaries auflisten'
-    if (stage === 'fetchNeighbors' && level === 'chunk') return 'Schritt 3: Nachbarn laden'
-    if (stage === 'llm' && level === 'answer') return 'Schritt 4: Antwort erzeugen'
+    if (stage === 'embed' && level === 'question') return 'Step 1: Embed question'
+    if (stage === 'query' && level === 'chunk') return 'Step 2a: Search chunks'
+    if (stage === 'query' && level === 'summary') return 'Step 2b: Load summaries'
+    if (stage === 'list' && level === 'summary') return 'List summaries'
+    if (stage === 'list' && level === 'chunkSummary') return 'List documents (for all chunks)'
+    if (stage === 'query' && level === 'chunkSummary') return 'Load all chunks (without embedding search)'
+    if (stage === 'fetchNeighbors' && level === 'chunk') return 'Step 3: Load neighbors'
+    if (stage === 'llm' && level === 'answer') return 'Step 4: Generate answer'
     return `${stage} [${level}]`
   }
   // Hilfsfunktion für Retriever-Label
@@ -50,12 +52,14 @@ export function DebugPanel({ log }: { log: QueryLog }) {
   const steps = (log.retrieval || []).map((s, i) => ({ key: `step-${i}`, label: simplifyLabel(s.stage, s.level), step: s }))
 
   function explainStepLabelFromStep(step: QueryRetrievalStep): string {
-    if (step.stage === 'embed' && step.level === 'question') return 'Wir übersetzen Ihre Frage in eine Zahlenform (Vektor). Damit kann das System später „Ähnlichkeit“ zu Textstellen messen.'
-    if (step.stage === 'query' && step.level === 'chunk') return 'Suche nach den passendsten Textausschnitten (Chunks). Ergebnis ist eine sortierte Trefferliste mit Relevanzwerten.'
-    if (step.stage === 'query' && step.level === 'summary') return 'Kapitel‑Zusammenfassungen werden geladen und als kompakter Kontext verwendet (kein Ranking nötig).'
-    if (step.stage === 'list' && step.level === 'summary') return 'Listet alle Kapitel‑Summaries gemäß Filter (rein tabellarisch, ohne Ranking).'
-    if (step.stage === 'fetchNeighbors' && step.level === 'chunk') return 'Zu den besten Chunks werden die direkten Nachbarstellen geholt. So entsteht mehr Zusammenhang und weniger aus dem Kontext gerissene Sätze.'
-    if (step.stage === 'llm' && step.level === 'answer') return 'Aus den ausgewählten Stellen wird eine verständliche Antwort formuliert. Die verwendeten Quellen werden unten aufgeführt.'
+    if (step.stage === 'embed' && step.level === 'question') return 'Your question is translated into a numerical form (vector). This allows the system to measure "similarity" to text passages later.'
+    if (step.stage === 'query' && step.level === 'chunk') return 'Search for the most relevant text passages (chunks). Result is a sorted hit list with relevance scores.'
+    if (step.stage === 'query' && step.level === 'summary') return 'Chapter summaries are loaded and used as compact context (no ranking needed).'
+    if (step.stage === 'list' && step.level === 'summary') return 'Lists all chapter summaries according to filters (purely tabular, without ranking).'
+    if (step.stage === 'list' && step.level === 'chunkSummary') return 'Lists all documents and loads all their chunks without embedding search.'
+    if (step.stage === 'query' && step.level === 'chunkSummary') return 'Loads all chunks of filtered documents without semantic search (metadata filter only).'
+    if (step.stage === 'fetchNeighbors' && step.level === 'chunk') return 'For the best chunks, the direct neighboring passages are fetched. This creates more context and fewer sentences taken out of context.'
+    if (step.stage === 'llm' && step.level === 'answer') return 'A comprehensible answer is formulated from the selected passages. The sources used are listed below.'
     return ''
   }
 

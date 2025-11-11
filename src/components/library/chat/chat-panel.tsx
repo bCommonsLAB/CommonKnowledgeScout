@@ -16,6 +16,7 @@ import {
   type SocialContext,
   ANSWER_LENGTH_DEFAULT,
   RETRIEVER_DEFAULT,
+  TOC_QUESTION,
 } from '@/lib/chat/constants'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { storyPerspectiveOpenAtom } from '@/atoms/story-context-atom'
@@ -173,37 +174,45 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         const completeStep = lastStep as import('@/types/chat-processing').ChatProcessingStep & {
           storyTopicsData?: import('@/types/story-topics').StoryTopicsData
         }
-        if (completeStep.storyTopicsData) {
-          // Prüfe, ob dies eine TOC-Query war
-          const tocQuestion = 'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
-          const isTOCQuery = messages.some(
-            (msg) => msg.type === 'question' && msg.content.trim() === tocQuestion.trim()
-          )
-          if (isTOCQuery || completeStep.storyTopicsData) {
-            setTOCData({
-              storyTopicsData: completeStep.storyTopicsData,
-              answer: lastStep.answer,
-              references: Array.isArray(lastStep.references)
-                ? lastStep.references.filter(
-                    (r): r is ChatResponse['references'][number] =>
-                      typeof r === 'object' &&
-                      r !== null &&
-                      'number' in r &&
-                      'fileId' in r &&
-                      'description' in r
-                  )
-                : [],
-              suggestedQuestions: Array.isArray(lastStep.suggestedQuestions)
-                ? lastStep.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
-                : [],
-              queryId: typeof lastStep.queryId === 'string' ? lastStep.queryId : `temp-${Date.now()}`,
-            })
-          }
+        // Prüfe, ob dies eine TOC-Query war
+        // WICHTIG: Prüfe sowohl messages als auch processingSteps, da die Message möglicherweise
+        // noch nicht in messages ist, wenn der complete-Step kommt
+        const isTOCQueryInMessages = messages.some(
+          (msg) => msg.type === 'question' && msg.content.trim() === TOC_QUESTION.trim()
+        )
+        // Prüfe auch processingSteps für TOC-Query-Indikator
+        const isTOCQueryInSteps = processingSteps.some(
+          (step) => step.type === 'retriever_selected' && 
+            (step as { retriever?: string; reason?: string }).reason?.includes('TOC query')
+        )
+        const isTOCQuery = isTOCQueryInMessages || isTOCQueryInSteps || !!completeStep.storyTopicsData
+        
+        // Für TOC-Queries: Rufe IMMER setTOCData auf, auch wenn storyTopicsData null ist
+        // (um isGeneratingTOCRef zurückzusetzen und Endlosschleifen zu verhindern)
+        if (isTOCQuery) {
+          setTOCData({
+            storyTopicsData: completeStep.storyTopicsData,
+            answer: lastStep.answer || '',
+            references: Array.isArray(lastStep.references)
+              ? lastStep.references.filter(
+                  (r): r is ChatResponse['references'][number] =>
+                    typeof r === 'object' &&
+                    r !== null &&
+                    'number' in r &&
+                    'fileId' in r &&
+                    'description' in r
+                )
+              : [],
+            suggestedQuestions: Array.isArray(lastStep.suggestedQuestions)
+              ? lastStep.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
+              : [],
+            queryId: typeof lastStep.queryId === 'string' ? lastStep.queryId : `temp-${Date.now()}`,
+          })
         }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processingSteps.length])
+  }, [processingSteps.length, processingSteps])
   
   
   // Refs
@@ -230,6 +239,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   useEffect(() => {
     if (!cfg) return
     if (isEmbedded && perspectiveOpen) return // Im embedded-Modus: Nur wenn Popover geschlossen
+    if (isSending) return // Wenn bereits eine Query läuft, überspringe Check
     
     // Erstelle Parameter-String für Vergleich
     const paramsKey = JSON.stringify({
@@ -251,7 +261,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     // Prüfe Cache - wenn kein Cache gefunden wird, wird automatisch generiert (über useChatTOC)
     checkTOCCache()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg, targetLanguage, character, socialContext, genderInclusive, libraryId, galleryFilters, perspectiveOpen, checkTOCCache])
+  }, [cfg, targetLanguage, character, socialContext, genderInclusive, libraryId, galleryFilters, perspectiveOpen, checkTOCCache, isSending])
   
   // Zusätzlicher useEffect: Wenn sendQuestion verfügbar wird und noch kein TOC vorhanden ist, prüfe/generiere
   // WICHTIG: Nur wenn sendQuestion sich von undefined zu definiert ändert
@@ -314,8 +324,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         throw new Error(errorMessage)
       }
       
-      const tocQuestion = 'Welche Themen werden hier behandelt, können wir die übersichtlich als Inhaltsverzeichnis ausgeben.'
-      const wasTOCQuery = messages.some(msg => msg.queryId === queryId && msg.type === 'question' && msg.content.trim() === tocQuestion.trim())
+      const wasTOCQuery = messages.some(msg => msg.queryId === queryId && msg.type === 'question' && msg.content.trim() === TOC_QUESTION.trim())
       
       setMessages(prev => prev.filter(msg => msg.queryId !== queryId))
       
@@ -404,10 +413,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     }
   }
   
-  async function onSend() {
+  async function onSend(asTOC?: boolean) {
     if (!cfg) return
     if (!input.trim()) return
-    await sendQuestion(input.trim())
+    await sendQuestion(input.trim(), undefined, false, asTOC)
     setInput('')
   }
   

@@ -181,4 +181,96 @@ export async function deleteByFilter(indexHost: string, apiKey: string, filter: 
   }
 }
 
+/**
+ * Zentrale Pinecone-Abfrage-Funktion für FileID-basierte Abfragen
+ * 
+ * @description
+ * Konsolidierte Funktion für Pinecone-Abfragen basierend auf FileIDs (nach MongoDB-Filterung).
+ * Unterstützt sowohl semantische Suche mit Embedding-Vektor als auch Null-Vektor-Suche.
+ * Handhabt Owner-Email für öffentliche Libraries automatisch.
+ * 
+ * @param indexName - Name des Pinecone-Index
+ * @param apiKey - Pinecone API-Key
+ * @param fileIds - Array von FileIDs (nach MongoDB-Filterung)
+ * @param queryVector - Optional: Embedding-Vektor für semantische Suche. Wenn nicht angegeben, wird Null-Vektor verwendet
+ * @param topK - Anzahl der zurückzugebenden Ergebnisse
+ * @param libraryId - Library-ID für Filter
+ * @param userEmail - User-Email für Filter (wird automatisch zu Owner-Email für öffentliche Libraries)
+ * @param kind - Art der Chunks: 'chunk' oder 'chapterSummary'
+ * @param timeoutMs - Timeout in Millisekunden (Standard: 30000)
+ * @returns Array von QueryMatch-Ergebnissen
+ */
+export async function queryPineconeByFileIds(
+  indexName: string,
+  apiKey: string,
+  fileIds: string[],
+  queryVector: number[] | undefined,
+  topK: number,
+  libraryId: string,
+  userEmail: string,
+  kind: 'chunk' | 'chapterSummary',
+  timeoutMs: number = 30000
+): Promise<QueryMatch[]> {
+  // Leere FileIDs-Liste: Keine Ergebnisse
+  if (fileIds.length === 0) {
+    return []
+  }
+
+  // Index beschreiben
+  const idx = await describeIndex(indexName, apiKey)
+  if (!idx?.host) {
+    throw new Error(
+      `Index nicht gefunden: "${indexName}". ` +
+      `Bitte prüfe, ob der Index in Pinecone existiert oder ob der Index-Name in der Library-Konfiguration korrekt ist. ` +
+      `Tipp: Verwende config.vectorStore.indexOverride in der Library-Konfiguration, um einen spezifischen Index-Namen festzulegen.`
+    )
+  }
+
+  // Owner-Email für öffentliche Libraries ermitteln (wenn userEmail leer)
+  let effectiveUserEmail = userEmail
+  if (!effectiveUserEmail) {
+    const { findLibraryOwnerEmail } = await import('@/lib/chat/loader')
+    const ownerEmail = await findLibraryOwnerEmail(libraryId)
+    if (ownerEmail) {
+      effectiveUserEmail = ownerEmail
+      console.log('[queryPineconeByFileIds] Owner-Email ermittelt für öffentliche Library:', effectiveUserEmail.split('@')[0] + '@...')
+    }
+  }
+
+  if (!effectiveUserEmail) {
+    throw new Error('Benutzer-Email erforderlich für Pinecone-Abfrage')
+  }
+
+  // Pinecone-Filter mit $and-Struktur aufbauen
+  // HINWEIS: MongoDB-spezifische Filter (track, year, speakers, etc.) werden NICHT übernommen,
+  // da die fileIds bereits durch MongoDB-Filter gefiltert wurden. Diese Filter würden in Pinecone
+  // keine Ergebnisse liefern, da sie nicht in allen Chunk-Metadaten vorhanden sind.
+  const pineconeFilter: Record<string, unknown> = {
+    $and: [
+      { libraryId: { $eq: libraryId } },
+      { user: { $eq: effectiveUserEmail } },
+      { fileId: { $in: fileIds } },
+      { kind: { $eq: kind } },
+    ],
+  }
+
+  // Query-Vektor: Wenn nicht angegeben, Null-Vektor verwenden
+  const dim = typeof idx.dimension === 'number' ? idx.dimension : Number(process.env.OPENAI_EMBEDDINGS_DIMENSION || 3072)
+  const vector = queryVector || new Array<number>(dim).fill(0)
+
+  // Pinecone-Abfrage mit Timeout
+  try {
+    const matches = await Promise.race([
+      queryVectors(idx.host, apiKey, vector, topK, pineconeFilter),
+      new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Pinecone query timeout after ' + timeoutMs + 'ms')), timeoutMs)
+      )
+    ])
+    return matches
+  } catch (error) {
+    console.error('[queryPineconeByFileIds] Fehler bei Pinecone-Query:', error)
+    throw error
+  }
+}
+
 

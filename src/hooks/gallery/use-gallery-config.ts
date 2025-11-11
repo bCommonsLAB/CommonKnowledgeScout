@@ -49,10 +49,16 @@ export function useGalleryConfig(
 
   // Aktualisiere detailViewType wenn initialDetailViewType sich ändert
   useEffect(() => {
+    console.log('[useGalleryConfig] initialDetailViewType changed:', {
+      initialDetailViewType,
+      currentDetailViewType: detailViewType,
+      libraryId,
+    })
     if (initialDetailViewType && initialDetailViewType !== detailViewType) {
+      console.log('[useGalleryConfig] Updating detailViewType from', detailViewType, 'to', initialDetailViewType)
       setDetailViewType(initialDetailViewType)
     }
-  }, [initialDetailViewType, detailViewType])
+  }, [initialDetailViewType, detailViewType, libraryId])
 
   // Verwende Übersetzungen basierend auf detailViewType
   const texts = useMemo<GalleryTexts>(() => {

@@ -36,12 +36,13 @@ import { markStepStart, markStepEnd, appendRetrievalStep as logAppend, setPrompt
 import type { RetrieverInput, RetrieverOutput } from '@/types/retriever'
 import { summariesMongoRetriever } from '@/lib/chat/retrievers/summaries-mongo'
 import { chunksRetriever } from '@/lib/chat/retrievers/chunks'
+import { chunkSummaryRetriever } from '@/lib/chat/retrievers/chunk-summary'
 import type { ChatResponse } from '@/types/chat-response'
 import type { NormalizedChatConfig } from '@/lib/chat/config'
 import type { StoryTopicsData } from '@/types/story-topics'
 
 export interface OrchestratorInput extends RetrieverInput {
-  retriever: 'chunk' | 'summary'
+  retriever: 'chunk' | 'chunkSummary' | 'summary'
   chatConfig?: NormalizedChatConfig
   chatHistory?: Array<{ question: string; answer: string }>
   facetsSelected?: Record<string, unknown>  // Facetten-Filter für Prompt
@@ -68,17 +69,28 @@ export interface OrchestratorOutput {
 
 export async function runChatOrchestrated(run: OrchestratorInput): Promise<OrchestratorOutput> {
   const tR0 = Date.now()
-  // Retriever wählen – vorerst nur summaries-mongo verfügbar; chunk folgt im nächsten Schritt
-  const retrieverImpl = run.retriever === 'summary' ? summariesMongoRetriever : chunksRetriever
+  // Retriever wählen: summary, chunkSummary oder chunk (RAG)
+  const retrieverImpl = run.retriever === 'summary' 
+    ? summariesMongoRetriever 
+    : run.retriever === 'chunkSummary'
+    ? chunkSummaryRetriever
+    : chunksRetriever
 
-  const stepLevel = run.retriever === 'summary' ? 'summary' : 'chunk' as const
+  const stepLevel = run.retriever === 'summary' 
+    ? 'summary' 
+    : run.retriever === 'chunkSummary'
+    ? 'chunkSummary'
+    : 'chunk' as const
   // Note: Summary flow logs the list-step already within the retriever with candidatesCount/usedInPrompt/decision.
   // For chunk flow, we keep the query logging here.
   run.onStatusUpdate?.('Searching for relevant sources...')
   // Pass API key to retriever for embeddings (if available)
-  const { sources, stats } = await retrieverImpl.retrieve({ ...run, apiKey: run.apiKey })
+  const retrieverOutput = await retrieverImpl.retrieve({ ...run, apiKey: run.apiKey })
+  const { sources, stats, warning } = retrieverOutput
   run.onStatusUpdate?.(`${sources.length} sources found`)
-  if (run.retriever !== 'summary') {
+  // Note: Summary und chunkSummary flow loggen den list-step bereits innerhalb des Retrievers
+  // Nur chunk (RAG) flow loggt hier zusätzlich
+  if (run.retriever === 'chunk') {
     let step = markStepStart({ indexName: run.context.vectorIndex, namespace: '', stage: 'query', level: stepLevel })
     step = markStepEnd(step)
     await logAppend(run.queryId, { indexName: run.context.vectorIndex, namespace: '', stage: 'query', level: stepLevel, topKReturned: sources.length, timingMs: step.timingMs, startedAt: step.startedAt, endedAt: step.endedAt })
@@ -90,10 +102,19 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     return { answer: 'No matching content found', sources: [], references: [], suggestedQuestions: [], retrievalMs, llmMs: 0 }
   }
 
+  // Berechne Anzahl unterschiedlicher fileIds
+  const uniqueFileIds = new Set<string>()
+  for (const source of sources) {
+    if (source.fileId && typeof source.fileId === 'string') {
+      uniqueFileIds.add(source.fileId)
+    }
+  }
+
   // Sende retrieval_complete direkt nach dem Retrieval
   run.onProcessingStep?.({
     type: 'retrieval_complete',
     sourcesCount: sources.length,
+    uniqueFileIdsCount: uniqueFileIds.size > 0 ? uniqueFileIds.size : undefined,
     timingMs: retrievalMs,
   })
 
@@ -122,8 +143,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       facetDefs: run.facetDefs,
     })
   }
-  // Note only for chunk mode: In summary mode, all documents are included
-  if (run.retriever !== 'summary' && stats && typeof stats.candidatesCount === 'number' && typeof stats.usedInPrompt === 'number' && stats.usedInPrompt < stats.candidatesCount) {
+  // Note only for chunk mode: In summary and chunkSummary mode, all documents/chunks are included
+  if (run.retriever === 'chunk' && stats && typeof stats.candidatesCount === 'number' && typeof stats.usedInPrompt === 'number' && stats.usedInPrompt < stats.candidatesCount) {
     const hint = `\n\nNote: Due to space constraints, only ${stats.usedInPrompt} of ${stats.candidatesCount} matching documents could be considered.`
     prompt = prompt + hint
   }
@@ -255,6 +276,11 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     answer = parsed.answer
     suggestedQuestions = parsed.suggestedQuestions
     usedReferences = parsed.usedReferences
+  }
+  
+  // Füge Warnung zur Antwort hinzu, falls vorhanden
+  if (warning) {
+    answer = `${answer}\n\n⚠️ **Hinweis:** ${warning}`
   }
   
   const llmMs = Date.now() - tL0
