@@ -167,29 +167,29 @@ export const CHARACTER_LABELS: Record<Character, string> = {
 }
 
 /**
- * Character-Instructions für LLM-Prompts
- * Diese werden in lib/chat/common/prompt.ts verwendet
+ * Character instructions for LLM prompts
+ * These are used in lib/chat/common/prompt.ts
  */
 export const CHARACTER_INSTRUCTIONS: Record<Character, string> = {
   // Knowledge & Innovation
-  developer: 'Du antwortest aus einer Entwickler-Perspektive. Fokus auf Code-Qualität, Best Practices, Technologie-Stacks, Performance, Skalierbarkeit und praktische Implementierung.',
-  technical: 'Du antwortest aus einer technischen Perspektive. Fokus auf technische Details, Architektur, Systemdesign, Engineering-Prinzipien und praktische Lösungsansätze.',
-  'open-source': 'Du antwortest aus einer Open-Source-Perspektive. Fokus auf Community, Transparenz, Kollaboration, Lizenzmodelle und offene Standards.',
-  scientific: 'Du antwortest aus einer naturwissenschaftlichen Perspektive. Fokus auf Evidenz, Methodik, Reproduzierbarkeit und wissenschaftliche Genauigkeit.',
+  developer: 'You respond from a developer perspective. Focus on code quality, best practices, technology stacks, performance, scalability, and practical implementation.',
+  technical: 'You respond from a technical perspective. Focus on technical details, architecture, system design, engineering principles, and practical solution approaches.',
+  'open-source': 'You respond from an open-source perspective. Focus on community, transparency, collaboration, license models, and open standards.',
+  scientific: 'You respond from a natural science perspective. Focus on evidence, methodology, reproducibility, and scientific accuracy.',
   
   // Society & Impact
-  'eco-social': 'Du antwortest aus einer ökosozialen Perspektive. Fokus auf Nachhaltigkeit, soziale Gerechtigkeit, Umweltschutz und langfristige gesellschaftliche Auswirkungen.',
-  social: 'Du antwortest aus einer sozialen Perspektive. Fokus auf Gemeinschaft, Kooperation, Inklusion und gesellschaftliche Aspekte.',
-  civic: 'Du antwortest aus einer bürgerschaftlichen Perspektive. Fokus auf Bürgerbeteiligung, Demokratie, Gemeinwohl und zivilgesellschaftliches Engagement.',
-  policy: 'Du antwortest aus einer politikwissenschaftlichen Perspektive. Fokus auf Policy-Analyse, Regulierungen, Governance-Strukturen und gesellschaftspolitische Auswirkungen.',
-  cultural: 'Du antwortest aus einer kulturellen Perspektive. Fokus auf kulturelle Werte, Traditionen, gesellschaftliche Normen und kulturelle Vielfalt.',
+  'eco-social': 'You respond from an eco-social perspective. Focus on sustainability, social justice, environmental protection, and long-term societal impacts.',
+  social: 'You respond from a social perspective. Focus on community, cooperation, inclusion, and societal aspects.',
+  civic: 'You respond from a civic perspective. Focus on citizen participation, democracy, common good, and civil society engagement.',
+  policy: 'You respond from a political science perspective. Focus on policy analysis, regulations, governance structures, and socio-political impacts.',
+  cultural: 'You respond from a cultural perspective. Focus on cultural values, traditions, societal norms, and cultural diversity.',
   
   // Economy & Practice
-  business: 'Du antwortest aus einer geschäftlichen, unternehmerischen Perspektive. Fokus auf Effizienz, ROI, Marktchancen, Wettbewerbsvorteile und praktische Umsetzbarkeit.',
-  entrepreneurial: 'Du antwortest aus einer unternehmerischen Perspektive. Fokus auf Innovation, Risikobereitschaft, Geschäftsmodelle, Wachstumsstrategien und Markterfolg.',
-  legal: 'Du antwortest aus einer rechtskundlichen Perspektive. Fokus auf rechtliche Aspekte, Compliance, Lizenzen, Datenschutz und rechtliche Risiken.',
-  educational: 'Du antwortest aus einer bildungswissenschaftlichen Perspektive. Fokus auf Lernprozesse, Pädagogik, Wissensvermittlung und didaktische Ansätze.',
-  creative: 'Du antwortest aus einer kreativen Perspektive. Fokus auf Innovation, Design-Thinking, künstlerische Ansätze und kreative Problemlösung.',
+  business: 'You respond from a business, entrepreneurial perspective. Focus on efficiency, ROI, market opportunities, competitive advantages, and practical feasibility.',
+  entrepreneurial: 'You respond from an entrepreneurial perspective. Focus on innovation, risk-taking, business models, growth strategies, and market success.',
+  legal: 'You respond from a legal perspective. Focus on legal aspects, compliance, licenses, data protection, and legal risks.',
+  educational: 'You respond from an educational science perspective. Focus on learning processes, pedagogy, knowledge transfer, and didactic approaches.',
+  creative: 'You respond from a creative perspective. Focus on innovation, design thinking, artistic approaches, and creative problem-solving.',
 }
 
 export const CHARACTER_ZOD_ENUM = z.enum([
@@ -280,17 +280,17 @@ export const SOCIAL_CONTEXT_LABELS: Record<SocialContext, string> = {
 }
 
 /**
- * SocialContext-Instructions für LLM-Prompts
- * Diese werden in lib/chat/common/prompt.ts verwendet
+ * SocialContext instructions for LLM prompts
+ * These are used in lib/chat/common/prompt.ts
  */
 export const SOCIAL_CONTEXT_INSTRUCTIONS: Record<SocialContext, string> = {
-  scientific: 'Verwende eine wissenschaftliche Sprache mit Fachbegriffen. Erkläre komplexe Konzepte präzise und technisch korrekt.',
-  general: 'Klare, zugängliche Sprache ohne Fachjargon. Metaphern und kurze Beispiele nutzen. Max. mittlere Satzlänge.',
-  youth: 'Verwende eine jugendgerechte Sprache. Erkläre komplexe Konzepte lebendig und verständlich, vermeide zu formelle Formulierungen.',
-  senior: 'Verwende eine seniorengerechte Sprache. Erkläre komplexe Konzepte klar und ausführlich, mit angemessenem Tempo und ohne zu viele Abkürzungen.',
-  professional: 'Verwende eine professionelle, geschäftliche Sprache. Formuliere respektvoll, präzise und ergebnisorientiert. Verwende angemessene Höflichkeitsformen und vermeide umgangssprachliche Ausdrücke.',
-  children: 'Verwende eine kindgerechte Sprache für Volksschulalter (6-10 Jahre). Verwende kurze Sätze, einfache Wörter und viele Beispiele. Erkläre Schritt für Schritt und vermeide Fachbegriffe oder verwende sie nur mit einfachen Erklärungen.',
-  easy_language: 'Verwende eine einfache Sprache, die für Menschen mit geringem Bildungsniveau geeignet ist. Verwende kurze Sätze, einfache Wörter und viele Beispiele. Erkläre Schritt für Schritt und vermeide Fachbegriffe oder verwende sie nur mit einfachen Erklärungen.',
+  scientific: 'Use scientific language with technical terms. Explain complex concepts precisely and technically correct.',
+  general: 'Clear, accessible language without jargon. Use metaphors and short examples. Maximum medium sentence length.',
+  youth: 'Use youth-friendly language. Explain complex concepts vividly and understandably, avoid overly formal formulations.',
+  senior: 'Use senior-friendly language. Explain complex concepts clearly and thoroughly, with appropriate pace and without too many abbreviations.',
+  professional: 'Use professional, business language. Formulate respectfully, precisely, and results-oriented. Use appropriate polite forms and avoid colloquial expressions.',
+  children: 'Use child-friendly language for elementary school age (6-10 years). Use short sentences, simple words, and many examples. Explain step by step and avoid technical terms or use them only with simple explanations.',
+  easy_language: 'Use simple language suitable for people with low education levels. Use short sentences, simple words, and many examples. Explain step by step and avoid technical terms or use them only with simple explanations.',
 }
 
 export const SOCIAL_CONTEXT_ZOD_ENUM = z.enum(['scientific', 'general', 'youth', 'senior', 'professional', 'children', 'easy_language'])
@@ -309,11 +309,11 @@ export type GenderInclusive = boolean
 export const GENDER_INCLUSIVE_DEFAULT: GenderInclusive = true
 
 /**
- * Anweisung für gendergerechte Formulierung in LLM-Prompts
+ * Instruction for gender-inclusive formulation in LLM prompts
  */
 export function getGenderInclusiveInstruction(genderInclusive: boolean): string {
   if (!genderInclusive) return ''
-  return 'Verwende gendergerechte Formulierungen: Nutze geschlechtsneutrale Begriffe (z.B. "Personen", "Mitarbeitende", "Studierende"), verwende Binnen-I (z.B. "MitarbeiterInnen"), Gendersternchen (z.B. "Mitarbeiter*innen") oder Doppelformen (z.B. "Mitarbeiter und Mitarbeiterinnen") wo angemessen. Vermeide ausschließlich männliche oder weibliche Formulierungen, wenn es um gemischte Gruppen geht.'
+  return 'Use gender-inclusive formulations: Use gender-neutral terms (e.g., "people", "employees", "students"), use Binnen-I (e.g., "MitarbeiterInnen"), gender asterisk (e.g., "Mitarbeiter*innen"), or double forms (e.g., "Mitarbeiter und Mitarbeiterinnen") where appropriate. Avoid exclusively male or female formulations when referring to mixed groups.'
 }
 
 // ============================================================================

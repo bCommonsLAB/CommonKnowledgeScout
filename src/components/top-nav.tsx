@@ -23,6 +23,7 @@ import { libraryAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { LanguageSwitcher } from "@/components/shared/language-switcher"
 import { useTranslation } from "@/lib/i18n/hooks"
+import { useScrollVisibility } from "@/hooks/use-scroll-visibility"
 
 
 export function TopNav() {
@@ -41,6 +42,9 @@ export function TopNav() {
   const isStoryMode = searchParams?.get('mode') === 'story'
 
   const [open, setOpen] = React.useState(false)
+  
+  // Auto-Hide beim Scrollen - verwendet gemeinsamen Hook
+  const isVisible = useScrollVisibility()
   
   // Navigationselemente mit Übersetzungen
   const publicNavItems = [
@@ -79,7 +83,12 @@ export function TopNav() {
 
   return (
     <>
-      <div className="border-b">
+      <div 
+        className={cn(
+          "border-b bg-background transition-transform duration-300 ease-in-out sticky top-0 z-50",
+          isVisible ? "translate-y-0" : "-translate-y-full"
+        )}
+      >
         <div className="flex h-16 items-center px-4">
           {/* Hamburger links, bis <lg sichtbar */}
           <Sheet open={open} onOpenChange={setOpen}>

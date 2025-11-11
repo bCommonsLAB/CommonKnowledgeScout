@@ -262,12 +262,12 @@ export async function POST(
           type: 'retriever_selected',
           retriever: effectiveRetriever,
           reason: isTOCQuery 
-            ? 'TOC-Query: Immer Summary-Modus'
+            ? 'TOC query: Always summary mode'
             : explicitRetriever 
-            ? 'Explizit gesetzt' 
+            ? 'Explicitly set' 
             : questionAnalysis 
-            ? `Von Analyse empfohlen (${questionAnalysis.confidence})` 
-            : 'Standard',
+            ? `Recommended by analysis (${questionAnalysis.confidence})` 
+            : 'Default',
         })
 
         // Chat-Config bestimmen
@@ -345,19 +345,19 @@ export async function POST(
           isTOCQuery: isTOCQuery,
           apiKey: libraryApiKey,
           onStatusUpdate: (msg) => {
-            // Send progress updates - Timing wird später gesetzt
-            if (msg.includes('Suche nach relevanten Quellen')) {
+            // Send progress updates - Timing will be set later
+            if (msg.includes('Searching for relevant sources')) {
               send({ type: 'retrieval_progress', sourcesFound: 0, message: msg })
-            } else if (msg.includes('Quellen gefunden')) {
+            } else if (msg.includes('sources found')) {
               const countMatch = msg.match(/(\d+)/)
               const count = countMatch ? parseInt(countMatch[1], 10) : 0
-              // retrievalMs wird später gesetzt, verwende 0 als Platzhalter
+              // retrievalMs will be set later, use 0 as placeholder
               send({ type: 'retrieval_progress', sourcesFound: count, message: msg })
-            } else if (msg.includes('Erstelle Prompt')) {
+            } else if (msg.includes('Building prompt')) {
               send({ type: 'prompt_building', message: msg })
-            } else if (msg.includes('Generiere Antwort')) {
+            } else if (msg.includes('Generating answer')) {
               send({ type: 'llm_progress', message: msg })
-            } else if (msg.includes('Verarbeite Antwort')) {
+            } else if (msg.includes('Processing response')) {
               send({ type: 'parsing_response', message: msg })
             }
           },

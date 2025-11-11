@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Sparkles, Loader2 } from 'lucide-react'
 import type { StoryTopicsData, StoryQuestion } from '@/types/story-topics'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface StoryTopicsProps {
   libraryId: string
@@ -29,6 +30,7 @@ interface StoryConfig {
  * mit klickbaren Fragen an.
  */
 export function StoryTopics({ libraryId, data, onSelectQuestion, visible = true, isLoading = false }: StoryTopicsProps) {
+  const { t } = useTranslation()
   const [storyConfig, setStoryConfig] = useState<StoryConfig | null>(null)
   const [loading, setLoading] = useState(true)
   // Verwende nur echte Daten, keine Placeholder
@@ -70,7 +72,7 @@ export function StoryTopics({ libraryId, data, onSelectQuestion, visible = true,
       <div className="space-y-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Generiere Themenübersicht...</span>
+          <span>{t('gallery.storyMode.generatingTopics')}</span>
         </div>
       </div>
     )

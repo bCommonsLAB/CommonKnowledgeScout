@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, BookOpen, Presentation } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import * as LucideIcons from "lucide-react"
@@ -14,6 +14,8 @@ interface PublicLibrary {
   slugName: string
   description: string
   icon?: string
+  backgroundImageUrl?: string
+  detailViewType?: 'book' | 'session'
 }
 
 // Icon-Farben für verschiedene Libraries
@@ -33,20 +35,13 @@ export function LibraryGrid() {
   useEffect(() => {
     async function loadLibraries() {
       try {
-        console.log('[LibraryGrid] Lade öffentliche Libraries...')
         const response = await fetch('/api/public/libraries')
-        console.log('[LibraryGrid] Response Status:', response.status, response.ok)
         
         if (!response.ok) {
-          const errorText = await response.text()
-          console.error('[LibraryGrid] Response Error:', errorText)
           throw new Error(`Fehler beim Laden der Libraries: ${response.status}`)
         }
         
         const data = await response.json()
-        console.log('[LibraryGrid] Response Data:', data)
-        console.log('[LibraryGrid] Libraries Array:', data.libraries)
-        
         setLibraries(data.libraries || [])
       } catch (error) {
         console.error('[LibraryGrid] Fehler beim Laden der öffentlichen Libraries:', error)
@@ -58,23 +53,24 @@ export function LibraryGrid() {
     loadLibraries()
   }, [])
 
-  // Icon-Komponente basierend auf Icon-String
-  function getIconComponent(iconName?: string) {
-    if (!iconName) {
-      // Default Icon
-      const BookOpen = LucideIcons.BookOpen
-      return BookOpen
+  // Icon-Komponente basierend auf Library-Typ oder explizitem Icon
+  function getIconComponent(library: PublicLibrary) {
+    // Wenn ein explizites Icon gesetzt ist, hat dies Priorität
+    if (library.icon) {
+      const IconComponent = (LucideIcons as Record<string, unknown>)[library.icon] as React.ComponentType<{ className?: string }> | undefined
+      if (IconComponent && typeof IconComponent === 'function') {
+        return IconComponent
+      }
     }
-
-    // Versuche Icon aus Lucide zu laden
-    const IconComponent = (LucideIcons as Record<string, unknown>)[iconName] as React.ComponentType<{ className?: string }> | undefined
     
-    if (IconComponent && typeof IconComponent === 'function') {
-      return IconComponent
+    // Basierend auf detailViewType das passende Icon wählen
+    if (library.detailViewType === 'session') {
+      // Für Talks/Slideshows: Presentation-Icon
+      return Presentation
     }
-
-    // Fallback auf Default
-    return LucideIcons.BookOpen
+    
+    // Default: BookOpen für Books oder wenn kein Typ gesetzt ist
+    return BookOpen
   }
 
   if (loading) {
@@ -113,27 +109,48 @@ export function LibraryGrid() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
           {libraries.map((library, index) => {
-            const Icon = getIconComponent(library.icon)
+            const Icon = getIconComponent(library)
             const colorConfig = ICON_COLORS[index % ICON_COLORS.length]
             
             return (
               <Card key={library.id} className="group relative overflow-hidden transition-all hover:shadow-lg">
-                <CardHeader>
+                {/* Hintergrundbild für die Library-Karte, falls vorhanden */}
+                {library.backgroundImageUrl && (
+                  <>
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{ 
+                        backgroundImage: `url("${library.backgroundImageUrl}")`,
+                      }}
+                    />
+                    {/* Schwarzes Overlay mit 60% Transparenz (wie beim Hero-Bild) */}
+                    <div className="absolute inset-0 bg-black/60" />
+                  </>
+                )}
+                
+                <CardHeader className={`relative z-10 ${library.backgroundImageUrl ? 'text-white' : ''}`}>
                   <div
                     className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg ${colorConfig.bgColor}`}
                   >
                     <Icon className={`h-6 w-6 ${colorConfig.color}`} />
                   </div>
-                  <CardTitle className="text-xl">{library.label}</CardTitle>
-                  <CardDescription className="text-base leading-relaxed">{library.description}</CardDescription>
+                  <CardTitle className={`text-xl ${library.backgroundImageUrl ? 'text-white' : ''}`}>{library.label}</CardTitle>
+                  <CardDescription className={`text-base leading-relaxed ${library.backgroundImageUrl ? 'text-white/90' : ''}`}>{library.description}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="relative z-10">
                   <Button 
-                    variant="ghost" 
-                    className="group/btn gap-2"
+                    size="lg"
+                    className={`group/btn gap-2 text-base ${
+                      library.backgroundImageUrl 
+                        ? 'bg-white text-black hover:bg-white/90' 
+                        : ''
+                    }`}
                     onClick={() => router.push(`/explore/${library.slugName}`)}
                   >
-                    {t('home.libraryGrid.buttonQuery')}
+                    {library.detailViewType === 'session' 
+                      ? t('home.libraryGrid.buttonOpenEvent')
+                      : t('home.libraryGrid.buttonQuery')
+                    }
                     <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
                   </Button>
                 </CardContent>

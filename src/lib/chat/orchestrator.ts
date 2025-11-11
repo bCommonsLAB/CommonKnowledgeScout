@@ -72,12 +72,12 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   const retrieverImpl = run.retriever === 'summary' ? summariesMongoRetriever : chunksRetriever
 
   const stepLevel = run.retriever === 'summary' ? 'summary' : 'chunk' as const
-  // Hinweis: Summary-Flow loggt den list-Step bereits innerhalb des Retrievers mit candidatesCount/usedInPrompt/decision.
-  // Für den Chunk-Flow behalten wir das Query-Logging hier bei.
-  run.onStatusUpdate?.('Suche nach relevanten Quellen...')
-  // Übergebe API-Key an Retriever für Embeddings (falls vorhanden)
+  // Note: Summary flow logs the list-step already within the retriever with candidatesCount/usedInPrompt/decision.
+  // For chunk flow, we keep the query logging here.
+  run.onStatusUpdate?.('Searching for relevant sources...')
+  // Pass API key to retriever for embeddings (if available)
   const { sources, stats } = await retrieverImpl.retrieve({ ...run, apiKey: run.apiKey })
-  run.onStatusUpdate?.(`${sources.length} Quellen gefunden`)
+  run.onStatusUpdate?.(`${sources.length} sources found`)
   if (run.retriever !== 'summary') {
     let step = markStepStart({ indexName: run.context.vectorIndex, namespace: '', stage: 'query', level: stepLevel })
     step = markStepEnd(step)
@@ -86,8 +86,8 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
 
   const retrievalMs = Date.now() - tR0
   if (!sources || sources.length === 0) {
-    await finalizeQueryLog(run.queryId, { answer: 'Keine passenden Inhalte gefunden', sources: [], timing: { retrievalMs, llmMs: 0, totalMs: retrievalMs } })
-    return { answer: 'Keine passenden Inhalte gefunden', sources: [], references: [], suggestedQuestions: [], retrievalMs, llmMs: 0 }
+    await finalizeQueryLog(run.queryId, { answer: 'No matching content found', sources: [], timing: { retrievalMs, llmMs: 0, totalMs: retrievalMs } })
+    return { answer: 'No matching content found', sources: [], references: [], suggestedQuestions: [], retrievalMs, llmMs: 0 }
   }
 
   // Sende retrieval_complete direkt nach dem Retrieval
@@ -98,7 +98,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   })
 
   const promptAnswerLength = (run.answerLength === 'unbegrenzt' ? 'ausführlich' : run.answerLength)
-  run.onStatusUpdate?.('Erstelle Prompt...')
+  run.onStatusUpdate?.('Building prompt...')
   
   // Für TOC-Queries: Verwende speziellen TOC-Prompt
   let prompt: string
@@ -122,9 +122,9 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       facetDefs: run.facetDefs,
     })
   }
-  // Hinweis nur für Chunk-Modus: Im Summary-Modus werden alle Dokumente übernommen
+  // Note only for chunk mode: In summary mode, all documents are included
   if (run.retriever !== 'summary' && stats && typeof stats.candidatesCount === 'number' && typeof stats.usedInPrompt === 'number' && stats.usedInPrompt < stats.candidatesCount) {
-    const hint = `\n\nHinweis: Aus Platzgründen konnten nur ${stats.usedInPrompt} von ${stats.candidatesCount} passenden Dokumenten berücksichtigt werden.`
+    const hint = `\n\nNote: Due to space constraints, only ${stats.usedInPrompt} of ${stats.candidatesCount} matching documents could be considered.`
     prompt = prompt + hint
   }
   const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
@@ -143,7 +143,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   })
 
   const tL0 = Date.now()
-  run.onStatusUpdate?.('Generiere Antwort...')
+  run.onStatusUpdate?.('Generating answer...')
   let res = await callOpenAI({ model, temperature, prompt, apiKey })
   let raw = ''
   let promptTokens: number | undefined = undefined
@@ -204,27 +204,27 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     totalTokens = result.totalTokens
   }
   
-  // Parse strukturierte Response (answer, suggestedQuestions, usedReferences)
-  // Für TOC-Queries: Parse StoryTopicsData statt normaler Antwort
-  run.onStatusUpdate?.('Verarbeite Antwort...')
+  // Parse structured response (answer, suggestedQuestions, usedReferences)
+  // For TOC queries: Parse StoryTopicsData instead of normal answer
+  run.onStatusUpdate?.('Processing response...')
   let answer = ''
   let suggestedQuestions: string[] = []
   let usedReferences: number[] = []
   let storyTopicsData: StoryTopicsData | undefined = undefined
 
   if (run.isTOCQuery) {
-    // Für TOC-Queries: Versuche StoryTopicsData zu parsen
-    console.log('[Orchestrator] TOC-Query erkannt, versuche StoryTopicsData zu parsen. Raw-Länge:', raw.length)
-    console.log('[Orchestrator] Raw (erste 500 Zeichen):', raw.substring(0, 500))
+    // For TOC queries: Try to parse StoryTopicsData
+    console.log('[Orchestrator] TOC query detected, attempting to parse StoryTopicsData. Raw length:', raw.length)
+    console.log('[Orchestrator] Raw (first 500 characters):', raw.substring(0, 500))
     const parsedTopicsData = parseStoryTopicsData(raw)
     if (parsedTopicsData) {
-      console.log('[Orchestrator] ✅ StoryTopicsData erfolgreich geparst:', {
+      console.log('[Orchestrator] ✅ StoryTopicsData successfully parsed:', {
         title: parsedTopicsData.title,
         topicsCount: parsedTopicsData.topics.length,
       })
       storyTopicsData = parsedTopicsData
-      // Erstelle eine Markdown-Antwort aus der StoryTopicsData für die normale Antwort
-      // (für Rückwärtskompatibilität)
+      // Create a Markdown answer from StoryTopicsData for the normal answer
+      // (for backward compatibility)
       answer = `# ${parsedTopicsData.title}\n\n${parsedTopicsData.tagline}\n\n${parsedTopicsData.intro}\n\n`
       parsedTopicsData.topics.forEach((topic) => {
         answer += `## ${topic.title}\n\n`
@@ -236,21 +236,21 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
         })
         answer += '\n'
       })
-      // Generiere suggestedQuestions aus den Topics
+      // Generate suggestedQuestions from topics
       suggestedQuestions = parsedTopicsData.topics.flatMap(topic => 
         topic.questions.map(q => q.text)
-      ).slice(0, 7) // Limit auf 7 Fragen
+      ).slice(0, 7) // Limit to 7 questions
     } else {
-      console.error('[Orchestrator] ❌ StoryTopicsData-Parsing fehlgeschlagen. Raw-Länge:', raw.length)
-      console.error('[Orchestrator] Raw (erste 1000 Zeichen):', raw.substring(0, 1000))
-      // Fallback: Normale Antwort parsen
+      console.error('[Orchestrator] ❌ StoryTopicsData parsing failed. Raw length:', raw.length)
+      console.error('[Orchestrator] Raw (first 1000 characters):', raw.substring(0, 1000))
+      // Fallback: Parse normal answer
       const parsed = parseStructuredLLMResponse(raw)
       answer = parsed.answer
       suggestedQuestions = parsed.suggestedQuestions
       usedReferences = parsed.usedReferences
     }
   } else {
-    // Normale Queries: Standard-Parsing
+    // Normal queries: Standard parsing
     const parsed = parseStructuredLLMResponse(raw)
     answer = parsed.answer
     suggestedQuestions = parsed.suggestedQuestions
@@ -268,7 +268,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     totalTokens,
   })
 
-  // Generiere vollständige Referenzen-Liste aus sources (für Mapping)
+  // Generate complete references list from sources (for mapping)
   const allReferences: ChatResponse['references'] = sources.map((s, index) => {
     const fileId = s.fileId || s.id.split('-')[0]
     return {
@@ -279,10 +279,10 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     }
   })
   
-  // Filtere nur die tatsächlich verwendeten Referenzen aus usedReferences
+  // Filter only the actually used references from usedReferences
   const references: ChatResponse['references'] = usedReferences.length > 0
     ? allReferences.filter(ref => usedReferences.includes(ref.number))
-    : allReferences // Fallback: Wenn keine gefunden, zeige alle
+    : allReferences // Fallback: If none found, show all
 
   await finalizeQueryLog(run.queryId, {
     answer,

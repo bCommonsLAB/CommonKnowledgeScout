@@ -1,5 +1,10 @@
+import { Suspense } from "react"
 import { Separator } from "@/components/ui/separator"
 import { ChatForm } from "@/components/settings/chat-form"
+
+function ChatFormWrapper() {
+  return <ChatForm />
+}
 
 export default function ChatSettingsPage() {
   return (
@@ -11,7 +16,9 @@ export default function ChatSettingsPage() {
         </p>
       </div>
       <Separator />
-      <ChatForm />
+      <Suspense fallback={<div className="text-center text-muted-foreground">Lädt...</div>}>
+        <ChatFormWrapper />
+      </Suspense>
     </div>
   )
 }

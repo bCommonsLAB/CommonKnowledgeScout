@@ -77,8 +77,14 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
   const isCheckingTOCRef = useRef(false)
   // Ref für verfolgen, ob ein Cache-Check gerade abgeschlossen wurde und Generierung nötig ist
   const shouldGenerateAfterCacheCheckRef = useRef(false)
-  // Ref für sendQuestion, falls es später gesetzt wird
+  // Ref für sendQuestion, falls es später gesetzt wurde
   const sendQuestionRef = useRef(sendQuestion)
+  // Ref für Debounce-Timer
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // Ref für letzten Cache-Check-Zeitpunkt (verhindert zu häufige Checks)
+  const lastCheckTimeRef = useRef<number>(0)
+  // Ref für Cache-Key (verhindert Checks mit identischen Parametern)
+  const lastCacheKeyRef = useRef<string>('')
   
   // Aktualisiere Ref, wenn sendQuestion sich ändert
   useEffect(() => {
@@ -90,9 +96,32 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       return
     }
 
+    // Erstelle Cache-Key aus Parametern
+    const cacheKey = JSON.stringify({
+      libraryId,
+      targetLanguage,
+      character,
+      socialContext,
+      genderInclusive,
+      galleryFilters,
+    })
+    
+    // Wenn bereits ein Check mit denselben Parametern läuft oder gerade gelaufen ist, überspringe
+    if (isCheckingTOCRef.current) {
+      return
+    }
+    
+    // Wenn derselbe Cache-Key wie beim letzten Check, überspringe (Debounce)
+    const now = Date.now()
+    if (cacheKey === lastCacheKeyRef.current && now - lastCheckTimeRef.current < 1000) {
+      return
+    }
+    
     // Setze Ref synchron, bevor State-Update (verhindert Race Condition)
     isCheckingTOCRef.current = true
     setIsCheckingTOC(true)
+    lastCacheKeyRef.current = cacheKey
+    lastCheckTimeRef.current = now
 
     try {
       const result = await checkCacheAPI({
@@ -164,9 +193,28 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
   ])
 
   // Exponiere checkCache für externe Aufrufe (z.B. nach TOC-Query-Löschung)
+  // Mit Debounce-Mechanismus, um wiederholte Aufrufe zu verhindern
   const checkCacheExposed = useCallback(async () => {
-    await checkCache()
+    // Lösche vorherigen Timer, falls vorhanden
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    
+    // Setze neuen Timer für Debounce (300ms)
+    debounceTimerRef.current = setTimeout(async () => {
+      await checkCache()
+      debounceTimerRef.current = null
+    }, 300)
   }, [checkCache])
+  
+  // Cleanup: Lösche Timer beim Unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
 
   const generateTOC = useCallback(async () => {
     if (isSending) {

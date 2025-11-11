@@ -39,3 +39,4 @@ export interface StatsTotals { docs: number; chunks: number }
 export interface StatsResponse { ok?: boolean; indexExists?: boolean; totals?: StatsTotals }
 
 
+

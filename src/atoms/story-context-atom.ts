@@ -17,14 +17,58 @@ import {
   SOCIAL_CONTEXT_DEFAULT,
 } from '@/lib/chat/constants'
 
+/**
+ * Konvertiert eine Locale (aus i18n Cookie) zu einer TargetLanguage (für Chat)
+ * 
+ * Mapping:
+ * - 'de' -> 'de'
+ * - 'en' -> 'en'
+ * - 'it' -> 'it'
+ * - 'fr' -> 'fr'
+ * - 'es' -> 'es'
+ * - Fallback -> TARGET_LANGUAGE_DEFAULT ('de')
+ */
+function localeToTargetLanguage(locale: string | null | undefined): TargetLanguage {
+  if (!locale) return TARGET_LANGUAGE_DEFAULT
+  const mapping: Record<string, TargetLanguage> = {
+    de: 'de',
+    en: 'en',
+    it: 'it',
+    fr: 'fr',
+    es: 'es',
+  }
+  return mapping[locale] || TARGET_LANGUAGE_DEFAULT
+}
+
+/**
+ * Liest die UI-Sprache aus dem Cookie (wird vom Middleware gesetzt)
+ */
+function getUILocaleFromCookie(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const cookies = document.cookie.split('; ')
+    const localeCookie = cookies.find(row => row.startsWith('locale='))
+    return localeCookie?.split('=')[1] || null
+  } catch {
+    return null
+  }
+}
+
 // Helper-Funktionen: Lade initiale Werte aus localStorage (client-side only)
 function getInitialTargetLanguage(): TargetLanguage {
   if (typeof window === 'undefined') return TARGET_LANGUAGE_DEFAULT
   try {
+    // 1. Prüfe localStorage (benutzerdefinierte Einstellung hat Priorität)
     const stored = localStorage.getItem('story-context-targetLanguage')
     if (stored) {
       const parsed = JSON.parse(stored) as TargetLanguage
       return parsed
+    }
+    
+    // 2. Kein localStorage-Wert: Verwende UI-Sprache aus Cookie
+    const uiLocale = getUILocaleFromCookie()
+    if (uiLocale) {
+      return localeToTargetLanguage(uiLocale)
     }
   } catch {
     // Ignoriere Fehler

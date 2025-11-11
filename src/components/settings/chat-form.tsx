@@ -24,19 +24,18 @@ import {
   TARGET_LANGUAGE_ZOD_ENUM,
   TARGET_LANGUAGE_DEFAULT,
   TARGET_LANGUAGE_VALUES,
-  TARGET_LANGUAGE_LABELS,
   CHARACTER_ZOD_ENUM,
   CHARACTER_DEFAULT,
   CHARACTER_VALUES,
-  CHARACTER_LABELS,
   SOCIAL_CONTEXT_ZOD_ENUM,
   SOCIAL_CONTEXT_DEFAULT,
   SOCIAL_CONTEXT_VALUES,
-  SOCIAL_CONTEXT_LABELS,
   isValidSocialContext,
   isValidCharacter,
   isValidTargetLanguage,
 } from '@/lib/chat/constants'
+import { useTranslation } from '@/lib/i18n/hooks'
+import { useStoryContext } from '@/hooks/use-story-context'
 
 // Zod-Schema für Chat-Konfiguration
 const chatFormSchema = z.object({
@@ -101,6 +100,8 @@ const chatFormSchema = z.object({
 type ChatFormValues = z.infer<typeof chatFormSchema>
 
 export function ChatForm() {
+  const { t } = useTranslation()
+  const { targetLanguageLabels, characterLabels, socialContextLabels } = useStoryContext()
   const [libraries, setLibraries] = useAtom(librariesAtom)
   const [activeLibraryId] = useAtom(activeLibraryIdAtom)
   const [isLoading, setIsLoading] = useState(false)
@@ -124,9 +125,9 @@ export function ChatForm() {
     resolver: zodResolver(chatFormSchema),
     mode: 'onChange', // Echtzeit-Validierung aktivieren
     defaultValues: {
-      placeholder: "Schreibe deine Frage...",
+      placeholder: t('settings.chatForm.placeholderDefault'),
       maxChars: 500,
-      maxCharsWarningMessage: "Deine Frage ist zu lang, bitte kürze sie.",
+      maxCharsWarningMessage: t('settings.chatForm.maxCharsWarningDefault'),
       footerText: "",
       companyLink: undefined,
       vectorStore: { indexOverride: undefined },
@@ -215,9 +216,9 @@ export function ChatForm() {
       }
       
       form.reset({
-        placeholder: typeof c.placeholder === 'string' ? c.placeholder : "Schreibe deine Frage...",
+        placeholder: typeof c.placeholder === 'string' ? c.placeholder : t('settings.chatForm.placeholderDefault'),
         maxChars: typeof c.maxChars === 'number' ? c.maxChars : 500,
-        maxCharsWarningMessage: typeof c.maxCharsWarningMessage === 'string' ? c.maxCharsWarningMessage : "Deine Frage ist zu lang, bitte kürze sie.",
+        maxCharsWarningMessage: typeof c.maxCharsWarningMessage === 'string' ? c.maxCharsWarningMessage : t('settings.chatForm.maxCharsWarningDefault'),
         footerText: typeof c.footerText === 'string' ? c.footerText : "",
         companyLink: typeof c.companyLink === 'string' ? c.companyLink : undefined,
         vectorStore: {
@@ -260,7 +261,7 @@ export function ChatForm() {
         allGalleryValues: form.getValues('gallery')
       })
     }
-  }, [activeLibrary, form])
+  }, [activeLibrary, form, t])
 
   async function onSubmit(data: ChatFormValues) {
     console.log('[ChatForm] ✅ onSubmit wurde aufgerufen!')
@@ -269,7 +270,7 @@ export function ChatForm() {
     
     setIsLoading(true)
     try {
-      if (!activeLibrary) throw new Error("Keine Bibliothek ausgewählt")
+      if (!activeLibrary) throw new Error(t('settings.chatForm.noLibrarySelected'))
 
       // Debug-Output vor dem Speichern
       // eslint-disable-next-line no-console
@@ -289,19 +290,19 @@ export function ChatForm() {
       const respJson = await response.json().catch(() => ({}))
       // eslint-disable-next-line no-console
       console.log('[ChatForm] PATCH response', { status: response.status, body: respJson })
-      if (!response.ok) throw new Error(`Fehler beim Speichern: ${respJson?.error || response.statusText}`)
+      if (!response.ok) throw new Error(`${t('settings.chatForm.errorSaving')} ${respJson?.error || response.statusText}`)
 
       const updatedLibraries = libraries.map(lib => lib.id === activeLibrary.id
         ? { ...lib, config: { ...lib.config, chat: data } }
         : lib)
       setLibraries(updatedLibraries)
 
-      toast({ title: "Chat-Einstellungen gespeichert", description: `Library: ${activeLibrary.label}` })
+      toast({ title: t('settings.chatForm.saved'), description: `Library: ${activeLibrary.label}` })
     } catch (error) {
       console.error('Fehler beim Speichern der Chat-Einstellungen:', error)
       toast({
-        title: "Fehler",
-        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Speichern",
+        title: t('settings.chatForm.error'),
+        description: error instanceof Error ? error.message : t('settings.chatForm.unknownError'),
         variant: "destructive",
       })
     } finally {
@@ -311,7 +312,7 @@ export function ChatForm() {
 
   if (!activeLibrary) {
     return (
-      <div className="text-center text-muted-foreground">Bitte wählen Sie eine Bibliothek aus.</div>
+      <div className="text-center text-muted-foreground">{t('settings.chatForm.selectLibrary')}</div>
     )
   }
 
@@ -325,9 +326,9 @@ export function ChatForm() {
               name="placeholder"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Platzhalter</FormLabel>
+                  <FormLabel>{t('settings.chatForm.placeholder')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Schreibe deine Frage..." {...field} />
+                    <Input placeholder={t('settings.chatForm.placeholderDefault')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -338,7 +339,7 @@ export function ChatForm() {
               name="maxChars"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Max. Zeichen pro Nachricht</FormLabel>
+                  <FormLabel>{t('settings.chatForm.maxChars')}</FormLabel>
                   <FormControl>
                     <Input type="number" min={1} max={4000} {...field} />
                   </FormControl>
@@ -353,9 +354,9 @@ export function ChatForm() {
             name="maxCharsWarningMessage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Warnhinweis bei Überschreitung</FormLabel>
+                <FormLabel>{t('settings.chatForm.maxCharsWarning')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="Deine Frage ist zu lang, bitte kürze sie." {...field} />
+                  <Input placeholder={t('settings.chatForm.maxCharsWarningDefault')} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -368,9 +369,9 @@ export function ChatForm() {
               name="footerText"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Footer-Text</FormLabel>
+                  <FormLabel>{t('settings.chatForm.footerText')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Powered by ..." {...field} />
+                    <Input placeholder={t('settings.chatForm.footerTextPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -381,9 +382,9 @@ export function ChatForm() {
               name="companyLink"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Footer-Link</FormLabel>
+                  <FormLabel>{t('settings.chatForm.footerLink')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://www.example.org" {...field} />
+                    <Input placeholder={t('settings.chatForm.footerLinkPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -396,12 +397,12 @@ export function ChatForm() {
             name="vectorStore.indexOverride"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Index-Override (optional)</FormLabel>
+                <FormLabel>{t('settings.chatForm.indexOverride')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="Standard: Library-Name als Index" {...field} />
+                  <Input placeholder={t('settings.chatForm.indexOverridePlaceholder')} {...field} />
                 </FormControl>
                 <FormDescription>
-                  Nur ausfüllen, wenn der Standardindex (Libraryname) nicht verwendet werden soll.
+                  {t('settings.chatForm.indexOverrideDescription')}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -418,7 +419,7 @@ export function ChatForm() {
                 const currentValue = field.value || TARGET_LANGUAGE_DEFAULT
                 return (
                   <FormItem>
-                    <FormLabel>Zielsprache</FormLabel>
+                    <FormLabel>{t('settings.chatForm.targetLanguage')}</FormLabel>
                     <Select value={currentValue} onValueChange={(value) => {
                       if (TARGET_LANGUAGE_VALUES.includes(value as typeof TARGET_LANGUAGE_VALUES[number])) {
                         field.onChange(value)
@@ -432,12 +433,12 @@ export function ChatForm() {
                       <SelectContent>
                         {TARGET_LANGUAGE_VALUES.map((lang) => (
                           <SelectItem key={lang} value={lang}>
-                            {TARGET_LANGUAGE_LABELS[lang]}
+                            {targetLanguageLabels[lang]}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormDescription>Sprache, in der der Chat antwortet.</FormDescription>
+                    <FormDescription>{t('settings.chatForm.targetLanguageDescription')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )
@@ -450,7 +451,7 @@ export function ChatForm() {
                 const currentValue = field.value || CHARACTER_DEFAULT
                 return (
                   <FormItem>
-                    <FormLabel>Charakter/Perspektive</FormLabel>
+                    <FormLabel>{t('settings.chatForm.character')}</FormLabel>
                     <Select value={currentValue} onValueChange={(value) => {
                       if (CHARACTER_VALUES.includes(value as typeof CHARACTER_VALUES[number])) {
                         field.onChange(value)
@@ -464,12 +465,12 @@ export function ChatForm() {
                       <SelectContent>
                         {CHARACTER_VALUES.map((char) => (
                           <SelectItem key={char} value={char}>
-                            {CHARACTER_LABELS[char]}
+                            {characterLabels[char]}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormDescription>Perspektive, aus der Antworten formuliert werden.</FormDescription>
+                    <FormDescription>{t('settings.chatForm.characterDescription')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )
@@ -482,7 +483,7 @@ export function ChatForm() {
                 const currentValue = field.value || SOCIAL_CONTEXT_DEFAULT
                 return (
                   <FormItem>
-                    <FormLabel>Sozialer Kontext/Sprachebene</FormLabel>
+                    <FormLabel>{t('settings.chatForm.socialContext')}</FormLabel>
                     <Select value={currentValue} onValueChange={(value) => {
                       if (SOCIAL_CONTEXT_VALUES.includes(value as typeof SOCIAL_CONTEXT_VALUES[number])) {
                         field.onChange(value)
@@ -496,12 +497,12 @@ export function ChatForm() {
                       <SelectContent>
                         {SOCIAL_CONTEXT_VALUES.map((ctx) => (
                           <SelectItem key={ctx} value={ctx}>
-                            {SOCIAL_CONTEXT_LABELS[ctx]}
+                            {socialContextLabels[ctx]}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormDescription>Sprachstil und Komplexität der Antworten.</FormDescription>
+                    <FormDescription>{t('settings.chatForm.socialContextDescription')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )
@@ -520,7 +521,7 @@ export function ChatForm() {
               
               return (
                 <FormItem>
-                  <FormLabel>Galerie: Detailansicht-Typ</FormLabel>
+                  <FormLabel>{t('settings.chatForm.galleryDetailViewType')}</FormLabel>
                   <Select 
                     value={currentValue} 
                     onValueChange={(value) => {
@@ -539,12 +540,12 @@ export function ChatForm() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="book">Book (Bücher, Dokumente, Kapitel)</SelectItem>
-                      <SelectItem value="session">Session (Events, Präsentationen, Slides)</SelectItem>
+                      <SelectItem value="book">{t('settings.chatForm.detailViewTypeBook')}</SelectItem>
+                      <SelectItem value="session">{t('settings.chatForm.detailViewTypeSession')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Legt fest, welches Detail-View-Format in der Galerie verwendet wird: Book für klassische Dokumente mit Kapiteln, Session für Event-Präsentationen mit Slides.
+                    {t('settings.chatForm.galleryDetailViewTypeDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -553,8 +554,8 @@ export function ChatForm() {
           />
 
           <div className="grid gap-3">
-            <FormLabel>Galerie: Facetten</FormLabel>
-            <FormDescription>Definieren Sie beliebige Facetten für die Filter-Navigation.</FormDescription>
+            <FormLabel>{t('settings.chatForm.galleryFacets')}</FormLabel>
+            <FormDescription>{t('settings.chatForm.galleryFacetsDescription')}</FormDescription>
             <FacetDefsEditor value={form.watch("gallery.facets") || []} onChange={(v) => form.setValue("gallery.facets", v, { shouldDirty: true })} />
           </div>
         </div>
@@ -565,7 +566,7 @@ export function ChatForm() {
             setHealthError(null)
             setHealthResult(null)
             try {
-              if (!activeLibrary) throw new Error('Keine Bibliothek ausgewählt')
+              if (!activeLibrary) throw new Error(t('settings.chatForm.noLibrarySelected'))
               
               console.log('[ChatForm] Index-Status-Prüfung für:', {
                 libraryId: activeLibrary.id,
@@ -594,59 +595,59 @@ export function ChatForm() {
               // Benutzerfreundliche Toast-Nachricht
               if (data.exists) {
                 toast({ 
-                  title: '✅ Index vorhanden', 
-                  description: `Index "${data.indexName}" ist bereit (${data.vectorCount || 0} Vektoren)` 
+                  title: t('settings.chatForm.indexExists'), 
+                  description: t('settings.chatForm.indexExistsDescription', { indexName: data.indexName, vectorCount: data.vectorCount || 0 })
                 })
               } else {
                 toast({ 
-                  title: '⚠️ Index fehlt', 
-                  description: `Index "${data.expectedIndexName}" existiert noch nicht. Bitte "Index anlegen" klicken.`,
+                  title: t('settings.chatForm.indexMissing'), 
+                  description: t('settings.chatForm.indexMissingToast', { indexName: data.expectedIndexName }),
                   variant: 'destructive'
                 })
               }
             } catch (e) {
-              const msg = e instanceof Error ? e.message : 'Unbekannter Fehler'
+              const msg = e instanceof Error ? e.message : t('settings.chatForm.unknownError')
               setHealthError(msg)
-              toast({ title: 'Fehler', description: msg, variant: 'destructive' })
+              toast({ title: t('settings.chatForm.error'), description: msg, variant: 'destructive' })
             } finally {
               setIsChecking(false)
             }
           }}>
-            {isChecking ? 'Prüfe...' : 'Index Status prüfen'}
+            {isChecking ? t('settings.chatForm.checking') : t('settings.chatForm.checkIndexStatus')}
           </Button>
           <Button type="button" variant="outline" onClick={async () => {
             try {
-              if (!activeLibrary) throw new Error('Keine Bibliothek ausgewählt')
+              if (!activeLibrary) throw new Error(t('settings.chatForm.noLibrarySelected'))
               const res = await fetch(`/api/chat/${encodeURIComponent(activeLibrary.id)}/index`, { method: 'POST' })
               const data = await res.json()
               if (!res.ok) {
                 // Detaillierte Fehlerinformationen anzeigen
-                const errorMsg = data?.message || data?.error || 'Fehler beim Anlegen des Index'
+                const errorMsg = data?.message || data?.error || t('settings.chatForm.errorCreatingIndex')
                 const errorDetails = data?.details ? `\nDetails: ${JSON.stringify(data.details, null, 2)}` : ''
                 const errorCode = data?.code ? `\nCode: ${data.code}` : ''
                 throw new Error(`${errorMsg}${errorCode}${errorDetails}`)
               }
-              toast({ title: data.status === 'exists' ? 'Index vorhanden' : 'Index angelegt', description: typeof data?.index === 'object' ? JSON.stringify(data.index) : undefined })
+              toast({ title: data.status === 'exists' ? t('settings.chatForm.indexExists') : t('settings.chatForm.indexCreated'), description: typeof data?.index === 'object' ? JSON.stringify(data.index) : undefined })
             } catch (e) {
-              const errorMessage = e instanceof Error ? e.message : 'Unbekannter Fehler'
+              const errorMessage = e instanceof Error ? e.message : t('settings.chatForm.unknownError')
               console.error('[ChatForm] Fehler beim Anlegen des Index:', e)
-              toast({ title: 'Fehler', description: errorMessage, variant: 'destructive' })
+              toast({ title: t('settings.chatForm.error'), description: errorMessage, variant: 'destructive' })
             }
           }}>
-            Index anlegen
+            {t('settings.chatForm.createIndex')}
           </Button>
           <Button type="button" variant="secondary" onClick={async () => {
             try {
-              if (!activeLibrary) throw new Error('Keine Bibliothek ausgewählt')
+              if (!activeLibrary) throw new Error(t('settings.chatForm.noLibrarySelected'))
               const res = await fetch(`/api/chat/${encodeURIComponent(activeLibrary.id)}/ingest`, { method: 'POST' })
-              if (!res.ok) throw new Error(`Fehler beim Starten der Ingestion: ${res.statusText}`)
+              if (!res.ok) throw new Error(`${t('settings.chatForm.errorRebuildingIndex')} ${res.statusText}`)
               const data = await res.json()
-              toast({ title: 'Index-Aufbau gestartet', description: `Job-ID: ${data.jobId}` })
+              toast({ title: t('settings.chatForm.indexRebuildStarted'), description: `${t('settings.chatForm.jobId')} ${data.jobId}` })
             } catch (e) {
-              toast({ title: 'Fehler', description: e instanceof Error ? e.message : 'Unbekannter Fehler', variant: 'destructive' })
+              toast({ title: t('settings.chatForm.error'), description: e instanceof Error ? e.message : t('settings.chatForm.unknownError'), variant: 'destructive' })
             }
           }}>
-            Index neu aufbauen
+            {t('settings.chatForm.rebuildIndex')}
           </Button>
           <Button 
             type="submit" 
@@ -661,33 +662,33 @@ export function ChatForm() {
               })
             }}
           >
-            {isLoading ? "Wird gespeichert..." : "Einstellungen speichern"}
+            {isLoading ? t('settings.chatForm.saving') : t('settings.chatForm.save')}
           </Button>
         </div>
 
         {(healthResult || healthError) && (
           <div className="rounded-md border bg-muted/30 p-3">
             <div className="text-xs text-muted-foreground mb-2">
-              {healthResult?.exists !== undefined ? 'Index Status' : 'Pinecone Health Check'}
+              {healthResult?.exists !== undefined ? t('settings.chatForm.indexStatus') : t('settings.chatForm.pineconeHealthCheck')}
             </div>
             {healthError ? (
               <div className="text-sm text-destructive">{healthError}</div>
             ) : healthResult?.exists === true ? (
               <div className="space-y-2">
-                <div className="text-sm font-medium text-green-600 dark:text-green-400">✅ Index vorhanden</div>
+                <div className="text-sm font-medium text-green-600 dark:text-green-400">{t('settings.chatForm.indexExists')}</div>
                 <div className="text-xs space-y-1">
-                  <div><span className="text-muted-foreground">Index:</span> {healthResult.expectedIndexName || healthResult.expectedIndex}</div>
-                  <div><span className="text-muted-foreground">Vektoren:</span> {(healthResult.vectorCount || 0).toLocaleString('de-DE')}</div>
-                  <div><span className="text-muted-foreground">Dimension:</span> {healthResult.dimension}</div>
-                  <div><span className="text-muted-foreground">Status:</span> {(healthResult as Record<string, unknown>).status ? String((healthResult as Record<string, unknown>).status) : 'Unknown'}</div>
+                  <div><span className="text-muted-foreground">{t('settings.chatForm.index')}</span> {healthResult.expectedIndexName || healthResult.expectedIndex}</div>
+                  <div><span className="text-muted-foreground">{t('settings.chatForm.vectors')}</span> {(healthResult.vectorCount || 0).toLocaleString('de-DE')}</div>
+                  <div><span className="text-muted-foreground">{t('settings.chatForm.dimension')}</span> {healthResult.dimension}</div>
+                  <div><span className="text-muted-foreground">{t('settings.chatForm.status')}</span> {(healthResult as Record<string, unknown>).status ? String((healthResult as Record<string, unknown>).status) : 'Unknown'}</div>
                 </div>
               </div>
             ) : healthResult?.exists === false ? (
               <div className="space-y-2">
-                <div className="text-sm font-medium text-orange-600 dark:text-orange-400">⚠️ Index fehlt</div>
+                <div className="text-sm font-medium text-orange-600 dark:text-orange-400">{t('settings.chatForm.indexMissing')}</div>
                 <div className="text-xs">
-                  <div><span className="text-muted-foreground">Erwarteter Name:</span> {healthResult.expectedIndexName || healthResult.expectedIndex}</div>
-                  <div className="text-sm text-muted-foreground mt-2">Bitte &quot;Index anlegen&quot; klicken, um zu starten.</div>
+                  <div><span className="text-muted-foreground">{t('settings.chatForm.expectedName')}</span> {healthResult.expectedIndexName || healthResult.expectedIndex}</div>
+                  <div className="text-sm text-muted-foreground mt-2">{t('settings.chatForm.indexMissingDescription')}</div>
                 </div>
               </div>
             ) : (

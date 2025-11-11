@@ -34,45 +34,45 @@ const questionAnalysisSchema = z.object({
 })
 
 /**
- * System-Prompt für die Frage-Analyse
+ * System prompt for question analysis
  */
-const SYSTEM_PROMPT = `Du bist ein Experte für Informations-Retrieval-Systeme. Deine Aufgabe ist es, Benutzerfragen zu analysieren und den optimalen Retrieval-Modus zu bestimmen.
+const SYSTEM_PROMPT = `You are an expert in information retrieval systems. Your task is to analyze user questions and determine the optimal retrieval mode.
 
-Es gibt zwei Retrieval-Modi:
+There are two retrieval modes:
 
-1. **Chunk-Modus** (semantische Vektorsuche auf Text-Chunks):
-   - Ideal für präzise, spezifische Fragen nach Details
-   - Technische Fragen, die exakte Textstellen benötigen
-   - Fragen nach konkreten Begriffen, Formeln, Zahlen, Code-Beispielen
-   - Fragen nach "Wie funktioniert X?" oder "Was ist die Definition von Y?"
-   - Beispiel: "Wie funktioniert die Funktion calculateScore()?" oder "Was ist die Formel für die Berechnung?"
+1. **Chunk mode** (semantic vector search on text chunks):
+   - Ideal for precise, specific questions about details
+   - Technical questions that need exact text passages
+   - Questions about concrete terms, formulas, numbers, code examples
+   - Questions like "How does X work?" or "What is the definition of Y?"
+   - Example: "How does the calculateScore() function work?" or "What is the formula for the calculation?"
 
-2. **Summary-Modus** (Dokument/Kapitel-Übersichten):
-   - Ideal für breite, überblickende Fragen über mehrere Dokumente
-   - Fragen nach Themen, Konzepten, Trends
-   - Vergleichende Fragen zwischen Dokumenten
-   - Fragen nach "Was sind die Hauptthemen?" oder "Welche Dokumente behandeln X?"
-   - Beispiel: "Was sind die Hauptthemen der Dokumente?" oder "Welche Konzepte werden in den Sessions behandelt?"
+2. **Summary mode** (document/chapter overviews):
+   - Ideal for broad, overview questions across multiple documents
+   - Questions about topics, concepts, trends
+   - Comparative questions between documents
+   - Questions like "What are the main topics?" or "Which documents cover X?"
+   - Example: "What are the main topics of the documents?" or "Which concepts are covered in the sessions?"
 
-**Kriterien für "unclear":**
-- Frage ist zu vage oder allgemein (z.B. "Was gibt es?" oder "Erzähl mir etwas")
-- Frage könnte sowohl spezifisch als auch breit beantwortet werden
-- Frage enthält mehrere verschiedene Intentionen gleichzeitig
+**Criteria for "unclear":**
+- Question is too vague or general (e.g., "What is there?" or "Tell me something")
+- Question could be answered both specifically and broadly
+- Question contains multiple different intentions simultaneously
 
-**Antworte IMMER als JSON-Objekt mit genau diesen Feldern:**
+**Always respond as a JSON object with exactly these fields:**
 - recommendation: 'chunk' | 'summary' | 'unclear'
-- confidence: 'high' | 'medium' | 'low' (Wie sicher bist du dir?)
-- reasoning: Begründung für die Empfehlung (mindestens 10 Zeichen)
-- suggestedQuestionChunk: Nur wenn recommendation='unclear', eine präzisierte Frage für Chunk-Modus
-- suggestedQuestionSummary: Nur wenn recommendation='unclear', eine präzisierte Frage für Summary-Modus
-- explanation: Benutzerfreundliche Erklärung (mindestens 20 Zeichen), warum dieser Modus empfohlen wird oder was unklar ist
-- chatTitle: Ein prägnanter Chat-Titel basierend auf der Frage (max. 60 Zeichen). Sollte das Hauptthema oder die Intention der Frage widerspiegeln. Beispiel: "Wie funktioniert X?" → "Funktionsweise von X" oder "Was sind die Hauptthemen?" → "Hauptthemen Übersicht"
+- confidence: 'high' | 'medium' | 'low' (How sure are you?)
+- reasoning: Justification for the recommendation (at least 10 characters)
+- suggestedQuestionChunk: Only if recommendation='unclear', a refined question for Chunk mode
+- suggestedQuestionSummary: Only if recommendation='unclear', a refined question for Summary mode
+- explanation: User-friendly explanation (at least 20 characters) why this mode is recommended or what is unclear
+- chatTitle: A concise chat title based on the question (max. 60 characters). Should reflect the main topic or intention of the question. Example: "How does X work?" → "How X works" or "What are the main topics?" → "Main Topics Overview"
 
-**Wichtig:**
-- Wenn recommendation='unclear', MUSS mindestens eine der suggestedQuestion-Felder ausgefüllt sein
-- Die explanation sollte für den Benutzer verständlich sein, nicht technisch
-- Bei 'unclear' sollten beide Frage-Vorschläge helfen, die ursprüngliche Intention zu klären
-- chatTitle sollte immer vorhanden sein und maximal 60 Zeichen lang sein. Verwende prägnante, beschreibende Titel ohne Anführungszeichen.`
+**Important:**
+- If recommendation='unclear', at least one of the suggestedQuestion fields must be filled
+- The explanation should be understandable for the user, not technical
+- For 'unclear', both question suggestions should help clarify the original intention
+- chatTitle should always be present and maximum 60 characters long. Use concise, descriptive titles without quotation marks.`
 
 /**
  * Analysiert eine Benutzerfrage und bestimmt den optimalen Retriever-Modus
@@ -95,18 +95,18 @@ export async function analyzeQuestionForRetriever(
   const effectiveApiKey = apiKey || process.env.OPENAI_API_KEY || ''
   
   if (!effectiveApiKey) {
-    throw new Error('OPENAI_API_KEY fehlt für Frage-Analyse')
+    throw new Error('OPENAI_API_KEY missing for question analysis')
   }
 
-  // User-Prompt zusammenstellen
-  let userPrompt = `Analysiere folgende Frage:\n\n"${question}"`
+  // Build user prompt
+  let userPrompt = `Analyze the following question:\n\n"${question}"`
   
   if (context?.isEventMode) {
-    userPrompt += '\n\nHinweis: Diese Bibliothek ist im Event-Modus (Sessions/Präsentationen). Dokumente haben typischerweise keine detaillierten Kapitel, sondern Session-Übersichten.'
+    userPrompt += '\n\nNote: This library is in event mode (sessions/presentations). Documents typically do not have detailed chapters, but session overviews.'
   }
   
   if (context?.libraryType) {
-    userPrompt += `\n\nBibliothekstyp: ${context.libraryType}`
+    userPrompt += `\n\nLibrary type: ${context.libraryType}`
   }
 
   // LLM-Aufruf mit structured output
@@ -129,22 +129,22 @@ export async function analyzeQuestionForRetriever(
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`OpenAI Frage-Analyse Fehler: ${response.status} ${errorText.slice(0, 200)}`)
+    throw new Error(`OpenAI question analysis error: ${response.status} ${errorText.slice(0, 200)}`)
   }
 
   const raw = await response.json()
   const content = raw?.choices?.[0]?.message?.content
   
   if (!content || typeof content !== 'string') {
-    throw new Error('Ungültige Antwort von OpenAI: Kein Content')
+    throw new Error('Invalid response from OpenAI: No content')
   }
 
-  // JSON parsen und validieren
+  // Parse and validate JSON
   let parsed: unknown
   try {
     parsed = JSON.parse(content)
   } catch {
-    throw new Error('OpenAI Antwort konnte nicht als JSON geparst werden')
+    throw new Error('OpenAI response could not be parsed as JSON')
   }
 
   // Zod-Validierung
@@ -161,23 +161,23 @@ export async function analyzeQuestionForRetriever(
     chatTitle: validated.chatTitle,
   }
 
-  // Zusätzliche Validierung: Wenn unclear, müssen suggestedQuestions vorhanden sein
+  // Additional validation: If unclear, suggestedQuestions must be present
   if (result.recommendation === 'unclear') {
     if (!result.suggestedQuestionChunk && !result.suggestedQuestionSummary) {
-      // Fallback: Erstelle generische Vorschläge
-      result.suggestedQuestionChunk = `Gib mir Details zu: ${question}`
-      result.suggestedQuestionSummary = `Gib mir einen Überblick über: ${question}`
+      // Fallback: Create generic suggestions
+      result.suggestedQuestionChunk = `Give me details about: ${question}`
+      result.suggestedQuestionSummary = `Give me an overview of: ${question}`
     }
   }
 
-  // Fallback für Chat-Titel: Falls nicht generiert, erstelle einen basierend auf der Frage
+  // Fallback for chat title: If not generated, create one based on the question
   if (!result.chatTitle || result.chatTitle.trim().length === 0) {
-    // Erstelle einen prägnanten Titel aus der Frage (max. 60 Zeichen)
+    // Create a concise title from the question (max. 60 characters)
     const trimmedQuestion = question.trim()
     if (trimmedQuestion.length <= 60) {
       result.chatTitle = trimmedQuestion
     } else {
-      // Kürze die Frage auf max. 57 Zeichen und füge "..." hinzu
+      // Truncate the question to max. 57 characters and add "..."
       result.chatTitle = trimmedQuestion.slice(0, 57) + '...'
     }
   }

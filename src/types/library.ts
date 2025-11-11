@@ -161,6 +161,8 @@ export interface StorageConfig {
     apiKey?: string;
     /** Flag für öffentliche Verfügbarkeit */
     isPublic: boolean;
+    /** URL für Hintergrundbild auf der Homepage */
+    backgroundImageUrl?: string;
     /** Gallery-spezifische Texte für die öffentliche Ansicht */
     gallery?: {
       /** Große Überschrift für die Gallery-Ansicht */
@@ -176,6 +178,8 @@ export interface StorageConfig {
     story?: {
       /** Überschrift im Story-Tab */
       headline?: string;
+      /** Untertitel unter der Überschrift */
+      subtitle?: string;
       /** Absatz unter der Headline */
       intro?: string;
       /** Titel „Themenübersicht" */
@@ -264,6 +268,8 @@ export interface ClientLibrary {
       description: string;
       icon?: string;
       isPublic: boolean;
+      /** URL für Hintergrundbild auf der Homepage */
+      backgroundImageUrl?: string;
       /** Maskierter API-Key (erste 6 und letzte 4 Zeichen sichtbar, z.B. "sk-proj....................abcd") */
       apiKey?: string;
       /** Gallery-spezifische Texte für die öffentliche Ansicht */

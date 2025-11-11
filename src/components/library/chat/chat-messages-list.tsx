@@ -8,6 +8,7 @@ import type { ChatMessage } from './utils/chat-utils'
 import { groupMessagesToConversations } from './utils/chat-utils'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext } from '@/lib/chat/constants'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface ChatMessagesListProps {
   messages: ChatMessage[]
@@ -66,6 +67,7 @@ export function ChatMessagesList({
   isCheckingTOC = false,
   cachedTOC = null,
 }: ChatMessagesListProps) {
+  const { t } = useTranslation()
   const conversations = groupMessagesToConversations(messages)
 
   // Leerer Zustand / Startnachricht - nicht im embedded Modus
@@ -73,12 +75,12 @@ export function ChatMessagesList({
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
         <div className="text-4xl mb-4">💡</div>
-        <h3 className="text-lg font-medium mb-2">Willkommen im Story Mode.</h3>
+        <h3 className="text-lg font-medium mb-2">{t('chatMessages.welcomeTitle')}</h3>
         <p className="text-sm text-muted-foreground mb-4 max-w-md">
-          Wähle oben Sprache und Perspektive, dann beginne dein Gespräch mit dem Wissen.
+          {t('chatMessages.welcomeDescription')}
         </p>
         <p className="text-xs text-muted-foreground max-w-md">
-          Tipp: Stelle eine Frage oder klicke rechts auf einen Talk, um die Story aus deiner Sicht zu sehen.
+          {t('chatMessages.welcomeTip')}
         </p>
       </div>
     )
@@ -157,7 +159,7 @@ export function ChatMessagesList({
           </div>
           <div className="flex-1 min-w-0">
             <div className="bg-muted/30 border rounded-lg p-3">
-              <div className="text-sm text-muted-foreground">Wird verarbeitet...</div>
+              <div className="text-sm text-muted-foreground">{t('chatMessages.processing')}</div>
               {/* Konfigurationsparameter während der Berechnung anzeigen */}
               <div className="mt-2">
                 <ChatConfigDisplay

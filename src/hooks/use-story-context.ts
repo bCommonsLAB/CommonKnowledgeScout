@@ -11,15 +11,15 @@
 'use client'
 
 import { useAtom } from 'jotai'
-import { useEffect } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useUser } from '@clerk/nextjs'
 import {
   type TargetLanguage,
   type Character,
   type SocialContext,
   TARGET_LANGUAGE_LABELS,
-  CHARACTER_LABELS,
-  SOCIAL_CONTEXT_LABELS,
+  CHARACTER_VALUES,
+  SOCIAL_CONTEXT_VALUES,
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_DEFAULT,
@@ -29,6 +29,7 @@ import {
   storyCharacterAtom,
   storySocialContextAtom,
 } from '@/atoms/story-context-atom'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 const STORAGE_KEY_PREFIX = 'story-context-'
 
@@ -144,18 +145,77 @@ export interface UseStoryContextReturn {
  * 
  * @returns Objekt mit aktuellen Werten, Settern und Labels
  */
+/**
+ * Konvertiert eine Locale (aus i18n) zu einer TargetLanguage (für Chat)
+ * 
+ * Mapping:
+ * - 'de' -> 'de'
+ * - 'en' -> 'en'
+ * - 'it' -> 'it'
+ * - 'fr' -> 'fr'
+ * - 'es' -> 'es'
+ * - Fallback -> TARGET_LANGUAGE_DEFAULT ('de')
+ */
+function localeToTargetLanguage(locale: string): TargetLanguage {
+  const mapping: Record<string, TargetLanguage> = {
+    de: 'de',
+    en: 'en',
+    it: 'it',
+    fr: 'fr',
+    es: 'es',
+  }
+  return mapping[locale] || TARGET_LANGUAGE_DEFAULT
+}
+
 export function useStoryContext(): UseStoryContextReturn {
+  const { t, locale } = useTranslation()
   // Prüfe, ob Benutzer anonym ist
   const { isSignedIn } = useUser()
   const isAnonymous = !isSignedIn
+  
+  // Bestimme Default basierend auf aktueller UI-Sprache
+  const defaultTargetLanguage = useMemo(() => {
+    return localeToTargetLanguage(locale)
+  }, [locale])
   
   // Verwende localStorage-Persistenz im anonymen Modus
   const [targetLanguage, setTargetLanguage] = useLocalStorageSync(
     storyTargetLanguageAtom,
     `${STORAGE_KEY_PREFIX}targetLanguage`,
-    TARGET_LANGUAGE_DEFAULT,
+    defaultTargetLanguage,
     isAnonymous
   )
+  
+  // Synchronisiere targetLanguage mit UI-Sprache beim ersten Laden
+  // Wenn noch kein Wert im localStorage gespeichert ist, verwende die UI-Sprache
+  const isInitialMount = useRef(true)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    try {
+      const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}targetLanguage`)
+      const uiLanguage = localeToTargetLanguage(locale)
+      
+      if (!stored) {
+        // Kein gespeicherter Wert: Setze auf aktuelle UI-Sprache
+        if (targetLanguage !== uiLanguage) {
+          setTargetLanguage(uiLanguage)
+        }
+      } else if (isInitialMount.current) {
+        // Beim ersten Mount: Prüfe ob der gespeicherte Wert mit der UI-Sprache übereinstimmt
+        // Wenn nicht, aktualisiere auf UI-Sprache (UI-Sprache hat sich geändert seit dem letzten Besuch)
+        const storedValue = JSON.parse(stored) as TargetLanguage
+        if (storedValue !== uiLanguage && targetLanguage === storedValue) {
+          // Gespeicherter Wert entspricht nicht der aktuellen UI-Sprache
+          // Aktualisiere auf UI-Sprache
+          setTargetLanguage(uiLanguage)
+        }
+        isInitialMount.current = false
+      }
+    } catch {
+      // Ignoriere Fehler
+    }
+  }, [locale, targetLanguage, setTargetLanguage])
   
   const [character, setCharacter] = useLocalStorageSync(
     storyCharacterAtom,
@@ -171,6 +231,24 @@ export function useStoryContext(): UseStoryContextReturn {
     isAnonymous
   )
 
+  // Übersetzte Labels für Character
+  const characterLabels = useMemo(() => {
+    const labels: Record<Character, string> = {} as Record<Character, string>
+    for (const char of CHARACTER_VALUES) {
+      labels[char] = t(`chat.characterLabels.${char}`)
+    }
+    return labels
+  }, [t])
+
+  // Übersetzte Labels für SocialContext
+  const socialContextLabels = useMemo(() => {
+    const labels: Record<SocialContext, string> = {} as Record<SocialContext, string>
+    for (const ctx of SOCIAL_CONTEXT_VALUES) {
+      labels[ctx] = t(`chat.socialContextLabels.${ctx}`)
+    }
+    return labels
+  }, [t])
+
   return {
     targetLanguage,
     setTargetLanguage,
@@ -179,8 +257,8 @@ export function useStoryContext(): UseStoryContextReturn {
     socialContext,
     setSocialContext,
     targetLanguageLabels: TARGET_LANGUAGE_LABELS,
-    characterLabels: CHARACTER_LABELS,
-    socialContextLabels: SOCIAL_CONTEXT_LABELS,
+    characterLabels,
+    socialContextLabels,
   };
 }
 

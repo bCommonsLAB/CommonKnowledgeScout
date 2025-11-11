@@ -9,11 +9,11 @@ import { Settings2 } from 'lucide-react'
 import { useStoryContext, saveStoryContextToLocalStorage } from '@/hooks/use-story-context'
 import { storyPerspectiveOpenAtom } from '@/atoms/story-context-atom'
 import { useUser } from '@clerk/nextjs'
+import { useTranslation } from '@/lib/i18n/hooks'
 
-// Props für zukünftige Erweiterungen
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface StoryHeaderProps {
-  // Keine Props mehr nötig - Interface für zukünftige Erweiterungen
+  /** Wenn true, werden Border und Padding entfernt (für sticky Header) */
+  compact?: boolean
 }
 
 /**
@@ -22,7 +22,8 @@ interface StoryHeaderProps {
  * Enthält:
  * - Button "Eigene Perspektive anpassen" mit Popover für drei Dropdowns
  */
-export function StoryHeader({}: StoryHeaderProps) {
+export function StoryHeader({ compact = false }: StoryHeaderProps) {
+  const { t } = useTranslation()
   const [perspectiveOpen, setPerspectiveOpen] = useAtom(storyPerspectiveOpenAtom)
   const { isSignedIn } = useUser()
   const isAnonymous = !isSignedIn
@@ -50,12 +51,12 @@ export function StoryHeader({}: StoryHeaderProps) {
   }
 
   return (
-    <div className="flex flex-col gap-2 pb-4 border-b flex-shrink-0">
+    <div className={`flex flex-col gap-2 flex-shrink-0 ${compact ? '' : 'pb-4 border-b'}`}>
       {/* Aktuelle Perspektive - dezent angezeigt */}
       <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5">
-        <span>Sprache: {targetLanguageLabels[targetLanguage]}</span>
-        <span>Charakter: {characterLabels[character]}</span>
-        <span>Mein sozialer Kontext: {socialContextLabels[socialContext]}</span>
+        <span>{t('gallery.storyMode.perspective.language')}: {targetLanguageLabels[targetLanguage]}</span>
+        <span>{t('gallery.storyMode.perspective.character')}: {characterLabels[character]}</span>
+        <span>{t('gallery.storyMode.perspective.socialContext')}: {socialContextLabels[socialContext]}</span>
       </div>
       
       {/* Perspektive-Button - weniger prominent */}
@@ -63,15 +64,15 @@ export function StoryHeader({}: StoryHeaderProps) {
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2 w-fit">
             <Settings2 className="h-4 w-4" />
-            Eigene Perspektive anpassen
+            {t('gallery.storyMode.perspective.adjustPerspective')}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-80" align="start">
           <div className="space-y-4">
             <div className="space-y-2">
-              <h4 className="font-medium text-sm">Perspektive anpassen</h4>
+              <h4 className="font-medium text-sm">{t('gallery.storyMode.perspective.adjustPerspectiveTitle')}</h4>
               <p className="text-xs text-muted-foreground">
-                Passe die Sprache, den Charakter und den sozialen Kontext der Antworten an.
+                {t('gallery.storyMode.perspective.adjustPerspectiveDescription')}
               </p>
             </div>
 
@@ -80,7 +81,7 @@ export function StoryHeader({}: StoryHeaderProps) {
             <div className="space-y-3">
               {/* Sprache */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">Sprache</label>
+                <label className="text-xs font-medium text-muted-foreground">{t('gallery.storyMode.perspective.language')}</label>
                 <Select value={targetLanguage} onValueChange={(v) => setTargetLanguage(v as typeof targetLanguage)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -97,7 +98,7 @@ export function StoryHeader({}: StoryHeaderProps) {
 
               {/* Charakter */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">Charakter</label>
+                <label className="text-xs font-medium text-muted-foreground">{t('gallery.storyMode.perspective.character')}</label>
                 <Select value={character} onValueChange={(v) => setCharacter(v as typeof character)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -114,7 +115,7 @@ export function StoryHeader({}: StoryHeaderProps) {
 
               {/* Sozialer Kontext */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">Sozialer Kontext</label>
+                <label className="text-xs font-medium text-muted-foreground">{t('gallery.storyMode.perspective.socialContext')}</label>
                 <Select value={socialContext} onValueChange={(v) => setSocialContext(v as typeof socialContext)}>
                   <SelectTrigger>
                     <SelectValue />

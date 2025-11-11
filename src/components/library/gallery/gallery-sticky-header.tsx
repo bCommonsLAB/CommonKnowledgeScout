@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Feather, Search } from 'lucide-react'
+import { MessageCircle, Search } from 'lucide-react'
+import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
 
 export interface GalleryStickyHeaderProps {
   headline: string
@@ -37,16 +38,10 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
     tooltip,
   } = props
 
-  const [isCondensed, setIsCondensed] = useState(false)
-
-  useEffect(() => {
-    const section = document.querySelector<HTMLElement>('[data-gallery-section]')
-    if (!section) return
-    const onScroll = () => setIsCondensed(section.scrollTop > 12)
-    onScroll()
-    section.addEventListener('scroll', onScroll, { passive: true })
-    return () => section.removeEventListener('scroll', onScroll)
-  }, [])
+  // Verwende gemeinsamen Scroll-Visibility-Hook (wie TopNav)
+  // isVisible === false bedeutet: Header-Bereich ausblenden (condensed)
+  const isVisible = useScrollVisibility()
+  const isCondensed = !isVisible
 
   return (
     <div className="sticky top-0 z-20 bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur border-b">
@@ -60,15 +55,15 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
         </div>
       </div>
 
-      <div className="py-2 flex items-center gap-4">
-        <div className="relative flex-1">
+      <div className="py-2 flex items-center gap-2 sm:gap-4">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="text"
             placeholder={searchPlaceholder}
             value={queryValue}
             onChange={(e) => onChangeQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 text-sm sm:text-base"
           />
         </div>
         <TooltipProvider>
@@ -76,12 +71,13 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
             <TooltipTrigger asChild>
               <Button
                 variant="default"
-                size="lg"
+                size="sm"
                 onClick={onCta}
-                className="flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all flex-shrink-0"
+                className="flex items-center gap-1.5 sm:gap-2 font-semibold shadow-md hover:shadow-lg transition-all flex-shrink-0 px-2 sm:px-4 text-xs sm:text-sm"
               >
-                <Feather className="h-5 w-5" />
-                {ctaLabel}
+                <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="hidden sm:inline">{ctaLabel}</span>
+                <span className="sm:hidden">Story</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -93,5 +89,6 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
     </div>
   )
 }
+
 
 

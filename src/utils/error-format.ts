@@ -40,3 +40,4 @@ export function formatChatError(errorMessage: string): string {
   return formatted
 }
 
+

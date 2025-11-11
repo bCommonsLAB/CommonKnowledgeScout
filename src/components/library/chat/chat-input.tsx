@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card'
 import { Loader2, Send, MessageCircle, X } from 'lucide-react'
 import type { AnswerLength } from '@/lib/chat/constants'
-import { ANSWER_LENGTH_VALUES, ANSWER_LENGTH_LABELS } from '@/lib/chat/constants'
+import { ANSWER_LENGTH_VALUES } from '@/lib/chat/constants'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface ChatInputProps {
   input: string
@@ -43,6 +44,7 @@ export function ChatInput({
   isOpen: externalIsOpen,
   onOpenChange: externalOnOpenChange,
 }: ChatInputProps) {
+  const { t } = useTranslation()
   const internalInputRef = useRef<HTMLTextAreaElement>(null)
   const inputRef = externalInputRef || internalInputRef
   const [internalIsOpen, setInternalIsOpen] = useState(false)
@@ -94,23 +96,25 @@ export function ChatInput({
         {/* Kollabierbares Input-Panel - volle Breite bis zum Button */}
         <div
           className={cn(
-            "absolute left-0 bottom-4 z-50 transition-all duration-300 ease-in-out overflow-hidden",
+            "fixed left-4 bottom-4 z-50 transition-all duration-300 ease-in-out",
             "right-14 sm:right-14",
             "max-w-[calc(100vw-4rem)] sm:max-w-none",
+            "max-h-[calc(100vh-2rem)]", // Max-Höhe: Viewport-Höhe minus Padding (oben und unten)
             isOpen 
               ? "opacity-100 scale-100" 
-              : "w-0 opacity-0 scale-95"
+              : "w-0 opacity-0 scale-95 overflow-hidden"
           )}
+          style={isOpen ? { maxHeight: 'calc(100vh - 2rem)' } : undefined}
         >
-          <Card className="border-2 shadow-lg bg-background">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-3">
+          <Card className="border-2 shadow-lg bg-background flex flex-col max-h-full">
+            <CardContent className="p-3 sm:p-4 flex-1 flex flex-col min-h-0 overflow-y-auto">
+              <div className="space-y-3 flex-shrink-0">
                 {/* Header-Zeile: Überschrift links, Antwortlänge rechts */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
-                  <p className="text-sm font-medium">Stelle deine eigene Frage:</p>
+                  <p className="text-sm font-medium">{t('chat.input.askYourOwnQuestion')}</p>
                   {/* Antwortlänge rechts oben */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">Antwortlänge:</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{t('chat.input.answerLength')}</span>
                     <Select 
                       value={answerLength} 
                       onValueChange={(v) => setAnswerLength(v as AnswerLength)}
@@ -122,7 +126,7 @@ export function ChatInput({
                       <SelectContent>
                         {ANSWER_LENGTH_VALUES.map((length) => (
                           <SelectItem key={length} value={length}>
-                            {ANSWER_LENGTH_LABELS[length]}
+                            {t(`chat.answerLengthLabels.${length}`)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -133,7 +137,7 @@ export function ChatInput({
                 <div className="space-y-2">
                   <textarea
                     ref={inputRef as React.LegacyRef<HTMLTextAreaElement>}
-                    placeholder={placeholder || "z.B. Wie wurde Nachhaltigkeit diskutiert?"}
+                    placeholder={placeholder || t('chat.input.placeholderExample')}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -152,12 +156,12 @@ export function ChatInput({
                       {isSending ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Warten...
+                          {t('chat.input.waiting')}
                         </>
                       ) : (
                         <>
                           <Send className="h-4 w-4" />
-                          Fragen
+                          {t('chat.input.ask')}
                         </>
                       )}
                     </Button>
@@ -172,10 +176,10 @@ export function ChatInput({
         <Button
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
-            "absolute right-0 bottom-4 h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 shrink-0 p-0 aspect-square flex items-center justify-center z-50",
+            "fixed right-4 bottom-4 h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 shrink-0 p-0 aspect-square flex items-center justify-center z-50",
             isOpen ? "bg-primary" : "bg-primary hover:bg-primary/90"
           )}
-          aria-label={isOpen ? "Chat schließen" : "Frage stellen"}
+          aria-label={isOpen ? t('chat.input.closeChat') : t('chat.input.askQuestion')}
         >
           {isOpen ? (
             <X className="h-5 w-5 transition-transform duration-300" />
@@ -192,7 +196,7 @@ export function ChatInput({
     <div className="border-t p-3 bg-background flex-shrink-0">
       {/* Header-Zeile: Antwortlänge rechts oben */}
       <div className="flex items-center justify-end gap-2 mb-2">
-        <span className="text-xs text-muted-foreground whitespace-nowrap">Antwortlänge:</span>
+        <span className="text-xs text-muted-foreground whitespace-nowrap">{t('chat.input.answerLength')}</span>
         <Select 
           value={answerLength} 
           onValueChange={(v) => setAnswerLength(v as AnswerLength)}
@@ -201,13 +205,13 @@ export function ChatInput({
           <SelectTrigger className="h-8 w-[110px] text-xs border-border/50">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
-            {ANSWER_LENGTH_VALUES.map((length) => (
-              <SelectItem key={length} value={length}>
-                {ANSWER_LENGTH_LABELS[length]}
-              </SelectItem>
-            ))}
-          </SelectContent>
+                      <SelectContent>
+                        {ANSWER_LENGTH_VALUES.map((length) => (
+                          <SelectItem key={length} value={length}>
+                            {t(`chat.answerLengthLabels.${length}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
         </Select>
       </div>
       {/* Input-Bereich - mehrzeilig mit Button darunter */}
@@ -215,7 +219,7 @@ export function ChatInput({
         <textarea
           ref={inputRef as React.LegacyRef<HTMLTextAreaElement>}
           className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-          placeholder={placeholder || 'Schreibe deine Frage …'}
+          placeholder={placeholder || t('chat.input.writeYourQuestion')}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -232,10 +236,10 @@ export function ChatInput({
             {isSending ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Warten...
+                {t('chat.input.waiting')}
               </>
             ) : (
-              'Senden'
+              t('chat.input.send')
             )}
           </Button>
         </div>

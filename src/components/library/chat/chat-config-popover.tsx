@@ -8,10 +8,10 @@ import { Settings } from 'lucide-react'
 import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext } from '@/lib/chat/constants'
 import {
   ANSWER_LENGTH_VALUES,
-  ANSWER_LENGTH_LABELS,
   RETRIEVER_VALUES,
   RETRIEVER_LABELS,
 } from '@/lib/chat/constants'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface ChatConfigPopoverProps {
   open: boolean
@@ -58,6 +58,8 @@ export function ChatConfigPopover({
   onGenerateTOC,
   onSavePreferences,
 }: ChatConfigPopoverProps) {
+  const { t } = useTranslation()
+  
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
@@ -67,11 +69,11 @@ export function ChatConfigPopover({
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end">
         <div className="space-y-4">
-          <div className="font-medium text-sm mb-3">Erweiterte Einstellungen</div>
+          <div className="font-medium text-sm mb-3">{t('configPopover.advancedSettings')}</div>
           
           {/* Antwortlänge */}
           <div>
-            <div className="text-sm font-medium mb-2">Antwortlänge:</div>
+            <div className="text-sm font-medium mb-2">{t('configPopover.answerLength')}</div>
             <div className="flex gap-1 flex-wrap">
               {ANSWER_LENGTH_VALUES.map((v) => (
                 <Button 
@@ -82,7 +84,7 @@ export function ChatConfigPopover({
                   onClick={() => setAnswerLength(v)} 
                   className="h-7 px-2 text-xs"
                 >
-                  {ANSWER_LENGTH_LABELS[v]}
+                  {t(`chat.answerLengthLabels.${v}`)}
                 </Button>
               ))}
             </div>
@@ -90,15 +92,21 @@ export function ChatConfigPopover({
           
           {/* Methode */}
           <div>
-            <div className="text-sm font-medium mb-2">Methode:</div>
+            <div className="text-sm font-medium mb-2">{t('configPopover.method')}</div>
             <div className="flex gap-1 flex-wrap">
               {RETRIEVER_VALUES.filter(v => v !== 'summary').map((v) => {
-                const label = RETRIEVER_LABELS[v]
+                const label = v === 'chunk'
+                  ? t('processing.retrieverChunk')
+                  : v === 'doc'
+                  ? t('processing.retrieverSummary')
+                  : v === 'auto'
+                  ? t('processing.retrieverAuto')
+                  : RETRIEVER_LABELS[v] || v
                 const tip = v === 'auto'
-                  ? 'Das System analysiert Ihre Frage automatisch und wählt die beste Methode (Spezifisch oder Übersichtlich).'
+                  ? t('configPopover.retrieverAutoTooltip')
                   : v === 'chunk'
-                  ? 'Für die Frage interessante Textstellen (Chunks) suchen und daraus die Antwort generieren. Nur spezifische Inhalte – dafür präziser.'
-                  : 'Aus den Zusammenfassungen aller Kapitel/Dokumente eine Antwort kreieren. Mehr Überblick – dafür etwas ungenauer.'
+                  ? t('configPopover.retrieverChunkTooltip')
+                  : t('configPopover.retrieverDocTooltip')
                 return (
                   <Tooltip key={v}>
                     <TooltipTrigger asChild>
@@ -124,9 +132,9 @@ export function ChatConfigPopover({
           {/* Gendergerechte Formulierung */}
           <div className="flex items-center justify-between rounded-md border p-2.5">
             <div className="space-y-0.5">
-              <div className="text-xs font-medium">Gendergerechte Formulierung</div>
+              <div className="text-xs font-medium">{t('configPopover.genderInclusive')}</div>
               <div className="text-xs text-muted-foreground">
-                Verwende geschlechtsneutrale Formulierungen in den Antworten
+                {t('configPopover.genderInclusiveDescription')}
               </div>
             </div>
             <Switch
@@ -153,7 +161,7 @@ export function ChatConfigPopover({
                 onOpenChange(false)
               }}
             >
-              Themenübersicht anzeigen
+              {t('configPopover.showTopicOverview')}
             </Button>
           </div>
         </div>

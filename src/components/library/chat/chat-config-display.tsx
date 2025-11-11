@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  ANSWER_LENGTH_LABELS,
   RETRIEVER_LABELS,
   TARGET_LANGUAGE_LABELS,
   CHARACTER_LABELS,
@@ -15,6 +14,8 @@ import type {
   TargetLanguage,
   SocialContext,
 } from '@/lib/chat/constants'
+import { useTranslation } from '@/lib/i18n/hooks'
+import { useStoryContext } from '@/hooks/use-story-context'
 
 interface ChatConfigDisplayProps {
   answerLength?: AnswerLength
@@ -36,29 +37,41 @@ export function ChatConfigDisplay({
   character,
   socialContext,
 }: ChatConfigDisplayProps) {
+  const { t } = useTranslation()
+  const { targetLanguageLabels, characterLabels, socialContextLabels } = useStoryContext()
   const configItems: string[] = []
 
   if (answerLength) {
-    configItems.push(`Antwortlänge: ${ANSWER_LENGTH_LABELS[answerLength] || answerLength}`)
+    configItems.push(`${t('configDisplay.answerLength')} ${t(`chat.answerLengthLabels.${answerLength}`)}`)
   }
 
   if (retriever) {
-    configItems.push(`Methode: ${RETRIEVER_LABELS[retriever] || retriever}`)
+    // Retriever-Labels werden aus den Übersetzungen geholt
+    const retrieverLabel = retriever === 'chunk' 
+      ? t('processing.retrieverChunk')
+      : retriever === 'summary' || retriever === 'doc'
+      ? t('processing.retrieverSummary')
+      : retriever === 'auto'
+      ? t('processing.retrieverAuto')
+      : RETRIEVER_LABELS[retriever] || retriever
+    configItems.push(`${t('configDisplay.method')} ${retrieverLabel}`)
   }
 
   if (targetLanguage) {
-    configItems.push(`Sprache: ${TARGET_LANGUAGE_LABELS[targetLanguage] || targetLanguage}`)
+    const langLabel = targetLanguageLabels[targetLanguage] || TARGET_LANGUAGE_LABELS[targetLanguage] || targetLanguage
+    configItems.push(`${t('configDisplay.language')} ${langLabel}`)
   }
 
   if (character) {
-    const charLabel = typeof character === 'string' ? (CHARACTER_LABELS[character as Character] || character) : ''
+    const charLabel = typeof character === 'string' ? (characterLabels[character as Character] || CHARACTER_LABELS[character as Character] || character) : ''
     if (charLabel) {
-      configItems.push(`Charakter: ${charLabel}`)
+      configItems.push(`${t('configDisplay.character')} ${charLabel}`)
     }
   }
 
   if (socialContext) {
-    configItems.push(`Kontext: ${SOCIAL_CONTEXT_LABELS[socialContext] || socialContext}`)
+    const contextLabel = socialContextLabels[socialContext] || SOCIAL_CONTEXT_LABELS[socialContext] || socialContext
+    configItems.push(`${t('configDisplay.context')} ${contextLabel}`)
   }
 
   if (configItems.length === 0) {

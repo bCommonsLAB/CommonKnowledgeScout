@@ -6,9 +6,11 @@ import { DebugStepTable } from './debug-step-table'
 import { DebugTrace } from './debug-trace'
 import { computeKpis, hasFilterDiff } from '@/lib/chat/debug-stats'
 import { useMemo } from 'react'
-import { ANSWER_LENGTH_LABELS, RETRIEVER_LABELS } from '@/lib/chat/constants'
+import { RETRIEVER_LABELS } from '@/lib/chat/constants'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 export function DebugPanel({ log }: { log: QueryLog }) {
+  const { t } = useTranslation()
   const kpis = useMemo(() => computeKpis(log), [log])
   const filterDiff = useMemo(() => hasFilterDiff(log), [log])
   function simplifyLabel(stage: string, level: string): string {
@@ -29,7 +31,11 @@ export function DebugPanel({ log }: { log: QueryLog }) {
   // Hilfsfunktion für Antwortlänge-Label
   function getAnswerLengthLabel(answerLength?: string): string {
     if (!answerLength) return '-'
-    return ANSWER_LENGTH_LABELS[answerLength as keyof typeof ANSWER_LENGTH_LABELS] || answerLength
+    try {
+      return t(`chat.answerLengthLabels.${answerLength}` as 'chat.answerLengthLabels.kurz' | 'chat.answerLengthLabels.mittel' | 'chat.answerLengthLabels.ausführlich' | 'chat.answerLengthLabels.unbegrenzt') || answerLength
+    } catch {
+      return answerLength
+    }
   }
 
   // Prüft ob Empfehlung mit verwendetem Retriever übereinstimmt

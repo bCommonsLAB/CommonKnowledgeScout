@@ -43,39 +43,39 @@ import {
  * @export für serverseitige Referenzen-Generierung
  */
 export function getSourceDescription(source: RetrievedSource): string {
-  // Prüfe sourceType (falls vorhanden)
+  // Check sourceType (if available)
   if (source.sourceType === 'slides' && source.slidePageNum !== undefined) {
-    return `Slide-Seite ${source.slidePageNum}${source.slideTitle ? `: ${source.slideTitle}` : ''}`
+    return `Slide page ${source.slidePageNum}${source.slideTitle ? `: ${source.slideTitle}` : ''}`
   }
   if (source.sourceType === 'video_transcript') {
-    // Video-Transkripte werden sequenziell gechunkt
-    // Verwende chunkIndex + 1 als Textchunk-Nummer (besser als nichts)
-    // TODO: Könnte später durch eine echte Textchunk-Nummer ersetzt werden
+    // Video transcripts are chunked sequentially
+    // Use chunkIndex + 1 as text chunk number (better than nothing)
+    // TODO: Could be replaced by a real text chunk number later
     const sectionNum = source.chunkIndex !== undefined ? source.chunkIndex + 1 : undefined
-    return sectionNum ? `Videotranskript Textchunk ${sectionNum}` : 'Videotranskript'
+    return sectionNum ? `Video transcript chunk ${sectionNum}` : 'Video transcript'
   }
   if (source.sourceType === 'body') {
-    // Body-Chunks sind sequenziell, können aber nicht genau lokalisiert werden
+    // Body chunks are sequential but cannot be precisely located
     const sectionNum = source.chunkIndex !== undefined ? source.chunkIndex + 1 : undefined
-    return sectionNum ? `Markdown-Body Textchunk ${sectionNum}` : 'Markdown-Body'
+    return sectionNum ? `Markdown body chunk ${sectionNum}` : 'Markdown body'
   }
   if (source.sourceType === 'chapter' && source.chapterTitle) {
-    return `Kapitel "${source.chapterTitle}"${source.chapterOrder !== undefined ? ` (${source.chapterOrder})` : ''}`
+    return `Chapter "${source.chapterTitle}"${source.chapterOrder !== undefined ? ` (${source.chapterOrder})` : ''}`
   }
   
-  // Fallback: Prüfe Metadaten auch ohne sourceType (für ältere Dokumente)
+  // Fallback: Check metadata even without sourceType (for older documents)
   if (source.chapterTitle) {
-    return `Kapitel "${source.chapterTitle}"${source.chapterOrder !== undefined ? ` (${source.chapterOrder})` : ''}`
+    return `Chapter "${source.chapterTitle}"${source.chapterOrder !== undefined ? ` (${source.chapterOrder})` : ''}`
   }
   if (source.slidePageNum !== undefined) {
-    return `Slide-Seite ${source.slidePageNum}${source.slideTitle ? `: ${source.slideTitle}` : ''}`
+    return `Slide page ${source.slidePageNum}${source.slideTitle ? `: ${source.slideTitle}` : ''}`
   }
   
-  // Letzter Fallback: Verwende chunkIndex wenn vorhanden
+  // Last fallback: Use chunkIndex if available
   if (source.chunkIndex !== undefined) {
-    return `Textchunk ${source.chunkIndex + 1}`
+    return `Text chunk ${source.chunkIndex + 1}`
   }
-  return 'Unbekannte Quelle'
+  return 'Unknown source'
 }
 
 export function buildContext(sources: RetrievedSource[], perSnippetLimit = 800): string {
@@ -106,17 +106,17 @@ export function buildContext(sources: RetrievedSource[], perSnippetLimit = 800):
       
       const metadataLine = metadataParts.length > 0 ? ` | ${metadataParts.join(' | ')}` : ''
       
-      return `Quelle [${i + 1}] ${s.fileName ?? s.id} (${description}, Score ${typeof s.score === 'number' ? s.score.toFixed(3) : 'n/a'}${metadataLine}):\n${(s.text ?? '').slice(0, perSnippetLimit)}`
+      return `Source [${i + 1}] ${s.fileName ?? s.id} (${description}, Score ${typeof s.score === 'number' ? s.score.toFixed(3) : 'n/a'}${metadataLine}):\n${(s.text ?? '').slice(0, perSnippetLimit)}`
     })
     .join('\n\n')
 }
 
 export function styleInstruction(answerLength: AnswerLength): string {
   return answerLength === 'ausführlich' || answerLength === 'unbegrenzt'
-    ? 'Schreibe eine strukturierte, ausführliche Antwort (ca. 250–600 Wörter) im Markdown-Format: Verwende Überschriften (##), Listen (-), **Fettdruck** für wichtige Begriffe, und Absätze für bessere Lesbarkeit. Beginne mit 1–2 Sätzen Zusammenfassung, danach Details in Absätzen oder Stichpunkten. Vermeide Füllwörter.'
+    ? 'Write a structured, comprehensive answer (approx. 250–600 words) in Markdown format: Use headings (##), lists (-), **bold** for important terms, and paragraphs for better readability. Start with 1–2 sentences summary, then details in paragraphs or bullet points. Avoid filler words.'
     : answerLength === 'mittel'
-    ? 'Schreibe eine mittellange Antwort (ca. 120–250 Wörter) im Markdown-Format: Verwende Listen (-), **Fettdruck** für wichtige Begriffe, und Absätze. 3–6 Sätze oder eine kurze Liste der wichtigsten Punkte. Direkt und präzise.'
-    : 'Schreibe eine knappe Antwort (1–3 Sätze, max. 120 Wörter) im Markdown-Format: Verwende **Fettdruck** für wichtige Begriffe wenn nötig. Keine Einleitung, direkt die Kernaussage.'
+    ? 'Write a medium-length answer (approx. 120–250 words) in Markdown format: Use lists (-), **bold** for important terms, and paragraphs. 3–6 sentences or a short list of the most important points. Direct and precise.'
+    : 'Write a concise answer (1–3 sentences, max. 120 words) in Markdown format: Use **bold** for important terms if necessary. No introduction, directly the core statement.'
 }
 
 /**
@@ -136,24 +136,25 @@ function getSocialContextInstruction(socialContext: SocialContext): string {
 }
 
 /**
- * Erstellt Sprach-Anweisung basierend auf Konfiguration
- * Verwendet die zentrale TargetLanguage-Labels aus lib/chat/constants.ts.
+ * Creates language instruction based on configuration
+ * Uses the central TargetLanguage labels from lib/chat/constants.ts.
  */
 function getLanguageInstruction(targetLanguage: TargetLanguage): string {
-  return `Antworte auf ${TARGET_LANGUAGE_LABELS[targetLanguage] || 'Deutsch'}.`
+  const languageName = TARGET_LANGUAGE_LABELS[targetLanguage] || 'German'
+  return `Respond in ${languageName}.`
 }
 
 /**
- * Formatiert Chatverlauf für den LLM-Prompt
+ * Formats chat history for LLM prompt
  */
 function formatChatHistory(history: Array<{ question: string; answer: string }>): string {
   if (!history || history.length === 0) return ''
   
   return history.map((item, index) => {
-    return `Vorherige Frage ${index + 1}:
+    return `Previous question ${index + 1}:
 ${item.question}
 
-Antwort:
+Answer:
 ${item.answer}`
   }).join('\n\n---\n\n')
 }
@@ -175,24 +176,24 @@ export function buildPrompt(
   const context = buildContext(sources)
   const style = styleInstruction(answerLength)
   
-  // Erstelle Mapping von Quelle-Nummer zu Beschreibung für bessere Klarheit
+  // Create mapping from source number to description for better clarity
   const sourceDescriptions = sources.map((s, i) => {
     const desc = getSourceDescription(s)
     return `[${i + 1}] = ${desc}`
   }).join(', ')
   
-  // Erstelle System-Prompt-Komponenten basierend auf Konfiguration
+  // Create system prompt components based on configuration
   const characterInstruction = options?.character ? getCharacterInstruction(options.character) : ''
   const socialContextInstruction = options?.socialContext ? getSocialContextInstruction(options.socialContext) : ''
   const genderInclusiveInstruction = options?.genderInclusive !== undefined ? getGenderInclusiveInstruction(options.genderInclusive) : ''
-  const languageInstruction = options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Antworte auf Deutsch.'
+  const languageInstruction = options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Respond in German.'
   
-  // Formatiere Chatverlauf, falls vorhanden
+  // Format chat history if available
   const chatHistoryText = options?.chatHistory && options.chatHistory.length > 0
     ? formatChatHistory(options.chatHistory)
     : ''
   
-  // Erstelle Filter-Text für den Prompt
+  // Create filter text for the prompt
   let filterText = ''
   if (options?.filters && options?.facetDefs && Object.keys(options.filters).length > 0) {
     const filterParts: string[] = []
@@ -214,12 +215,12 @@ export function buildPrompt(
       }
     }
     if (filterParts.length > 0) {
-      filterText = `\n\nWICHTIG: Die Antwort bezieht sich nur auf Dokumente, die folgenden Filterkriterien entsprechen:\n${filterParts.map(p => `- ${p}`).join('\n')}\nBitte erwähne in deiner Antwort, wenn relevant, dass es sich um eine Zusammenfassung oder Analyse der gefilterten Dokumente handelt (z.B. "Zusammenfassung der Dokumente aus dem Jahrgang 2024" oder "Analyse der Talks zum Thema Open Source").`
+      filterText = `\n\nIMPORTANT: The answer refers only to documents that match the following filter criteria:\n${filterParts.map(p => `- ${p}`).join('\n')}\nPlease mention in your answer, if relevant, that this is a summary or analysis of the filtered documents (e.g., "Summary of documents from 2024" or "Analysis of talks on Open Source").`
     }
   }
   
-  // System-Prompt zusammenbauen
-  const systemParts: string[] = ['Du bist ein präziser Assistent. Beantworte die Frage ausschließlich auf Basis der bereitgestellten Quellen.']
+  // Build system prompt
+  const systemParts: string[] = ['You are a precise assistant. Answer the question exclusively based on the provided sources.']
   if (characterInstruction) {
     systemParts.push(`\n${characterInstruction}`)
   }
@@ -230,50 +231,50 @@ export function buildPrompt(
     systemParts.push(`\n${genderInclusiveInstruction}`)
   }
   
-  // Chatverlauf vor der aktuellen Frage einfügen, falls vorhanden
+  // Insert chat history before the current question if available
   const chatHistorySection = chatHistoryText 
-    ? `\n\nBisheriger Gesprächsverlauf:\n${chatHistoryText}\n\n---\n\n`
+    ? `\n\nPrevious conversation:\n${chatHistoryText}\n\n---\n\n`
     : ''
   
   return `${systemParts.join('')}
 
-${chatHistorySection}Frage:
+${chatHistorySection}Question:
 ${question}
 
-Quellen:
+Sources:
 ${context}
 
-Anforderungen:
+Requirements:
 - ${style}
-- Fachlich korrekt, ohne Spekulationen.
-- Antworte **immer im Markdown-Format** mit übersichtlicher Formatierung (Überschriften, Listen, Fettdruck).
-- Zitiere am Ende die Referenznummern der verwendeten Quellen als [n] .
-- WICHTIG: Verwende nur die Nummern, NICHT "Chunk X".
-- Beispiel: "[1] [2] [5]".
-- Verfügbare Beschreibungen: ${sourceDescriptions}
-${chatHistoryText ? '\n- Berücksichtige den bisherigen Gesprächsverlauf und baue darauf auf, wenn relevant.' : ''}
+- Factually correct, without speculation.
+- Always respond in **Markdown format** with clear formatting (headings, lists, bold).
+- Cite reference numbers of used sources as [n] at the end.
+- IMPORTANT: Use only the numbers, NOT "Chunk X".
+- Example: "[1] [2] [5]".
+- Available descriptions: ${sourceDescriptions}
+${chatHistoryText ? '\n- Consider the previous conversation and build upon it if relevant.' : ''}
 ${filterText}
 
-Ausgabe-Format:
-Antworte IMMER als JSON-Objekt mit genau diesen drei Feldern:
-- "answer": Markdown-formatierter Text mit Referenz-Nummern [1], [2], etc.
-- "suggestedQuestions": Array mit genau 7 sinnvollen Folgefragen basierend auf dem behandelten Kontext
-- "usedReferences": Array von Zahlen, die die Referenznummern aller Quellen enthält, die du tatsächlich in deiner Antwort verwendet hast (z.B. [2, 4, 6, 7, 9, 17])
+Output Format:
+Always respond as a JSON object with exactly these three fields:
+- "answer": Markdown-formatted text with reference numbers [1], [2], etc.
+- "suggestedQuestions": Array with exactly 7 meaningful follow-up questions based on the context covered
+- "usedReferences": Array of numbers containing the reference numbers of all sources you actually used in your answer (e.g., [2, 4, 6, 7, 9, 17])
 
-Beispiel:
+Example:
 {
-  "answer": "## Einleitung\\n\\nDie Themen werden behandelt...\\n\\n[1] [2]",
+  "answer": "## Introduction\\n\\nThe topics are covered...\\n\\n[1] [2]",
   "suggestedQuestions": [
-    "Wie funktioniert X?",
-    "Was sind die Voraussetzungen für Y?",
+    "How does X work?",
+    "What are the prerequisites for Y?",
     ...
   ],
   "usedReferences": [1, 2]
 }
 
-WICHTIG: 
-- Referenzen werden serverseitig hinzugefügt, generiere sie nicht im JSON.
-- Das Feld "usedReferences" muss alle Nummern enthalten, die du in deiner Antwort als [n] zitierst.
+IMPORTANT: 
+- References are added server-side, do not generate them in JSON.
+- The "usedReferences" field must contain all numbers you cite as [n] in your answer.
 
 ${languageInstruction}`
 }
@@ -301,13 +302,13 @@ export function buildTOCPrompt(
 ): string {
   const context = buildContext(sources)
   
-  // Erstelle System-Prompt-Komponenten basierend auf Konfiguration
+  // Create system prompt components based on configuration
   const characterInstruction = options?.character ? getCharacterInstruction(options.character) : ''
   const socialContextInstruction = options?.socialContext ? getSocialContextInstruction(options.socialContext) : ''
   const genderInclusiveInstruction = options?.genderInclusive !== undefined ? getGenderInclusiveInstruction(options.genderInclusive) : ''
-  const languageInstruction = options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Antworte auf Deutsch.'
+  const languageInstruction = options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Respond in German.'
   
-  // Erstelle Filter-Text für den Prompt
+  // Create filter text for the prompt
   let filterText = ''
   if (options?.filters && options?.facetDefs && Object.keys(options.filters).length > 0) {
     const filterParts: string[] = []
@@ -329,12 +330,12 @@ export function buildTOCPrompt(
       }
     }
     if (filterParts.length > 0) {
-      filterText = `\n\nWICHTIG: Die Themenübersicht bezieht sich nur auf Dokumente, die folgenden Filterkriterien entsprechen:\n${filterParts.map(p => `- ${p}`).join('\n')}\nBitte berücksichtige dies bei der Themenauswahl und Formulierung.`
+      filterText = `\n\nIMPORTANT: The topic overview refers only to documents that match the following filter criteria:\n${filterParts.map(p => `- ${p}`).join('\n')}\nPlease consider this when selecting and formulating topics.`
     }
   }
   
-  // System-Prompt zusammenbauen
-  const systemParts: string[] = ['Du erstellst eine strukturierte Themenübersicht basierend auf den bereitgestellten Quellen. Analysiere die Inhalte und identifiziere die zentralen Themenfelder.']
+  // Build system prompt
+  const systemParts: string[] = ['You create a structured topic overview based on the provided sources. Analyze the content and identify the central topic areas.']
   if (characterInstruction) {
     systemParts.push(`\n${characterInstruction}`)
   }
@@ -347,37 +348,37 @@ export function buildTOCPrompt(
   
   return `${systemParts.join('')}
 
-Aufgabe:
-Erstelle eine strukturierte Themenübersicht (Table of Contents) basierend auf den folgenden Quellen. 
-Identifiziere die zentralen Themenfelder und formuliere für jedes Thema relevante Fragen, die Nutzer stellen könnten.
+Task:
+Create a structured topic overview (Table of Contents) based on the following sources.
+Identify the central topic areas and formulate relevant questions for each topic that users might ask.
 
-Quellen:
+Sources:
 ${context}
 ${filterText}
 
-Ausgabe-Format:
-Antworte AUSSCHLIESSLICH als JSON-Objekt mit genau dieser Struktur:
+Output Format:
+Respond EXCLUSIVELY as a JSON object with exactly this structure:
 
 {
   "id": "${libraryId}",
-  "title": "Themenübersicht",
-  "tagline": "Kurze, prägnante Tagline (max. 50 Zeichen)",
-  "intro": "Einleitender Text, der beschreibt, wie die Themenübersicht strukturiert ist und wie sie verwendet werden kann (max. 300 Zeichen)",
+  "title": "Topic Overview",
+  "tagline": "Short, concise tagline (max. 50 characters)",
+  "intro": "Introductory text describing how the topic overview is structured and how it can be used (max. 300 characters)",
   "topics": [
     {
       "id": "topic-1",
-      "title": "Titel des ersten Themas",
-      "summary": "Kurze Zusammenfassung des Themas (optional, max. 200 Zeichen)",
+      "title": "Title of the first topic",
+      "summary": "Brief summary of the topic (optional, max. 200 characters)",
       "questions": [
         {
           "id": "q-1-1",
-          "text": "Formuliere eine konkrete Frage zu diesem Thema",
+          "text": "Formulate a concrete question about this topic",
           "intent": "what",
           "retriever": "auto"
         },
         {
           "id": "q-1-2",
-          "text": "Weitere Frage zu diesem Thema",
+          "text": "Another question about this topic",
           "intent": "why",
           "retriever": "summary"
         }
@@ -385,12 +386,12 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt mit genau dieser Struktur:
     },
     {
       "id": "topic-2",
-      "title": "Titel des zweiten Themas",
-      "summary": "Kurze Zusammenfassung",
+      "title": "Title of the second topic",
+      "summary": "Brief summary",
       "questions": [
         {
           "id": "q-2-1",
-          "text": "Frage zum zweiten Thema",
+          "text": "Question about the second topic",
           "intent": "how",
           "retriever": "auto"
         }
@@ -399,28 +400,28 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt mit genau dieser Struktur:
   ]
 }
 
-Anforderungen:
-- Erstelle 5-10 zentrale Themenfelder (topics), die sich aus den Quellen ergeben
-- Jedes Thema sollte 3-7 relevante Fragen (questions) enthalten
-- Die Fragen sollten konkret und beantwortbar sein
-- Verwende eindeutige IDs: "topic-1", "topic-2", etc. für Themen und "q-1-1", "q-1-2", etc. für Fragen
-- Der "intent" kann sein: "what", "why", "how", "compare" oder "recommend" (optional)
-- Der "retriever" kann sein: "summary", "chunk" oder "auto" (optional, Standard: "auto")
-- Die "summary" pro Thema ist optional, aber empfohlen für bessere UX
-- Der "tagline" sollte prägnant sein, z.B. "Sieben zentrale Themenfelder" oder "Überblick über die wichtigsten Themen"
-- Der "intro" sollte erklären, wie die Themenübersicht verwendet werden kann
+Requirements:
+- Create 5-10 central topic areas (topics) that emerge from the sources
+- Each topic should contain 3-7 relevant questions (questions)
+- Questions should be concrete and answerable
+- Use unique IDs: "topic-1", "topic-2", etc. for topics and "q-1-1", "q-1-2", etc. for questions
+- The "intent" can be: "what", "why", "how", "compare" or "recommend" (optional)
+- The "retriever" can be: "summary", "chunk" or "auto" (optional, default: "auto")
+- The "summary" per topic is optional but recommended for better UX
+- The "tagline" should be concise, e.g., "Seven central topic areas" or "Overview of the most important topics"
+- The "intro" should explain how the topic overview can be used
 
-Beispiel-Struktur:
-- Wenn die Quellen über Open Source, KI, Nachhaltigkeit handeln, könnten Themen sein:
-  - "Open Source & Gesellschaft" mit Fragen wie "Warum Open Source mehr ist als Technologie?"
-  - "Künstliche Intelligenz & Ethik" mit Fragen wie "Wie kann KI Gemeinwohl fördern?"
-  - "Energie & Nachhaltigkeit" mit Fragen wie "Welche Rolle spielt Software für das Klima?"
+Example Structure:
+- If the sources deal with Open Source, AI, Sustainability, topics could be:
+  - "Open Source & Society" with questions like "Why is Open Source more than technology?"
+  - "Artificial Intelligence & Ethics" with questions like "How can AI promote common good?"
+  - "Energy & Sustainability" with questions like "What role does software play for the climate?"
 
-WICHTIG:
-- Antworte NUR als JSON-Objekt, kein Markdown, keine Code-Fences
-- Alle Strings müssen gültiges JSON sein (korrekte Escapes für Anführungszeichen)
-- Die Struktur muss exakt eingehalten werden
-- IDs müssen eindeutig sein und dem Muster folgen
+IMPORTANT:
+- Respond ONLY as a JSON object, no Markdown, no code fences
+- All strings must be valid JSON (correct escapes for quotation marks)
+- The structure must be exactly followed
+- IDs must be unique and follow the pattern
 
 ${languageInstruction}`
 }

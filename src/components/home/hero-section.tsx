@@ -47,17 +47,20 @@ export function HeroSection() {
           <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-white/90 md:text-xl text-pretty">
             {tSafe('home.hero.description')}
           </p>
-
+          
           {/* Buttons mit invertierten Farben für dunklen Hintergrund */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <Button size="lg" className="gap-2 text-base bg-white text-black hover:bg-white/90">
-              {tSafe('home.hero.buttonDiscover')}
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-            <Button size="lg" variant="outline" className="text-base bg-transparent border-white/20 text-white hover:bg-white/10 hover:border-white/40">
-              {tSafe('home.hero.buttonLearnMore')}
-            </Button>
-          </div>
+          {/* TEMPORÄR AUSGEBLENDET - Später wieder einblenden */}
+          {false && (
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
+              <Button size="lg" className="gap-2 text-base bg-white text-black hover:bg-white/90">
+                {tSafe('home.hero.buttonDiscover')}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              <Button size="lg" variant="outline" className="text-base bg-transparent border-white/20 text-white hover:bg-white/10 hover:border-white/40">
+                {tSafe('home.hero.buttonLearnMore')}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

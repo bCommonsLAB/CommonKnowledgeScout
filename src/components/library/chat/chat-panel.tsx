@@ -225,27 +225,66 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   
   // Prüfe Cache bei Änderungen der Kontext-Parameter oder Filter
   // UND beim ersten Laden (wenn cfg verfügbar ist)
+  // WICHTIG: Nur einmal beim ersten Laden oder bei tatsächlichen Parameter-Änderungen
+  const prevParamsRef = useRef<string>('')
   useEffect(() => {
     if (!cfg) return
     if (isEmbedded && perspectiveOpen) return // Im embedded-Modus: Nur wenn Popover geschlossen
     
+    // Erstelle Parameter-String für Vergleich
+    const paramsKey = JSON.stringify({
+      targetLanguage,
+      character,
+      socialContext,
+      genderInclusive,
+      libraryId,
+      galleryFilters,
+    })
+    
+    // Nur prüfen, wenn sich Parameter tatsächlich geändert haben
+    if (paramsKey === prevParamsRef.current && prevParamsRef.current !== '') {
+      return // Parameter unverändert, überspringe Check
+    }
+    
+    prevParamsRef.current = paramsKey
+    
     // Prüfe Cache - wenn kein Cache gefunden wird, wird automatisch generiert (über useChatTOC)
     checkTOCCache()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg, targetLanguage, character, socialContext, genderInclusive, libraryId, galleryFilters, perspectiveOpen])
+  }, [cfg, targetLanguage, character, socialContext, genderInclusive, libraryId, galleryFilters, perspectiveOpen, checkTOCCache])
   
   // Zusätzlicher useEffect: Wenn sendQuestion verfügbar wird und noch kein TOC vorhanden ist, prüfe/generiere
+  // WICHTIG: Nur wenn sendQuestion sich von undefined zu definiert ändert
+  const prevSendQuestionRef = useRef<typeof sendQuestion>(undefined)
   useEffect(() => {
-    if (!cfg || !isEmbedded) return
-    if (perspectiveOpen) return // Nur wenn Popover geschlossen
-    if (!sendQuestion) return // sendQuestion noch nicht verfügbar
-    if (cachedStoryTopicsData || cachedTOC) return // TOC bereits vorhanden
-    if (isCheckingTOC) return // Cache-Check läuft bereits
+    if (!cfg || !isEmbedded) {
+      prevSendQuestionRef.current = sendQuestion
+      return
+    }
+    if (perspectiveOpen) {
+      prevSendQuestionRef.current = sendQuestion
+      return // Nur wenn Popover geschlossen
+    }
+    if (cachedStoryTopicsData || cachedTOC) {
+      prevSendQuestionRef.current = sendQuestion
+      return // TOC bereits vorhanden
+    }
+    if (isCheckingTOC) {
+      prevSendQuestionRef.current = sendQuestion
+      return // Cache-Check läuft bereits
+    }
     
-    // Prüfe Cache erneut (falls sendQuestion jetzt verfügbar ist)
-    checkTOCCache()
+    // Nur prüfen, wenn sendQuestion von undefined zu definiert gewechselt ist
+    const wasUndefined = prevSendQuestionRef.current === undefined
+    const isNowDefined = sendQuestion !== undefined
+    if (wasUndefined && isNowDefined) {
+      // Prüfe Cache erneut (falls sendQuestion jetzt verfügbar ist)
+      checkTOCCache()
+    }
+    
+    prevSendQuestionRef.current = sendQuestion
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sendQuestion, cfg, isEmbedded, perspectiveOpen])
+  }, [sendQuestion, cfg, isEmbedded, perspectiveOpen, cachedStoryTopicsData, cachedTOC, isCheckingTOC, checkTOCCache])
   
   // Zusätzlicher useEffect für embedded-Modus: Reagiere auf Schließen des Popovers
   useEffect(() => {
@@ -413,7 +452,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         
         <div className={`flex-1 min-h-0 flex flex-col overflow-hidden ${isEmbedded ? 'relative' : ''}`}>
           <ScrollArea className="flex-1 min-h-0 h-full" ref={scrollRef}>
-            <div className={`p-4 ${isEmbedded ? '' : ''}`}>
+            <div className={`p-4 ${isEmbedded ? 'pb-56' : ''}`}>
               {isEmbedded && (
                 <div className="mb-6 pb-6 border-b">
                   <StoryTopics 
@@ -528,7 +567,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       
       <div className={`flex-1 min-h-0 flex flex-col overflow-hidden ${isEmbedded ? 'relative' : ''}`}>
         <ScrollArea className="flex-1 h-full" ref={scrollRef}>
-          <div className={`p-6 ${isEmbedded ? '' : ''}`}>
+          <div className={`p-6 ${isEmbedded ? 'pb-56' : ''}`}>
             {isEmbedded && (
               <div className="mb-6 pb-6 border-b">
                 <StoryTopics 

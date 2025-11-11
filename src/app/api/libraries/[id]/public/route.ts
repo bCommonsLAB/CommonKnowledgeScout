@@ -34,7 +34,7 @@ export async function PUT(
 
     // Request Body parsen
     const body = await request.json().catch(() => ({}));
-    const { slugName, publicName, description, icon, apiKey, isPublic, gallery } = body;
+    const { slugName, publicName, description, icon, apiKey, isPublic, backgroundImageUrl, gallery } = body;
 
     // Validierung
     if (isPublic === true) {
@@ -113,6 +113,10 @@ export async function PUT(
             ? apiKey 
             : library.config?.publicPublishing?.apiKey,
           isPublic: isPublic !== undefined ? isPublic : false,
+          // Hintergrundbild-URL: Wenn gesetzt, verwende neuen Wert, sonst behalte alten oder undefined
+          backgroundImageUrl: backgroundImageUrl !== undefined 
+            ? (backgroundImageUrl === '' ? undefined : backgroundImageUrl)
+            : library.config?.publicPublishing?.backgroundImageUrl,
           // Gallery-Texte mergen (nur wenn vorhanden)
           gallery: gallery ? {
             headline: gallery.headline !== undefined ? gallery.headline : library.config?.publicPublishing?.gallery?.headline,

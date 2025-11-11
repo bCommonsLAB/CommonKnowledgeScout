@@ -10,20 +10,17 @@ export async function GET() {
     const libraryService = LibraryService.getInstance();
     const publicLibraries = await libraryService.getAllPublicLibraries();
 
-    console.log('[API] /api/public/libraries - Gefundene öffentliche Libraries:', publicLibraries.length);
-
     // Nur sichere Daten zurückgeben (ohne API-Keys, Secrets, etc.)
-    const safeLibraries = publicLibraries.map(lib => {
-      const safeLib = {
-        id: lib.id,
-        label: lib.config?.publicPublishing?.publicName || lib.label,
-        slugName: lib.config?.publicPublishing?.slugName,
-        description: lib.config?.publicPublishing?.description,
-        icon: lib.config?.publicPublishing?.icon,
-      };
-      console.log('[API] /api/public/libraries - Safe Library:', safeLib);
-      return safeLib;
-    });
+    const safeLibraries = publicLibraries.map(lib => ({
+      id: lib.id,
+      label: lib.config?.publicPublishing?.publicName || lib.label,
+      slugName: lib.config?.publicPublishing?.slugName,
+      description: lib.config?.publicPublishing?.description,
+      icon: lib.config?.publicPublishing?.icon,
+      backgroundImageUrl: lib.config?.publicPublishing?.backgroundImageUrl,
+      // Gallery detailViewType für Icon-Auswahl
+      detailViewType: lib.config?.chat?.gallery?.detailViewType,
+    }));
 
     return NextResponse.json({ libraries: safeLibraries });
   } catch (error) {

@@ -65,6 +65,11 @@ const publicFormSchema = z.object({
   icon: z.string().optional(),
   apiKey: z.string().optional(),
   isPublic: z.boolean().default(false),
+  // Hintergrundbild-URL für die Homepage
+  backgroundImageUrl: z.union([
+    z.string().url("Bitte geben Sie eine gültige URL ein."),
+    z.literal("")
+  ]).optional(),
   // Gallery-Texte
   galleryHeadline: z.string().optional(),
   gallerySubtitle: z.string().optional(),
@@ -115,6 +120,7 @@ export function PublicForm() {
         icon: "",
         apiKey: "",
         isPublic: false,
+        backgroundImageUrl: "",
         galleryHeadline: "Entdecke, was Menschen auf der SFSCon gesagt haben",
         gallerySubtitle: "Befrage das kollektive Wissen",
         galleryDescription: "Verschaffe dir zuerst einen Überblick über alle verfügbaren Talks. Filtere nach Themen oder Jahren, die dich interessieren. Wenn du bereit bist, wechsle in den Story-Modus, um Fragen zu stellen und dir die Inhalte erzählen zu lassen.",
@@ -132,6 +138,7 @@ export function PublicForm() {
       icon: activeLibrary.config?.publicPublishing?.icon || "",
       apiKey: isMasked ? apiKeyValue : "",
       isPublic: activeLibrary.config?.publicPublishing?.isPublic === true || false,
+      backgroundImageUrl: activeLibrary.config?.publicPublishing?.backgroundImageUrl || "",
       // Gallery-Texte: Verwende gespeicherte Werte oder Defaults
       galleryHeadline: activeLibrary.config?.publicPublishing?.gallery?.headline || "Entdecke, was Menschen auf der SFSCon gesagt haben",
       gallerySubtitle: activeLibrary.config?.publicPublishing?.gallery?.subtitle || "Befrage das kollektive Wissen",
@@ -220,12 +227,8 @@ export function PublicForm() {
         icon: data.icon || undefined,
         apiKey: apiKeyToSave,
         isPublic: data.isPublic,
-        gallery: {
-          headline: data.galleryHeadline || undefined,
-          subtitle: data.gallerySubtitle || undefined,
-          description: data.galleryDescription || undefined,
-          filterDescription: data.galleryFilterDescription || undefined,
-        },
+        backgroundImageUrl: data.backgroundImageUrl || undefined,
+        // Gallery-Texte werden nicht mehr gespeichert, da sie jetzt aus den Übersetzungen kommen
       };
 
       const response = await fetch(`/api/libraries/${activeLibraryId}/public`, {
@@ -477,97 +480,26 @@ export function PublicForm() {
               }}
             />
 
-            {/* Gallery-Texte */}
-            <div className="space-y-6 border-t pt-6">
-              <h3 className="text-lg font-semibold">Gallery-Texte</h3>
-              <p className="text-sm text-muted-foreground">
-                Diese Texte werden in der Gallery-Ansicht angezeigt. Sie können als Vorlage die Standard-Texte verwenden und an Ihre Library anpassen.
-              </p>
-
-              <FormField
-                control={form.control}
-                name="galleryHeadline"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gallery-Überschrift</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Entdecke, was Menschen auf der SFSCon gesagt haben"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Große Überschrift für die Gallery-Ansicht (z.B. &quot;Entdecke, was Menschen auf der SFSCon gesagt haben&quot;).
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="gallerySubtitle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gallery-Untertitel</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Befrage das kollektive Wissen"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Untertitel unter der Überschrift (z.B. &quot;Befrage das kollektive Wissen&quot;).
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="galleryDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gallery-Beschreibung</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Verschaffe dir zuerst einen Überblick über alle verfügbaren Talks. Filtere nach Themen oder Jahren, die dich interessieren. Wenn du bereit bist, wechsle in den Story-Modus, um Fragen zu stellen und dir die Inhalte erzählen zu lassen."
-                        className="resize-none"
-                        rows={4}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Beschreibungstext unter der Überschrift. Erklärt den Nutzern, wie sie die Gallery verwenden können.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="galleryFilterDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Filter-Beschreibung</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Filtere nach Themen, um dir einen Überblick über die Vorträge zu verschaffen, die dich interessieren."
-                        className="resize-none"
-                        rows={2}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Beschreibungstext für das Filter-Panel in der Gallery.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="backgroundImageUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Hintergrundbild-URL</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="url"
+                      placeholder="https://example.com/image.jpg"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Optional: URL für ein Hintergrundbild, das auf der Homepage als Hintergrundbild der Library verwendet wird.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </>
         )}
 

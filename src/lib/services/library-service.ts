@@ -294,6 +294,7 @@ export class LibraryService {
           description: lib.config.publicPublishing.description,
           icon: lib.config.publicPublishing.icon,
           isPublic: lib.config.publicPublishing.isPublic,
+          backgroundImageUrl: lib.config.publicPublishing.backgroundImageUrl,
           // Gallery-Texte übertragen
           gallery: lib.config.publicPublishing.gallery,
           // API-Key maskiert an den Client senden (letzte 4 Zeichen sichtbar)
@@ -360,60 +361,44 @@ export class LibraryService {
 
   /**
    * Alle öffentlichen Bibliotheken abrufen
-   * Durchsucht alle Benutzer und findet Libraries mit isPublic: true
+   * Verwendet MongoDB-Aggregation für optimierte Performance
    */
   async getAllPublicLibraries(): Promise<Library[]> {
     try {
       const collection = await getCollection<UserLibraries>(this.collectionName);
       
-      // Alle Einträge finden
-      const allEntries = await collection.find({}).toArray();
-      
-      console.log('[getAllPublicLibraries] Gefundene Einträge:', allEntries.length);
-      
-      const publicLibraries: Library[] = [];
-      const seenIds = new Set<string>();
-      
-      // Durch alle Benutzer-Einträge iterieren
-      for (const entry of allEntries) {
-        if (entry.libraries && Array.isArray(entry.libraries)) {
-          for (const lib of entry.libraries) {
-            // Debug: Prüfe die Struktur der Library
-            const hasPublicPublishing = !!lib.config?.publicPublishing;
-            // Robustere Prüfung: akzeptiere nur boolean true
-            const isPublicValue = lib.config?.publicPublishing?.isPublic;
-            const isPublic = isPublicValue === true;
-            const hasSlug = !!lib.config?.publicPublishing?.slugName;
-            
-            console.log('[getAllPublicLibraries] Prüfe Library:', {
-              id: lib.id,
-              label: lib.label,
-              hasPublicPublishing,
-              isPublicValue,
-              isPublic,
-              hasSlug,
-              publicPublishing: lib.config?.publicPublishing
-            });
-            
-            // Prüfe ob Library öffentlich ist und noch nicht gefunden wurde
-            if (
-              isPublic &&
-              hasSlug &&
-              !seenIds.has(lib.id)
-            ) {
-              seenIds.add(lib.id);
-              publicLibraries.push(lib);
-              console.log('[getAllPublicLibraries] ✅ Öffentliche Library gefunden:', lib.id, lib.label);
-            }
+      // MongoDB-Aggregation Pipeline: Extrahiert direkt öffentliche Libraries
+      // Dies ist viel effizienter als alle Einträge zu laden und zu filtern
+      const pipeline = [
+        // Entpacke Libraries-Array
+        { $unwind: '$libraries' },
+        // Filtere nur öffentliche Libraries mit Slug
+        {
+          $match: {
+            'libraries.config.publicPublishing.isPublic': true,
+            'libraries.config.publicPublishing.slugName': { $exists: true, $nin: [null, ''] }
           }
+        },
+        // Gruppiere nach Library-ID, um Duplikate zu vermeiden
+        {
+          $group: {
+            _id: '$libraries.id',
+            library: { $first: '$libraries' }
+          }
+        },
+        // Formatiere zurück zu Library-Format
+        {
+          $replaceRoot: { newRoot: '$library' }
         }
-      }
+      ];
       
-      console.log('[getAllPublicLibraries] Gesamt gefundene öffentliche Libraries:', publicLibraries.length);
+      const publicLibraries = await collection.aggregate<Library>(pipeline).toArray();
+      
+      console.log('[getAllPublicLibraries] Gefundene öffentliche Libraries:', publicLibraries.length);
       
       return publicLibraries;
     } catch (error) {
-      console.error('Fehler beim Abrufen der öffentlichen Bibliotheken:', error);
+      console.error('[getAllPublicLibraries] Fehler beim Abrufen der öffentlichen Bibliotheken:', error);
       throw error;
     }
   }

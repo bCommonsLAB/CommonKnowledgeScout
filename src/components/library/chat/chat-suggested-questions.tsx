@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { HelpCircle } from 'lucide-react'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface ChatSuggestedQuestionsProps {
   questions: string[]
@@ -9,16 +10,18 @@ interface ChatSuggestedQuestionsProps {
 }
 
 /**
- * Komponente für die Anzeige von vorgeschlagenen Fragen als Buttons
+ * Component for displaying suggested questions as buttons
  */
 export function ChatSuggestedQuestions({ questions, onQuestionClick }: ChatSuggestedQuestionsProps) {
+  const { t } = useTranslation()
+  
   if (questions.length === 0) return null
 
   return (
     <div className="mt-4 p-3 rounded border bg-muted/30">
       <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
         <HelpCircle className="h-3 w-3" />
-        Mögliche weitere Fragen zum Thema, die sich aus den Quellen ergeben:
+        {t('suggestedQuestions.label')}
       </div>
       <div className="flex flex-wrap gap-2">
         {questions.map((question, index) => (

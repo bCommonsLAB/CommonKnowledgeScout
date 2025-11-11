@@ -27,9 +27,11 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
+  /** Wenn true, werden die Tabs nicht gerendert (z.B. wenn sie bereits im Header sind) */
+  hideTabs?: boolean
 }
 
-export function GalleryRoot({ libraryIdProp }: GalleryRootProps) {
+export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProps) {
   const { t } = useTranslation()
   const libraryIdFromAtom = useAtomValue(activeLibraryIdAtom)
   const libraryId = libraryIdProp || libraryIdFromAtom
@@ -51,21 +53,23 @@ export function GalleryRoot({ libraryIdProp }: GalleryRootProps) {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Default gallery texts from library config
+  // Lade detailViewType direkt aus dem librariesAtom, um Flackern zu vermeiden
   const activeLibrary = libraries.find(lib => lib.id === libraryId)
-  const defaultTexts = useMemo(() => {
-    const gallery = activeLibrary?.config?.publicPublishing?.gallery
-    return {
-      headline: gallery?.headline || 'Entdecke, was Menschen auf der SFSCon gesagt haben',
-      subtitle: gallery?.subtitle || 'Befrage das kollektive Wissen',
-      description: gallery?.description || 'Verschaffe dir zuerst einen Überblick über alle verfügbaren Talks. Filtere nach Themen oder Jahren, die dich interessieren. Wenn du bereit bist, wechsle in den Story-Modus, um Fragen zu stellen und dir die Inhalte erzählen zu lassen.',
-      filterDescription: gallery?.filterDescription || 'Filtere nach Themen, um dir einen Überblick über die Vorträge zu verschaffen, die dich interessieren.',
-    }
-  }, [activeLibrary?.config?.publicPublishing?.gallery])
+  const initialDetailViewType = useMemo(() => {
+    const galleryConfig = activeLibrary?.config?.chat?.gallery
+    const vt = galleryConfig?.detailViewType
+    return (vt === 'book' || vt === 'session') ? vt : 'book'
+  }, [activeLibrary?.config?.chat?.gallery])
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode()
-  const { texts, detailViewType } = useGalleryConfig(defaultTexts, libraryId)
+  // useGalleryConfig verwendet jetzt direkt die Übersetzungen basierend auf detailViewType
+  // initialDetailViewType verhindert das Flackern beim ersten Render
+  const { texts, detailViewType } = useGalleryConfig(
+    { headline: '', subtitle: '', description: '', filterDescription: '' }, 
+    libraryId,
+    initialDetailViewType
+  )
   const { docs, loading, error, filteredDocs, docsByYear } = useGalleryData(filters, mode, searchQuery, libraryId)
   const { facetDefs } = useGalleryFacets(libraryId, filters)
 
@@ -131,16 +135,17 @@ export function GalleryRoot({ libraryIdProp }: GalleryRootProps) {
 
   return (
     <div ref={containerRef} className="h-full overflow-hidden flex flex-col">
-      {/* Tab-Layout oben */}
-      <div className='mb-6 flex items-center flex-shrink-0'>
-        <Tabs value={mode} onValueChange={(value) => setMode(value as 'gallery' | 'story')} className="w-auto">
-          <TabsList>
-            <TabsTrigger value="gallery">{t('gallery.gallery')}</TabsTrigger>
-            <TabsTrigger value="story">{t('gallery.story')}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
+      {/* Tabs nur rendern, wenn sie nicht im Header sind */}
+      {!hideTabs && (
+        <div className='mb-6 flex items-center flex-shrink-0'>
+          <Tabs value={mode} onValueChange={(value) => setMode(value as 'gallery' | 'story')} className="w-auto">
+            <TabsList>
+              <TabsTrigger value="gallery">{t('gallery.gallery')}</TabsTrigger>
+              <TabsTrigger value="story">{t('gallery.story')}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
       <Tabs value={mode} className="flex-1 min-h-0 flex flex-col">
         {/* Gallery Mode */}
         <TabsContent value="gallery" className="flex-1 min-h-0 m-0 flex flex-col overflow-hidden data-[state=active]:flex">
