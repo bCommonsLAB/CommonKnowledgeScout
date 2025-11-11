@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Loader2 } from 'lucide-react'
+import { Sparkles, Loader2, RefreshCw } from 'lucide-react'
 import type { StoryTopicsData, StoryQuestion } from '@/types/story-topics'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
+import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
+import { AppLogo } from '@/components/shared/app-logo'
 import { useTranslation } from '@/lib/i18n/hooks'
+import type { AnswerLength, Retriever, TargetLanguage, SocialContext, Character } from '@/lib/chat/constants'
 
 interface StoryTopicsProps {
   libraryId: string
@@ -14,6 +17,16 @@ interface StoryTopicsProps {
   onSelectQuestion?: (question: StoryQuestion) => void
   visible?: boolean
   isLoading?: boolean
+  // Config-Parameter für Anzeige und Neugenerierung
+  answerLength?: AnswerLength
+  retriever?: Retriever
+  targetLanguage?: TargetLanguage
+  character?: Character
+  socialContext?: SocialContext
+  queryId?: string // QueryId für Filterparameter-Anzeige
+  filters?: Record<string, unknown> // Optional: Filterparameter direkt übergeben
+  onRegenerate?: () => Promise<void> // Callback für Reload-Button
+  isRegenerating?: boolean // Loading-State für Regenerierung
 }
 
 interface StoryConfig {
@@ -29,7 +42,22 @@ interface StoryConfig {
  * Lädt die Story-Texte aus der Config und zeigt die Themenübersicht
  * mit klickbaren Fragen an.
  */
-export function StoryTopics({ libraryId, data, onSelectQuestion, visible = true, isLoading = false }: StoryTopicsProps) {
+export function StoryTopics({ 
+  libraryId, 
+  data, 
+  onSelectQuestion, 
+  visible = true, 
+  isLoading = false,
+  answerLength,
+  retriever,
+  targetLanguage,
+  character,
+  socialContext,
+  queryId,
+  filters,
+  onRegenerate,
+  isRegenerating = false,
+}: StoryTopicsProps) {
   const { t } = useTranslation()
   const [storyConfig, setStoryConfig] = useState<StoryConfig | null>(null)
   const [loading, setLoading] = useState(true)
@@ -90,7 +118,7 @@ export function StoryTopics({ libraryId, data, onSelectQuestion, visible = true,
         <div className="space-y-2">
           {topicsTitle && (
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
+              <AppLogo size={24} fallback={<Sparkles className="h-5 w-5 text-primary" />} />
               <h2 className="text-2xl font-bold m-0">{topicsTitle}</h2>
             </div>
           )}
@@ -133,6 +161,46 @@ export function StoryTopics({ libraryId, data, onSelectQuestion, visible = true,
       
       {/* KI-Info-Hinweis für KI-generiertes Inhaltsverzeichnis */}
       <AIGeneratedNotice compact />
+      
+      {/* Config-Anzeige und Reload-Button unterhalb des TOC */}
+      <div className="flex items-center justify-between gap-4 pt-4 mt-4 border-t border-border/50">
+        {/* Config-Anzeige */}
+        <div className="flex-1 min-w-0">
+          <ChatConfigDisplay
+            answerLength={answerLength}
+            retriever={retriever}
+            targetLanguage={targetLanguage}
+            character={character}
+            socialContext={socialContext}
+            libraryId={libraryId}
+            queryId={queryId}
+            filters={filters}
+          />
+        </div>
+        
+        {/* Reload-Button */}
+        {onRegenerate && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRegenerate}
+            disabled={isRegenerating || isLoading}
+            className="flex-shrink-0 gap-2"
+          >
+            {isRegenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Neuberechnung...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                <span>TOC neu berechnen</span>
+              </>
+            )}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

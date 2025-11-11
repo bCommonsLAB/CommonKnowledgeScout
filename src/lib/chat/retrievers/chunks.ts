@@ -30,6 +30,7 @@ import { getBaseBudget } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend } from '@/lib/logging/query-logger'
 import { extractFacetMetadata } from './metadata-extractor'
 import { computeDocMetaCollectionName, findDocs } from '@/lib/repositories/doc-meta-repo'
+import { splitIntoBatches, mergeResults } from './utils/batching'
 
 export const chunksRetriever: ChatRetriever = {
   async retrieve(input: RetrieverInput): Promise<RetrieverOutput> {
@@ -45,7 +46,8 @@ export const chunksRetriever: ChatRetriever = {
     if (!apiKey) throw new Error('PINECONE_API_KEY fehlt')
 
     const budget = getBaseBudget(input.answerLength)
-    const baseTopK = 20
+    // Dynamisches Top-K basierend auf Budget: Größeres Budget ermöglicht mehr Chunks
+    const baseTopK = budget > 50000 ? 30 : budget > 30000 ? 20 : 15
 
     // Schritt 1: MongoDB-Filter anwenden → FileIDs extrahieren
     const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
@@ -155,7 +157,10 @@ export const chunksRetriever: ChatRetriever = {
     const scoreMap = new Map<string, number>()
     for (const m of matches) scoreMap.set(m.id, typeof m.score === 'number' ? m.score : 0)
 
-    const windowByLength = input.answerLength === 'ausführlich' ? 3 : input.answerLength === 'mittel' ? 2 : 1
+    // Dynamische Window-Größe: Kleinere Window-Größe bei vielen Matches, um Anzahl der IDs zu reduzieren
+    const baseWindow = input.answerLength === 'ausführlich' ? 3 : input.answerLength === 'mittel' ? 2 : 1
+    const dynamicWindow = matches.length > 30 ? 1 : matches.length > 15 ? 2 : baseWindow
+    const windowByLength = Math.min(dynamicWindow, baseWindow) // Nicht größer als ursprünglich
     const parseId = (id: string) => { const idxDash = id.lastIndexOf('-'); if (idxDash < 0) return { base: id, chunk: NaN }; return { base: id.slice(0, idxDash), chunk: Number(id.slice(idxDash + 1)) } }
     const toId = (base: string, chunk: number) => `${base}-${chunk}`
     const idSet = new Set<string>()
@@ -171,7 +176,20 @@ export const chunksRetriever: ChatRetriever = {
     if (!idx?.host) {
       throw new Error(`Index nicht gefunden für fetchVectors: "${input.context.vectorIndex}"`)
     }
-    const fetched = await fetchVectors(idx.host, apiKey, ids)
+    
+    // Batching: IDs in kleinere Batches aufteilen und parallel abrufen für bessere Performance
+    // Pinecone Fetch API kann bei vielen IDs langsam sein, daher batching mit Parallelisierung
+    const BATCH_SIZE = Number(process.env.CHAT_FETCH_BATCH_SIZE) || 20
+    const batches = splitIntoBatches(ids, BATCH_SIZE)
+    
+    // Parallel abrufen: Mehrere kleinere Requests sind schneller als ein großer Request
+    const fetchedBatches = await Promise.all(
+      batches.map(batch => fetchVectors(idx.host, apiKey, batch))
+    )
+    
+    // Ergebnisse zusammenführen
+    const fetched = mergeResults(fetchedBatches)
+    
     stepF = markStepEnd({ ...stepF, topKRequested: ids.length, topKReturned: Object.keys(fetched).length })
     await logAppend(input.queryId, { indexName: input.context.vectorIndex, namespace: '', stage: 'fetchNeighbors', level: 'chunk', topKRequested: ids.length, topKReturned: Object.keys(fetched).length, timingMs: stepF.timingMs, startedAt: stepF.startedAt, endedAt: stepF.endedAt })
 

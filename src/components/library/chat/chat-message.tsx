@@ -14,6 +14,8 @@ import type { Character, TargetLanguage, SocialContext, AnswerLength, Retriever 
 import { characterColors, characterIconColors } from '@/lib/chat/constants'
 import { useUser } from '@clerk/nextjs'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
+import { ChatFiltersDisplay } from './chat-filters-display'
+import { AppLogo } from '@/components/shared/app-logo'
 
 interface ChatMessageProps {
   type: 'question' | 'answer'
@@ -31,6 +33,7 @@ interface ChatMessageProps {
   retriever?: Retriever
   targetLanguage?: TargetLanguage
   socialContext?: SocialContext
+  filters?: Record<string, unknown> // Optional: Filterparameter direkt übergeben
 }
 
 /**
@@ -66,6 +69,7 @@ export function ChatMessage({
   retriever,
   targetLanguage,
   socialContext,
+  filters,
 }: ChatMessageProps) {
   const { isSignedIn } = useUser()
   const [showDetails, setShowDetails] = useState(false)
@@ -106,6 +110,8 @@ export function ChatMessage({
                 targetLanguage={targetLanguage}
                 character={character}
                 socialContext={socialContext}
+                libraryId={libraryId}
+                queryId={queryId}
               />
             )}
           </div>
@@ -125,12 +131,18 @@ export function ChatMessage({
         className="flex gap-3 mb-4"
       >
         <div className="flex-shrink-0">
-          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-            <Bot className="h-4 w-4 text-muted-foreground" />
-          </div>
+          <AppLogo 
+            size={32} 
+            fallback={<Bot className="h-4 w-4 text-muted-foreground" />}
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className="bg-muted/30 border rounded-lg p-3">
+            {/* Filter-Anzeige oben bei der Antwort */}
+            {queryId && (
+              <ChatFiltersDisplay libraryId={libraryId} queryId={queryId} />
+            )}
+            
             <div className="prose prose-sm max-w-none">
               <MarkdownPreview content={content} compact />
             </div>
@@ -146,8 +158,8 @@ export function ChatMessage({
             {/* Action-Buttons: Config, Quellenverzeichnis, Logs, Debug */}
             {(references && Array.isArray(references) && references.length > 0) || queryId || (answerLength || retriever || targetLanguage || character || socialContext) ? (
               <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
-                {/* Config-Anzeige bei historischen Antworten (mit queryId) */}
-                {queryId && (answerLength || retriever || targetLanguage || character || socialContext) && (
+                {/* Config-Anzeige bei historischen Antworten (mit queryId) - zeigt auch Filterparameter */}
+                {queryId && (
                   <div className="flex-1 min-w-0">
                     <ChatConfigDisplay
                       answerLength={answerLength}
@@ -155,6 +167,9 @@ export function ChatMessage({
                       targetLanguage={targetLanguage}
                       character={character}
                       socialContext={socialContext}
+                      libraryId={libraryId}
+                      queryId={queryId}
+                      filters={filters}
                     />
                   </div>
                 )}

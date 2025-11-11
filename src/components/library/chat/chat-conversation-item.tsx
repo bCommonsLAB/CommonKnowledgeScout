@@ -43,6 +43,7 @@ interface ChatConversationItemProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   libraryId: string
+  filters?: Record<string, unknown> // Optional: Filterparameter für Anzeige
   onQuestionClick?: (question: string) => void
   onDelete?: (queryId: string) => Promise<void>
   onReload?: (question: string, config: { character?: Character; answerLength?: AnswerLength; retriever?: Retriever; targetLanguage?: TargetLanguage; socialContext?: SocialContext }) => Promise<void>
@@ -76,6 +77,7 @@ export function ChatConversationItem({
   isOpen,
   onOpenChange,
   libraryId,
+  filters,
   onQuestionClick,
   onDelete,
   onReload,
@@ -227,6 +229,7 @@ export function ChatConversationItem({
                   targetLanguage={pair.answer.targetLanguage}
                   character={pair.answer.character}
                   socialContext={pair.answer.socialContext}
+                  filters={filters}
                   innerRef={innerRef}
                   onQuestionClick={onQuestionClick}
                 />

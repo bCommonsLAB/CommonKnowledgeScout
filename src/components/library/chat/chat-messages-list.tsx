@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react'
 import { ChatConversationItem } from './chat-conversation-item'
 import { ProcessingStatus } from './processing-status'
 import { ChatConfigDisplay } from './chat-config-display'
+import { AppLogo } from '@/components/shared/app-logo'
 import type { ChatMessage } from './utils/chat-utils'
 import { groupMessagesToConversations } from './utils/chat-utils'
 import type { ChatProcessingStep } from '@/types/chat-processing'
@@ -23,6 +24,7 @@ interface ChatMessagesListProps {
   targetLanguage: TargetLanguage
   character: Character
   socialContext: SocialContext
+  filters?: Record<string, unknown> // Optional: Filterparameter für Anzeige während Verarbeitung
   onQuestionClick: (question: string) => void
   onDelete: (queryId: string) => Promise<void>
   onReload: (question: string, config: {
@@ -59,6 +61,7 @@ export function ChatMessagesList({
   targetLanguage,
   character,
   socialContext,
+  filters,
   onQuestionClick,
   onDelete,
   onReload,
@@ -134,6 +137,7 @@ export function ChatMessagesList({
                 })
               }}
               libraryId={libraryId}
+              filters={filters}
               onQuestionClick={onQuestionClick}
               onDelete={onDelete}
               onReload={onReload}
@@ -153,9 +157,10 @@ export function ChatMessagesList({
       {isSending && (
         <div className="flex gap-3 mb-4">
           <div className="flex-shrink-0">
-            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-              <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
-            </div>
+            <AppLogo 
+              size={32} 
+              fallback={<Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />}
+            />
           </div>
           <div className="flex-1 min-w-0">
             <div className="bg-muted/30 border rounded-lg p-3">
@@ -168,6 +173,8 @@ export function ChatMessagesList({
                   targetLanguage={targetLanguage}
                   character={character}
                   socialContext={socialContext}
+                  libraryId={libraryId}
+                  filters={filters}
                 />
               </div>
               {/* Processing Steps - dezent innerhalb des Blocks */}

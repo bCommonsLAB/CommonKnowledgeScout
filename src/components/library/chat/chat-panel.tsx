@@ -147,7 +147,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     cachedStoryTopicsData,
     cachedTOC,
     isCheckingTOC,
+    isGeneratingTOC,
     generateTOC,
+    forceRegenerateTOC,
     checkCache: checkTOCCache,
     setTOCData,
   } = useChatTOC({
@@ -583,6 +585,15 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                   libraryId={libraryId}
                   data={cachedStoryTopicsData}
                   isLoading={isCheckingTOC}
+                  answerLength={answerLength}
+                  retriever={retriever}
+                  targetLanguage={targetLanguage}
+                  character={character}
+                  socialContext={socialContext}
+                  queryId={cachedTOC?.queryId}
+                  filters={galleryFilters}
+                  onRegenerate={forceRegenerateTOC}
+                  isRegenerating={isGeneratingTOC}
                   onSelectQuestion={(question) => {
                     setInput(question.text)
                     setIsChatInputOpen(true)
@@ -607,6 +618,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               targetLanguage={targetLanguage}
               character={character}
               socialContext={socialContext}
+              filters={galleryFilters}
               onQuestionClick={(question) => {
                 setInput(question)
                 setIsChatInputOpen(true)

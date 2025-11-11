@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useTranslation } from "@/lib/i18n/hooks"
 import { useEffect, useState } from "react"
 import { DEFAULT_LOCALE, t as translate } from "@/lib/i18n"
+import { AppLogo } from "@/components/shared/app-logo"
 
 export function HeroSection() {
   const { t } = useTranslation()
@@ -30,6 +31,11 @@ export function HeroSection() {
 
       <div className="container relative mx-auto px-4 py-24 md:py-32 lg:py-40">
         <div className="mx-auto max-w-4xl text-center">
+          {/* Logo */}
+          <div className="mb-6 flex justify-center opacity-60">
+            <AppLogo size={100} />
+          </div>
+
           {/* Badge mit hellem Hintergrund und dunklem Text für Kontrast */}
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur-sm px-4 py-2 text-sm font-medium text-white">
             <BookOpen className="h-4 w-4" />
@@ -37,7 +43,7 @@ export function HeroSection() {
           </div>
 
           {/* Hauptüberschrift in weiß */}
-          <h1 className="mb-6 text-4xl font-bold tracking-tight text-balance text-white sm:text-5xl md:text-6xl lg:text-7xl">
+          <h1 className="mb-6 text-5xl font-bold tracking-tight text-balance text-white sm:text-6xl md:text-7xl lg:text-8xl">
             {tSafe('home.hero.title')}
             <br />
             {tSafe('home.hero.subtitle')}

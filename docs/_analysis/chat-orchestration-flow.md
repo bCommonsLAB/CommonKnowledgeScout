@@ -345,3 +345,399 @@ Checkbox "Als Themenübersicht":
 2. ⚠️ Monitoring: Welcher Modus wird wann gewählt?
 3. ⚠️ Top-K Erweiterung evaluieren (bei zu wenig relevanten Dokumenten)
 
+---
+
+## Performance-Analyse: Timing-Daten
+
+### Gemessene Timings (Beispiel aus Produktion)
+
+**RAG-Flow (chunk-Modus) - Normale Frage:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Schritt                    │ Timing    │ Anteil │ Status   │
+├─────────────────────────────────────────────────────────────┤
+│ 1. Embedding-Generierung   │ ~514ms    │ 11%    │ ✅ OK    │
+│ 2. Vector-Suche (Query)    │ ~1187ms   │ 26%    │ ⚠️ Langsam│
+│ 3. Fetch Neighbors          │ ~2902ms   │ 64%    │ ❌ Sehr  │
+│                            │           │        │   langsam │
+│ 4. Prompt-Building         │ ~50-100ms │ 1-2%   │ ✅ OK    │
+│ 5. LLM-Aufruf             │ ~2000-5000ms│ 44-55%│ ⚠️ Variabel│
+│                            │           │        │           │
+│ TOTAL                      │ ~4600-8700ms│ 100% │ ⚠️        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Detaillierte Schritt-Analyse
+
+#### 1. Embedding-Generierung (`embed`)
+- **Timing**: ~514ms
+- **Was passiert**: Frage wird in Embedding-Vektor umgewandelt
+- **API-Call**: OpenAI Embeddings API
+- **Bewertung**: ✅ Akzeptabel (~500ms ist normal für Embeddings)
+- **Optimierungspotenzial**: Gering (abhängig von OpenAI)
+
+#### 2. Vector-Suche (`query`)
+- **Timing**: ~1187ms
+- **Was passiert**: 
+  - Semantische Suche in Pinecone
+  - Top-K relevante Chunks finden (Standard: 20)
+  - Parallel: Chapter-Summaries suchen (Top-10)
+- **API-Call**: Pinecone Query API (2 parallel)
+- **Bewertung**: ⚠️ Langsam (könnte optimiert werden)
+- **Optimierungspotenzial**: 
+  - Parallelisierung bereits implementiert ✅
+  - Top-K könnte reduziert werden (wenn nicht alle benötigt)
+  - Pinecone-Index-Performance prüfen
+
+#### 3. Fetch Neighbors (`fetchNeighbors`) ⚠️ **KRITISCH**
+- **Timing**: ~2902ms (64% der Retrieval-Zeit!)
+- **Was passiert**:
+  - Window-basierte Nachbar-Chunks abrufen
+  - Beispiel: Top-20 Chunks → Window ±1-3 → ~60-74 IDs
+  - Alle IDs in einem Request abrufen
+- **API-Call**: Pinecone Fetch API (1 Request mit vielen IDs)
+- **Bewertung**: ❌ **Sehr langsam** - größter Performance-Flaschenhals
+- **Problem**: 
+  - Ein einzelner Request mit vielen IDs (74+ IDs)
+  - Pinecone Fetch API kann bei vielen IDs langsam sein
+  - Window-Größe (`windowByLength`) bestimmt Anzahl der IDs
+- **Optimierungspotenzial**: 
+  - **Hoch**: Batch-Größe reduzieren oder parallelisieren
+  - **Hoch**: Window-Größe dynamisch anpassen
+  - **Mittel**: Optional machen (nur wenn wirklich nötig)
+  - **Niedrig**: Fallback auf Original-Matches wenn zu langsam
+
+#### 4. Prompt-Building
+- **Timing**: ~50-100ms (geschätzt)
+- **Was passiert**: Prompt aus Quellen zusammenbauen
+- **Bewertung**: ✅ OK (lokale Operation)
+- **Optimierungspotenzial**: Gering
+
+#### 5. LLM-Aufruf
+- **Timing**: ~2000-5000ms (variabel)
+- **Was passiert**: OpenAI API-Call für Antwort-Generierung
+- **Bewertung**: ⚠️ Variabel (abhängig von Antwortlänge, Modell, Last)
+- **Optimierungspotenzial**: 
+  - Modell-Auswahl (gpt-4o-mini ist schneller als gpt-4o)
+  - Streaming bereits implementiert ✅
+  - Token-Budget-Management bereits implementiert ✅
+
+### Identifizierte Performance-Probleme
+
+#### 🔴 Problem 1: Fetch Neighbors ist zu langsam
+- **Impact**: Hoch (64% der Retrieval-Zeit)
+- **Ursache**: Ein Request mit vielen IDs (74+)
+- **Lösung**: 
+  1. Batch-Größe reduzieren (z.B. max 20 IDs pro Request)
+  2. Parallelisierung (mehrere Requests parallel)
+  3. Window-Größe dynamisch anpassen (kleineres Window bei vielen Chunks)
+  4. Optional machen (nur wenn wirklich nötig)
+
+#### 🟡 Problem 2: Vector-Suche könnte schneller sein
+- **Impact**: Mittel (26% der Retrieval-Zeit)
+- **Ursache**: Pinecone Query-Performance
+- **Lösung**: 
+  1. Top-K reduzieren (wenn nicht alle benötigt)
+  2. Index-Performance prüfen
+  3. Caching für ähnliche Queries
+
+#### 🟢 Problem 3: Embedding-Generierung ist akzeptabel
+- **Impact**: Niedrig (11% der Retrieval-Zeit)
+- **Status**: ✅ OK
+
+### Optimierungsvorschläge
+
+#### Priorität 1: Fetch Neighbors optimieren (Hoch)
+
+**Option A: Batch-Größe reduzieren**
+```typescript
+// Aktuell: Ein Request mit allen IDs
+const fetched = await fetchVectors(idx.host, apiKey, ids) // 74 IDs
+
+// Optimiert: Mehrere Requests mit kleineren Batches
+const BATCH_SIZE = 20
+const batches = []
+for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+  batches.push(ids.slice(i, i + BATCH_SIZE))
+}
+const fetched = await Promise.all(
+  batches.map(batch => fetchVectors(idx.host, apiKey, batch))
+)
+```
+
+**Option B: Window-Größe dynamisch anpassen**
+```typescript
+// Aktuell: Feste Window-Größe basierend auf answerLength
+const windowByLength = input.answerLength === 'ausführlich' ? 3 : ...
+
+// Optimiert: Dynamisch basierend auf Anzahl der Matches
+const windowSize = matches.length > 30 ? 1 : matches.length > 15 ? 2 : 3
+```
+
+**Option C: Optional machen**
+```typescript
+// Nur wenn wirklich nötig (z.B. wenn Chunks sequenziell sind)
+const needsNeighbors = matches.some(m => {
+  const { base, chunk } = parseId(m.id)
+  return Number.isFinite(chunk)
+})
+if (needsNeighbors) {
+  // Fetch neighbors
+} else {
+  // Verwende Original-Matches direkt
+}
+```
+
+#### Priorität 2: Vector-Suche optimieren (Mittel)
+
+**Option A: Top-K reduzieren**
+```typescript
+// Aktuell: baseTopK = 20
+// Optimiert: Dynamisch basierend auf Budget
+const baseTopK = budget > 50000 ? 30 : budget > 30000 ? 20 : 15
+```
+
+**Option B: Caching für ähnliche Queries**
+```typescript
+// Cache für Embeddings ähnlicher Fragen (z.B. innerhalb von 5 Minuten)
+const cacheKey = hashQuestion(input.question)
+const cached = await getCachedEmbedding(cacheKey)
+if (cached) {
+  // Verwende cached embedding
+}
+```
+
+#### Priorität 3: Monitoring verbessern (Niedrig)
+
+- Detaillierte Timing-Logs für jeden Schritt
+- Alerts bei langsamen Queries (>5s)
+- Dashboard für Performance-Metriken
+
+---
+
+## Flow-Validierung: Aktueller Stand
+
+### ✅ Validierung: Flow stimmt noch
+
+Der dokumentierte Flow entspricht der aktuellen Implementierung:
+
+1. ✅ **TOC-Query-Logik**: 
+   - Token-Budget-basierte Entscheidung zwischen `summary` und `chunkSummary`
+   - Implementiert in `decideRetrieverMode()`
+
+2. ✅ **Normale Fragen**: 
+   - Immer RAG (`chunk`-Modus)
+   - Warnung bei Score < 0.7
+   - Implementiert in `chunksRetriever`
+
+3. ✅ **Retrieval-Schritte**:
+   - Embedding-Generierung ✅
+   - Vector-Suche (parallel für Chunks und Chapter-Summaries) ✅
+   - Fetch Neighbors (Window-basiert) ✅
+   - Score-Boosting (Chapter-Boost, Lexical-Boost) ✅
+
+4. ✅ **Prompt-Building**:
+   - TOC-Prompt für TOC-Queries ✅
+   - Normal-Prompt für normale Fragen ✅
+
+5. ✅ **LLM-Aufruf**:
+   - Streaming implementiert ✅
+   - Token-Budget-Management ✅
+   - Retry-Logik bei zu langen Prompts ✅
+
+6. ✅ **Response-Parsing**:
+   - StoryTopicsData für TOC-Queries ✅
+   - Normal-Parsing für normale Fragen ✅
+   - Warnung wird hinzugefügt ✅
+
+### ⚠️ Verbesserungen identifiziert
+
+1. **Performance**: Fetch Neighbors ist zu langsam (siehe oben)
+2. **Monitoring**: Timing-Daten werden gesammelt, aber nicht ausgewertet
+3. **Optimierung**: Window-Größe könnte dynamischer sein
+
+---
+
+## Empfohlene Optimierungen (Priorisiert)
+
+### Sofort umsetzbar (Quick Wins)
+
+1. **Fetch Neighbors batching** (Priorität: Hoch)
+   - Batch-Größe auf 20 IDs reduzieren
+   - Parallelisierung implementieren
+   - Geschätzte Verbesserung: ~50% schneller (2902ms → ~1450ms)
+
+2. **Window-Größe dynamisch anpassen** (Priorität: Mittel)
+   - Kleinere Window-Größe bei vielen Matches
+   - Geschätzte Verbesserung: ~30% weniger IDs → ~20% schneller
+
+### Mittelfristig (Wochen)
+
+3. **Top-K dynamisch anpassen** (Priorität: Mittel)
+   - Basierend auf Budget und Anzahl der Matches
+   - Geschätzte Verbesserung: ~10-15% schneller
+
+4. **Caching für Embeddings** (Priorität: Niedrig)
+   - Cache für ähnliche Fragen
+   - Geschätzte Verbesserung: ~500ms bei Cache-Hit
+
+### Langfristig (Monate)
+
+5. **Monitoring-Dashboard** (Priorität: Niedrig)
+   - Performance-Metriken visualisieren
+   - Alerts bei langsamen Queries
+
+---
+
+## Zusammenfassung: Performance-Optimierung
+
+### Aktuelle Performance (RAG-Flow)
+- **Total Retrieval**: ~4600ms
+- **Langsamster Schritt**: Fetch Neighbors (~2902ms, 64%)
+- **Zweiter Schritt**: Vector-Suche (~1187ms, 26%)
+- **Schnellster Schritt**: Embedding (~514ms, 11%)
+
+### Optimierungspotenzial
+- **Fetch Neighbors**: ~50% schneller möglich (Batching)
+- **Vector-Suche**: ~10-15% schneller möglich (dynamisches Top-K)
+- **Gesamt**: ~30-40% schneller möglich (~4600ms → ~2800-3200ms)
+
+### Nächste Schritte
+1. ✅ Flow validiert - stimmt noch
+2. ✅ Performance-Probleme identifiziert
+3. ✅ Optimierungsvorschläge dokumentiert
+4. ✅ Implementierung der Quick Wins abgeschlossen
+
+---
+
+## Implementierte Optimierungen
+
+### ✅ Fetch Neighbors Batching (Implementiert)
+
+**Problem**: Ein einzelner Request mit vielen IDs (74+) war sehr langsam (~2902ms).
+
+**Lösung**: 
+- IDs werden in Batches aufgeteilt (Standard: 20 IDs pro Batch)
+- Batches werden parallel mit `Promise.all()` abgerufen
+- Ergebnisse werden zusammengeführt
+
+**Code-Änderungen** (`src/lib/chat/retrievers/chunks.ts`):
+```typescript
+// Batching: IDs in kleinere Batches aufteilen und parallel abrufen
+const BATCH_SIZE = Number(process.env.CHAT_FETCH_BATCH_SIZE) || 20
+const batches: string[][] = []
+for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+  batches.push(ids.slice(i, i + BATCH_SIZE))
+}
+
+// Parallel abrufen: Mehrere kleinere Requests sind schneller als ein großer Request
+const fetchedBatches = await Promise.all(
+  batches.map(batch => fetchVectors(idx.host, apiKey, batch))
+)
+
+// Ergebnisse zusammenführen
+const fetched: Record<string, { id: string; metadata?: Record<string, unknown> }> = {}
+for (const batch of fetchedBatches) {
+  Object.assign(fetched, batch)
+}
+```
+
+**Konfiguration**:
+- Umgebungsvariable: `CHAT_FETCH_BATCH_SIZE` (Standard: 20)
+- Kann über `.env` angepasst werden
+
+**Erwartete Verbesserung**: ~50% schneller (2902ms → ~1450ms)
+
+---
+
+### ✅ Dynamische Window-Größe (Implementiert)
+
+**Problem**: Feste Window-Größe führte bei vielen Matches zu sehr vielen IDs.
+
+**Lösung**:
+- Window-Größe wird dynamisch basierend auf Anzahl der Matches angepasst
+- Bei vielen Matches (>30): Window-Größe 1
+- Bei mittleren Matches (>15): Window-Größe 2
+- Sonst: Ursprüngliche Window-Größe basierend auf `answerLength`
+
+**Code-Änderungen** (`src/lib/chat/retrievers/chunks.ts`):
+```typescript
+// Dynamische Window-Größe: Kleinere Window-Größe bei vielen Matches
+const baseWindow = input.answerLength === 'ausführlich' ? 3 : input.answerLength === 'mittel' ? 2 : 1
+const dynamicWindow = matches.length > 30 ? 1 : matches.length > 15 ? 2 : baseWindow
+const windowByLength = Math.min(dynamicWindow, baseWindow) // Nicht größer als ursprünglich
+```
+
+**Erwartete Verbesserung**: ~30% weniger IDs → ~20% schneller
+
+---
+
+### ✅ Dynamisches Top-K (Implementiert)
+
+**Problem**: Festes `baseTopK = 20` war nicht optimal für verschiedene Budgets.
+
+**Lösung**:
+- Top-K wird dynamisch basierend auf verfügbarem Budget berechnet
+- Größeres Budget ermöglicht mehr Chunks
+
+**Code-Änderungen** (`src/lib/chat/retrievers/chunks.ts`):
+```typescript
+// Dynamisches Top-K basierend auf Budget: Größeres Budget ermöglicht mehr Chunks
+const baseTopK = budget > 50000 ? 30 : budget > 30000 ? 20 : 15
+```
+
+**Logik**:
+- Budget > 50000: Top-K = 30
+- Budget > 30000: Top-K = 20
+- Sonst: Top-K = 15
+
+**Erwartete Verbesserung**: ~10-15% schneller
+
+---
+
+## Performance-Verbesserungen: Zusammenfassung
+
+### Vorher (gemessen)
+- **Total Retrieval**: ~4600ms
+- **Fetch Neighbors**: ~2902ms (64%)
+- **Vector-Suche**: ~1187ms (26%)
+- **Embedding**: ~514ms (11%)
+
+### Nachher (geschätzt)
+- **Total Retrieval**: ~2800-3200ms (~30-40% schneller)
+- **Fetch Neighbors**: ~1450ms (~50% schneller durch Batching)
+- **Vector-Suche**: ~1000-1070ms (~10-15% schneller durch dynamisches Top-K)
+- **Embedding**: ~514ms (unverändert)
+
+### Implementierte Features
+1. ✅ Fetch Neighbors Batching mit Parallelisierung
+2. ✅ Dynamische Window-Größe basierend auf Anzahl der Matches
+3. ✅ Dynamisches Top-K basierend auf Budget
+4. ✅ Konfigurierbare Batch-Größe über Umgebungsvariable
+
+### Konfiguration
+
+**Neue Umgebungsvariable**:
+- `CHAT_FETCH_BATCH_SIZE`: Batch-Größe für Fetch Neighbors (Standard: 20)
+  - Kann in `.env` gesetzt werden
+  - Empfohlener Wert: 20-30 (abhängig von Pinecone-Performance)
+
+---
+
+## Monitoring & Testing
+
+### Empfohlene Tests
+1. **Unit-Tests**: Batching-Logik mit verschiedenen ID-Anzahlen
+2. **Integration-Tests**: Gesamter Retrieval-Flow mit Timing-Messungen
+3. **Edge-Cases**: 
+   - Leere IDs-Liste
+   - Sehr viele IDs (>100)
+   - Einzelne ID
+   - Batch-Größe größer als Anzahl der IDs
+
+### Performance-Monitoring
+- Timing-Daten werden bereits in `QueryRetrievalStep` gespeichert
+- Empfehlung: Dashboard für Performance-Metriken erstellen
+- Alerts bei langsamen Queries (>5s) einrichten
+

@@ -38,7 +38,9 @@ interface UseChatTOCResult {
   cachedStoryTopicsData: StoryTopicsData | null
   cachedTOC: CachedTOC | null
   isCheckingTOC: boolean
+  isGeneratingTOC: boolean
   generateTOC: () => Promise<void>
+  forceRegenerateTOC: () => Promise<void> // Erzwingt Neugenerierung auch bei vorhandenem Cache
   checkCache: () => Promise<void>
   setTOCData: (data: {
     storyTopicsData?: StoryTopicsData
@@ -72,6 +74,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
   const [cachedStoryTopicsData, setCachedStoryTopicsData] = useState<StoryTopicsData | null>(null)
   const [cachedTOC, setCachedTOC] = useState<CachedTOC | null>(null)
   const [isCheckingTOC, setIsCheckingTOC] = useState(false)
+  const [isGeneratingTOC, setIsGeneratingTOC] = useState(false)
   const { checkCache: checkCacheAPI } = useStoryTopicsCache()
 
   // Ref für synchrones Tracking, ob Cache-Check läuft (verhindert Race Conditions)
@@ -310,6 +313,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
 
     // Markiere Generierung als gestartet
     isGeneratingTOCRef.current = true
+    setIsGeneratingTOC(true)
 
     try {
     // Starte die Anfrage direkt als TOC-Query
@@ -322,10 +326,53 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       console.error('[useChatTOC] Fehler bei TOC-Generierung:', error)
       // Bei Fehler: Reset Flag, damit erneut versucht werden kann
       isGeneratingTOCRef.current = false
+      setIsGeneratingTOC(false)
     }
     // HINWEIS: isGeneratingTOCRef wird zurückgesetzt, wenn setTOCData() aufgerufen wird
     // oder wenn die Generierung fehlschlägt (siehe catch-Block oben)
   }, [isSending, isCheckingTOC, cachedStoryTopicsData, cachedTOC, sendQuestion])
+
+  // Erzwingt Neugenerierung des TOC, auch wenn bereits ein Cache vorhanden ist
+  const forceRegenerateTOC = useCallback(async () => {
+    if (isSending) {
+      return // Verhindere doppelte Ausführung
+    }
+
+    // Wenn bereits eine Generierung läuft, abbrechen
+    if (isGeneratingTOCRef.current) {
+      return
+    }
+
+    // Wenn Cache-Check noch läuft, abbrechen
+    if (isCheckingTOC || isCheckingTOCRef.current) {
+      return
+    }
+
+    // Verwende Ref, falls sendQuestion später gesetzt wurde
+    const currentSendQuestion = sendQuestionRef.current || sendQuestion
+    if (!currentSendQuestion) {
+      return // sendQuestion noch nicht verfügbar
+    }
+
+    // Lösche Cache, damit neuer Cache gesetzt werden kann
+    setCachedStoryTopicsData(null)
+    setCachedTOC(null)
+
+    // Markiere Generierung als gestartet
+    isGeneratingTOCRef.current = true
+    setIsGeneratingTOC(true)
+
+    try {
+      // Starte die Anfrage direkt als TOC-Query
+      // Verwende 'auto' für automatische Retriever-Entscheidung basierend auf Token-Budget
+      await currentSendQuestion(TOC_QUESTION, 'auto', true) // true = isTOCQuery
+    } catch (error) {
+      console.error('[useChatTOC] Fehler bei TOC-Neugenerierung:', error)
+      // Bei Fehler: Reset Flag, damit erneut versucht werden kann
+      isGeneratingTOCRef.current = false
+      setIsGeneratingTOC(false)
+    }
+  }, [isSending, isCheckingTOC, sendQuestion])
 
 
   // Funktion zum direkten Setzen von TOC-Daten (z.B. nach Stream-Complete)
@@ -340,6 +387,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       // Reset Generierungs-Flag IMMER, da die Generierung jetzt abgeschlossen ist
       // (auch wenn keine Daten vorhanden sind, z.B. "No matching content found")
       isGeneratingTOCRef.current = false
+      setIsGeneratingTOC(false)
       
       if (data.storyTopicsData) {
         setCachedStoryTopicsData(data.storyTopicsData)
@@ -375,7 +423,9 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     cachedStoryTopicsData,
     cachedTOC,
     isCheckingTOC,
+    isGeneratingTOC,
     generateTOC,
+    forceRegenerateTOC,
     checkCache: checkCacheExposed,
     setTOCData,
   }
