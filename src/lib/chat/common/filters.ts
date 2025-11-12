@@ -24,6 +24,17 @@ export function buildFilters(url: URL, library: Library, userEmail: string, libr
       pinecone[def.metaKey] = filterValue
     }
   }
+  
+  // fileId-Filter hinzufügen (wenn vorhanden)
+  const fileIdFilter = builtin.fileId
+  if (fileIdFilter !== undefined && fileIdFilter !== null) {
+    // Für Pinecone: fileId als $in-Array
+    if (Array.isArray(fileIdFilter)) {
+      pinecone.fileId = { $in: fileIdFilter }
+    } else {
+      pinecone.fileId = { $eq: fileIdFilter }
+    }
+  }
 
   const normalized: Record<string, unknown> = {
     user: { $eq: userEmail || '' },
@@ -39,6 +50,16 @@ export function buildFilters(url: URL, library: Library, userEmail: string, libr
     const filterValue = builtin[def.metaKey]
     if (filterValue !== undefined && filterValue !== null) {
       mongo[def.metaKey] = filterValue
+    }
+  }
+  
+  // fileId-Filter für MongoDB hinzufügen (wenn vorhanden)
+  if (fileIdFilter !== undefined && fileIdFilter !== null) {
+    // Für MongoDB: fileId als $in-Array
+    if (Array.isArray(fileIdFilter)) {
+      mongo.fileId = { $in: fileIdFilter }
+    } else {
+      mongo.fileId = fileIdFilter
     }
   }
 

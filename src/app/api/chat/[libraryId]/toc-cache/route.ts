@@ -56,14 +56,14 @@ export async function GET(
     const facetsSelected: Record<string, unknown> = {}
     const facetMetaKeys = new Set(facetDefs.map(d => d.metaKey))
     
-    // Nur Parameter, die tatsächlich Facetten sind
+    // Nur Parameter, die tatsächlich Facetten sind (inkl. fileId)
     parsedUrl.searchParams.forEach((v, k) => {
       // Überspringe Chat-Konfigurations-Parameter
       if (['retriever', 'targetLanguage', 'character', 'socialContext', 'genderInclusive', 'chatId', 'question'].includes(k)) {
         return
       }
-      // Nur Facetten-Parameter übernehmen
-      if (facetMetaKeys.has(k)) {
+      // Facetten-Parameter ODER fileId übernehmen
+      if (facetMetaKeys.has(k) || k === 'fileId') {
         if (!facetsSelected[k]) facetsSelected[k] = [] as unknown[]
         ;(facetsSelected[k] as unknown[]).push(v)
       }
@@ -119,6 +119,13 @@ export async function GET(
         suggestedQuestions: cachedQuery.suggestedQuestions,
         storyTopicsData: cachedQuery.storyTopicsData, // Strukturierte Themenübersicht, falls vorhanden
         createdAt: cachedQuery.createdAt.toISOString(),
+        // Parameter aus Query zurückgeben, damit sie direkt verwendet werden können
+        answerLength: cachedQuery.answerLength,
+        retriever: cachedQuery.retriever,
+        targetLanguage: cachedQuery.targetLanguage,
+        character: cachedQuery.character,
+        socialContext: cachedQuery.socialContext,
+        facetsSelected: cachedQuery.facetsSelected,
       })
     }
     

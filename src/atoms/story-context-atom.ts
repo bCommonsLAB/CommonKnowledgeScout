@@ -41,14 +41,19 @@ function localeToTargetLanguage(locale: string | null | undefined): TargetLangua
 }
 
 /**
- * Liest die UI-Sprache aus dem Cookie (wird vom Middleware gesetzt)
+ * Liest die UI-Sprache aus dem Cookie
+ * 
+ * WICHTIG: Diese Funktion liest direkt aus dem Cookie, da get() in Jotai 2.x
+ * nicht direkt verfügbar ist außerhalb von Atom-Definitionen.
  */
-function getUILocaleFromCookie(): string | null {
+function getUILocaleFromAtom(): string | null {
   if (typeof window === 'undefined') return null
   try {
-    const cookies = document.cookie.split('; ')
-    const localeCookie = cookies.find(row => row.startsWith('locale='))
-    return localeCookie?.split('=')[1] || null
+    const cookieValue = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('locale='))
+      ?.split('=')[1]
+    return cookieValue || null
   } catch {
     return null
   }
@@ -65,8 +70,8 @@ function getInitialTargetLanguage(): TargetLanguage {
       return parsed
     }
     
-    // 2. Kein localStorage-Wert: Verwende UI-Sprache aus Cookie
-    const uiLocale = getUILocaleFromCookie()
+    // 2. Kein localStorage-Wert: Verwende UI-Sprache aus localeAtom
+    const uiLocale = getUILocaleFromAtom()
     if (uiLocale) {
       return localeToTargetLanguage(uiLocale)
     }

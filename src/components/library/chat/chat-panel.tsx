@@ -33,6 +33,8 @@ import { useSessionHeaders } from '@/hooks/use-session-headers'
 import { useChatHistory } from './hooks/use-chat-history'
 import { useChatStream } from './hooks/use-chat-stream'
 import { useChatTOC } from './hooks/use-chat-toc'
+import type { QueryLog } from '@/types/query-log'
+import type { GalleryFilters } from '@/atoms/gallery-filters'
 
 interface ChatPanelProps {
   libraryId: string
@@ -113,6 +115,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     isSending,
     processingSteps,
     sendQuestion,
+    setProcessingSteps,
   } = useChatStream({
     libraryId,
     cfg,
@@ -163,10 +166,91 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     isEmbedded,
     isSending,
     sendQuestion,
+    setProcessingSteps,
   })
   
   // Setze Ref für späteren Zugriff
   checkTOCCacheRef.current = checkTOCCache
+  
+  // State für Reload-Button-Anzeige (wenn Parameter geändert wurden)
+  const [showReloadButton, setShowReloadButton] = useState(false)
+  
+  // Parameter-Vergleich: Prüfe, ob aktuelle Parameter von Query-Parametern abweichen
+  useEffect(() => {
+    if (!cachedTOC?.queryId || !libraryId) {
+      setShowReloadButton(false)
+      return
+    }
+    
+    let cancelled = false
+    
+    async function compareParams() {
+      if (!cachedTOC?.queryId) {
+        return
+      }
+      
+      try {
+        const queryRes = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(cachedTOC.queryId)}`, {
+          cache: 'no-store'
+        })
+        
+        if (!queryRes.ok || cancelled) return
+        
+        const queryLog = await queryRes.json() as QueryLog
+        
+        if (cancelled) return
+        
+        // Vergleiche Parameter
+        const queryParams = {
+          targetLanguage: queryLog.targetLanguage,
+          character: queryLog.character,
+          socialContext: queryLog.socialContext,
+          facetsSelected: queryLog.facetsSelected || {},
+        }
+        
+        const currentParams = {
+          targetLanguage,
+          character,
+          socialContext,
+          facetsSelected: galleryFilters || {},
+        }
+        
+        // Normalisiere Filter für Vergleich
+        const normalizeFilters = (filters: GalleryFilters | Record<string, unknown>): Record<string, string[]> => {
+          const normalized: Record<string, string[]> = {}
+          Object.entries(filters).forEach(([key, value]) => {
+            if (Array.isArray(value)) {
+              normalized[key] = value.map(v => String(v)).sort()
+            } else if (value !== undefined && value !== null) {
+              normalized[key] = [String(value)].sort()
+            }
+          })
+          return normalized
+        }
+        
+        const queryFiltersNormalized = normalizeFilters(queryParams.facetsSelected)
+        const currentFiltersNormalized = normalizeFilters(currentParams.facetsSelected)
+        
+        // Vergleiche alle Parameter
+        const paramsMatch = 
+          queryParams.targetLanguage === currentParams.targetLanguage &&
+          queryParams.character === currentParams.character &&
+          queryParams.socialContext === currentParams.socialContext &&
+          JSON.stringify(queryFiltersNormalized) === JSON.stringify(currentFiltersNormalized)
+        
+        setShowReloadButton(!paramsMatch)
+      } catch (error) {
+        console.error('[ChatPanel] Fehler beim Vergleich der Parameter:', error)
+        setShowReloadButton(false)
+      }
+    }
+    
+    compareParams()
+    
+    return () => {
+      cancelled = true
+    }
+  }, [cachedTOC?.queryId, libraryId, targetLanguage, character, socialContext, galleryFilters])
   
   // Setze TOC-Daten direkt, wenn sie aus dem Stream kommen
   useEffect(() => {
@@ -209,6 +293,13 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               ? lastStep.suggestedQuestions.filter((q: unknown): q is string => typeof q === 'string')
               : [],
             queryId: typeof lastStep.queryId === 'string' ? lastStep.queryId : `temp-${Date.now()}`,
+            // Parameter aus aktuellem State speichern
+            answerLength,
+            retriever,
+            targetLanguage,
+            character,
+            socialContext,
+            facetsSelected: galleryFilters || {},
           })
         }
       }
@@ -221,7 +312,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const prevPerspectiveOpenRef = useRef<boolean | undefined>(undefined)
   
   // Auto-Scroll-Logik
   useChatScroll({
@@ -234,39 +324,99 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     prevMessagesLengthRef,
   })
   
-  // Prüfe Cache bei Änderungen der Kontext-Parameter oder Filter
-  // UND beim ersten Laden (wenn cfg verfügbar ist)
-  // WICHTIG: Nur einmal beim ersten Laden oder bei tatsächlichen Parameter-Änderungen
-  const prevParamsRef = useRef<string>('')
+  // Prüfe Cache beim ersten Laden UND bei Filter-/Parameteränderungen
+  // WICHTIG: Nur im Story-Mode (embedded) und nur wenn keine normale Frage läuft
+  const hasCheckedCacheRef = useRef(false)
+  const shouldAutoGenerateRef = useRef(false)
+  const lastFiltersRef = useRef<string>('')
+  const lastParamsRef = useRef<string>('')
+  
   useEffect(() => {
     if (!cfg) return
-    if (isEmbedded && perspectiveOpen) return // Im embedded-Modus: Nur wenn Popover geschlossen
+    if (!isEmbedded) return // Nur im Story-Mode (embedded)
+    if (perspectiveOpen) return // Im embedded-Modus: Nur wenn Popover geschlossen
     if (isSending) return // Wenn bereits eine Query läuft, überspringe Check
     
-    // Erstelle Parameter-String für Vergleich
-    const paramsKey = JSON.stringify({
+    // WICHTIG: Prüfe, ob der Benutzer gerade eine normale Frage gestellt hat
+    // Der Cache-Check sollte nur für TOC-Queries durchgeführt werden, nicht für normale Fragen
+    const hasNormalQuestions = messages.some(
+      (msg) => msg.type === 'question' && msg.content.trim() !== TOC_QUESTION.trim()
+    )
+    if (hasNormalQuestions) {
+      // Benutzer hat bereits normale Fragen gestellt, kein Cache-Check für TOC nötig
+      return
+    }
+    
+    // Erstelle Cache-Key aus aktuellen Parametern
+    const currentFiltersKey = JSON.stringify(galleryFilters || {})
+    const currentParamsKey = JSON.stringify({
       targetLanguage,
       character,
       socialContext,
       genderInclusive,
-      libraryId,
-      galleryFilters,
     })
     
-    // Nur prüfen, wenn sich Parameter tatsächlich geändert haben
-    if (paramsKey === prevParamsRef.current && prevParamsRef.current !== '') {
-      return // Parameter unverändert, überspringe Check
+    // Prüfe, ob sich Filter oder Parameter geändert haben
+    const filtersChanged = lastFiltersRef.current !== currentFiltersKey
+    const paramsChanged = lastParamsRef.current !== currentParamsKey
+    
+    // Wenn sich Filter oder Parameter geändert haben, setze hasCheckedCacheRef zurück
+    if (filtersChanged || paramsChanged) {
+      hasCheckedCacheRef.current = false
+      lastFiltersRef.current = currentFiltersKey
+      lastParamsRef.current = currentParamsKey
     }
     
-    prevParamsRef.current = paramsKey
+    // Wenn bereits geprüft wurde und sich nichts geändert hat, überspringe
+    if (hasCheckedCacheRef.current && !filtersChanged && !paramsChanged) {
+      return
+    }
     
-    // Prüfe Cache - wenn kein Cache gefunden wird, wird automatisch generiert (über useChatTOC)
+    // Cache-Check durchführen (nur für TOC, nicht für normale Fragen)
+    hasCheckedCacheRef.current = true
+    shouldAutoGenerateRef.current = true // Markiere für automatische Generierung, falls kein Cache
     checkTOCCache()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg, targetLanguage, character, socialContext, genderInclusive, libraryId, galleryFilters, perspectiveOpen, checkTOCCache, isSending])
+  }, [cfg, isEmbedded, perspectiveOpen, isSending, galleryFilters, targetLanguage, character, socialContext, genderInclusive, messages])
   
-  // Zusätzlicher useEffect: Wenn sendQuestion verfügbar wird und noch kein TOC vorhanden ist, prüfe/generiere
-  // WICHTIG: Nur wenn sendQuestion sich von undefined zu definiert ändert
+  // Automatische Generierung beim ersten Laden ODER wenn kein Cache gefunden wurde
+  // WICHTIG: Warte, bis der Cache-Check abgeschlossen ist (isCheckingTOC === false)
+  useEffect(() => {
+    if (!isEmbedded) return
+    if (isSending || isCheckingTOC || isGeneratingTOC) return // Warte, bis Cache-Check abgeschlossen ist
+    if (cachedStoryTopicsData || cachedTOC) {
+      // Cache gefunden, keine Generierung nötig
+      shouldAutoGenerateRef.current = false
+      return
+    }
+    if (!sendQuestion) return
+    
+    // Prüfe, ob ein Cache-Check durchgeführt wurde (durch Vorhandensein von Cache-Check-Steps)
+    const hasCacheCheckSteps = processingSteps.some(s => s.type === 'cache_check' || s.type === 'cache_check_complete')
+    const cacheCheckComplete = processingSteps.some(s => s.type === 'cache_check_complete')
+    
+    // Nur automatisch generieren, wenn:
+    // 1. shouldAutoGenerateRef gesetzt ist (beim ersten Laden) ODER
+    // 2. Cache-Check abgeschlossen wurde und kein Cache gefunden wurde
+    if (!shouldAutoGenerateRef.current && (!hasCacheCheckSteps || !cacheCheckComplete)) {
+      return // Kein Cache-Check durchgeführt oder noch nicht abgeschlossen
+    }
+    
+    // Cache-Check abgeschlossen und kein Cache gefunden → Starte Generierung
+    // WICHTIG: Warte zusätzlich 300ms, damit die Cache-Check-Steps angezeigt werden können
+    shouldAutoGenerateRef.current = false
+    setTimeout(() => {
+      // Prüfe nochmal, ob in der Zwischenzeit ein Cache gefunden wurde
+      if (cachedStoryTopicsData || cachedTOC) {
+        return // Cache wurde in der Zwischenzeit gefunden, keine Generierung
+      }
+      generateTOC()
+    }, 300)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cachedStoryTopicsData, cachedTOC, isCheckingTOC, isEmbedded, sendQuestion, isSending, isGeneratingTOC, processingSteps])
+  
+  // Zusätzlicher useEffect: Wenn sendQuestion verfügbar wird und noch kein Cache-Check durchgeführt wurde
+  // WICHTIG: Nur beim ersten Laden, wenn sendQuestion verfügbar wird
   const prevSendQuestionRef = useRef<typeof sendQuestion>(undefined)
   useEffect(() => {
     if (!cfg || !isEmbedded) {
@@ -281,37 +431,24 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       prevSendQuestionRef.current = sendQuestion
       return // TOC bereits vorhanden
     }
-    if (isCheckingTOC) {
+    if (hasCheckedCacheRef.current) {
       prevSendQuestionRef.current = sendQuestion
-      return // Cache-Check läuft bereits
+      return // Cache-Check bereits durchgeführt
     }
     
-    // Nur prüfen, wenn sendQuestion von undefined zu definiert gewechselt ist
+    // Nur beim ersten Laden, wenn sendQuestion von undefined zu definiert gewechselt ist
     const wasUndefined = prevSendQuestionRef.current === undefined
     const isNowDefined = sendQuestion !== undefined
     if (wasUndefined && isNowDefined) {
-      // Prüfe Cache erneut (falls sendQuestion jetzt verfügbar ist)
+      // Erster Cache-Check beim Laden
+      hasCheckedCacheRef.current = true
+      shouldAutoGenerateRef.current = true // Markiere für automatische Generierung, falls kein Cache
       checkTOCCache()
     }
     
     prevSendQuestionRef.current = sendQuestion
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sendQuestion, cfg, isEmbedded, perspectiveOpen, cachedStoryTopicsData, cachedTOC, isCheckingTOC, checkTOCCache])
-  
-  // Zusätzlicher useEffect für embedded-Modus: Reagiere auf Schließen des Popovers
-  useEffect(() => {
-    if (!isEmbedded || !cfg) {
-      prevPerspectiveOpenRef.current = perspectiveOpen
-      return
-    }
-    const wasOpen = prevPerspectiveOpenRef.current === true
-    const isNowClosed = perspectiveOpen === false
-    if (wasOpen && isNowClosed) {
-      checkTOCCache()
-    }
-    prevPerspectiveOpenRef.current = perspectiveOpen
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [perspectiveOpen, isEmbedded, cfg])
+  }, [sendQuestion, cfg, isEmbedded, perspectiveOpen, cachedStoryTopicsData, cachedTOC, checkTOCCache])
   
   // Handler für das Löschen einer Query
   async function handleDeleteQuery(queryId: string): Promise<void> {
@@ -470,6 +607,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                     libraryId={libraryId}
                     data={cachedStoryTopicsData}
                     isLoading={isCheckingTOC}
+                    queryId={cachedTOC?.queryId}
+                    cachedTOC={cachedTOC}
+                    showReloadButton={showReloadButton}
                     onSelectQuestion={(question) => {
                       setInput(question.text)
                       setIsChatInputOpen(true)
@@ -585,13 +725,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                   libraryId={libraryId}
                   data={cachedStoryTopicsData}
                   isLoading={isCheckingTOC}
-                  answerLength={answerLength}
-                  retriever={retriever}
-                  targetLanguage={targetLanguage}
-                  character={character}
-                  socialContext={socialContext}
                   queryId={cachedTOC?.queryId}
-                  filters={galleryFilters}
+                  cachedTOC={cachedTOC}
+                  showReloadButton={showReloadButton}
                   onRegenerate={forceRegenerateTOC}
                   isRegenerating={isGeneratingTOC}
                   onSelectQuestion={(question) => {
@@ -632,6 +768,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               isEmbedded={isEmbedded}
               isCheckingTOC={isCheckingTOC}
               cachedTOC={cachedTOC}
+              cachedStoryTopicsData={cachedStoryTopicsData}
             />
           </div>
         </ScrollArea>

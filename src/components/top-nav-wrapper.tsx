@@ -1,14 +1,18 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
+import { TopNav } from './top-nav'
 
-// TopNav dynamisch laden, um SSR-Probleme zu vermeiden
-const TopNav = dynamic(() => import('./top-nav').then(mod => ({ default: mod.TopNav })), {
-  ssr: false,
-  loading: () => null
-})
-
+/**
+ * OPTIMIERUNG: TopNav direkt importieren statt Dynamic Import
+ * 
+ * Vorteile:
+ * - Schnelleres initiales Rendering
+ * - Keine zusätzliche Render-Verzögerung durch Dynamic Import
+ * - TopNav ist klein genug für direktes Laden
+ * 
+ * TopNav verwendet useSearchParams(), daher muss es in Suspense gewrappt werden
+ */
 export function TopNavWrapper() {
   // Prüfen, ob Clerk verfügbar ist und ob wir nicht im Build-Modus sind
   const isDummyKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY === 'dummy_pk_test_placeholder';
@@ -19,8 +23,9 @@ export function TopNavWrapper() {
   }
 
   // TopNav verwendet useSearchParams(), daher muss es in Suspense gewrappt werden
+  // Fallback: Leerer Platzhalter mit korrekter Höhe um Layout-Shift zu vermeiden
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<div className="h-16 border-b bg-background" />}>
       <TopNav />
     </Suspense>
   );

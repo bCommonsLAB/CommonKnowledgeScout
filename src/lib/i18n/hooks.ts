@@ -4,36 +4,24 @@
  * React Hook für Client Components
  * 
  * Verwendet die i18n-Utility-Funktionen in React-Komponenten
+ * Liest Locale aus Jotai State statt direkt aus Cookie
  */
 
-import { useSearchParams } from 'next/navigation'
+import { useAtomValue, useSetAtom } from 'jotai'
 import { useMemo } from 'react'
-import { getLocale, t, type Locale } from './index'
+import { localeAtom } from '@/atoms/i18n-atom'
+import { t, type Locale } from './index'
 
 /**
  * Hook zum Abrufen der aktuellen Sprache und Übersetzungsfunktion
  * 
+ * Liest Locale aus Jotai State (wird vom LocaleProvider initialisiert)
+ * 
  * @returns Objekt mit `locale` und `t` Funktion
  */
 export function useTranslation() {
-  const searchParams = useSearchParams()
-  
-  // Ermittle aktuelle Sprache
-  const locale = useMemo(() => {
-    // Versuche Cookie zu lesen (wird vom Server gesetzt)
-    const cookieValue = typeof document !== 'undefined' 
-      ? document.cookie
-        .split('; ')
-        .find(row => row.startsWith('locale='))
-        ?.split('=')[1]
-      : undefined
-    
-    return getLocale(
-      searchParams?.toString(),
-      cookieValue,
-      typeof navigator !== 'undefined' ? navigator.language : undefined
-    )
-  }, [searchParams])
+  // Lese Locale aus Jotai State
+  const locale = useAtomValue(localeAtom)
   
   /**
    * Übersetzungsfunktion für Client Components
@@ -51,10 +39,17 @@ export function useTranslation() {
 }
 
 /**
- * Hook zum Setzen der Sprache (speichert in Cookie)
+ * Hook zum Setzen der Sprache
+ * 
+ * Setzt sowohl Jotai State als auch Cookie
  */
 export function useSetLocale() {
+  const setLocaleAtom = useSetAtom(localeAtom)
+  
   const setLocale = (locale: Locale) => {
+    // Setze Jotai State
+    setLocaleAtom(locale)
+    
     // Cookie setzen (30 Tage Gültigkeit)
     const expires = new Date()
     expires.setTime(expires.getTime() + 30 * 24 * 60 * 60 * 1000)

@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import type { GalleryTexts } from '@/lib/gallery/types'
 import { useTranslation } from '@/lib/i18n/hooks'
 
 /**
  * Hook für Gallery-Konfiguration
- * Lädt detailViewType und verwendet Übersetzungen basierend darauf
+ * Verwendet Übersetzungen basierend auf detailViewType
  * 
  * @param defaults - Nicht mehr verwendet, bleibt für Kompatibilität
- * @param libraryId - ID der Library
- * @param initialDetailViewType - Optional: Initialer detailViewType aus dem librariesAtom (verhindert Flackern)
+ * @param libraryId - ID der Library (nicht mehr verwendet, bleibt für Kompatibilität)
+ * @param initialDetailViewType - Initialer detailViewType aus dem librariesAtom (verhindert Flackern)
  */
 export function useGalleryConfig(
   defaults: GalleryTexts, 
@@ -18,47 +18,9 @@ export function useGalleryConfig(
   initialDetailViewType?: 'book' | 'session'
 ) {
   const { t } = useTranslation()
-  // Verwende initialDetailViewType falls verfügbar, sonst 'book' als Fallback
-  const [detailViewType, setDetailViewType] = useState<'book' | 'session'>(
-    initialDetailViewType || 'book'
-  )
-
-  // Lade detailViewType aus der API (nur als Fallback, falls initialDetailViewType nicht verfügbar)
-  useEffect(() => {
-    // Wenn initialDetailViewType bereits gesetzt ist, überspringe API-Call
-    if (initialDetailViewType) return
-
-    let cancelled = false
-    async function load() {
-      if (!libraryId) return
-      try {
-        const url = `/api/chat/${encodeURIComponent(libraryId)}/config`
-        const res = await fetch(url, { cache: 'no-store' })
-        const data = await res.json()
-        const galleryConfig = (data?.config as { gallery?: { detailViewType?: string } })?.gallery
-        if (cancelled) return
-        const vt = galleryConfig?.detailViewType
-        if (vt === 'book' || vt === 'session') setDetailViewType(vt)
-      } catch {
-        // ignore
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [libraryId, initialDetailViewType])
-
-  // Aktualisiere detailViewType wenn initialDetailViewType sich ändert
-  useEffect(() => {
-    console.log('[useGalleryConfig] initialDetailViewType changed:', {
-      initialDetailViewType,
-      currentDetailViewType: detailViewType,
-      libraryId,
-    })
-    if (initialDetailViewType && initialDetailViewType !== detailViewType) {
-      console.log('[useGalleryConfig] Updating detailViewType from', detailViewType, 'to', initialDetailViewType)
-      setDetailViewType(initialDetailViewType)
-    }
-  }, [initialDetailViewType, detailViewType, libraryId])
+  
+  // Verwende initialDetailViewType direkt - kein State-Management mehr nötig
+  const detailViewType = initialDetailViewType || 'book'
 
   // Verwende Übersetzungen basierend auf detailViewType
   const texts = useMemo<GalleryTexts>(() => {
@@ -71,7 +33,7 @@ export function useGalleryConfig(
     }
   }, [detailViewType, t])
 
-  return { texts, detailViewType, setDetailViewType }
+  return { texts, detailViewType }
 }
 
 

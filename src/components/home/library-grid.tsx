@@ -16,6 +16,35 @@ interface PublicLibrary {
   icon?: string
   backgroundImageUrl?: string
   detailViewType?: 'book' | 'session'
+  // Vollständige Chat-Config (optional, für zukünftige Nutzung)
+  chat?: {
+    gallery?: {
+      detailViewType?: 'book' | 'session'
+      facets?: Array<{
+        metaKey: string
+        label?: string
+        type?: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
+        multi?: boolean
+        visible?: boolean
+        buckets?: Array<{ label: string; min: number; max: number }>
+      }>
+    }
+    placeholder?: string
+    maxChars?: number
+    maxCharsWarningMessage?: string
+    footerText?: string
+    companyLink?: string
+    targetLanguage?: string
+    character?: string
+    socialContext?: string
+    genderInclusive?: boolean
+    userPreferences?: {
+      targetLanguage?: string
+      character?: string
+      socialContext?: string
+      genderInclusive?: boolean
+    }
+  }
 }
 
 // Icon-Farben für verschiedene Libraries
@@ -64,7 +93,9 @@ export function LibraryGrid() {
     }
     
     // Basierend auf detailViewType das passende Icon wählen
-    if (library.detailViewType === 'session') {
+    // Prüfe zuerst direktes detailViewType, dann chat.gallery.detailViewType
+    const viewType = library.detailViewType || library.chat?.gallery?.detailViewType
+    if (viewType === 'session') {
       // Für Talks/Slideshows: Presentation-Icon
       return Presentation
     }
@@ -147,7 +178,7 @@ export function LibraryGrid() {
                     }`}
                     onClick={() => router.push(`/explore/${library.slugName}`)}
                   >
-                    {library.detailViewType === 'session' 
+                    {(library.detailViewType || library.chat?.gallery?.detailViewType) === 'session' 
                       ? t('home.libraryGrid.buttonOpenEvent')
                       : t('home.libraryGrid.buttonQuery')
                     }

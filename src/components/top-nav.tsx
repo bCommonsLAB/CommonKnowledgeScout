@@ -251,7 +251,8 @@ export function TopNav() {
             <ScrollBar orientation="horizontal" className="invisible" />
           </ScrollArea>
           <div className="ml-auto flex items-center space-x-2">
-            {/* Bibliotheks-Switcher - immer sichtbar, rechtsbündig */}
+            {/* OPTIMIERUNG: Bibliotheks-Switcher nur wenn eingeloggt
+                Im anonymen Modus werden Libraries nicht geladen und sind nicht sichtbar */}
             <SignedIn>
               {libraries.length > 0 ? (
                 <div className="flex items-center gap-2">

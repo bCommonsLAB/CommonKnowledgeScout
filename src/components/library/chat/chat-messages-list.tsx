@@ -38,6 +38,7 @@ interface ChatMessagesListProps {
   isEmbedded?: boolean
   isCheckingTOC?: boolean
   cachedTOC?: unknown
+  cachedStoryTopicsData?: unknown
 }
 
 /**
@@ -69,6 +70,7 @@ export function ChatMessagesList({
   isEmbedded = false,
   isCheckingTOC = false,
   cachedTOC = null,
+  cachedStoryTopicsData = null,
 }: ChatMessagesListProps) {
   const { t } = useTranslation()
   const conversations = groupMessagesToConversations(messages)
@@ -153,8 +155,9 @@ export function ChatMessagesList({
         )
       })}
 
-      {/* Verarbeitungsstatus während des Sendens */}
-      {isSending && (
+      {/* Verarbeitungsstatus während des Sendens ODER Cache-Check */}
+      {/* WICHTIG: Verstecke Verarbeitungsinfo, wenn Cache gefunden wurde und keine aktive Generierung läuft */}
+      {(isSending || (isCheckingTOC && !cachedStoryTopicsData && !cachedTOC) || (processingSteps.some(s => s.type === 'cache_check' || s.type === 'cache_check_complete') && !cachedStoryTopicsData && !cachedTOC)) && (
         <div className="flex gap-3 mb-4">
           <div className="flex-shrink-0">
             <AppLogo 
@@ -180,7 +183,7 @@ export function ChatMessagesList({
               {/* Processing Steps - dezent innerhalb des Blocks */}
               {processingSteps.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-border/50">
-                  <ProcessingStatus steps={processingSteps} isActive={isSending} />
+                  <ProcessingStatus steps={processingSteps} isActive={isSending || isCheckingTOC} />
                 </div>
               )}
             </div>

@@ -1,20 +1,9 @@
-import { Suspense } from "react"
-import { HeroSection } from "@/components/home/hero-section"
-import { LibraryGrid } from "@/components/home/library-grid"
-import { HowItWorks } from "@/components/home/how-it-works"
-import { PhilosophySection } from "@/components/home/philosophy-section"
-import { CTASection } from "@/components/home/cta-section"
+import { HomeClient } from "@/components/home/home-client"
 
-export default function Home() {
+export default async function Home() {
   return (
     <main className="min-h-screen">
-      <Suspense fallback={null}>
-        <HeroSection />
-        <LibraryGrid />
-        <HowItWorks />
-        <PhilosophySection />
-        <CTASection />
-      </Suspense>
+      <HomeClient />
     </main>
   )
 }

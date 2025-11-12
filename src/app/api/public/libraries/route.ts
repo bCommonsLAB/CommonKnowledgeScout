@@ -18,8 +18,8 @@ export async function GET() {
       description: lib.config?.publicPublishing?.description,
       icon: lib.config?.publicPublishing?.icon,
       backgroundImageUrl: lib.config?.publicPublishing?.backgroundImageUrl,
-      // Gallery detailViewType für Icon-Auswahl
-      detailViewType: lib.config?.chat?.gallery?.detailViewType,
+      // Vollständige Chat-Config zurückgeben (inkl. detailViewType und alle anderen Settings)
+      chat: lib.config?.chat,
     }));
 
     return NextResponse.json({ libraries: safeLibraries });

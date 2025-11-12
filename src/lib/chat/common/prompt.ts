@@ -310,25 +310,60 @@ export function buildTOCPrompt(
   
   // Create filter text for the prompt
   let filterText = ''
-  if (options?.filters && options?.facetDefs && Object.keys(options.filters).length > 0) {
+  if (options?.filters && Object.keys(options.filters).length > 0) {
     const filterParts: string[] = []
-    for (const def of options.facetDefs) {
-      const filterValue = options.filters[def.metaKey]
-      if (filterValue !== undefined && filterValue !== null) {
-        const label = def.label || def.metaKey
-        let valueText = ''
-        if (Array.isArray(filterValue)) {
-          valueText = filterValue.map(v => String(v)).join(', ')
-        } else if (typeof filterValue === 'object' && '$in' in filterValue && Array.isArray(filterValue.$in)) {
-          valueText = (filterValue.$in as unknown[]).map(v => String(v)).join(', ')
-        } else {
-          valueText = String(filterValue)
-        }
-        if (valueText) {
-          filterParts.push(`${label}: ${valueText}`)
+    
+    // Normale Facetten-Filter
+    if (options.facetDefs) {
+      for (const def of options.facetDefs) {
+        const filterValue = options.filters[def.metaKey]
+        if (filterValue !== undefined && filterValue !== null) {
+          const label = def.label || def.metaKey
+          let valueText = ''
+          if (Array.isArray(filterValue)) {
+            valueText = filterValue.map(v => String(v)).join(', ')
+          } else if (typeof filterValue === 'object' && '$in' in filterValue && Array.isArray(filterValue.$in)) {
+            valueText = (filterValue.$in as unknown[]).map(v => String(v)).join(', ')
+          } else {
+            valueText = String(filterValue)
+          }
+          if (valueText) {
+            filterParts.push(`${label}: ${valueText}`)
+          }
         }
       }
     }
+    
+    // fileId-Filter (spezielle Behandlung)
+    const fileIdFilter = options.filters.fileId
+    if (fileIdFilter !== undefined && fileIdFilter !== null) {
+      let fileIdValues: string[] = []
+      if (Array.isArray(fileIdFilter)) {
+        fileIdValues = fileIdFilter.map(v => String(v))
+      } else if (typeof fileIdFilter === 'object' && '$in' in fileIdFilter && Array.isArray(fileIdFilter.$in)) {
+        fileIdValues = (fileIdFilter.$in as unknown[]).map(v => String(v))
+      } else {
+        fileIdValues = [String(fileIdFilter)]
+      }
+      
+      // Versuche Dokumentennamen aus sources zu extrahieren
+      const docTitles = new Set<string>()
+      for (const source of sources) {
+        if (source.fileId && fileIdValues.includes(source.fileId)) {
+          // Verwende fileName oder fileId als Fallback
+          const title = source.fileName || source.fileId
+          if (title) docTitles.add(title)
+        }
+      }
+      
+      if (docTitles.size > 0) {
+        filterParts.push(`Document: ${Array.from(docTitles).join(', ')}`)
+      } else if (fileIdValues.length > 0) {
+        // Fallback: Zeige Anzahl der Dokumente
+        filterParts.push(`Document: ${fileIdValues.length} ${fileIdValues.length === 1 ? 'document' : 'documents'}`)
+      }
+    }
+    
     if (filterParts.length > 0) {
       filterText = `\n\nIMPORTANT: The topic overview refers only to documents that match the following filter criteria:\n${filterParts.map(p => `- ${p}`).join('\n')}\nPlease consider this when selecting and formulating topics.`
     }

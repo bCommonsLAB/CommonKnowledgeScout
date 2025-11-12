@@ -81,6 +81,13 @@ export function buildFilterFromQuery(query: URL, defs: FacetDef[]): Record<strin
       }
     }
   }
+  
+  // fileId-Filter hinzufügen (wenn vorhanden) - nicht Teil der Facetten-Definitionen
+  const fileIdValues = query.searchParams.getAll('fileId')
+  if (fileIdValues.length > 0) {
+    filter.fileId = { $in: fileIdValues }
+  }
+  
   return filter
 }
 

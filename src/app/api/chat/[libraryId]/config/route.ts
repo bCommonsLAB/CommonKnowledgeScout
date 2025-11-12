@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
+import { getLocale } from '@/lib/i18n'
 
 export async function GET(
   request: NextRequest,
@@ -12,9 +13,15 @@ export async function GET(
     const { userId } = await auth()
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
+    
+    // Lese Locale aus Accept-Language Header (für Client-Text-Generierung)
+    const acceptLanguage = request.headers.get('accept-language') || undefined
+    const cookieLocale = request.cookies.get('locale')?.value
+    const locale = getLocale(undefined, cookieLocale, acceptLanguage)
+    
     // Debug-Logging
     // eslint-disable-next-line no-console
-    console.log('[chat/config] GET', { libraryId, hasUserId: !!userId, userEmail })
+    console.log('[chat/config] GET', { libraryId, hasUserId: !!userId, userEmail, locale })
 
     // Chat-Kontext laden (nutzt userEmail für nicht-öffentliche Bibliotheken)
     const ctx = await loadLibraryChatContext(userEmail, libraryId)

@@ -104,7 +104,7 @@
   "gallery": {
     "gallery": "Gallery",
     "story": "Story",
-    "switchToStoryMode": "In Story Mode wechseln",
+    "switchToStoryMode": "über diese Inhalte mehr erfahren",
     "storyModeTooltip": "Entdecke Wissen neu: Der Story Mode erzählt die Talks aus deiner Sicht – in deiner Sprache und mit deinem Fokus.",
     "backToGallery": "Zurück zur Gallery",
     "storyMode": {
@@ -112,11 +112,13 @@
       "subtitle": "Gemeinsam kollektive Wissen erfahren",
       "description": "Die Themenübersicht wurde aus den von dir ausgewählten Talks generiert. Sie zeigt gängige Fragestellungen. Deine Perspektive ist wichtig. Wähle deinen Charakter und sozialen Kontext. Tauch in dein Thema ein und folge den Antworten. Du kannst selbst eine Frage stellen und deine eigene Storyline kreieren.",
       "generatingTopics": "Generiere Themenübersicht...",
+      "reloadTooltip": "Übersicht nicht mehr aktuell, bitte neu berechnen",
       "perspective": {
         "language": "Sprache",
         "character": "Charakter",
         "socialContext": "Mein sozialer Kontext",
         "adjustPerspective": "Eigene Perspektive anpassen",
+        "adjustPerspectiveHelpText": "Du verstehst diese Inhalte nicht? Bestimme deinen Kontext und generiere sie für dich neu.",
         "adjustPerspectiveTitle": "Perspektive anpassen",
         "adjustPerspectiveDescription": "Passe die Sprache, den Charakter und den sozialen Kontext der Antworten an."
       }
@@ -132,6 +134,7 @@
     "referencesDescription": "Die Antwort wurde aus diesen Dokumenten generiert.",
     "storyModeGalleryDescription": "Antworten werden aus den in der Gallery ausgewählten Talks generiert.",
     "documentDetails": "Dokumentdetails",
+    "detailViewStoryModeCta": "Du verstehst diesen Inhalt nicht? Lass ihn dir in deiner Sprache erzählen.",
     "openDocument": "Dokument öffnen",
     "openEventWebsite": "Event Webseite öffnen",
     "loading": "Lade…",
@@ -268,6 +271,9 @@
     }
   },
   "processing": {
+    "checkCache": "Cache prüfen",
+    "cacheFound": "Cache gefunden ({queryId})",
+    "cacheNotFound": "Kein Cache gefunden",
     "analyzeQuestion": "Frage analysieren",
     "recommendation": "Empfehlung: {recommendation} ({confidence})",
     "recommendationChunk": "Spezifisch",

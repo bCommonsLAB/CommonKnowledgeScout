@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
+import { useSetAtom } from 'jotai'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Loader2, ArrowLeft } from "lucide-react"
 import dynamic from "next/dynamic"
@@ -9,6 +10,8 @@ import { useTranslation } from "@/lib/i18n/hooks"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { librariesAtom, activeLibraryIdAtom } from '@/atoms/library-atom'
+import type { ClientLibrary } from '@/types/library'
 
 // Gallery dynamisch laden
 const GalleryClient = dynamic(() => import("@/app/library/gallery/client").then(m => ({ default: m.default })), {
@@ -24,6 +27,36 @@ interface PublicLibrary {
   id: string
   label: string
   slugName: string
+  description?: string
+  icon?: string
+  chat?: {
+    gallery?: {
+      detailViewType?: 'book' | 'session'
+      facets?: Array<{
+        metaKey: string
+        label?: string
+        type?: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
+        multi?: boolean
+        visible?: boolean
+        buckets?: Array<{ label: string; min: number; max: number }>
+      }>
+    }
+    placeholder?: string
+    maxChars?: number
+    maxCharsWarningMessage?: string
+    footerText?: string
+    companyLink?: string
+    targetLanguage?: string
+    character?: string
+    socialContext?: string
+    genderInclusive?: boolean
+    userPreferences?: {
+      targetLanguage?: string
+      character?: string
+      socialContext?: string
+      genderInclusive?: boolean
+    }
+  }
 }
 
 export default function ExplorePage() {
@@ -35,6 +68,10 @@ export default function ExplorePage() {
   const [library, setLibrary] = useState<PublicLibrary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Jotai State setzen
+  const setLibraries = useSetAtom(librariesAtom)
+  const setActiveLibraryId = useSetAtom(activeLibraryIdAtom)
   
   // Mode aus URL-Parametern lesen
   const modeParam = searchParams?.get('mode')
@@ -74,7 +111,34 @@ export default function ExplorePage() {
         }
 
         const data = await response.json()
-        setLibrary(data.library)
+        const loadedLibrary = data.library
+        
+        // WICHTIG: Library direkt in Jotai-State setzen
+        // Erstelle ClientLibrary-Format aus der API-Response
+        const clientLibrary: ClientLibrary = {
+          id: loadedLibrary.id,
+          label: loadedLibrary.label,
+          type: 'local',
+          path: '',
+          isEnabled: true,
+          config: {
+            chat: loadedLibrary.chat, // Vollständige Chat-Config
+            publicPublishing: {
+              slugName: loadedLibrary.slugName,
+              publicName: loadedLibrary.label,
+              description: loadedLibrary.description,
+              icon: loadedLibrary.icon,
+              isPublic: true,
+            }
+          }
+        }
+        
+        // Setze Library in State (als Array mit einem Element)
+        setLibraries([clientLibrary])
+        // Setze als aktive Library
+        setActiveLibraryId(loadedLibrary.id)
+        
+        setLibrary(loadedLibrary)
       } catch (err) {
         console.error("Fehler beim Laden der Library:", err)
         setError(t('explore.errorLoadingLibrary'))
@@ -84,7 +148,7 @@ export default function ExplorePage() {
     }
 
     loadLibrary()
-  }, [slug, t])
+  }, [slug, t, setLibraries, setActiveLibraryId])
 
   if (loading) {
     return (

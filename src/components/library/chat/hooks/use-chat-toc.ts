@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
-import type { TargetLanguage, Character, SocialContext } from '@/lib/chat/constants'
+import type { TargetLanguage, Character, SocialContext, AnswerLength, Retriever } from '@/lib/chat/constants'
 import { TOC_QUESTION } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { useStoryTopicsCache } from '@/hooks/use-story-topics-cache'
@@ -19,6 +19,13 @@ interface CachedTOC {
   suggestedQuestions?: string[]
   queryId: string
   createdAt: string
+  // Parameter aus Query, damit sie direkt verwendet werden können
+  answerLength?: AnswerLength
+  retriever?: Retriever
+  targetLanguage?: TargetLanguage
+  character?: string
+  socialContext?: SocialContext
+  facetsSelected?: Record<string, unknown>
 }
 
 interface UseChatTOCParams {
@@ -32,6 +39,7 @@ interface UseChatTOCParams {
   isEmbedded: boolean
   isSending: boolean
   sendQuestion?: (question: string, retriever?: 'chunk' | 'doc' | 'summary' | 'auto', isTOCQuery?: boolean) => Promise<void>
+  setProcessingSteps?: React.Dispatch<React.SetStateAction<import('@/types/chat-processing').ChatProcessingStep[]>>
 }
 
 interface UseChatTOCResult {
@@ -48,6 +56,13 @@ interface UseChatTOCResult {
     references: ChatResponse['references']
     suggestedQuestions: string[]
     queryId: string
+    // Parameter aus Query/State
+    answerLength?: AnswerLength
+    retriever?: Retriever
+    targetLanguage?: TargetLanguage
+    character?: string
+    socialContext?: SocialContext
+    facetsSelected?: Record<string, unknown>
   }) => void
 }
 
@@ -69,6 +84,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     isEmbedded,
     isSending,
     sendQuestion,
+    setProcessingSteps,
   } = params
 
   const [cachedStoryTopicsData, setCachedStoryTopicsData] = useState<StoryTopicsData | null>(null)
@@ -124,19 +140,14 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       return
     }
 
-    // Wenn bereits eine Generierung läuft, überspringe Check komplett
-    // WICHTIG: Im Story-Mode können Facetten sich ändern (vom Gallery-Mode), aber wir sollten
-    // keine neue Generierung starten, wenn bereits eine läuft
-    if (isGeneratingTOCRef.current) {
-      console.log('[useChatTOC] checkCache übersprungen: Generierung läuft bereits')
-      return
-    }
+    // WICHTIG: Überspringe Check NICHT mehr, wenn bereits eine Generierung läuft
+    // Der Cache-Check sollte IMMER durchgeführt werden, bevor eine Generierung startet
+    // Die Generierung wird durch die Bedingung in generateTOC() verhindert, wenn isCheckingTOC true ist
     
-    // Wenn bereits Daten vorhanden sind, überspringe Check
-    if (cachedStoryTopicsData || cachedTOC) {
-      console.log('[useChatTOC] checkCache übersprungen: Cache bereits vorhanden')
-      return
-    }
+    // WICHTIG: Überspringe Check NICHT mehr, wenn bereits Daten vorhanden sind
+    // Beim Seiten-Reload sollten die Daten zunächst leer sein, und der Check sollte
+    // immer durchgeführt werden, um sicherzustellen, dass der Cache korrekt ist
+    // Die Daten werden nur übersprungen, wenn bereits eine Generierung läuft
 
     // Erstelle Cache-Key aus Parametern
     const cacheKey = JSON.stringify({
@@ -166,6 +177,23 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     lastCacheKeyRef.current = cacheKey
     lastCheckTimeRef.current = now
 
+    // Füge Cache-Check-Step hinzu
+    if (setProcessingSteps) {
+      setProcessingSteps(prev => {
+        // Entferne alte Cache-Check-Steps, falls vorhanden
+        const filtered = prev.filter(s => s.type !== 'cache_check' && s.type !== 'cache_check_complete')
+        return [...filtered, {
+          type: 'cache_check',
+          parameters: {
+            targetLanguage,
+            character,
+            socialContext,
+            filters: galleryFilters,
+          },
+        }]
+      })
+    }
+
     try {
       const result = await checkCacheAPI({
         libraryId,
@@ -176,17 +204,39 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
         galleryFilters,
       })
 
+      // Füge Cache-Check-Complete-Step hinzu
+      if (setProcessingSteps) {
+        setProcessingSteps(prev => {
+          // Entferne alte Cache-Check-Steps, falls vorhanden, und füge neuen Complete-Step hinzu
+          const filtered = prev.filter(s => s.type !== 'cache_check' && s.type !== 'cache_check_complete')
+          const cacheCheckStep = prev.find(s => s.type === 'cache_check')
+          const newSteps = cacheCheckStep ? [cacheCheckStep] : []
+          return [...filtered, ...newSteps, {
+            type: 'cache_check_complete',
+            found: result?.found || false,
+            queryId: result?.queryId,
+          }]
+        })
+      }
+
       if (result?.found && result.queryId) {
+        // Cache gefunden: Setze Daten und stoppe alle weiteren Processing-Steps
         // Priorisiere storyTopicsData über answer
         if (result.storyTopicsData) {
           setCachedStoryTopicsData(result.storyTopicsData)
-          // Setze auch cachedTOC für Rückwärtskompatibilität
+          // Setze auch cachedTOC für Rückwärtskompatibilität (inkl. Parameter)
           setCachedTOC({
             answer: result.answer || '',
             references: result.references,
             suggestedQuestions: result.suggestedQuestions,
             queryId: result.queryId,
             createdAt: result.createdAt || new Date().toISOString(),
+            answerLength: result.answerLength,
+            retriever: result.retriever,
+            targetLanguage: result.targetLanguage,
+            character: result.character,
+            socialContext: result.socialContext,
+            facetsSelected: result.facetsSelected,
           })
         } else if (result.answer) {
           // Fallback: Normale Antwort (für alte Caches)
@@ -196,53 +246,70 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
             suggestedQuestions: result.suggestedQuestions,
             queryId: result.queryId,
             createdAt: result.createdAt || new Date().toISOString(),
+            answerLength: result.answerLength,
+            retriever: result.retriever,
+            targetLanguage: result.targetLanguage,
+            character: result.character,
+            socialContext: result.socialContext,
+            facetsSelected: result.facetsSelected,
           })
           setCachedStoryTopicsData(null)
         } else {
           setCachedTOC(null)
           setCachedStoryTopicsData(null)
         }
+        
+        // WICHTIG: Entferne alle Processing-Steps außer Cache-Check-Steps, wenn Cache gefunden wurde
+        // Dies verhindert, dass weitere Schritte angezeigt werden
+        if (setProcessingSteps) {
+          setProcessingSteps(prev => {
+            // Behalte nur Cache-Check-Steps
+            return prev.filter(s => s.type === 'cache_check' || s.type === 'cache_check_complete')
+          })
+        }
+        
+        // WICHTIG: Setze shouldAutoGenerateRef auf false, damit keine automatische Generierung gestartet wird
+        // Dies wird durch die useEffect-Bedingung in chat-panel.tsx überprüft, aber wir setzen es hier
+        // explizit, um Race Conditions zu vermeiden
       } else {
         // KEIN Cache gefunden
         setCachedTOC(null)
         setCachedStoryTopicsData(null)
-        // Generiere TOC direkt, wenn im embedded-Modus UND keine Generierung läuft
-        // WICHTIG: Im Story-Mode können Facetten sich ändern (vom Gallery-Mode), aber wir sollten
-        // keine neue Generierung starten, wenn bereits eine läuft
-        // HINWEIS: isCheckingTOCRef wird im finally-Block zurückgesetzt, daher können wir hier
-        // die Generierung starten, auch wenn der Check gerade läuft (der Check ist ja abgeschlossen)
-        if (isEmbedded && !isSending && !isGeneratingTOCRef.current) {
-          const currentSendQuestion = sendQuestionRef.current || sendQuestion
-          if (currentSendQuestion) {
-            // Setze Flag BEVOR wir sendQuestion aufrufen (verhindert parallele Aufrufe)
-            isGeneratingTOCRef.current = true
-            // Rufe generateTOC direkt auf (ohne Flag-Mechanismus)
-            currentSendQuestion(TOC_QUESTION, 'auto', true).catch((error) => {
-              console.error('[useChatTOC] Fehler bei TOC-Generierung:', error)
-              isGeneratingTOCRef.current = false
-            })
-          }
-        }
-      }
-    } catch {
-      // Bei Fehler: Generiere TOC direkt, wenn im embedded-Modus UND keine Generierung läuft
-      setCachedTOC(null)
-      setCachedStoryTopicsData(null)
-      if (isEmbedded && !isSending && !isGeneratingTOCRef.current) {
-        const currentSendQuestion = sendQuestionRef.current || sendQuestion
-        if (currentSendQuestion) {
-          // Setze Flag BEVOR wir sendQuestion aufrufen (verhindert parallele Aufrufe)
-          isGeneratingTOCRef.current = true
-          currentSendQuestion(TOC_QUESTION, 'auto', true).catch((error) => {
-            console.error('[useChatTOC] Fehler bei TOC-Generierung:', error)
-            isGeneratingTOCRef.current = false
+        // WICHTIG: Entferne alle Processing-Steps außer Cache-Check-Steps
+        // Die automatische Generierung wird dann durch chat-panel.tsx gestartet
+        if (setProcessingSteps) {
+          setProcessingSteps(prev => {
+            // Behalte nur Cache-Check-Steps, damit die Generierung dann neue Steps hinzufügen kann
+            return prev.filter(s => s.type === 'cache_check' || s.type === 'cache_check_complete')
           })
         }
       }
+    } catch (error) {
+      console.error('[useChatTOC] Fehler beim Cache-Check:', error)
+      // Bei Fehler: Setze Cache auf null, keine automatische Generierung
+      setCachedTOC(null)
+      setCachedStoryTopicsData(null)
+      
+      // Füge Fehler-Step hinzu
+      if (setProcessingSteps) {
+        setProcessingSteps(prev => {
+          const filtered = prev.filter(s => s.type !== 'cache_check' && s.type !== 'cache_check_complete')
+          const cacheCheckStep = prev.find(s => s.type === 'cache_check')
+          const newSteps = cacheCheckStep ? [cacheCheckStep] : []
+          return [...filtered, ...newSteps, {
+            type: 'cache_check_complete',
+            found: false,
+            queryId: undefined,
+          }]
+        })
+      }
     } finally {
       // Reset Check-Flag NACH der Generierungs-Entscheidung
-      isCheckingTOCRef.current = false
-      setIsCheckingTOC(false)
+      // WICHTIG: Warte kurz, damit die Processing-Steps angezeigt werden können
+      setTimeout(() => {
+        isCheckingTOCRef.current = false
+        setIsCheckingTOC(false)
+      }, 100)
     }
   }, [
     cfg,
@@ -383,6 +450,13 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       references: ChatResponse['references']
       suggestedQuestions: string[]
       queryId: string
+      // Parameter aus Query/State
+      answerLength?: AnswerLength
+      retriever?: Retriever
+      targetLanguage?: TargetLanguage
+      character?: string
+      socialContext?: SocialContext
+      facetsSelected?: Record<string, unknown>
     }) => {
       // Reset Generierungs-Flag IMMER, da die Generierung jetzt abgeschlossen ist
       // (auch wenn keine Daten vorhanden sind, z.B. "No matching content found")
@@ -391,13 +465,19 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       
       if (data.storyTopicsData) {
         setCachedStoryTopicsData(data.storyTopicsData)
-        // Setze auch cachedTOC für Rückwärtskompatibilität
+        // Setze auch cachedTOC für Rückwärtskompatibilität (inkl. Parameter)
         setCachedTOC({
           answer: data.answer,
           references: data.references,
           suggestedQuestions: data.suggestedQuestions,
           queryId: data.queryId,
           createdAt: new Date().toISOString(),
+          answerLength: data.answerLength,
+          retriever: data.retriever,
+          targetLanguage: data.targetLanguage,
+          character: data.character,
+          socialContext: data.socialContext,
+          facetsSelected: data.facetsSelected,
         })
       } else if (data.answer) {
         // Fallback: Normale Antwort (auch wenn leer, z.B. "No matching content found")
@@ -407,6 +487,12 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
           suggestedQuestions: data.suggestedQuestions,
           queryId: data.queryId,
           createdAt: new Date().toISOString(),
+          answerLength: data.answerLength,
+          retriever: data.retriever,
+          targetLanguage: data.targetLanguage,
+          character: data.character,
+          socialContext: data.socialContext,
+          facetsSelected: data.facetsSelected,
         })
         setCachedStoryTopicsData(null)
       } else {

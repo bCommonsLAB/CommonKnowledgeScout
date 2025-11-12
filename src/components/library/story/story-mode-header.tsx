@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
+import { useAtomValue } from 'jotai'
 import { StoryHeader } from './story-header'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft } from 'lucide-react'
 import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
+import { librariesAtom } from '@/atoms/library-atom'
 
 interface StoryModeHeaderProps {
   libraryId: string
@@ -31,26 +33,13 @@ interface StoryConfig {
  */
 export function StoryModeHeader({ libraryId, onBackToGallery }: StoryModeHeaderProps) {
   const { t } = useTranslation()
-  const [storyConfig, setStoryConfig] = useState<StoryConfig | null>(null)
-
-  // Lade Story-Config aus der API
-  useEffect(() => {
-    let cancelled = false
-    async function loadStoryConfig() {
-      try {
-        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/config`, { cache: 'no-store' })
-        if (!res.ok) throw new Error(`Fehler beim Laden der Config: ${res.statusText}`)
-        const apiData = await res.json() as { publicPublishing?: { story?: StoryConfig } }
-        if (!cancelled && apiData.publicPublishing?.story) {
-          setStoryConfig(apiData.publicPublishing.story)
-        }
-      } catch (e) {
-        console.error('[StoryModeHeader] Fehler beim Laden der Config:', e)
-      }
-    }
-    loadStoryConfig()
-    return () => { cancelled = true }
-  }, [libraryId])
+  const libraries = useAtomValue(librariesAtom)
+  
+  // Lese Story-Config direkt aus State statt API-Call
+  const storyConfig = useMemo<StoryConfig | null>(() => {
+    const library = libraries.find(lib => lib.id === libraryId)
+    return library?.config?.publicPublishing?.story || null
+  }, [libraries, libraryId])
 
   // Verwende gemeinsamen Scroll-Visibility-Hook (wie TopNav und GalleryStickyHeader)
   // isVisible === false bedeutet: Header-Bereich ausblenden (condensed)

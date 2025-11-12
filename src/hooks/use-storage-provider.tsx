@@ -63,6 +63,17 @@ export function useStorageProvider() {
       return
     }
 
+    // OPTIMIERUNG: Prüfe ob es eine öffentliche Library ist
+    // Öffentliche Libraries brauchen keinen Storage Provider (werden nur für Gallery/Chat verwendet)
+    const currentLibrary = libraries.find(lib => lib.id === activeLibraryId)
+    const isPublicLibrary = currentLibrary?.config?.publicPublishing?.isPublic === true
+    
+    if (isPublicLibrary) {
+      console.log(`[useStorageProvider] Öffentliche Library erkannt (${currentLibrary?.label}), kein Storage Provider benötigt`)
+      setProvider(null)
+      return
+    }
+
     console.log(`[useStorageProvider] Initialisiere Provider für Bibliothek: ${activeLibraryId}`)
     const factory = StorageFactory.getInstance()
     
@@ -72,7 +83,17 @@ export function useStorageProvider() {
         setProvider(provider)
       })
       .catch(error => {
-        // Graceful handling für nicht unterstützte Bibliothekstypen
+        // Graceful handling für verschiedene Fehlertypen
+        if (error.name === 'LibraryNotFoundError') {
+          console.warn(`[useStorageProvider] Library nicht im StorageFactory gefunden: ${activeLibraryId}`, {
+            libraryId: activeLibraryId,
+            libraryLabel: currentLibrary?.label,
+            isPublicLibrary
+          })
+          setProvider(null)
+          return
+        }
+        
         if (error.name === 'UnsupportedLibraryTypeError') {
           const currentLibrary = libraries.find(lib => lib.id === activeLibraryId)
           console.warn(`[useStorageProvider] Nicht unterstützter Bibliothekstyp "${error.libraryType}" für Bibliothek "${currentLibrary?.label}" - Bibliothek wird übersprungen`, {

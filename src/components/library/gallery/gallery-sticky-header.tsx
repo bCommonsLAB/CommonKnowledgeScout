@@ -1,10 +1,8 @@
 'use client'
 
 import React from 'react'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { MessageCircle, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
 
 export interface GalleryStickyHeaderProps {
@@ -14,9 +12,6 @@ export interface GalleryStickyHeaderProps {
   searchPlaceholder: string
   queryValue: string
   onChangeQuery: (v: string) => void
-  ctaLabel: string
-  onCta: () => void
-  tooltip: string
 }
 
 /**
@@ -33,9 +28,6 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
     searchPlaceholder,
     queryValue,
     onChangeQuery,
-    ctaLabel,
-    onCta,
-    tooltip,
   } = props
 
   // Verwende gemeinsamen Scroll-Visibility-Hook (wie TopNav)
@@ -66,25 +58,6 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
             className="pl-10 text-sm sm:text-base"
           />
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={onCta}
-                className="flex items-center gap-1.5 sm:gap-2 font-semibold shadow-md hover:shadow-lg transition-all flex-shrink-0 px-2 sm:px-4 text-xs sm:text-sm"
-              >
-                <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span className="hidden sm:inline">{ctaLabel}</span>
-                <span className="sm:hidden">Story</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{tooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
       </div>
     </div>
   )

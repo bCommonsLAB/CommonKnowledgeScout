@@ -177,9 +177,6 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
             searchPlaceholder={t('gallery.searchPlaceholder')}
             onChangeQuery={setSearchQuery}
             queryValue={searchQuery}
-            ctaLabel={t('gallery.switchToStoryMode')}
-            onCta={() => setMode('story')}
-            tooltip={t('gallery.storyModeTooltip')}
           />
 
           <div className='flex-1 min-h-0 overflow-hidden flex flex-col min-h-[80vh]'>
@@ -191,6 +188,10 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                 onClear={handleClearFilters}
                 showReferenceLegend={showReferenceLegend}
                 facetDefs={facetDefs}
+                ctaLabel={t('gallery.switchToStoryMode')}
+                onCta={() => setMode('story')}
+                tooltip={t('gallery.storyModeTooltip')}
+                docs={docs}
               />
             </div>
 
@@ -203,6 +204,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                 onChange={setFacet}
                 title={t('gallery.filter')}
                 description={texts.filterDescription}
+                docs={docs}
               />
 
               {/* Items Panel */}
@@ -216,6 +218,10 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                       showReferenceLegend={showReferenceLegend}
                       hideFilterButton={true}
                       facetDefs={facetDefs}
+                      ctaLabel={t('gallery.switchToStoryMode')}
+                      onCta={() => setMode('story')}
+                      tooltip={t('gallery.storyModeTooltip')}
+                      docs={docs}
                     />
                   </div>
                 )}
@@ -272,6 +278,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                     showReferenceLegend={showReferenceLegend}
                     hideFilterButton={true}
                     facetDefs={facetDefs}
+                    docs={docs}
                   />
                 </div>
               )}
@@ -320,6 +327,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
         onChange={setFacet}
         title={t('gallery.filter')}
         description={texts.filterDescription}
+        docs={docs}
       />
 
       {/* Detail Overlay */}
@@ -331,6 +339,17 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           fileId={selected.fileId || selected.id}
           viewType={detailViewType}
           title={t('gallery.documentDetails')}
+          onSwitchToStoryMode={() => {
+            // Setze fileId-Filter für das aktuelle Dokument
+            setFilters(f => {
+              const next = { ...(f as Record<string, string[] | undefined>) }
+              const docFileId = selected.fileId || selected.id
+              next.fileId = docFileId ? [docFileId] : undefined
+              return next as typeof f
+            })
+            setSelected(null)
+            setMode('story')
+          }}
         />
       )}
     </div>

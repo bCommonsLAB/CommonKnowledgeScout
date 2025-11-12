@@ -9,6 +9,7 @@ import { useCallback } from 'react'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
+import type { AnswerLength, Retriever, TargetLanguage, SocialContext } from '@/lib/chat/constants'
 import { useSessionHeaders } from './use-session-headers'
 import { TOC_QUESTION } from '@/lib/chat/constants'
 
@@ -20,6 +21,13 @@ interface TOCCacheResult {
   queryId?: string
   createdAt?: string
   storyTopicsData?: StoryTopicsData
+  // Parameter aus Query, damit sie direkt verwendet werden können
+  answerLength?: AnswerLength
+  retriever?: Retriever
+  targetLanguage?: TargetLanguage
+  character?: string
+  socialContext?: SocialContext
+  facetsSelected?: Record<string, unknown>
 }
 
 interface CheckTOCCacheParams {

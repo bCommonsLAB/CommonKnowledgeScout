@@ -60,79 +60,84 @@ export function StoryHeader({ compact = false }: StoryHeaderProps) {
       </div>
       
       {/* Perspektive-Button - weniger prominent */}
-      <Popover open={perspectiveOpen} onOpenChange={handleOpenChange}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2 w-fit">
-            <Settings2 className="h-4 w-4" />
-            {t('gallery.storyMode.perspective.adjustPerspective')}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-80" align="start">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm">{t('gallery.storyMode.perspective.adjustPerspectiveTitle')}</h4>
-              <p className="text-xs text-muted-foreground">
-                {t('gallery.storyMode.perspective.adjustPerspectiveDescription')}
-              </p>
+      <div className="flex items-center gap-3">
+        <Popover open={perspectiveOpen} onOpenChange={handleOpenChange}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2 w-fit">
+              <Settings2 className="h-4 w-4" />
+              {t('gallery.storyMode.perspective.adjustPerspective')}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="start">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">{t('gallery.storyMode.perspective.adjustPerspectiveTitle')}</h4>
+                <p className="text-xs text-muted-foreground">
+                  {t('gallery.storyMode.perspective.adjustPerspectiveDescription')}
+                </p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                {/* Sprache */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">{t('gallery.storyMode.perspective.language')}</label>
+                  <Select value={targetLanguage} onValueChange={(v) => setTargetLanguage(v as typeof targetLanguage)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(targetLanguageLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Charakter */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">{t('gallery.storyMode.perspective.character')}</label>
+                  <Select value={character} onValueChange={(v) => setCharacter(v as typeof character)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(characterLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Sozialer Kontext */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">{t('gallery.storyMode.perspective.socialContext')}</label>
+                  <Select value={socialContext} onValueChange={(v) => setSocialContext(v as typeof socialContext)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(socialContextLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
-
-            <Separator />
-
-            <div className="space-y-3">
-              {/* Sprache */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">{t('gallery.storyMode.perspective.language')}</label>
-                <Select value={targetLanguage} onValueChange={(v) => setTargetLanguage(v as typeof targetLanguage)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(targetLanguageLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Charakter */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">{t('gallery.storyMode.perspective.character')}</label>
-                <Select value={character} onValueChange={(v) => setCharacter(v as typeof character)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(characterLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Sozialer Kontext */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">{t('gallery.storyMode.perspective.socialContext')}</label>
-                <Select value={socialContext} onValueChange={(v) => setSocialContext(v as typeof socialContext)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(socialContextLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
+          </PopoverContent>
+        </Popover>
+        <span className="text-sm text-muted-foreground">
+          {t('gallery.storyMode.perspective.adjustPerspectiveHelpText')}
+        </span>
+      </div>
     </div>
   )
 }

@@ -104,7 +104,7 @@
   "gallery": {
     "gallery": "Gallery",
     "story": "Story",
-    "switchToStoryMode": "Switch to Story Mode",
+    "switchToStoryMode": "Learn more about these contents",
     "storyModeTooltip": "Discover knowledge anew: Story Mode tells the talks from your perspective – in your language and with your focus.",
     "backToGallery": "Back to Gallery",
     "storyMode": {
@@ -112,11 +112,13 @@
       "subtitle": "Experiencing collective knowledge together",
       "description": "The topic overview was generated from the talks you selected. It shows common questions. Your perspective matters. Choose your character and social context. Dive into your topic and follow the answers. You can ask your own question and create your own storyline.",
       "generatingTopics": "Generating topic overview...",
+      "reloadTooltip": "Overview no longer current, please recalculate",
       "perspective": {
         "language": "Language",
         "character": "Character",
         "socialContext": "My social context",
         "adjustPerspective": "Adjust own perspective",
+        "adjustPerspectiveHelpText": "Don't understand these contents? Determine your context and regenerate them for you.",
         "adjustPerspectiveTitle": "Adjust perspective",
         "adjustPerspectiveDescription": "Adjust the language, character, and social context of the answers."
       }
@@ -132,6 +134,7 @@
     "referencesDescription": "The answer was generated from these documents.",
     "storyModeGalleryDescription": "Answers are generated from the talks selected in the Gallery.",
     "documentDetails": "Document Details",
+    "detailViewStoryModeCta": "Don't understand this content? Have it told to you in your language.",
     "openDocument": "Open Document",
     "openEventWebsite": "Open Event Website",
     "loading": "Loading…",
@@ -267,6 +270,9 @@
     }
   },
   "processing": {
+    "checkCache": "Check cache",
+    "cacheFound": "Cache found ({queryId})",
+    "cacheNotFound": "No cache found",
     "analyzeQuestion": "Analyze question",
     "recommendation": "Recommendation: {recommendation} ({confidence})",
     "recommendationChunk": "Specific",

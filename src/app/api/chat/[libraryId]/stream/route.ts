@@ -30,7 +30,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { startQueryLog } from '@/lib/logging/query-logger'
-import { updateQueryLogPartial } from '@/lib/db/queries-repo'
+import { updateQueryLogPartial, findQueryByQuestionAndContext } from '@/lib/db/queries-repo'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { buildFilters } from '@/lib/chat/common/filters'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
@@ -160,16 +160,16 @@ export async function POST(
         const facetsSelected: Record<string, unknown> = {}
         const facetMetaKeys = new Set(facetDefs.map(d => d.metaKey))
         
-        // Nur Parameter, die tatsächlich Facetten sind
+        // Nur Parameter, die tatsächlich Facetten sind (inkl. fileId)
         parsedUrl.searchParams.forEach((v, k) => {
           // Überspringe Chat-Konfigurations-Parameter
           if (['retriever', 'targetLanguage', 'character', 'socialContext', 'genderInclusive', 'chatId'].includes(k)) {
             return
           }
-          // Nur Facetten-Parameter übernehmen
-          if (facetMetaKeys.has(k)) {
-          if (!facetsSelected[k]) facetsSelected[k] = [] as unknown[]
-          ;(facetsSelected[k] as unknown[]).push(v)
+          // Facetten-Parameter ODER fileId übernehmen
+          if (facetMetaKeys.has(k) || k === 'fileId') {
+            if (!facetsSelected[k]) facetsSelected[k] = [] as unknown[]
+            ;(facetsSelected[k] as unknown[]).push(v)
           }
         })
 
@@ -213,6 +213,7 @@ export async function POST(
         const targetLanguageParam = parsedUrl.searchParams.get('targetLanguage')
         const characterParam = parsedUrl.searchParams.get('character')
         const socialContextParam = parsedUrl.searchParams.get('socialContext')
+        const genderInclusiveParam = parsedUrl.searchParams.get('genderInclusive')
         
         const effectiveChatConfig = {
           ...ctx.chat,
@@ -225,7 +226,96 @@ export async function POST(
           socialContext: isValidSocialContext(socialContextParam)
             ? socialContextParam
             : ctx.chat.socialContext,
+          genderInclusive: genderInclusiveParam === 'true' 
+            ? true 
+            : genderInclusiveParam === 'false' 
+            ? false 
+            : ctx.chat.genderInclusive ?? false,
         }
+
+        // Schritt 1.5: Cache-Check für bestehende Query
+        // Prüfe, ob bereits eine identische Query mit Antwort existiert
+        // Dies gilt sowohl für TOC-Queries als auch für normale Fragen
+        try {
+          // Sende Cache-Check-Step (Start)
+          send({
+            type: 'cache_check',
+            parameters: {
+              targetLanguage: effectiveChatConfig.targetLanguage,
+              character: effectiveChatConfig.character,
+              socialContext: effectiveChatConfig.socialContext,
+              filters: facetsSelected,
+            },
+          })
+          
+          const cachedQuery = await findQueryByQuestionAndContext({
+            libraryId,
+            userEmail: userEmail || undefined,
+            sessionId: sessionId || undefined,
+            question: message.trim(),
+            queryType: isTOCQuery ? 'toc' : 'question',
+            targetLanguage: effectiveChatConfig.targetLanguage,
+            character: effectiveChatConfig.character,
+            socialContext: effectiveChatConfig.socialContext,
+            genderInclusive: effectiveChatConfig.genderInclusive,
+            retriever: explicitRetrieverValue || undefined,
+            facetsSelected: Object.keys(facetsSelected).length > 0 ? facetsSelected : undefined,
+          })
+
+          // Wenn Cache gefunden wurde und Antwort vorhanden ist
+          if (cachedQuery && ((cachedQuery.answer && cachedQuery.answer.trim().length > 0) || cachedQuery.storyTopicsData)) {
+            // Verwende die queryId aus dem Cache (falls vorhanden) oder erstelle neue
+            const finalQueryId = cachedQuery.queryId || `cached-${Date.now()}`
+            
+            // Wenn queryId noch nicht gesetzt wurde, setze sie für später
+            queryId = finalQueryId
+            
+            // Sende Cache-Check-Complete-Step (gefunden)
+            send({
+              type: 'cache_check_complete',
+              found: true,
+              queryId: finalQueryId,
+            })
+            
+            // Sende sofort als complete-Step mit Cache-Daten
+            send({
+              type: 'complete',
+              answer: cachedQuery.answer || '',
+              references: cachedQuery.references || [],
+              suggestedQuestions: cachedQuery.suggestedQuestions || [],
+              queryId: finalQueryId,
+              chatId: activeChatId,
+              storyTopicsData: cachedQuery.storyTopicsData,
+            })
+            
+            // Aktualisiere Query-Log mit Cache-Info (falls Query bereits existiert)
+            if (cachedQuery.queryId) {
+              await updateQueryLogPartial(cachedQuery.queryId, {
+                status: 'ok',
+              })
+            }
+            
+            controller.close()
+            isStreamActive = false
+            return
+          } else {
+            // Cache-Check durchgeführt, aber kein Cache gefunden
+            send({
+              type: 'cache_check_complete',
+              found: false,
+            })
+          }
+        } catch (error) {
+          // Bei Fehler im Cache-Check: Weiter mit normaler Verarbeitung
+          console.error('[stream] Fehler beim Cache-Check:', error)
+          send({
+            type: 'cache_check_complete',
+            found: false,
+          })
+        }
+        
+        // Wenn Cache gefunden wurde, wurde bereits return aufgerufen
+        // An dieser Stelle wird nur fortgesetzt, wenn kein Cache gefunden wurde
 
         // Schritt 2: Filter aufbauen (für Retriever-Entscheidung benötigt)
         // Verwende temporären Retriever für Filter-Aufbau (wird später überschrieben)

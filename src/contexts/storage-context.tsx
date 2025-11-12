@@ -225,12 +225,41 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       isSignedIn
     });
 
+    // OPTIMIERUNG: Im anonymen Modus (Homepage/Explore) nicht auf Auth warten
+    // Libraries werden dort nicht benötigt und werden von LibraryGrid selbst geladen
+    if (typeof window !== 'undefined') {
+      const currentPath = window.location.pathname;
+      const isPublicPage = currentPath === '/' || currentPath.startsWith('/explore');
+      
+      if (isPublicPage && (!isAuthLoaded || !isUserLoaded)) {
+        // Auf öffentlichen Seiten: Nicht auf Auth warten, sofort fertig
+        AuthLogger.debug('StorageContext', 'Public page detected, skipping auth wait');
+        setIsLoading(false);
+        setLibraryStatus('ready');
+        setLibraryStatusAtom('ready');
+        return;
+      }
+    }
+
     if (!isAuthLoaded || !isUserLoaded) {
       AuthLogger.debug('StorageContext', 'Waiting for auth/user to load');
       return;
     }
     
     if (!isSignedIn) {
+      // OPTIMIERUNG: Im anonymen Modus keine Fehlermeldung setzen
+      // Libraries werden auf öffentlichen Seiten nicht benötigt
+      const isPublicPage = typeof window !== 'undefined' && 
+        (window.location.pathname === '/' || window.location.pathname.startsWith('/explore'));
+      
+      if (isPublicPage) {
+        AuthLogger.debug('StorageContext', 'Anonymous mode on public page, no libraries needed');
+        setIsLoading(false);
+        setLibraryStatus('ready');
+        setLibraryStatusAtom('ready');
+        return;
+      }
+      
       AuthLogger.warn('StorageContext', 'User not signed in');
       setError("Sie müssen angemeldet sein, um auf die Bibliothek zugreifen zu können.");
       setIsLoading(false);
@@ -324,7 +353,20 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             });
           
           console.log(`[StorageContext] Bibliotheken geladen: ${data.length} total, ${supportedLibraries.length} unterstützt`);
-          setLibraries(supportedLibraries);
+          
+          // WICHTIG: Intelligentes State-Merge statt Überschreiben
+          // Prüfe ob Libraries bereits im State sind (z.B. von Explore-Seite)
+          const existingLibraries = libraries
+          const newLibraryIds = new Set(supportedLibraries.map(lib => lib.id))
+          
+          // Merge-Strategie:
+          // 1. Behalte vorhandene Libraries, die nicht in den neuen Libraries sind (z.B. Explore-Libraries)
+          // 2. Füge neue Libraries hinzu oder aktualisiere vorhandene
+          const librariesToKeep = existingLibraries.filter(lib => !newLibraryIds.has(lib.id))
+          const mergedLibraries = [...librariesToKeep, ...supportedLibraries]
+          
+          console.log(`[StorageContext] State-Merge: ${existingLibraries.length} vorhanden, ${supportedLibraries.length} neu, ${mergedLibraries.length} nach Merge`);
+          setLibraries(mergedLibraries);
           
           // Setze StorageFactory Libraries (nur unterstützte)
           const factory = StorageFactory.getInstance();
@@ -463,7 +505,16 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         const filtered = data
           .filter((lib: { id?: unknown }) => typeof lib?.id === 'string' && String(lib.id).trim() !== '')
           .filter((lib: { type?: unknown }) => isSupportedLibraryType(String(lib.type)));
-        setLibraries(filtered);
+        
+        // WICHTIG: Intelligentes State-Merge auch bei refreshLibraries
+        const existingLibraries = libraries
+        const newLibraryIds = new Set(filtered.map(lib => lib.id))
+        
+        // Behalte Libraries die nicht in den gefilterten sind (z.B. Explore-Libraries)
+        const librariesToKeep = existingLibraries.filter(lib => !newLibraryIds.has(lib.id))
+        const mergedLibraries = [...librariesToKeep, ...filtered]
+        
+        setLibraries(mergedLibraries);
       }
     } catch (error) {
       console.error('[StorageContext] Fehler beim Aktualisieren der Bibliotheken:', error);

@@ -39,11 +39,83 @@ async function getQueriesCollection(): Promise<Collection<QueryLog>> {
   const col = await getCollection<QueryLog>(COLLECTION_NAME)
   try {
     await Promise.all([
+      // Basis-Indexe
       col.createIndex({ queryId: 1 }, { unique: true, name: 'queryId_unique' }),
       col.createIndex({ libraryId: 1, createdAt: -1 }, { name: 'library_createdAt_desc' }),
       col.createIndex({ userEmail: 1, createdAt: -1 }, { name: 'user_createdAt_desc' }),
       col.createIndex({ sessionId: 1, createdAt: -1 }, { name: 'sessionId_createdAt_desc' }),
       col.createIndex({ chatId: 1, createdAt: -1 }, { name: 'chatId_createdAt_desc' }),
+      
+      // Optimierte Indexe für Cache-Abfragen (findQueryByQuestionAndContext)
+      // Index für authentifizierte Nutzer mit TOC-Queries
+      col.createIndex(
+        { 
+          libraryId: 1, 
+          question: 1, 
+          userEmail: 1, 
+          queryType: 1, 
+          status: 1, 
+          targetLanguage: 1,
+          character: 1,
+          socialContext: 1,
+          genderInclusive: 1,
+          retriever: 1,
+          createdAt: -1 
+        }, 
+        { 
+          name: 'cache_lookup_user_toc',
+          partialFilterExpression: { userEmail: { $exists: true } }
+        }
+      ),
+      // Index für anonyme Nutzer mit TOC-Queries
+      col.createIndex(
+        { 
+          libraryId: 1, 
+          question: 1, 
+          sessionId: 1, 
+          queryType: 1, 
+          status: 1, 
+          targetLanguage: 1,
+          character: 1,
+          socialContext: 1,
+          genderInclusive: 1,
+          retriever: 1,
+          createdAt: -1 
+        }, 
+        { 
+          name: 'cache_lookup_session_toc',
+          partialFilterExpression: { sessionId: { $exists: true } }
+        }
+      ),
+      // Fallback-Indexe für häufig verwendete Kombinationen (ohne alle Parameter)
+      col.createIndex(
+        { 
+          libraryId: 1, 
+          question: 1, 
+          userEmail: 1, 
+          queryType: 1, 
+          status: 1,
+          createdAt: -1 
+        }, 
+        { 
+          name: 'cache_lookup_user_basic',
+          partialFilterExpression: { userEmail: { $exists: true } }
+        }
+      ),
+      col.createIndex(
+        { 
+          libraryId: 1, 
+          question: 1, 
+          sessionId: 1, 
+          queryType: 1, 
+          status: 1,
+          createdAt: -1 
+        }, 
+        { 
+          name: 'cache_lookup_session_basic',
+          partialFilterExpression: { sessionId: { $exists: true } }
+        }
+      ),
     ])
   } catch {}
   return col
@@ -312,7 +384,9 @@ export async function findQueryByQuestionAndContext(args: {
   // Suche nach der neuesten passenden Query
   // Hinweis: facetsSelected kann nicht direkt im MongoDB-Filter verwendet werden,
   // da es ein verschachteltes Objekt ist. Wir müssen nach dem Laden filtern.
-  const cursor = col.find(filter, { sort: { createdAt: -1 } })
+  // WICHTIG: Verwende limit() um die Anzahl der geladenen Dokumente zu begrenzen
+  // und nutze die optimierten Indexe für bessere Performance
+  const cursor = col.find(filter, { sort: { createdAt: -1 }, limit: 50 }) // Limit auf 50 für Facetten-Filterung
   const candidates = await cursor.toArray()
   
   // Filtere nach facetsSelected, falls angegeben

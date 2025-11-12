@@ -59,8 +59,15 @@ export default clerkMiddleware(async (auth, req) => {
     acceptLanguage
   );
   
-  // Erstelle Response (wird später modifiziert)
-  const response = NextResponse.next();
+  // Erstelle Response und injiziere die ermittelte Locale als Request-Header,
+  // damit Server Components (z.B. Layout) die Sprache ohne searchParams kennen
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set('x-locale', locale);
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders
+    }
+  });
   
   // Setze Cookie für Sprachauswahl (30 Tage Gültigkeit)
   if (langParam && SUPPORTED_LOCALES.includes(langParam as Locale)) {

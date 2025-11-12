@@ -27,6 +27,42 @@ export function ProcessingStatus({ steps }: ProcessingStatusProps) {
   // Konvertiere Steps zu Display-Format
   const displaySteps: StepDisplay[] = []
 
+  // Cache-Check (muss zuerst angezeigt werden)
+  const cacheCheckStep = steps.find(s => s.type === 'cache_check')
+  const cacheCheckComplete = steps.find(s => s.type === 'cache_check_complete')
+  if (cacheCheckStep) {
+    const params = cacheCheckStep.parameters
+    const paramParts: string[] = []
+    if (params.targetLanguage) paramParts.push(`${t('configDisplay.language')} ${params.targetLanguage}`)
+    if (params.character) paramParts.push(`${t('configDisplay.character')} ${params.character}`)
+    if (params.socialContext) paramParts.push(`${t('configDisplay.context')} ${params.socialContext}`)
+    if (params.filters && Object.keys(params.filters).length > 0) {
+      const filterCount = Object.values(params.filters).reduce((sum: number, val: unknown) => {
+        if (Array.isArray(val)) return sum + val.length
+        return sum + 1
+      }, 0)
+      if (filterCount > 0) paramParts.push(`${filterCount} ${filterCount === 1 ? t('gallery.filter') : t('gallery.filters')}`)
+    }
+    
+    const details = paramParts.length > 0 ? paramParts.join(' · ') : undefined
+    const found = cacheCheckComplete?.found || false
+    
+    displaySteps.push({
+      label: t('processing.checkCache'),
+      status: cacheCheckComplete ? (found ? 'complete' : 'complete') : 'active',
+      details: cacheCheckComplete 
+        ? (found 
+          ? t('processing.cacheFound', { queryId: cacheCheckComplete.queryId?.substring(0, 8) || '' })
+          : t('processing.cacheNotFound'))
+        : details,
+      icon: cacheCheckComplete 
+        ? (found 
+          ? <CheckCircle2 className="h-3 w-3 text-green-600" />
+          : <XCircle className="h-3 w-3 text-orange-600" />)
+        : <Loader2 className="h-3 w-3 animate-spin text-blue-500" />,
+    })
+  }
+
   // Frage-Analyse
   const analysisStep = steps.find(s => s.type === 'question_analysis_start')
   const analysisResult = steps.find(s => s.type === 'question_analysis_result')

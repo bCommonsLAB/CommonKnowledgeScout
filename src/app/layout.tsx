@@ -31,9 +31,13 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "sonner"
 import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
+import { JotaiLocaleProvider } from '@/components/providers/jotai-locale-provider'
+import { LocaleGate } from '@/components/providers/locale-gate'
 import { AppLayout } from "@/components/layouts/app-layout"
 import { HomeLayout } from "@/components/layouts/home-layout"
 import { ConditionalFooter } from "@/components/home/conditional-footer"
+import { headers, cookies } from 'next/headers'
+import { getLocale, type Locale } from '@/lib/i18n'
 
 export const metadata = {
   title: "Knowledge Scout",
@@ -47,11 +51,18 @@ const isBuildTime = process.env.NEXT_RUNTIME === 'build' ||
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY === 'dummy_pk_test_placeholder' ||
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY === '';
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Ermittele Server-Locale bevorzugt aus Middleware-Header, sonst Cookie/Accept-Language
+  const headersList = await headers()
+  const cookieStore = await cookies()
+  const headerLocale = headersList.get('x-locale') || undefined
+  const cookieValue = cookieStore.get('locale')?.value
+  const acceptLanguage = headersList.get('accept-language') || undefined
+  const serverLocale = (headerLocale as Locale) || getLocale(undefined, cookieValue, acceptLanguage)
   // Wrapper-Komponente für Clerk
   const ClerkWrapper = ({ children }: { children: React.ReactNode }) => {
     // Wenn kein Clerk-Key vorhanden ist, ohne Clerk rendern
@@ -69,7 +80,7 @@ export default function RootLayout({
   // Während des Builds ein minimales Layout ohne Clerk rendern
   if (isBuildTime) {
     return (
-      <html lang="en" suppressHydrationWarning>
+      <html lang={serverLocale} suppressHydrationWarning>
         <body className={GeistSans.className}>
           <ThemeProvider
             attribute="class"
@@ -77,15 +88,19 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <StorageContextProvider>
-              <TooltipProvider>
-                <HomeLayout>
-                  {children}
-                </HomeLayout>
-                <ConditionalFooter />
-                <Toaster richColors />
-              </TooltipProvider>
-            </StorageContextProvider>
+            <JotaiLocaleProvider serverLocale={serverLocale}>
+              <LocaleGate>
+                <StorageContextProvider>
+                  <TooltipProvider>
+                    <HomeLayout>
+                      {children}
+                    </HomeLayout>
+                    <ConditionalFooter />
+                    <Toaster richColors />
+                  </TooltipProvider>
+                </StorageContextProvider>
+              </LocaleGate>
+            </JotaiLocaleProvider>
           </ThemeProvider>
         </body>
       </html>
@@ -94,7 +109,7 @@ export default function RootLayout({
 
   return (
     <ClerkWrapper>
-      <html lang="en" suppressHydrationWarning>
+      <html lang={serverLocale} suppressHydrationWarning>
         <body className={GeistSans.className}>
           <ThemeProvider
             attribute="class"
@@ -102,17 +117,21 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <StorageContextProvider>
-              <TooltipProvider>
-                <div className="relative min-h-screen flex flex-col">
-                  <AppLayout>
-                    {children}
-                  </AppLayout>
-                  <ConditionalFooter />
-                </div>
-                <Toaster richColors />
-              </TooltipProvider>
-            </StorageContextProvider>
+            <JotaiLocaleProvider serverLocale={serverLocale}>
+              <LocaleGate>
+                <StorageContextProvider>
+                  <TooltipProvider>
+                    <div className="relative min-h-screen flex flex-col">
+                      <AppLayout>
+                        {children}
+                      </AppLayout>
+                      <ConditionalFooter />
+                    </div>
+                    <Toaster richColors />
+                  </TooltipProvider>
+                </StorageContextProvider>
+              </LocaleGate>
+            </JotaiLocaleProvider>
           </ThemeProvider>
         </body>
       </html>

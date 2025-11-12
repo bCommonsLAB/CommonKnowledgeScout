@@ -104,7 +104,7 @@
   "gallery": {
     "gallery": "Galerie",
     "story": "Histoire",
-    "switchToStoryMode": "Passer au mode Histoire",
+    "switchToStoryMode": "En savoir plus sur ces contenus",
     "storyModeTooltip": "Découvrez la connaissance à nouveau : le mode Histoire raconte les conférences de votre point de vue – dans votre langue et avec votre focus.",
     "backToGallery": "Retour à la Galerie",
     "storyMode": {
@@ -112,11 +112,13 @@
       "subtitle": "Expérimenter la connaissance collective ensemble",
       "description": "La vue d'ensemble des sujets a été générée à partir des conférences que vous avez sélectionnées. Elle montre les questions communes. Votre perspective compte. Choisissez votre caractère et votre contexte social. Plongez dans votre sujet et suivez les réponses. Vous pouvez poser votre propre question et créer votre propre histoire.",
       "generatingTopics": "Génération de la vue d'ensemble des sujets...",
+      "reloadTooltip": "Vue d'ensemble plus à jour, veuillez recalculer",
       "perspective": {
         "language": "Langue",
         "character": "Caractère",
         "socialContext": "Mon contexte social",
         "adjustPerspective": "Ajuster ma propre perspective",
+        "adjustPerspectiveHelpText": "Vous ne comprenez pas ces contenus ? Déterminez votre contexte et régénérez-les pour vous.",
         "adjustPerspectiveTitle": "Ajuster la perspective",
         "adjustPerspectiveDescription": "Ajuster la langue, le caractère et le contexte social des réponses."
       }
@@ -132,6 +134,7 @@
     "referencesDescription": "La réponse a été générée à partir de ces documents.",
     "storyModeGalleryDescription": "Les réponses sont générées à partir des conférences sélectionnées dans la Galerie.",
     "documentDetails": "Détails du document",
+    "detailViewStoryModeCta": "Vous ne comprenez pas ce contenu ? Faites-le-vous raconter dans votre langue.",
     "openDocument": "Ouvrir le document",
     "openEventWebsite": "Ouvrir le site web de l'événement",
     "loading": "Chargement…",
@@ -267,6 +270,9 @@
     }
   },
   "processing": {
+    "checkCache": "Vérifier le cache",
+    "cacheFound": "Cache trouvé ({queryId})",
+    "cacheNotFound": "Aucun cache trouvé",
     "analyzeQuestion": "Analyser la question",
     "recommendation": "Recommandation : {recommendation} ({confidence})",
     "recommendationChunk": "Spécifique",
