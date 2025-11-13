@@ -1003,10 +1003,22 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   // Navigations-API bereitstellen
   const removeOldHit = () => {
     const old = contentRef.current?.querySelector('[data-search-hit="1"]') as HTMLElement | null;
-    if (old && old.parentElement) {
+    // Prüfe, ob der Knoten noch existiert und ein Kind des Parent-Elements ist
+    // Dies verhindert Fehler auf mobilen Geräten, wo React schneller neu rendern kann
+    if (old && old.parentElement && old.parentElement.contains(old)) {
       const txt = old.textContent || '';
       const textNode = document.createTextNode(txt);
-      old.parentElement.replaceChild(textNode, old);
+      try {
+        old.parentElement.replaceChild(textNode, old);
+      } catch (error) {
+        // Fallback: Wenn replaceChild fehlschlägt, entferne den Knoten sicher
+        // Dies kann passieren, wenn React die Komponente während der Manipulation neu rendert
+        FileLogger.debug('MarkdownPreview', 'replaceChild fehlgeschlagen, verwende Fallback', { error });
+        if (old.parentElement.contains(old)) {
+          old.parentElement.removeChild(old);
+          old.parentElement.appendChild(textNode);
+        }
+      }
     }
   };
 
@@ -1033,6 +1045,14 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       const text = (node.textContent || '').toLowerCase();
       const idx = text.indexOf(lower);
       if (idx >= 0) {
+        // Prüfe, ob der Knoten noch existiert und ein Kind des Parent-Elements ist
+        // Dies verhindert Fehler auf mobilen Geräten, wo React schneller neu rendern kann
+        if (!node.parentNode || !node.parentNode.contains(node)) {
+          // Knoten wurde bereits entfernt, überspringe diesen
+          node = walker.nextNode();
+          continue;
+        }
+        
         const orig = node.textContent || '';
         const before = orig.slice(0, idx);
         const hit = orig.slice(idx, idx + q.length);
@@ -1045,9 +1065,20 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
         if (before) frag.appendChild(document.createTextNode(before));
         frag.appendChild(span);
         if (after) frag.appendChild(document.createTextNode(after));
-        node.parentNode?.replaceChild(frag, node);
-        scrollContainerTo(span);
-        return;
+        
+        try {
+          // Prüfe erneut vor replaceChild, da React die Komponente während der Suche neu rendern kann
+          if (node.parentNode && node.parentNode.contains(node)) {
+            node.parentNode.replaceChild(frag, node);
+            scrollContainerTo(span);
+            return;
+          }
+        } catch (error) {
+          // Fallback: Wenn replaceChild fehlschlägt, logge den Fehler und breche ab
+          // Dies kann passieren, wenn React die Komponente während der Manipulation neu rendert
+          FileLogger.debug('MarkdownPreview', 'replaceChild in scrollToText fehlgeschlagen', { error });
+          return;
+        }
       }
       node = walker.nextNode();
     }

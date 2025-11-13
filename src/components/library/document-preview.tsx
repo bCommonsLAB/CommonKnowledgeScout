@@ -73,7 +73,11 @@ export function DocumentPreview({ provider, onRefreshFolder }: DocumentPreviewPr
     link.download = item.metadata.name;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    // Prüfe, ob der Link noch im DOM existiert, bevor wir ihn entfernen
+    // Dies verhindert Fehler auf mobilen Geräten, wo der Browser den Link möglicherweise bereits entfernt hat
+    if (document.body.contains(link)) {
+      document.body.removeChild(link);
+    }
   };
 
   const handleTransformButtonClick = () => {
