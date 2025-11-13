@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Settings2 } from 'lucide-react'
+import { Settings2, ChevronLeft } from 'lucide-react'
 import { useStoryContext, saveStoryContextToLocalStorage } from '@/hooks/use-story-context'
 import { storyPerspectiveOpenAtom } from '@/atoms/story-context-atom'
 import { useUser } from '@clerk/nextjs'
@@ -14,6 +14,8 @@ import { useTranslation } from '@/lib/i18n/hooks'
 interface StoryHeaderProps {
   /** Wenn true, werden Border und Padding entfernt (für sticky Header) */
   compact?: boolean
+  /** Callback für Zurück-zur-Gallery Button */
+  onBackToGallery?: () => void
 }
 
 /**
@@ -21,8 +23,9 @@ interface StoryHeaderProps {
  * 
  * Enthält:
  * - Button "Eigene Perspektive anpassen" mit Popover für drei Dropdowns
+ * - Button "Zurück zur Gallery" (optional)
  */
-export function StoryHeader({ compact = false }: StoryHeaderProps) {
+export function StoryHeader({ compact = false, onBackToGallery }: StoryHeaderProps) {
   const { t } = useTranslation()
   const [perspectiveOpen, setPerspectiveOpen] = useAtom(storyPerspectiveOpenAtom)
   const { isSignedIn } = useUser()
@@ -51,21 +54,39 @@ export function StoryHeader({ compact = false }: StoryHeaderProps) {
   }
 
   return (
-    <div className={`flex flex-col gap-2 flex-shrink-0 ${compact ? '' : 'pb-4 border-b'}`}>
+    <div className={`flex flex-col gap-2 flex-shrink-0 min-w-0 ${compact ? '' : 'pb-4 border-b'}`}>
       {/* Aktuelle Perspektive - dezent angezeigt */}
-      <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5">
-        <span>{t('gallery.storyMode.perspective.language')}: {targetLanguageLabels[targetLanguage]}</span>
-        <span>{t('gallery.storyMode.perspective.character')}: {characterLabels[character]}</span>
-        <span>{t('gallery.storyMode.perspective.socialContext')}: {socialContextLabels[socialContext]}</span>
+      <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5 min-w-0 w-full">
+        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.language')}: {targetLanguageLabels[targetLanguage]}</span>
+        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.character')}: {characterLabels[character]}</span>
+        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.socialContext')}: {socialContextLabels[socialContext]}</span>
       </div>
-      
-      {/* Perspektive-Button - weniger prominent */}
-      <div className="flex items-center gap-3">
+      {/* Help-Text - über den Buttons */}
+      <div className="text-sm text-muted-foreground break-words min-w-0 w-full mb-4">
+        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.adjustPerspectiveHelpText')}</span>
+      </div>
+
+      {/* Buttons: Zurück und Perspektive */}
+      <div className="flex flex-wrap items-center gap-3 min-w-0 w-full">
+        {/* Zurück-Button - vor Perspektive-Button */}
+        {onBackToGallery && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBackToGallery}
+            className="flex items-center gap-2 shrink-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span className="whitespace-nowrap">{t('gallery.backToGallery')}</span>
+          </Button>
+        )}
+
+        {/* Perspektive-Button */}
         <Popover open={perspectiveOpen} onOpenChange={handleOpenChange}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2 w-fit">
-              <Settings2 className="h-4 w-4" />
-              {t('gallery.storyMode.perspective.adjustPerspective')}
+            <Button variant="outline" size="sm" className="gap-2 shrink-0">
+              <Settings2 className="h-4 w-4 shrink-0" />
+              <span className="whitespace-nowrap">{t('gallery.storyMode.perspective.adjustPerspective')}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80" align="start">
@@ -131,13 +152,12 @@ export function StoryHeader({ compact = false }: StoryHeaderProps) {
                   </Select>
                 </div>
               </div>
+              
             </div>
           </PopoverContent>
         </Popover>
-        <span className="text-sm text-muted-foreground">
-          {t('gallery.storyMode.perspective.adjustPerspectiveHelpText')}
-        </span>
       </div>
+      
     </div>
   )
 }

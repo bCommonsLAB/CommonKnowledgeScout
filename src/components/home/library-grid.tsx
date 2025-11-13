@@ -2,11 +2,13 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, BookOpen, Presentation } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ArrowRight, BookOpen, Presentation, AlertCircle, RefreshCw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import * as LucideIcons from "lucide-react"
 import { useTranslation } from "@/lib/i18n/hooks"
+import { useToast } from "@/components/ui/use-toast"
 
 interface PublicLibrary {
   id: string
@@ -58,28 +60,56 @@ const ICON_COLORS = [
 export function LibraryGrid() {
   const router = useRouter()
   const { t } = useTranslation()
+  const { toast } = useToast()
   const [libraries, setLibraries] = useState<PublicLibrary[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function loadLibraries() {
-      try {
-        const response = await fetch('/api/public/libraries')
+  async function loadLibraries() {
+    try {
+      setError(null)
+      setLoading(true)
+      
+      const response = await fetch('/api/public/libraries')
+      
+      if (!response.ok) {
+        let errorMessage = `Fehler beim Laden der Libraries: ${response.status}`
         
-        if (!response.ok) {
-          throw new Error(`Fehler beim Laden der Libraries: ${response.status}`)
+        // Versuche, eine detailliertere Fehlermeldung aus der Response zu extrahieren
+        try {
+          const errorData = await response.json()
+          if (errorData.error || errorData.message) {
+            errorMessage = errorData.error || errorData.message
+          }
+        } catch {
+          // Wenn JSON-Parsing fehlschlägt, verwende die Standard-Fehlermeldung
         }
         
-        const data = await response.json()
-        setLibraries(data.libraries || [])
-      } catch (error) {
-        console.error('[LibraryGrid] Fehler beim Laden der öffentlichen Libraries:', error)
-      } finally {
-        setLoading(false)
+        throw new Error(errorMessage)
       }
+      
+      const data = await response.json()
+      setLibraries(data.libraries || [])
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler beim Laden der Libraries'
+      console.error('[LibraryGrid] Fehler beim Laden der öffentlichen Libraries:', error)
+      
+      setError(errorMessage)
+      
+      // Toast-Nachricht anzeigen
+      toast({
+        title: "Fehler beim Laden der Libraries",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     loadLibraries()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Icon-Komponente basierend auf Library-Typ oder explizitem Icon
@@ -104,11 +134,35 @@ export function LibraryGrid() {
     return BookOpen
   }
 
-  if (loading) {
+  if (loading && !error) {
     return (
       <section className="py-20 md:py-28">
         <div className="container mx-auto px-4">
           <div className="text-center text-muted-foreground">{t('home.libraryGrid.loading')}</div>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className="py-20 md:py-28">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-2xl">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Fehler beim Laden der Libraries</AlertTitle>
+              <AlertDescription className="mt-2">
+                {error}
+              </AlertDescription>
+            </Alert>
+            <div className="mt-4 text-center">
+              <Button onClick={loadLibraries} variant="outline" className="gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Erneut versuchen
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
     )

@@ -6,13 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
   TARGET_LANGUAGE_VALUES,
-  TARGET_LANGUAGE_LABELS,
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_VALUES,
-  CHARACTER_LABELS,
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_VALUES,
-  SOCIAL_CONTEXT_LABELS,
   SOCIAL_CONTEXT_DEFAULT,
   GENDER_INCLUSIVE_DEFAULT,
   type TargetLanguage,
@@ -20,6 +17,7 @@ import {
   type SocialContext,
 } from '@/lib/chat/constants'
 import { BookOpen, X } from 'lucide-react'
+import { useStoryContext } from '@/hooks/use-story-context'
 
 interface ChatWelcomeAssistantProps {
   libraryId: string
@@ -52,6 +50,7 @@ export function ChatWelcomeAssistant({
   onGenerateTOC,
   onDismiss,
 }: ChatWelcomeAssistantProps) {
+  const { targetLanguageLabels, characterLabels, socialContextLabels } = useStoryContext()
   console.log('[ChatWelcomeAssistant] Rendering with props:', {
     libraryId,
     initialTargetLanguage,
@@ -135,7 +134,7 @@ export function ChatWelcomeAssistant({
                 onClick={() => setTargetLanguage(lang)}
                 className="h-7 text-xs"
               >
-                {TARGET_LANGUAGE_LABELS[lang]}
+                {targetLanguageLabels[lang]}
               </Button>
             ))}
           </div>
@@ -154,7 +153,7 @@ export function ChatWelcomeAssistant({
                 onClick={() => setCharacter(char)}
                 className="h-7 text-xs"
               >
-                {CHARACTER_LABELS[char]}
+                {characterLabels[char]}
               </Button>
             ))}
           </div>
@@ -173,7 +172,7 @@ export function ChatWelcomeAssistant({
                 onClick={() => setSocialContext(ctx)}
                 className="h-7 text-xs"
               >
-                {SOCIAL_CONTEXT_LABELS[ctx]}
+                {socialContextLabels[ctx]}
               </Button>
             ))}
           </div>

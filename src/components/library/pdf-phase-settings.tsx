@@ -15,9 +15,9 @@ import { pdfOverridesAtom } from "@/atoms/pdf-defaults";
 import type { PdfTransformOptions } from "@/lib/transform/transform-service";
 import {
   TARGET_LANGUAGE_VALUES,
-  TARGET_LANGUAGE_LABELS,
   TARGET_LANGUAGE_DEFAULT,
 } from "@/lib/chat/constants";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 interface PdfPhaseSettingsProps {
   open: boolean;
@@ -25,6 +25,7 @@ interface PdfPhaseSettingsProps {
 }
 
 export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) {
+  const { t } = useTranslation()
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const { provider, listItems } = useStorage();
   const [templates, setTemplates] = React.useState<string[]>([]);
@@ -95,7 +96,7 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
               </SelectTrigger>
               <SelectContent>
                 {TARGET_LANGUAGE_VALUES.map((code) => (
-                  <SelectItem key={code} value={code}>{TARGET_LANGUAGE_LABELS[code] || code.toUpperCase()}</SelectItem>
+                  <SelectItem key={code} value={code}>{t(`chat.languageLabels.${code}`) || code.toUpperCase()}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

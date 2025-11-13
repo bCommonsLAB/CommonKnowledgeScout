@@ -17,7 +17,7 @@ import {
   type TargetLanguage,
   type Character,
   type SocialContext,
-  TARGET_LANGUAGE_LABELS,
+  TARGET_LANGUAGE_VALUES,
   CHARACTER_VALUES,
   SOCIAL_CONTEXT_VALUES,
   TARGET_LANGUAGE_DEFAULT,
@@ -249,6 +249,15 @@ export function useStoryContext(): UseStoryContextReturn {
     return labels
   }, [t])
 
+  // Übersetzte Labels für TargetLanguage
+  const targetLanguageLabels = useMemo(() => {
+    const labels: Record<TargetLanguage, string> = {} as Record<TargetLanguage, string>
+    for (const lang of TARGET_LANGUAGE_VALUES) {
+      labels[lang] = t(`chat.languageLabels.${lang}`)
+    }
+    return labels
+  }, [t])
+
   return {
     targetLanguage,
     setTargetLanguage,
@@ -256,7 +265,7 @@ export function useStoryContext(): UseStoryContextReturn {
     setCharacter,
     socialContext,
     setSocialContext,
-    targetLanguageLabels: TARGET_LANGUAGE_LABELS,
+    targetLanguageLabels,
     characterLabels,
     socialContextLabels,
   };

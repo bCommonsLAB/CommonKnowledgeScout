@@ -60,6 +60,11 @@ export function HowItWorks() {
             )
           })}
         </div>
+        <div className="mx-auto mt-16 max-w-3xl text-center">
+          <p className="text-lg leading-relaxed text-muted-foreground text-pretty">
+            {t('home.howItWorks.subtext')}
+          </p>
+        </div>
       </div>
     </section>
   )

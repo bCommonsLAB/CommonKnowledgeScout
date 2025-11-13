@@ -6,12 +6,10 @@ import type { Character, TargetLanguage, SocialContext } from '@/lib/chat/consta
 import type { ChatMessage } from './utils/chat-utils'
 import {
   TARGET_LANGUAGE_VALUES,
-  TARGET_LANGUAGE_LABELS,
   CHARACTER_VALUES,
-  CHARACTER_LABELS,
   SOCIAL_CONTEXT_VALUES,
-  SOCIAL_CONTEXT_LABELS,
 } from '@/lib/chat/constants'
+import { useStoryContext } from '@/hooks/use-story-context'
 
 interface ChatConfigBarProps {
   targetLanguage: TargetLanguage
@@ -50,6 +48,8 @@ export function ChatConfigBar({
   isEmbedded = false,
   children,
 }: ChatConfigBarProps) {
+  const { targetLanguageLabels, characterLabels, socialContextLabels } = useStoryContext()
+  
   if (isEmbedded) {
     // Im embedded Modus wird die ConfigBar nicht angezeigt
     return null
@@ -66,7 +66,7 @@ export function ChatConfigBar({
           <SelectContent>
             {TARGET_LANGUAGE_VALUES.map((lang) => (
               <SelectItem key={lang} value={lang}>
-                {TARGET_LANGUAGE_LABELS[lang]}
+                {targetLanguageLabels[lang]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -80,7 +80,7 @@ export function ChatConfigBar({
           <SelectContent>
             {CHARACTER_VALUES.map((char) => (
               <SelectItem key={char} value={char}>
-                {CHARACTER_LABELS[char]}
+                {characterLabels[char]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -94,7 +94,7 @@ export function ChatConfigBar({
           <SelectContent>
             {SOCIAL_CONTEXT_VALUES.map((ctx) => (
               <SelectItem key={ctx} value={ctx}>
-                {SOCIAL_CONTEXT_LABELS[ctx]}
+                {socialContextLabels[ctx]}
               </SelectItem>
             ))}
           </SelectContent>

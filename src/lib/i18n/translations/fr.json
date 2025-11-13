@@ -4,7 +4,7 @@
       "badge": "Common Knowledge Libraries",
       "title": "Ne demandez pas à l'IA.",
       "subtitle": "Demandez à la connaissance collective.",
-      "description": "Chaque bibliothèque est une mémoire collective – construite à partir de voix, de textes et d'expériences réelles. Choisissez une bibliothèque de connaissances, explorez-la et commencez votre conversation.",
+      "description": "Ici se crée une archive de connaissances collective – portée par de vraies voix, textes et expériences. Choisissez une bibliothèque, explorez le contenu ouvert et commencez votre conversation.",
       "buttonDiscover": "Découvrir la connaissance",
       "buttonLearnMore": "En savoir plus sur le projet",
       "imageAttribution": "Image",
@@ -12,7 +12,7 @@
     },
     "libraryGrid": {
       "title": "Choisissez votre bibliothèque de connaissances",
-      "description": "Chaque bibliothèque contient du contenu structuré provenant de conférences, d'études ou de projets – et peut être interrogée par vous comme un partenaire de conversation.",
+      "description": "Chaque bibliothèque regroupe des connaissances librement disponibles provenant de conférences, d'études ou de projets. Vous pouvez les parcourir – ou les interroger comme un partenaire de conversation et apporter votre propre perspective.",
       "loading": "Chargement des bibliothèques...",
       "noLibraries": "Aucune bibliothèque publique disponible pour le moment.",
       "buttonQuery": "Interroger",
@@ -22,39 +22,40 @@
       "title": "Comment ça marche",
       "subtitle": "Un processus simple qui rend la vraie connaissance accessible",
       "step1": {
-        "title": "Choisissez votre bibliothèque",
-        "description": "Décidez de quel domaine thématique vous souhaitez récupérer des connaissances.",
-        "detail": "Chaque bibliothèque est basée sur des sources réelles et vérifiables."
+        "title": "Choisissez une bibliothèque",
+        "description": "Choisissez un domaine thématique qui vous intéresse.",
+        "detail": "Tout le contenu provient de sources ouvertes et vérifiables."
       },
       "step2": {
         "title": "Posez votre question",
-        "description": "Formulez votre question dans vos propres mots.",
-        "detail": "La plateforme comprend la langue, le contexte et le rôle – comme un journaliste ou un chercheur."
+        "description": "Entrez ce que vous voulez savoir – dans vos propres mots.",
+        "detail": "La plateforme comprend votre contexte et adapte le style narratif en conséquence."
       },
       "step3": {
         "title": "Découvrez les perspectives",
-        "description": "Lisez les réponses sous différents angles.",
-        "detail": "La connaissance n'est pas inventée, mais recombinée et liée de manière vérifiable."
-      }
+        "description": "Faites-vous raconter des réponses sous différents angles :",
+        "detail": "scientifique, quotidien, orienté culture ou social."
+      },
+      "subtext": "La connaissance n'est pas inventée. Elle est recombinée à partir de contributions réelles – traçable et transparente."
     },
     "philosophy": {
       "title": "Transparence au lieu de boîte noire",
-      "subtitle": "Chaque réponse est basée sur des données ouvertes, des sources vérifiables et des personnes qui partagent leurs connaissances. Nous croyons que l'avenir de la connaissance n'est pas généré, mais partagé.",
+      "subtitle": "Chaque réponse est basée sur des personnes qui partagent leurs expériences. Le contenu sous-jacent reste toujours visible et vérifiable. Cela crée un espace de connaissances ouvert, digne de confiance et maintenu par la communauté.",
       "transparent": {
         "title": "Vérifiable",
-        "description": "Toutes les sources sont transparentes et vérifiables"
+        "description": "Toutes les sources sont transparentement liées et vérifiables."
       },
       "human": {
         "title": "Humain",
-        "description": "Basé sur des voix et des expériences réelles"
+        "description": "La base est constituée de vraies voix, pas d'opinions artificielles."
       },
       "trustworthy": {
         "title": "Digne de confiance",
-        "description": "Curaté par la recherche et les communautés"
+        "description": "Les bibliothèques sont organisées par la recherche, les communautés et les ONG."
       },
       "behindLibraries": {
         "title": "Qui se cache derrière les bibliothèques ?",
-        "description": "Ces bibliothèques sont maintenues en collaboration avec des institutions de recherche, des ONG et des communautés ouvertes. Chacune peut contribuer ses propres sujets, métadonnées et valeurs."
+        "description": "Ces bibliothèques sont créées en collaboration avec des universités, des groupes de recherche, des ONG et des communautés ouvertes. Elles apportent leur contenu, leurs valeurs et leurs perspectives – afin que la connaissance ne serve pas des acteurs individuels, mais profite à tous."
       }
     },
     "cta": {
@@ -75,6 +76,7 @@
     "delete": "Supprimer",
     "edit": "Modifier",
     "close": "Fermer",
+    "signIn": "Se connecter",
     "aiGenerated": {
       "contentAutoGenerated": "Ce contenu a été automatiquement formulé avec l'IA.",
       "basedOnSource": "Basé sur {count} source.",
@@ -102,25 +104,25 @@
     "errorLoadingLibrary": "Erreur lors du chargement de la bibliothèque"
   },
   "gallery": {
-    "gallery": "Galerie",
-    "story": "Histoire",
-    "switchToStoryMode": "En savoir plus sur ces contenus",
-    "storyModeTooltip": "Découvrez la connaissance à nouveau : le mode Histoire raconte les conférences de votre point de vue – dans votre langue et avec votre focus.",
-    "backToGallery": "Retour à la Galerie",
+    "gallery": "Contenus",
+    "story": "Mode Histoire",
+    "switchToStoryMode": "Voir en mode Histoire",
+    "storyModeTooltip": "En mode Histoire, vous pouvez vous faire expliquer les contenus dans votre langue, votre profil d'intérêts et votre contexte.",
+    "backToGallery": "Retour aux contenus",
     "storyMode": {
-      "headline": "Mode Histoire – Laissez le contenu des conférences vous être raconté depuis votre perspective",
-      "subtitle": "Expérimenter la connaissance collective ensemble",
-      "description": "La vue d'ensemble des sujets a été générée à partir des conférences que vous avez sélectionnées. Elle montre les questions communes. Votre perspective compte. Choisissez votre caractère et votre contexte social. Plongez dans votre sujet et suivez les réponses. Vous pouvez poser votre propre question et créer votre propre histoire.",
+      "headline": "Mode Histoire – Faites-vous expliquer les contenus depuis votre perspective",
+      "subtitle": "Vivre ensemble la connaissance partagée",
+      "description": "Cette vue d'ensemble vous montre les questions et sujets les plus importants des conférences que vous avez sélectionnées. Vous pouvez spécifier quels intérêts vous apportez et depuis quel contexte vous regardez les contenus. Ainsi, les réponses sont alignées sur les aspects qui sont particulièrement pertinents pour vous. Posez vos propres questions ou suivez les sujets suggérés – selon votre approche.",
       "generatingTopics": "Génération de la vue d'ensemble des sujets...",
       "reloadTooltip": "Vue d'ensemble plus à jour, veuillez recalculer",
       "perspective": {
         "language": "Langue",
-        "character": "Caractère",
-        "socialContext": "Mon contexte social",
+        "character": "Profil d'intérêts",
+        "socialContext": "Contexte",
         "adjustPerspective": "Ajuster ma propre perspective",
-        "adjustPerspectiveHelpText": "Vous ne comprenez pas ces contenus ? Déterminez votre contexte et régénérez-les pour vous.",
+        "adjustPerspectiveHelpText": "Votre profil d'intérêts détermine quels aspects sont particulièrement mis en avant. Votre contexte détermine dans quel environnement ou depuis quel rôle vous regardez les contenus.",
         "adjustPerspectiveTitle": "Ajuster la perspective",
-        "adjustPerspectiveDescription": "Ajuster la langue, le caractère et le contexte social des réponses."
+        "adjustPerspectiveDescription": "Spécifiez comment les contenus sont préparés pour vous : dans quelle langue, avec quel profil d'intérêts et depuis quel contexte. Ainsi, vous obtenez des réponses qui reflètent votre approche et vos priorités."
       }
     },
     "searchPlaceholder": "Rechercher par titre, conférencier, sujet...",
@@ -140,16 +142,16 @@
     "loading": "Chargement…",
     "texts": {
       "session": {
-        "headline": "Découvrez ce qui a été présenté à cet événement",
-        "subtitle": "Interrogez la connaissance collective",
-        "description": "Commencez par avoir une vue d'ensemble de toutes les conférences disponibles. Filtrez par sujets ou années qui vous intéressent. Lorsque vous êtes prêt, passez en mode Histoire pour poser des questions et faire raconter le contenu.",
-        "filterDescription": "Filtrez par sujets pour avoir une vue d'ensemble des conférences qui vous intéressent."
+        "headline": "Découvrez les contenus de cet événement",
+        "subtitle": "Connaissance partagée de conférences ouvertes",
+        "description": "Obtenez une vue d'ensemble de toutes les conférences disponibles. Vous pouvez filtrer par sujets ou années et explorer les contenus qui vous intéressent. Si vous le souhaitez, vous pouvez ensuite passer en mode Histoire et faire raconter les sujets depuis votre perspective.",
+        "filterDescription": "Sélectionnez des sujets pour trouver les conférences qui vous sont pertinentes."
       },
       "book": {
-        "headline": "Découvrez le contenu de cette bibliothèque",
-        "subtitle": "Interrogez la connaissance collective",
-        "description": "Commencez par avoir une vue d'ensemble de tous les documents disponibles. Filtrez par sujets ou auteurs qui vous intéressent. Lorsque vous êtes prêt, passez en mode Histoire pour poser des questions et faire raconter le contenu.",
-        "filterDescription": "Filtrez par sujets ou auteurs pour avoir une vue d'ensemble des documents qui vous intéressent."
+        "headline": "Découvrez les contenus de cette collection",
+        "subtitle": "Explorez ensemble la connaissance partagée",
+        "description": "Parcourez les documents disponibles et filtrez par sujets ou auteurs. Si vous le souhaitez, vous pouvez ensuite passer en mode Histoire et faire expliquer et résumer les contenus pour vous – adaptés à votre contexte.",
+        "filterDescription": "Sélectionnez des sujets ou des auteurs pour trouver les contenus qui vous conviennent."
       }
     }
   },
@@ -193,6 +195,14 @@
       "professional": "Professionnel",
       "children": "Adapté aux enfants",
       "easy_language": "Langage simple"
+    },
+    "languageLabels": {
+      "de": "Allemand",
+      "en": "Anglais",
+      "it": "Italien",
+      "fr": "Français",
+      "es": "Espagnol",
+      "ar": "Arabe"
     },
     "input": {
       "askYourOwnQuestion": "Posez votre propre question :",

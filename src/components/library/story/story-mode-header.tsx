@@ -4,8 +4,6 @@ import { useMemo } from 'react'
 import { useAtomValue } from 'jotai'
 import { StoryHeader } from './story-header'
 import { useTranslation } from '@/lib/i18n/hooks'
-import { Button } from '@/components/ui/button'
-import { ChevronLeft } from 'lucide-react'
 import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
 import { librariesAtom } from '@/atoms/library-atom'
 
@@ -64,21 +62,9 @@ export function StoryModeHeader({ libraryId, onBackToGallery }: StoryModeHeaderP
         </div>
       </div>
 
-      {/* Buttons: Perspektive links, Zurück rechts - bleiben immer sichtbar */}
-      <div className="py-2 flex items-center justify-between gap-3">
-        <StoryHeader compact />
-        {/* Zurück-Button im Story-Modus - rechtsbündig */}
-        {onBackToGallery && (
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={onBackToGallery}
-            className='flex items-center gap-2 flex-shrink-0 ml-auto'
-          >
-            <ChevronLeft className='h-4 w-4' />
-            {t('gallery.backToGallery')}
-          </Button>
-        )}
+      {/* Buttons: StoryHeader nutzt jetzt die ganze Breite */}
+      <div className="py-2 w-full">
+        <StoryHeader compact onBackToGallery={onBackToGallery} />
       </div>
     </div>
   )

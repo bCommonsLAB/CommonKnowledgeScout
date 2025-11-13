@@ -346,8 +346,8 @@ export function TopNav() {
 
             <SignedOut>
               <SignInButton mode="modal">
-                <Button variant="default" size="sm">
-                  Anmelden
+                <Button variant="secondary" size="sm">
+                  {t('common.signIn')}
                 </Button>
               </SignInButton>
             </SignedOut>
