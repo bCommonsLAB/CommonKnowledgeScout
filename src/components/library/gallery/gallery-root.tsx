@@ -256,7 +256,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
 
   const handleCloseReferenceLegend = () => {
     setShowReferenceLegend(false)
-    setChatReferences([])
+    setChatReferences({ references: [] })
     setFilters(f => {
       const current = f as Record<string, string[] | undefined>
       const next: Record<string, string[]> = {}
@@ -426,10 +426,11 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                   />
                 </div>
               )}
-              {showReferenceLegend && chatReferences && chatReferences.length > 0 && (
+              {showReferenceLegend && chatReferences && chatReferences.references && chatReferences.references.length > 0 && (
                 <ReferencesLegend
-                  references={chatReferences}
+                  references={chatReferences.references}
                   libraryId={libraryId || ''}
+                  queryId={chatReferences.queryId}
                   onClose={handleCloseReferenceLegend}
                   onOpenDocument={(fileId) => {
                     const doc = docs.find(d => d.id === fileId)

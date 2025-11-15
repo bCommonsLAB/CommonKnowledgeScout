@@ -45,10 +45,10 @@ export function useGalleryEvents(
 
   useEffect(() => {
     const handleShowLegend = (event: Event) => {
-      const customEvent = event as CustomEvent<{ references: ChatResponse['references']; libraryId: string }>
-      const { references: refs } = customEvent.detail || {}
+      const customEvent = event as CustomEvent<{ references: ChatResponse['references']; libraryId: string; queryId?: string }>
+      const { references: refs, queryId } = customEvent.detail || {}
       if (!refs || refs.length === 0) return
-      setChatReferences(refs)
+      setChatReferences({ references: refs, queryId })
       onShowReferenceLegend()
       const fileIds = Array.from(new Set(refs.map(r => r.fileId)))
       setFilters(f => {

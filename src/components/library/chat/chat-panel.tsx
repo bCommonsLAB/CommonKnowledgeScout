@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { librariesAtom } from '@/atoms/library-atom'
@@ -68,7 +68,12 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [input, setInput] = useState('')
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [answerLength, setAnswerLength] = useState<AnswerLength>(ANSWER_LENGTH_DEFAULT)
-  const setChatReferences = useSetAtom(chatReferencesAtom)
+  const setChatReferencesAtom = useSetAtom(chatReferencesAtom)
+  
+  // Wrapper für setChatReferences, um die Signatur anzupassen
+  const setChatReferences = useCallback((refs: { references: ChatResponse['references']; queryId?: string }) => {
+    setChatReferencesAtom(refs)
+  }, [setChatReferencesAtom])
   const [retriever, setRetriever] = useState<Retriever>(RETRIEVER_DEFAULT)
   const [isChatInputOpen, setIsChatInputOpen] = useState(false)
   

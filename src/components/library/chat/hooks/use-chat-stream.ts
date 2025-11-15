@@ -11,9 +11,9 @@ import type { ChatMessage } from '../utils/chat-utils'
 import type { ChatResponse } from '@/types/chat-response'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { AnswerLength, Retriever, TargetLanguage, Character, SocialContext, AccessPerspective } from '@/lib/chat/constants'
-import { TOC_QUESTION, characterArrayToString, accessPerspectiveArrayToString } from '@/lib/chat/constants'
+import { TOC_QUESTION, characterArrayToString } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
-import { normalizeCharacter, normalizeAccessPerspective, normalizeFilters, compareCacheKeys, type CacheKeyParams } from '@/lib/chat/utils/cache-key-utils'
+import { compareCacheKeys, type CacheKeyParams } from '@/lib/chat/utils/cache-key-utils'
 import { parseSSELines } from '@/utils/sse'
 import { formatChatError } from '@/utils/error-format'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
@@ -39,7 +39,7 @@ interface UseChatStreamParams {
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
   setActiveChatId: (id: string | null) => void
   setOpenConversations: (convs: Set<string>) => void
-  setChatReferences: (refs: ChatResponse['references']) => void
+  setChatReferences: (refs: { references: ChatResponse['references']; queryId?: string }) => void
   onTOCComplete?: (data: {
     storyTopicsData?: StoryTopicsData
     answer: string
@@ -347,7 +347,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
 
               if (answerMessage.content) {
                 if (answerMessage.references) {
-                  setChatReferences(answerMessage.references)
+                  setChatReferences({ references: answerMessage.references, queryId: finalQueryId })
                 }
 
                 setMessages((prev) => [...prev, answerMessage])
@@ -416,6 +416,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
       answerLength,
       targetLanguage,
       character,
+      accessPerspective,
       socialContext,
       genderInclusive,
       galleryFilters,

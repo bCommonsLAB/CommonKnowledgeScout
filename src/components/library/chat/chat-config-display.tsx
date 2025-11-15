@@ -3,10 +3,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
   RETRIEVER_LABELS,
-  TARGET_LANGUAGE_LABELS,
-  CHARACTER_LABELS,
-  ACCESS_PERSPECTIVE_LABELS,
-  SOCIAL_CONTEXT_LABELS,
   type Character,
   type AccessPerspective,
 } from '@/lib/chat/constants'
@@ -18,7 +14,6 @@ import type {
   SocialContext,
 } from '@/lib/chat/constants'
 import { useTranslation } from '@/lib/i18n/hooks'
-import { useStoryContext } from '@/hooks/use-story-context'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import type { QueryLog } from '@/types/query-log'
 import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
@@ -52,7 +47,6 @@ export function ChatConfigDisplay({
   filters: filtersProp,
 }: ChatConfigDisplayProps) {
   const { t } = useTranslation()
-  const { targetLanguageLabels, characterLabels, accessPerspectiveLabels, socialContextLabels } = useStoryContext()
   const sessionHeaders = useSessionHeaders()
   const [filters, setFilters] = useState<Record<string, unknown> | null>(null)
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label?: string }>>([])

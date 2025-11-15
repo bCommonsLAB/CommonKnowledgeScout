@@ -184,7 +184,7 @@ export function ChatMessage({
                       size="sm"
                       onClick={() => {
                         const event = new CustomEvent('show-reference-legend', {
-                          detail: { references, libraryId },
+                          detail: { references, libraryId, queryId },
                         })
                         window.dispatchEvent(event)
                       }}

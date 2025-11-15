@@ -31,6 +31,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAtom } from 'jotai';
+import { usePathname } from 'next/navigation';
 import { librariesAtom, activeLibraryIdAtom, libraryStatusAtom } from '@/atoms/library-atom';
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { ClientLibrary } from "@/types/library";
@@ -119,6 +120,7 @@ function useSafeUser() {
 export const StorageContextProvider = ({ children }: { children: React.ReactNode }) => {
   const { isLoaded: isAuthLoaded, isSignedIn } = useSafeAuth();
   const { user, isLoaded: isUserLoaded } = useSafeUser();
+  const pathname = usePathname();
 
   // Auth-Debug-Logging
   React.useEffect(() => {
@@ -225,20 +227,22 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       isSignedIn
     });
 
-    // OPTIMIERUNG: Im anonymen Modus (Homepage/Explore) nicht auf Auth warten
-    // Libraries werden dort nicht benötigt und werden von LibraryGrid selbst geladen
-    if (typeof window !== 'undefined') {
-      const currentPath = window.location.pathname;
-      const isPublicPage = currentPath === '/' || currentPath.startsWith('/explore');
-      
-      if (isPublicPage && (!isAuthLoaded || !isUserLoaded)) {
-        // Auf öffentlichen Seiten: Nicht auf Auth warten, sofort fertig
-        AuthLogger.debug('StorageContext', 'Public page detected, skipping auth wait');
-        setIsLoading(false);
-        setLibraryStatus('ready');
-        setLibraryStatusAtom('ready');
-        return;
-      }
+    // OPTIMIERUNG: Auf öffentlichen Seiten (Homepage/Explore) keine Libraries laden
+    // Auch wenn der Benutzer angemeldet ist, werden Libraries auf Explore-Seiten nicht benötigt
+    // Sie werden dort direkt aus der API geladen
+    const isPublicPage = pathname === '/' || (pathname && pathname.startsWith('/explore'));
+    
+    if (isPublicPage) {
+      AuthLogger.debug('StorageContext', 'Public page detected, skipping library load', {
+        pathname,
+        isSignedIn,
+        isAuthLoaded,
+        isUserLoaded
+      });
+      setIsLoading(false);
+      setLibraryStatus('ready');
+      setLibraryStatusAtom('ready');
+      return;
     }
 
     if (!isAuthLoaded || !isUserLoaded) {
@@ -247,19 +251,6 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     }
     
     if (!isSignedIn) {
-      // OPTIMIERUNG: Im anonymen Modus keine Fehlermeldung setzen
-      // Libraries werden auf öffentlichen Seiten nicht benötigt
-      const isPublicPage = typeof window !== 'undefined' && 
-        (window.location.pathname === '/' || window.location.pathname.startsWith('/explore'));
-      
-      if (isPublicPage) {
-        AuthLogger.debug('StorageContext', 'Anonymous mode on public page, no libraries needed');
-        setIsLoading(false);
-        setLibraryStatus('ready');
-        setLibraryStatusAtom('ready');
-        return;
-      }
-      
       AuthLogger.warn('StorageContext', 'User not signed in');
       setError("Sie müssen angemeldet sein, um auf die Bibliothek zugreifen zu können.");
       setIsLoading(false);
@@ -466,7 +457,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     return () => {
       isCancelled = true;
     };
-  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId, hasRedirectedToSettings, libraries, setLibraryStatusAtom]);
+  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId, hasRedirectedToSettings, libraries, setLibraryStatusAtom, pathname]);
 
   // Aktuelle Bibliothek aktualisieren
   const refreshCurrentLibrary = async () => {

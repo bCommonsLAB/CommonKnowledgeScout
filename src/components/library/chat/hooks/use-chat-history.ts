@@ -95,7 +95,10 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                 retriever?: string
                 targetLanguage?: string
                 character?: import('@/lib/chat/constants').Character[] // Array (kann leer sein)
+                accessPerspective?: import('@/lib/chat/constants').AccessPerspective[]
                 socialContext?: string
+                genderInclusive?: boolean
+                facetsSelected?: Record<string, unknown>
               }
 
               if (queryRes.ok && typeof queryData?.answer === 'string') {
@@ -134,7 +137,7 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                   accessPerspective: queryData.accessPerspective,
                   socialContext: queryData.socialContext as 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language' | undefined,
                   genderInclusive: queryData.genderInclusive,
-                  facetsSelected: queryData.facetsSelected,
+                  facetsSelected: queryData.facetsSelected as import('@/atoms/gallery-filters').GalleryFilters | undefined,
                 })
                 historyMessages.push(...msgs)
               }

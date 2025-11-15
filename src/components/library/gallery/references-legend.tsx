@@ -9,13 +9,14 @@ import type { ChatResponse } from '@/types/chat-response'
 export interface ReferencesLegendProps {
   references: ChatResponse['references']
   libraryId: string
+  queryId?: string // Optional: Falls vorhanden, werden sources aus QueryLog geladen
   onClose: () => void
   onOpenDocument: (fileId: string) => void
   title: string
   description: string
 }
 
-export function ReferencesLegend({ references, libraryId, onClose, onOpenDocument, title, description }: ReferencesLegendProps) {
+export function ReferencesLegend({ references, libraryId, queryId, onClose, onOpenDocument, title, description }: ReferencesLegendProps) {
   if (!references || references.length === 0) return null
   return (
     <div className="flex-shrink-0 border-b bg-background px-4 py-3">
@@ -29,6 +30,7 @@ export function ReferencesLegend({ references, libraryId, onClose, onOpenDocumen
       <ChatReferenceList
         references={references}
         libraryId={libraryId}
+        queryId={queryId}
         onDocumentClick={onOpenDocument}
       />
     </div>
