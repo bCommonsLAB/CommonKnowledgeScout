@@ -24,6 +24,7 @@ export async function startQueryLog(context: {
   retriever?: QueryLog['retriever']
   targetLanguage?: QueryLog['targetLanguage']
   character?: QueryLog['character']
+  accessPerspective?: QueryLog['accessPerspective']
   socialContext?: QueryLog['socialContext']
   genderInclusive?: QueryLog['genderInclusive']
   facetsSelected?: Record<string, unknown>

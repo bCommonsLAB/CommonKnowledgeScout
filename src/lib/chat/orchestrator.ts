@@ -127,6 +127,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     prompt = buildTOCPrompt(run.libraryId, sources, {
       targetLanguage: run.chatConfig?.targetLanguage,
       character: run.chatConfig?.character,
+      accessPerspective: run.chatConfig?.accessPerspective,
       socialContext: run.chatConfig?.socialContext,
       genderInclusive: run.chatConfig?.genderInclusive,
       filters: run.facetsSelected,
@@ -136,6 +137,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     prompt = buildPrompt(run.question, sources, promptAnswerLength, {
       targetLanguage: run.chatConfig?.targetLanguage,
       character: run.chatConfig?.character,
+      accessPerspective: run.chatConfig?.accessPerspective,
       socialContext: run.chatConfig?.socialContext,
       genderInclusive: run.chatConfig?.genderInclusive,
       chatHistory: run.chatHistory,
@@ -188,6 +190,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
           ? buildTOCPrompt(run.libraryId, reduced, {
               targetLanguage: run.chatConfig?.targetLanguage,
               character: run.chatConfig?.character,
+              accessPerspective: run.chatConfig?.accessPerspective,
               socialContext: run.chatConfig?.socialContext,
               genderInclusive: run.chatConfig?.genderInclusive,
               filters: run.facetsSelected,
@@ -196,6 +199,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
           : buildPrompt(run.question, reduced, 'kurz', {
               targetLanguage: run.chatConfig?.targetLanguage,
               character: run.chatConfig?.character,
+              accessPerspective: run.chatConfig?.accessPerspective,
               socialContext: run.chatConfig?.socialContext,
               genderInclusive: run.chatConfig?.genderInclusive,
               chatHistory: run.chatHistory,

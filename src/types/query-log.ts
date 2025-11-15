@@ -1,4 +1,4 @@
-import type { SocialContext, TargetLanguage, AnswerLength, Retriever, Character } from '@/lib/chat/constants'
+import type { SocialContext, TargetLanguage, AnswerLength, Retriever, Character, AccessPerspective } from '@/lib/chat/constants'
 import type { StoryTopicsData } from '@/types/story-topics'
 
 export interface QueryRetrievalResultItem {
@@ -70,6 +70,8 @@ export interface QueryLog {
   targetLanguage?: TargetLanguage;
   /** Charakter/Perspektive für die Antwort (Array, kann leer sein) */
   character?: Character[];
+  /** Zugangsperspektive für die Antwort (Array, kann leer sein) */
+  accessPerspective?: AccessPerspective[];
   /** Sozialer Kontext/Sprachebene */
   socialContext?: SocialContext;
   /** Gendergerechte Formulierung aktivieren/deaktivieren */

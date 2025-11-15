@@ -28,7 +28,7 @@
  */
 
 import { ReactNode } from 'react';
-import type { Character } from '@/lib/chat/constants';
+import type { Character, AccessPerspective } from '@/lib/chat/constants';
 import type { SocialContext } from '@/lib/chat/constants';
 
 /**
@@ -77,6 +77,9 @@ export interface LibraryChatConfig {
   /** Charakter/Profil für die Antwort-Perspektive (Array mit max. 3 Werten, kann leer sein) */
   character?: Character[];
 
+  /** Zugangsperspektive (Array mit max. 3 Werten, kann leer sein) */
+  accessPerspective?: AccessPerspective[];
+
   /** Sozialer Kontext/Sprachebene */
   socialContext?: SocialContext;
 
@@ -88,6 +91,8 @@ export interface LibraryChatConfig {
     targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar';
     /** Charakter/Profil für die Antwort-Perspektive (Array mit max. 3 Werten, kann leer sein) */
     character?: Character[];
+    /** Zugangsperspektive (Array mit max. 3 Werten, kann leer sein) */
+    accessPerspective?: AccessPerspective[];
     socialContext?: SocialContext;
     genderInclusive?: boolean;
   };

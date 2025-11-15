@@ -17,18 +17,23 @@ import {
   type TargetLanguage,
   type Character,
   type SocialContext,
+  type AccessPerspective,
   TARGET_LANGUAGE_VALUES,
   CHARACTER_VALUES,
   SOCIAL_CONTEXT_VALUES,
+  ACCESS_PERSPECTIVE_VALUES,
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_DEFAULT,
+  ACCESS_PERSPECTIVE_DEFAULT,
   normalizeCharacterToArray,
+  normalizeAccessPerspectiveToArray,
 } from '@/lib/chat/constants'
 import {
   storyTargetLanguageAtom,
   storyCharacterAtom,
   storySocialContextAtom,
+  storyAccessPerspectiveAtom,
 } from '@/atoms/story-context-atom'
 import { useTranslation } from '@/lib/i18n/hooks'
 
@@ -47,8 +52,8 @@ const loadedStorageKeys = new Set<string>()
  * müssen wir hier nur noch einmal prüfen, ob Werte aktualisiert werden müssen
  * (für den Fall, dass localStorage später verfügbar wird oder sich ändert).
  */
-function useLocalStorageSync<T extends TargetLanguage | Character[] | SocialContext>(
-  atom: typeof storyTargetLanguageAtom | typeof storyCharacterAtom | typeof storySocialContextAtom,
+function useLocalStorageSync<T extends TargetLanguage | Character[] | SocialContext | AccessPerspective[]>(
+  atom: typeof storyTargetLanguageAtom | typeof storyCharacterAtom | typeof storySocialContextAtom | typeof storyAccessPerspectiveAtom,
   storageKey: string,
   defaultValue: T,
   isAnonymous: boolean
@@ -69,10 +74,15 @@ function useLocalStorageSync<T extends TargetLanguage | Character[] | SocialCont
       const stored = localStorage.getItem(storageKey)
       if (stored) {
         const parsed = JSON.parse(stored)
-        // Für Character: Normalisiere zu Array (Backward-Compatibility)
-        const normalized = storageKey.includes('character') 
-          ? normalizeCharacterToArray(parsed)
-          : parsed as T
+        // Für Character und AccessPerspective: Normalisiere zu Array (Backward-Compatibility)
+        let normalized: T
+        if (storageKey.includes('character')) {
+          normalized = normalizeCharacterToArray(parsed) as T
+        } else if (storageKey.includes('accessPerspective')) {
+          normalized = normalizeAccessPerspectiveToArray(parsed) as T
+        } else {
+          normalized = parsed as T
+        }
         
         // Nur setzen, wenn der Wert anders ist (verhindert unnötige Updates)
         // Für Arrays: Deep-Vergleich
@@ -103,6 +113,7 @@ export function saveStoryContextToLocalStorage(
   targetLanguage: TargetLanguage,
   character: Character[],
   socialContext: SocialContext,
+  accessPerspective: AccessPerspective[],
   isAnonymous: boolean
 ): void {
   if (!isAnonymous || typeof window === 'undefined') return
@@ -111,10 +122,12 @@ export function saveStoryContextToLocalStorage(
     localStorage.setItem(`${STORAGE_KEY_PREFIX}targetLanguage`, JSON.stringify(targetLanguage))
     localStorage.setItem(`${STORAGE_KEY_PREFIX}character`, JSON.stringify(character))
     localStorage.setItem(`${STORAGE_KEY_PREFIX}socialContext`, JSON.stringify(socialContext))
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}accessPerspective`, JSON.stringify(accessPerspective))
     console.log('[StoryContext] Speichere Werte in localStorage:', {
       targetLanguage,
       character,
       socialContext,
+      accessPerspective,
     })
   } catch (error) {
     console.error('[StoryContext] Fehler beim Speichern in localStorage:', error)
@@ -133,6 +146,10 @@ export interface UseStoryContextReturn {
   character: Character[];
   /** Setter für Charaktere */
   setCharacter: (value: Character[]) => void;
+  /** Aktuelle Zugangsperspektiven (Array mit max. 3 Werten) */
+  accessPerspective: AccessPerspective[];
+  /** Setter für Zugangsperspektiven */
+  setAccessPerspective: (value: AccessPerspective[]) => void;
   /** Aktueller Sozialer Kontext */
   socialContext: SocialContext;
   /** Setter für Sozialen Kontext */
@@ -141,6 +158,8 @@ export interface UseStoryContextReturn {
   targetLanguageLabels: Record<TargetLanguage, string>;
   /** Labels für alle verfügbaren Charaktere */
   characterLabels: Record<Character, string>;
+  /** Labels für alle verfügbaren Zugangsperspektiven */
+  accessPerspectiveLabels: Record<AccessPerspective, string>;
   /** Labels für alle verfügbaren Sozialkontexte */
   socialContextLabels: Record<SocialContext, string>;
 }
@@ -242,11 +261,27 @@ export function useStoryContext(): UseStoryContextReturn {
     isAnonymous
   )
 
+  const [accessPerspective, setAccessPerspective] = useLocalStorageSync(
+    storyAccessPerspectiveAtom,
+    `${STORAGE_KEY_PREFIX}accessPerspective`,
+    ACCESS_PERSPECTIVE_DEFAULT,
+    isAnonymous
+  )
+
   // Übersetzte Labels für Character
   const characterLabels = useMemo(() => {
     const labels: Record<Character, string> = {} as Record<Character, string>
     for (const char of CHARACTER_VALUES) {
       labels[char] = t(`chat.characterLabels.${char}`)
+    }
+    return labels
+  }, [t])
+
+  // Übersetzte Labels für AccessPerspective
+  const accessPerspectiveLabels = useMemo(() => {
+    const labels: Record<AccessPerspective, string> = {} as Record<AccessPerspective, string>
+    for (const ap of ACCESS_PERSPECTIVE_VALUES) {
+      labels[ap] = t(`chat.accessPerspectiveLabels.${ap}`)
     }
     return labels
   }, [t])
@@ -274,10 +309,13 @@ export function useStoryContext(): UseStoryContextReturn {
     setTargetLanguage,
     character,
     setCharacter,
+    accessPerspective,
+    setAccessPerspective,
     socialContext,
     setSocialContext,
     targetLanguageLabels,
     characterLabels,
+    accessPerspectiveLabels,
     socialContextLabels,
   };
 }

@@ -2,11 +2,12 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ChatSelector } from './chat-selector'
-import type { Character, TargetLanguage, SocialContext } from '@/lib/chat/constants'
+import type { Character, TargetLanguage, SocialContext, AccessPerspective } from '@/lib/chat/constants'
 import type { ChatMessage } from './utils/chat-utils'
 import {
   TARGET_LANGUAGE_VALUES,
   CHARACTER_VALUES,
+  ACCESS_PERSPECTIVE_VALUES,
   SOCIAL_CONTEXT_VALUES,
 } from '@/lib/chat/constants'
 import { useStoryContext } from '@/hooks/use-story-context'
@@ -16,6 +17,8 @@ interface ChatConfigBarProps {
   setTargetLanguage: (value: TargetLanguage) => void
   character: Character[] // Array (kann leer sein)
   setCharacter: (value: Character[]) => void
+  accessPerspective: AccessPerspective[] // Array (kann leer sein)
+  setAccessPerspective: (value: AccessPerspective[]) => void
   socialContext: SocialContext
   setSocialContext: (value: SocialContext) => void
   libraryId: string
@@ -30,7 +33,7 @@ interface ChatConfigBarProps {
  * Konfigurationsleiste oben im ChatPanel
  * 
  * Enthält:
- * - Dropdowns für Sprache, Charakter, sozialer Kontext
+ * - Dropdowns für Sprache, Charakter, Zugangsperspektive, sozialer Kontext
  * - Config-Popover-Trigger
  * - Chat-Selector (nur im non-embedded Modus)
  */
@@ -39,6 +42,8 @@ export function ChatConfigBar({
   setTargetLanguage,
   character,
   setCharacter,
+  accessPerspective,
+  setAccessPerspective,
   socialContext,
   setSocialContext,
   libraryId,
@@ -48,10 +53,11 @@ export function ChatConfigBar({
   isEmbedded = false,
   children,
 }: ChatConfigBarProps) {
-  const { targetLanguageLabels, characterLabels, socialContextLabels } = useStoryContext()
+  const { targetLanguageLabels, characterLabels, accessPerspectiveLabels, socialContextLabels } = useStoryContext()
   
   // Verwende ersten Wert für Select (kann undefined sein)
   const characterValue = character && character.length > 0 ? character[0] : undefined
+  const accessPerspectiveValue = accessPerspective && accessPerspective.length > 0 ? accessPerspective[0] : undefined
   
   if (isEmbedded) {
     // Im embedded Modus wird die ConfigBar nicht angezeigt
@@ -84,6 +90,20 @@ export function ChatConfigBar({
             {CHARACTER_VALUES.map((char) => (
               <SelectItem key={char} value={char}>
                 {characterLabels[char]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        
+        {/* Zugangsperspektive */}
+        <Select value={accessPerspectiveValue || ''} onValueChange={(v) => setAccessPerspective(v ? [v as AccessPerspective] : [])}>
+          <SelectTrigger className="h-8 text-xs w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ACCESS_PERSPECTIVE_VALUES.map((ap) => (
+              <SelectItem key={ap} value={ap}>
+                {accessPerspectiveLabels[ap]}
               </SelectItem>
             ))}
           </SelectContent>

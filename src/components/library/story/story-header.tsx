@@ -28,9 +28,11 @@ export function StoryHeader({ compact = false, onBackToGallery }: StoryHeaderPro
   const {
     targetLanguage,
     character,
+    accessPerspective,
     socialContext,
     targetLanguageLabels,
     characterLabels,
+    accessPerspectiveLabels,
     socialContextLabels,
   } = useStoryContext()
 
@@ -63,6 +65,11 @@ export function StoryHeader({ compact = false, onBackToGallery }: StoryHeaderPro
         <span className="break-words min-w-0 flex-shrink">
           {t('gallery.storyMode.perspective.character')}: {character.map(char => characterLabels[char]).join(', ')}
         </span>
+        {accessPerspective.length > 0 && (
+          <span className="break-words min-w-0 flex-shrink">
+            {t('gallery.storyMode.perspective.accessPerspective')}: {accessPerspective.map(ap => accessPerspectiveLabels[ap]).join(', ')}
+          </span>
+        )}
         <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.socialContext')}: {socialContextLabels[socialContext]}</span>
       </div>
 

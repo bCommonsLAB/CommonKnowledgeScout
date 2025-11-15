@@ -2,7 +2,7 @@
  * Status-Updates für Chat-Verarbeitung
  */
 export type ChatProcessingStep = 
-  | { type: 'cache_check'; parameters: { targetLanguage?: string; character?: string; socialContext?: string; filters?: Record<string, unknown> } }
+  | { type: 'cache_check'; parameters: { targetLanguage?: string; character?: string; accessPerspective?: string; socialContext?: string; filters?: Record<string, unknown> } }
   | { type: 'cache_check_complete'; found: boolean; queryId?: string }
   | { type: 'question_analysis_start'; question: string }
   | { type: 'question_analysis_result'; recommendation: 'chunk' | 'summary' | 'unclear'; confidence: 'high' | 'medium' | 'low'; chatTitle?: string }

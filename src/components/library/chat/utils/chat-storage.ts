@@ -1,9 +1,11 @@
 import {
   type TargetLanguage,
   type Character,
+  type AccessPerspective,
   type SocialContext,
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_DEFAULT,
+  ACCESS_PERSPECTIVE_DEFAULT,
   SOCIAL_CONTEXT_DEFAULT,
   GENDER_INCLUSIVE_DEFAULT,
 } from '@/lib/chat/constants'
@@ -46,6 +48,27 @@ export function getInitialCharacter(): Character[] {
   return CHARACTER_DEFAULT
 }
 
+export function getInitialAccessPerspective(): AccessPerspective[] {
+  if (typeof window === 'undefined') return ACCESS_PERSPECTIVE_DEFAULT
+  try {
+    const stored = localStorage.getItem('story-context-accessPerspective')
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      // Migration: Konvertiere Single-Value zu Array
+      if (Array.isArray(parsed)) {
+        return parsed as AccessPerspective[]
+      }
+      // Alte Single-Value-Werte zu Array konvertieren
+      if (typeof parsed === 'string') {
+        return [parsed as AccessPerspective]
+      }
+    }
+  } catch {
+    // Ignoriere Fehler
+  }
+  return ACCESS_PERSPECTIVE_DEFAULT
+}
+
 export function getInitialSocialContext(): SocialContext {
   if (typeof window === 'undefined') return SOCIAL_CONTEXT_DEFAULT
   try {
@@ -80,6 +103,7 @@ export function getInitialGenderInclusive(): boolean {
 export function saveChatContextToLocalStorage(
   targetLanguage: TargetLanguage,
   character: Character[], // Array (kann leer sein)
+  accessPerspective: AccessPerspective[], // Array (kann leer sein)
   socialContext: SocialContext,
   genderInclusive: boolean
 ): void {
@@ -87,6 +111,7 @@ export function saveChatContextToLocalStorage(
   try {
     localStorage.setItem('story-context-targetLanguage', JSON.stringify(targetLanguage))
     localStorage.setItem('story-context-character', JSON.stringify(character))
+    localStorage.setItem('story-context-accessPerspective', JSON.stringify(accessPerspective))
     localStorage.setItem('story-context-socialContext', JSON.stringify(socialContext))
     localStorage.setItem('story-context-genderInclusive', JSON.stringify(genderInclusive))
   } catch (error) {

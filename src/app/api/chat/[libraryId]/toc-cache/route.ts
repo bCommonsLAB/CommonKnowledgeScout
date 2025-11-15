@@ -3,7 +3,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { findQueryByQuestionAndContext } from '@/lib/db/queries-repo'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
-import { parseCharacterFromUrlParam } from '@/lib/chat/constants'
+import { parseCharacterFromUrlParam, parseAccessPerspectiveFromUrlParam } from '@/lib/chat/constants'
 
 /**
  * API-Endpoint zum Prüfen, ob eine Inhaltsverzeichnis-Query bereits gecacht ist
@@ -28,12 +28,15 @@ export async function GET(
     const question = parsedUrl.searchParams.get('question')
     const targetLanguage = parsedUrl.searchParams.get('targetLanguage')
     const characterParam = parsedUrl.searchParams.get('character')
+    const accessPerspectiveParam = parsedUrl.searchParams.get('accessPerspective')
     const socialContext = parsedUrl.searchParams.get('socialContext')
     const genderInclusive = parsedUrl.searchParams.get('genderInclusive')
     const retriever = parsedUrl.searchParams.get('retriever')
     
     // Parse character Parameter aus URL (komma-separierter String → Character[] Array)
     const character = parseCharacterFromUrlParam(characterParam)
+    // Parse accessPerspective Parameter aus URL (komma-separierter String → AccessPerspective[] Array)
+    const accessPerspective = parseAccessPerspectiveFromUrlParam(accessPerspectiveParam)
 
     if (!question) {
       return NextResponse.json({ error: 'question parameter required' }, { status: 400 })
@@ -63,7 +66,7 @@ export async function GET(
     // Nur Parameter, die tatsächlich Facetten sind (inkl. fileId)
     parsedUrl.searchParams.forEach((v, k) => {
       // Überspringe Chat-Konfigurations-Parameter
-      if (['retriever', 'targetLanguage', 'character', 'socialContext', 'genderInclusive', 'chatId', 'question'].includes(k)) {
+      if (['retriever', 'targetLanguage', 'character', 'accessPerspective', 'socialContext', 'genderInclusive', 'chatId', 'question'].includes(k)) {
         return
       }
       // Facetten-Parameter ODER fileId übernehmen
@@ -82,6 +85,7 @@ export async function GET(
       queryType: 'toc', // Suche nur nach TOC-Queries
       targetLanguage: targetLanguage || undefined,
       character: character, // Array (kann undefined sein)
+      accessPerspective: accessPerspective, // Array (kann undefined sein)
       socialContext: socialContext || undefined,
       genderInclusive: genderInclusive === 'true' ? true : genderInclusive === 'false' ? false : undefined,
       retriever: retriever || undefined,
@@ -115,6 +119,7 @@ export async function GET(
         retriever: cachedQuery.retriever,
         targetLanguage: cachedQuery.targetLanguage,
         character: cachedQuery.character,
+        accessPerspective: cachedQuery.accessPerspective,
         socialContext: cachedQuery.socialContext,
         facetsSelected: cachedQuery.facetsSelected,
       })

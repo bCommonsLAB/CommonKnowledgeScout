@@ -32,10 +32,13 @@ import {
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_ARRAY_ZOD_SCHEMA,
   CHARACTER_DEFAULT,
+  ACCESS_PERSPECTIVE_ARRAY_ZOD_SCHEMA,
+  ACCESS_PERSPECTIVE_DEFAULT,
   SOCIAL_CONTEXT_ZOD_ENUM,
   SOCIAL_CONTEXT_DEFAULT,
   GENDER_INCLUSIVE_DEFAULT,
   normalizeCharacterToArray,
+  normalizeAccessPerspectiveToArray,
 } from './constants'
 
 /**
@@ -56,6 +59,9 @@ export const chatConfigSchema = z.object({
   // Charakter/Profil für die Antwort-Perspektive (Array mit max. 3 Werten)
   // Unterstützt sowohl Single-Value (wird zu Array konvertiert) als auch Array
   character: CHARACTER_ARRAY_ZOD_SCHEMA.default(CHARACTER_DEFAULT),
+  // Zugangsperspektive (Array mit max. 3 Werten)
+  // Unterstützt sowohl Single-Value (wird zu Array konvertiert) als auch Array
+  accessPerspective: ACCESS_PERSPECTIVE_ARRAY_ZOD_SCHEMA.default(ACCESS_PERSPECTIVE_DEFAULT),
   // Sozialer Kontext/Sprachebene
   socialContext: SOCIAL_CONTEXT_ZOD_ENUM.default(SOCIAL_CONTEXT_DEFAULT),
   // Gendergerechte Formulierung
@@ -64,6 +70,8 @@ export const chatConfigSchema = z.object({
     targetLanguage: TARGET_LANGUAGE_ZOD_ENUM.optional(),
     // userPreferences.character kann auch Single-Value oder Array sein
     character: CHARACTER_ARRAY_ZOD_SCHEMA.optional(),
+    // userPreferences.accessPerspective kann auch Single-Value oder Array sein
+    accessPerspective: ACCESS_PERSPECTIVE_ARRAY_ZOD_SCHEMA.optional(),
     socialContext: SOCIAL_CONTEXT_ZOD_ENUM.optional(),
     genderInclusive: z.boolean().optional(),
   }).optional(),
@@ -140,9 +148,19 @@ export function normalizeChatConfig(config: unknown): NormalizedChatConfig {
       c.character = normalizeCharacterToArray(c.character)
     }
     
+    // AccessPerspective normalisieren: Single-Value zu Array konvertieren
+    if ((c as { accessPerspective?: unknown }).accessPerspective !== undefined) {
+      (c as { accessPerspective: unknown }).accessPerspective = normalizeAccessPerspectiveToArray((c as { accessPerspective: unknown }).accessPerspective)
+    }
+    
     // userPreferences.character normalisieren
     if (c.userPreferences?.character !== undefined) {
       c.userPreferences.character = normalizeCharacterToArray(c.userPreferences.character)
+    }
+    
+    // userPreferences.accessPerspective normalisieren
+    if ((c.userPreferences as { accessPerspective?: unknown } | undefined)?.accessPerspective !== undefined) {
+      (c.userPreferences as { accessPerspective: unknown }).accessPerspective = normalizeAccessPerspectiveToArray((c.userPreferences as { accessPerspective: unknown }).accessPerspective)
     }
   }
   

@@ -24,15 +24,18 @@
  */
 
 import type { RetrievedSource } from '@/types/retriever'
-import type { Character, TargetLanguage } from '../constants'
+import type { Character, TargetLanguage, AccessPerspective } from '../constants'
 import {
   CHARACTER_INSTRUCTIONS,
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_INSTRUCTIONS,
   SOCIAL_CONTEXT_DEFAULT,
+  ACCESS_PERSPECTIVE_INSTRUCTIONS,
+  ACCESS_PERSPECTIVE_DEFAULT,
   TARGET_LANGUAGE_LABELS,
   getGenderInclusiveInstruction,
   combineCharacterInstructions,
+  combineAccessPerspectiveInstructions,
   AnswerLength,
   SocialContext,
 } from '../constants'
@@ -141,6 +144,18 @@ function getSocialContextInstruction(socialContext: SocialContext): string {
 }
 
 /**
+ * Erstellt Zugangsperspektive-Anweisung basierend auf Konfiguration.
+ * Verwendet die zentrale AccessPerspective-Instructions aus lib/chat/constants.ts.
+ * Unterstützt mehrere AccessPerspective-Werte (Array) für kombinierte Perspektiven.
+ */
+function getAccessPerspectiveInstruction(accessPerspective: AccessPerspective | AccessPerspective[]): string {
+  if (Array.isArray(accessPerspective)) {
+    return combineAccessPerspectiveInstructions(accessPerspective)
+  }
+  return ACCESS_PERSPECTIVE_INSTRUCTIONS[accessPerspective] || combineAccessPerspectiveInstructions(ACCESS_PERSPECTIVE_DEFAULT)
+}
+
+/**
  * Creates language instruction based on configuration
  * Uses the central TargetLanguage labels from lib/chat/constants.ts.
  */
@@ -171,6 +186,7 @@ export function buildPrompt(
   options?: {
     targetLanguage?: TargetLanguage
     character?: Character | Character[]
+    accessPerspective?: AccessPerspective | AccessPerspective[]
     socialContext?: SocialContext
     genderInclusive?: boolean
     chatHistory?: Array<{ question: string; answer: string }>
@@ -189,6 +205,7 @@ export function buildPrompt(
   
   // Create system prompt components based on configuration
   const characterInstruction = options?.character ? getCharacterInstruction(options.character) : ''
+  const accessPerspectiveInstruction = options?.accessPerspective ? getAccessPerspectiveInstruction(options.accessPerspective) : ''
   const socialContextInstruction = options?.socialContext ? getSocialContextInstruction(options.socialContext) : ''
   const genderInclusiveInstruction = options?.genderInclusive !== undefined ? getGenderInclusiveInstruction(options.genderInclusive) : ''
   const languageInstruction = options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Respond in German.'
@@ -228,6 +245,9 @@ export function buildPrompt(
   const systemParts: string[] = ['You are a precise assistant. Answer the question exclusively based on the provided sources.']
   if (characterInstruction) {
     systemParts.push(`\n${characterInstruction}`)
+  }
+  if (accessPerspectiveInstruction) {
+    systemParts.push(`\n${accessPerspectiveInstruction}`)
   }
   if (socialContextInstruction) {
     systemParts.push(`\n${socialContextInstruction}`)
@@ -299,6 +319,7 @@ export function buildTOCPrompt(
   options?: {
     targetLanguage?: TargetLanguage
     character?: Character | Character[]
+    accessPerspective?: AccessPerspective | AccessPerspective[]
     socialContext?: SocialContext
     genderInclusive?: boolean
     filters?: Record<string, unknown>
@@ -309,6 +330,7 @@ export function buildTOCPrompt(
   
   // Create system prompt components based on configuration
   const characterInstruction = options?.character ? getCharacterInstruction(options.character) : ''
+  const accessPerspectiveInstruction = options?.accessPerspective ? getAccessPerspectiveInstruction(options.accessPerspective) : ''
   const socialContextInstruction = options?.socialContext ? getSocialContextInstruction(options.socialContext) : ''
   const genderInclusiveInstruction = options?.genderInclusive !== undefined ? getGenderInclusiveInstruction(options.genderInclusive) : ''
   const languageInstruction = options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Respond in German.'
@@ -378,6 +400,9 @@ export function buildTOCPrompt(
   const systemParts: string[] = ['You create a structured topic overview based on the provided sources. Analyze the content and identify the central topic areas.']
   if (characterInstruction) {
     systemParts.push(`\n${characterInstruction}`)
+  }
+  if (accessPerspectiveInstruction) {
+    systemParts.push(`\n${accessPerspectiveInstruction}`)
   }
   if (socialContextInstruction) {
     systemParts.push(`\n${socialContextInstruction}`)

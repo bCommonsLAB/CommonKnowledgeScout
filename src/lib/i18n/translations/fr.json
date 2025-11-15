@@ -210,8 +210,33 @@
       "educational": "Éducation & Apprentissage",
       "practical": "Quotidien & Pratique",
       "research": "Recherche & Analyse",
-      "policy": "Politique & Changement social",
       "creative": "Créatif & Visionnaire"
+    },
+    "characterTooltips": {
+      "technical": "Focus sur la fonctionnalité, les systèmes, la technologie et les méthodes.",
+      "social-cultural": "Focus sur les personnes, la culture, la communauté et les dynamiques sociales.",
+      "ecology": "Focus sur la nature, les impacts à long terme et le développement durable.",
+      "business": "Focus sur les processus, l'organisation, la collaboration et les modèles.",
+      "educational": "Focus sur l'enseignement, l'apprentissage et la didactique compréhensible.",
+      "practical": "Focus sur l'application quotidienne, la pertinence pratique et les exemples concrets.",
+      "research": "Focus sur l'analyse, les méthodes, les preuves et la pensée critique.",
+      "creative": "Focus sur les visions, les idées, les expériences et les nouvelles perspectives."
+    },
+    "accessPerspectiveLabels": {
+      "insight": "Orienté approfondissement",
+      "community": "Orienté communauté",
+      "sustainability": "Orienté durabilité",
+      "learning": "Orienté apprentissage",
+      "practical_view": "Orienté pratique",
+      "future_view": "Orienté avenir"
+    },
+    "accessPerspectiveTooltips": {
+      "insight": "Met l'accent sur la compréhension, les connexions, la réflexion et les approfondissements plus profonds.",
+      "community": "Met l'accent sur la collaboration, la participation, l'impact social et l'unité.",
+      "sustainability": "Met l'accent sur la responsabilité écologique, sociale et à long terme.",
+      "learning": "Met l'accent sur une communication claire et illustrative et une approche orientée vers l'apprentissage.",
+      "practical_view": "Met l'accent sur la faisabilité, la pertinence pratique et l'application concrète.",
+      "future_view": "Met l'accent sur le potentiel, l'innovation, les possibilités et les visions futures."
     },
     "socialContextLabels": {
       "scientific": "Scientifique",
@@ -222,6 +247,15 @@
       "children": "Adapté aux enfants",
       "easy_language": "Langage simple"
     },
+    "socialContextTooltips": {
+      "scientific": "Style technique et précis avec des termes clairs et une structure.",
+      "general": "Style bien compréhensible et clair sans jargon.",
+      "youth": "Style décontracté et vivant avec des exemples orientés vers la jeunesse.",
+      "senior": "Style calme et lisible avec une séquence d'étapes claire.",
+      "professional": "Style structuré et factuel pour les contextes professionnels.",
+      "children": "Langage très simple avec des exemples vivants.",
+      "easy_language": "Phrases courtes, mots simples, expliqué clairement et sans barrières."
+    },
     "languageLabels": {
       "de": "Allemand",
       "en": "Anglais",
@@ -229,6 +263,26 @@
       "fr": "Français",
       "es": "Espagnol",
       "ar": "Arabe"
+    },
+    "perspectivePage": {
+      "title": "Comment les réponses doivent-elles être formulées pour vous ?",
+      "subtitle": "Afin que le contenu soit présenté de la manière la plus compréhensible pour vous.",
+      "whyThisPageTitle": "Pourquoi cette page ?",
+      "whyThisPageText": "Chaque personne apporte une approche différente. Votre sélection garantit que les réponses correspondent à votre contexte et à vos intérêts.",
+      "languageSectionTitle": "Langue",
+      "languageSectionHelp": "Dans quelle langue souhaitez-vous lire les réponses ?",
+      "characterSectionTitle": "Intérêts thématiques",
+      "characterSectionHelp": "Quels sujets sont au premier plan pour vous ? Les réponses donnent plus de poids à ces domaines.",
+      "characterSectionSelectedCount": "{count} sur 3 sélectionnés",
+      "accessPerspectiveSectionTitle": "Perspective d'accès",
+      "accessPerspectiveSectionHelp": "Quel type d'accès vous convient le mieux ? Les réponses mettent en évidence plus fortement les aspects correspondants.",
+      "accessPerspectiveSectionSelectedCount": "{count} sur 3 sélectionnés",
+      "socialContextSectionTitle": "Style de langue",
+      "socialContextSectionHelp": "Comment les réponses doivent-elles sonner ?",
+      "socialContextSectionNote": "Vous déterminez uniquement le style – pas le contenu. Les réponses sont basées sur les mêmes sources.",
+      "saveButton": "Commencer avec cette perspective",
+      "saveButtonFooter": "Vous pouvez modifier votre sélection à tout moment plus tard dans le mode Story.",
+      "backToStoryMode": "Retour au mode Story"
     },
     "input": {
       "askYourOwnQuestion": "Posez votre propre question :",
@@ -345,7 +399,7 @@
     "welcomeDescription": "Sélectionnez la langue et la perspective ci-dessus, puis commencez votre conversation avec la connaissance.",
     "welcomeTip": "Astuce : Posez une question ou cliquez sur une conférence à droite pour voir l'histoire de votre perspective.",
     "processing": "Traitement...",
-    "topicsOverviewIntro": "Sur la base des {count} {type} sélectionnés, la vue d'ensemble des sujets et les réponses suivantes émergent:"
+    "topicsOverviewIntro": "Sur la base de votre perspective et des {count} {type} sélectionnés, la vue d'ensemble des sujets et les réponses suivantes émergent:"
   },
   "suggestedQuestions": {
     "label": "Questions supplémentaires possibles sur le sujet qui émergent des sources :"
@@ -354,8 +408,9 @@
     "answerLength": "Longueur de la réponse :",
     "method": "Méthode :",
     "language": "Langue :",
-    "character": "Caractère :",
-    "context": "Contexte :"
+    "character": "Intérêts thématiques :",
+    "accessPerspective": "Perspective d'accès :",
+    "context": "Style de langue :"
   },
   "configPopover": {
     "advancedSettings": "Paramètres avancés",

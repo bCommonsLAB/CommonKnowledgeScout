@@ -43,6 +43,7 @@ export async function GET(
         gallery: ctx.chat.gallery, // Gallery-Config inkl. detailViewType hinzufügen
         targetLanguage: ctx.chat.targetLanguage,
         character: ctx.chat.character,
+        accessPerspective: ctx.chat.accessPerspective,
         socialContext: ctx.chat.socialContext,
         genderInclusive: ctx.chat.genderInclusive,
         userPreferences: ctx.chat.userPreferences,

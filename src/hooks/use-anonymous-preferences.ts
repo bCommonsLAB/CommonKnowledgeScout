@@ -11,6 +11,7 @@ import { useUser } from '@clerk/nextjs'
 interface AnonymousPreferences {
   targetLanguage?: string
   character?: string
+  accessPerspective?: string
   socialContext?: string
   genderInclusive?: boolean
 }
@@ -27,6 +28,7 @@ interface UseAnonymousPreferencesResult {
 const PREFERENCE_KEYS = {
   targetLanguage: 'story-context-targetLanguage',
   character: 'story-context-character',
+  accessPerspective: 'story-context-accessPerspective',
   socialContext: 'story-context-socialContext',
   genderInclusive: 'story-context-genderInclusive',
 } as const
@@ -53,6 +55,7 @@ export function useAnonymousPreferences(): UseAnonymousPreferencesResult {
     try {
       const targetLanguage = localStorage.getItem(PREFERENCE_KEYS.targetLanguage)
       const character = localStorage.getItem(PREFERENCE_KEYS.character)
+      const accessPerspective = localStorage.getItem(PREFERENCE_KEYS.accessPerspective)
       const socialContext = localStorage.getItem(PREFERENCE_KEYS.socialContext)
       const genderInclusive = localStorage.getItem(PREFERENCE_KEYS.genderInclusive)
 
@@ -66,6 +69,13 @@ export function useAnonymousPreferences(): UseAnonymousPreferencesResult {
       if (character) {
         try {
           prefs.character = JSON.parse(character) as string
+        } catch {
+          // Ignoriere Parsing-Fehler
+        }
+      }
+      if (accessPerspective) {
+        try {
+          prefs.accessPerspective = JSON.parse(accessPerspective) as string
         } catch {
           // Ignoriere Parsing-Fehler
         }
@@ -95,6 +105,7 @@ export function useAnonymousPreferences(): UseAnonymousPreferencesResult {
     return (
       values.targetLanguage !== undefined ||
       values.character !== undefined ||
+      values.accessPerspective !== undefined ||
       values.socialContext !== undefined ||
       values.genderInclusive !== undefined
     )
@@ -115,6 +126,12 @@ export function useAnonymousPreferences(): UseAnonymousPreferencesResult {
         }
         if (prefs.character !== undefined) {
           localStorage.setItem(PREFERENCE_KEYS.character, JSON.stringify(prefs.character))
+        }
+        if (prefs.accessPerspective !== undefined) {
+          localStorage.setItem(
+            PREFERENCE_KEYS.accessPerspective,
+            JSON.stringify(prefs.accessPerspective)
+          )
         }
         if (prefs.socialContext !== undefined) {
           localStorage.setItem(

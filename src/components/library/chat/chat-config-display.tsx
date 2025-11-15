@@ -5,8 +5,10 @@ import {
   RETRIEVER_LABELS,
   TARGET_LANGUAGE_LABELS,
   CHARACTER_LABELS,
+  ACCESS_PERSPECTIVE_LABELS,
   SOCIAL_CONTEXT_LABELS,
   type Character,
+  type AccessPerspective,
 } from '@/lib/chat/constants'
 
 import type {
@@ -25,6 +27,7 @@ interface ChatConfigDisplayProps {
   retriever?: Retriever
   targetLanguage?: TargetLanguage
   character?: Character[] // Array (kann leer sein)
+  accessPerspective?: AccessPerspective[] // Array (kann leer sein)
   socialContext?: SocialContext
   libraryId?: string
   queryId?: string
@@ -41,13 +44,14 @@ export function ChatConfigDisplay({
   retriever,
   targetLanguage,
   character,
+  accessPerspective,
   socialContext,
   libraryId,
   queryId,
   filters: filtersProp,
 }: ChatConfigDisplayProps) {
   const { t } = useTranslation()
-  const { targetLanguageLabels, characterLabels, socialContextLabels } = useStoryContext()
+  const { targetLanguageLabels, characterLabels, accessPerspectiveLabels, socialContextLabels } = useStoryContext()
   const sessionHeaders = useSessionHeaders()
   const [filters, setFilters] = useState<Record<string, unknown> | null>(null)
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label?: string }>>([])
@@ -58,6 +62,7 @@ export function ChatConfigDisplay({
   const [queryRetriever, setQueryRetriever] = useState<Retriever | undefined>(undefined)
   const [queryTargetLanguage, setQueryTargetLanguage] = useState<TargetLanguage | undefined>(undefined)
   const [queryCharacter, setQueryCharacter] = useState<Character[] | undefined>(undefined)
+  const [queryAccessPerspective, setQueryAccessPerspective] = useState<AccessPerspective[] | undefined>(undefined)
   const [querySocialContext, setQuerySocialContext] = useState<SocialContext | undefined>(undefined)
 
   // Verwende Parameter aus Query, falls vorhanden, sonst Props als Fallback
@@ -65,6 +70,7 @@ export function ChatConfigDisplay({
   const effectiveRetriever = queryRetriever ?? retriever
   const effectiveTargetLanguage = queryTargetLanguage ?? targetLanguage
   const effectiveCharacter = queryCharacter ?? character
+  const effectiveAccessPerspective = queryAccessPerspective ?? accessPerspective
   const effectiveSocialContext = querySocialContext ?? socialContext
 
   // Erstelle Config-Items mit useMemo, damit sie sich aktualisieren, wenn Filter geladen werden
@@ -101,24 +107,34 @@ export function ChatConfigDisplay({
       }
     }
 
+    if (effectiveAccessPerspective && effectiveAccessPerspective.length > 0) {
+      // Verwende ersten Wert für Label-Lookup
+      const firstAp = effectiveAccessPerspective[0]
+      const apLabel = accessPerspectiveLabels[firstAp] || ACCESS_PERSPECTIVE_LABELS[firstAp] || firstAp
+      if (apLabel) {
+        items.push(`${t('configDisplay.accessPerspective')} ${apLabel}`)
+      }
+    }
+
     if (effectiveSocialContext) {
       const contextLabel = socialContextLabels[effectiveSocialContext] || SOCIAL_CONTEXT_LABELS[effectiveSocialContext] || effectiveSocialContext
       items.push(`${t('configDisplay.context')} ${contextLabel}`)
     }
 
     return items
-  }, [effectiveAnswerLength, effectiveRetriever, effectiveTargetLanguage, effectiveCharacter, effectiveSocialContext, t, targetLanguageLabels, characterLabels, socialContextLabels])
+  }, [effectiveAnswerLength, effectiveRetriever, effectiveTargetLanguage, effectiveCharacter, effectiveAccessPerspective, effectiveSocialContext, t, targetLanguageLabels, characterLabels, accessPerspectiveLabels, socialContextLabels])
 
   // Lade alle Parameter aus QueryLog, falls queryId vorhanden ist UND keine Props übergeben wurden
   useEffect(() => {
     // Wenn Parameter direkt als Props übergeben wurden (z.B. aus cachedTOC), verwende diese
     // und lade NICHT aus QueryLog
-    if (answerLength || retriever || targetLanguage || character || socialContext || filtersProp) {
+    if (answerLength || retriever || targetLanguage || character || accessPerspective || socialContext || filtersProp) {
       // Props vorhanden: Verwende diese direkt, keine Query-Ladung nötig
       setQueryAnswerLength(answerLength)
       setQueryRetriever(retriever)
       setQueryTargetLanguage(targetLanguage)
       setQueryCharacter(character) // Array (kann leer sein)
+      setQueryAccessPerspective(accessPerspective) // Array (kann leer sein)
       setQuerySocialContext(socialContext)
       setFilters(filtersProp || null)
       return
@@ -131,6 +147,7 @@ export function ChatConfigDisplay({
       setQueryRetriever(undefined)
       setQueryTargetLanguage(undefined)
       setQueryCharacter(undefined)
+      setQueryAccessPerspective(undefined)
       setQuerySocialContext(undefined)
       return
     }
@@ -169,6 +186,7 @@ export function ChatConfigDisplay({
         setQueryRetriever(queryLog.retriever)
         setQueryTargetLanguage(queryLog.targetLanguage)
         setQueryCharacter(queryLog.character)
+        setQueryAccessPerspective(queryLog.accessPerspective)
         setQuerySocialContext(queryLog.socialContext)
         
         // Setze Filter: Verwende übergebene Filter nur wenn keine queryId vorhanden ist
@@ -187,6 +205,7 @@ export function ChatConfigDisplay({
         setQueryRetriever(undefined)
         setQueryTargetLanguage(undefined)
         setQueryCharacter(undefined)
+        setQueryAccessPerspective(undefined)
         setQuerySocialContext(undefined)
         setIsLoadingParams(false)
       }
@@ -197,7 +216,7 @@ export function ChatConfigDisplay({
     return () => {
       cancelled = true
     }
-  }, [libraryId, queryId, filtersProp, sessionHeaders, answerLength, retriever, targetLanguage, character, socialContext])
+  }, [libraryId, queryId, filtersProp, sessionHeaders, answerLength, retriever, targetLanguage, character, accessPerspective, socialContext])
 
   // Lade Facetten-Definitionen für Labels
   useEffect(() => {

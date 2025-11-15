@@ -11,6 +11,7 @@ import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import {
   type Character,
+  type AccessPerspective,
   type AnswerLength,
   type Retriever,
   type TargetLanguage,
@@ -19,6 +20,7 @@ import {
   RETRIEVER_DEFAULT,
   TOC_QUESTION,
   characterArrayToString,
+  accessPerspectiveArrayToString,
 } from '@/lib/chat/constants'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { storyPerspectiveOpenAtom } from '@/atoms/story-context-atom'
@@ -31,7 +33,7 @@ import { ChatConfigBar } from './chat-config-bar'
 import { ChatConfigPopover } from './chat-config-popover'
 import { ChatMessagesList } from './chat-messages-list'
 import { useChatScroll } from './hooks/use-chat-scroll'
-import { getInitialTargetLanguage, getInitialCharacter, getInitialSocialContext, getInitialGenderInclusive } from './utils/chat-storage'
+import { getInitialTargetLanguage, getInitialCharacter, getInitialAccessPerspective, getInitialSocialContext, getInitialGenderInclusive } from './utils/chat-storage'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { useAnonymousPreferences } from '@/hooks/use-anonymous-preferences'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
@@ -73,17 +75,22 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   // Context State (embedded vs. local)
   const [targetLanguageState, setTargetLanguageState] = useState<TargetLanguage>(getInitialTargetLanguage())
   const [characterState, setCharacterState] = useState<Character[]>(getInitialCharacter())
+  const [accessPerspectiveState, setAccessPerspectiveState] = useState<AccessPerspective[]>(getInitialAccessPerspective())
   const [socialContextState, setSocialContextState] = useState<SocialContext>(getInitialSocialContext())
   const [genderInclusive, setGenderInclusive] = useState<boolean>(getInitialGenderInclusive())
   
   const targetLanguage = isEmbedded ? storyContext.targetLanguage : targetLanguageState
   const character = isEmbedded ? storyContext.character : characterState
+  const accessPerspective = isEmbedded ? storyContext.accessPerspective : accessPerspectiveState
   const socialContext = isEmbedded ? storyContext.socialContext : socialContextState
   const setTargetLanguage = isEmbedded ? storyContext.setTargetLanguage : setTargetLanguageState
   // Wrapper für setCharacter: storyContext verwendet bereits Character[]
   const setCharacter = isEmbedded 
     ? storyContext.setCharacter
     : setCharacterState
+  const setAccessPerspective = isEmbedded
+    ? storyContext.setAccessPerspective
+    : setAccessPerspectiveState
   const setSocialContext = isEmbedded ? storyContext.setSocialContext : setSocialContextState
   
   // Anonymous Preferences
@@ -99,10 +106,12 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     if (!open && !isEmbedded && isAnonymous) {
       // Konvertiere Character-Array zu komma-separiertem String für localStorage
       const characterString = characterArrayToString(characterState)
+      const accessPerspectiveString = accessPerspectiveArrayToString(accessPerspectiveState)
       
       saveAnonymousPreferences({
         targetLanguage: targetLanguageState,
         character: characterString,
+        accessPerspective: accessPerspectiveString,
         socialContext: socialContextState,
         genderInclusive,
       })
@@ -758,6 +767,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             setTargetLanguage={setTargetLanguage}
             character={character}
             setCharacter={setCharacter}
+            accessPerspective={accessPerspective}
+            setAccessPerspective={setAccessPerspective}
             socialContext={socialContext}
             setSocialContext={setSocialContext}
             libraryId={libraryId}
@@ -879,6 +890,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           setTargetLanguage={setTargetLanguage}
           character={character}
           setCharacter={setCharacter}
+          accessPerspective={accessPerspective}
+          setAccessPerspective={setAccessPerspective}
           socialContext={socialContext}
           setSocialContext={setSocialContext}
           libraryId={libraryId}

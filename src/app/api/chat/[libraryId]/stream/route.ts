@@ -41,8 +41,11 @@ import {
   isValidTargetLanguage,
   isValidSocialContext,
   normalizeCharacterToArray,
+  normalizeAccessPerspectiveToArray,
   parseCharacterFromUrlParam,
+  parseAccessPerspectiveFromUrlParam,
   characterArrayToString,
+  accessPerspectiveArrayToString,
 } from '@/lib/chat/constants'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 import { formatSSE } from '@/types/chat-processing'
@@ -214,11 +217,14 @@ export async function POST(
         // Chat-Config bestimmen
         const targetLanguageParam = parsedUrl.searchParams.get('targetLanguage')
         const characterParam = parsedUrl.searchParams.get('character')
+        const accessPerspectiveParam = parsedUrl.searchParams.get('accessPerspective')
         const socialContextParam = parsedUrl.searchParams.get('socialContext')
         const genderInclusiveParam = parsedUrl.searchParams.get('genderInclusive')
         
         // Parse character Parameter aus URL (komma-separierter String → Character[] Array)
         const effectiveCharacter = parseCharacterFromUrlParam(characterParam)
+        // Parse accessPerspective Parameter aus URL (komma-separierter String → AccessPerspective[] Array)
+        const effectiveAccessPerspective = parseAccessPerspectiveFromUrlParam(accessPerspectiveParam)
         
         const effectiveChatConfig = {
           ...ctx.chat,
@@ -226,6 +232,7 @@ export async function POST(
             ? targetLanguageParam
             : ctx.chat.targetLanguage,
           character: effectiveCharacter ?? normalizeCharacterToArray(ctx.chat.character),
+          accessPerspective: effectiveAccessPerspective ?? normalizeAccessPerspectiveToArray(ctx.chat.accessPerspective),
           socialContext: isValidSocialContext(socialContextParam)
             ? socialContextParam
             : ctx.chat.socialContext,
@@ -247,6 +254,7 @@ export async function POST(
             parameters: {
               targetLanguage: effectiveChatConfig.targetLanguage,
               character: characterArrayToString(effectiveChatConfig.character),
+              accessPerspective: accessPerspectiveArrayToString(effectiveChatConfig.accessPerspective),
               socialContext: effectiveChatConfig.socialContext,
               filters: facetsSelected,
             },
@@ -260,6 +268,7 @@ export async function POST(
             queryType: isTOCQuery ? 'toc' : 'question',
             targetLanguage: effectiveChatConfig.targetLanguage,
             character: effectiveChatConfig.character,
+            accessPerspective: effectiveChatConfig.accessPerspective,
             socialContext: effectiveChatConfig.socialContext,
             genderInclusive: effectiveChatConfig.genderInclusive,
             retriever: explicitRetrieverValue || undefined,
@@ -373,6 +382,7 @@ export async function POST(
           retriever: internalRetriever, // Verwende internen Retriever (kann chunkSummary sein)
           targetLanguage: effectiveChatConfig.targetLanguage,
           character: effectiveChatConfig.character, // Array (kann leer sein)
+          accessPerspective: effectiveChatConfig.accessPerspective, // Array (kann leer sein)
           socialContext: effectiveChatConfig.socialContext,
           genderInclusive: effectiveChatConfig.genderInclusive,
           facetsSelected,
@@ -386,10 +396,11 @@ export async function POST(
         const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
         send({ type: 'llm_start', model })
 
-        // Normalisiere chatConfig für Orchestrator (character muss Array sein)
+        // Normalisiere chatConfig für Orchestrator (character und accessPerspective müssen Arrays sein)
         const normalizedChatConfig = {
           ...effectiveChatConfig,
           character: normalizeCharacterToArray(effectiveChatConfig.character),
+          accessPerspective: normalizeAccessPerspectiveToArray(effectiveChatConfig.accessPerspective),
         }
 
         const { answer, references, suggestedQuestions, storyTopicsData } = await runChatOrchestrated({

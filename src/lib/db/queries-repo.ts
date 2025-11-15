@@ -145,6 +145,7 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
     retriever: doc.retriever,
     targetLanguage: doc.targetLanguage,
     character: doc.character,
+    accessPerspective: doc.accessPerspective,
     socialContext: doc.socialContext,
     genderInclusive: doc.genderInclusive,
     facetsSelected: doc.facetsSelected,
@@ -336,6 +337,7 @@ export async function findQueryByQuestionAndContext(args: {
   question: string
   targetLanguage?: string
   character?: import('@/lib/chat/constants').Character[] // Array (kann leer sein)
+  accessPerspective?: import('@/lib/chat/constants').AccessPerspective[] // Array (kann leer sein)
   socialContext?: string
   genderInclusive?: boolean
   retriever?: string
@@ -370,6 +372,9 @@ export async function findQueryByQuestionAndContext(args: {
   }
   if (args.character !== undefined) {
     filter.character = args.character
+  }
+  if (args.accessPerspective !== undefined) {
+    filter.accessPerspective = args.accessPerspective
   }
   if (args.socialContext !== undefined) {
     filter.socialContext = args.socialContext

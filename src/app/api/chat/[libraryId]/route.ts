@@ -12,7 +12,9 @@ import {
   isValidTargetLanguage,
   isValidSocialContext,
   normalizeCharacterToArray,
+  normalizeAccessPerspectiveToArray,
   parseCharacterFromUrlParam,
+  parseAccessPerspectiveFromUrlParam,
 } from '@/lib/chat/constants'
 import type { NeedsClarificationResponse } from '@/types/chat-response'
 
@@ -146,11 +148,14 @@ export async function POST(
     // Bestimme effektive Chat-Config: Query-Parameter überschreiben Config-Werte
     const targetLanguageParam = parsedUrl.searchParams.get('targetLanguage')
     const characterParam = parsedUrl.searchParams.get('character')
+    const accessPerspectiveParam = parsedUrl.searchParams.get('accessPerspective')
     const socialContextParam = parsedUrl.searchParams.get('socialContext')
     const genderInclusiveParam = parsedUrl.searchParams.get('genderInclusive')
     
     // Parse character Parameter aus URL (komma-separierter String → Character[] Array)
     const effectiveCharacter = parseCharacterFromUrlParam(characterParam)
+    // Parse accessPerspective Parameter aus URL (komma-separierter String → AccessPerspective[] Array)
+    const effectiveAccessPerspective = parseAccessPerspectiveFromUrlParam(accessPerspectiveParam)
     
     const effectiveChatConfig = {
       ...ctx.chat,
@@ -158,6 +163,7 @@ export async function POST(
         ? targetLanguageParam
         : ctx.chat.targetLanguage,
       character: effectiveCharacter ?? normalizeCharacterToArray(ctx.chat.character),
+      accessPerspective: effectiveAccessPerspective ?? normalizeAccessPerspectiveToArray(ctx.chat.accessPerspective),
       socialContext: isValidSocialContext(socialContextParam)
         ? socialContextParam
         : ctx.chat.socialContext,
@@ -182,6 +188,7 @@ export async function POST(
         retriever: 'summary',
         targetLanguage: effectiveChatConfig.targetLanguage,
         character: effectiveChatConfig.character, // Array (kann leer sein)
+        accessPerspective: effectiveChatConfig.accessPerspective, // Array (kann leer sein)
         socialContext: effectiveChatConfig.socialContext,
         genderInclusive: effectiveChatConfig.genderInclusive,
         facetsSelected,
@@ -239,6 +246,7 @@ export async function POST(
       retriever: 'chunk' as const,
       targetLanguage: effectiveChatConfig.targetLanguage,
       character: effectiveChatConfig.character, // Array (kann leer sein)
+      accessPerspective: effectiveChatConfig.accessPerspective, // Array (kann leer sein)
       socialContext: effectiveChatConfig.socialContext,
       facetsSelected,
       filtersNormalized: { ...built.normalized },

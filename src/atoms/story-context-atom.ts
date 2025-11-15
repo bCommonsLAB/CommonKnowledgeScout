@@ -12,10 +12,13 @@ import {
   type TargetLanguage,
   type Character,
   type SocialContext,
+  type AccessPerspective,
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_DEFAULT,
+  ACCESS_PERSPECTIVE_DEFAULT,
   normalizeCharacterToArray,
+  normalizeAccessPerspectiveToArray,
 } from '@/lib/chat/constants'
 
 /**
@@ -111,6 +114,21 @@ function getInitialSocialContext(): SocialContext {
   return SOCIAL_CONTEXT_DEFAULT
 }
 
+function getInitialAccessPerspective(): AccessPerspective[] {
+  if (typeof window === 'undefined') return ACCESS_PERSPECTIVE_DEFAULT
+  try {
+    const stored = localStorage.getItem('story-context-accessPerspective')
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      // Konvertiere alte Single-Value zu Array (Backward-Compatibility)
+      return normalizeAccessPerspectiveToArray(parsed)
+    }
+  } catch {
+    // Ignoriere Fehler
+  }
+  return ACCESS_PERSPECTIVE_DEFAULT
+}
+
 /**
  * Atom für die Zielsprache im Story-Modus.
  * Initialisiert mit Wert aus localStorage (falls vorhanden).
@@ -132,6 +150,14 @@ storyCharacterAtom.debugLabel = 'storyCharacterAtom'
  */
 export const storySocialContextAtom = atom<SocialContext>(getInitialSocialContext())
 storySocialContextAtom.debugLabel = 'storySocialContextAtom'
+
+/**
+ * Atom für die Zugangsperspektive im Story-Modus.
+ * Unterstützt mehrere Zugangsperspektiven (max. 3).
+ * Initialisiert mit Wert aus localStorage (falls vorhanden).
+ */
+export const storyAccessPerspectiveAtom = atom<AccessPerspective[]>(getInitialAccessPerspective())
+storyAccessPerspectiveAtom.debugLabel = 'storyAccessPerspectiveAtom'
 
 /**
  * Atom für den Zustand des Perspektive-Popovers im Story-Modus.

@@ -9,11 +9,14 @@ import {
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_VALUES,
   CHARACTER_DEFAULT,
+  ACCESS_PERSPECTIVE_VALUES,
+  ACCESS_PERSPECTIVE_DEFAULT,
   SOCIAL_CONTEXT_VALUES,
   SOCIAL_CONTEXT_DEFAULT,
   GENDER_INCLUSIVE_DEFAULT,
   type TargetLanguage,
   type Character,
+  type AccessPerspective,
   type SocialContext,
 } from '@/lib/chat/constants'
 import { BookOpen, X } from 'lucide-react'
@@ -23,11 +26,13 @@ interface ChatWelcomeAssistantProps {
   libraryId: string
   initialTargetLanguage?: TargetLanguage
   initialCharacter?: Character[] // Array (kann leer sein)
+  initialAccessPerspective?: AccessPerspective[] // Array (kann leer sein)
   initialSocialContext?: SocialContext
   initialGenderInclusive?: boolean
   onSettingsConfirm: (settings: {
     targetLanguage: TargetLanguage
     character: Character[] // Array (kann leer sein)
+    accessPerspective: AccessPerspective[] // Array (kann leer sein)
     socialContext: SocialContext
     genderInclusive: boolean
   }) => Promise<void>
@@ -37,20 +42,21 @@ interface ChatWelcomeAssistantProps {
 
 /**
  * Begrüßungs-Assistent für neue Chats.
- * Zeigt eine Karte mit Auswahlmöglichkeiten für Zielsprache, Charakter und sozialen Kontext.
+ * Zeigt eine Karte mit Auswahlmöglichkeiten für Zielsprache, Charakter, Zugangsperspektive und sozialen Kontext.
  * Bietet Option zur Generierung eines Inhaltsverzeichnisses.
  */
 export function ChatWelcomeAssistant({
   libraryId,
   initialTargetLanguage = TARGET_LANGUAGE_DEFAULT,
   initialCharacter = CHARACTER_DEFAULT,
+  initialAccessPerspective = ACCESS_PERSPECTIVE_DEFAULT,
   initialSocialContext = SOCIAL_CONTEXT_DEFAULT,
   initialGenderInclusive = GENDER_INCLUSIVE_DEFAULT,
   onSettingsConfirm,
   onGenerateTOC,
   onDismiss,
 }: ChatWelcomeAssistantProps) {
-  const { targetLanguageLabels, characterLabels, socialContextLabels } = useStoryContext()
+  const { targetLanguageLabels, characterLabels, accessPerspectiveLabels, socialContextLabels } = useStoryContext()
   console.log('[ChatWelcomeAssistant] Rendering with props:', {
     libraryId,
     initialTargetLanguage,
@@ -60,6 +66,7 @@ export function ChatWelcomeAssistant({
   })
   const [targetLanguage, setTargetLanguage] = useState<TargetLanguage>(initialTargetLanguage)
   const [character, setCharacter] = useState<Character[]>(initialCharacter || CHARACTER_DEFAULT)
+  const [accessPerspective, setAccessPerspective] = useState<AccessPerspective[]>(initialAccessPerspective || ACCESS_PERSPECTIVE_DEFAULT)
   const [socialContext, setSocialContext] = useState<SocialContext>(initialSocialContext)
   const [genderInclusive, setGenderInclusive] = useState<boolean>(initialGenderInclusive)
   const [isSaving, setIsSaving] = useState(false)
@@ -78,12 +85,27 @@ export function ChatWelcomeAssistant({
     })
   }
 
+  // Toggle AccessPerspective-Auswahl (max. 3 Werte)
+  function toggleAccessPerspective(ap: AccessPerspective) {
+    setAccessPerspective(prev => {
+      if (prev.includes(ap)) {
+        // Entferne AccessPerspective, wenn bereits ausgewählt
+        return prev.filter(a => a !== ap)
+      } else {
+        // Füge AccessPerspective hinzu, wenn noch Platz (max. 3)
+        if (prev.length >= 3) return prev
+        return [...prev, ap]
+      }
+    })
+  }
+
   async function handleConfirm() {
     setIsSaving(true)
     try {
       await onSettingsConfirm({
         targetLanguage,
         character,
+        accessPerspective,
         socialContext,
         genderInclusive,
       })
@@ -157,7 +179,7 @@ export function ChatWelcomeAssistant({
         {/* Charakter */}
         <div>
           <div className="mb-1.5 text-xs font-medium text-muted-foreground">
-            Charakter / Perspektive {character.length > 0 && `(${character.length}/3)`}
+            Thematische Interessen {character.length > 0 && `(${character.length}/3)`}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {CHARACTER_VALUES.map((char) => (
@@ -171,6 +193,28 @@ export function ChatWelcomeAssistant({
                 className="h-7 text-xs"
               >
                 {characterLabels[char]}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Zugangsperspektive */}
+        <div>
+          <div className="mb-1.5 text-xs font-medium text-muted-foreground">
+            Zugangsperspektive {accessPerspective.length > 0 && `(${accessPerspective.length}/3)`}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {ACCESS_PERSPECTIVE_VALUES.map((ap) => (
+              <Button
+                key={ap}
+                type="button"
+                size="sm"
+                variant={accessPerspective.includes(ap) ? 'secondary' : 'ghost'}
+                onClick={() => toggleAccessPerspective(ap)}
+                disabled={!accessPerspective.includes(ap) && accessPerspective.length >= 3}
+                className="h-7 text-xs"
+              >
+                {accessPerspectiveLabels[ap]}
               </Button>
             ))}
           </div>

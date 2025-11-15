@@ -8,12 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowRight, Globe, Target, Users, Sparkles, ArrowLeft, X } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { ArrowRight, Globe, Compass, Eye, Users, Sparkles, ArrowLeft, X } from 'lucide-react'
 import { useStoryContext, saveStoryContextToLocalStorage } from '@/hooks/use-story-context'
 import { useUser } from '@clerk/nextjs'
 import { useTranslation } from '@/lib/i18n/hooks'
-import type { Character, SocialContext, TargetLanguage } from '@/lib/chat/constants'
-import { CHARACTER_VALUES } from '@/lib/chat/constants'
+import type { Character, SocialContext, TargetLanguage, AccessPerspective } from '@/lib/chat/constants'
+import { CHARACTER_VALUES, ACCESS_PERSPECTIVE_VALUES } from '@/lib/chat/constants'
 import Link from 'next/link'
 
 /**
@@ -73,24 +74,29 @@ export default function PerspectivePage() {
     setTargetLanguage,
     character,
     setCharacter,
+    accessPerspective,
+    setAccessPerspective,
     socialContext,
     setSocialContext,
     targetLanguageLabels,
     characterLabels,
+    accessPerspectiveLabels,
     socialContextLabels,
   } = useStoryContext()
 
   // Lokaler State für die Formularwerte (werden erst beim Speichern übernommen)
   const [localLanguage, setLocalLanguage] = useState<TargetLanguage>(targetLanguage)
   const [localInterests, setLocalInterests] = useState<Character[]>(character)
+  const [localAccessPerspective, setLocalAccessPerspective] = useState<AccessPerspective[]>(accessPerspective)
   const [localLanguageStyle, setLocalLanguageStyle] = useState<SocialContext>(socialContext)
 
   // Synchronisiere lokale Werte mit globalen Werten beim Laden
   useEffect(() => {
     setLocalLanguage(targetLanguage)
     setLocalInterests(character)
+    setLocalAccessPerspective(accessPerspective)
     setLocalLanguageStyle(socialContext)
-  }, [targetLanguage, character, socialContext])
+  }, [targetLanguage, character, accessPerspective, socialContext])
 
   /**
    * Toggle-Funktion für Interessenprofil-Auswahl (max. 3)
@@ -104,22 +110,34 @@ export default function PerspectivePage() {
   }
 
   /**
+   * Toggle-Funktion für Zugangsperspektive-Auswahl (max. 3)
+   */
+  function toggleAccessPerspective(value: AccessPerspective) {
+    if (localAccessPerspective.includes(value)) {
+      setLocalAccessPerspective(localAccessPerspective.filter((ap) => ap !== value))
+    } else if (localAccessPerspective.length < 3) {
+      setLocalAccessPerspective([...localAccessPerspective, value])
+    }
+  }
+
+  /**
    * Handler für "Mit dieser Perspektive starten" Button
    */
   function handleStart() {
-    // Validiere: Mindestens 1 Interesse muss ausgewählt sein
-    if (localInterests.length === 0) {
+    // Validiere: Mindestens 1 Interesse, 1 Zugangsperspektive und Sprachstil müssen ausgewählt sein
+    if (localInterests.length === 0 || localAccessPerspective.length === 0 || !localLanguageStyle) {
       return
     }
 
     // Übernehme Werte in globalen State
     setTargetLanguage(localLanguage)
     setCharacter(localInterests)
+    setAccessPerspective(localAccessPerspective)
     setSocialContext(localLanguageStyle)
 
     // Speichere im localStorage (nur im anonymen Modus)
     if (isAnonymous) {
-      saveStoryContextToLocalStorage(localLanguage, localInterests, localLanguageStyle, isAnonymous)
+      saveStoryContextToLocalStorage(localLanguage, localInterests, localLanguageStyle, localAccessPerspective, isAnonymous)
     }
 
     // Setze Flag, dass Perspektive einmal gesetzt wurde
@@ -150,7 +168,7 @@ export default function PerspectivePage() {
     }
   }
 
-  const canProceed = localInterests.length > 0 && !!localLanguageStyle
+  const canProceed = localInterests.length > 0 && localAccessPerspective.length > 0 && !!localLanguageStyle
 
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden">
@@ -220,13 +238,10 @@ export default function PerspectivePage() {
               </Button>
             </div>
             <h1 className="text-2xl font-bold tracking-tight">
-              {t('gallery.storyMode.storyModePerspectivePage.title')}
+              {t('chat.perspectivePage.title')}
             </h1>
             <p className="text-base text-muted-foreground">
-              {t('gallery.storyMode.storyModePerspectivePage.subtitle')}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {t('gallery.storyMode.storyModePerspectivePage.description')}
+              {t('chat.perspectivePage.subtitle')}
             </p>
           </div>
 
@@ -239,10 +254,10 @@ export default function PerspectivePage() {
               <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <h3 className="font-medium text-sm">
-                  {t('gallery.storyMode.storyModePerspectivePage.whyThisPage')}
+                  {t('chat.perspectivePage.whyThisPageTitle')}
                 </h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  {t('gallery.storyMode.storyModePerspectivePage.whyThisPageDescription')}
+                  {t('chat.perspectivePage.whyThisPageText')}
                 </p>
               </div>
             </div>
@@ -250,129 +265,200 @@ export default function PerspectivePage() {
         </Card>
 
         {/* Perspective Selection */}
-        <div className="space-y-6">
-          {/* 1. Language */}
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Globe className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">
-                      {t('gallery.storyMode.storyModePerspectivePage.language.label')}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      {t('gallery.storyMode.storyModePerspectivePage.language.helpText')}
-                    </p>
+        <TooltipProvider>
+          <div className="space-y-6">
+            {/* 1. Language */}
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Globe className="h-5 w-5 text-primary" />
                   </div>
-                  <Select value={localLanguage} onValueChange={(v) => setLocalLanguage(v as TargetLanguage)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(targetLanguageLabels).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <h2 className="text-lg font-semibold">
+                        {t('chat.perspectivePage.languageSectionTitle')}
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        {t('chat.perspectivePage.languageSectionHelp')}
+                      </p>
+                    </div>
+                    <Select value={localLanguage} onValueChange={(v) => setLocalLanguage(v as TargetLanguage)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(targetLanguageLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* 2. Interests */}
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Target className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">
-                      {t('gallery.storyMode.storyModePerspectivePage.interests.label')}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      {t('gallery.storyMode.storyModePerspectivePage.interests.helpText')}
-                    </p>
+            {/* 2. Thematische Interessen */}
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Compass className="h-5 w-5 text-primary" />
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {CHARACTER_VALUES.map((value) => {
-                      const isSelected = localInterests.includes(value)
-                      const isDisabled = !isSelected && localInterests.length >= 3
-                      return (
-                        <Badge
-                          key={value}
-                          variant={isSelected ? 'default' : 'outline'}
-                          className={`cursor-pointer transition-all text-sm py-2 px-4 ${
-                            isSelected ? 'bg-primary text-primary-foreground' : ''
-                          } ${
-                            isDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary/10'
-                          }`}
-                          onClick={() => !isDisabled && toggleInterest(value)}
-                        >
-                          {characterLabels[value]}
-                        </Badge>
-                      )
-                    })}
-                  </div>
-                  {localInterests.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {t('gallery.storyMode.storyModePerspectivePage.interests.selectedCount', {
-                        count: localInterests.length,
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <h2 className="text-lg font-semibold">
+                        {t('chat.perspectivePage.characterSectionTitle')}
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        {t('chat.perspectivePage.characterSectionHelp')}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {CHARACTER_VALUES.map((value) => {
+                        const isSelected = localInterests.includes(value)
+                        const isDisabled = !isSelected && localInterests.length >= 3
+                        const tooltipText = t(`chat.characterTooltips.${value}`)
+                        return (
+                          <Tooltip key={value}>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant={isSelected ? 'default' : 'outline'}
+                                className={`cursor-pointer transition-all text-sm py-2 px-4 ${
+                                  isSelected ? 'bg-primary text-primary-foreground' : ''
+                                } ${
+                                  isDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary/10'
+                                }`}
+                                onClick={() => !isDisabled && toggleInterest(value)}
+                              >
+                                {characterLabels[value]}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs">{tooltipText}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )
                       })}
-                    </p>
-                  )}
+                    </div>
+                    {localInterests.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {t('chat.perspectivePage.characterSectionSelectedCount', {
+                          count: localInterests.length,
+                        })}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* 3. Language Style */}
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Users className="h-5 w-5 text-primary" />
+            {/* 3. Zugangsperspektive */}
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Eye className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <h2 className="text-lg font-semibold">
+                        {t('chat.perspectivePage.accessPerspectiveSectionTitle')}
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        {t('chat.perspectivePage.accessPerspectiveSectionHelp')}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {ACCESS_PERSPECTIVE_VALUES.map((value) => {
+                        const isSelected = localAccessPerspective.includes(value)
+                        const isDisabled = !isSelected && localAccessPerspective.length >= 3
+                        const tooltipText = t(`chat.accessPerspectiveTooltips.${value}`)
+                        return (
+                          <Tooltip key={value}>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant={isSelected ? 'default' : 'outline'}
+                                className={`cursor-pointer transition-all text-sm py-2 px-4 ${
+                                  isSelected ? 'bg-primary text-primary-foreground' : ''
+                                } ${
+                                  isDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary/10'
+                                }`}
+                                onClick={() => !isDisabled && toggleAccessPerspective(value)}
+                              >
+                                {accessPerspectiveLabels[value]}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs">{tooltipText}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )
+                      })}
+                    </div>
+                    {localAccessPerspective.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {t('chat.perspectivePage.accessPerspectiveSectionSelectedCount', {
+                          count: localAccessPerspective.length,
+                        })}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">
-                      {t('gallery.storyMode.storyModePerspectivePage.languageStyle.label')}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      {t('gallery.storyMode.storyModePerspectivePage.languageStyle.helpText')}
+              </CardContent>
+            </Card>
+
+            {/* 4. Sprachstil */}
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <h2 className="text-lg font-semibold">
+                        {t('chat.perspectivePage.socialContextSectionTitle')}
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        {t('chat.perspectivePage.socialContextSectionHelp')}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(socialContextLabels).map(([value, label]) => {
+                        const isSelected = localLanguageStyle === value
+                        const tooltipText = t(`chat.socialContextTooltips.${value}`)
+                        return (
+                          <Tooltip key={value}>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant={isSelected ? 'default' : 'outline'}
+                                className={`cursor-pointer transition-all text-sm py-2 px-4 ${
+                                  isSelected ? 'bg-primary text-primary-foreground hover:bg-primary' : 'hover:bg-primary/10'
+                                }`}
+                                onClick={() => setLocalLanguageStyle(value as SocialContext)}
+                              >
+                                {label}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs">{tooltipText}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t('chat.perspectivePage.socialContextSectionNote')}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(socialContextLabels).map(([value, label]) => {
-                      const isSelected = localLanguageStyle === value
-                      return (
-                        <Badge
-                          key={value}
-                          variant={isSelected ? 'default' : 'outline'}
-                          className={`cursor-pointer transition-all text-sm py-2 px-4 ${
-                            isSelected ? 'bg-primary text-primary-foreground hover:bg-primary' : 'hover:bg-primary/10'
-                          }`}
-                          onClick={() => setLocalLanguageStyle(value as SocialContext)}
-                        >
-                          {label}
-                        </Badge>
-                      )
-                    })}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {t('gallery.storyMode.storyModePerspectivePage.languageStyle.note')}
-                  </p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TooltipProvider>
 
         {/* CTA */}
         <div className="space-y-3 pt-6">
@@ -382,11 +468,11 @@ export default function PerspectivePage() {
             onClick={handleStart}
             disabled={!canProceed}
           >
-            {t('gallery.storyMode.storyModePerspectivePage.button.start')}
+            {t('chat.perspectivePage.saveButton')}
             <ArrowRight className="h-5 w-5" />
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            {t('gallery.storyMode.storyModePerspectivePage.button.footer')}
+            {t('chat.perspectivePage.saveButtonFooter')}
           </p>
         </div>
       </div>

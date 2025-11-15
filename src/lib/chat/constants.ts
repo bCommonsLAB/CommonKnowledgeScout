@@ -125,7 +125,6 @@ export type Character =
   | 'educational'
   | 'practical'
   | 'research'
-  | 'policy'
   | 'creative'
 
 export const CHARACTER_VALUES: readonly Character[] = [
@@ -136,7 +135,6 @@ export const CHARACTER_VALUES: readonly Character[] = [
   'educational',
   'practical',
   'research',
-  'policy',
   'creative',
 ] as const
 
@@ -150,7 +148,6 @@ export const CHARACTER_LABELS: Record<Character, string> = {
   educational: 'Bildung & Lernen',
   practical: 'Alltag & Praxis',
   research: 'Forschung & Analyse',
-  policy: 'Politik & Gesellschaftswandel',
   creative: 'Kreativ & Visionär',
 }
 
@@ -169,7 +166,6 @@ export const CHARACTER_INSTRUCTIONS: Record<Character, string> = {
   educational: 'You respond from an educational and learning perspective. Focus on clear, structured content with a learning focus. Emphasize fundamentals, illustrative examples, and explanatory models.',
   practical: 'You respond from a practical and everyday perspective. Focus on what this means for daily life. Emphasize practical relevance, concrete examples, and action-oriented approaches.',
   research: 'You respond from a research and analysis perspective. Focus on methodology, evidence, source criticism, and argumentation lines. Emphasize scientific rigor and analytical depth.',
-  policy: 'You respond from a political and societal change perspective (neutrally formulated). Focus on overall societal framework conditions. Emphasize political processes, governance, and regulation – without taking positions.',
   creative: 'You respond from a creative and visionary perspective. Focus on future scenarios, visions, idea sketches, and new possibilities. Emphasize horizons, opportunities, and creative applications.',
 }
 
@@ -200,7 +196,6 @@ export const CHARACTER_ZOD_ENUM = z.enum([
   'educational',
   'practical',
   'research',
-  'policy',
   'creative',
 ])
 
@@ -227,7 +222,6 @@ export const characterColors: Record<Character, string> = {
   // Zukunftsorientierter Zugang (warm)
   ecology: 'bg-emerald-50 border-emerald-200',
   creative: 'bg-rose-50 border-rose-200',
-  policy: 'bg-amber-50 border-amber-200',
 }
 
 /**
@@ -246,7 +240,6 @@ export const characterIconColors: Record<Character, string> = {
   // Zukunftsorientierter Zugang (warm)
   ecology: 'bg-emerald-100 text-emerald-600',
   creative: 'bg-rose-100 text-rose-600',
-  policy: 'bg-amber-100 text-amber-600',
 }
 
 // ============================================================================
@@ -284,6 +277,92 @@ export const SOCIAL_CONTEXT_INSTRUCTIONS: Record<SocialContext, string> = {
 }
 
 export const SOCIAL_CONTEXT_ZOD_ENUM = z.enum(['scientific', 'general', 'youth', 'senior', 'professional', 'children', 'easy_language'])
+
+// ============================================================================
+// ZUGANGSPERSPEKTIVE (AccessPerspective)
+// ============================================================================
+
+/**
+ * AccessPerspective-Typ für Zugangsperspektiven.
+ * Definiert verschiedene Arten des Zugangs zu Inhalten (WIE schaust du auf Inhalte?).
+ * Unterstützt mehrere Werte (max. 3) für kombinierte Perspektiven.
+ */
+export type AccessPerspective =
+  | 'insight'
+  | 'community'
+  | 'sustainability'
+  | 'learning'
+  | 'practical_view'
+  | 'future_view'
+
+export const ACCESS_PERSPECTIVE_VALUES: readonly AccessPerspective[] = [
+  'insight',
+  'community',
+  'sustainability',
+  'learning',
+  'practical_view',
+  'future_view',
+] as const
+
+export const ACCESS_PERSPECTIVE_DEFAULT: AccessPerspective[] = ['insight']
+
+export const ACCESS_PERSPECTIVE_LABELS: Record<AccessPerspective, string> = {
+  insight: 'Erkenntnisorientiert',
+  community: 'Gemeinschaftsorientiert',
+  sustainability: 'Nachhaltigkeitsorientiert',
+  learning: 'Lernorientiert',
+  practical_view: 'Praxisorientiert',
+  future_view: 'Zukunftsorientiert',
+}
+
+/**
+ * AccessPerspective instructions for LLM prompts
+ * These are used in lib/chat/common/prompt.ts
+ * 
+ * Unterstützt kombinierte Perspektiven: Wenn mehrere AccessPerspective-Werte gewählt werden,
+ * werden die Instructions mit "AND" kombiniert.
+ */
+export const ACCESS_PERSPECTIVE_INSTRUCTIONS: Record<AccessPerspective, string> = {
+  insight: 'Emphasize understanding, connections, reflection, and deeper insights. Focus on comprehension, relationships between concepts, and thoughtful analysis.',
+  community: 'Emphasize collaboration, participation, social impact, and togetherness. Focus on collective action, shared values, and community benefits.',
+  sustainability: 'Emphasize ecological, social, and long-term responsibility. Focus on sustainable practices, environmental considerations, and future generations.',
+  learning: 'Emphasize clear, illustrative communication and learning-oriented approach. Focus on educational value, step-by-step explanations, and knowledge transfer.',
+  practical_view: 'Emphasize implementability, practical relevance, and concrete application. Focus on actionable steps, real-world examples, and usability.',
+  future_view: 'Emphasize potential, innovation, possibilities, and future visions. Focus on forward-looking perspectives, opportunities, and transformative ideas.',
+}
+
+/**
+ * Kombiniert mehrere AccessPerspective-Instructions zu einer kombinierten Anweisung
+ * @param accessPerspectives Array von AccessPerspective-Werten (max. 3)
+ * @returns Kombinierte Instruction-String
+ */
+export function combineAccessPerspectiveInstructions(accessPerspectives: AccessPerspective[]): string {
+  if (accessPerspectives.length === 0) {
+    return ACCESS_PERSPECTIVE_INSTRUCTIONS[ACCESS_PERSPECTIVE_DEFAULT[0]]
+  }
+  
+  if (accessPerspectives.length === 1) {
+    return ACCESS_PERSPECTIVE_INSTRUCTIONS[accessPerspectives[0]]
+  }
+  
+  // Kombiniere mehrere Instructions mit "AND"
+  const instructions = accessPerspectives.map(ap => ACCESS_PERSPECTIVE_INSTRUCTIONS[ap])
+  return `You approach the content from a combined perspective that integrates: ${instructions.join(' AND ')}`
+}
+
+export const ACCESS_PERSPECTIVE_ZOD_ENUM = z.enum([
+  'insight',
+  'community',
+  'sustainability',
+  'learning',
+  'practical_view',
+  'future_view',
+])
+
+/**
+ * Zod-Schema für AccessPerspective-Array (max. 3 Werte)
+ */
+export const ACCESS_PERSPECTIVE_ARRAY_ZOD_SCHEMA = z.array(ACCESS_PERSPECTIVE_ZOD_ENUM).max(3).min(1)
 
 // ============================================================================
 // GENDERGEREchte FORMULIERUNG (GenderInclusive)
@@ -418,6 +497,102 @@ export function isValidTargetLanguage(value: unknown): value is TargetLanguage {
  */
 export function isValidSocialContext(value: unknown): value is SocialContext {
   return typeof value === 'string' && SOCIAL_CONTEXT_VALUES.includes(value as SocialContext)
+}
+
+/**
+ * Validiert, ob ein Wert ein gültiger AccessPerspective ist
+ */
+export function isValidAccessPerspective(value: unknown): value is AccessPerspective {
+  return typeof value === 'string' && ACCESS_PERSPECTIVE_VALUES.includes(value as AccessPerspective)
+}
+
+/**
+ * Validiert, ob ein Wert ein gültiges AccessPerspective-Array ist (max. 3 Werte)
+ */
+export function isValidAccessPerspectiveArray(value: unknown): value is AccessPerspective[] {
+  if (!Array.isArray(value)) return false
+  if (value.length === 0 || value.length > 3) return false
+  return value.every(ap => isValidAccessPerspective(ap))
+}
+
+/**
+ * Konvertiert einen alten Single-AccessPerspective-Wert zu einem Array (für Backward-Compatibility)
+ */
+export function normalizeAccessPerspectiveToArray(value: unknown): AccessPerspective[] {
+  if (Array.isArray(value)) {
+    // Bereits ein Array: Validiere und begrenze auf max. 3
+    const valid = value.filter(ap => isValidAccessPerspective(ap)).slice(0, 3)
+    return valid.length > 0 ? valid : ACCESS_PERSPECTIVE_DEFAULT
+  }
+  
+  if (isValidAccessPerspective(value)) {
+    // Single-Value: Konvertiere zu Array
+    return [value]
+  }
+  
+  // Fallback zu Default
+  return ACCESS_PERSPECTIVE_DEFAULT
+}
+
+/**
+ * Parst einen AccessPerspective-Parameter aus einer URL (komma-separierter String).
+ * Konvertiert den String zu einem AccessPerspective[] Array.
+ * 
+ * @param accessPerspectiveParam - URL-Parameter als String (z.B. "insight,community" oder null/undefined)
+ * @returns AccessPerspective[] Array (max. 3 Werte) oder undefined, wenn kein gültiger Wert gefunden wurde
+ * 
+ * @example
+ * parseAccessPerspectiveFromUrlParam("insight,community") // => ['insight', 'community']
+ * parseAccessPerspectiveFromUrlParam("invalid") // => undefined
+ * parseAccessPerspectiveFromUrlParam(null) // => undefined
+ */
+export function parseAccessPerspectiveFromUrlParam(accessPerspectiveParam: string | null | undefined): AccessPerspective[] | undefined {
+  if (!accessPerspectiveParam) {
+    return undefined
+  }
+  
+  // Parse komma-separierte Werte
+  const parts = accessPerspectiveParam.split(',').map(s => s.trim()).filter(s => s.length > 0)
+  
+  // Validiere und filtere gültige AccessPerspective-Werte
+  const validAPs = parts.filter(ap => isValidAccessPerspective(ap)) as AccessPerspective[]
+  
+  // Gib undefined zurück, wenn keine gültigen Werte gefunden wurden
+  if (validAPs.length === 0) {
+    return undefined
+  }
+  
+  // Begrenze auf max. 3 Werte
+  return validAPs.slice(0, 3)
+}
+
+/**
+ * Konvertiert AccessPerspective-Array (oder Single-Value/String) zu einem komma-separierten String.
+ * 
+ * Diese Funktion ist die Umkehrung von `normalizeAccessPerspectiveToArray` und wird verwendet,
+ * um AccessPerspective-Werte für URL-Parameter, Query-Logs oder API-Requests zu serialisieren.
+ * 
+ * @param accessPerspective - AccessPerspective[] Array, einzelner AccessPerspective-Wert, String oder undefined
+ * @returns Komma-separierter String (z.B. "insight,community") oder undefined
+ * 
+ * @example
+ * accessPerspectiveArrayToString(['insight', 'community']) // => "insight,community"
+ * accessPerspectiveArrayToString('insight') // => "insight"
+ * accessPerspectiveArrayToString(undefined) // => undefined
+ * accessPerspectiveArrayToString([]) // => undefined
+ */
+export function accessPerspectiveArrayToString(accessPerspective: AccessPerspective[] | AccessPerspective | string | undefined): string | undefined {
+  if (!accessPerspective) {
+    return undefined
+  }
+  
+  if (Array.isArray(accessPerspective)) {
+    // Array: Verbinde mit Komma, wenn nicht leer
+    return accessPerspective.length > 0 ? accessPerspective.join(',') : undefined
+  }
+  
+  // String oder Single-Value: Gib direkt zurück
+  return accessPerspective
 }
 
 /**
