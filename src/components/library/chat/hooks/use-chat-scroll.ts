@@ -44,10 +44,22 @@ export function useChatScroll({
     const lastConversation = conversations[conversations.length - 1]
     if (lastConversation && openConversations.has(lastConversation.conversationId)) {
       setTimeout(() => {
-        const element = document.querySelector(`[data-conversation-id="${lastConversation.conversationId}"]`)
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        // Prüfe mehrfach, ob Element existiert (für ältere Geräte mit langsamerem Rendering)
+        const tryScroll = (attempts = 0) => {
+          const element = document.querySelector(`[data-conversation-id="${lastConversation.conversationId}"]`)
+          if (element && element.parentElement && element.parentElement.contains(element)) {
+            try {
+              element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+            } catch (error) {
+              // Ignoriere Scroll-Fehler auf älteren Geräten
+              console.debug('[useChatScroll] Scroll-Fehler ignoriert:', error)
+            }
+          } else if (attempts < 3) {
+            // Versuche es nochmal nach kurzer Verzögerung
+            setTimeout(() => tryScroll(attempts + 1), 200)
+          }
         }
+        tryScroll()
       }, 500)
     }
   }, [messages, openConversations, prevMessagesLengthRef])
@@ -112,33 +124,41 @@ export function useChatScroll({
       
       // Scroll zum Anfang der Antwort nach kurzer Verzögerung, damit die Antwort gerendert ist
       setTimeout(() => {
-        const scrollToAnswerStart = () => {
+        const scrollToAnswerStart = (attempts = 0) => {
           // Finde das Conversation-Element
           const conversationElement = document.querySelector(`[data-conversation-id="${lastConversation.conversationId}"]`)
-          if (conversationElement) {
-            // Finde das AccordionContent innerhalb des Conversation-Elements
-            // AccordionContent hat das role="region" Attribut von Radix UI
-            const accordionContent = conversationElement.querySelector('[role="region"]')
-            if (accordionContent) {
-              // Scroll zum Anfang des AccordionContent (wo die Antwort beginnt)
-              accordionContent.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start',
-                inline: 'nearest'
-              })
-            } else {
-              // Fallback: Scroll zum Conversation-Element selbst
-              conversationElement.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start',
-                inline: 'nearest'
-              })
+          if (conversationElement && conversationElement.parentElement && conversationElement.parentElement.contains(conversationElement)) {
+            try {
+              // Finde das AccordionContent innerhalb des Conversation-Elements
+              // AccordionContent hat das role="region" Attribut von Radix UI
+              const accordionContent = conversationElement.querySelector('[role="region"]')
+              if (accordionContent && accordionContent.parentElement && accordionContent.parentElement.contains(accordionContent)) {
+                // Scroll zum Anfang des AccordionContent (wo die Antwort beginnt)
+                accordionContent.scrollIntoView({ 
+                  behavior: 'smooth', 
+                  block: 'start',
+                  inline: 'nearest'
+                })
+              } else {
+                // Fallback: Scroll zum Conversation-Element selbst
+                conversationElement.scrollIntoView({ 
+                  behavior: 'smooth', 
+                  block: 'start',
+                  inline: 'nearest'
+                })
+              }
+            } catch (error) {
+              // Ignoriere Scroll-Fehler auf älteren Geräten
+              console.debug('[useChatScroll] Scroll-Fehler ignoriert:', error)
             }
+          } else if (attempts < 3) {
+            // Versuche es nochmal nach kurzer Verzögerung
+            setTimeout(() => scrollToAnswerStart(attempts + 1), 200)
           }
         }
         scrollToAnswerStart()
         // Nochmal nach kurzer Verzögerung für vollständiges Rendering
-        setTimeout(scrollToAnswerStart, 500)
+        setTimeout(() => scrollToAnswerStart(1), 500)
       }, 200)
     }
   }, [messages, openConversations, setOpenConversations])

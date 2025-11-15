@@ -85,13 +85,10 @@ export function ChatInput({
   const handleSend = () => {
     if (input.trim() && !isSending) {
       onSend(asTOC)
-      // Panel mit kurzer Verzögerung schließen nach dem Absenden (nur im embedded Modus)
-      // Verzögerung gibt React Zeit, die Message zu rendern, bevor das Panel geschlossen wird
-      // Dies verhindert DOM-Konflikte auf älteren Geräten
+      // Panel sofort schließen nach dem Absenden (nur im embedded Modus)
+      // Keine Transition, um DOM-Konflikte auf älteren Geräten zu vermeiden
       if (variant === 'embedded') {
-        setTimeout(() => {
-          setIsOpen(false)
-        }, 100)
+        setIsOpen(false)
       }
     }
   }
@@ -100,25 +97,19 @@ export function ChatInput({
     return (
       <>
         {/* Kollabierbares Input-Panel - volle Breite bis zum Button */}
+        {/* Keine Transition für bessere Kompatibilität mit älteren Geräten */}
+        {isOpen && (
         <div
           className={cn(
-            "absolute left-4 z-50 transition-all duration-300 ease-in-out",
+            "absolute left-4 z-50",
             "right-14 sm:right-14",
             "max-w-[calc(100%-4rem)] sm:max-w-none",
-            isOpen 
-              ? "opacity-100 scale-100 bottom-4" 
-              : "w-0 opacity-0 scale-95 overflow-hidden bottom-4 pointer-events-none"
+            "opacity-100 scale-100 bottom-4"
           )}
-          style={isOpen ? { 
+          style={{ 
             maxHeight: 'calc(100% - 2rem)', // Begrenze auf Container-Höhe minus Padding
             bottom: '1rem', // Abstand zum unteren Rand
-            top: 'auto', // Stelle sicher, dass top nicht gesetzt ist
-            willChange: 'auto',
-            contain: 'auto'
-          } : {
-            willChange: 'width, opacity, transform',
-            // Verhindere Layout-Shifts während Transition (robuster für ältere Geräte)
-            contain: 'layout style paint'
+            top: 'auto' // Stelle sicher, dass top nicht gesetzt ist
           }}
         >
           <Card className="border-2 shadow-lg bg-background flex flex-col max-h-full">
@@ -200,6 +191,7 @@ export function ChatInput({
             </CardContent>
           </Card>
         </div>
+        )}
       </>
     )
   }
