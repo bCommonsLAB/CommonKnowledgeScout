@@ -75,24 +75,30 @@ export function ChatConfigDisplay({
              (effectiveAccessPerspective && effectiveAccessPerspective.length > 0) || effectiveSocialContext)
   }, [effectiveTargetLanguage, effectiveCharacter, effectiveAccessPerspective, effectiveSocialContext])
 
-  // Lade alle Parameter aus QueryLog, falls queryId vorhanden ist UND keine Props übergeben wurden
+  // Lade alle Parameter aus QueryLog, falls queryId vorhanden ist
+  // WICHTIG: Wenn queryId vorhanden ist, werden IMMER die historischen Parameter aus QueryLog verwendet,
+  // nicht die aktuellen Props (z.B. galleryFilters). Props werden nur verwendet, wenn keine queryId vorhanden ist.
   useEffect(() => {
-    // Wenn Parameter direkt als Props übergeben wurden (z.B. aus cachedTOC), verwende diese
-    // und lade NICHT aus QueryLog
-    if (answerLength || retriever || targetLanguage || character || accessPerspective || socialContext || filtersProp) {
-      // Props vorhanden: Verwende diese direkt, keine Query-Ladung nötig
-      setQueryAnswerLength(answerLength)
-      setQueryRetriever(retriever)
-      setQueryTargetLanguage(targetLanguage)
-      setQueryCharacter(character) // Array (kann leer sein)
-      setQueryAccessPerspective(accessPerspective) // Array (kann leer sein)
-      setQuerySocialContext(socialContext)
-      setFilters(filtersProp || null)
-      return
-    }
+    // Wenn queryId vorhanden ist, lade IMMER aus QueryLog (ignoriere Props für historische Antworten)
+    if (queryId && libraryId) {
+      // queryId vorhanden: Lade aus QueryLog (wird weiter unten behandelt)
+      // Setze Props nicht direkt, da sie aus QueryLog geladen werden
+      // Weiter mit QueryLog-Ladung unten
+    } else {
+      // Wenn keine queryId vorhanden ist, verwende Props (z.B. während der Verarbeitung)
+      if (answerLength || retriever || targetLanguage || character || accessPerspective || socialContext || filtersProp) {
+        // Props vorhanden: Verwende diese direkt, keine Query-Ladung nötig
+        setQueryAnswerLength(answerLength)
+        setQueryRetriever(retriever)
+        setQueryTargetLanguage(targetLanguage)
+        setQueryCharacter(character) // Array (kann leer sein)
+        setQueryAccessPerspective(accessPerspective) // Array (kann leer sein)
+        setQuerySocialContext(socialContext)
+        setFilters(filtersProp || null)
+        return
+      }
 
-    // Wenn keine queryId vorhanden, setze alles auf null/undefined
-    if (!queryId || !libraryId) {
+      // Wenn keine queryId vorhanden und keine Props, setze alles auf null/undefined
       setFilters(null)
       setQueryAnswerLength(undefined)
       setQueryRetriever(undefined)
@@ -259,7 +265,7 @@ export function ChatConfigDisplay({
       {/* Falls nur AnswerLength/Retriever vorhanden, aber keine Perspektive */}
       {!hasPerspectiveParams && hasAnswerLengthOrRetriever && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1 flex-wrap">
+      <span className="flex items-center gap-1 flex-wrap">
             {effectiveAnswerLength && (
               <span>
                 {t('configDisplay.answerLength')} {t(`chat.answerLengthLabels.${effectiveAnswerLength}`)}
@@ -308,7 +314,7 @@ export function ChatConfigDisplay({
                 </span>
               )
             })}
-          </span>
+      </span>
         </div>
       )}
     </div>

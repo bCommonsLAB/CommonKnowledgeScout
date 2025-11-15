@@ -223,7 +223,7 @@ export function ChatConversationItem({
                   content={pair.answer.content}
                   references={pair.answer.references}
                   suggestedQuestions={pair.answer.suggestedQuestions}
-                  queryId={pair.answer.queryId}
+                  queryId={pair.answer.queryId || pair.question.queryId}
                   createdAt={pair.answer.createdAt}
                   libraryId={libraryId}
                   answerLength={pair.answer.answerLength}

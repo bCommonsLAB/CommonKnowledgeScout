@@ -108,8 +108,12 @@
     "story": "Modo Historia",
     "switchToStoryMode": "Ver en modo Historia",
     "storyModeTooltip": "En el modo Historia, puedes hacerte explicar los contenidos en tu idioma, tu perfil de intereses y tu contexto.",
+    "passage": "Pasaje de texto",
+    "passages": "Pasajes de texto",
     "backToGallery": "Volver a los contenidos",
     "backToStoryMode": "Volver al modo Historia",
+    "year": "Año {year}",
+    "noYear": "Sin año",
     "storyMode": {
       "headline": "Modo Historia – Hazte explicar los contenidos desde tu perspectiva",
       "subtitle": "Experimentar juntos el conocimiento compartido",
@@ -162,6 +166,11 @@
     "filtered": "filtrado",
     "references": "Referencias",
     "referencesDescription": "La respuesta se generó a partir de estos documentos.",
+    "sources": "Fuentes",
+    "scrollToQuestion": "a la pregunta",
+    "closeReferences": "Cerrar",
+    "usedDocuments": "Documentos citados en la respuesta",
+    "otherDocuments": "Otros documentos que también tratan esta pregunta",
     "documentDetails": "Detalles del documento",
     "talkSummary": "Resumen de la Charla",
     "documentView": "Vista del documento",
@@ -202,6 +211,7 @@
     "noImage": "Sin imagen"
   },
   "chat": {
+    "source": "Fuente",
     "characterLabels": {
       "technical": "Orientado a la tecnología",
       "social-cultural": "Sociedad & Cultura",

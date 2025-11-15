@@ -16,6 +16,7 @@ import { useUser } from '@clerk/nextjs'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
 import { ChatFiltersDisplay } from './chat-filters-display'
 import { AppLogo } from '@/components/shared/app-logo'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface ChatMessageProps {
   type: 'question' | 'answer'
@@ -71,6 +72,7 @@ export function ChatMessage({
   socialContext,
   filters,
 }: ChatMessageProps) {
+  const { t } = useTranslation()
   const { isSignedIn } = useUser()
   const [showDetails, setShowDetails] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
@@ -104,8 +106,10 @@ export function ChatMessage({
             title="Klicken Sie hier, um diese Frage erneut zu stellen"
           >
             <div className="text-sm whitespace-pre-wrap break-words">{content}</div>
+            <div>DD</div>
             {/* Config-Anzeige unter der Frage - nur bei neuen Fragen (ohne queryId) */}
             {!queryId && (
+              
               <ChatConfigDisplay
                 answerLength={answerLength}
                 retriever={retriever}
@@ -114,6 +118,7 @@ export function ChatMessage({
                 socialContext={socialContext}
                 libraryId={libraryId}
                 queryId={queryId}
+                filters={filters}
               />
             )}
           </div>
@@ -158,9 +163,9 @@ export function ChatMessage({
             />
             
             {/* Action-Buttons: Config, Quellenverzeichnis, Logs, Debug */}
-            {(references && Array.isArray(references) && references.length > 0) || queryId || (answerLength || retriever || targetLanguage || character || socialContext) ? (
+            {(references && Array.isArray(references) && references.length > 0) || queryId ? (
               <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
-                {/* Config-Anzeige bei historischen Antworten (mit queryId) - zeigt auch Filterparameter */}
+                {/* Config-Anzeige nur bei historischen Antworten (mit queryId) - zeigt auch Filterparameter */}
                 {queryId && (
                   <div className="flex-1 min-w-0">
                     <ChatConfigDisplay
@@ -191,7 +196,7 @@ export function ChatMessage({
                       className="h-9 px-4 gap-2 font-medium"
                     >
                       <BookOpen className="h-4 w-4" />
-                      Quelle ({references.length})
+                      {t('gallery.references')}                    
                     </Button>
                   )}
                   

@@ -75,9 +75,16 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
   const hasActiveFilters = activeFilters.length > 0
 
   return (
-    <div className="border-b bg-muted/30 px-4 py-2 flex items-center gap-2 flex-wrap">
-      {/* Filter-Icon - nur anzeigen wenn hideFilterButton nicht gesetzt */}
-      {!hideFilterButton && (
+    <div className="border-b py-2 flex flex-col gap-2">
+      {/* Titel "Quellen" */}
+      <div className="flex items-center justify-between mb-2 pb-2 px-0">
+        <h2 className="text-lg font-semibold">{t('gallery.sources')}</h2>
+      </div>
+      
+      {/* Filter-Bar mit Icons, Badges und Buttons */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Filter-Icon - nur anzeigen wenn hideFilterButton nicht gesetzt */}
+        {!hideFilterButton && (
         <Button
           variant="ghost"
           size="sm"
@@ -149,6 +156,7 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
           </TooltipProvider>
         </div>
       )}
+      </div>
     </div>
   )
 }

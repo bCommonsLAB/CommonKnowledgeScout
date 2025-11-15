@@ -367,10 +367,10 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
                 // Robuste Implementierung für ältere Geräte
                 setTimeout(() => {
                   const tryScroll = (attempts = 0) => {
-                    const element = document.querySelector(`[data-conversation-id="${newConversationId}"]`)
+                  const element = document.querySelector(`[data-conversation-id="${newConversationId}"]`)
                     if (element && element.parentElement && element.parentElement.contains(element)) {
                       try {
-                        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                    element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
                       } catch (error) {
                         // Ignoriere Scroll-Fehler auf älteren Geräten
                         console.debug('[useChatStream] Scroll-Fehler ignoriert:', error)

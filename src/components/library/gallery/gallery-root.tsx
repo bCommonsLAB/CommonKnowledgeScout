@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { useAtom, useAtomValue, useSetAtom } from 'jotai'
+import { useAtom, useAtomValue } from 'jotai'
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
@@ -12,7 +12,10 @@ import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky-header'
 import { FiltersPanel } from '@/components/library/gallery/filters-panel'
 import { ItemsGrid } from '@/components/library/gallery/items-grid'
-import { ReferencesLegend } from '@/components/library/gallery/references-legend'
+import { GroupedItemsGrid } from '@/components/library/gallery/grouped-items-grid'
+import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
+import { useSessionHeaders } from '@/hooks/use-session-headers'
+import type { QueryLog } from '@/types/query-log'
 import { MobileFiltersSheet } from '@/components/library/gallery/mobile-filters-sheet'
 import { DetailOverlay } from '@/components/library/gallery/detail-overlay'
 import { useGalleryMode } from '@/hooks/gallery/use-gallery-mode'
@@ -48,7 +51,8 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const setChatReferences = useSetAtom(chatReferencesAtom)
+  const sessionHeaders = useSessionHeaders()
+  const [sources, setSources] = React.useState<QueryLog['sources']>([])
   
   // Story Context für Perspektivenprüfung
   const { character } = useStoryContext()
@@ -133,6 +137,55 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   }, [selected, detailViewType, initialDetailViewType, activeLibrary])
   const { docs, loading, error, filteredDocs, docsByYear } = useGalleryData(filters, mode, searchQuery, libraryId)
   const { facetDefs } = useGalleryFacets(libraryId, filters)
+
+  // Lade sources aus QueryLog, falls queryId vorhanden ist
+  React.useEffect(() => {
+    const queryId = chatReferences?.queryId
+    if (!queryId || !libraryId) {
+      setSources([])
+      return
+    }
+
+    let cancelled = false
+
+    async function loadSources() {
+      try {
+        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId as string)}`, {
+          cache: 'no-store',
+          headers: Object.keys(sessionHeaders).length > 0 ? (sessionHeaders as Record<string, string>) : undefined,
+        })
+        
+        if (!res.ok || cancelled) {
+          return
+        }
+        
+        const queryLog = await res.json() as QueryLog
+        
+        if (cancelled) {
+          return
+        }
+        
+        setSources(queryLog.sources || [])
+      } catch (error) {
+        console.error('[GalleryRoot] Fehler beim Laden der Sources:', error)
+        setSources([])
+      }
+    }
+
+    loadSources()
+
+    return () => {
+      cancelled = true
+    }
+  }, [chatReferences?.queryId, libraryId, sessionHeaders])
+
+  // Gruppiere Dokumente nach Referenzen, wenn chatReferences gesetzt ist
+  const { usedDocs, unusedDocs } = React.useMemo(() => {
+    if (!chatReferences || !chatReferences.references || chatReferences.references.length === 0) {
+      return { usedDocs: [], unusedDocs: [] }
+    }
+    return groupDocsByReferences(filteredDocs, chatReferences.references, sources)
+  }, [filteredDocs, chatReferences, sources])
   
   // Ref, um zu verhindern, dass die Slug-Suche mehrfach ausgeführt wird
   const slugSearchRef = React.useRef<{ slug: string; libraryId: string; docsCount: number } | null>(null)
@@ -254,20 +307,37 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     setFilters({} as Record<string, string[]>)
   }
 
-  const handleCloseReferenceLegend = () => {
-    setShowReferenceLegend(false)
-    setChatReferences({ references: [] })
-    setFilters(f => {
-      const current = f as Record<string, string[] | undefined>
-      const next: Record<string, string[]> = {}
-      Object.entries(current).forEach(([key, value]) => {
-        if (key !== 'fileId' && Array.isArray(value) && value.length > 0) {
-          next[key] = value
-        }
+  // Event-Handler für "set-gallery-filter" (wird von GroupedItemsGrid verwendet)
+  React.useEffect(() => {
+    const handleSetGalleryFilter = (event: Event) => {
+      const customEvent = event as CustomEvent<{ fileIds: string[] }>
+      const { fileIds } = customEvent.detail || {}
+      if (fileIds && fileIds.length > 0) {
+        setFilters({ fileId: fileIds })
+      }
+    }
+    window.addEventListener('set-gallery-filter', handleSetGalleryFilter)
+    return () => window.removeEventListener('set-gallery-filter', handleSetGalleryFilter)
+  }, [setFilters])
+
+  // Event-Handler für "clear-gallery-filter" (wird von GroupedItemsGrid verwendet)
+  React.useEffect(() => {
+    const handleClearGalleryFilter = () => {
+      // Entferne fileId-Filter, behalte andere Filter
+      setFilters(f => {
+        const current = f as Record<string, string[] | undefined>
+        const next: Record<string, string[]> = {}
+        Object.entries(current).forEach(([key, value]) => {
+          if (key !== 'fileId' && Array.isArray(value) && value.length > 0) {
+            next[key] = value
+          }
+        })
+        return next as typeof f
       })
-      return next as typeof f
-    })
-  }
+    }
+    window.addEventListener('clear-gallery-filter', handleClearGalleryFilter)
+    return () => window.removeEventListener('clear-gallery-filter', handleClearGalleryFilter)
+  }, [setFilters])
 
   const setFacet = (name: string, values: string[]) => {
     setFilters(f => {
@@ -298,6 +368,23 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
         </div>
       )
     }
+    
+    // Wenn chatReferences gesetzt ist, verwende GroupedItemsGrid
+    if (chatReferences && chatReferences.references && chatReferences.references.length > 0) {
+      return (
+        <GroupedItemsGrid
+          usedDocs={usedDocs}
+          unusedDocs={unusedDocs}
+          references={chatReferences.references}
+          sources={sources}
+          queryId={chatReferences.queryId}
+          libraryId={libraryId || ''}
+          onOpenDocument={handleOpenDocument}
+        />
+      )
+    }
+    
+    // Sonst normale Jahrgangs-Gruppierung
     return <ItemsGrid docsByYear={docsByYear} onOpen={handleOpenDocument} />
   }
 
@@ -356,22 +443,21 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
 
               {/* Items Panel */}
               <div className="flex flex-col min-h-0 overflow-hidden flex-1">
-                {!showReferenceLegend && (
-                  <div className="flex-shrink-0">
-                    <FilterContextBar
-                      docCount={filteredDocs.length}
-                      onOpenFilters={() => setShowFilters(true)}
-                      onClear={handleClearFilters}
-                      showReferenceLegend={showReferenceLegend}
-                      hideFilterButton={true}
-                      facetDefs={facetDefs}
-                      ctaLabel={t('gallery.switchToStoryMode')}
-                      onCta={() => setMode('story')}
-                      tooltip={t('gallery.storyModeTooltip')}
-                      docs={docs}
-                    />
-                  </div>
-                )}
+                {/* FilterContextBar immer anzeigen - wird nicht mehr durch ReferencesLegend ersetzt */}
+                <div className="flex-shrink-0">
+                  <FilterContextBar
+                    docCount={filteredDocs.length}
+                    onOpenFilters={() => setShowFilters(true)}
+                    onClear={handleClearFilters}
+                    showReferenceLegend={showReferenceLegend}
+                    hideFilterButton={true}
+                    facetDefs={facetDefs}
+                    ctaLabel={t('gallery.switchToStoryMode')}
+                    onCta={() => setMode('story')}
+                    tooltip={t('gallery.storyModeTooltip')}
+                    docs={docs}
+                  />
+                </div>
 
                 <section
                   className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
@@ -413,33 +499,19 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
               <ChatPanel libraryId={libraryId} variant='embedded' />
             </div>
             <div className="hidden lg:flex flex-col min-h-0 overflow-hidden rounded-md">
-              {!showReferenceLegend && (
-                <div className="flex-shrink-0">
-                  <FilterContextBar
-                    docCount={filteredDocs.length}
-                    onOpenFilters={() => setShowFilters(true)}
-                    onClear={handleClearFilters}
-                    showReferenceLegend={showReferenceLegend}
-                    hideFilterButton={true}
-                    facetDefs={facetDefs}
-                    docs={docs}
-                  />
-                </div>
-              )}
-              {showReferenceLegend && chatReferences && chatReferences.references && chatReferences.references.length > 0 && (
-                <ReferencesLegend
-                  references={chatReferences.references}
-                  libraryId={libraryId || ''}
-                  queryId={chatReferences.queryId}
-                  onClose={handleCloseReferenceLegend}
-                  onOpenDocument={(fileId) => {
-                    const doc = docs.find(d => d.id === fileId)
-                    if (doc) handleOpenDocument(doc)
-                  }}
-                  title={t('gallery.references')}
-                  description={t('gallery.referencesDescription')}
+              {/* FilterContextBar immer anzeigen - wird nicht mehr durch ReferencesLegend ersetzt */}
+              <div className="flex-shrink-0">
+                <FilterContextBar
+                  docCount={filteredDocs.length}
+                  onOpenFilters={() => setShowFilters(true)}
+                  onClear={handleClearFilters}
+                  showReferenceLegend={showReferenceLegend}
+                  hideFilterButton={true}
+                  facetDefs={facetDefs}
+                  docs={docs}
                 />
-              )}
+              </div>
+              {/* ReferencesLegend wird nicht mehr angezeigt, wenn chatReferences gesetzt ist (wird durch GroupedItemsGrid ersetzt) */}
               <section
                 className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
                 data-gallery-section

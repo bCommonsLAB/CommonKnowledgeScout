@@ -1,23 +1,25 @@
 'use client'
 
 import { useMemo, useState, useEffect, useCallback } from 'react'
-import { useAtom, useAtomValue } from 'jotai'
-import { galleryFiltersAtom } from '@/atoms/gallery-filters'
+import { useAtomValue } from 'jotai'
 import { activeLibraryIdAtom } from '@/atoms/library-atom'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { FileText, ExternalLink, Filter } from 'lucide-react'
+import { FileText, ExternalLink } from 'lucide-react'
 import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface ChatReferenceListProps {
   references: ChatResponse['references']
   libraryId: string
   queryId?: string // Optional: Falls vorhanden, werden sources aus QueryLog geladen
   onDocumentClick?: (fileId: string, fileName?: string) => void
+  /** Variante: 'full' zeigt vollständige Accordion-Struktur, 'compact' zeigt nur die Listen ohne äußere Accordion */
+  variant?: 'full' | 'compact'
 }
 
 /**
@@ -29,11 +31,10 @@ interface ChatReferenceListProps {
  * Gruppiert Dokumente nach fileId und zeigt:
  * - Dokument-Namen (nicht einzelne Chunks)
  * - Tooltip mit Quelle-Typen (slides, body, video_transcript, chapter)
- * - Button "do show" → Filtert Gallery auf diese Dokumente
  * - Klick auf Dokument → Öffnet Detailansicht
  */
-export function ChatReferenceList({ references, libraryId, queryId, onDocumentClick }: ChatReferenceListProps) {
-  const [, setFilters] = useAtom(galleryFiltersAtom)
+export function ChatReferenceList({ references, libraryId, queryId, onDocumentClick, variant = 'full' }: ChatReferenceListProps) {
+  const { t } = useTranslation()
   const activeLibraryId = useAtomValue(activeLibraryIdAtom)
   const sessionHeaders = useSessionHeaders()
   const [sources, setSources] = useState<QueryLog['sources']>([])
@@ -213,19 +214,6 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
     }
   }
 
-  // Button "do show" → Filtert Gallery auf diese Dokumente
-  const handleShowDocuments = (fileIds: string[]) => {
-    if (fileIds.length === 0) return
-    
-    // Setze Filter auf fileId-Liste
-    setFilters({ fileId: fileIds })
-    
-    // Optional: Scroll zur Gallery
-    const galleryElement = document.querySelector('[data-gallery-section]')
-    if (galleryElement) {
-      galleryElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }
 
   // Klick auf Dokument → Öffnet Detailansicht
   const handleDocumentClick = (fileId: string, fileName?: string) => {
@@ -301,7 +289,7 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
               
               {/* Source-Gruppen: Kompakte Anzeige nach Quelle */}
               {sourceGroupsArray.length > 0 && (
-                <div className="px-2 pb-2 space-y-1">
+                <div className="px-2 pb-2 flex flex-wrap items-center gap-2 pl-5">
                   {sourceGroupsArray.map((sourceGroup) => {
                     const sourceRefNumbers = sourceGroup.references.map(r => r.number).sort((a, b) => a - b)
                     const sourceRefNumbersStr = sourceRefNumbers.length <= 3 
@@ -310,12 +298,12 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
                     const sourceLabel = getSourceTypeLabel(sourceGroup.sourceType)
                     
                     return (
-                      <div key={sourceGroup.sourceType} className="flex items-center gap-2 text-[10px] text-muted-foreground pl-5">
+                      <div key={sourceGroup.sourceType} className="flex items-center gap-2 text-[10px] text-muted-foreground">
                         <Badge variant="outline" className="h-3 px-1 text-[9px]">
                           {sourceLabel}
                         </Badge>
                         <span className="text-[9px]">
-                          [{sourceRefNumbersStr}] ({sourceGroup.references.length} {sourceGroup.references.length === 1 ? 'Stelle' : 'Stellen'})
+                          [{sourceRefNumbersStr}] ({sourceGroup.references.length} {sourceGroup.references.length === 1 ? t('gallery.passage') : t('gallery.passages')})
                         </span>
                       </div>
                     )
@@ -362,7 +350,7 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
                           {doc.fileName || doc.fileId.slice(0, 30)}
                         </span>
                         <span className="text-[10px] text-muted-foreground">
-                          ({sourcesCount} {sourcesCount === 1 ? 'Stelle' : 'Stellen'})
+                          ({sourcesCount} {sourcesCount === 1 ? t('gallery.passage') : t('gallery.passages')})
                         </span>
                       </div>
                     </div>
@@ -402,6 +390,38 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
 
   if (references.length === 0 && groupedUnusedDocs.length === 0) return null
 
+  // Kompakte Variante: Zeige nur die Listen ohne äußere Accordion-Struktur
+  if (variant === 'compact') {
+    return (
+      <div className="mt-2">
+        {/* Abschnitt 1: In der Antwort gelandete Dokumente */}
+        {groupedUsedDocs.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs text-muted-foreground mb-2">
+              {t('gallery.usedDocuments')} ({groupedUsedDocs.length}):
+            </div>
+            {renderUsedDocumentsList()}
+          </div>
+        )}
+
+        {/* Abschnitt 2: Andere Dokumente, die sich auch mit dieser Frage beschäftigen */}
+        {groupedUnusedDocs.length > 0 && (
+          <div>
+            <div className="text-xs text-muted-foreground mb-2">
+              {t('gallery.otherDocuments')} ({groupedUnusedDocs.length}):
+            </div>
+            {isLoadingSources ? (
+              <div className="text-xs text-muted-foreground py-2">Lade Quellen...</div>
+            ) : (
+              renderUnusedDocumentsList()
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Vollständige Variante: Zeige Accordion-Struktur
   return (
     <div className="mt-3">
       <Accordion type="single" collapsible className="w-full">
@@ -411,21 +431,8 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
             <div className="border-b">
               <div className="flex items-center justify-between pr-2">
                 <AccordionTrigger className="text-xs text-muted-foreground flex-1">
-                  In der Antwort gelandete Dokumente ({groupedUsedDocs.length}):
+                  {t('gallery.usedDocuments')} ({groupedUsedDocs.length}):
                 </AccordionTrigger>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleShowDocuments(groupedUsedDocs.map(d => d.fileId))
-                  }}
-                  className="h-6 text-xs shrink-0"
-                  aria-label="In Galerie zeigen"
-                >
-                  <Filter className="h-3 w-3 mr-1" />
-                  do show
-                </Button>
               </div>
             </div>
             <AccordionContent>
@@ -440,21 +447,8 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
             <div className="border-b">
               <div className="flex items-center justify-between pr-2">
                 <AccordionTrigger className="text-xs text-muted-foreground flex-1">
-                  Andere Dokumente, die sich auch mit dieser Frage beschäftigen ({groupedUnusedDocs.length}):
+                  {t('gallery.otherDocuments')} ({groupedUnusedDocs.length}):
                 </AccordionTrigger>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleShowDocuments(groupedUnusedDocs.map(d => d.fileId))
-                  }}
-                  className="h-6 text-xs shrink-0"
-                  aria-label="In Galerie zeigen"
-                >
-                  <Filter className="h-3 w-3 mr-1" />
-                  do show
-                </Button>
               </div>
             </div>
             <AccordionContent>

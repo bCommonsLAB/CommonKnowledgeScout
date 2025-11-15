@@ -192,6 +192,7 @@ export function StoryTopics({
       <div className="flex items-center justify-between gap-4 pt-4 mt-4 border-t border-border/50">
         {/* Config-Anzeige */}
         <div className="flex-1 min-w-0">
+          AA
           <ChatConfigDisplay
             libraryId={libraryId}
             queryId={queryId}

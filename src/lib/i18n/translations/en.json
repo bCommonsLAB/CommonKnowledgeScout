@@ -108,8 +108,12 @@
     "story": "Story Mode",
     "switchToStoryMode": "View in Story Mode",
     "storyModeTooltip": "In Story Mode, you can have the contents explained to you in your language, your interest profile, and your context.",
+    "passage": "Text passage",
+    "passages": "Text passages",
     "backToGallery": "Back to Contents",
     "backToStoryMode": "Back to Story Mode",
+    "year": "Year {year}",
+    "noYear": "No year",
     "storyMode": {
       "headline": "Story Mode – Have the contents explained to you from your perspective",
       "subtitle": "Experience shared knowledge together",
@@ -162,6 +166,11 @@
     "filtered": "filtered",
     "references": "References",
     "referencesDescription": "The answer was generated from these documents.",
+    "sources": "Sources",
+    "scrollToQuestion": "to question",
+    "closeReferences": "Close",
+    "usedDocuments": "Documents cited in the answer",
+    "otherDocuments": "Other documents that also deal with this question",
     "documentDetails": "Document Details",
     "talkSummary": "Talk Summary",
     "documentView": "Document View",
@@ -202,6 +211,7 @@
     "noImage": "No image"
   },
   "chat": {
+    "source": "Source",
     "characterLabels": {
       "technical": "Technology-oriented",
       "social-cultural": "Society & Culture",

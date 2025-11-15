@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
+import type { ChatResponse } from '@/types/chat-response'
+import type { QueryLog } from '@/types/query-log'
 
 export function useGalleryData(filters: Record<string, string[] | undefined>, mode: 'gallery' | 'story', searchQuery: string, libraryId?: string) {
   const [docs, setDocs] = useState<DocCardMeta[]>([])
@@ -73,6 +75,48 @@ export function useGalleryData(filters: Record<string, string[] | undefined>, mo
   }, [filteredDocs])
 
   return { docs, setDocs, loading, error, filteredDocs, docsByYear }
+}
+
+/**
+ * Gruppiert Dokumente nach Referenzen
+ * @param docs Alle verfügbaren Dokumente
+ * @param references Referenzen, die vom LLM verwendet wurden
+ * @param sources Sources, die vom Retriever gefunden wurden
+ * @returns Gruppierte Dokumente: usedDocs (in Antwort verwendet) und unusedDocs (gefunden, aber nicht verwendet)
+ */
+export function groupDocsByReferences(
+  docs: DocCardMeta[],
+  references: ChatResponse['references'],
+  sources?: QueryLog['sources']
+): { usedDocs: DocCardMeta[]; unusedDocs: DocCardMeta[] } {
+  // Extrahiere fileIds aus references
+  const usedFileIds = new Set(references.map(ref => ref.fileId))
+  
+  // Filtere Dokumente, die in references sind
+  const usedDocs = docs.filter(doc => {
+    const fileId = doc.fileId || doc.id
+    return usedFileIds.has(fileId)
+  })
+  
+  // Für unusedDocs: Extrahiere fileIds aus sources, die nicht in references sind
+  const unusedFileIds = new Set<string>()
+  if (sources && sources.length > 0) {
+    for (const source of sources) {
+      // Extrahiere fileId aus source.id (Format: "fileId-chunkIndex" oder ähnlich)
+      const fileId = source.id.split('-')[0]
+      if (!usedFileIds.has(fileId)) {
+        unusedFileIds.add(fileId)
+      }
+    }
+  }
+  
+  // Filtere Dokumente, die in unusedFileIds sind
+  const unusedDocs = docs.filter(doc => {
+    const fileId = doc.fileId || doc.id
+    return unusedFileIds.has(fileId)
+  })
+  
+  return { usedDocs, unusedDocs }
 }
 
 
