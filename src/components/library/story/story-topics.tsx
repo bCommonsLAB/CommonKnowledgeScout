@@ -173,7 +173,7 @@ export function StoryTopics({
                     key={question.id}
                     variant="outline"
                     size="sm"
-                    className="w-full justify-start text-left h-auto py-2 text-xs bg-transparent whitespace-normal break-words"
+                    className="w-full justify-start text-left h-auto py-2 text-xs bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 whitespace-normal break-words"
                     onClick={() => onSelectQuestion?.(question)}
                   >
                     <span className="text-left">{question.text}</span>

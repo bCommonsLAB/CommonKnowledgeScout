@@ -29,7 +29,7 @@ export function ChatSuggestedQuestions({ questions, onQuestionClick }: ChatSugge
             key={index}
             variant="outline"
             size="sm"
-            className="h-auto py-1.5 px-3 text-xs text-left whitespace-normal"
+            className="h-auto py-1.5 px-3 text-xs text-left whitespace-normal bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20"
             onClick={() => onQuestionClick(question)}
           >
             {question}

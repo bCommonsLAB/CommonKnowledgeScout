@@ -85,9 +85,13 @@ export function ChatInput({
   const handleSend = () => {
     if (input.trim() && !isSending) {
       onSend(asTOC)
-      // Panel sofort schließen nach dem Absenden (nur im embedded Modus)
+      // Panel mit kurzer Verzögerung schließen nach dem Absenden (nur im embedded Modus)
+      // Verzögerung gibt React Zeit, die Message zu rendern, bevor das Panel geschlossen wird
+      // Dies verhindert DOM-Konflikte auf älteren Geräten
       if (variant === 'embedded') {
-        setIsOpen(false)
+        setTimeout(() => {
+          setIsOpen(false)
+        }, 100)
       }
     }
   }
@@ -103,13 +107,19 @@ export function ChatInput({
             "max-w-[calc(100%-4rem)] sm:max-w-none",
             isOpen 
               ? "opacity-100 scale-100 bottom-4" 
-              : "w-0 opacity-0 scale-95 overflow-hidden bottom-4"
+              : "w-0 opacity-0 scale-95 overflow-hidden bottom-4 pointer-events-none"
           )}
           style={isOpen ? { 
             maxHeight: 'calc(100% - 2rem)', // Begrenze auf Container-Höhe minus Padding
             bottom: '1rem', // Abstand zum unteren Rand
-            top: 'auto' // Stelle sicher, dass top nicht gesetzt ist
-          } : undefined}
+            top: 'auto', // Stelle sicher, dass top nicht gesetzt ist
+            willChange: 'auto',
+            contain: 'auto'
+          } : {
+            willChange: 'width, opacity, transform',
+            // Verhindere Layout-Shifts während Transition (robuster für ältere Geräte)
+            contain: 'layout style paint'
+          }}
         >
           <Card className="border-2 shadow-lg bg-background flex flex-col max-h-full">
             <CardContent className="p-3 sm:p-4 flex-1 flex flex-col min-h-0 overflow-y-auto">
@@ -154,7 +164,7 @@ export function ChatInput({
                     }}
                     disabled={isSending}
                     rows={3}
-                    className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                    className="w-full min-h-[80px] rounded-md border border-input bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
                   />
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -221,7 +231,7 @@ export function ChatInput({
       <div className="space-y-2">
         <textarea
           ref={inputRef as React.LegacyRef<HTMLTextAreaElement>}
-          className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+          className="w-full min-h-[80px] rounded-md border border-input bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
           placeholder={placeholder || t('chat.input.writeYourQuestion')}
           value={input}
           onChange={(e) => setInput(e.target.value)}
