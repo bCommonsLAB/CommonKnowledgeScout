@@ -52,7 +52,18 @@ export function StoryModeHeader({ libraryId, onBackToGallery }: StoryModeHeaderP
   return (
     <div className="sticky top-0 z-20 bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur border-b">
       {/* Titel und Beschreibung - werden beim Scrollen ausgeblendet */}
-      <div className={`transition-all duration-300 overflow-hidden ${isCondensed ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'}`}>
+      <div 
+        className={`transition-all duration-300 overflow-hidden ${
+          isCondensed 
+            ? 'max-h-0 opacity-0 pointer-events-none' 
+            : 'max-h-96 opacity-100'
+        }`}
+        style={{
+          willChange: isCondensed ? 'max-height, opacity' : 'auto',
+          // Verhindere Layout-Shifts während Transition (robuster für ältere Geräte)
+          contain: 'layout style paint'
+        }}
+      >
         <div className="py-4 space-y-2">
           <h2 className="text-3xl font-bold">{headline}</h2>
           {subtitle ? <p className="text-sm text-muted-foreground font-medium">{subtitle}</p> : null}

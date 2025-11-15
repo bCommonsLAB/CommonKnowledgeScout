@@ -227,3 +227,4 @@ Die aktuelle Implementierung funktioniert, ist aber schwer zu debuggen aufgrund:
 **Empfehlung:** Strategische Logs hinzufügen, um die Logik nachvollziehbar zu machen, ohne die bestehende Funktionalität zu ändern.
 
 
+

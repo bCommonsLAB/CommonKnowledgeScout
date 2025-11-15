@@ -58,20 +58,6 @@ export function StoryHeader({ compact = false, onBackToGallery }: StoryHeaderPro
 
   return (
     <div className={`flex flex-col gap-2 flex-shrink-0 min-w-0 ${compact ? '' : 'pb-4 border-b'}`}>
-      {/* Aktuelle Perspektive - dezent angezeigt */}
-      <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5 min-w-0 w-full">
-      <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.title')}</span>
-      <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.language')}: {targetLanguageLabels[targetLanguage]}</span>
-        <span className="break-words min-w-0 flex-shrink">
-          {t('gallery.storyMode.perspective.character')}: {character.map(char => characterLabels[char]).join(', ')}
-        </span>
-        {accessPerspective.length > 0 && (
-          <span className="break-words min-w-0 flex-shrink">
-            {t('gallery.storyMode.perspective.accessPerspective')}: {accessPerspective.map(ap => accessPerspectiveLabels[ap]).join(', ')}
-          </span>
-        )}
-        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.socialContext')}: {socialContextLabels[socialContext]}</span>
-      </div>
 
       {/* Buttons: Zurück und Perspektive */}
       <div className="flex flex-wrap items-center gap-3 min-w-0 w-full">
@@ -98,6 +84,20 @@ export function StoryHeader({ compact = false, onBackToGallery }: StoryHeaderPro
           <Settings2 className="h-4 w-4 shrink-0" />
           <span className="whitespace-nowrap">{t('gallery.storyMode.perspective.adjustPerspective')}</span>
         </Button>
+      </div>
+      {/* Aktuelle Perspektive - dezent angezeigt, linksbündig mit Buttons */}
+      <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-0.5 min-w-0 w-full pl-6">
+        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.title')}:</span>
+        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.language')}: {targetLanguageLabels[targetLanguage]}</span>
+        <span className="break-words min-w-0 flex-shrink">
+          {t('gallery.storyMode.perspective.character')}: {character.map(char => characterLabels[char]).join(', ')}
+        </span>
+        {accessPerspective.length > 0 && (
+          <span className="break-words min-w-0 flex-shrink">
+            {t('gallery.storyMode.perspective.accessPerspective')}: {accessPerspective.map(ap => accessPerspectiveLabels[ap]).join(', ')}
+          </span>
+        )}
+        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.socialContext')}: {socialContextLabels[socialContext]}</span>
       </div>
       
     </div>
