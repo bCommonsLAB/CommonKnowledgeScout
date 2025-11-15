@@ -2,9 +2,9 @@
 
 import { Button } from '@/components/ui/button'
 import { Settings2, ChevronLeft } from 'lucide-react'
-import { useStoryContext } from '@/hooks/use-story-context'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useRouter, usePathname } from 'next/navigation'
+import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
 
 interface StoryHeaderProps {
   /** Wenn true, werden Border und Padding entfernt (für sticky Header) */
@@ -24,17 +24,6 @@ export function StoryHeader({ compact = false, onBackToGallery }: StoryHeaderPro
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
-  
-  const {
-    targetLanguage,
-    character,
-    accessPerspective,
-    socialContext,
-    targetLanguageLabels,
-    characterLabels,
-    accessPerspectiveLabels,
-    socialContextLabels,
-  } = useStoryContext()
 
   /**
    * Handler für "Perspektive anpassen" Button
@@ -86,19 +75,7 @@ export function StoryHeader({ compact = false, onBackToGallery }: StoryHeaderPro
         </Button>
       </div>
       {/* Aktuelle Perspektive - dezent angezeigt, linksbündig mit Buttons */}
-      <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-0.5 min-w-0 w-full pl-6">
-        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.title')}:</span>
-        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.language')}: {targetLanguageLabels[targetLanguage]}</span>
-        <span className="break-words min-w-0 flex-shrink">
-          {t('gallery.storyMode.perspective.character')}: {character.map(char => characterLabels[char]).join(', ')}
-        </span>
-        {accessPerspective.length > 0 && (
-          <span className="break-words min-w-0 flex-shrink">
-            {t('gallery.storyMode.perspective.accessPerspective')}: {accessPerspective.map(ap => accessPerspectiveLabels[ap]).join(', ')}
-          </span>
-        )}
-        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.socialContext')}: {socialContextLabels[socialContext]}</span>
-      </div>
+      <PerspectiveDisplay variant="header" paddingLeft="1.5rem" />
       
     </div>
   )

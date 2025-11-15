@@ -169,6 +169,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     answerLength,
     targetLanguage,
     character,
+    accessPerspective,
     socialContext,
     genderInclusive,
     galleryFilters,

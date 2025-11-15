@@ -131,7 +131,10 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                   retriever: queryData.retriever as 'chunk' | 'doc' | 'summary' | 'auto' | undefined,
                   targetLanguage: queryData.targetLanguage as 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar' | undefined,
                   character: queryData.character,
+                  accessPerspective: queryData.accessPerspective,
                   socialContext: queryData.socialContext as 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language' | undefined,
+                  genderInclusive: queryData.genderInclusive,
+                  facetsSelected: queryData.facetsSelected,
                 })
                 historyMessages.push(...msgs)
               }

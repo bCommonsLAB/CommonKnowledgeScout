@@ -21,6 +21,7 @@ import { useTranslation } from '@/lib/i18n/hooks'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import type { QueryLog } from '@/types/query-log'
+import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
 
 interface ChatConfigDisplayProps {
   answerLength?: AnswerLength
@@ -74,55 +75,11 @@ export function ChatConfigDisplay({
   const effectiveSocialContext = querySocialContext ?? socialContext
 
   // Erstelle Config-Items mit useMemo, damit sie sich aktualisieren, wenn Filter geladen werden
-  const configItems = useMemo(() => {
-    const items: string[] = []
-
-    if (effectiveAnswerLength) {
-      items.push(`${t('configDisplay.answerLength')} ${t(`chat.answerLengthLabels.${effectiveAnswerLength}`)}`)
-    }
-
-    if (effectiveRetriever) {
-      // Retriever-Labels werden aus den Übersetzungen geholt
-      const retrieverLabel = effectiveRetriever === 'chunk' 
-        ? t('processing.retrieverChunk')
-        : effectiveRetriever === 'summary' || effectiveRetriever === 'doc'
-        ? t('processing.retrieverSummary')
-        : effectiveRetriever === 'auto'
-        ? t('processing.retrieverAuto')
-        : RETRIEVER_LABELS[effectiveRetriever] || effectiveRetriever
-      items.push(`${t('configDisplay.method')} ${retrieverLabel}`)
-    }
-
-    if (effectiveTargetLanguage) {
-      const langLabel = targetLanguageLabels[effectiveTargetLanguage] || TARGET_LANGUAGE_LABELS[effectiveTargetLanguage] || effectiveTargetLanguage
-      items.push(`${t('configDisplay.language')} ${langLabel}`)
-    }
-
-    if (effectiveCharacter && effectiveCharacter.length > 0) {
-      // Verwende ersten Wert für Label-Lookup
-      const firstChar = effectiveCharacter[0]
-      const charLabel = characterLabels[firstChar] || CHARACTER_LABELS[firstChar] || firstChar
-      if (charLabel) {
-        items.push(`${t('configDisplay.character')} ${charLabel}`)
-      }
-    }
-
-    if (effectiveAccessPerspective && effectiveAccessPerspective.length > 0) {
-      // Verwende ersten Wert für Label-Lookup
-      const firstAp = effectiveAccessPerspective[0]
-      const apLabel = accessPerspectiveLabels[firstAp] || ACCESS_PERSPECTIVE_LABELS[firstAp] || firstAp
-      if (apLabel) {
-        items.push(`${t('configDisplay.accessPerspective')} ${apLabel}`)
-      }
-    }
-
-    if (effectiveSocialContext) {
-      const contextLabel = socialContextLabels[effectiveSocialContext] || SOCIAL_CONTEXT_LABELS[effectiveSocialContext] || effectiveSocialContext
-      items.push(`${t('configDisplay.context')} ${contextLabel}`)
-    }
-
-    return items
-  }, [effectiveAnswerLength, effectiveRetriever, effectiveTargetLanguage, effectiveCharacter, effectiveAccessPerspective, effectiveSocialContext, t, targetLanguageLabels, characterLabels, accessPerspectiveLabels, socialContextLabels])
+  // Verwende jetzt PerspectiveDisplay für die Perspektiven-Anzeige
+  const hasPerspectiveParams = useMemo(() => {
+    return !!(effectiveTargetLanguage || (effectiveCharacter && effectiveCharacter.length > 0) || 
+             (effectiveAccessPerspective && effectiveAccessPerspective.length > 0) || effectiveSocialContext)
+  }, [effectiveTargetLanguage, effectiveCharacter, effectiveAccessPerspective, effectiveSocialContext])
 
   // Lade alle Parameter aus QueryLog, falls queryId vorhanden ist UND keine Props übergeben wurden
   useEffect(() => {
@@ -274,50 +231,92 @@ export function ChatConfigDisplay({
     return str.trim() || ''
   }
 
-  // Füge Filterparameter zu Config-Items hinzu (mit useMemo, damit es sich aktualisiert, wenn Filter geladen werden)
-  const allConfigItems = useMemo(() => {
-    const items = [...configItems]
-    
-    if (filters && Object.keys(filters).length > 0) {
-      for (const [metaKey, value] of Object.entries(filters)) {
-        // Überspringe interne Filter
-        if (metaKey === 'user' || metaKey === 'libraryId' || metaKey === 'kind') {
-          continue
-        }
-        
-        const def = facetDefs.find(d => d.metaKey === metaKey)
-        const label = def?.label || metaKey
-        const formattedValue = formatFilterValue(value)
-        
-        if (formattedValue && formattedValue.trim() !== '') {
-          items.push(`${label}: ${formattedValue}`)
-        }
-      }
-    }
-    
-    return items
-  }, [configItems, filters, facetDefs])
-
   // Zeige nichts während des Ladens, wenn queryId vorhanden ist (Parameter werden geladen)
   // Aber zeige auch nichts, wenn nach dem Laden keine Items vorhanden sind
   if (isLoadingParams && queryId) {
     return null // Während des Ladens nichts anzeigen
   }
   
-  if (allConfigItems.length === 0) {
+  // Prüfe ob überhaupt etwas angezeigt werden soll
+  const hasAnswerLengthOrRetriever = !!(effectiveAnswerLength || effectiveRetriever)
+  const hasFilters = !!(filters && Object.keys(filters).length > 0)
+  
+  if (!hasPerspectiveParams && !hasAnswerLengthOrRetriever && !hasFilters) {
     return null
   }
 
   return (
-    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-      <span className="flex items-center gap-1 flex-wrap">
-        {allConfigItems.map((item, index) => (
-          <span key={index}>
-            {item}
-            {index < allConfigItems.length - 1 && <span className="mx-1">·</span>}
+    <div className="flex flex-col gap-1 mt-1">
+      {/* Perspektiven-Anzeige mit gemeinsamer Komponente */}
+      {hasPerspectiveParams && (
+        <PerspectiveDisplay
+          variant="inline"
+          showAnswerLength={!!effectiveAnswerLength}
+          showRetriever={!!effectiveRetriever}
+          answerLength={effectiveAnswerLength}
+          retriever={effectiveRetriever}
+          targetLanguage={effectiveTargetLanguage}
+          character={effectiveCharacter}
+          accessPerspective={effectiveAccessPerspective}
+          socialContext={effectiveSocialContext}
+        />
+      )}
+      
+      {/* Falls nur AnswerLength/Retriever vorhanden, aber keine Perspektive */}
+      {!hasPerspectiveParams && hasAnswerLengthOrRetriever && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1 flex-wrap">
+            {effectiveAnswerLength && (
+              <span>
+                {t('configDisplay.answerLength')} {t(`chat.answerLengthLabels.${effectiveAnswerLength}`)}
+              </span>
+            )}
+            {effectiveAnswerLength && effectiveRetriever && <span className="mx-1">·</span>}
+            {effectiveRetriever && (
+              <span>
+                {t('configDisplay.method')} {
+                  effectiveRetriever === 'chunk' 
+                    ? t('processing.retrieverChunk')
+                    : effectiveRetriever === 'summary' || effectiveRetriever === 'doc'
+                    ? t('processing.retrieverSummary')
+                    : effectiveRetriever === 'auto'
+                    ? t('processing.retrieverAuto')
+                    : RETRIEVER_LABELS[effectiveRetriever] || effectiveRetriever
+                }
+              </span>
+            )}
           </span>
-        ))}
-      </span>
+        </div>
+      )}
+      
+      {/* Filter-Anzeige (falls vorhanden) */}
+      {hasFilters && filters && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1 flex-wrap">
+            {Object.entries(filters).map(([metaKey, value], index) => {
+              // Überspringe interne Filter
+              if (metaKey === 'user' || metaKey === 'libraryId' || metaKey === 'kind') {
+                return null
+              }
+              
+              const def = facetDefs.find(d => d.metaKey === metaKey)
+              const label = def?.label || metaKey
+              const formattedValue = formatFilterValue(value)
+              
+              if (!formattedValue || formattedValue.trim() === '') {
+                return null
+              }
+              
+              return (
+                <span key={metaKey}>
+                  {label}: {formattedValue}
+                  {index < Object.keys(filters).length - 1 && <span className="mx-1">·</span>}
+                </span>
+              )
+            })}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

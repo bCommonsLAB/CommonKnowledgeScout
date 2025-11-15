@@ -10,9 +10,10 @@ import type { ChatProcessingStep } from '@/types/chat-processing'
 import type { ChatMessage } from '../utils/chat-utils'
 import type { ChatResponse } from '@/types/chat-response'
 import type { StoryTopicsData } from '@/types/story-topics'
-import type { AnswerLength, Retriever, TargetLanguage, Character, SocialContext } from '@/lib/chat/constants'
-import { TOC_QUESTION, characterArrayToString } from '@/lib/chat/constants'
+import type { AnswerLength, Retriever, TargetLanguage, Character, SocialContext, AccessPerspective } from '@/lib/chat/constants'
+import { TOC_QUESTION, characterArrayToString, accessPerspectiveArrayToString } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
+import { normalizeCharacter, normalizeAccessPerspective, normalizeFilters, compareCacheKeys, type CacheKeyParams } from '@/lib/chat/utils/cache-key-utils'
 import { parseSSELines } from '@/utils/sse'
 import { formatChatError } from '@/utils/error-format'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
@@ -31,6 +32,7 @@ interface UseChatStreamParams {
   answerLength: AnswerLength
   targetLanguage: TargetLanguage
   character: Character[] // Array (kann leer sein)
+  accessPerspective: AccessPerspective[] // Array (kann leer sein)
   socialContext: SocialContext
   genderInclusive: boolean
   galleryFilters?: GalleryFilters
@@ -76,6 +78,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
     answerLength,
     targetLanguage,
     character,
+    accessPerspective,
     socialContext,
     genderInclusive,
     galleryFilters,
@@ -113,10 +116,44 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
       const isTOC = isTOCQuery || questionText.trim() === TOC_QUESTION.trim()
 
       // Prüfe, ob diese Frage bereits vorhanden ist (nur für normale Fragen)
+      // Berücksichtige auch Parameter (answerLength, character, targetLanguage, etc.),
+      // damit dieselbe Frage mit anderen Parametern erlaubt ist
       if (!isTOC) {
-        const alreadyExists = messages.some(
-          (msg) => msg.type === 'question' && msg.content.trim() === questionText.trim()
-        )
+        const effectiveRetriever = retrieverOverride || retriever
+        const normalizedRetriever = effectiveRetriever === 'auto' ? undefined : effectiveRetriever
+        
+        // Erstelle Cache-Key für die aktuelle Frage
+        const currentCacheKey: CacheKeyParams = {
+          question: questionText,
+          answerLength,
+          targetLanguage,
+          socialContext,
+          genderInclusive,
+          retriever: normalizedRetriever,
+          character,
+          accessPerspective,
+          facetsSelected: galleryFilters,
+        }
+        
+        // Prüfe, ob eine Message mit identischem Cache-Key bereits vorhanden ist
+        // Verwende zentrale compareCacheKeys-Funktion für konsistenten Vergleich
+        const alreadyExists = messages.some((msg) => {
+          if (msg.type !== 'question') return false
+          
+          const msgCacheKey: CacheKeyParams = {
+            question: msg.content,
+            answerLength: msg.answerLength,
+            targetLanguage: msg.targetLanguage,
+            socialContext: msg.socialContext,
+            genderInclusive: msg.genderInclusive,
+            retriever: msg.retriever,
+            character: msg.character,
+            accessPerspective: msg.accessPerspective,
+            facetsSelected: msg.facetsSelected,
+          }
+          
+          return compareCacheKeys(currentCacheKey, msgCacheKey)
+        })
 
         if (alreadyExists) {
           setIsSending(false)
@@ -125,6 +162,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
       }
 
       const questionId = `question-${Date.now()}`
+      // effectiveRetriever wurde bereits oben berechnet (für Duplikatsprüfung)
       const effectiveRetriever = retrieverOverride || retriever
 
       // Für normale Fragen: Füge Frage als Message hinzu
@@ -135,10 +173,13 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
           content: questionText,
           createdAt: new Date().toISOString(),
           character,
+          accessPerspective,
           answerLength,
           retriever: effectiveRetriever === 'auto' ? undefined : effectiveRetriever,
           targetLanguage,
           socialContext,
+          genderInclusive,
+          facetsSelected: galleryFilters, // Gallery-Filter (Facetten) - Teil des Cache-Schlüssels
         }
         setMessages((prev) => [...prev, questionMessage])
         setOpenConversations(new Set())
@@ -323,11 +364,23 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
                 setOpenConversations(new Set([newConversationId]))
 
                 // Scroll zum neuen Accordion nach kurzer Verzögerung
+                // Robuste Implementierung für ältere Geräte
                 setTimeout(() => {
-                  const element = document.querySelector(`[data-conversation-id="${newConversationId}"]`)
-                  if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                  const tryScroll = (attempts = 0) => {
+                    const element = document.querySelector(`[data-conversation-id="${newConversationId}"]`)
+                    if (element && element.parentElement && element.parentElement.contains(element)) {
+                      try {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                      } catch (error) {
+                        // Ignoriere Scroll-Fehler auf älteren Geräten
+                        console.debug('[useChatStream] Scroll-Fehler ignoriert:', error)
+                      }
+                    } else if (attempts < 3) {
+                      // Versuche es nochmal nach kurzer Verzögerung
+                      setTimeout(() => tryScroll(attempts + 1), 200)
+                    }
                   }
+                  tryScroll()
                 }, 500)
               }
 

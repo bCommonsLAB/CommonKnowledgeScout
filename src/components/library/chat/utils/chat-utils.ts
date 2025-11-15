@@ -1,5 +1,6 @@
 import type { ChatResponse } from '@/types/chat-response'
-import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext } from '@/lib/chat/constants'
+import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext, AccessPerspective } from '@/lib/chat/constants'
+import type { GalleryFilters } from '@/atoms/gallery-filters'
 
 /**
  * Interface für Chat-Messages innerhalb des ChatPanels
@@ -17,6 +18,9 @@ export interface ChatMessage {
   retriever?: Retriever
   targetLanguage?: TargetLanguage
   socialContext?: SocialContext
+  accessPerspective?: AccessPerspective[] // Array (kann leer sein) - Zugangsperspektive
+  genderInclusive?: boolean // Gendergerechte Formulierung
+  facetsSelected?: GalleryFilters // Gallery-Filter (Facetten) - Teil des Cache-Schlüssels
 }
 
 /**
@@ -42,7 +46,10 @@ export function createMessagesFromQueryLog(queryLog: {
   retriever?: Retriever
   targetLanguage?: TargetLanguage
   character?: Character[] // Array (kann leer sein)
+  accessPerspective?: AccessPerspective[] // Array (kann leer sein)
   socialContext?: SocialContext
+  genderInclusive?: boolean
+  facetsSelected?: GalleryFilters // Gallery-Filter (Facetten)
 }): ChatMessage[] {
   const messages: ChatMessage[] = []
   
@@ -57,7 +64,10 @@ export function createMessagesFromQueryLog(queryLog: {
     retriever: queryLog.retriever,
     targetLanguage: queryLog.targetLanguage,
     character: queryLog.character, // Array (kann leer sein)
+    accessPerspective: queryLog.accessPerspective, // Array (kann leer sein)
     socialContext: queryLog.socialContext,
+    genderInclusive: queryLog.genderInclusive,
+    facetsSelected: queryLog.facetsSelected, // Gallery-Filter (Facetten)
   })
   
   // Antwort als Message (wenn vorhanden)
@@ -79,7 +89,10 @@ export function createMessagesFromQueryLog(queryLog: {
       retriever: queryLog.retriever,
       targetLanguage: queryLog.targetLanguage,
       character: queryLog.character, // Array (kann leer sein)
+      accessPerspective: queryLog.accessPerspective, // Array (kann leer sein)
       socialContext: queryLog.socialContext,
+      genderInclusive: queryLog.genderInclusive,
+      facetsSelected: queryLog.facetsSelected, // Gallery-Filter (Facetten)
     })
   }
   
@@ -97,7 +110,12 @@ export function groupMessagesToConversations(messages: ChatMessage[]): Conversat
     if (msg.type === 'question') {
       // Prüfe, ob die nächste Message eine Antwort ist
       const nextMsg = messages[i + 1]
-      const conversationId = msg.queryId || msg.id.replace('-question', '') || `conv-${i}`
+      // Verwende die eindeutige Message-ID als conversationId, um Duplikate zu vermeiden
+      // Falls queryId vorhanden ist, verwende sie als Teil der ID für bessere Nachverfolgbarkeit
+      // Aber kombiniere sie mit der Message-ID, um Eindeutigkeit sicherzustellen
+      const conversationId = msg.queryId 
+        ? `${msg.queryId}-${msg.id}` 
+        : msg.id.replace('-question', '') || `conv-${i}`
       
       conversations.push({
         conversationId,
