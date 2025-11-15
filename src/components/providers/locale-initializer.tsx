@@ -66,7 +66,11 @@ export function LocaleInitializer({ langParam, serverLocale }: LocaleInitializer
     }
     
     hasInitialized.current = true
-  }, []) // Leeres Dependency-Array: Nur beim ersten Mount
+    // Leeres Dependency-Array beabsichtigt: Nur beim ersten Mount ausführen
+    // currentLocale, langParam, serverLocale und setLocale werden absichtlich nicht als Dependencies verwendet,
+    // da dieser Effect nur beim ersten Mount ausgeführt werden soll
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Reagiere auf Änderungen der langParam (z.B. wenn User navigiert)
   useLayoutEffect(() => {
@@ -88,6 +92,8 @@ export function LocaleInitializer({ langParam, serverLocale }: LocaleInitializer
     if (newLocale !== currentLocale) {
       setLocale(newLocale)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // serverLocale wird absichtlich nicht als Dependency verwendet, da es nur beim ersten Mount verfügbar ist
   }, [langParam, setLocale, currentLocale])
 
   return null

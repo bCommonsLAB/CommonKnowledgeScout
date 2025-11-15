@@ -46,7 +46,7 @@ export function computeDocMetaCollectionName(userEmail: string, libraryId: strin
   return `doc_meta__${safe(libraryId)}`
 }
 
-async function getDocMetaCollection(libraryKey: string): Promise<Collection<DocMeta>> {
+export async function getDocMetaCollection(libraryKey: string): Promise<Collection<DocMeta>> {
   if (colCache.has(libraryKey)) return colCache.get(libraryKey) as Collection<DocMeta>
   const col = await getCollection<DocMeta>(libraryKey)
   try {
@@ -154,7 +154,7 @@ export async function findDocs(
   libraryId: string,
   filter: Record<string, unknown>,
   options: FindDocsOptions = {}
-): Promise<Array<{ id: string; fileId: string; fileName?: string; title?: string; shortTitle?: string; authors?: string[]; speakers?: string[]; speakers_image_url?: string[]; year?: number | string; track?: string; date?: string; region?: string; upsertedAt?: string; docType?: string; source?: string; tags?: string[] }>> {
+): Promise<Array<{ id: string; fileId: string; fileName?: string; title?: string; shortTitle?: string; authors?: string[]; speakers?: string[]; speakers_image_url?: string[]; year?: number | string; track?: string; date?: string; region?: string; upsertedAt?: string; docType?: string; source?: string; tags?: string[]; slug?: string }>> {
   const col = await getDocMetaCollection(libraryKey)
   // PERFORMANCE: libraryId wird NICHT gefiltert, da die Collection bereits nur Dokumente dieser Library enthält
   // Die Collection selbst ist bereits nach Library getrennt (doc_meta__${libraryId})
@@ -177,13 +177,14 @@ export async function findDocs(
       source: 1,
       tags: 1,
       upsertedAt: 1,
-      // Nur title, shortTitle, speakers, track, date und speakers_image_url aus docMetaJson laden, nicht das komplette Objekt
+      // Nur title, shortTitle, speakers, track, date, speakers_image_url und slug aus docMetaJson laden, nicht das komplette Objekt
       'docMetaJson.title': 1,
       'docMetaJson.shortTitle': 1,
       'docMetaJson.speakers': 1, // speakers aus docMetaJson (für Sessions)
       'docMetaJson.track': 1, // track aus docMetaJson (für Sessions)
       'docMetaJson.date': 1, // date aus docMetaJson (für Sessions)
       'docMetaJson.speakers_image_url': 1, // speakers_image_url aus docMetaJson (für Sessions)
+      'docMetaJson.slug': 1, // slug für URL-basierte Dokument-Öffnung
     }
   })
   if (options.sort) cursor.sort(options.sort)
@@ -215,6 +216,10 @@ export async function findDocs(
     const dateDocMeta = docMeta && typeof (docMeta as { date?: unknown }).date === 'string' 
       ? (docMeta as { date: string }).date 
       : undefined
+    // slug: Aus docMetaJson.slug extrahieren
+    const slugDocMeta = docMeta && typeof (docMeta as { slug?: unknown }).slug === 'string' 
+      ? (docMeta as { slug: string }).slug 
+      : undefined
     return {
       id: `${r.fileId}-meta`,
       fileId: r.fileId,
@@ -232,6 +237,7 @@ export async function findDocs(
       docType: typeof r.docType === 'string' ? r.docType : undefined,
       source: typeof r.source === 'string' ? r.source : undefined,
       tags: Array.isArray(r.tags) ? r.tags : undefined,
+      slug: slugDocMeta || undefined,
     }
   })
 }

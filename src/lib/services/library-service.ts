@@ -360,12 +360,56 @@ export class LibraryService {
   }
 
   /**
+   * Stellt sicher, dass Indizes für öffentliche Libraries vorhanden sind
+   * Wird automatisch beim ersten Aufruf erstellt
+   */
+  private async ensurePublicLibrariesIndexes(): Promise<void> {
+    try {
+      const collection = await getCollection<UserLibraries>(this.collectionName);
+      
+      // Indizes für die Aggregation-Pipeline erstellen
+      // Diese beschleunigen die Suche nach öffentlichen Libraries erheblich
+      await Promise.all([
+        // Index für isPublic-Feld (wird in $match verwendet)
+        collection.createIndex(
+          { 'libraries.config.publicPublishing.isPublic': 1 },
+          { name: 'publicPublishing_isPublic', sparse: true }
+        ),
+        // Verbund-Index für isPublic + slugName (optimiert die $match-Stufe)
+        collection.createIndex(
+          { 
+            'libraries.config.publicPublishing.isPublic': 1,
+            'libraries.config.publicPublishing.slugName': 1
+          },
+          { name: 'publicPublishing_isPublic_slugName', sparse: true }
+        ),
+        // Index für slugName allein (für getPublicLibraryBySlug)
+        collection.createIndex(
+          { 'libraries.config.publicPublishing.slugName': 1 },
+          { name: 'publicPublishing_slugName', sparse: true }
+        ),
+        // Index für Library-ID innerhalb des Arrays (für getPublicLibraryById)
+        collection.createIndex(
+          { 'libraries.id': 1 },
+          { name: 'libraries_id' }
+        )
+      ]);
+    } catch {
+      // Fehler ignorieren (Indizes könnten bereits existieren)
+      // Dies ist kein kritischer Fehler, die Query funktioniert auch ohne Indizes
+    }
+  }
+
+  /**
    * Alle öffentlichen Bibliotheken abrufen
    * Verwendet MongoDB-Aggregation für optimierte Performance
    */
   async getAllPublicLibraries(): Promise<Library[]> {
     try {
       const collection = await getCollection<UserLibraries>(this.collectionName);
+      
+      // Stelle sicher, dass Indizes vorhanden sind (nur beim ersten Aufruf)
+      await this.ensurePublicLibrariesIndexes();
       
       // MongoDB-Aggregation Pipeline: Extrahiert direkt öffentliche Libraries
       // Dies ist viel effizienter als alle Einträge zu laden und zu filtern
@@ -405,31 +449,38 @@ export class LibraryService {
 
   /**
    * Öffentliche Bibliothek nach ID abrufen
+   * Verwendet MongoDB-Aggregation für optimierte Performance
    * @param libraryId ID der Bibliothek
    */
   async getPublicLibraryById(libraryId: string): Promise<Library | null> {
     try {
       const collection = await getCollection<UserLibraries>(this.collectionName);
       
-      // Alle Einträge finden
-      const allEntries = await collection.find({}).toArray();
+      // Stelle sicher, dass Indizes vorhanden sind
+      await this.ensurePublicLibrariesIndexes();
       
-      // Durch alle Benutzer-Einträge iterieren
-      for (const entry of allEntries) {
-        if (entry.libraries && Array.isArray(entry.libraries)) {
-          const library = entry.libraries.find(
-            (lib: Library) =>
-              lib.id === libraryId &&
-              lib.config?.publicPublishing?.isPublic === true
-          );
-          
-          if (library) {
-            return library;
+      // MongoDB-Aggregation Pipeline: Effizienter als alle Einträge zu laden
+      const pipeline = [
+        // Entpacke Libraries-Array
+        { $unwind: '$libraries' },
+        // Filtere nach Library-ID und öffentlichem Status
+        {
+          $match: {
+            'libraries.id': libraryId,
+            'libraries.config.publicPublishing.isPublic': true
           }
+        },
+        // Nimm die erste gefundene Library
+        { $limit: 1 },
+        // Formatiere zurück zu Library-Format
+        {
+          $replaceRoot: { newRoot: '$libraries' }
         }
-      }
+      ];
       
-      return null;
+      const results = await collection.aggregate<Library>(pipeline).toArray();
+      
+      return results.length > 0 ? results[0] : null;
     } catch (error) {
       console.error('Fehler beim Abrufen der öffentlichen Bibliothek nach ID:', error);
       throw error;
@@ -438,31 +489,38 @@ export class LibraryService {
 
   /**
    * Öffentliche Bibliothek nach Slug-Name abrufen
+   * Verwendet MongoDB-Aggregation für optimierte Performance
    * @param slugName Eindeutiger Slug-Name der Bibliothek
    */
   async getPublicLibraryBySlug(slugName: string): Promise<Library | null> {
     try {
       const collection = await getCollection<UserLibraries>(this.collectionName);
       
-      // Alle Einträge finden
-      const allEntries = await collection.find({}).toArray();
+      // Stelle sicher, dass Indizes vorhanden sind
+      await this.ensurePublicLibrariesIndexes();
       
-      // Durch alle Benutzer-Einträge iterieren
-      for (const entry of allEntries) {
-        if (entry.libraries && Array.isArray(entry.libraries)) {
-          const library = entry.libraries.find(
-            (lib: Library) =>
-              lib.config?.publicPublishing?.isPublic === true &&
-              lib.config?.publicPublishing?.slugName === slugName
-          );
-          
-          if (library) {
-            return library;
+      // MongoDB-Aggregation Pipeline: Effizienter als alle Einträge zu laden
+      const pipeline = [
+        // Entpacke Libraries-Array
+        { $unwind: '$libraries' },
+        // Filtere nach Slug-Name und öffentlichem Status
+        {
+          $match: {
+            'libraries.config.publicPublishing.isPublic': true,
+            'libraries.config.publicPublishing.slugName': slugName
           }
+        },
+        // Nimm die erste gefundene Library
+        { $limit: 1 },
+        // Formatiere zurück zu Library-Format
+        {
+          $replaceRoot: { newRoot: '$libraries' }
         }
-      }
+      ];
       
-      return null;
+      const results = await collection.aggregate<Library>(pipeline).toArray();
+      
+      return results.length > 0 ? results[0] : null;
     } catch (error) {
       console.error('Fehler beim Abrufen der öffentlichen Bibliothek nach Slug:', error);
       throw error;
@@ -471,30 +529,40 @@ export class LibraryService {
 
   /**
    * Prüft ob ein Slug-Name bereits verwendet wird
+   * Verwendet MongoDB-Aggregation für optimierte Performance
    * @param slugName Der zu prüfende Slug-Name
    * @param excludeLibraryId Optional: Library-ID die ausgeschlossen werden soll (für Updates)
    */
   async isSlugNameTaken(slugName: string, excludeLibraryId?: string): Promise<boolean> {
     try {
       const collection = await getCollection<UserLibraries>(this.collectionName);
-      const allEntries = await collection.find({}).toArray();
       
-      for (const entry of allEntries) {
-        if (entry.libraries && Array.isArray(entry.libraries)) {
-          const found = entry.libraries.find(
-            (lib: Library) =>
-              lib.config?.publicPublishing?.slugName === slugName &&
-              lib.id !== excludeLibraryId &&
-              lib.config?.publicPublishing?.isPublic === true
-          );
-          
-          if (found) {
-            return true;
-          }
-        }
+      // Stelle sicher, dass Indizes vorhanden sind
+      await this.ensurePublicLibrariesIndexes();
+      
+      // MongoDB-Aggregation Pipeline: Effizienter als alle Einträge zu laden
+      const matchCondition: Record<string, unknown> = {
+        'libraries.config.publicPublishing.isPublic': true,
+        'libraries.config.publicPublishing.slugName': slugName
+      };
+      
+      // Wenn excludeLibraryId gesetzt ist, schließe diese Library aus
+      if (excludeLibraryId) {
+        matchCondition['libraries.id'] = { $ne: excludeLibraryId };
       }
       
-      return false;
+      const pipeline = [
+        // Entpacke Libraries-Array
+        { $unwind: '$libraries' },
+        // Filtere nach Slug-Name und öffentlichem Status
+        { $match: matchCondition },
+        // Nimm die erste gefundene Library (reicht für Existenzprüfung)
+        { $limit: 1 }
+      ];
+      
+      const results = await collection.aggregate(pipeline).toArray();
+      
+      return results.length > 0;
     } catch (error) {
       console.error('Fehler beim Prüfen der Slug-Eindeutigkeit:', error);
       throw error;

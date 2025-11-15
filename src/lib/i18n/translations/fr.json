@@ -109,6 +109,7 @@
     "switchToStoryMode": "Voir en mode Histoire",
     "storyModeTooltip": "En mode Histoire, vous pouvez vous faire expliquer les contenus dans votre langue, votre profil d'intérêts et votre contexte.",
     "backToGallery": "Retour aux contenus",
+    "backToStoryMode": "Retour au mode Histoire",
     "storyMode": {
       "headline": "Mode Histoire – Faites-vous expliquer les contenus depuis votre perspective",
       "subtitle": "Vivre ensemble la connaissance partagée",
@@ -116,13 +117,38 @@
       "generatingTopics": "Génération de la vue d'ensemble des sujets...",
       "reloadTooltip": "Vue d'ensemble plus à jour, veuillez recalculer",
       "perspective": {
+        "title": "Votre perspective",
         "language": "Langue",
         "character": "Profil d'intérêts",
-        "socialContext": "Contexte",
-        "adjustPerspective": "Ajuster ma propre perspective",
-        "adjustPerspectiveHelpText": "Votre profil d'intérêts détermine quels aspects sont particulièrement mis en avant. Votre contexte détermine dans quel environnement ou depuis quel rôle vous regardez les contenus.",
-        "adjustPerspectiveTitle": "Ajuster la perspective",
+        "socialContext": "Style de langue",
+        "adjustPerspective": "Ajuster la perspective",
         "adjustPerspectiveDescription": "Spécifiez comment les contenus sont préparés pour vous : dans quelle langue, avec quel profil d'intérêts et depuis quel contexte. Ainsi, vous obtenez des réponses qui reflètent votre approche et vos priorités."
+      },
+      "storyModePerspectivePage": {
+        "title": "Comment les réponses doivent-elles être formulées pour vous ?",
+        "subtitle": "Afin que le contenu soit présenté de la manière la plus compréhensible pour vous.",
+        "description": "Choisissez la langue, les intérêts et le style de langue pour que les explications correspondent à votre approche. Vous pouvez modifier cela à tout moment plus tard.",
+        "whyThisPage": "Pourquoi cette page ?",
+        "whyThisPageDescription": "Chaque personne apporte une approche différente. Votre sélection garantit que les réponses correspondent à votre contexte et à vos intérêts.",
+        "language": {
+          "label": "Langue",
+          "helpText": "Dans quelle langue souhaitez-vous lire les réponses ?"
+        },
+        "interests": {
+          "label": "Qu'est-ce qui vous intéresse particulièrement ? (Profil d'intérêts)",
+          "helpText": "Choisissez les aspects qui doivent être au premier plan pour vous. Les réponses donneront plus de poids à ces sujets.",
+          "maxSelected": "Max. 3 sélectionnables",
+          "selectedCount": "{count} sur 3 sélectionnés"
+        },
+        "languageStyle": {
+          "label": "Style de langue",
+          "helpText": "Comment les réponses doivent-elles sonner ?",
+          "note": "Vous déterminez uniquement le style – pas le contenu. Les réponses restent basées sur les mêmes sources."
+        },
+        "button": {
+          "start": "Commencer avec cette perspective",
+          "footer": "Vous pouvez modifier votre sélection plus tard dans le mode Histoire à tout moment."
+        }
       }
     },
     "searchPlaceholder": "Rechercher par titre, conférencier, sujet...",
@@ -131,12 +157,17 @@
     "noFiltersAvailable": "Aucun filtre disponible",
     "documents": "documents",
     "document": "document",
+    "talks": "conférences",
+    "talk": "conférence",
     "filtered": "filtré",
     "references": "Références",
     "referencesDescription": "La réponse a été générée à partir de ces documents.",
-    "storyModeGalleryDescription": "Les réponses sont générées à partir des conférences sélectionnées dans la Galerie.",
     "documentDetails": "Détails du document",
-    "detailViewStoryModeCta": "Vous ne comprenez pas ce contenu ? Faites-le-vous raconter dans votre langue.",
+    "talkSummary": "Résumé du Talk",
+    "documentView": "Vue du document",
+    "linkToOriginalWebsite": "vers le site web original",
+    "translationGenerating": "Les traductions peuvent prendre un moment, veuillez patienter.",
+    "detailViewStoryModeCta": "Faites-vous expliquer le contenu depuis votre perspective.",
     "openDocument": "Ouvrir le document",
     "openEventWebsite": "Ouvrir le site web de l'événement",
     "loading": "Chargement…",
@@ -172,20 +203,15 @@
   },
   "chat": {
     "characterLabels": {
-      "developer": "Orienté développeur",
-      "technical": "Orienté technique",
-      "open-source": "Spécifique open source",
-      "scientific": "Sciences naturelles",
-      "eco-social": "Orienté éco-social",
-      "social": "Orienté social",
-      "civic": "Orienté citoyen",
-      "policy": "Orienté sciences politiques",
-      "cultural": "Orienté culturel",
-      "business": "Orienté entreprise",
-      "entrepreneurial": "Orienté entrepreneuriat",
-      "legal": "Spécifique juridique",
-      "educational": "Orienté sciences de l'éducation",
-      "creative": "Orienté créatif"
+      "technical": "Orienté technologie",
+      "social-cultural": "Société & Culture",
+      "ecology": "Écologie & Durabilité",
+      "business": "Économie & Organisation",
+      "educational": "Éducation & Apprentissage",
+      "practical": "Quotidien & Pratique",
+      "research": "Recherche & Analyse",
+      "policy": "Politique & Changement social",
+      "creative": "Créatif & Visionnaire"
     },
     "socialContextLabels": {
       "scientific": "Scientifique",
@@ -318,7 +344,8 @@
     "welcomeTitle": "Bienvenue dans le mode Histoire.",
     "welcomeDescription": "Sélectionnez la langue et la perspective ci-dessus, puis commencez votre conversation avec la connaissance.",
     "welcomeTip": "Astuce : Posez une question ou cliquez sur une conférence à droite pour voir l'histoire de votre perspective.",
-    "processing": "Traitement..."
+    "processing": "Traitement...",
+    "topicsOverviewIntro": "Sur la base des {count} {type} sélectionnés, la vue d'ensemble des sujets et les réponses suivantes émergent:"
   },
   "suggestedQuestions": {
     "label": "Questions supplémentaires possibles sur le sujet qui émergent des sources :"

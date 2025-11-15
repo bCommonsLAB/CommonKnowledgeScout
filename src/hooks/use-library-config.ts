@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react'
 import { useAtomValue } from 'jotai'
 import { librariesAtom } from '@/atoms/library-atom'
+import { characterArrayToString } from '@/lib/chat/constants'
 
 /**
  * Helper: Liest Locale aus Cookie (client-seitig)
@@ -90,10 +91,17 @@ export function useLibraryConfig(libraryId: string): UseLibraryConfigResult {
             footerText: libraryFromState.config.chat?.footerText,
             companyLink: libraryFromState.config.chat?.companyLink,
             targetLanguage: libraryFromState.config.chat?.targetLanguage,
-            character: libraryFromState.config.chat?.character,
+            // Konvertiere character Array zu String (mit Komma verbunden)
+            character: characterArrayToString(libraryFromState.config.chat?.character),
             socialContext: libraryFromState.config.chat?.socialContext,
             genderInclusive: libraryFromState.config.chat?.genderInclusive,
-            userPreferences: libraryFromState.config.chat?.userPreferences,
+            // Konvertiere userPreferences.character Array zu String
+            userPreferences: libraryFromState.config.chat?.userPreferences 
+              ? {
+                  ...libraryFromState.config.chat.userPreferences,
+                  character: characterArrayToString(libraryFromState.config.chat.userPreferences.character),
+                }
+              : undefined,
           },
           vectorIndex: '', // Wird nicht benötigt für Client
         }

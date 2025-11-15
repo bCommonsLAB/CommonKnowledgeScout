@@ -23,6 +23,7 @@ import {
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_DEFAULT,
+  normalizeCharacterToArray,
 } from '@/lib/chat/constants'
 import {
   storyTargetLanguageAtom,
@@ -46,7 +47,7 @@ const loadedStorageKeys = new Set<string>()
  * müssen wir hier nur noch einmal prüfen, ob Werte aktualisiert werden müssen
  * (für den Fall, dass localStorage später verfügbar wird oder sich ändert).
  */
-function useLocalStorageSync<T extends TargetLanguage | Character | SocialContext>(
+function useLocalStorageSync<T extends TargetLanguage | Character[] | SocialContext>(
   atom: typeof storyTargetLanguageAtom | typeof storyCharacterAtom | typeof storySocialContextAtom,
   storageKey: string,
   defaultValue: T,
@@ -67,11 +68,21 @@ function useLocalStorageSync<T extends TargetLanguage | Character | SocialContex
     try {
       const stored = localStorage.getItem(storageKey)
       if (stored) {
-        const parsed = JSON.parse(stored) as T
+        const parsed = JSON.parse(stored)
+        // Für Character: Normalisiere zu Array (Backward-Compatibility)
+        const normalized = storageKey.includes('character') 
+          ? normalizeCharacterToArray(parsed)
+          : parsed as T
+        
         // Nur setzen, wenn der Wert anders ist (verhindert unnötige Updates)
-        if (parsed !== typedValue) {
-          console.log(`[StoryContext] Lade ${storageKey} aus localStorage (useEffect):`, parsed)
-          typedSetValue(parsed)
+        // Für Arrays: Deep-Vergleich
+        const isEqual = Array.isArray(normalized) && Array.isArray(typedValue)
+          ? JSON.stringify(normalized) === JSON.stringify(typedValue)
+          : normalized === typedValue
+        
+        if (!isEqual) {
+          console.log(`[StoryContext] Lade ${storageKey} aus localStorage (useEffect):`, normalized)
+          typedSetValue(normalized as T)
         }
       }
       loadedStorageKeys.add(storageKey) // Markiere als geladen
@@ -90,7 +101,7 @@ function useLocalStorageSync<T extends TargetLanguage | Character | SocialContex
  */
 export function saveStoryContextToLocalStorage(
   targetLanguage: TargetLanguage,
-  character: Character,
+  character: Character[],
   socialContext: SocialContext,
   isAnonymous: boolean
 ): void {
@@ -118,10 +129,10 @@ export interface UseStoryContextReturn {
   targetLanguage: TargetLanguage;
   /** Setter für Zielsprache */
   setTargetLanguage: (value: TargetLanguage) => void;
-  /** Aktueller Charakter/Perspektive */
-  character: Character;
-  /** Setter für Charakter */
-  setCharacter: (value: Character) => void;
+  /** Aktuelle Charaktere/Perspektiven (Array mit max. 3 Werten) */
+  character: Character[];
+  /** Setter für Charaktere */
+  setCharacter: (value: Character[]) => void;
   /** Aktueller Sozialer Kontext */
   socialContext: SocialContext;
   /** Setter für Sozialen Kontext */

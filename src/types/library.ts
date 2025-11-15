@@ -74,8 +74,8 @@ export interface LibraryChatConfig {
   /** Zielsprache für Chat-Antworten */
   targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar';
 
-  /** Charakter/Profil für die Antwort-Perspektive */
-  character?: Character;
+  /** Charakter/Profil für die Antwort-Perspektive (Array mit max. 3 Werten, kann leer sein) */
+  character?: Character[];
 
   /** Sozialer Kontext/Sprachebene */
   socialContext?: SocialContext;
@@ -86,7 +86,8 @@ export interface LibraryChatConfig {
   /** Benutzer-Präferenzen für Chat-Einstellungen (werden beim Start gespeichert) */
   userPreferences?: {
     targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar';
-    character?: Character;
+    /** Charakter/Profil für die Antwort-Perspektive (Array mit max. 3 Werten, kann leer sein) */
+    character?: Character[];
     socialContext?: SocialContext;
     genderInclusive?: boolean;
   };

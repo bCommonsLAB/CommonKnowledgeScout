@@ -466,7 +466,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     return () => {
       isCancelled = true;
     };
-  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId, hasRedirectedToSettings]);
+  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId, hasRedirectedToSettings, libraries, setLibraryStatusAtom]);
 
   // Aktuelle Bibliothek aktualisieren
   const refreshCurrentLibrary = async () => {

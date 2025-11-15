@@ -109,6 +109,7 @@
     "switchToStoryMode": "In Story Mode ansehen",
     "storyModeTooltip": "Im Story Mode kannst du dir die Inhalte in deiner Sprache, deinem Interessenprofil und deinem Kontext erklären lassen.",
     "backToGallery": "Zurück zu den Inhalten",
+    "backToStoryMode": "Zurück zu Story Mode",
     "storyMode": {
       "headline": "Story Mode – Lass dir die Inhalte aus deiner Perspektive erklären",
       "subtitle": "Gemeinsam geteiltes Wissen erleben",
@@ -116,13 +117,38 @@
       "generatingTopics": "Generiere Themenübersicht...",
       "reloadTooltip": "Übersicht nicht mehr aktuell, bitte neu berechnen",
       "perspective": {
+        "title": "Deine Perspektive",
         "language": "Sprache",
         "character": "Interessenprofil",
-        "socialContext": "Kontext",
-        "adjustPerspective": "Eigene Perspektive anpassen",
-        "adjustPerspectiveHelpText": "Dein Interessenprofil bestimmt, welche Aspekte besonders hervorgehoben werden. Dein Kontext legt fest, in welchem Umfeld oder aus welcher Rolle du die Inhalte betrachtest.",
-        "adjustPerspectiveTitle": "Perspektive anpassen",
+        "socialContext": "Sprachstil",
+        "adjustPerspective": "Perspektive anpassen",
         "adjustPerspectiveDescription": "Lege fest, wie die Inhalte für dich aufbereitet werden:in welcher Sprache, mit welchem Interessenprofil und aus welchem Kontext. So erhältst du Antworten, die deinen Zugang und deine Schwerpunkte widerspiegeln."
+      },
+      "storyModePerspectivePage": {
+        "title": "Wie sollen Antworten für dich formuliert sein?",
+        "subtitle": "Damit Inhalte so dargestellt werden, wie sie für dich am besten verständlich sind.",
+        "description": "Wähle Sprache, Interessen und Sprachstil, damit Erklärungen zu deinem Zugang passen. Du kannst das später jederzeit ändern.",
+        "whyThisPage": "Warum diese Seite?",
+        "whyThisPageDescription": "Jede Person bringt einen anderen Zugang mit. Deine Auswahl sorgt dafür, dass Antworten zu deinem Hintergrund und deinen Interessen passen.",
+        "language": {
+          "label": "Sprache",
+          "helpText": "In welcher Sprache möchtest du die Antworten lesen?"
+        },
+        "interests": {
+          "label": "Was interessiert dich besonders? (Interessenprofil)",
+          "helpText": "Wähle, welche Aspekte für dich im Vordergrund stehen sollen. Die Antworten gewichten diese Themen stärker.",
+          "maxSelected": "Max. 3 auswählbar",
+          "selectedCount": "{count} von 3 ausgewählt"
+        },
+        "languageStyle": {
+          "label": "Sprachstil",
+          "helpText": "Wie sollen die Antworten klingen?",
+          "note": "Du bestimmst nur den Stil – nicht den Inhalt. Die Antworten bleiben auf denselben Quellen aufgebaut."
+        },
+        "button": {
+          "start": "Mit dieser Perspektive starten",
+          "footer": "Du kannst deine Auswahl später im Story Mode jederzeit ändern."
+        }
       }
     },
     "searchPlaceholder": "Durchsuchen nach Titel, Speaker, Topic...",
@@ -131,12 +157,17 @@
     "noFiltersAvailable": "Keine Filter verfügbar",
     "documents": "Dokumente",
     "document": "Dokument",
+    "talks": "Talks",
+    "talk": "Talk",
     "filtered": "gefiltert",
     "references": "Quellenverzeichnis",
     "referencesDescription": "Die Antwort wurde aus diesen Dokumenten generiert.",
-    "storyModeGalleryDescription": "Antworten werden aus den in der Gallery ausgewählten Talks generiert.",
     "documentDetails": "Dokumentdetails",
-    "detailViewStoryModeCta": "Du verstehst diesen Inhalt nicht? Lass ihn dir in deiner Sprache erzählen.",
+    "talkSummary": "Talk Summary",
+    "documentView": "Dokumentansicht",
+    "linkToOriginalWebsite": "zur Original-Webseite",
+    "translationGenerating": "Übersetzungen können einen Moment dauern, bitte haben Sie etwas Geduld.",
+    "detailViewStoryModeCta": "Lass dir den Inhalt aus deiner Perspektive erklären.",
     "openDocument": "Dokument öffnen",
     "openEventWebsite": "Event Webseite öffnen",
     "loading": "Lade…",
@@ -172,20 +203,15 @@
   },
   "chat": {
     "characterLabels": {
-      "developer": "Developer-orientiert",
-      "technical": "Technisch-orientiert",
-      "open-source": "Open-Source-spezifisch",
-      "scientific": "Naturwissenschaftlich",
-      "eco-social": "Ökosozial-orientiert",
-      "social": "Sozial-orientiert",
-      "civic": "Bürgerschaftlich-orientiert",
-      "policy": "Politikwissenschaftlich-orientiert",
-      "cultural": "Kulturell-orientiert",
-      "business": "Business-orientiert",
-      "entrepreneurial": "Unternehmerisch-orientiert",
-      "legal": "Rechtskundespezifisch",
-      "educational": "Bildungswissenschaftlich-orientiert",
-      "creative": "Kreativ-orientiert"
+      "technical": "Technikorientiert",
+      "social-cultural": "Gesellschaft & Kultur",
+      "ecology": "Ökologie & Nachhaltigkeit",
+      "business": "Wirtschaft & Organisation",
+      "educational": "Bildung & Lernen",
+      "practical": "Alltag & Praxis",
+      "research": "Forschung & Analyse",
+      "policy": "Politik & Gesellschaftswandel",
+      "creative": "Kreativ & Visionär"
     },
     "socialContextLabels": {
       "scientific": "Wissenschaftlich",
@@ -319,7 +345,8 @@
     "welcomeTitle": "Willkommen im Story Mode.",
     "welcomeDescription": "Wähle oben Sprache und Perspektive, dann beginne dein Gespräch mit dem Wissen.",
     "welcomeTip": "Tipp: Stelle eine Frage oder klicke rechts auf einen Talk, um die Story aus deiner Sicht zu sehen.",
-    "processing": "Wird verarbeitet..."
+    "processing": "Wird verarbeitet...",
+    "topicsOverviewIntro": "Aufgrund der ausgewählten {count} {type} ergiben sich folgende Themenübersicht und Antworten:"
   },
   "suggestedQuestions": {
     "label": "Mögliche weitere Fragen zum Thema, die sich aus den Quellen ergeben:"

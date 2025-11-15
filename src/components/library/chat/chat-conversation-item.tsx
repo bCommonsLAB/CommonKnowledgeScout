@@ -15,7 +15,7 @@ interface ConversationPair {
     id: string
     content: string
     createdAt: string
-    character?: Character
+    character?: Character[] // Array (kann leer sein)
     answerLength?: AnswerLength
     retriever?: Retriever
     targetLanguage?: TargetLanguage
@@ -32,7 +32,7 @@ interface ConversationPair {
     answerLength?: AnswerLength
     retriever?: Retriever
     targetLanguage?: TargetLanguage
-    character?: Character
+    character?: Character[] // Array (kann leer sein)
     socialContext?: SocialContext
   }
 }
@@ -46,7 +46,7 @@ interface ChatConversationItemProps {
   filters?: Record<string, unknown> // Optional: Filterparameter für Anzeige
   onQuestionClick?: (question: string) => void
   onDelete?: (queryId: string) => Promise<void>
-  onReload?: (question: string, config: { character?: Character; answerLength?: AnswerLength; retriever?: Retriever; targetLanguage?: TargetLanguage; socialContext?: SocialContext }) => Promise<void>
+  onReload?: (question: string, config: { character?: Character[]; answerLength?: AnswerLength; retriever?: Retriever; targetLanguage?: TargetLanguage; socialContext?: SocialContext }) => Promise<void>
   innerRef?: (id: string, element: HTMLDivElement | null) => void
 }
 
@@ -87,8 +87,10 @@ export function ChatConversationItem({
   const [isDeleting, setIsDeleting] = useState(false)
   const [isReloading, setIsReloading] = useState(false)
   
-  const bgColor = getCharacterColor(pair.question.character)
-  const iconColor = getCharacterIconColor(pair.question.character)
+  // Verwende ersten Wert für Farben (kann undefined sein)
+  const characterValue = pair.question.character && pair.question.character.length > 0 ? pair.question.character[0] : undefined
+  const bgColor = getCharacterColor(characterValue)
+  const iconColor = getCharacterIconColor(characterValue)
 
   // Auto-Scroll zu diesem Accordion, wenn es geöffnet wird
   useEffect(() => {

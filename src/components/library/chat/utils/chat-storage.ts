@@ -25,13 +25,20 @@ export function getInitialTargetLanguage(): TargetLanguage {
   return TARGET_LANGUAGE_DEFAULT
 }
 
-export function getInitialCharacter(): Character {
+export function getInitialCharacter(): Character[] {
   if (typeof window === 'undefined') return CHARACTER_DEFAULT
   try {
     const stored = localStorage.getItem('story-context-character')
     if (stored) {
-      const parsed = JSON.parse(stored) as Character
-      return parsed
+      const parsed = JSON.parse(stored)
+      // Migration: Konvertiere Single-Value zu Array
+      if (Array.isArray(parsed)) {
+        return parsed as Character[]
+      }
+      // Alte Single-Value-Werte zu Array konvertieren
+      if (typeof parsed === 'string') {
+        return [parsed as Character]
+      }
     }
   } catch {
     // Ignoriere Fehler
@@ -72,7 +79,7 @@ export function getInitialGenderInclusive(): boolean {
  */
 export function saveChatContextToLocalStorage(
   targetLanguage: TargetLanguage,
-  character: Character,
+  character: Character[], // Array (kann leer sein)
   socialContext: SocialContext,
   genderInclusive: boolean
 ): void {

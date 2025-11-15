@@ -26,8 +26,10 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { getLocale, SUPPORTED_LOCALES, type Locale } from '@/lib/i18n';
 
-// Startup-Log um zu bestätigen, dass Middleware geladen wird
-console.log(`[MIDDLEWARE] 🚀 Middleware wird geladen - ${new Date().toISOString()}`);
+// Startup-Log um zu bestätigen, dass Middleware geladen wird (nur in Development)
+if (process.env.NODE_ENV === 'development') {
+  console.log(`[MIDDLEWARE] 🚀 Middleware wird geladen - ${new Date().toISOString()}`);
+}
 
 // Liste der öffentlichen Routen, die ohne Anmeldung zugänglich sind
 // Test-/Legacy-Routen entfernt. Externe Callbacks erfolgen über External-Jobs (siehe dynamische Ausnahme unten).
@@ -38,12 +40,15 @@ const isPublicRoute = createRouteMatcher([
   '/api/public(.*)'
 ]);
 
-console.log(`[MIDDLEWARE] 🔧 Public routes configured:`, [
-  '/',
-  '/docs(.*)',
-  '/explore(.*)',
-  '/api/public(.*)',
-]);
+// Public routes Log (nur in Development)
+if (process.env.NODE_ENV === 'development') {
+  console.log(`[MIDDLEWARE] 🔧 Public routes configured:`, [
+    '/',
+    '/docs(.*)',
+    '/explore(.*)',
+    '/api/public(.*)',
+  ]);
+}
 
 // Verwende die offizielle Clerk-Middleware
 export default clerkMiddleware(async (auth, req) => {
@@ -108,9 +113,13 @@ export default clerkMiddleware(async (auth, req) => {
   // Die API-Routen prüfen selbst, ob die Library öffentlich ist
   if (!isPublic) {
     const path = req.nextUrl.pathname;
-    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|facets|config|stats|doc-meta|chats|toc-cache)$/.test(path);
+    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|facets|config|stats|doc-meta|chats|toc-cache|doc-by-slug|speaker-images)$/.test(path);
     const isChatStreamPath = /^\/api\/chat\/[^/]+\/stream$/.test(path);
-    if ((req.method === 'GET' && isChatApiPath) || (req.method === 'POST' && isChatStreamPath)) {
+    const isTranslateDocumentPath = /^\/api\/chat\/[^/]+\/translate-document$/.test(path);
+    if (
+      (req.method === 'GET' && isChatApiPath) || 
+      (req.method === 'POST' && (isChatStreamPath || isTranslateDocumentPath))
+    ) {
       isPublic = true;
     }
   }
@@ -157,10 +166,14 @@ export default clerkMiddleware(async (auth, req) => {
     await auth.protect();
     
   } catch (error) {
-    console.error(`[MIDDLEWARE] Auth failed for ${req.nextUrl.pathname}`, {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    // Nur bei echten Auth-Fehlern loggen, nicht bei 404 (normales Verhalten für anonyme Nutzer)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    if (errorMessage !== 'NEXT_HTTP_ERROR_FALLBACK;404') {
+      console.error(`[MIDDLEWARE] Auth failed for ${req.nextUrl.pathname}`, {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: errorMessage
+      })
+    }
     throw error;
   }
   

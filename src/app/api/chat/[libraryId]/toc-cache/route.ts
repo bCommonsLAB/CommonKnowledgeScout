@@ -3,6 +3,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { findQueryByQuestionAndContext } from '@/lib/db/queries-repo'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
+import { parseCharacterFromUrlParam } from '@/lib/chat/constants'
 
 /**
  * API-Endpoint zum Prüfen, ob eine Inhaltsverzeichnis-Query bereits gecacht ist
@@ -26,10 +27,13 @@ export async function GET(
     const parsedUrl = new URL(request.url)
     const question = parsedUrl.searchParams.get('question')
     const targetLanguage = parsedUrl.searchParams.get('targetLanguage')
-    const character = parsedUrl.searchParams.get('character')
+    const characterParam = parsedUrl.searchParams.get('character')
     const socialContext = parsedUrl.searchParams.get('socialContext')
     const genderInclusive = parsedUrl.searchParams.get('genderInclusive')
     const retriever = parsedUrl.searchParams.get('retriever')
+    
+    // Parse character Parameter aus URL (komma-separierter String → Character[] Array)
+    const character = parseCharacterFromUrlParam(characterParam)
 
     if (!question) {
       return NextResponse.json({ error: 'question parameter required' }, { status: 400 })
@@ -77,40 +81,27 @@ export async function GET(
       question,
       queryType: 'toc', // Suche nur nach TOC-Queries
       targetLanguage: targetLanguage || undefined,
-      character: character || undefined,
+      character: character, // Array (kann undefined sein)
       socialContext: socialContext || undefined,
       genderInclusive: genderInclusive === 'true' ? true : genderInclusive === 'false' ? false : undefined,
       retriever: retriever || undefined,
       facetsSelected: Object.keys(facetsSelected).length > 0 ? facetsSelected : undefined,
     })
 
-    // Debug-Logging für Fehlerdiagnose
-    if (!cachedQuery) {
-      console.log('[toc-cache] Keine Query gefunden für:', {
-        libraryId,
-        userEmail,
-        question: question.substring(0, 50) + '...',
-        queryType: 'toc',
-        targetLanguage,
-        character,
-        socialContext,
-        genderInclusive: genderInclusive === 'true' ? true : genderInclusive === 'false' ? false : undefined,
-        retriever,
-        facetsSelected: Object.keys(facetsSelected).length > 0 ? facetsSelected : undefined,
-      })
-    }
-
     // Prüfe, ob die Query eine Antwort oder storyTopicsData hat
     // (storyTopicsData ist wichtiger für TOC-Queries, auch wenn answer noch null ist)
     if (cachedQuery && (cachedQuery.answer || cachedQuery.storyTopicsData)) {
-      console.log('[toc-cache] ✅ Query gefunden:', {
-        queryId: cachedQuery.queryId,
-        retriever: cachedQuery.retriever,
-        status: cachedQuery.status,
-        hasAnswer: !!cachedQuery.answer,
-        hasStoryTopicsData: !!cachedQuery.storyTopicsData,
-        answerLength: cachedQuery.answer?.length || 0,
-      })
+      // Erfolgreiche Cache-Funde nur in Development loggen (zu verbose für Production)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[toc-cache] ✅ Query gefunden:', {
+          queryId: cachedQuery.queryId,
+          retriever: cachedQuery.retriever,
+          status: cachedQuery.status,
+          hasAnswer: !!cachedQuery.answer,
+          hasStoryTopicsData: !!cachedQuery.storyTopicsData,
+          answerLength: cachedQuery.answer?.length || 0,
+        })
+      }
       return NextResponse.json({
         found: true,
         queryId: cachedQuery.queryId,

@@ -2,8 +2,20 @@ import { NextResponse } from 'next/server';
 import { LibraryService } from '@/lib/services/library-service';
 
 /**
+ * Next.js Route Segment Config für Caching
+ * Cache die Antwort für 60 Sekunden (revalidate)
+ * Dies reduziert die Datenbanklast erheblich für öffentliche Libraries
+ */
+export const revalidate = 60; // Cache für 60 Sekunden
+
+/**
  * GET /api/public/libraries
  * Liefert alle öffentlichen Libraries (ohne Authentifizierung)
+ * 
+ * PERFORMANCE-OPTIMIERUNGEN:
+ * - MongoDB-Indizes für publicPublishing-Felder (automatisch erstellt)
+ * - Next.js Route Segment Caching (60 Sekunden)
+ * - Optimierte Aggregation-Pipeline statt alle Einträge zu laden
  */
 export async function GET() {
   try {

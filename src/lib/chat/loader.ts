@@ -35,6 +35,70 @@ export interface LibraryChatContext {
 }
 
 /**
+ * Cache für LibraryChatContext
+ * Verhindert wiederholte MongoDB-Queries und Berechnungen
+ */
+interface CacheEntry {
+  context: LibraryChatContext
+  timestamp: number
+}
+
+const contextCache = new Map<string, CacheEntry>()
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 Minuten
+
+/**
+ * Generiert einen Cache-Key für LibraryChatContext
+ */
+function getCacheKey(userEmail: string, libraryId: string): string {
+  return `${userEmail || 'anonymous'}:${libraryId}`
+}
+
+/**
+ * Prüft, ob ein Cache-Eintrag noch gültig ist
+ */
+function getCachedContext(userEmail: string, libraryId: string): LibraryChatContext | null {
+  const key = getCacheKey(userEmail, libraryId)
+  const entry = contextCache.get(key)
+  
+  if (!entry) {
+    return null
+  }
+  
+  const now = Date.now()
+  if (now - entry.timestamp > CACHE_TTL_MS) {
+    contextCache.delete(key)
+    return null
+  }
+  
+  return entry.context
+}
+
+/**
+ * Speichert einen LibraryChatContext im Cache
+ */
+function setCachedContext(userEmail: string, libraryId: string, context: LibraryChatContext): void {
+  const key = getCacheKey(userEmail, libraryId)
+  contextCache.set(key, {
+    context,
+    timestamp: Date.now(),
+  })
+}
+
+/**
+ * Löscht einen Cache-Eintrag (z.B. nach Library-Update)
+ */
+export function invalidateLibraryContextCache(libraryId: string): void {
+  // Lösche alle Cache-Einträge für diese Library-ID
+  const keysToDelete: string[] = []
+  for (const [key] of contextCache) {
+    if (key.endsWith(`:${libraryId}`)) {
+      keysToDelete.push(key)
+    }
+  }
+  keysToDelete.forEach(key => contextCache.delete(key))
+}
+
+/**
  * Findet die Owner-Email einer öffentlichen Library
  * @param libraryId Die Library-ID
  * @returns Die Owner-Email oder null wenn nicht gefunden
@@ -103,56 +167,60 @@ async function findLibraryOwnerEmailBySlug(slugName: string): Promise<string | n
 /**
  * Lädt eine Bibliothek für einen Benutzer (per E-Mail) und liefert
  * die normalisierte Chat-Konfiguration sowie den abgeleiteten Indexnamen.
+ * Verwendet Caching, um wiederholte MongoDB-Queries zu vermeiden.
  */
 export async function loadLibraryChatContext(
   userEmail: string,
   libraryId: string
 ): Promise<LibraryChatContext | null> {
-  console.log('[loadLibraryChatContext] Request:', { 
-    userEmail: userEmail ? `${userEmail.split('@')[0]}@...` : 'none', 
-    libraryId 
-  })
+  // Prüfe Cache zuerst
+  const cached = getCachedContext(userEmail, libraryId)
+  if (cached) {
+    return cached
+  }
   
   const libService = LibraryService.getInstance()
   
   // Wenn keine Email vorhanden ist, versuche öffentliche Library zu laden
   if (!userEmail || userEmail === '') {
-    console.log('[loadLibraryChatContext] Keine Email - versuche öffentliche Library zu laden (ID oder Slug)')
     // Versuche zuerst direkt über ID, dann über Slug
     const byId = await loadPublicLibraryById(libraryId)
-    if (byId) return byId
-    return loadPublicLibraryBySlug(libraryId)
+    if (byId) {
+      setCachedContext(userEmail, libraryId, byId)
+      return byId
+    }
+    const bySlug = await loadPublicLibraryBySlug(libraryId)
+    if (bySlug) {
+      setCachedContext(userEmail, libraryId, bySlug)
+      return bySlug
+    }
+    return null
   }
   
   const libraries = await libService.getUserLibraries(userEmail)
-  
-  console.log('[loadLibraryChatContext] Geladene Libraries:', {
-    count: libraries.length,
-    ids: libraries.map(l => ({ id: l.id, label: l.label }))
-  })
-  
   const library = libraries.find(l => l.id === libraryId)
   
   if (!library) {
-    console.log('[loadLibraryChatContext] ❌ Library nicht gefunden! Gesuchte ID:', libraryId)
     // Versuche auch öffentliche Library zu laden (zuerst über ID, dann über Slug)
     const byId = await loadPublicLibraryById(libraryId)
-    if (byId) return byId
-    return loadPublicLibraryBySlug(libraryId)
+    if (byId) {
+      setCachedContext(userEmail, libraryId, byId)
+      return byId
+    }
+    const bySlug = await loadPublicLibraryBySlug(libraryId)
+    if (bySlug) {
+      setCachedContext(userEmail, libraryId, bySlug)
+      return bySlug
+    }
+    return null
   }
-
-  console.log('[loadLibraryChatContext] ✅ Library gefunden:', {
-    id: library.id,
-    label: library.label,
-    type: library.type
-  })
 
   const chat = normalizeChatConfig(library.config?.chat)
   const vectorIndex = getVectorIndexForLibrary({ id: library.id, label: library.label }, library.config?.chat, userEmail)
   
-  console.log('[loadLibraryChatContext] Berechneter vectorIndex:', vectorIndex)
-  
-  return { library, vectorIndex, chat }
+  const context = { library, vectorIndex, chat }
+  setCachedContext(userEmail, libraryId, context)
+  return context
 }
 
 /**
@@ -161,27 +229,17 @@ export async function loadLibraryChatContext(
 export async function loadPublicLibraryById(
   libraryId: string
 ): Promise<LibraryChatContext | null> {
-  console.log('[loadPublicLibraryById] Request:', { libraryId })
-  
   const libService = LibraryService.getInstance()
   const library = await libService.getPublicLibraryById(libraryId)
   
   if (!library) {
-    console.log('[loadPublicLibraryById] ❌ Öffentliche Library nicht gefunden! ID:', libraryId)
     return null
   }
 
   // Prüfe ob Library wirklich öffentlich ist
   if (library.config?.publicPublishing?.isPublic !== true) {
-    console.log('[loadPublicLibraryById] ❌ Library ist nicht öffentlich! ID:', libraryId)
     return null
   }
-
-  console.log('[loadPublicLibraryById] ✅ Öffentliche Library gefunden:', {
-    id: library.id,
-    label: library.label,
-    slugName: library.config?.publicPublishing?.slugName
-  })
 
   const chat = normalizeChatConfig(library.config?.chat)
   
@@ -189,7 +247,6 @@ export async function loadPublicLibraryById(
   // Wenn indexOverride gesetzt ist, wird dieser direkt verwendet (ohne Email-Präfix)
   // Ansonsten verwenden wir die Owner-Email für die Index-Berechnung
   const ownerEmail = await findLibraryOwnerEmail(libraryId)
-  console.log('[loadPublicLibraryById] Owner-Email:', ownerEmail ? `${ownerEmail.split('@')[0]}@...` : 'nicht gefunden')
   
   // Verwende Owner-Email für Index-Berechnung (auch im anonymen Modus)
   // indexOverride hat Priorität und wird direkt verwendet
@@ -198,8 +255,6 @@ export async function loadPublicLibraryById(
     library.config?.chat, 
     ownerEmail || undefined
   )
-  
-  console.log('[loadPublicLibraryById] Berechneter vectorIndex:', vectorIndex)
   
   return { library, vectorIndex, chat }
 }
@@ -210,27 +265,17 @@ export async function loadPublicLibraryById(
 export async function loadPublicLibraryBySlug(
   slugName: string
 ): Promise<LibraryChatContext | null> {
-  console.log('[loadPublicLibraryBySlug] Request:', { slugName })
-  
   const libService = LibraryService.getInstance()
   const library = await libService.getPublicLibraryBySlug(slugName)
   
   if (!library) {
-    console.log('[loadPublicLibraryBySlug] ❌ Öffentliche Library nicht gefunden! Slug:', slugName)
     return null
   }
 
   // Prüfe ob Library wirklich öffentlich ist
   if (library.config?.publicPublishing?.isPublic !== true) {
-    console.log('[loadPublicLibraryBySlug] ❌ Library ist nicht öffentlich! Slug:', slugName)
     return null
   }
-
-  console.log('[loadPublicLibraryBySlug] ✅ Öffentliche Library gefunden:', {
-    id: library.id,
-    label: library.label,
-    slugName: library.config?.publicPublishing?.slugName
-  })
 
   const chat = normalizeChatConfig(library.config?.chat)
   
@@ -238,7 +283,6 @@ export async function loadPublicLibraryBySlug(
   // Wenn indexOverride gesetzt ist, wird dieser direkt verwendet (ohne Email-Präfix)
   // Ansonsten verwenden wir die Owner-Email für die Index-Berechnung
   const ownerEmail = await findLibraryOwnerEmailBySlug(slugName)
-  console.log('[loadPublicLibraryBySlug] Owner-Email:', ownerEmail ? `${ownerEmail.split('@')[0]}@...` : 'nicht gefunden')
   
   // Verwende Owner-Email für Index-Berechnung (auch im anonymen Modus)
   // indexOverride hat Priorität und wird direkt verwendet
@@ -247,8 +291,6 @@ export async function loadPublicLibraryBySlug(
     library.config?.chat, 
     ownerEmail || undefined
   )
-  
-  console.log('[loadPublicLibraryBySlug] Berechneter vectorIndex:', vectorIndex)
   
   return { library, vectorIndex, chat }
 }

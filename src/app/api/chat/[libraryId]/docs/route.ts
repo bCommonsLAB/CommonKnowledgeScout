@@ -2,7 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
-import { findDocs, computeDocMetaCollectionName, ensureFacetIndexes } from '@/lib/repositories/doc-meta-repo'
+import { findDocs, computeDocMetaCollectionName, ensureFacetIndexes, getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -48,7 +48,62 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       }
     }
 
-    const items = await findDocs(libraryKey, libraryId, filter, { limit: 200, sort: { year: -1, upsertedAt: -1 } })
+    // Prüfe, ob Image-URLs mitgeladen werden sollen (für Kompatibilität)
+    const includeImageUrls = url.searchParams.get('includeImageUrls') === 'true'
+    
+    const items = await findDocs(libraryKey, libraryId, filter, { limit: 400, sort: { year: -1, upsertedAt: -1 } })
+    
+    // Wenn includeImageUrls=true, lade Image-URLs für alle Dokumente
+    // Ansonsten werden sie lazy-loaded über die separate Route
+    if (includeImageUrls) {
+      const col = await getDocMetaCollection(libraryKey)
+      const itemsWithImages = await Promise.all(
+        items.map(async (item) => {
+          if (!item.fileId) return item
+          
+          const doc = await col.findOne(
+            { fileId: item.fileId },
+            {
+              projection: {
+                _id: 0,
+                speakers_image_url: 1,
+                'docMetaJson.speakers_image_url': 1,
+              }
+            }
+          )
+          
+          if (!doc) return item
+          
+          const toStrArr = (val: unknown): string[] | undefined => {
+            if (Array.isArray(val)) {
+              return val.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+            }
+            if (typeof val === 'string') {
+              try {
+                const parsed = JSON.parse(val)
+                return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string' && v.trim().length > 0) : undefined
+              } catch {
+                return undefined
+              }
+            }
+            return undefined
+          }
+          
+          const docMeta = doc.docMetaJson && typeof doc.docMetaJson === 'object' 
+            ? doc.docMetaJson as Record<string, unknown> 
+            : undefined
+          
+          const speakersImageUrlTopLevel = toStrArr(doc.speakers_image_url)
+          const speakersImageUrlDocMeta = docMeta ? toStrArr(docMeta.speakers_image_url) : undefined
+          const speakersImageUrl = speakersImageUrlTopLevel || speakersImageUrlDocMeta || []
+          
+          return { ...item, speakers_image_url: speakersImageUrl.length > 0 ? speakersImageUrl : undefined }
+        })
+      )
+      
+      return NextResponse.json({ items: itemsWithImages }, { status: 200 })
+    }
+    
     return NextResponse.json({ items }, { status: 200 })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'

@@ -89,10 +89,10 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
         </Button>
       )}
 
-      {/* Dokumentenanzahl - nur auf Desktop */}
-      <div className="hidden lg:block text-sm text-muted-foreground shrink-0">
+      {/* Dokumentenanzahl - immer anzeigen */}
+      <div className="text-sm text-muted-foreground shrink-0">
         {docCount} {docCount === 1 ? t('gallery.document') : t('gallery.documents')}
-        {hasActiveFilters && ` ${t('gallery.filtered')}`}
+        {hasActiveFilters && ` - ${t('gallery.filtered')}:`}
       </div>
 
       {/* Gesetzte Filter als Badges */}
@@ -123,9 +123,9 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
         </Button>
       )}
 
-      {/* CTA-Button - rechtsbündig wenn Filter gesetzt, sonst direkt neben Filter-Icon */}
+      {/* CTA-Button - immer rechtsbündig */}
       {ctaLabel && onCta && (
-        <div className={`flex items-center shrink-0 ${hasActiveFilters ? 'ml-auto' : ''}`}>
+        <div className="flex items-center shrink-0 ml-auto">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

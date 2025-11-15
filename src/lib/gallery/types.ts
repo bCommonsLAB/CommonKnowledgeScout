@@ -14,6 +14,7 @@ export interface DocCardMeta {
   date?: string
   region?: string
   upsertedAt?: string
+  slug?: string
 }
 
 export interface ChapterInfo {
@@ -37,6 +38,11 @@ export interface GalleryTexts {
 
 export interface StatsTotals { docs: number; chunks: number }
 export interface StatsResponse { ok?: boolean; indexExists?: boolean; totals?: StatsTotals }
+
+
+
+
+
 
 
 

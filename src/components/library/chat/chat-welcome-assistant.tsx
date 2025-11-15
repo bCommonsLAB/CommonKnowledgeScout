@@ -22,12 +22,12 @@ import { useStoryContext } from '@/hooks/use-story-context'
 interface ChatWelcomeAssistantProps {
   libraryId: string
   initialTargetLanguage?: TargetLanguage
-  initialCharacter?: Character
+  initialCharacter?: Character[] // Array (kann leer sein)
   initialSocialContext?: SocialContext
   initialGenderInclusive?: boolean
   onSettingsConfirm: (settings: {
     targetLanguage: TargetLanguage
-    character: Character
+    character: Character[] // Array (kann leer sein)
     socialContext: SocialContext
     genderInclusive: boolean
   }) => Promise<void>
@@ -59,10 +59,24 @@ export function ChatWelcomeAssistant({
     initialGenderInclusive,
   })
   const [targetLanguage, setTargetLanguage] = useState<TargetLanguage>(initialTargetLanguage)
-  const [character, setCharacter] = useState<Character>(initialCharacter)
+  const [character, setCharacter] = useState<Character[]>(initialCharacter || CHARACTER_DEFAULT)
   const [socialContext, setSocialContext] = useState<SocialContext>(initialSocialContext)
   const [genderInclusive, setGenderInclusive] = useState<boolean>(initialGenderInclusive)
   const [isSaving, setIsSaving] = useState(false)
+  
+  // Toggle Character-Auswahl (max. 3 Werte)
+  function toggleCharacter(char: Character) {
+    setCharacter(prev => {
+      if (prev.includes(char)) {
+        // Entferne Character, wenn bereits ausgewählt
+        return prev.filter(c => c !== char)
+      } else {
+        // Füge Character hinzu, wenn noch Platz (max. 3)
+        if (prev.length >= 3) return prev
+        return [...prev, char]
+      }
+    })
+  }
 
   async function handleConfirm() {
     setIsSaving(true)
@@ -142,15 +156,18 @@ export function ChatWelcomeAssistant({
 
         {/* Charakter */}
         <div>
-          <div className="mb-1.5 text-xs font-medium text-muted-foreground">Charakter / Perspektive</div>
+          <div className="mb-1.5 text-xs font-medium text-muted-foreground">
+            Charakter / Perspektive {character.length > 0 && `(${character.length}/3)`}
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {CHARACTER_VALUES.map((char) => (
               <Button
                 key={char}
                 type="button"
                 size="sm"
-                variant={character === char ? 'secondary' : 'ghost'}
-                onClick={() => setCharacter(char)}
+                variant={character.includes(char) ? 'secondary' : 'ghost'}
+                onClick={() => toggleCharacter(char)}
+                disabled={!character.includes(char) && character.length >= 3}
                 className="h-7 text-xs"
               >
                 {characterLabels[char]}

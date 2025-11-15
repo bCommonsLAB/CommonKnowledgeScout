@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
+import { librariesAtom } from '@/atoms/library-atom'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { StoryTopics } from '../story/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
@@ -17,11 +18,15 @@ import {
   ANSWER_LENGTH_DEFAULT,
   RETRIEVER_DEFAULT,
   TOC_QUESTION,
+  characterArrayToString,
 } from '@/lib/chat/constants'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { storyPerspectiveOpenAtom } from '@/atoms/story-context-atom'
 import { useUser } from '@clerk/nextjs'
 import { ChatInput } from './chat-input'
+import { Button } from '@/components/ui/button'
+import { MessageCircle, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { ChatConfigBar } from './chat-config-bar'
 import { ChatConfigPopover } from './chat-config-popover'
 import { ChatMessagesList } from './chat-messages-list'
@@ -35,6 +40,8 @@ import { useChatStream } from './hooks/use-chat-stream'
 import { useChatTOC } from './hooks/use-chat-toc'
 import type { QueryLog } from '@/types/query-log'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
+import { useTranslation } from '@/lib/i18n/hooks'
+import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
 
 interface ChatPanelProps {
   libraryId: string
@@ -42,6 +49,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
+  const { t } = useTranslation()
   const isEmbedded = variant === 'embedded'
   const storyContext = useStoryContext()
   const { isSignedIn } = useUser()
@@ -64,7 +72,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   
   // Context State (embedded vs. local)
   const [targetLanguageState, setTargetLanguageState] = useState<TargetLanguage>(getInitialTargetLanguage())
-  const [characterState, setCharacterState] = useState<Character>(getInitialCharacter())
+  const [characterState, setCharacterState] = useState<Character[]>(getInitialCharacter())
   const [socialContextState, setSocialContextState] = useState<SocialContext>(getInitialSocialContext())
   const [genderInclusive, setGenderInclusive] = useState<boolean>(getInitialGenderInclusive())
   
@@ -72,7 +80,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const character = isEmbedded ? storyContext.character : characterState
   const socialContext = isEmbedded ? storyContext.socialContext : socialContextState
   const setTargetLanguage = isEmbedded ? storyContext.setTargetLanguage : setTargetLanguageState
-  const setCharacter = isEmbedded ? storyContext.setCharacter : setCharacterState
+  // Wrapper für setCharacter: storyContext verwendet bereits Character[]
+  const setCharacter = isEmbedded 
+    ? storyContext.setCharacter
+    : setCharacterState
   const setSocialContext = isEmbedded ? storyContext.setSocialContext : setSocialContextState
   
   // Anonymous Preferences
@@ -86,9 +97,12 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     setConfigPopoverOpen(open)
     
     if (!open && !isEmbedded && isAnonymous) {
+      // Konvertiere Character-Array zu komma-separiertem String für localStorage
+      const characterString = characterArrayToString(characterState)
+      
       saveAnonymousPreferences({
         targetLanguage: targetLanguageState,
-        character: characterState,
+        character: characterString,
         socialContext: socialContextState,
         genderInclusive,
       })
@@ -97,6 +111,27 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   
   // Gallery Filters
   const galleryFilters = useAtomValue(galleryFiltersAtom)
+  
+  // Gallery Data für gefilterte Dokumente-Anzahl
+  const { filteredDocs, loading: galleryDataLoading } = useGalleryData(galleryFilters || {}, 'story', '', libraryId)
+  const filteredDocsCount = filteredDocs.length
+  
+  // Logge Dokumente-Lade-Status
+  useEffect(() => {
+    console.log('[ChatPanel] Gallery Data Status:', {
+      filteredDocsCount,
+      galleryDataLoading,
+      hasDocs: filteredDocs.length > 0,
+      docsLoaded: !galleryDataLoading && filteredDocs.length > 0,
+    })
+  }, [filteredDocsCount, galleryDataLoading, filteredDocs.length])
+  
+  // Detail View Type aus Library Config (direkt aus Atom, wie in gallery-root.tsx)
+  const libraries = useAtomValue(librariesAtom)
+  const activeLibrary = libraries.find(lib => lib.id === libraryId)
+  const galleryConfig = activeLibrary?.config?.chat?.gallery
+  const detailViewType = galleryConfig?.detailViewType === 'session' ? 'session' : 'book'
+  const typeKey = detailViewType === 'session' ? 'talks' : 'documents'
   
   // Chat History
   const { messages, setMessages, prevMessagesLengthRef } = useChatHistory({
@@ -191,10 +226,19 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       
       try {
         const queryRes = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(cachedTOC.queryId)}`, {
-          cache: 'no-store'
+          cache: 'no-store',
+          headers: Object.keys(sessionHeaders).length > 0 ? sessionHeaders : undefined,
         })
         
-        if (!queryRes.ok || cancelled) return
+        if (!queryRes.ok || cancelled) {
+          // Wenn Query nicht gefunden wurde (404), setze showReloadButton auf false
+          // und beende die Funktion, ohne Fehler zu werfen
+          if (queryRes.status === 404) {
+            setShowReloadButton(false)
+            return
+          }
+          return
+        }
         
         const queryLog = await queryRes.json() as QueryLog
         
@@ -250,7 +294,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     return () => {
       cancelled = true
     }
-  }, [cachedTOC?.queryId, libraryId, targetLanguage, character, socialContext, galleryFilters])
+  }, [cachedTOC?.queryId, libraryId, targetLanguage, character, socialContext, galleryFilters, sessionHeaders])
   
   // Setze TOC-Daten direkt, wenn sie aus dem Stream kommen
   useEffect(() => {
@@ -297,7 +341,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             answerLength,
             retriever,
             targetLanguage,
-            character,
+            // character ist bereits Array (kann leer sein)
+            character: character,
             socialContext,
             facetsSelected: galleryFilters || {},
           })
@@ -332,10 +377,22 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const lastParamsRef = useRef<string>('')
   
   useEffect(() => {
-    if (!cfg) return
-    if (!isEmbedded) return // Nur im Story-Mode (embedded)
-    if (perspectiveOpen) return // Im embedded-Modus: Nur wenn Popover geschlossen
-    if (isSending) return // Wenn bereits eine Query läuft, überspringe Check
+    if (!cfg) {
+      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - cfg nicht vorhanden')
+      return
+    }
+    if (!isEmbedded) {
+      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - nicht im embedded Modus')
+      return // Nur im Story-Mode (embedded)
+    }
+    if (perspectiveOpen) {
+      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - Popover ist geöffnet')
+      return // Im embedded-Modus: Nur wenn Popover geschlossen
+    }
+    if (isSending) {
+      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - Query läuft bereits')
+      return // Wenn bereits eine Query läuft, überspringe Check
+    }
     
     // WICHTIG: Prüfe, ob der Benutzer gerade eine normale Frage gestellt hat
     // Der Cache-Check sollte nur für TOC-Queries durchgeführt werden, nicht für normale Fragen
@@ -343,6 +400,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       (msg) => msg.type === 'question' && msg.content.trim() !== TOC_QUESTION.trim()
     )
     if (hasNormalQuestions) {
+      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - normale Fragen vorhanden')
       // Benutzer hat bereits normale Fragen gestellt, kein Cache-Check für TOC nötig
       return
     }
@@ -362,6 +420,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     
     // Wenn sich Filter oder Parameter geändert haben, setze hasCheckedCacheRef zurück
     if (filtersChanged || paramsChanged) {
+      console.log('[ChatPanel] useEffect #1 (parameter-change): Parameter geändert, setze hasCheckedCacheRef zurück', {
+        filtersChanged,
+        paramsChanged,
+      })
       hasCheckedCacheRef.current = false
       lastFiltersRef.current = currentFiltersKey
       lastParamsRef.current = currentParamsKey
@@ -369,27 +431,73 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     
     // Wenn bereits geprüft wurde und sich nichts geändert hat, überspringe
     if (hasCheckedCacheRef.current && !filtersChanged && !paramsChanged) {
+      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - bereits geprüft, keine Änderungen')
       return
     }
     
     // Cache-Check durchführen (nur für TOC, nicht für normale Fragen)
+    // WICHTIG: Prüfe auch, ob Dokumente geladen sind (mindestens 1)
+    if (filteredDocsCount < 1 || galleryDataLoading) {
+      console.log('[ChatPanel] useEffect #1 (parameter-change): Cache-Check übersprungen - Dokumente noch nicht geladen', {
+        filteredDocsCount,
+        galleryDataLoading,
+      })
+      return
+    }
+    
+    console.log('[ChatPanel] useEffect #1 (parameter-change): Starte Cache-Check', {
+      targetLanguage,
+      character,
+      socialContext,
+      genderInclusive,
+      filtersChanged,
+      paramsChanged,
+      hasCheckedCacheRef: hasCheckedCacheRef.current,
+      filteredDocsCount,
+      galleryDataLoading,
+    })
     hasCheckedCacheRef.current = true
     shouldAutoGenerateRef.current = true // Markiere für automatische Generierung, falls kein Cache
     checkTOCCache()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg, isEmbedded, perspectiveOpen, isSending, galleryFilters, targetLanguage, character, socialContext, genderInclusive, messages])
+  }, [cfg, isEmbedded, perspectiveOpen, isSending, galleryFilters, targetLanguage, character, socialContext, genderInclusive, messages, filteredDocsCount, galleryDataLoading])
   
   // Automatische Generierung beim ersten Laden ODER wenn kein Cache gefunden wurde
   // WICHTIG: Warte, bis der Cache-Check abgeschlossen ist (isCheckingTOC === false)
   useEffect(() => {
-    if (!isEmbedded) return
-    if (isSending || isCheckingTOC || isGeneratingTOC) return // Warte, bis Cache-Check abgeschlossen ist
+    if (!isEmbedded) {
+      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - nicht im embedded Modus')
+      return
+    }
+    if (isSending || isCheckingTOC || isGeneratingTOC) {
+      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - Prozess läuft bereits', {
+        isSending,
+        isCheckingTOC,
+        isGeneratingTOC,
+      })
+      return // Warte, bis Cache-Check abgeschlossen ist
+    }
     if (cachedStoryTopicsData || cachedTOC) {
+      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - Cache bereits vorhanden', {
+        hasStoryTopicsData: !!cachedStoryTopicsData,
+        hasCachedTOC: !!cachedTOC,
+      })
       // Cache gefunden, keine Generierung nötig
       shouldAutoGenerateRef.current = false
       return
     }
-    if (!sendQuestion) return
+    if (!sendQuestion) {
+      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - sendQuestion nicht verfügbar')
+      return
+    }
+    // WICHTIG: Prüfe auch, ob Dokumente geladen sind (mindestens 1)
+    if (filteredDocsCount < 1 || galleryDataLoading) {
+      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - Dokumente noch nicht geladen', {
+        filteredDocsCount,
+        galleryDataLoading,
+      })
+      return
+    }
     
     // Prüfe, ob ein Cache-Check durchgeführt wurde (durch Vorhandensein von Cache-Check-Steps)
     const hasCacheCheckSteps = processingSteps.some(s => s.type === 'cache_check' || s.type === 'cache_check_complete')
@@ -399,21 +507,35 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     // 1. shouldAutoGenerateRef gesetzt ist (beim ersten Laden) ODER
     // 2. Cache-Check abgeschlossen wurde und kein Cache gefunden wurde
     if (!shouldAutoGenerateRef.current && (!hasCacheCheckSteps || !cacheCheckComplete)) {
+      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - Cache-Check noch nicht abgeschlossen', {
+        shouldAutoGenerateRef: shouldAutoGenerateRef.current,
+        hasCacheCheckSteps,
+        cacheCheckComplete,
+      })
       return // Kein Cache-Check durchgeführt oder noch nicht abgeschlossen
     }
     
     // Cache-Check abgeschlossen und kein Cache gefunden → Starte Generierung
+    console.log('[ChatPanel] useEffect #2 (auto-generate): Starte automatische TOC-Generierung', {
+      shouldAutoGenerateRef: shouldAutoGenerateRef.current,
+      hasCacheCheckSteps,
+      cacheCheckComplete,
+      filteredDocsCount,
+      galleryDataLoading,
+    })
     // WICHTIG: Warte zusätzlich 300ms, damit die Cache-Check-Steps angezeigt werden können
     shouldAutoGenerateRef.current = false
     setTimeout(() => {
       // Prüfe nochmal, ob in der Zwischenzeit ein Cache gefunden wurde
       if (cachedStoryTopicsData || cachedTOC) {
+        console.log('[ChatPanel] useEffect #2 (auto-generate): Generierung abgebrochen - Cache wurde in der Zwischenzeit gefunden')
         return // Cache wurde in der Zwischenzeit gefunden, keine Generierung
       }
+      console.log('[ChatPanel] useEffect #2 (auto-generate): Rufe generateTOC() auf')
       generateTOC()
     }, 300)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cachedStoryTopicsData, cachedTOC, isCheckingTOC, isEmbedded, sendQuestion, isSending, isGeneratingTOC, processingSteps])
+  }, [cachedStoryTopicsData, cachedTOC, isCheckingTOC, isEmbedded, sendQuestion, isSending, isGeneratingTOC, processingSteps, filteredDocsCount, galleryDataLoading])
   
   // Zusätzlicher useEffect: Wenn sendQuestion verfügbar wird und noch kein Cache-Check durchgeführt wurde
   // WICHTIG: Nur beim ersten Laden, wenn sendQuestion verfügbar wird
@@ -424,14 +546,17 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       return
     }
     if (perspectiveOpen) {
+      console.log('[ChatPanel] useEffect #3 (sendQuestion-available): Übersprungen - Popover ist geöffnet')
       prevSendQuestionRef.current = sendQuestion
       return // Nur wenn Popover geschlossen
     }
     if (cachedStoryTopicsData || cachedTOC) {
+      console.log('[ChatPanel] useEffect #3 (sendQuestion-available): Übersprungen - TOC bereits vorhanden')
       prevSendQuestionRef.current = sendQuestion
       return // TOC bereits vorhanden
     }
     if (hasCheckedCacheRef.current) {
+      console.log('[ChatPanel] useEffect #3 (sendQuestion-available): Übersprungen - Cache-Check bereits durchgeführt')
       prevSendQuestionRef.current = sendQuestion
       return // Cache-Check bereits durchgeführt
     }
@@ -440,15 +565,34 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     const wasUndefined = prevSendQuestionRef.current === undefined
     const isNowDefined = sendQuestion !== undefined
     if (wasUndefined && isNowDefined) {
+      // WICHTIG: Prüfe auch, ob Dokumente geladen sind (mindestens 1)
+      if (filteredDocsCount < 1 || galleryDataLoading) {
+        console.log('[ChatPanel] useEffect #3 (sendQuestion-available): Cache-Check übersprungen - Dokumente noch nicht geladen', {
+          filteredDocsCount,
+          galleryDataLoading,
+        })
+        prevSendQuestionRef.current = sendQuestion
+        return
+      }
+      
+      console.log('[ChatPanel] useEffect #3 (sendQuestion-available): sendQuestion wurde verfügbar, starte ersten Cache-Check', {
+        filteredDocsCount,
+        galleryDataLoading,
+      })
       // Erster Cache-Check beim Laden
       hasCheckedCacheRef.current = true
       shouldAutoGenerateRef.current = true // Markiere für automatische Generierung, falls kein Cache
       checkTOCCache()
+    } else {
+      console.log('[ChatPanel] useEffect #3 (sendQuestion-available): Übersprungen - sendQuestion nicht von undefined zu definiert gewechselt', {
+        wasUndefined,
+        isNowDefined,
+      })
     }
     
     prevSendQuestionRef.current = sendQuestion
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sendQuestion, cfg, isEmbedded, perspectiveOpen, cachedStoryTopicsData, cachedTOC, checkTOCCache])
+  }, [sendQuestion, cfg, isEmbedded, perspectiveOpen, cachedStoryTopicsData, cachedTOC, checkTOCCache, filteredDocsCount, galleryDataLoading])
   
   // Handler für das Löschen einer Query
   async function handleDeleteQuery(queryId: string): Promise<void> {
@@ -481,9 +625,12 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   // Handler für das Neustellen einer Frage
   async function handleReloadQuestion(
     question: string,
-    config: { character?: Character; answerLength?: AnswerLength; retriever?: Retriever; targetLanguage?: TargetLanguage; socialContext?: SocialContext }
+    config: { character?: Character[]; answerLength?: AnswerLength; retriever?: Retriever; targetLanguage?: TargetLanguage; socialContext?: SocialContext }
   ): Promise<void> {
-    if (config.character) setCharacter(config.character)
+    // Setze character direkt (bereits Array)
+    if (config.character) {
+      setCharacter(config.character)
+    }
     if (config.answerLength) setAnswerLength(config.answerLength)
     if (config.retriever) setRetriever(config.retriever)
     if (config.targetLanguage) setTargetLanguage(config.targetLanguage)
@@ -503,7 +650,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   // Speichere User-Präferenzen in Library-Config
   async function saveUserPreferences(settings: {
     targetLanguage: TargetLanguage
-    character: Character
+    character: Character[] // Array (kann leer sein)
     socialContext: SocialContext
     genderInclusive: boolean
   }): Promise<void> {
@@ -540,12 +687,14 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       }
       
       setTargetLanguage(settings.targetLanguage)
+      // character ist bereits ein Array (Character[])
       setCharacter(settings.character)
       setSocialContext(settings.socialContext)
       setGenderInclusive(settings.genderInclusive)
     } catch (error) {
       console.error('[ChatPanel] Fehler beim Speichern der Präferenzen:', error)
       setTargetLanguage(settings.targetLanguage)
+      // character ist bereits ein Array (Character[])
       setCharacter(settings.character)
       setSocialContext(settings.socialContext)
       setGenderInclusive(settings.genderInclusive)
@@ -559,13 +708,50 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     setInput('')
   }
   
+  // Gemeinsame ChatInput-Renderung für beide Varianten
+  function renderChatInput() {
+    if (!cfg) return null
+    
+    if (!isEmbedded) {
+      return (
+        <ChatInput
+          input={input}
+          setInput={setInput}
+          onSend={onSend}
+          isSending={isSending}
+          answerLength={answerLength}
+          setAnswerLength={setAnswerLength}
+          placeholder={cfg.config.placeholder}
+          variant="default"
+          inputRef={inputRef}
+        />
+      )
+    }
+    
+    return (
+      <ChatInput
+        input={input}
+        setInput={setInput}
+        onSend={onSend}
+        isSending={isSending}
+        answerLength={answerLength}
+        setAnswerLength={setAnswerLength}
+        placeholder={cfg.config.placeholder}
+        variant="embedded"
+        inputRef={inputRef}
+        isOpen={isChatInputOpen}
+        onOpenChange={setIsChatInputOpen}
+      />
+    )
+  }
+  
   if (loading) return <div className={variant === 'compact' ? '' : 'p-6'}>Lade Chat...</div>
   if (error) return <div className={(variant === 'compact' ? '' : 'p-6 ') + 'text-destructive'}>{error}</div>
   if (!cfg) return <div className={variant === 'compact' ? '' : 'p-6'}>Keine Konfiguration gefunden.</div>
   
   if (variant === 'compact') {
     return (
-      <div className="flex flex-col h-full min-h-0 w-full">
+      <div className="flex flex-col flex-1 min-h-0 w-full" style={isEmbedded ? { maxHeight: '100%' } : undefined}>
         {!isEmbedded && (
           <ChatConfigBar
             targetLanguage={targetLanguage}
@@ -598,12 +784,24 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           </ChatConfigBar>
         )}
         
-        <div className={`flex-1 min-h-0 flex flex-col overflow-hidden ${isEmbedded ? 'relative' : ''}`}>
+        <div className={`flex-1 min-h-0 flex flex-col ${isEmbedded ? 'relative overflow-visible' : 'overflow-hidden'}`}>
           <ScrollArea className="flex-1 min-h-0 h-full" ref={scrollRef}>
-            <div className={`p-4 ${isEmbedded ? 'pb-56' : ''}`}>
+            <div className={`p-4 ${isEmbedded ? 'pb-20' : ''}`}>
               {isEmbedded && (
-                <div className="mb-6 pb-6 border-b">
-                  <StoryTopics 
+                <>
+                  {/* Hinweis immer anzeigen, wenn Dokumente geladen sind (>= 1) */}
+                  {filteredDocsCount >= 1 && !galleryDataLoading && (
+                    <div className="mb-4 text-sm text-muted-foreground">
+                      {t('chatMessages.topicsOverviewIntro', {
+                        count: filteredDocsCount,
+                        type: t(`gallery.${typeKey}`),
+                      })}
+                    </div>
+                  )}
+                  {/* StoryTopics nur anzeigen, wenn Dokumente vorhanden sind */}
+                  {filteredDocsCount >= 1 && !galleryDataLoading && (
+                    <div className="mb-6 pb-6 border-b">
+                      <StoryTopics 
                     libraryId={libraryId}
                     data={cachedStoryTopicsData}
                     isLoading={isCheckingTOC}
@@ -617,8 +815,25 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                         inputRef.current?.focus()
                       }, 100)
                     }}
-                  />
-                </div>
+                      />
+                    </div>
+                  )}
+                  {/* Logge Render-Entscheidung */}
+                  {isEmbedded && (() => {
+                    const shouldShowIntro = (cachedStoryTopicsData || cachedTOC || isCheckingTOC) && filteredDocsCount >= 1 && !galleryDataLoading
+                    const shouldShowTopics = filteredDocsCount >= 1 && !galleryDataLoading
+                    console.log('[ChatPanel] Render-Entscheidung Themenübersicht:', {
+                      shouldShowIntro,
+                      shouldShowTopics,
+                      filteredDocsCount,
+                      galleryDataLoading,
+                      hasCachedStoryTopicsData: !!cachedStoryTopicsData,
+                      hasCachedTOC: !!cachedTOC,
+                      isCheckingTOC,
+                    })
+                    return null
+                  })()}
+                </>
               )}
               
               <ChatMessagesList
@@ -648,42 +863,16 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             </div>
           </ScrollArea>
           
-          {!isEmbedded && (
-            <ChatInput
-              input={input}
-              setInput={setInput}
-              onSend={onSend}
-              isSending={isSending}
-              answerLength={answerLength}
-              setAnswerLength={setAnswerLength}
-              placeholder={cfg.config.placeholder}
-              variant="default"
-              inputRef={inputRef}
-            />
-          )}
-          
-          {isEmbedded && (
-            <ChatInput
-              input={input}
-              setInput={setInput}
-              onSend={onSend}
-              isSending={isSending}
-              answerLength={answerLength}
-              setAnswerLength={setAnswerLength}
-              placeholder={cfg.config.placeholder}
-              variant="embedded"
-              inputRef={inputRef}
-              isOpen={isChatInputOpen}
-              onOpenChange={setIsChatInputOpen}
-            />
-          )}
+          <div className="flex-shrink-0">
+            {renderChatInput()}
+          </div>
         </div>
       </div>
     )
   }
   
   return (
-    <div className="w-full h-full flex flex-col min-h-[600px] overflow-hidden">
+    <div className={`w-full flex flex-col overflow-hidden flex-1 min-h-0`} style={isEmbedded ? { maxHeight: '100%' } : undefined}>
       {!isEmbedded && (
         <ChatConfigBar
           targetLanguage={targetLanguage}
@@ -716,12 +905,24 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         </ChatConfigBar>
       )}
       
-      <div className={`flex-1 min-h-0 flex flex-col overflow-hidden ${isEmbedded ? 'relative' : ''}`}>
-        <ScrollArea className="flex-1 h-full" ref={scrollRef}>
-          <div className={`p-6 ${isEmbedded ? 'pb-56' : ''}`}>
+      <div className={`flex-1 min-h-0 flex flex-col ${isEmbedded ? 'relative overflow-visible' : 'overflow-hidden'}`}>
+        <ScrollArea className="flex-1 h-full min-h-0" ref={scrollRef}>
+          <div className={`p-6 ${isEmbedded ? 'pb-20' : ''}`}>
             {isEmbedded && (
-              <div className="mb-6 pb-6 border-b">
-                <StoryTopics 
+              <>
+                {/* Hinweis immer anzeigen, wenn Dokumente geladen sind (>= 1) */}
+                {filteredDocsCount >= 1 && !galleryDataLoading && (
+                  <div className="mb-4 text-sm text-muted-foreground">
+                    {t('chatMessages.topicsOverviewIntro', {
+                      count: filteredDocsCount,
+                      type: t(`gallery.${typeKey}`),
+                    })}
+                  </div>
+                )}
+                {/* StoryTopics nur anzeigen, wenn Dokumente vorhanden sind */}
+                {filteredDocsCount >= 1 && !galleryDataLoading && (
+                  <div className="mb-6 pb-6 border-b">
+                    <StoryTopics 
                   libraryId={libraryId}
                   data={cachedStoryTopicsData}
                   isLoading={isCheckingTOC}
@@ -737,8 +938,25 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                       inputRef.current?.focus()
                     }, 200)
                   }}
-                />
-              </div>
+                    />
+                  </div>
+                )}
+                {/* Logge Render-Entscheidung */}
+                {isEmbedded && (() => {
+                  const shouldShowIntro = (cachedStoryTopicsData || cachedTOC || isCheckingTOC) && filteredDocsCount >= 1 && !galleryDataLoading
+                  const shouldShowTopics = filteredDocsCount >= 1 && !galleryDataLoading
+                  console.log('[ChatPanel] Render-Entscheidung Themenübersicht (default variant):', {
+                    shouldShowIntro,
+                    shouldShowTopics,
+                    filteredDocsCount,
+                    galleryDataLoading,
+                    hasCachedStoryTopicsData: !!cachedStoryTopicsData,
+                    hasCachedTOC: !!cachedTOC,
+                    isCheckingTOC,
+                  })
+                  return null
+                })()}
+              </>
             )}
             
             <ChatMessagesList
@@ -773,35 +991,37 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           </div>
         </ScrollArea>
         
-        {!isEmbedded && (
-          <ChatInput
-            input={input}
-            setInput={setInput}
-            onSend={onSend}
-            isSending={isSending}
-            answerLength={answerLength}
-            setAnswerLength={setAnswerLength}
-            placeholder={cfg.config.placeholder}
-            variant="default"
-            inputRef={inputRef}
-          />
+        <div className="flex-shrink-0">
+          {renderChatInput()}
+        </div>
+        
+        {/* Chat-Symbol Button - direkt im Chat-Panel, relativ zum Chat-Panel-Container */}
+        {isEmbedded && (
+          <div
+            style={{
+              position: 'absolute',
+              right: '1rem',
+              bottom: '1rem',
+              zIndex: 100,
+            }}
+          >
+            <Button
+              onClick={() => setIsChatInputOpen(!isChatInputOpen)}
+              className={cn(
+                "h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 shrink-0 p-0 aspect-square flex items-center justify-center",
+                "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
+              aria-label={isChatInputOpen ? t('chat.input.closeChat') : t('chat.input.askQuestion')}
+            >
+              {isChatInputOpen ? (
+                <X className="h-5 w-5 transition-transform duration-300" />
+              ) : (
+                <MessageCircle className="h-5 w-5 transition-transform duration-300" />
+              )}
+            </Button>
+          </div>
         )}
         
-        {isEmbedded && (
-          <ChatInput
-            input={input}
-            setInput={setInput}
-            onSend={onSend}
-            isSending={isSending}
-            answerLength={answerLength}
-            setAnswerLength={setAnswerLength}
-            placeholder={cfg.config.placeholder}
-            variant="embedded"
-            inputRef={inputRef}
-            isOpen={isChatInputOpen}
-            onOpenChange={setIsChatInputOpen}
-          />
-        )}
         {cfg.config.footerText && !isEmbedded && (
           <div className="mt-4 text-xs text-muted-foreground px-4">
             {cfg.config.footerText} {cfg.config.companyLink ? (<a className="underline" href={cfg.config.companyLink} target="_blank" rel="noreferrer">mehr</a>) : null}

@@ -16,13 +16,15 @@ export function SpeakerOrAuthorIcons({ doc }: { doc: DocLike }) {
     ? doc.speakers 
     : (doc.authors && doc.authors.length > 0 ? doc.authors : undefined)
   
-  if (!names || names.length === 0) {
-    return <FileText className='h-8 w-8 text-primary mb-2' />
-  }
-  
+  // URLs sind bereits in den Metadaten vorhanden
+  // Die Bilder selbst werden durch Next.js Image lazy-loaded (mit loading="lazy")
   const images = doc.speakers_image_url && doc.speakers_image_url.length > 0 
     ? doc.speakers_image_url 
     : undefined
+  
+  if (!names || names.length === 0) {
+    return <FileText className='h-8 w-8 text-primary mb-2' />
+  }
   
   return (
     <div className='flex items-center gap-0 -mt-10 mb-2 flex-wrap -ml-2'>
@@ -76,6 +78,7 @@ export function SpeakerIcon({ name, imageUrl }: { name: string; imageUrl?: strin
                 alt={name}
                 fill
                 className='object-cover'
+                loading="lazy"
                 onError={() => setImageError(true)}
               />
             ) : (
@@ -90,6 +93,11 @@ export function SpeakerIcon({ name, imageUrl }: { name: string; imageUrl?: strin
     </TooltipProvider>
   )
 }
+
+
+
+
+
 
 
 

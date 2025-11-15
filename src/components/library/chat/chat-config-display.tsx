@@ -24,7 +24,7 @@ interface ChatConfigDisplayProps {
   answerLength?: AnswerLength
   retriever?: Retriever
   targetLanguage?: TargetLanguage
-  character?: string
+  character?: Character[] // Array (kann leer sein)
   socialContext?: SocialContext
   libraryId?: string
   queryId?: string
@@ -57,7 +57,7 @@ export function ChatConfigDisplay({
   const [queryAnswerLength, setQueryAnswerLength] = useState<AnswerLength | undefined>(undefined)
   const [queryRetriever, setQueryRetriever] = useState<Retriever | undefined>(undefined)
   const [queryTargetLanguage, setQueryTargetLanguage] = useState<TargetLanguage | undefined>(undefined)
-  const [queryCharacter, setQueryCharacter] = useState<string | undefined>(undefined)
+  const [queryCharacter, setQueryCharacter] = useState<Character[] | undefined>(undefined)
   const [querySocialContext, setQuerySocialContext] = useState<SocialContext | undefined>(undefined)
 
   // Verwende Parameter aus Query, falls vorhanden, sonst Props als Fallback
@@ -92,8 +92,10 @@ export function ChatConfigDisplay({
       items.push(`${t('configDisplay.language')} ${langLabel}`)
     }
 
-    if (effectiveCharacter) {
-      const charLabel = typeof effectiveCharacter === 'string' ? (characterLabels[effectiveCharacter as Character] || CHARACTER_LABELS[effectiveCharacter as Character] || effectiveCharacter) : ''
+    if (effectiveCharacter && effectiveCharacter.length > 0) {
+      // Verwende ersten Wert für Label-Lookup
+      const firstChar = effectiveCharacter[0]
+      const charLabel = characterLabels[firstChar] || CHARACTER_LABELS[firstChar] || firstChar
       if (charLabel) {
         items.push(`${t('configDisplay.character')} ${charLabel}`)
       }
@@ -116,7 +118,7 @@ export function ChatConfigDisplay({
       setQueryAnswerLength(answerLength)
       setQueryRetriever(retriever)
       setQueryTargetLanguage(targetLanguage)
-      setQueryCharacter(character)
+      setQueryCharacter(character) // Array (kann leer sein)
       setQuerySocialContext(socialContext)
       setFilters(filtersProp || null)
       return

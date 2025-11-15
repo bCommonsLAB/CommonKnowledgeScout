@@ -28,7 +28,7 @@ interface ChatMessageProps {
   onQuestionClick?: (question: string) => void
   messageId?: string
   innerRef?: (id: string, element: HTMLDivElement | null) => void
-  character?: Character
+  character?: Character[] // Array (kann leer sein)
   answerLength?: AnswerLength
   retriever?: Retriever
   targetLanguage?: TargetLanguage
@@ -78,8 +78,10 @@ export function ChatMessage({
   // Automatisches Öffnen des Quellenverzeichnisses wurde deaktiviert - Benutzer soll Zeit haben, die Antwort zu lesen
 
   if (type === 'question') {
-    const bgColor = getCharacterColor(character)
-    const iconColor = getCharacterIconColor(character)
+    // Verwende ersten Wert für Farben (kann undefined sein)
+    const characterValue = character && character.length > 0 ? character[0] : undefined
+    const bgColor = getCharacterColor(characterValue)
+    const iconColor = getCharacterIconColor(characterValue)
     
     return (
       <div 

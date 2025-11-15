@@ -9,9 +9,9 @@ import { useCallback } from 'react'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
-import type { AnswerLength, Retriever, TargetLanguage, SocialContext } from '@/lib/chat/constants'
+import type { AnswerLength, Retriever, TargetLanguage, SocialContext, Character } from '@/lib/chat/constants'
 import { useSessionHeaders } from './use-session-headers'
-import { TOC_QUESTION } from '@/lib/chat/constants'
+import { TOC_QUESTION, characterArrayToString } from '@/lib/chat/constants'
 
 interface TOCCacheResult {
   found: boolean
@@ -25,7 +25,7 @@ interface TOCCacheResult {
   answerLength?: AnswerLength
   retriever?: Retriever
   targetLanguage?: TargetLanguage
-  character?: string
+  character?: Character[] // Array (kann leer sein)
   socialContext?: SocialContext
   facetsSelected?: Record<string, unknown>
 }
@@ -33,7 +33,7 @@ interface TOCCacheResult {
 interface CheckTOCCacheParams {
   libraryId: string
   targetLanguage: string
-  character: string
+  character: Character[] // Array (kann leer sein)
   socialContext: string
   genderInclusive: boolean
   galleryFilters?: GalleryFilters
@@ -58,7 +58,7 @@ export function useStoryTopicsCache() {
       const urlParams = new URLSearchParams()
       urlParams.set('question', TOC_QUESTION)
       urlParams.set('targetLanguage', targetLanguage)
-      urlParams.set('character', character)
+      urlParams.set('character', characterArrayToString(character) || '')
       urlParams.set('socialContext', socialContext)
       urlParams.set('genderInclusive', String(genderInclusive))
       // WICHTIG: Kein retriever-Parameter mehr, da TOC-Queries mit verschiedenen Retrievern

@@ -12,7 +12,7 @@ export interface ChatMessage {
   suggestedQuestions?: string[]
   queryId?: string
   createdAt: string
-  character?: Character
+  character?: Character[] // Array (kann leer sein)
   answerLength?: AnswerLength
   retriever?: Retriever
   targetLanguage?: TargetLanguage
@@ -41,7 +41,7 @@ export function createMessagesFromQueryLog(queryLog: {
   answerLength?: AnswerLength
   retriever?: Retriever
   targetLanguage?: TargetLanguage
-  character?: string
+  character?: Character[] // Array (kann leer sein)
   socialContext?: SocialContext
 }): ChatMessage[] {
   const messages: ChatMessage[] = []
@@ -56,7 +56,7 @@ export function createMessagesFromQueryLog(queryLog: {
     answerLength: queryLog.answerLength,
     retriever: queryLog.retriever,
     targetLanguage: queryLog.targetLanguage,
-    character: queryLog.character as Character | undefined,
+    character: queryLog.character, // Array (kann leer sein)
     socialContext: queryLog.socialContext,
   })
   
@@ -78,7 +78,7 @@ export function createMessagesFromQueryLog(queryLog: {
       answerLength: queryLog.answerLength,
       retriever: queryLog.retriever,
       targetLanguage: queryLog.targetLanguage,
-      character: queryLog.character as Character | undefined,
+      character: queryLog.character, // Array (kann leer sein)
       socialContext: queryLog.socialContext,
     })
   }

@@ -109,6 +109,7 @@
     "switchToStoryMode": "View in Story Mode",
     "storyModeTooltip": "In Story Mode, you can have the contents explained to you in your language, your interest profile, and your context.",
     "backToGallery": "Back to Contents",
+    "backToStoryMode": "Back to Story Mode",
     "storyMode": {
       "headline": "Story Mode – Have the contents explained to you from your perspective",
       "subtitle": "Experience shared knowledge together",
@@ -116,13 +117,38 @@
       "generatingTopics": "Generating topic overview...",
       "reloadTooltip": "Overview no longer current, please recalculate",
       "perspective": {
+        "title": "Your Perspective",
         "language": "Language",
         "character": "Interest Profile",
-        "socialContext": "Context",
-        "adjustPerspective": "Adjust own perspective",
-        "adjustPerspectiveHelpText": "Your interest profile determines which aspects are particularly emphasized. Your context determines in which environment or from which role you view the contents.",
-        "adjustPerspectiveTitle": "Adjust perspective",
+        "socialContext": "Language Style",
+        "adjustPerspective": "Adjust perspective",
         "adjustPerspectiveDescription": "Specify how the contents are prepared for you: in which language, with which interest profile, and from which context. This way you get answers that reflect your approach and priorities."
+      },
+      "storyModePerspectivePage": {
+        "title": "How should answers be formulated for you?",
+        "subtitle": "So that content is presented in a way that is most understandable for you.",
+        "description": "Choose language, interests, and language style so that explanations match your approach. You can change this at any time later.",
+        "whyThisPage": "Why this page?",
+        "whyThisPageDescription": "Every person brings a different approach. Your selection ensures that answers match your background and interests.",
+        "language": {
+          "label": "Language",
+          "helpText": "In which language would you like to read the answers?"
+        },
+        "interests": {
+          "label": "What interests you particularly? (Interest Profile)",
+          "helpText": "Choose which aspects should be in the foreground for you. The answers will weight these topics more strongly.",
+          "maxSelected": "Max. 3 selectable",
+          "selectedCount": "{count} of 3 selected"
+        },
+        "languageStyle": {
+          "label": "Language Style",
+          "helpText": "How should the answers sound?",
+          "note": "You only determine the style – not the content. The answers remain based on the same sources."
+        },
+        "button": {
+          "start": "Start with this perspective",
+          "footer": "You can change your selection later in Story Mode at any time."
+        }
       }
     },
     "searchPlaceholder": "Search by title, speaker, topic...",
@@ -131,12 +157,17 @@
     "noFiltersAvailable": "No filters available",
     "documents": "documents",
     "document": "document",
+    "talks": "talks",
+    "talk": "talk",
     "filtered": "filtered",
     "references": "References",
     "referencesDescription": "The answer was generated from these documents.",
-    "storyModeGalleryDescription": "Answers are generated from the talks selected in the Gallery.",
     "documentDetails": "Document Details",
-    "detailViewStoryModeCta": "Don't understand this content? Have it told to you in your language.",
+    "talkSummary": "Talk Summary",
+    "documentView": "Document View",
+    "linkToOriginalWebsite": "to Original Website",
+    "translationGenerating": "Translations may take a moment, please be patient.",
+    "detailViewStoryModeCta": "Have the content explained to you from your perspective.",
     "openDocument": "Open Document",
     "openEventWebsite": "Open Event Website",
     "loading": "Loading…",
@@ -172,20 +203,15 @@
   },
   "chat": {
     "characterLabels": {
-      "developer": "Developer-oriented",
-      "technical": "Technically-oriented",
-      "open-source": "Open Source-specific",
-      "scientific": "Natural sciences",
-      "eco-social": "Eco-social-oriented",
-      "social": "Socially-oriented",
-      "civic": "Civic-oriented",
-      "policy": "Policy science-oriented",
-      "cultural": "Culturally-oriented",
-      "business": "Business-oriented",
-      "entrepreneurial": "Entrepreneurially-oriented",
-      "legal": "Legal-specific",
-      "educational": "Education science-oriented",
-      "creative": "Creatively-oriented"
+      "technical": "Technology-oriented",
+      "social-cultural": "Society & Culture",
+      "ecology": "Ecology & Sustainability",
+      "business": "Economy & Organization",
+      "educational": "Education & Learning",
+      "practical": "Everyday & Practice",
+      "research": "Research & Analysis",
+      "policy": "Politics & Social Change",
+      "creative": "Creative & Visionary"
     },
     "socialContextLabels": {
       "scientific": "Scientific",
@@ -318,7 +344,8 @@
     "welcomeTitle": "Welcome to Story Mode.",
     "welcomeDescription": "Select language and perspective above, then start your conversation with the knowledge.",
     "welcomeTip": "Tip: Ask a question or click on a talk on the right to see the story from your perspective.",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "topicsOverviewIntro": "Based on the selected {count} {type}, the following topic overview and answers emerge:"
   },
   "suggestedQuestions": {
     "label": "Possible further questions on the topic that emerge from the sources:"

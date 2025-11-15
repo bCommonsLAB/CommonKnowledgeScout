@@ -32,6 +32,7 @@ import {
   SOCIAL_CONTEXT_DEFAULT,
   TARGET_LANGUAGE_LABELS,
   getGenderInclusiveInstruction,
+  combineCharacterInstructions,
   AnswerLength,
   SocialContext,
 } from '../constants'
@@ -122,9 +123,13 @@ export function styleInstruction(answerLength: AnswerLength): string {
 /**
  * Erstellt Charakter/Perspektive-Anweisung basierend auf Konfiguration.
  * Verwendet die zentrale Character-Instructions aus lib/chat/constants.ts.
+ * Unterstützt mehrere Character-Werte (Array) für kombinierte Perspektiven.
  */
-function getCharacterInstruction(character: Character): string {
-  return CHARACTER_INSTRUCTIONS[character] || CHARACTER_INSTRUCTIONS[CHARACTER_DEFAULT]
+function getCharacterInstruction(character: Character | Character[]): string {
+  if (Array.isArray(character)) {
+    return combineCharacterInstructions(character)
+  }
+  return CHARACTER_INSTRUCTIONS[character] || combineCharacterInstructions(CHARACTER_DEFAULT)
 }
 
 /**
@@ -165,7 +170,7 @@ export function buildPrompt(
   answerLength: AnswerLength,
   options?: {
     targetLanguage?: TargetLanguage
-    character?: Character
+    character?: Character | Character[]
     socialContext?: SocialContext
     genderInclusive?: boolean
     chatHistory?: Array<{ question: string; answer: string }>
@@ -293,7 +298,7 @@ export function buildTOCPrompt(
   sources: RetrievedSource[],
   options?: {
     targetLanguage?: TargetLanguage
-    character?: Character
+    character?: Character | Character[]
     socialContext?: SocialContext
     genderInclusive?: boolean
     filters?: Record<string, unknown>

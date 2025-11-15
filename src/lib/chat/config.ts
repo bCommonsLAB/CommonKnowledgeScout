@@ -30,11 +30,12 @@ import { LibraryChatConfig } from '@/types/library'
 import {
   TARGET_LANGUAGE_ZOD_ENUM,
   TARGET_LANGUAGE_DEFAULT,
-  CHARACTER_ZOD_ENUM,
+  CHARACTER_ARRAY_ZOD_SCHEMA,
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_ZOD_ENUM,
   SOCIAL_CONTEXT_DEFAULT,
   GENDER_INCLUSIVE_DEFAULT,
+  normalizeCharacterToArray,
 } from './constants'
 
 /**
@@ -52,15 +53,17 @@ export const chatConfigSchema = z.object({
   }).default({}),
   // Zielsprache für Chat-Antworten
   targetLanguage: TARGET_LANGUAGE_ZOD_ENUM.default(TARGET_LANGUAGE_DEFAULT),
-  // Charakter/Profil für die Antwort-Perspektive
-  character: CHARACTER_ZOD_ENUM.default(CHARACTER_DEFAULT),
+  // Charakter/Profil für die Antwort-Perspektive (Array mit max. 3 Werten)
+  // Unterstützt sowohl Single-Value (wird zu Array konvertiert) als auch Array
+  character: CHARACTER_ARRAY_ZOD_SCHEMA.default(CHARACTER_DEFAULT),
   // Sozialer Kontext/Sprachebene
   socialContext: SOCIAL_CONTEXT_ZOD_ENUM.default(SOCIAL_CONTEXT_DEFAULT),
   // Gendergerechte Formulierung
   genderInclusive: z.boolean().default(GENDER_INCLUSIVE_DEFAULT),
   userPreferences: z.object({
     targetLanguage: TARGET_LANGUAGE_ZOD_ENUM.optional(),
-    character: CHARACTER_ZOD_ENUM.optional(),
+    // userPreferences.character kann auch Single-Value oder Array sein
+    character: CHARACTER_ARRAY_ZOD_SCHEMA.optional(),
     socialContext: SOCIAL_CONTEXT_ZOD_ENUM.optional(),
     genderInclusive: z.boolean().optional(),
   }).optional(),
@@ -107,14 +110,21 @@ export type NormalizedChatConfig = z.infer<typeof chatConfigSchema>
  * Validiert und setzt Defaults für die Chat-Konfiguration.
  */
 export function normalizeChatConfig(config: unknown): NormalizedChatConfig {
-  // Tolerantes Normalisieren: Strings (JSON) akzeptieren und migrieren
+  // Tolerantes Normalisieren: Strings (JSON) akzeptieren
   let cfg: unknown = config
   if (typeof cfg === 'string') {
     try { cfg = JSON.parse(cfg) as unknown } catch { cfg = {} }
   }
+  
   // Migration: gallery.facets als Array<string> → Array<{metaKey,...}>
   if (cfg && typeof cfg === 'object') {
-    const c = cfg as { gallery?: { facets?: unknown } }
+    const c = cfg as { 
+      gallery?: { facets?: unknown }
+      character?: unknown
+      userPreferences?: { character?: unknown }
+    }
+    
+    // Gallery facets migration
     const raw = c?.gallery?.facets
     if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] !== 'object') {
       const mapped = (raw as unknown[]).map(v => {
@@ -124,7 +134,18 @@ export function normalizeChatConfig(config: unknown): NormalizedChatConfig {
       }).filter(Boolean) as Array<unknown>
       if (c.gallery) c.gallery.facets = mapped
     }
+    
+    // Character normalisieren: Single-Value zu Array konvertieren
+    if (c.character !== undefined) {
+      c.character = normalizeCharacterToArray(c.character)
+    }
+    
+    // userPreferences.character normalisieren
+    if (c.userPreferences?.character !== undefined) {
+      c.userPreferences.character = normalizeCharacterToArray(c.userPreferences.character)
+    }
   }
+  
   return chatConfigSchema.parse(cfg ?? {})
 }
 
@@ -158,13 +179,6 @@ export function getVectorIndexForLibrary(
   chatConfig?: LibraryChatConfig,
   userEmail?: string
 ): string {
-  console.log('[getVectorIndexForLibrary] Input:', {
-    libraryId: library.id,
-    libraryLabel: library.label,
-    hasConfig: !!chatConfig,
-    userEmail: userEmail ? `${userEmail.split('@')[0]}@...` : 'none'
-  })
-  
   // Globale Override-Möglichkeit für schnelle Fehleranalyse/Dev
   const envOverride = (process.env.PINECONE_INDEX_OVERRIDE || '').trim()
   if (envOverride.length > 0) {
@@ -173,19 +187,15 @@ export function getVectorIndexForLibrary(
   }
 
   const override = chatConfig?.vectorStore?.indexOverride
-  console.log('[getVectorIndexForLibrary] Config Override:', override)
   
   // Wenn indexOverride gesetzt ist, verwende diesen direkt (kann bereits vollständigen Index-Namen enthalten)
   if (override && override.trim().length > 0) {
-    const slugged = slugifyIndexName(override)
-    console.log('[getVectorIndexForLibrary] ✅ Verwende indexOverride direkt:', { override, slugged })
-    return slugged
+    return slugifyIndexName(override)
   }
   
   // Sonst: Basis aus Label berechnen
   const base = (() => {
     const byLabel = slugifyIndexName(library.label)
-    console.log('[getVectorIndexForLibrary] Verwende Label:', { label: library.label, slugged: byLabel })
     if (byLabel) return byLabel
     const shortId = library.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)
     return slugifyIndexName(`lib-${shortId || 'default'}`)
@@ -193,15 +203,12 @@ export function getVectorIndexForLibrary(
 
   // Wenn keine Email vorhanden ist, verwende nur die Basis
   if (!userEmail) {
-    console.log('[getVectorIndexForLibrary] ✅ Final (ohne Email):', base)
     return base
   }
   
   // Mit Email: Präfix hinzufügen
   const emailSlug = slugifyIndexName(userEmail)
-  const final = slugifyIndexName(`${emailSlug}-${base}`)
-  console.log('[getVectorIndexForLibrary] ✅ Final (mit Email):', { emailSlug, base, final })
-  return final
+  return slugifyIndexName(`${emailSlug}-${base}`)
 }
 
 

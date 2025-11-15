@@ -335,7 +335,7 @@ export async function findQueryByQuestionAndContext(args: {
   sessionId?: string
   question: string
   targetLanguage?: string
-  character?: string
+  character?: import('@/lib/chat/constants').Character[] // Array (kann leer sein)
   socialContext?: string
   genderInclusive?: boolean
   retriever?: string

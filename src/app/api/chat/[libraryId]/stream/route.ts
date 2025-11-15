@@ -39,8 +39,10 @@ import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
   isValidTargetLanguage,
-  isValidCharacter,
   isValidSocialContext,
+  normalizeCharacterToArray,
+  parseCharacterFromUrlParam,
+  characterArrayToString,
 } from '@/lib/chat/constants'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 import { formatSSE } from '@/types/chat-processing'
@@ -215,14 +217,15 @@ export async function POST(
         const socialContextParam = parsedUrl.searchParams.get('socialContext')
         const genderInclusiveParam = parsedUrl.searchParams.get('genderInclusive')
         
+        // Parse character Parameter aus URL (komma-separierter String → Character[] Array)
+        const effectiveCharacter = parseCharacterFromUrlParam(characterParam)
+        
         const effectiveChatConfig = {
           ...ctx.chat,
           targetLanguage: isValidTargetLanguage(targetLanguageParam)
             ? targetLanguageParam
             : ctx.chat.targetLanguage,
-          character: isValidCharacter(characterParam)
-            ? characterParam
-            : ctx.chat.character,
+          character: effectiveCharacter ?? normalizeCharacterToArray(ctx.chat.character),
           socialContext: isValidSocialContext(socialContextParam)
             ? socialContextParam
             : ctx.chat.socialContext,
@@ -237,12 +240,13 @@ export async function POST(
         // Prüfe, ob bereits eine identische Query mit Antwort existiert
         // Dies gilt sowohl für TOC-Queries als auch für normale Fragen
         try {
+          
           // Sende Cache-Check-Step (Start)
           send({
             type: 'cache_check',
             parameters: {
               targetLanguage: effectiveChatConfig.targetLanguage,
-              character: effectiveChatConfig.character,
+              character: characterArrayToString(effectiveChatConfig.character),
               socialContext: effectiveChatConfig.socialContext,
               filters: facetsSelected,
             },
@@ -368,7 +372,7 @@ export async function POST(
           answerLength,
           retriever: internalRetriever, // Verwende internen Retriever (kann chunkSummary sein)
           targetLanguage: effectiveChatConfig.targetLanguage,
-          character: effectiveChatConfig.character,
+          character: effectiveChatConfig.character, // Array (kann leer sein)
           socialContext: effectiveChatConfig.socialContext,
           genderInclusive: effectiveChatConfig.genderInclusive,
           facetsSelected,
@@ -382,6 +386,12 @@ export async function POST(
         const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
         send({ type: 'llm_start', model })
 
+        // Normalisiere chatConfig für Orchestrator (character muss Array sein)
+        const normalizedChatConfig = {
+          ...effectiveChatConfig,
+          character: normalizeCharacterToArray(effectiveChatConfig.character),
+        }
+
         const { answer, references, suggestedQuestions, storyTopicsData } = await runChatOrchestrated({
           retriever: internalRetriever, // Verwende internen Retriever (kann chunkSummary sein)
           libraryId,
@@ -391,7 +401,7 @@ export async function POST(
           filters: built.mongo,
           queryId,
           context: { vectorIndex: ctx.vectorIndex },
-          chatConfig: effectiveChatConfig,
+          chatConfig: normalizedChatConfig,
           chatHistory: chatHistory,
           facetsSelected: facetsSelected,
           facetDefs: facetDefs,

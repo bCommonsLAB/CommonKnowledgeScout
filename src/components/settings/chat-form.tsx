@@ -24,15 +24,17 @@ import {
   TARGET_LANGUAGE_ZOD_ENUM,
   TARGET_LANGUAGE_DEFAULT,
   TARGET_LANGUAGE_VALUES,
-  CHARACTER_ZOD_ENUM,
+  CHARACTER_ARRAY_ZOD_SCHEMA,
   CHARACTER_DEFAULT,
   CHARACTER_VALUES,
   SOCIAL_CONTEXT_ZOD_ENUM,
   SOCIAL_CONTEXT_DEFAULT,
   SOCIAL_CONTEXT_VALUES,
   isValidSocialContext,
-  isValidCharacter,
+  isValidCharacterArray,
   isValidTargetLanguage,
+  normalizeCharacterToArray,
+  type Character,
 } from '@/lib/chat/constants'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useStoryContext } from '@/hooks/use-story-context'
@@ -57,9 +59,9 @@ const chatFormSchema = z.object({
   character: z.preprocess(
     (val) => {
       if (val === '' || val === undefined || val === null) return CHARACTER_DEFAULT
-      return val
+      return normalizeCharacterToArray(val)
     },
-    CHARACTER_ZOD_ENUM.default(CHARACTER_DEFAULT)
+    CHARACTER_ARRAY_ZOD_SCHEMA.default(CHARACTER_DEFAULT)
   ),
   socialContext: z.preprocess(
     (val) => {
@@ -195,14 +197,16 @@ export function ChatForm() {
         console.log('[ChatForm] ⚠️ Unbekannter targetLanguage:', targetLanguageVal, '- verwende default:', TARGET_LANGUAGE_DEFAULT)
       }
       
-      // Explizite Prüfung für character
-      let finalCharacter: typeof CHARACTER_DEFAULT = CHARACTER_DEFAULT
+      // Explizite Prüfung für character (Array)
+      let finalCharacter: Character[] = CHARACTER_DEFAULT
       const characterVal = c.character
-      if (isValidCharacter(characterVal)) {
+      if (isValidCharacterArray(characterVal)) {
         finalCharacter = characterVal
         console.log('[ChatForm] ✅ Setze character auf:', finalCharacter)
       } else {
-        console.log('[ChatForm] ⚠️ Unbekannter character:', characterVal, '- verwende default:', CHARACTER_DEFAULT)
+        // Normalisiere zu Array (für Backward-Compatibility)
+        finalCharacter = normalizeCharacterToArray(characterVal)
+        console.log('[ChatForm] ⚠️ Character normalisiert:', characterVal, '->', finalCharacter)
       }
       
       // Explizite Prüfung für socialContext
@@ -448,13 +452,18 @@ export function ChatForm() {
               control={form.control}
               name="character"
               render={({ field }) => {
-                const currentValue = field.value || CHARACTER_DEFAULT
+                // field.value ist jetzt ein Array, nimm den ersten Wert für das Select
+                const characterArray = Array.isArray(field.value) && field.value.length > 0 
+                  ? field.value 
+                  : CHARACTER_DEFAULT
+                const currentValue = characterArray[0] || CHARACTER_DEFAULT[0]
                 return (
                   <FormItem>
                     <FormLabel>{t('settings.chatForm.character')}</FormLabel>
                     <Select value={currentValue} onValueChange={(value) => {
                       if (CHARACTER_VALUES.includes(value as typeof CHARACTER_VALUES[number])) {
-                        field.onChange(value)
+                        // Konvertiere zu Array mit einem Wert
+                        field.onChange([value])
                       }
                     }}>
                       <FormControl>

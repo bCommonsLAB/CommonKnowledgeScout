@@ -23,12 +23,12 @@ interface ChatConfigPopoverProps {
   genderInclusive: boolean
   setGenderInclusive: (value: boolean) => void
   targetLanguage: TargetLanguage
-  character: Character
+  character: Character[] // Array (kann leer sein)
   socialContext: SocialContext
   onGenerateTOC: () => Promise<void>
   onSavePreferences: (prefs: {
     targetLanguage: TargetLanguage
-    character: Character
+    character: Character[] // Array (kann leer sein)
     socialContext: SocialContext
     genderInclusive: boolean
   }) => Promise<void>

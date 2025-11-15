@@ -113,128 +113,121 @@ export const TARGET_LANGUAGE_ZOD_ENUM = z.enum(['de', 'en', 'it', 'fr', 'es', 'a
 // ============================================================================
 
 /**
- * Character-Typ für Chat-Perspektiven.
- * Definiert verschiedene Rollen/Perspektiven, aus denen der Chatbot antworten kann.
+ * Character-Typ für Chat-Perspektiven (Interessenprofile).
+ * Definiert verschiedene Interessenprofile, aus denen der Chatbot antworten kann.
+ * Unterstützt mehrere Werte (max. 3) für kombinierte Perspektiven.
  */
 export type Character =
-  | 'developer'
   | 'technical'
-  | 'open-source'
-  | 'scientific'
-  | 'eco-social'
-  | 'social'
-  | 'civic'
-  | 'policy'
-  | 'cultural'
+  | 'social-cultural'
+  | 'ecology'
   | 'business'
-  | 'entrepreneurial'
-  | 'legal'
   | 'educational'
+  | 'practical'
+  | 'research'
+  | 'policy'
   | 'creative'
 
 export const CHARACTER_VALUES: readonly Character[] = [
-  'developer',
   'technical',
-  'open-source',
-  'scientific',
-  'eco-social',
-  'social',
-  'civic',
-  'policy',
-  'cultural',
+  'social-cultural',
+  'ecology',
   'business',
-  'entrepreneurial',
-  'legal',
   'educational',
+  'practical',
+  'research',
+  'policy',
   'creative',
 ] as const
 
-export const CHARACTER_DEFAULT: Character = 'business'
+export const CHARACTER_DEFAULT: Character[] = ['business']
 
 export const CHARACTER_LABELS: Record<Character, string> = {
-  developer: 'Developer-orientiert',
-  technical: 'Technisch-orientiert',
-  'open-source': 'Open-Source-spezifisch',
-  scientific: 'Naturwissenschaftlich',
-  'eco-social': 'Ökosozial-orientiert',
-  social: 'Sozial-orientiert',
-  civic: 'Bürgerschaftlich-orientiert',
-  policy: 'Politikwissenschaftlich-orientiert',
-  cultural: 'Kulturell-orientiert',
-  business: 'Business-orientiert',
-  entrepreneurial: 'Unternehmerisch-orientiert',
-  legal: 'Rechtskundespezifisch',
-  educational: 'Bildungswissenschaftlich-orientiert',
-  creative: 'Kreativ-orientiert',
+  technical: 'Technikorientiert',
+  'social-cultural': 'Gesellschaft & Kultur',
+  ecology: 'Ökologie & Nachhaltigkeit',
+  business: 'Wirtschaft & Organisation',
+  educational: 'Bildung & Lernen',
+  practical: 'Alltag & Praxis',
+  research: 'Forschung & Analyse',
+  policy: 'Politik & Gesellschaftswandel',
+  creative: 'Kreativ & Visionär',
 }
 
 /**
  * Character instructions for LLM prompts
  * These are used in lib/chat/common/prompt.ts
+ * 
+ * Unterstützt kombinierte Perspektiven: Wenn mehrere Character-Werte gewählt werden,
+ * werden die Instructions mit "AND" kombiniert.
  */
 export const CHARACTER_INSTRUCTIONS: Record<Character, string> = {
-  // Knowledge & Innovation
-  developer: 'You respond from a developer perspective. Focus on code quality, best practices, technology stacks, performance, scalability, and practical implementation.',
-  technical: 'You respond from a technical perspective. Focus on technical details, architecture, system design, engineering principles, and practical solution approaches.',
-  'open-source': 'You respond from an open-source perspective. Focus on community, transparency, collaboration, license models, and open standards.',
-  scientific: 'You respond from a natural science perspective. Focus on evidence, methodology, reproducibility, and scientific accuracy.',
+  technical: 'You respond from a technology-oriented perspective. Focus on technical backgrounds, processes, systems, and methodologies. Emphasize technical aspects, tools, architecture, and functionality.',
+  'social-cultural': 'You respond from a social and cultural perspective. Focus on social impacts, cultural dynamics, and community questions. Emphasize societal significance, people, relationships, and processes.',
+  ecology: 'You respond from an ecological and sustainability perspective. Focus on ecological consequences, climate, future, and resources. Emphasize sustainability aspects, environmental impacts, risks, and opportunities.',
+  business: 'You respond from an economic and organizational perspective. Focus on economic frameworks, business models, value creation, and strategic questions. Emphasize utility, efficiency, organization, and scalability.',
+  educational: 'You respond from an educational and learning perspective. Focus on clear, structured content with a learning focus. Emphasize fundamentals, illustrative examples, and explanatory models.',
+  practical: 'You respond from a practical and everyday perspective. Focus on what this means for daily life. Emphasize practical relevance, concrete examples, and action-oriented approaches.',
+  research: 'You respond from a research and analysis perspective. Focus on methodology, evidence, source criticism, and argumentation lines. Emphasize scientific rigor and analytical depth.',
+  policy: 'You respond from a political and societal change perspective (neutrally formulated). Focus on overall societal framework conditions. Emphasize political processes, governance, and regulation – without taking positions.',
+  creative: 'You respond from a creative and visionary perspective. Focus on future scenarios, visions, idea sketches, and new possibilities. Emphasize horizons, opportunities, and creative applications.',
+}
+
+/**
+ * Kombiniert mehrere Character-Instructions zu einer kombinierten Anweisung
+ * @param characters Array von Character-Werten (max. 3)
+ * @returns Kombinierte Instruction-String
+ */
+export function combineCharacterInstructions(characters: Character[]): string {
+  if (characters.length === 0) {
+    return CHARACTER_INSTRUCTIONS[CHARACTER_DEFAULT[0]]
+  }
   
-  // Society & Impact
-  'eco-social': 'You respond from an eco-social perspective. Focus on sustainability, social justice, environmental protection, and long-term societal impacts.',
-  social: 'You respond from a social perspective. Focus on community, cooperation, inclusion, and societal aspects.',
-  civic: 'You respond from a civic perspective. Focus on citizen participation, democracy, common good, and civil society engagement.',
-  policy: 'You respond from a political science perspective. Focus on policy analysis, regulations, governance structures, and socio-political impacts.',
-  cultural: 'You respond from a cultural perspective. Focus on cultural values, traditions, societal norms, and cultural diversity.',
+  if (characters.length === 1) {
+    return CHARACTER_INSTRUCTIONS[characters[0]]
+  }
   
-  // Economy & Practice
-  business: 'You respond from a business, entrepreneurial perspective. Focus on efficiency, ROI, market opportunities, competitive advantages, and practical feasibility.',
-  entrepreneurial: 'You respond from an entrepreneurial perspective. Focus on innovation, risk-taking, business models, growth strategies, and market success.',
-  legal: 'You respond from a legal perspective. Focus on legal aspects, compliance, licenses, data protection, and legal risks.',
-  educational: 'You respond from an educational science perspective. Focus on learning processes, pedagogy, knowledge transfer, and didactic approaches.',
-  creative: 'You respond from a creative perspective. Focus on innovation, design thinking, artistic approaches, and creative problem-solving.',
+  // Kombiniere mehrere Instructions mit "AND"
+  const instructions = characters.map(char => CHARACTER_INSTRUCTIONS[char])
+  return `You respond from a combined perspective that integrates: ${instructions.join(' AND ')}`
 }
 
 export const CHARACTER_ZOD_ENUM = z.enum([
-  'developer',
   'technical',
-  'open-source',
-  'scientific',
-  'eco-social',
-  'social',
-  'civic',
-  'policy',
-  'cultural',
+  'social-cultural',
+  'ecology',
   'business',
-  'entrepreneurial',
-  'legal',
   'educational',
+  'practical',
+  'research',
+  'policy',
   'creative',
 ])
 
 /**
+ * Zod-Schema für Character-Array (max. 3 Werte)
+ */
+export const CHARACTER_ARRAY_ZOD_SCHEMA = z.array(CHARACTER_ZOD_ENUM).max(3).min(1)
+
+/**
  * Farbzuordnung für Characters (Hintergrund und Border).
- * Knowledge & Innovation → kühle Blau-/Indigo-/Cyan-Töne
- * Society & Impact → grüne/teal/lime Töne (leicht erdig)
- * Economy & Practice → warme Amber/Orange/Rose/Stone Töne
+ * Sachlicher Zugang → kühle Blau-/Indigo-/Cyan-Töne
+ * Menschlicher Zugang → grüne/teal/lime Töne
+ * Zukunftsorientierter Zugang → warme Amber/Orange/Rose Töne
  */
 export const characterColors: Record<Character, string> = {
-  // Knowledge & Innovation (cool)
-  developer: 'bg-blue-50 border-blue-200',
+  // Sachlicher Zugang (cool)
   technical: 'bg-cyan-50 border-cyan-200',
-  'open-source': 'bg-sky-50 border-sky-200',
-  scientific: 'bg-indigo-50 border-indigo-200',
-  // Society & Impact (greens)
-  'eco-social': 'bg-green-50 border-green-200',
-  social: 'bg-teal-50 border-teal-200',
-  civic: 'bg-lime-50 border-lime-200',
-  policy: 'bg-emerald-50 border-emerald-200',
-  cultural: 'bg-green-50 border-green-200/70', // leicht variiert – bleibt im grünen Spektrum
-  // Economy & Practice (warm)
-  business: 'bg-amber-50 border-amber-200',
-  entrepreneurial: 'bg-orange-50 border-orange-200',
-  legal: 'bg-stone-50 border-stone-200', // seriös/warm-neutral
-  educational: 'bg-yellow-50 border-yellow-200',
+  business: 'bg-blue-50 border-blue-200',
+  research: 'bg-indigo-50 border-indigo-200',
+  // Menschlicher Zugang (greens)
+  'social-cultural': 'bg-teal-50 border-teal-200',
+  practical: 'bg-lime-50 border-lime-200',
+  educational: 'bg-green-50 border-green-200',
+  // Zukunftsorientierter Zugang (warm)
+  ecology: 'bg-emerald-50 border-emerald-200',
   creative: 'bg-rose-50 border-rose-200',
+  policy: 'bg-amber-50 border-amber-200',
 }
 
 /**
@@ -242,23 +235,18 @@ export const characterColors: Record<Character, string> = {
  * Folgt demselben Farbschema wie characterColors, jedoch mit stärkerer Intensität.
  */
 export const characterIconColors: Record<Character, string> = {
-  // Knowledge & Innovation (cool)
-  developer: 'bg-blue-100 text-blue-600',
+  // Sachlicher Zugang (cool)
   technical: 'bg-cyan-100 text-cyan-600',
-  'open-source': 'bg-sky-100 text-sky-600',
-  scientific: 'bg-indigo-100 text-indigo-600',
-  // Society & Impact (greens)
-  'eco-social': 'bg-green-100 text-green-600',
-  social: 'bg-teal-100 text-teal-600',
-  civic: 'bg-lime-100 text-lime-600',
-  policy: 'bg-emerald-100 text-emerald-600',
-  cultural: 'bg-green-100 text-green-600',
-  // Economy & Practice (warm)
-  business: 'bg-amber-100 text-amber-600',
-  entrepreneurial: 'bg-orange-100 text-orange-600',
-  legal: 'bg-stone-100 text-stone-600',
-  educational: 'bg-yellow-100 text-yellow-600',
+  business: 'bg-blue-100 text-blue-600',
+  research: 'bg-indigo-100 text-indigo-600',
+  // Menschlicher Zugang (greens)
+  'social-cultural': 'bg-teal-100 text-teal-600',
+  practical: 'bg-lime-100 text-lime-600',
+  educational: 'bg-green-100 text-green-600',
+  // Zukunftsorientierter Zugang (warm)
+  ecology: 'bg-emerald-100 text-emerald-600',
   creative: 'bg-rose-100 text-rose-600',
+  policy: 'bg-amber-100 text-amber-600',
 }
 
 // ============================================================================
@@ -327,6 +315,95 @@ export function getGenderInclusiveInstruction(genderInclusive: boolean): string 
  */
 export function isValidCharacter(value: unknown): value is Character {
   return typeof value === 'string' && CHARACTER_VALUES.includes(value as Character)
+}
+
+/**
+ * Validiert, ob ein Wert ein gültiges Character-Array ist (max. 3 Werte)
+ */
+export function isValidCharacterArray(value: unknown): value is Character[] {
+  if (!Array.isArray(value)) return false
+  if (value.length === 0 || value.length > 3) return false
+  return value.every(char => isValidCharacter(char))
+}
+
+/**
+ * Konvertiert einen alten Single-Character-Wert zu einem Array (für Backward-Compatibility)
+ */
+export function normalizeCharacterToArray(value: unknown): Character[] {
+  if (Array.isArray(value)) {
+    // Bereits ein Array: Validiere und begrenze auf max. 3
+    const valid = value.filter(char => isValidCharacter(char)).slice(0, 3)
+    return valid.length > 0 ? valid : CHARACTER_DEFAULT
+  }
+  
+  if (isValidCharacter(value)) {
+    // Single-Value: Konvertiere zu Array
+    return [value]
+  }
+  
+  // Fallback zu Default
+  return CHARACTER_DEFAULT
+}
+
+/**
+ * Parst einen Character-Parameter aus einer URL (komma-separierter String).
+ * Konvertiert den String zu einem Character[] Array.
+ * 
+ * @param characterParam - URL-Parameter als String (z.B. "business,technical" oder null/undefined)
+ * @returns Character[] Array (max. 3 Werte) oder undefined, wenn kein gültiger Wert gefunden wurde
+ * 
+ * @example
+ * parseCharacterFromUrlParam("business,technical") // => ['business', 'technical']
+ * parseCharacterFromUrlParam("invalid") // => undefined
+ * parseCharacterFromUrlParam(null) // => undefined
+ */
+export function parseCharacterFromUrlParam(characterParam: string | null | undefined): Character[] | undefined {
+  if (!characterParam) {
+    return undefined
+  }
+  
+  // Parse komma-separierte Werte
+  const parts = characterParam.split(',').map(s => s.trim()).filter(s => s.length > 0)
+  
+  // Validiere und filtere gültige Character-Werte
+  const validChars = parts.filter(char => isValidCharacter(char)) as Character[]
+  
+  // Gib undefined zurück, wenn keine gültigen Werte gefunden wurden
+  if (validChars.length === 0) {
+    return undefined
+  }
+  
+  // Begrenze auf max. 3 Werte
+  return validChars.slice(0, 3)
+}
+
+/**
+ * Konvertiert Character-Array (oder Single-Value/String) zu einem komma-separierten String.
+ * 
+ * Diese Funktion ist die Umkehrung von `normalizeCharacterToArray` und wird verwendet,
+ * um Character-Werte für URL-Parameter, Query-Logs oder API-Requests zu serialisieren.
+ * 
+ * @param character - Character[] Array, einzelner Character-Wert, String oder undefined
+ * @returns Komma-separierter String (z.B. "business,technical") oder undefined
+ * 
+ * @example
+ * characterArrayToString(['business', 'technical']) // => "business,technical"
+ * characterArrayToString('business') // => "business"
+ * characterArrayToString(undefined) // => undefined
+ * characterArrayToString([]) // => undefined
+ */
+export function characterArrayToString(character: Character[] | Character | string | undefined): string | undefined {
+  if (!character) {
+    return undefined
+  }
+  
+  if (Array.isArray(character)) {
+    // Array: Verbinde mit Komma, wenn nicht leer
+    return character.length > 0 ? character.join(',') : undefined
+  }
+  
+  // String oder Single-Value: Gib direkt zurück
+  return character
 }
 
 /**

@@ -18,7 +18,7 @@ interface CachedTOC {
   answerLength?: AnswerLength
   retriever?: Retriever
   targetLanguage?: TargetLanguage
-  character?: string
+  character?: Character[] // Array (kann leer sein)
   socialContext?: SocialContext
   facetsSelected?: Record<string, unknown>
   queryId?: string
@@ -34,7 +34,7 @@ interface StoryTopicsProps {
   answerLength?: AnswerLength
   retriever?: Retriever
   targetLanguage?: TargetLanguage
-  character?: Character
+  character?: Character[] // Array (kann leer sein)
   socialContext?: SocialContext
   queryId?: string // QueryId für Filterparameter-Anzeige
   filters?: Record<string, unknown> // Optional: Filterparameter direkt übergeben

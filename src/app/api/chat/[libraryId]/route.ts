@@ -10,8 +10,9 @@ import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
   isValidTargetLanguage,
-  isValidCharacter,
   isValidSocialContext,
+  normalizeCharacterToArray,
+  parseCharacterFromUrlParam,
 } from '@/lib/chat/constants'
 import type { NeedsClarificationResponse } from '@/types/chat-response'
 
@@ -148,14 +149,15 @@ export async function POST(
     const socialContextParam = parsedUrl.searchParams.get('socialContext')
     const genderInclusiveParam = parsedUrl.searchParams.get('genderInclusive')
     
+    // Parse character Parameter aus URL (komma-separierter String → Character[] Array)
+    const effectiveCharacter = parseCharacterFromUrlParam(characterParam)
+    
     const effectiveChatConfig = {
       ...ctx.chat,
       targetLanguage: isValidTargetLanguage(targetLanguageParam)
         ? targetLanguageParam
         : ctx.chat.targetLanguage,
-      character: isValidCharacter(characterParam)
-        ? characterParam
-        : ctx.chat.character,
+      character: effectiveCharacter ?? normalizeCharacterToArray(ctx.chat.character),
       socialContext: isValidSocialContext(socialContextParam)
         ? socialContextParam
         : ctx.chat.socialContext,
@@ -179,7 +181,7 @@ export async function POST(
         answerLength,
         retriever: 'summary',
         targetLanguage: effectiveChatConfig.targetLanguage,
-        character: effectiveChatConfig.character,
+        character: effectiveChatConfig.character, // Array (kann leer sein)
         socialContext: effectiveChatConfig.socialContext,
         genderInclusive: effectiveChatConfig.genderInclusive,
         facetsSelected,
@@ -236,7 +238,7 @@ export async function POST(
       answerLength,
       retriever: 'chunk' as const,
       targetLanguage: effectiveChatConfig.targetLanguage,
-      character: effectiveChatConfig.character,
+      character: effectiveChatConfig.character, // Array (kann leer sein)
       socialContext: effectiveChatConfig.socialContext,
       facetsSelected,
       filtersNormalized: { ...built.normalized },

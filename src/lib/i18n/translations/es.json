@@ -109,6 +109,7 @@
     "switchToStoryMode": "Ver en modo Historia",
     "storyModeTooltip": "En el modo Historia, puedes hacerte explicar los contenidos en tu idioma, tu perfil de intereses y tu contexto.",
     "backToGallery": "Volver a los contenidos",
+    "backToStoryMode": "Volver al modo Historia",
     "storyMode": {
       "headline": "Modo Historia – Hazte explicar los contenidos desde tu perspectiva",
       "subtitle": "Experimentar juntos el conocimiento compartido",
@@ -116,13 +117,38 @@
       "generatingTopics": "Generando resumen de temas...",
       "reloadTooltip": "Resumen ya no está actualizado, por favor recalcular",
       "perspective": {
+        "title": "Tu perspectiva",
         "language": "Idioma",
         "character": "Perfil de intereses",
-        "socialContext": "Contexto",
-        "adjustPerspective": "Ajustar mi propia perspectiva",
-        "adjustPerspectiveHelpText": "Tu perfil de intereses determina qué aspectos se destacan especialmente. Tu contexto determina en qué entorno o desde qué rol ves los contenidos.",
-        "adjustPerspectiveTitle": "Ajustar perspectiva",
+        "socialContext": "Estilo de lenguaje",
+        "adjustPerspective": "Ajustar perspectiva",
         "adjustPerspectiveDescription": "Especifica cómo se preparan los contenidos para ti: en qué idioma, con qué perfil de intereses y desde qué contexto. Así obtienes respuestas que reflejan tu enfoque y prioridades."
+      },
+      "storyModePerspectivePage": {
+        "title": "¿Cómo deben formularse las respuestas para ti?",
+        "subtitle": "Para que el contenido se presente de la manera más comprensible para ti.",
+        "description": "Elige idioma, intereses y estilo de lenguaje para que las explicaciones coincidan con tu enfoque. Puedes cambiar esto en cualquier momento más tarde.",
+        "whyThisPage": "¿Por qué esta página?",
+        "whyThisPageDescription": "Cada persona aporta un enfoque diferente. Tu selección garantiza que las respuestas coincidan con tu contexto e intereses.",
+        "language": {
+          "label": "Idioma",
+          "helpText": "¿En qué idioma te gustaría leer las respuestas?"
+        },
+        "interests": {
+          "label": "¿Qué te interesa particularmente? (Perfil de intereses)",
+          "helpText": "Elige qué aspectos deben estar en primer plano para ti. Las respuestas darán más peso a estos temas.",
+          "maxSelected": "Máx. 3 seleccionables",
+          "selectedCount": "{count} de 3 seleccionados"
+        },
+        "languageStyle": {
+          "label": "Estilo de lenguaje",
+          "helpText": "¿Cómo deben sonar las respuestas?",
+          "note": "Solo determinas el estilo – no el contenido. Las respuestas permanecen basadas en las mismas fuentes."
+        },
+        "button": {
+          "start": "Comenzar con esta perspectiva",
+          "footer": "Puedes cambiar tu selección más tarde en el modo Historia en cualquier momento."
+        }
       }
     },
     "searchPlaceholder": "Buscar por título, ponente, tema...",
@@ -131,12 +157,17 @@
     "noFiltersAvailable": "No hay filtros disponibles",
     "documents": "documentos",
     "document": "documento",
+    "talks": "charlas",
+    "talk": "charla",
     "filtered": "filtrado",
     "references": "Referencias",
     "referencesDescription": "La respuesta se generó a partir de estos documentos.",
-    "storyModeGalleryDescription": "Las respuestas se generan a partir de las charlas seleccionadas en la Galería.",
     "documentDetails": "Detalles del documento",
-    "detailViewStoryModeCta": "¿No entiendes este contenido? Haz que te lo cuenten en tu idioma.",
+    "talkSummary": "Resumen de la Charla",
+    "documentView": "Vista del documento",
+    "linkToOriginalWebsite": "al sitio web original",
+    "translationGenerating": "Las traducciones pueden tardar un momento, por favor tenga paciencia.",
+    "detailViewStoryModeCta": "Haz que te expliquen el contenido desde tu perspectiva.",
     "openDocument": "Abrir documento",
     "openEventWebsite": "Abrir sitio web del evento",
     "loading": "Cargando…",
@@ -172,20 +203,15 @@
   },
   "chat": {
     "characterLabels": {
-      "developer": "Orientado a desarrolladores",
-      "technical": "Orientado técnicamente",
-      "open-source": "Específico de código abierto",
-      "scientific": "Ciencias naturales",
-      "eco-social": "Orientado eco-social",
-      "social": "Orientado socialmente",
-      "civic": "Orientado cívico",
-      "policy": "Orientado a ciencias políticas",
-      "cultural": "Orientado culturalmente",
-      "business": "Orientado a negocios",
-      "entrepreneurial": "Orientado empresarial",
-      "legal": "Específico legal",
-      "educational": "Orientado a ciencias de la educación",
-      "creative": "Orientado creativamente"
+      "technical": "Orientado a la tecnología",
+      "social-cultural": "Sociedad & Cultura",
+      "ecology": "Ecología & Sostenibilidad",
+      "business": "Economía & Organización",
+      "educational": "Educación & Aprendizaje",
+      "practical": "Cotidiano & Práctica",
+      "research": "Investigación & Análisis",
+      "policy": "Política & Cambio social",
+      "creative": "Creativo & Visionario"
     },
     "socialContextLabels": {
       "scientific": "Científico",
@@ -318,7 +344,8 @@
     "welcomeTitle": "Bienvenido al modo Historia.",
     "welcomeDescription": "Seleccione el idioma y la perspectiva arriba, luego comience su conversación con el conocimiento.",
     "welcomeTip": "Consejo: Haga una pregunta o haga clic en una charla a la derecha para ver la historia desde su perspectiva.",
-    "processing": "Procesando..."
+    "processing": "Procesando...",
+    "topicsOverviewIntro": "Basado en los {count} {type} seleccionados, surge la siguiente visión general de temas y respuestas:"
   },
   "suggestedQuestions": {
     "label": "Posibles preguntas adicionales sobre el tema que surgen de las fuentes:"

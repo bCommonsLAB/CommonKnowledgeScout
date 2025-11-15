@@ -94,7 +94,7 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                 answerLength?: string
                 retriever?: string
                 targetLanguage?: string
-                character?: string
+                character?: import('@/lib/chat/constants').Character[] // Array (kann leer sein)
                 socialContext?: string
               }
 

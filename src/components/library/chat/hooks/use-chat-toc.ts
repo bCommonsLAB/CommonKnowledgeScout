@@ -9,7 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
 import type { TargetLanguage, Character, SocialContext, AnswerLength, Retriever } from '@/lib/chat/constants'
-import { TOC_QUESTION } from '@/lib/chat/constants'
+import { TOC_QUESTION, characterArrayToString } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { useStoryTopicsCache } from '@/hooks/use-story-topics-cache'
 
@@ -23,7 +23,7 @@ interface CachedTOC {
   answerLength?: AnswerLength
   retriever?: Retriever
   targetLanguage?: TargetLanguage
-  character?: string
+  character?: Character[] // Array (kann leer sein)
   socialContext?: SocialContext
   facetsSelected?: Record<string, unknown>
 }
@@ -32,7 +32,7 @@ interface UseChatTOCParams {
   libraryId: string
   cfg: { config: unknown } | null
   targetLanguage: TargetLanguage
-  character: Character
+  character: Character[] // Array (kann leer sein)
   socialContext: SocialContext
   genderInclusive: boolean
   galleryFilters?: GalleryFilters
@@ -60,7 +60,7 @@ interface UseChatTOCResult {
     answerLength?: AnswerLength
     retriever?: Retriever
     targetLanguage?: TargetLanguage
-    character?: string
+    character?: Character[] // Array (kann leer sein)
     socialContext?: SocialContext
     facetsSelected?: Record<string, unknown>
   }) => void
@@ -81,10 +81,11 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     socialContext,
     genderInclusive,
     galleryFilters,
-    isEmbedded,
     isSending,
     sendQuestion,
     setProcessingSteps,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    isEmbedded, // Wird aktuell nicht verwendet, aber Teil der API für zukünftige Verwendung
   } = params
 
   const [cachedStoryTopicsData, setCachedStoryTopicsData] = useState<StoryTopicsData | null>(null)
@@ -161,6 +162,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     
     // Wenn bereits ein Check mit denselben Parametern läuft oder gerade gelaufen ist, überspringe
     if (isCheckingTOCRef.current) {
+      console.log('[useChatTOC] checkCache: Übersprungen - Cache-Check bereits in Progress (Race Condition verhindert)')
       return
     }
     
@@ -172,6 +174,14 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     }
     
     // Setze Ref synchron, bevor State-Update (verhindert Race Condition)
+    console.log('[useChatTOC] checkCache: Starte Cache-Check', {
+      libraryId,
+      targetLanguage,
+      character,
+      socialContext,
+      genderInclusive,
+      cacheKey,
+    })
     isCheckingTOCRef.current = true
     setIsCheckingTOC(true)
     lastCacheKeyRef.current = cacheKey
@@ -186,7 +196,8 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
           type: 'cache_check',
           parameters: {
             targetLanguage,
-            character,
+            // Konvertiere Character-Array zu komma-separiertem String für Processing-Step
+            character: characterArrayToString(character),
             socialContext,
             filters: galleryFilters,
           },
@@ -198,7 +209,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       const result = await checkCacheAPI({
         libraryId,
         targetLanguage,
-        character,
+        character: character, // Array (kann leer sein)
         socialContext,
         genderInclusive,
         galleryFilters,
@@ -219,9 +230,17 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
         })
       }
 
+      console.log('[useChatTOC] checkCache: Cache-Check abgeschlossen', {
+        found: result?.found,
+        hasQueryId: !!result?.queryId,
+        hasStoryTopicsData: !!result?.storyTopicsData,
+        hasAnswer: !!result?.answer,
+      })
+      
       if (result?.found && result.queryId) {
         // Cache gefunden: Setze Daten und stoppe alle weiteren Processing-Steps
         // Priorisiere storyTopicsData über answer
+        console.log('[useChatTOC] checkCache: Cache gefunden, setze Daten')
         if (result.storyTopicsData) {
           setCachedStoryTopicsData(result.storyTopicsData)
           // Setze auch cachedTOC für Rückwärtskompatibilität (inkl. Parameter)
@@ -273,6 +292,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
         // explizit, um Race Conditions zu vermeiden
       } else {
         // KEIN Cache gefunden
+        console.log('[useChatTOC] checkCache: Kein Cache gefunden')
         setCachedTOC(null)
         setCachedStoryTopicsData(null)
         // WICHTIG: Entferne alle Processing-Steps außer Cache-Check-Steps
@@ -319,12 +339,11 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     socialContext,
     genderInclusive,
     galleryFilters,
-    isEmbedded,
-    isSending,
     checkCacheAPI,
-    sendQuestion,
+    setProcessingSteps,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // cachedStoryTopicsData und cachedTOC sind nur Setter (stabil), nicht als Werte verwendet
+    // isEmbedded, isSending und sendQuestion werden nicht im checkCache verwendet
   ])
 
   // Exponiere checkCache für externe Aufrufe (z.B. nach TOC-Query-Löschung)
@@ -454,7 +473,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       answerLength?: AnswerLength
       retriever?: Retriever
       targetLanguage?: TargetLanguage
-      character?: string
+      character?: Character[] // Array (kann leer sein)
       socialContext?: SocialContext
       facetsSelected?: Record<string, unknown>
     }) => {

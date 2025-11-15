@@ -3,12 +3,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { ArrowRight, BookOpen, Presentation, AlertCircle, RefreshCw } from "lucide-react"
+import { ArrowRight, BookOpen, Presentation, AlertCircle, RefreshCw, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import * as LucideIcons from "lucide-react"
 import { useTranslation } from "@/lib/i18n/hooks"
 import { useToast } from "@/components/ui/use-toast"
+import type { Character, SocialContext, TargetLanguage } from '@/lib/chat/constants'
 
 interface PublicLibrary {
   id: string
@@ -36,14 +37,14 @@ interface PublicLibrary {
     maxCharsWarningMessage?: string
     footerText?: string
     companyLink?: string
-    targetLanguage?: string
-    character?: string
-    socialContext?: string
+    targetLanguage?: TargetLanguage
+    character?: Character[] // Array (kann leer sein)
+    socialContext?: SocialContext
     genderInclusive?: boolean
     userPreferences?: {
-      targetLanguage?: string
-      character?: string
-      socialContext?: string
+      targetLanguage?: TargetLanguage
+      character?: Character[] // Array (kann leer sein)
+      socialContext?: SocialContext
       genderInclusive?: boolean
     }
   }
@@ -134,55 +135,10 @@ export function LibraryGrid() {
     return BookOpen
   }
 
-  if (loading && !error) {
-    return (
-      <section className="py-20 md:py-28">
-        <div className="container mx-auto px-4">
-          <div className="text-center text-muted-foreground">{t('home.libraryGrid.loading')}</div>
-        </div>
-      </section>
-    )
-  }
-
-  if (error) {
-    return (
-      <section className="py-20 md:py-28">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-2xl">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Fehler beim Laden der Libraries</AlertTitle>
-              <AlertDescription className="mt-2">
-                {error}
-              </AlertDescription>
-            </Alert>
-            <div className="mt-4 text-center">
-              <Button onClick={loadLibraries} variant="outline" className="gap-2">
-                <RefreshCw className="h-4 w-4" />
-                Erneut versuchen
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-    )
-  }
-
-  if (libraries.length === 0) {
-    return (
-      <section className="py-20 md:py-28">
-        <div className="container mx-auto px-4">
-          <div className="text-center text-muted-foreground">
-            {t('home.libraryGrid.noLibraries')}
-          </div>
-        </div>
-      </section>
-    )
-  }
-
   return (
     <section className="py-20 md:py-28">
       <div className="container mx-auto px-4">
+        {/* Titel und Beschreibung werden IMMER angezeigt */}
         <div className="mx-auto mb-16 max-w-3xl text-center">
           <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl text-balance">
             {t('home.libraryGrid.title')}
@@ -192,56 +148,98 @@ export function LibraryGrid() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
-          {libraries.map((library, index) => {
-            const Icon = getIconComponent(library)
-            const colorConfig = ICON_COLORS[index % ICON_COLORS.length]
-            
-            return (
-              <Card key={library.id} className="group relative overflow-hidden transition-all hover:shadow-lg">
-                {/* Hintergrundbild für die Library-Karte, falls vorhanden */}
-                {library.backgroundImageUrl && (
-                  <>
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center"
-                      style={{ 
-                        backgroundImage: `url("${library.backgroundImageUrl}")`,
-                      }}
-                    />
-                    {/* Schwarzes Overlay mit 60% Transparenz (wie beim Hero-Bild) */}
-                    <div className="absolute inset-0 bg-black/60" />
-                  </>
-                )}
+        {/* Grid-Bereich mit relativem Container für Loading-Overlay */}
+        <div className="relative">
+          {/* Loading-Overlay: Nur über dem Grid, wenn geladen wird */}
+          {loading && !error && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg min-h-[400px]">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">{t('home.libraryGrid.loading')}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Fehler-Anzeige: Innerhalb des Grid-Bereichs */}
+          {error && (
+            <div className="mx-auto max-w-2xl">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Fehler beim Laden der Libraries</AlertTitle>
+                <AlertDescription className="mt-2">
+                  {error}
+                </AlertDescription>
+              </Alert>
+              <div className="mt-4 text-center">
+                <Button onClick={loadLibraries} variant="outline" className="gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Erneut versuchen
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Keine Libraries: Innerhalb des Grid-Bereichs */}
+          {!loading && !error && libraries.length === 0 && (
+            <div className="text-center text-muted-foreground py-12">
+              {t('home.libraryGrid.noLibraries')}
+            </div>
+          )}
+
+          {/* Libraries-Grid: Wird immer gerendert, aber während Loading unsichtbar */}
+          {(!loading || libraries.length > 0) && (
+            <div className={`grid gap-6 md:grid-cols-2 lg:gap-8 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
+              {libraries.map((library, index) => {
+                const Icon = getIconComponent(library)
+                const colorConfig = ICON_COLORS[index % ICON_COLORS.length]
                 
-                <CardHeader className={`relative z-10 ${library.backgroundImageUrl ? 'text-white' : ''}`}>
-                  <div
-                    className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg ${colorConfig.bgColor}`}
-                  >
-                    <Icon className={`h-6 w-6 ${colorConfig.color}`} />
-                  </div>
-                  <CardTitle className={`text-xl ${library.backgroundImageUrl ? 'text-white' : ''}`}>{library.label}</CardTitle>
-                  <CardDescription className={`text-base leading-relaxed ${library.backgroundImageUrl ? 'text-white/90' : ''}`}>{library.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="relative z-10">
-                  <Button 
-                    size="lg"
-                    className={`group/btn gap-2 text-base ${
-                      library.backgroundImageUrl 
-                        ? 'bg-white text-black hover:bg-white/90' 
-                        : ''
-                    }`}
-                    onClick={() => router.push(`/explore/${library.slugName}`)}
-                  >
-                    {(library.detailViewType || library.chat?.gallery?.detailViewType) === 'session' 
-                      ? t('home.libraryGrid.buttonOpenEvent')
-                      : t('home.libraryGrid.buttonQuery')
-                    }
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-                  </Button>
-                </CardContent>
-              </Card>
-            )
-          })}
+                return (
+                  <Card key={library.id} className="group relative overflow-hidden transition-all hover:shadow-lg">
+                    {/* Hintergrundbild für die Library-Karte, falls vorhanden */}
+                    {library.backgroundImageUrl && (
+                      <>
+                        <div 
+                          className="absolute inset-0 bg-cover bg-center"
+                          style={{ 
+                            backgroundImage: `url("${library.backgroundImageUrl}")`,
+                          }}
+                        />
+                        {/* Schwarzes Overlay mit 60% Transparenz (wie beim Hero-Bild) */}
+                        <div className="absolute inset-0 bg-black/60" />
+                      </>
+                    )}
+                    
+                    <CardHeader className={`relative z-10 ${library.backgroundImageUrl ? 'text-white' : ''}`}>
+                      <div
+                        className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg ${colorConfig.bgColor}`}
+                      >
+                        <Icon className={`h-6 w-6 ${colorConfig.color}`} />
+                      </div>
+                      <CardTitle className={`text-xl ${library.backgroundImageUrl ? 'text-white' : ''}`}>{library.label}</CardTitle>
+                      <CardDescription className={`text-base leading-relaxed ${library.backgroundImageUrl ? 'text-white/90' : ''}`}>{library.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="relative z-10">
+                      <Button 
+                        size="lg"
+                        className={`group/btn gap-2 text-base ${
+                          library.backgroundImageUrl 
+                            ? 'bg-white text-black hover:bg-white/90' 
+                            : ''
+                        }`}
+                        onClick={() => router.push(`/explore/${library.slugName}`)}
+                      >
+                        {(library.detailViewType || library.chat?.gallery?.detailViewType) === 'session' 
+                          ? t('home.libraryGrid.buttonOpenEvent')
+                          : t('home.libraryGrid.buttonQuery')
+                        }
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </section>

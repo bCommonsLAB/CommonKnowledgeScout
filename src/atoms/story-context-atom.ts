@@ -15,6 +15,7 @@ import {
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_DEFAULT,
+  normalizeCharacterToArray,
 } from '@/lib/chat/constants'
 
 /**
@@ -81,13 +82,14 @@ function getInitialTargetLanguage(): TargetLanguage {
   return TARGET_LANGUAGE_DEFAULT
 }
 
-function getInitialCharacter(): Character {
+function getInitialCharacter(): Character[] {
   if (typeof window === 'undefined') return CHARACTER_DEFAULT
   try {
     const stored = localStorage.getItem('story-context-character')
     if (stored) {
-      const parsed = JSON.parse(stored) as Character
-      return parsed
+      const parsed = JSON.parse(stored)
+      // Konvertiere alte Single-Value zu Array (Backward-Compatibility)
+      return normalizeCharacterToArray(parsed)
     }
   } catch {
     // Ignoriere Fehler
@@ -118,9 +120,10 @@ storyTargetLanguageAtom.debugLabel = 'storyTargetLanguageAtom'
 
 /**
  * Atom für den Charakter/Perspektive im Story-Modus.
+ * Unterstützt mehrere Interessenprofile (max. 3).
  * Initialisiert mit Wert aus localStorage (falls vorhanden).
  */
-export const storyCharacterAtom = atom<Character>(getInitialCharacter())
+export const storyCharacterAtom = atom<Character[]>(getInitialCharacter())
 storyCharacterAtom.debugLabel = 'storyCharacterAtom'
 
 /**

@@ -14,8 +14,8 @@ import { useStoryContext } from '@/hooks/use-story-context'
 interface ChatConfigBarProps {
   targetLanguage: TargetLanguage
   setTargetLanguage: (value: TargetLanguage) => void
-  character: Character
-  setCharacter: (value: Character) => void
+  character: Character[] // Array (kann leer sein)
+  setCharacter: (value: Character[]) => void
   socialContext: SocialContext
   setSocialContext: (value: SocialContext) => void
   libraryId: string
@@ -50,6 +50,9 @@ export function ChatConfigBar({
 }: ChatConfigBarProps) {
   const { targetLanguageLabels, characterLabels, socialContextLabels } = useStoryContext()
   
+  // Verwende ersten Wert für Select (kann undefined sein)
+  const characterValue = character && character.length > 0 ? character[0] : undefined
+  
   if (isEmbedded) {
     // Im embedded Modus wird die ConfigBar nicht angezeigt
     return null
@@ -73,7 +76,7 @@ export function ChatConfigBar({
         </Select>
         
         {/* Perspektive (Charakter) */}
-        <Select value={character} onValueChange={(v) => setCharacter(v as Character)}>
+        <Select value={characterValue || ''} onValueChange={(v) => setCharacter(v ? [v as Character] : [])}>
           <SelectTrigger className="h-8 text-xs w-[180px]">
             <SelectValue />
           </SelectTrigger>

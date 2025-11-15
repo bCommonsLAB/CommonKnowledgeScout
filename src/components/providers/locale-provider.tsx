@@ -57,7 +57,11 @@ export function LocaleProvider({ children }: LocaleProviderProps) {
     }
     
     hasInitialized.current = true
-  }, []) // Leeres Dependency-Array: Nur beim ersten Mount
+    // Leeres Dependency-Array beabsichtigt: Nur beim ersten Mount ausführen
+    // currentLocale, searchParams und setLocale werden absichtlich nicht als Dependencies verwendet,
+    // da dieser Effect nur beim ersten Mount ausgeführt werden soll
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Reagiere auf URL-Änderungen (z.B. wenn User ?lang=de zu ?lang=fr wechselt)
   useLayoutEffect(() => {

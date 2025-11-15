@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { librariesAtom, activeLibraryIdAtom } from '@/atoms/library-atom'
 import type { ClientLibrary } from '@/types/library'
+import type { Character, SocialContext, TargetLanguage } from '@/lib/chat/constants'
 
 // Gallery dynamisch laden
 const GalleryClient = dynamic(() => import("@/app/library/gallery/client").then(m => ({ default: m.default })), {
@@ -46,14 +47,14 @@ interface PublicLibrary {
     maxCharsWarningMessage?: string
     footerText?: string
     companyLink?: string
-    targetLanguage?: string
-    character?: string
-    socialContext?: string
+    targetLanguage?: TargetLanguage
+    character?: Character[] // Array (kann leer sein)
+    socialContext?: SocialContext
     genderInclusive?: boolean
     userPreferences?: {
-      targetLanguage?: string
-      character?: string
-      socialContext?: string
+      targetLanguage?: TargetLanguage
+      character?: Character[] // Array (kann leer sein)
+      socialContext?: SocialContext
       genderInclusive?: boolean
     }
   }

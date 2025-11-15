@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, Send, MessageCircle, X } from 'lucide-react'
+import { Loader2, Send } from 'lucide-react'
 import type { AnswerLength } from '@/lib/chat/constants'
 import { ANSWER_LENGTH_VALUES } from '@/lib/chat/constants'
 import { cn } from '@/lib/utils'
@@ -98,15 +98,18 @@ export function ChatInput({
         {/* Kollabierbares Input-Panel - volle Breite bis zum Button */}
         <div
           className={cn(
-            "fixed left-4 bottom-4 z-50 transition-all duration-300 ease-in-out",
+            "absolute left-4 z-50 transition-all duration-300 ease-in-out",
             "right-14 sm:right-14",
-            "max-w-[calc(100vw-4rem)] sm:max-w-none",
-            "max-h-[calc(100vh-2rem)]", // Max-Höhe: Viewport-Höhe minus Padding (oben und unten)
+            "max-w-[calc(100%-4rem)] sm:max-w-none",
             isOpen 
-              ? "opacity-100 scale-100" 
-              : "w-0 opacity-0 scale-95 overflow-hidden"
+              ? "opacity-100 scale-100 bottom-4" 
+              : "w-0 opacity-0 scale-95 overflow-hidden bottom-4"
           )}
-          style={isOpen ? { maxHeight: 'calc(100vh - 2rem)' } : undefined}
+          style={isOpen ? { 
+            maxHeight: 'calc(100% - 2rem)', // Begrenze auf Container-Höhe minus Padding
+            bottom: '1rem', // Abstand zum unteren Rand
+            top: 'auto' // Stelle sicher, dass top nicht gesetzt ist
+          } : undefined}
         >
           <Card className="border-2 shadow-lg bg-background flex flex-col max-h-full">
             <CardContent className="p-3 sm:p-4 flex-1 flex flex-col min-h-0 overflow-y-auto">
@@ -187,22 +190,6 @@ export function ChatInput({
             </CardContent>
           </Card>
         </div>
-        
-        {/* Chat-Symbol Button - rund, immer an der gleichen Position rechts */}
-        <Button
-          onClick={() => setIsOpen(!isOpen)}
-          className={cn(
-            "fixed right-4 bottom-4 h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 shrink-0 p-0 aspect-square flex items-center justify-center z-50",
-            isOpen ? "bg-primary" : "bg-primary hover:bg-primary/90"
-          )}
-          aria-label={isOpen ? t('chat.input.closeChat') : t('chat.input.askQuestion')}
-        >
-          {isOpen ? (
-            <X className="h-5 w-5 transition-transform duration-300" />
-          ) : (
-            <MessageCircle className="h-5 w-5 transition-transform duration-300" />
-          )}
-        </Button>
       </>
     )
   }

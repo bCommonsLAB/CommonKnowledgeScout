@@ -22,13 +22,13 @@ interface ChatMessagesListProps {
   answerLength: AnswerLength
   retriever: Retriever
   targetLanguage: TargetLanguage
-  character: Character
+  character: Character[] // Array (kann leer sein)
   socialContext: SocialContext
   filters?: Record<string, unknown> // Optional: Filterparameter für Anzeige während Verarbeitung
   onQuestionClick: (question: string) => void
   onDelete: (queryId: string) => Promise<void>
   onReload: (question: string, config: {
-    character?: Character
+    character?: Character[] // Array (kann leer sein)
     answerLength?: AnswerLength
     retriever?: Retriever
     targetLanguage?: TargetLanguage
