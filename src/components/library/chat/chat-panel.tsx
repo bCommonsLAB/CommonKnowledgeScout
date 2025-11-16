@@ -391,6 +391,34 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const lastFiltersRef = useRef<string>('')
   const lastParamsRef = useRef<string>('')
   
+  // Event-Listener für Filter-Reset im Story-Modus
+  // Wenn Filter zurückgesetzt werden, soll das TOC neu berechnet werden
+  useEffect(() => {
+    const handleFiltersCleared = () => {
+      // Nur im Story-Modus (embedded) reagieren
+      if (!isEmbedded) {
+        return
+      }
+      
+      console.log('[ChatPanel] gallery-filters-cleared Event empfangen, starte TOC-Cache-Check')
+      
+      // Setze hasCheckedCacheRef zurück, damit Cache-Check erneut durchgeführt wird
+      hasCheckedCacheRef.current = false
+      
+      // Lösche aktuellen Cache, damit neuer Cache gesetzt werden kann
+      // (wird durch checkTOCCache automatisch neu geladen)
+      
+      // Starte Cache-Check mit neuen Filtern (leere Filter)
+      // Der useEffect #1 wird automatisch reagieren, aber wir triggern explizit einen Check
+      checkTOCCache()
+    }
+    
+    window.addEventListener('gallery-filters-cleared', handleFiltersCleared)
+    return () => {
+      window.removeEventListener('gallery-filters-cleared', handleFiltersCleared)
+    }
+  }, [isEmbedded, checkTOCCache])
+  
   useEffect(() => {
     if (!cfg) {
       console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - cfg nicht vorhanden')
@@ -612,13 +640,50 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   // Handler für das Löschen einer Query
   async function handleDeleteQuery(queryId: string): Promise<void> {
     try {
+      const headers: Record<string, string> = {}
+      
+      // Füge Session-Headers hinzu, falls vorhanden
+      if (Object.keys(sessionHeaders).length > 0) {
+        Object.assign(headers, sessionHeaders)
+      }
+      
+      console.log('[ChatPanel] Lösche Query:', {
+        queryId,
+        libraryId,
+        hasSessionHeaders: Object.keys(sessionHeaders).length > 0,
+        sessionHeaders,
+      })
+      
       const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`, {
         method: 'DELETE',
-        headers: Object.keys(sessionHeaders).length > 0 ? sessionHeaders : undefined,
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
       })
+      
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Unbekannter Fehler' }))
-        const errorMessage = typeof errorData?.error === 'string' ? errorData.error : 'Fehler beim Löschen der Query'
+        // Versuche, Fehlerdetails aus der Response zu extrahieren
+        let errorMessage = 'Fehler beim Löschen der Query'
+        try {
+          const contentType = res.headers.get('content-type')
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await res.json()
+            if (typeof errorData?.error === 'string') {
+              errorMessage = errorData.error
+            }
+          } else {
+            // Wenn keine JSON-Response, verwende Status-Text
+            errorMessage = res.statusText || `HTTP ${res.status}`
+          }
+        } catch {
+          // Wenn Parsing fehlschlägt, verwende Status-Text
+          errorMessage = res.statusText || `HTTP ${res.status}`
+        }
+        
+        console.error('[ChatPanel] Fehler beim Löschen:', {
+          status: res.status,
+          statusText: res.statusText,
+          errorMessage,
+        })
+        
         throw new Error(errorMessage)
       }
       
@@ -633,7 +698,11 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       }
     } catch (error) {
       console.error('[ChatPanel] Fehler beim Löschen der Query:', error)
-      throw error
+      // Stelle sicher, dass immer ein Error-Objekt geworfen wird
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error('Unbekannter Fehler beim Löschen')
     }
   }
   

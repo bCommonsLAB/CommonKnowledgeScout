@@ -170,7 +170,6 @@ export function ChatMessagesList({
               <div className="text-sm text-muted-foreground">{t('chatMessages.processing')}</div>
               {/* Konfigurationsparameter während der Berechnung anzeigen */}
               <div className="mt-2">
-                BB
                 <ChatConfigDisplay
                   answerLength={answerLength}
                   retriever={retriever}

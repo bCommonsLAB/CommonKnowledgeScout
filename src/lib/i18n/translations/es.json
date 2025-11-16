@@ -213,6 +213,7 @@
   "chat": {
     "source": "Fuente",
     "characterLabels": {
+      "undefined": "Sin perspectiva específica",
       "technical": "Orientado a la tecnología",
       "social-cultural": "Sociedad & Cultura",
       "ecology": "Ecología & Sostenibilidad",
@@ -223,6 +224,7 @@
       "creative": "Creativo & Visionario"
     },
     "characterTooltips": {
+      "undefined": "No se pondera ninguna perspectiva específica. Las respuestas se formularán de manera neutra.",
       "technical": "Enfoque en funcionalidad, sistemas, tecnología y métodos.",
       "social-cultural": "Enfoque en personas, cultura, comunidad y dinámicas sociales.",
       "ecology": "Enfoque en naturaleza, impactos a largo plazo y desarrollo sostenible.",
@@ -233,6 +235,7 @@
       "creative": "Enfoque en visiones, ideas, experimentos y nuevas perspectivas."
     },
     "accessPerspectiveLabels": {
+      "undefined": "Sin perspectiva de acceso específica",
       "insight": "Orientado al conocimiento",
       "community": "Orientado a la comunidad",
       "sustainability": "Orientado a la sostenibilidad",
@@ -241,6 +244,7 @@
       "future_view": "Orientado al futuro"
     },
     "accessPerspectiveTooltips": {
+      "undefined": "No se pondera ninguna perspectiva de acceso específica. Las respuestas se formularán de manera neutra.",
       "insight": "Enfatiza comprensión, conexiones, reflexión y conocimientos más profundos.",
       "community": "Enfatiza colaboración, participación, impacto social y unión.",
       "sustainability": "Enfatiza responsabilidad ecológica, social y a largo plazo.",
@@ -249,6 +253,7 @@
       "future_view": "Enfatiza potencial, innovación, posibilidades y visiones futuras."
     },
     "socialContextLabels": {
+      "undefined": "Sin estilo lingüístico específico",
       "scientific": "Científico",
       "general": "Generalmente comprensible",
       "youth": "Orientado a jóvenes",
@@ -258,6 +263,7 @@
       "easy_language": "Lenguaje simple"
     },
     "socialContextTooltips": {
+      "undefined": "No se especifica ningún estilo lingüístico específico. Las respuestas se formularán en un estilo neutro.",
       "scientific": "Estilo técnico y preciso con términos claros y estructura.",
       "general": "Estilo bien comprensible y claro sin jerga.",
       "youth": "Estilo relajado y vívido con ejemplos orientados a jóvenes.",

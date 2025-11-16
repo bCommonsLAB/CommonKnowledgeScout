@@ -106,7 +106,6 @@ export function ChatMessage({
             title="Klicken Sie hier, um diese Frage erneut zu stellen"
           >
             <div className="text-sm whitespace-pre-wrap break-words">{content}</div>
-            <div>DD</div>
             {/* Config-Anzeige unter der Frage - nur bei neuen Fragen (ohne queryId) */}
             {!queryId && (
               

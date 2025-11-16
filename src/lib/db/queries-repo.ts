@@ -250,18 +250,26 @@ export async function listRecentQueries(args: { libraryId: string; userEmail?: s
  * 
  * @param queryId Query-ID
  * @param userEmail E-Mail-Adresse des Benutzers (für Sicherheit)
+ * @param sessionId Session-ID für anonyme Nutzer
+ * @param libraryId Optional: Library-ID für Owner-Berechtigung (wenn gesetzt, wird nur libraryId geprüft, nicht userEmail/sessionId)
  * @returns true, wenn Query gelöscht wurde, false wenn nicht gefunden
  */
-export async function deleteQueryLog(queryId: string, userEmail?: string, sessionId?: string): Promise<boolean> {
+export async function deleteQueryLog(queryId: string, userEmail?: string, sessionId?: string, libraryId?: string): Promise<boolean> {
   const col = await getQueriesCollection()
   const filter: Record<string, unknown> = { queryId }
   
-  if (userEmail) {
-    filter.userEmail = userEmail
-  } else if (sessionId) {
-    filter.sessionId = sessionId
+  // Wenn libraryId gesetzt ist (für Owner-Berechtigung), prüfe nur libraryId
+  if (libraryId) {
+    filter.libraryId = libraryId
   } else {
-    throw new Error('Entweder userEmail oder sessionId muss angegeben werden')
+    // Normale Löschung: Prüfe userEmail oder sessionId
+    if (userEmail) {
+      filter.userEmail = userEmail
+    } else if (sessionId) {
+      filter.sessionId = sessionId
+    } else {
+      throw new Error('Entweder userEmail oder sessionId muss angegeben werden (oder libraryId für Owner-Berechtigung)')
+    }
   }
   
   const result = await col.deleteOne(filter)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { getQueryLogById, deleteQueryLog } from '@/lib/db/queries-repo'
+import { findLibraryOwnerEmail } from '@/lib/chat/loader'
 
 export async function GET(
   request: NextRequest,
@@ -66,10 +67,31 @@ export async function DELETE(
       return NextResponse.json({ error: 'Session-ID erforderlich für anonyme Nutzer' }, { status: 400 })
     }
 
-    const deleted = await deleteQueryLog(queryId, userEmail, sessionId)
-    if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    // Versuche zuerst mit userEmail/sessionId zu löschen
+    let deleted = await deleteQueryLog(queryId, userEmail, sessionId)
+    
+    // Wenn nicht gelöscht und Library öffentlich ist: Prüfe ob Benutzer der Owner ist
+    if (!deleted && ctx?.library.config?.publicPublishing?.isPublic && userEmail) {
+      const ownerEmail = await findLibraryOwnerEmail(libraryId)
+      if (ownerEmail === userEmail) {
+        // Library-Owner kann alle Queries dieser Library löschen
+        // Versuche erneut ohne userEmail/sessionId-Filter (nur queryId + libraryId)
+        deleted = await deleteQueryLog(queryId, userEmail, undefined, libraryId)
+      }
+    }
+    
+    if (!deleted) {
+      // Prüfe, ob die Query überhaupt existiert (für bessere Fehlermeldung)
+      const existingQuery = await getQueryLogById({ libraryId, queryId, userEmail, sessionId })
+      if (!existingQuery) {
+        return NextResponse.json({ error: 'Query nicht gefunden' }, { status: 404 })
+      }
+      // Query existiert, aber gehört nicht zum aktuellen Benutzer/Session
+      return NextResponse.json({ error: 'Zugriff verweigert' }, { status: 403 })
+    }
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('[api/chat/queries] DELETE error:', error)
     return NextResponse.json({ error: 'Interner Fehler' }, { status: 500 })
   }
 }

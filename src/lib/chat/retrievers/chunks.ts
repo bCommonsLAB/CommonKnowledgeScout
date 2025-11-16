@@ -317,9 +317,8 @@ export const chunksRetriever: ChatRetriever = {
       sources.push(s)
       used += t.length
     }
-
     // Prüfe auf Warnung: Wenn alle Scores < 0.7, generiere Warnung
-    const RAG_MIN_SCORE_THRESHOLD = 0.7
+    const RAG_MIN_SCORE_THRESHOLD = 0.4
     const hasRelevantDocs = sources.some(s => typeof s.score === 'number' && s.score >= RAG_MIN_SCORE_THRESHOLD)
     const warning = !hasRelevantDocs && sources.length > 0
       ? 'Die zugrundeliegenden Dokumente enthalten zu wenig passenden Inhalt. Bitte formulieren Sie die Frage um oder erweitern Sie die Anzahl der zugrundeliegenden Dokumente (Facettenfilter anpassen).'

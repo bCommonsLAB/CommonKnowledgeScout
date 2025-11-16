@@ -213,6 +213,7 @@
   "chat": {
     "source": "Source",
     "characterLabels": {
+      "undefined": "No specific perspective",
       "technical": "Technology-oriented",
       "social-cultural": "Society & Culture",
       "ecology": "Ecology & Sustainability",
@@ -223,6 +224,7 @@
       "creative": "Creative & Visionary"
     },
     "characterTooltips": {
+      "undefined": "No specific perspective is weighted. Answers will be formulated neutrally.",
       "technical": "Focus on functionality, systems, technology, and methods.",
       "social-cultural": "Focus on people, culture, community, and social dynamics.",
       "ecology": "Focus on nature, long-term impacts, and sustainable development.",
@@ -233,6 +235,7 @@
       "creative": "Focus on visions, ideas, experiments, and new perspectives."
     },
     "accessPerspectiveLabels": {
+      "undefined": "No specific access perspective",
       "insight": "Insight-oriented",
       "community": "Community-oriented",
       "sustainability": "Sustainability-oriented",
@@ -241,6 +244,7 @@
       "future_view": "Future-oriented"
     },
     "accessPerspectiveTooltips": {
+      "undefined": "No specific access perspective is weighted. Answers will be formulated neutrally.",
       "insight": "Emphasizes understanding, connections, reflection, and deeper insights.",
       "community": "Emphasizes collaboration, participation, social impact, and togetherness.",
       "sustainability": "Emphasizes ecological, social, and long-term responsibility.",
@@ -249,6 +253,7 @@
       "future_view": "Emphasizes potential, innovation, possibilities, and future visions."
     },
     "socialContextLabels": {
+      "undefined": "No specific language style",
       "scientific": "Scientific",
       "general": "Generally understandable",
       "youth": "Youth-oriented",
@@ -258,6 +263,7 @@
       "easy_language": "Simple language"
     },
     "socialContextTooltips": {
+      "undefined": "No specific language style is specified. Answers will be formulated in a neutral style.",
       "scientific": "Technical, precise style with clear terms and structure.",
       "general": "Well-understandable, clear style without jargon.",
       "youth": "Relaxed, vivid style with youth-oriented examples.",

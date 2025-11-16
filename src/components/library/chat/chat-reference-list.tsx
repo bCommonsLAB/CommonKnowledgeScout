@@ -74,7 +74,19 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
           return
         }
         
-        setSources(queryLog.sources || [])
+        const loadedSources = queryLog.sources || []
+        setSources(loadedSources)
+        
+        // Debug: Prüfe ob Scores vorhanden sind
+        const sourcesWithScores = loadedSources.filter(s => typeof s.score === 'number')
+        if (loadedSources.length > 0) {
+          console.log('[ChatReferenceList] Sources geladen:', {
+            totalSources: loadedSources.length,
+            sourcesWithScores: sourcesWithScores.length,
+            sampleSource: loadedSources[0],
+          })
+        }
+        
         setIsLoadingSources(false)
       } catch (error) {
         console.error('[ChatReferenceList] Fehler beim Laden der Sources:', error)
@@ -100,7 +112,12 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
   }, [])
 
   // Gemeinsame Funktion zum Gruppieren von Referenzen nach fileId
-  const groupReferencesByFileId = useCallback((refs: ChatResponse['references']) => {
+  const groupReferencesByFileId = useCallback((refs: ChatResponse['references']): Array<{
+    fileName?: string
+    fileId: string
+    sourceGroups: Map<string, { sourceType: string; references: ChatResponse['references'] }>
+    references: ChatResponse['references']
+  }> => {
     const map = new Map<string, { 
       fileName?: string
       fileId: string
@@ -146,10 +163,51 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
     return Array.from(map.values())
   }, [extractSourceType])
 
-  // Gruppiere Referenzen nach fileId, dann nach sourceType
+  // Erstelle Map von Referenznummer zu Score (aus Sources)
+  // WICHTIG: Die Referenznummer entspricht der Position in der ursprünglichen Sources-Liste (1-basiert)
+  // Die Sources im QueryLog enthalten alle gefundenen Quellen, auch die nicht verwendeten
+  const referenceScoreMap = useMemo(() => {
+    const map = new Map<number, number>()
+    if (!sources || sources.length === 0) {
+      return map
+    }
+    
+    // Die Referenznummer entspricht der Position in der Sources-Liste (1-basiert)
+    sources.forEach((source, index) => {
+      if (typeof source.score === 'number') {
+        map.set(index + 1, source.score)
+      }
+    })
+    
+    return map
+  }, [sources])
+
+  // Gruppiere Referenzen nach fileId, dann nach sourceType, inkl. Scores
   const groupedUsedDocs = useMemo(() => {
-    return groupReferencesByFileId(references)
-  }, [references, groupReferencesByFileId])
+    const grouped = groupReferencesByFileId(references)
+    
+    // Füge Score-Informationen hinzu
+    return grouped.map(doc => {
+      // Sammle alle Scores für dieses Dokument
+      const scores: number[] = []
+      doc.references.forEach(ref => {
+        const score = referenceScoreMap.get(ref.number)
+        if (typeof score === 'number') {
+          scores.push(score)
+        }
+      })
+      
+      const avgScore = scores.length > 0
+        ? scores.reduce((sum, s) => sum + s, 0) / scores.length
+        : undefined
+      
+      return {
+        ...doc,
+        avgScore,
+        hasScore: scores.length > 0,
+      }
+    })
+  }, [references, groupReferencesByFileId, referenceScoreMap])
 
   // Finde nicht verwendete Quellen (sources, die nicht in references sind)
   const unusedSources = useMemo(() => {
@@ -243,6 +301,9 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
             ? refNumbers.join(', ')
             : `${refNumbers[0]}-${refNumbers[refNumbers.length - 1]}`
 
+          const avgScore = 'avgScore' in doc ? doc.avgScore : undefined
+          const hasScore = 'hasScore' in doc ? doc.hasScore : false
+
           return (
             <div key={doc.fileId} className="rounded border bg-muted/30 hover:bg-muted/50 transition-colors">
               {/* Dokument-Header */}
@@ -255,6 +316,11 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
                         <Badge variant="secondary" className="h-4 px-1 text-[10px]">
                           [{refNumbersStr}]
                         </Badge>
+                        {hasScore && avgScore !== undefined && (
+                          <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                            Score {avgScore.toFixed(2)}
+                          </Badge>
+                        )}
                         <span className="text-xs font-medium truncate">
                           {doc.fileName || doc.fileId.slice(0, 30)}
                         </span>
@@ -280,6 +346,11 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
                     <div className="text-muted-foreground text-[10px] mt-1">
                       Referenzen: [{refNumbersStr}]
                     </div>
+                    {hasScore && avgScore !== undefined && (
+                      <div className="text-muted-foreground text-[10px] mt-1">
+                        Ø Score: {avgScore.toFixed(3)}
+                      </div>
+                    )}
                     <div className="text-muted-foreground text-[10px] mt-1">
                       Klicken zum Öffnen der Detailansicht
                     </div>
@@ -397,9 +468,6 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
         {/* Abschnitt 1: In der Antwort gelandete Dokumente */}
         {groupedUsedDocs.length > 0 && (
           <div className="mb-4">
-            <div className="text-xs text-muted-foreground mb-2">
-              {t('gallery.usedDocuments')} ({groupedUsedDocs.length}):
-            </div>
             {renderUsedDocumentsList()}
           </div>
         )}

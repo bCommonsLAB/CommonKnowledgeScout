@@ -213,6 +213,7 @@
   "chat": {
     "source": "Source",
     "characterLabels": {
+      "undefined": "Aucune perspective spécifique",
       "technical": "Orienté technologie",
       "social-cultural": "Société & Culture",
       "ecology": "Écologie & Durabilité",
@@ -223,6 +224,7 @@
       "creative": "Créatif & Visionnaire"
     },
     "characterTooltips": {
+      "undefined": "Aucune perspective spécifique n'est pondérée. Les réponses seront formulées de manière neutre.",
       "technical": "Focus sur la fonctionnalité, les systèmes, la technologie et les méthodes.",
       "social-cultural": "Focus sur les personnes, la culture, la communauté et les dynamiques sociales.",
       "ecology": "Focus sur la nature, les impacts à long terme et le développement durable.",
@@ -233,6 +235,7 @@
       "creative": "Focus sur les visions, les idées, les expériences et les nouvelles perspectives."
     },
     "accessPerspectiveLabels": {
+      "undefined": "Aucune perspective d'accès spécifique",
       "insight": "Orienté approfondissement",
       "community": "Orienté communauté",
       "sustainability": "Orienté durabilité",
@@ -241,6 +244,7 @@
       "future_view": "Orienté avenir"
     },
     "accessPerspectiveTooltips": {
+      "undefined": "Aucune perspective d'accès spécifique n'est pondérée. Les réponses seront formulées de manière neutre.",
       "insight": "Met l'accent sur la compréhension, les connexions, la réflexion et les approfondissements plus profonds.",
       "community": "Met l'accent sur la collaboration, la participation, l'impact social et l'unité.",
       "sustainability": "Met l'accent sur la responsabilité écologique, sociale et à long terme.",
@@ -249,6 +253,7 @@
       "future_view": "Met l'accent sur le potentiel, l'innovation, les possibilités et les visions futures."
     },
     "socialContextLabels": {
+      "undefined": "Aucun style linguistique spécifique",
       "scientific": "Scientifique",
       "general": "Généralement compréhensible",
       "youth": "Orienté jeunesse",
@@ -258,6 +263,7 @@
       "easy_language": "Langage simple"
     },
     "socialContextTooltips": {
+      "undefined": "Aucun style linguistique spécifique n'est spécifié. Les réponses seront formulées dans un style neutre.",
       "scientific": "Style technique et précis avec des termes clairs et une structure.",
       "general": "Style bien compréhensible et clair sans jargon.",
       "youth": "Style décontracté et vivant avec des exemples orientés vers la jeunesse.",

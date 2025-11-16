@@ -140,7 +140,14 @@ export function ChatConversationItem({
       await onDelete(queryId)
     } catch (error) {
       console.error('[ChatConversationItem] Fehler beim Löschen:', error)
-      alert(error instanceof Error ? error.message : 'Fehler beim Löschen der Frage')
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Löschen der Frage'
+      
+      // Zeige benutzerfreundliche Fehlermeldung
+      if (errorMessage.includes('Not found') || errorMessage.includes('nicht gefunden')) {
+        alert('Die Frage konnte nicht gefunden werden. Möglicherweise wurde sie bereits gelöscht oder gehört zu einer anderen Sitzung.')
+      } else {
+        alert(errorMessage)
+      }
     } finally {
       setIsDeleting(false)
     }

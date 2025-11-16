@@ -16,6 +16,8 @@ import {
 } from '@/lib/chat/constants'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useStoryContext } from '@/hooks/use-story-context'
+import { Info } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface PerspectiveDisplayProps {
   /** Variante der Anzeige: 'header' zeigt "Deine Perspektive:" mit Labels, 'inline' zeigt kompakt mit · */
@@ -191,19 +193,42 @@ export function PerspectiveDisplay({
     return null
   }
 
-  // Header-Variante: "Deine Perspektive: Sprache: ..., Interessenprofil: ..."
+  // Header-Variante: Info-Icon mit Tooltip
   if (variant === 'header') {
     return (
       <div 
-        className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-0.5 min-w-0 w-full"
+        className="flex items-center gap-2 min-w-0"
         style={paddingLeft ? { paddingLeft } : undefined}
       >
-        <span className="break-words min-w-0 flex-shrink">{t('gallery.storyMode.perspective.title')}:</span>
-        {items.map((item, index) => (
-          <span key={index} className="break-words min-w-0 flex-shrink">
-            {item.label}: {item.value}
-          </span>
-        ))}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                aria-label={t('gallery.storyMode.perspective.title')}
+              >
+                <Info className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent 
+              className="text-xs max-w-sm"
+              side="bottom"
+              align="start"
+            >
+              <div className="flex flex-col gap-2">
+                <div className="font-medium mb-1">{t('gallery.storyMode.perspective.title')}</div>
+                <div className="flex flex-col gap-1">
+                  {items.map((item, index) => (
+                    <div key={index} className="break-words">
+                      <span className="font-medium">{item.label}:</span> {item.value}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     )
   }

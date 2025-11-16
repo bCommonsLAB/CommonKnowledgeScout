@@ -7,6 +7,7 @@ import { Filter, X, MessageCircle, ArrowRight } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
+import { createDocTitleMap } from '@/utils/gallery/doc-title-map'
 
 interface FilterContextBarProps {
   docCount: number
@@ -36,14 +37,7 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
   })
   
   // Erstelle eine Map für Dokumentennamen (fileId -> title)
-  const docTitleMap = new Map<string, string>()
-  docs.forEach(doc => {
-    const id = doc.fileId || doc.id
-    if (id) {
-      const title = doc.shortTitle || doc.title || id
-      docTitleMap.set(id, title)
-    }
-  })
+  const docTitleMap = createDocTitleMap(docs)
   
   // Extrahiere alle gesetzten Filter-Werte
   const activeFilters: Array<{ key: string; value: string }> = []

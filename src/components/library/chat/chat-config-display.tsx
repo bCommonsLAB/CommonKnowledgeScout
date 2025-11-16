@@ -265,7 +265,7 @@ export function ChatConfigDisplay({
       {/* Falls nur AnswerLength/Retriever vorhanden, aber keine Perspektive */}
       {!hasPerspectiveParams && hasAnswerLengthOrRetriever && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <span className="flex items-center gap-1 flex-wrap">
+          <span className="flex items-center gap-1 flex-wrap">
             {effectiveAnswerLength && (
               <span>
                 {t('configDisplay.answerLength')} {t(`chat.answerLengthLabels.${effectiveAnswerLength}`)}
@@ -314,7 +314,7 @@ export function ChatConfigDisplay({
                 </span>
               )
             })}
-      </span>
+          </span>
         </div>
       )}
     </div>

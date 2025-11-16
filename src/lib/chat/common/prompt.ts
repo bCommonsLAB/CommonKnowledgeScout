@@ -147,10 +147,15 @@ function getSocialContextInstruction(socialContext: SocialContext): string {
  * Erstellt Zugangsperspektive-Anweisung basierend auf Konfiguration.
  * Verwendet die zentrale AccessPerspective-Instructions aus lib/chat/constants.ts.
  * Unterstützt mehrere AccessPerspective-Werte (Array) für kombinierte Perspektiven.
+ * 'undefined' wird herausgefiltert und führt zu einer leeren Instruction.
  */
 function getAccessPerspectiveInstruction(accessPerspective: AccessPerspective | AccessPerspective[]): string {
   if (Array.isArray(accessPerspective)) {
     return combineAccessPerspectiveInstructions(accessPerspective)
+  }
+  // Wenn 'undefined', gib leeren String zurück
+  if (accessPerspective === 'undefined') {
+    return ''
   }
   return ACCESS_PERSPECTIVE_INSTRUCTIONS[accessPerspective] || combineAccessPerspectiveInstructions(ACCESS_PERSPECTIVE_DEFAULT)
 }
@@ -179,6 +184,100 @@ ${item.answer}`
   }).join('\n\n---\n\n')
 }
 
+/**
+ * Erstellt alle System-Prompt-Komponenten basierend auf Konfiguration.
+ * Wiederverwendbar für buildPrompt und buildTOCPrompt.
+ */
+function buildSystemPromptComponents(options?: {
+  targetLanguage?: TargetLanguage
+  character?: Character | Character[]
+  accessPerspective?: AccessPerspective | AccessPerspective[]
+  socialContext?: SocialContext
+  genderInclusive?: boolean
+}): {
+  characterInstruction: string
+  accessPerspectiveInstruction: string
+  socialContextInstruction: string
+  genderInclusiveInstruction: string
+  languageInstruction: string
+} {
+  return {
+    characterInstruction: options?.character ? getCharacterInstruction(options.character) : '',
+    accessPerspectiveInstruction: options?.accessPerspective ? getAccessPerspectiveInstruction(options.accessPerspective) : '',
+    socialContextInstruction: options?.socialContext ? getSocialContextInstruction(options.socialContext) : '',
+    genderInclusiveInstruction: options?.genderInclusive !== undefined ? getGenderInclusiveInstruction(options.genderInclusive) : '',
+    languageInstruction: options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Respond in German.',
+  }
+}
+
+/**
+ * Erstellt Filter-Text für den Prompt basierend auf Facetten-Definitionen.
+ * Wiederverwendbar für buildPrompt und buildTOCPrompt.
+ */
+function buildFacetFilterText(
+  filters: Record<string, unknown> | undefined,
+  facetDefs: Array<{ metaKey: string; label?: string; type: string }> | undefined
+): string[] {
+  const filterParts: string[] = []
+  if (!filters || !facetDefs || Object.keys(filters).length === 0) {
+    return filterParts
+  }
+  
+  for (const def of facetDefs) {
+    const filterValue = filters[def.metaKey]
+    if (filterValue === undefined || filterValue === null) continue
+    
+    const label = def.label || def.metaKey
+    let valueText = ''
+    if (Array.isArray(filterValue)) {
+      valueText = filterValue.map(v => String(v)).join(', ')
+    } else if (typeof filterValue === 'object' && '$in' in filterValue && Array.isArray(filterValue.$in)) {
+      valueText = (filterValue.$in as unknown[]).map(v => String(v)).join(', ')
+    } else {
+      valueText = String(filterValue)
+    }
+    if (valueText) {
+      filterParts.push(`${label}: ${valueText}`)
+    }
+  }
+  
+  return filterParts
+}
+
+/**
+ * Baut System-Prompt-Teile mit Instructions zusammen.
+ * Wiederverwendbar für buildPrompt und buildTOCPrompt.
+ * 
+ * @param baseMessage Basis-Nachricht für den System-Prompt
+ * @param instructions Objekt mit allen Instructions
+ * @param instructionPrefix Prefix für alle Instructions (z.B. '\n' oder '\nUser Character Instructions:\n')
+ */
+function buildSystemPromptParts(
+  baseMessage: string,
+  instructions: {
+    characterInstruction: string
+    accessPerspectiveInstruction: string
+    socialContextInstruction: string
+    genderInclusiveInstruction: string
+  },
+  instructionPrefix: string = '\n'
+): string[] {
+  const systemParts: string[] = [baseMessage]
+  if (instructions.characterInstruction) {
+    systemParts.push(`${instructionPrefix}${instructions.characterInstruction}`)
+  }
+  if (instructions.accessPerspectiveInstruction) {
+    systemParts.push(`${instructionPrefix}${instructions.accessPerspectiveInstruction}`)
+  }
+  if (instructions.socialContextInstruction) {
+    systemParts.push(`${instructionPrefix}${instructions.socialContextInstruction}`)
+  }
+  if (instructions.genderInclusiveInstruction) {
+    systemParts.push(`${instructionPrefix}${instructions.genderInclusiveInstruction}`)
+  }
+  return systemParts
+}
+
 export function buildPrompt(
   question: string, 
   sources: RetrievedSource[], 
@@ -204,11 +303,8 @@ export function buildPrompt(
   }).join(', ')
   
   // Create system prompt components based on configuration
-  const characterInstruction = options?.character ? getCharacterInstruction(options.character) : ''
-  const accessPerspectiveInstruction = options?.accessPerspective ? getAccessPerspectiveInstruction(options.accessPerspective) : ''
-  const socialContextInstruction = options?.socialContext ? getSocialContextInstruction(options.socialContext) : ''
-  const genderInclusiveInstruction = options?.genderInclusive !== undefined ? getGenderInclusiveInstruction(options.genderInclusive) : ''
-  const languageInstruction = options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Respond in German.'
+  const promptComponents = buildSystemPromptComponents(options)
+  const { characterInstruction, accessPerspectiveInstruction, socialContextInstruction, genderInclusiveInstruction, languageInstruction } = promptComponents
   
   // Format chat history if available
   const chatHistoryText = options?.chatHistory && options.chatHistory.length > 0
@@ -216,45 +312,25 @@ export function buildPrompt(
     : ''
   
   // Create filter text for the prompt
-  let filterText = ''
-  if (options?.filters && options?.facetDefs && Object.keys(options.filters).length > 0) {
-    const filterParts: string[] = []
-    for (const def of options.facetDefs) {
-      const filterValue = options.filters[def.metaKey]
-      if (filterValue !== undefined && filterValue !== null) {
-        const label = def.label || def.metaKey
-        let valueText = ''
-        if (Array.isArray(filterValue)) {
-          valueText = filterValue.map(v => String(v)).join(', ')
-        } else if (typeof filterValue === 'object' && '$in' in filterValue && Array.isArray(filterValue.$in)) {
-          valueText = (filterValue.$in as unknown[]).map(v => String(v)).join(', ')
-        } else {
-          valueText = String(filterValue)
-        }
-        if (valueText) {
-          filterParts.push(`${label}: ${valueText}`)
-        }
-      }
-    }
-    if (filterParts.length > 0) {
-      filterText = `\n\nIMPORTANT: The answer refers only to documents that match the following filter criteria:\n${filterParts.map(p => `- ${p}`).join('\n')}\nPlease mention in your answer, if relevant, that this is a summary or analysis of the filtered documents (e.g., "Summary of documents from 2024" or "Analysis of talks on Open Source").`
-    }
-  }
+  const filterParts = buildFacetFilterText(options?.filters, options?.facetDefs)
+  const filterText = filterParts.length > 0
+    ? `\n\nIMPORTANT: The answer refers only to documents that match the following filter criteria:\n${filterParts.map(p => `- ${p}`).join('\n')}\nPlease mention in your answer, if relevant, that this is a summary or analysis of the filtered documents (e.g., "Summary of documents from 2024" or "Analysis of talks on Open Source").`
+    : ''
   
   // Build system prompt
   const systemParts: string[] = ['You are a precise assistant. Answer the question exclusively based on the provided sources.']
   if (characterInstruction) {
-    systemParts.push(`\n${characterInstruction}`)
+    systemParts.push(`\nUser Character Instructions:\n${characterInstruction}`)
   }
   if (accessPerspectiveInstruction) {
-    systemParts.push(`\n${accessPerspectiveInstruction}`)
+    systemParts.push(`\nUser Perspective Instructions:\n${accessPerspectiveInstruction}`)
   }
   if (socialContextInstruction) {
-    systemParts.push(`\n${socialContextInstruction}`)
+    systemParts.push(`\nSocial Context Instructions:\n${socialContextInstruction}`)
   }
   if (genderInclusiveInstruction) {
-    systemParts.push(`\n${genderInclusiveInstruction}`)
-  }
+    systemParts.push(`\nGender Inclusive Instructions:\n${genderInclusiveInstruction}`)
+  } 
   
   // Insert chat history before the current question if available
   const chatHistorySection = chatHistoryText 
@@ -288,7 +364,7 @@ Always respond as a JSON object with exactly these three fields:
 
 Example:
 {
-  "answer": "## Introduction\\n\\nThe topics are covered...\\n\\n[1] [2]",
+  "answer": "## Titel take question into account \\n\\nThe topics are covered...\\n\\n[1] [2]",
   "suggestedQuestions": [
     "How does X work?",
     "What are the prerequisites for Y?",
@@ -329,87 +405,52 @@ export function buildTOCPrompt(
   const context = buildContext(sources)
   
   // Create system prompt components based on configuration
-  const characterInstruction = options?.character ? getCharacterInstruction(options.character) : ''
-  const accessPerspectiveInstruction = options?.accessPerspective ? getAccessPerspectiveInstruction(options.accessPerspective) : ''
-  const socialContextInstruction = options?.socialContext ? getSocialContextInstruction(options.socialContext) : ''
-  const genderInclusiveInstruction = options?.genderInclusive !== undefined ? getGenderInclusiveInstruction(options.genderInclusive) : ''
-  const languageInstruction = options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Respond in German.'
+  const promptComponents = buildSystemPromptComponents(options)
+  const { characterInstruction, accessPerspectiveInstruction, socialContextInstruction, genderInclusiveInstruction, languageInstruction } = promptComponents
   
   // Create filter text for the prompt
-  let filterText = ''
-  if (options?.filters && Object.keys(options.filters).length > 0) {
-    const filterParts: string[] = []
+  const filterParts = buildFacetFilterText(options?.filters, options?.facetDefs)
+  
+  // fileId-Filter (spezielle Behandlung für TOC)
+  const fileIdFilter = options?.filters?.fileId
+  if (fileIdFilter !== undefined && fileIdFilter !== null) {
+    let fileIdValues: string[] = []
+    if (Array.isArray(fileIdFilter)) {
+      fileIdValues = fileIdFilter.map(v => String(v))
+    } else if (typeof fileIdFilter === 'object' && '$in' in fileIdFilter && Array.isArray(fileIdFilter.$in)) {
+      fileIdValues = (fileIdFilter.$in as unknown[]).map(v => String(v))
+    } else {
+      fileIdValues = [String(fileIdFilter)]
+    }
     
-    // Normale Facetten-Filter
-    if (options.facetDefs) {
-      for (const def of options.facetDefs) {
-        const filterValue = options.filters[def.metaKey]
-        if (filterValue !== undefined && filterValue !== null) {
-          const label = def.label || def.metaKey
-          let valueText = ''
-          if (Array.isArray(filterValue)) {
-            valueText = filterValue.map(v => String(v)).join(', ')
-          } else if (typeof filterValue === 'object' && '$in' in filterValue && Array.isArray(filterValue.$in)) {
-            valueText = (filterValue.$in as unknown[]).map(v => String(v)).join(', ')
-          } else {
-            valueText = String(filterValue)
-          }
-          if (valueText) {
-            filterParts.push(`${label}: ${valueText}`)
-          }
-        }
+    // Versuche Dokumentennamen aus sources zu extrahieren
+    const docTitles = new Set<string>()
+    for (const source of sources) {
+      if (source.fileId && fileIdValues.includes(source.fileId)) {
+        // Verwende fileName oder fileId als Fallback
+        const title = source.fileName || source.fileId
+        if (title) docTitles.add(title)
       }
     }
     
-    // fileId-Filter (spezielle Behandlung)
-    const fileIdFilter = options.filters.fileId
-    if (fileIdFilter !== undefined && fileIdFilter !== null) {
-      let fileIdValues: string[] = []
-      if (Array.isArray(fileIdFilter)) {
-        fileIdValues = fileIdFilter.map(v => String(v))
-      } else if (typeof fileIdFilter === 'object' && '$in' in fileIdFilter && Array.isArray(fileIdFilter.$in)) {
-        fileIdValues = (fileIdFilter.$in as unknown[]).map(v => String(v))
-      } else {
-        fileIdValues = [String(fileIdFilter)]
-      }
-      
-      // Versuche Dokumentennamen aus sources zu extrahieren
-      const docTitles = new Set<string>()
-      for (const source of sources) {
-        if (source.fileId && fileIdValues.includes(source.fileId)) {
-          // Verwende fileName oder fileId als Fallback
-          const title = source.fileName || source.fileId
-          if (title) docTitles.add(title)
-        }
-      }
-      
-      if (docTitles.size > 0) {
-        filterParts.push(`Document: ${Array.from(docTitles).join(', ')}`)
-      } else if (fileIdValues.length > 0) {
-        // Fallback: Zeige Anzahl der Dokumente
-        filterParts.push(`Document: ${fileIdValues.length} ${fileIdValues.length === 1 ? 'document' : 'documents'}`)
-      }
-    }
-    
-    if (filterParts.length > 0) {
-      filterText = `\n\nIMPORTANT: The topic overview refers only to documents that match the following filter criteria:\n${filterParts.map(p => `- ${p}`).join('\n')}\nPlease consider this when selecting and formulating topics.`
+    if (docTitles.size > 0) {
+      filterParts.push(`Document: ${Array.from(docTitles).join(', ')}`)
+    } else if (fileIdValues.length > 0) {
+      // Fallback: Zeige Anzahl der Dokumente
+      filterParts.push(`Document: ${fileIdValues.length} ${fileIdValues.length === 1 ? 'document' : 'documents'}`)
     }
   }
   
+  const filterText = filterParts.length > 0
+    ? `\n\nIMPORTANT: The topic overview refers only to documents that match the following filter criteria:\n${filterParts.map(p => `- ${p}`).join('\n')}\nPlease consider this when selecting and formulating topics.`
+    : ''
+  
   // Build system prompt
-  const systemParts: string[] = ['You create a structured topic overview based on the provided sources. Analyze the content and identify the central topic areas.']
-  if (characterInstruction) {
-    systemParts.push(`\n${characterInstruction}`)
-  }
-  if (accessPerspectiveInstruction) {
-    systemParts.push(`\n${accessPerspectiveInstruction}`)
-  }
-  if (socialContextInstruction) {
-    systemParts.push(`\n${socialContextInstruction}`)
-  }
-  if (genderInclusiveInstruction) {
-    systemParts.push(`\n${genderInclusiveInstruction}`)
-  }
+  const systemParts = buildSystemPromptParts(
+    'You create a structured topic overview based on the provided sources. Analyze the content and identify the central topic areas.',
+    { characterInstruction, accessPerspectiveInstruction, socialContextInstruction, genderInclusiveInstruction },
+    '\n'
+  )
   
   return `${systemParts.join('')}
 
@@ -426,7 +467,7 @@ Respond EXCLUSIVELY as a JSON object with exactly this structure:
 
 {
   "id": "${libraryId}",
-  "title": "Topic Overview",
+  "title": "Short Title for Topic Overview considering filters",
   "tagline": "Short, concise tagline (max. 50 characters)",
   "intro": "Introductory text describing how the topic overview is structured and how it can be used (max. 300 characters)",
   "topics": [
@@ -467,8 +508,8 @@ Respond EXCLUSIVELY as a JSON object with exactly this structure:
 
 Requirements:
 - Create 5-10 central topic areas (topics) that emerge from the sources
-- Each topic should contain 3-7 relevant questions (questions)
-- Questions should be concrete and answerable
+- Each topic should contain 4-7 relevant questions (questions)
+- Questions should be concrete and answerable 
 - Use unique IDs: "topic-1", "topic-2", etc. for topics and "q-1-1", "q-1-2", etc. for questions
 - The "intent" can be: "what", "why", "how", "compare" or "recommend" (optional)
 - The "retriever" can be: "summary", "chunk" or "auto" (optional, default: "auto")

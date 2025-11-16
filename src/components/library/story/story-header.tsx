@@ -73,10 +73,8 @@ export function StoryHeader({ compact = false, onBackToGallery }: StoryHeaderPro
           <Settings2 className="h-4 w-4 shrink-0" />
           <span className="whitespace-nowrap">{t('gallery.storyMode.perspective.adjustPerspective')}</span>
         </Button>
+        <PerspectiveDisplay variant="header" />
       </div>
-      {/* Aktuelle Perspektive - dezent angezeigt, linksbündig mit Buttons */}
-      <PerspectiveDisplay variant="header" paddingLeft="1.5rem" />
-      
     </div>
   )
 }

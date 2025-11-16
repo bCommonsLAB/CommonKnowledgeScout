@@ -100,23 +100,51 @@ export default function PerspectivePage() {
 
   /**
    * Toggle-Funktion für Interessenprofil-Auswahl (max. 3)
+   * Wenn etwas anderes als 'undefined' gewählt wird, wird 'undefined' automatisch entfernt
    */
   function toggleInterest(value: Character) {
     if (localInterests.includes(value)) {
-      setLocalInterests(localInterests.filter((i) => i !== value))
-    } else if (localInterests.length < 3) {
-      setLocalInterests([...localInterests, value])
+      // Wenn abgewählt wird
+      const newInterests = localInterests.filter((i) => i !== value)
+      // Wenn nach dem Entfernen nichts mehr übrig ist, setze 'undefined'
+      setLocalInterests(newInterests.length === 0 ? ['undefined'] : newInterests)
+    } else {
+      // Wenn hinzugefügt wird
+      if (value === 'undefined') {
+        // Wenn 'undefined' gewählt wird, entferne alle anderen
+        setLocalInterests(['undefined'])
+      } else {
+        // Wenn etwas anderes gewählt wird, entferne 'undefined' und füge den neuen Wert hinzu
+        const withoutUndefined = localInterests.filter((i) => i !== 'undefined')
+        if (withoutUndefined.length < 3) {
+          setLocalInterests([...withoutUndefined, value])
+        }
+      }
     }
   }
 
   /**
    * Toggle-Funktion für Zugangsperspektive-Auswahl (max. 3)
+   * Wenn etwas anderes als 'undefined' gewählt wird, wird 'undefined' automatisch entfernt
    */
   function toggleAccessPerspective(value: AccessPerspective) {
     if (localAccessPerspective.includes(value)) {
-      setLocalAccessPerspective(localAccessPerspective.filter((ap) => ap !== value))
-    } else if (localAccessPerspective.length < 3) {
-      setLocalAccessPerspective([...localAccessPerspective, value])
+      // Wenn abgewählt wird
+      const newAccessPerspectives = localAccessPerspective.filter((ap) => ap !== value)
+      // Wenn nach dem Entfernen nichts mehr übrig ist, setze 'undefined'
+      setLocalAccessPerspective(newAccessPerspectives.length === 0 ? ['undefined'] : newAccessPerspectives)
+    } else {
+      // Wenn hinzugefügt wird
+      if (value === 'undefined') {
+        // Wenn 'undefined' gewählt wird, entferne alle anderen
+        setLocalAccessPerspective(['undefined'])
+      } else {
+        // Wenn etwas anderes gewählt wird, entferne 'undefined' und füge den neuen Wert hinzu
+        const withoutUndefined = localAccessPerspective.filter((ap) => ap !== 'undefined')
+        if (withoutUndefined.length < 3) {
+          setLocalAccessPerspective([...withoutUndefined, value])
+        }
+      }
     }
   }
 
@@ -124,20 +152,33 @@ export default function PerspectivePage() {
    * Handler für "Mit dieser Perspektive starten" Button
    */
   function handleStart() {
-    // Validiere: Mindestens 1 Interesse, 1 Zugangsperspektive und Sprachstil müssen ausgewählt sein
+    // Validiere: Mindestens 1 Interesse, 1 Zugangsperspektive und Sprachstil müssen ausgewählt sein (auch 'undefined' ist erlaubt)
     if (localInterests.length === 0 || localAccessPerspective.length === 0 || !localLanguageStyle) {
       return
     }
 
+    // Filtere 'undefined' heraus für die Speicherung (nur wenn andere Werte vorhanden sind)
+    const validInterests = localInterests.filter((i) => i !== 'undefined')
+    const validAccessPerspective = localAccessPerspective.filter((ap) => ap !== 'undefined')
+    
     // Übernehme Werte in globalen State
+    // Wenn andere Werte vorhanden sind, verwende nur diese (ohne 'undefined')
+    // Wenn nur 'undefined' vorhanden ist, verwende die originalen Arrays (mit 'undefined')
     setTargetLanguage(localLanguage)
-    setCharacter(localInterests)
-    setAccessPerspective(localAccessPerspective)
-    setSocialContext(localLanguageStyle)
+    setCharacter(validInterests.length > 0 ? validInterests : localInterests)
+    setAccessPerspective(validAccessPerspective.length > 0 ? validAccessPerspective : localAccessPerspective)
+    setSocialContext(localLanguageStyle) // Kann auch 'undefined' sein
 
     // Speichere im localStorage (nur im anonymen Modus)
+    // Speichere die gefilterten Werte (ohne 'undefined'), außer wenn nur 'undefined' vorhanden ist
     if (isAnonymous) {
-      saveStoryContextToLocalStorage(localLanguage, localInterests, localLanguageStyle, localAccessPerspective, isAnonymous)
+      saveStoryContextToLocalStorage(
+        localLanguage,
+        validInterests.length > 0 ? validInterests : localInterests,
+        localLanguageStyle,
+        validAccessPerspective.length > 0 ? validAccessPerspective : localAccessPerspective,
+        isAnonymous
+      )
     }
 
     // Setze Flag, dass Perspektive einmal gesetzt wurde
@@ -168,6 +209,7 @@ export default function PerspectivePage() {
     }
   }
 
+  // Prüfe, ob eine Auswahl getroffen wurde (auch 'undefined' ist erlaubt)
   const canProceed = localInterests.length > 0 && localAccessPerspective.length > 0 && !!localLanguageStyle
 
   return (
@@ -319,7 +361,12 @@ export default function PerspectivePage() {
                     <div className="flex flex-wrap gap-2">
                       {CHARACTER_VALUES.map((value) => {
                         const isSelected = localInterests.includes(value)
-                        const isDisabled = !isSelected && localInterests.length >= 3
+                        // Für 'undefined': Disabled wenn andere Werte gewählt wurden
+                        // Für andere Werte: Disabled wenn bereits 3 gewählt (ohne 'undefined')
+                        const currentValidCount = localInterests.filter((i) => i !== 'undefined').length
+                        const isDisabled = value === 'undefined' 
+                          ? currentValidCount > 0
+                          : !isSelected && currentValidCount >= 3
                         const tooltipText = t(`chat.characterTooltips.${value}`)
                         return (
                           <Tooltip key={value}>
@@ -343,10 +390,10 @@ export default function PerspectivePage() {
                         )
                       })}
                     </div>
-                    {localInterests.length > 0 && (
+                    {localInterests.filter((i) => i !== 'undefined').length > 0 && (
                       <p className="text-xs text-muted-foreground">
                         {t('chat.perspectivePage.characterSectionSelectedCount', {
-                          count: localInterests.length,
+                          count: localInterests.filter((i) => i !== 'undefined').length,
                         })}
                       </p>
                     )}
@@ -374,7 +421,12 @@ export default function PerspectivePage() {
                     <div className="flex flex-wrap gap-2">
                       {ACCESS_PERSPECTIVE_VALUES.map((value) => {
                         const isSelected = localAccessPerspective.includes(value)
-                        const isDisabled = !isSelected && localAccessPerspective.length >= 3
+                        // Für 'undefined': Disabled wenn andere Werte gewählt wurden
+                        // Für andere Werte: Disabled wenn bereits 3 gewählt (ohne 'undefined')
+                        const validAccessPerspectiveCount = localAccessPerspective.filter((ap) => ap !== 'undefined').length
+                        const isDisabled = value === 'undefined' 
+                          ? validAccessPerspectiveCount > 0
+                          : !isSelected && validAccessPerspectiveCount >= 3
                         const tooltipText = t(`chat.accessPerspectiveTooltips.${value}`)
                         return (
                           <Tooltip key={value}>
@@ -398,10 +450,10 @@ export default function PerspectivePage() {
                         )
                       })}
                     </div>
-                    {localAccessPerspective.length > 0 && (
+                    {localAccessPerspective.filter((ap) => ap !== 'undefined').length > 0 && (
                       <p className="text-xs text-muted-foreground">
                         {t('chat.perspectivePage.accessPerspectiveSectionSelectedCount', {
-                          count: localAccessPerspective.length,
+                          count: localAccessPerspective.filter((ap) => ap !== 'undefined').length,
                         })}
                       </p>
                     )}

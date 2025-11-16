@@ -231,6 +231,7 @@
   "chat": {
     "source": "Quelle",
     "characterLabels": {
+      "undefined": "Keine spezifische Perspektive",
       "technical": "Technikorientiert",
       "social-cultural": "Gesellschaft & Kultur",
       "ecology": "Ökologie & Nachhaltigkeit",
@@ -241,6 +242,7 @@
       "creative": "Kreativ & Visionär"
     },
     "characterTooltips": {
+      "undefined": "Keine spezifische Perspektive wird gewichtet. Die Antworten werden neutral formuliert.",
       "technical": "Fokus auf Funktionsweise, Systeme, Technologie und Methoden.",
       "social-cultural": "Fokus auf Menschen, Kultur, Gemeinschaft und soziale Dynamiken.",
       "ecology": "Fokus auf Natur, langfristige Auswirkungen und nachhaltige Entwicklung.",
@@ -251,6 +253,7 @@
       "creative": "Fokus auf Visionen, Ideen, Experimente und neue Perspektiven."
     },
     "accessPerspectiveLabels": {
+      "undefined": "Keine spezifische Zugangsperspektive",
       "insight": "Erkenntnisorientiert",
       "community": "Gemeinschaftsorientiert",
       "sustainability": "Nachhaltigkeitsorientiert",
@@ -259,6 +262,7 @@
       "future_view": "Zukunftsorientiert"
     },
     "accessPerspectiveTooltips": {
+      "undefined": "Keine spezifische Zugangsperspektive wird gewichtet. Die Antworten werden neutral formuliert.",
       "insight": "Betont Verständnis, Zusammenhänge, Reflexion und tiefere Einblicke.",
       "community": "Betont Zusammenarbeit, Teilhabe, soziale Wirkung und Miteinander.",
       "sustainability": "Betont ökologische, soziale und langfristige Verantwortung.",
@@ -267,6 +271,7 @@
       "future_view": "Betont Potenzial, Innovation, Möglichkeiten und Zukunftsbilder."
     },
     "socialContextLabels": {
+      "undefined": "Kein spezifischer Sprachstil",
       "scientific": "Wissenschaftlich",
       "general": "Allgemeinverständlich",
       "youth": "Jugendlich",
@@ -276,6 +281,7 @@
       "easy_language": "Einfache Sprache"
     },
     "socialContextTooltips": {
+      "undefined": "Kein spezifischer Sprachstil wird vorgegeben. Die Antworten werden in neutralem Stil formuliert.",
       "scientific": "Fachlicher, präziser Stil mit klaren Begriffen und Struktur.",
       "general": "Gut verständlicher, klarer Stil ohne Fachjargon.",
       "youth": "Lockerer, bildhafter Stil mit jugendnahen Beispielen.",

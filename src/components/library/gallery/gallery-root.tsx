@@ -305,6 +305,15 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       setShowReferenceLegend(false)
     }
     setFilters({} as Record<string, string[]>)
+    
+    // Wenn im Story-Modus: Triggere TOC-Neuberechnung
+    // Das ChatPanel reagiert auf Filter-Änderungen, aber wir lösen explizit ein Event aus,
+    // um sicherzustellen, dass die TOC-Neuberechnung getriggert wird
+    if (mode === 'story') {
+      window.dispatchEvent(new CustomEvent('gallery-filters-cleared', { 
+        detail: { mode: 'story' } 
+      }))
+    }
   }
 
   // Event-Handler für "set-gallery-filter" (wird von GroupedItemsGrid verwendet)

@@ -116,8 +116,10 @@ export const TARGET_LANGUAGE_ZOD_ENUM = z.enum(['de', 'en', 'it', 'fr', 'es', 'a
  * Character-Typ für Chat-Perspektiven (Interessenprofile).
  * Definiert verschiedene Interessenprofile, aus denen der Chatbot antworten kann.
  * Unterstützt mehrere Werte (max. 3) für kombinierte Perspektiven.
+ * 'undefined' ist der Standard-Wert, wenn nichts ausgewählt wurde.
  */
 export type Character =
+  | 'undefined'
   | 'technical'
   | 'social-cultural'
   | 'ecology'
@@ -128,6 +130,7 @@ export type Character =
   | 'creative'
 
 export const CHARACTER_VALUES: readonly Character[] = [
+  'undefined',
   'technical',
   'social-cultural',
   'ecology',
@@ -138,9 +141,18 @@ export const CHARACTER_VALUES: readonly Character[] = [
   'creative',
 ] as const
 
-export const CHARACTER_DEFAULT: Character[] = ['business']
+export const CHARACTER_DEFAULT: Character[] = ['undefined']
+
+/**
+ * Filtert 'undefined' aus einem Character-Array heraus
+ * Wird verwendet, um zu prüfen, ob tatsächlich eine Auswahl getroffen wurde
+ */
+export function filterUndefinedCharacters(characters: Character[]): Character[] {
+  return characters.filter(char => char !== 'undefined')
+}
 
 export const CHARACTER_LABELS: Record<Character, string> = {
+  undefined: 'Keine spezifische Perspektive',
   technical: 'Technikorientiert',
   'social-cultural': 'Gesellschaft & Kultur',
   ecology: 'Ökologie & Nachhaltigkeit',
@@ -159,6 +171,7 @@ export const CHARACTER_LABELS: Record<Character, string> = {
  * werden die Instructions mit "AND" kombiniert.
  */
 export const CHARACTER_INSTRUCTIONS: Record<Character, string> = {
+  undefined: '', // Keine spezifische Perspektive - keine Instruction
   technical: 'You respond from a technology-oriented perspective. Focus on technical backgrounds, processes, systems, and methodologies. Emphasize technical aspects, tools, architecture, and functionality.',
   'social-cultural': 'You respond from a social and cultural perspective. Focus on social impacts, cultural dynamics, and community questions. Emphasize societal significance, people, relationships, and processes.',
   ecology: 'You respond from an ecological and sustainability perspective. Focus on ecological consequences, climate, future, and resources. Emphasize sustainability aspects, environmental impacts, risks, and opportunities.',
@@ -175,20 +188,27 @@ export const CHARACTER_INSTRUCTIONS: Record<Character, string> = {
  * @returns Kombinierte Instruction-String
  */
 export function combineCharacterInstructions(characters: Character[]): string {
-  if (characters.length === 0) {
-    return CHARACTER_INSTRUCTIONS[CHARACTER_DEFAULT[0]]
+  // Filtere 'undefined' heraus, da es keine Instruction hat
+  const filtered = characters.filter(char => char !== 'undefined')
+  
+  if (filtered.length === 0) {
+    return '' // Keine Instructions wenn nur 'undefined' vorhanden
   }
   
-  if (characters.length === 1) {
-    return CHARACTER_INSTRUCTIONS[characters[0]]
+  if (filtered.length === 1) {
+    return CHARACTER_INSTRUCTIONS[filtered[0]]
   }
   
   // Kombiniere mehrere Instructions mit "AND"
-  const instructions = characters.map(char => CHARACTER_INSTRUCTIONS[char])
+  const instructions = filtered.map(char => CHARACTER_INSTRUCTIONS[char]).filter(inst => inst.length > 0)
+  if (instructions.length === 0) {
+    return ''
+  }
   return `You respond from a combined perspective that integrates: ${instructions.join(' AND ')}`
 }
 
 export const CHARACTER_ZOD_ENUM = z.enum([
+  'undefined',
   'technical',
   'social-cultural',
   'ecology',
@@ -211,6 +231,7 @@ export const CHARACTER_ARRAY_ZOD_SCHEMA = z.array(CHARACTER_ZOD_ENUM).max(3).min
  * Zukunftsorientierter Zugang → warme Amber/Orange/Rose Töne
  */
 export const characterColors: Record<Character, string> = {
+  undefined: 'bg-gray-50 border-gray-200',
   // Sachlicher Zugang (cool)
   technical: 'bg-cyan-50 border-cyan-200',
   business: 'bg-blue-50 border-blue-200',
@@ -229,6 +250,7 @@ export const characterColors: Record<Character, string> = {
  * Folgt demselben Farbschema wie characterColors, jedoch mit stärkerer Intensität.
  */
 export const characterIconColors: Record<Character, string> = {
+  undefined: 'bg-gray-100 text-gray-600',
   // Sachlicher Zugang (cool)
   technical: 'bg-cyan-100 text-cyan-600',
   business: 'bg-blue-100 text-blue-600',
@@ -246,13 +268,14 @@ export const characterIconColors: Record<Character, string> = {
 // SOZIALER KONTEXT (SocialContext)
 // ============================================================================
 
-export type SocialContext = 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language' 
+export type SocialContext = 'undefined' | 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language' 
 
-export const SOCIAL_CONTEXT_VALUES: readonly SocialContext[] = ['scientific', 'general', 'youth', 'senior', 'professional', 'children', 'easy_language'] as const
+export const SOCIAL_CONTEXT_VALUES: readonly SocialContext[] = ['undefined', 'scientific', 'general', 'youth', 'senior', 'professional', 'children', 'easy_language'] as const
 
-export const SOCIAL_CONTEXT_DEFAULT: SocialContext = 'general'
+export const SOCIAL_CONTEXT_DEFAULT: SocialContext = 'undefined'
 
 export const SOCIAL_CONTEXT_LABELS: Record<SocialContext, string> = {
+  undefined: 'Kein spezifischer Sprachstil',
   scientific: 'Wissenschaftlich',
   general: 'Allgemeinverständlich',
   youth: 'Jugendlich',
@@ -267,6 +290,7 @@ export const SOCIAL_CONTEXT_LABELS: Record<SocialContext, string> = {
  * These are used in lib/chat/common/prompt.ts
  */
 export const SOCIAL_CONTEXT_INSTRUCTIONS: Record<SocialContext, string> = {
+  undefined: '', // Kein spezifischer Sprachstil - keine Instruction
   scientific: 'Use scientific language with technical terms. Explain complex concepts precisely and technically correct.',
   general: 'Clear, accessible language without jargon. Use metaphors and short examples. Maximum medium sentence length.',
   youth: 'Use youth-friendly language. Explain complex concepts vividly and understandably, avoid overly formal formulations.',
@@ -276,7 +300,7 @@ export const SOCIAL_CONTEXT_INSTRUCTIONS: Record<SocialContext, string> = {
   easy_language: 'Use simple language suitable for people with low education levels. Use short sentences, simple words, and many examples. Explain step by step and avoid technical terms or use them only with simple explanations.',
 }
 
-export const SOCIAL_CONTEXT_ZOD_ENUM = z.enum(['scientific', 'general', 'youth', 'senior', 'professional', 'children', 'easy_language'])
+export const SOCIAL_CONTEXT_ZOD_ENUM = z.enum(['undefined', 'scientific', 'general', 'youth', 'senior', 'professional', 'children', 'easy_language'])
 
 // ============================================================================
 // ZUGANGSPERSPEKTIVE (AccessPerspective)
@@ -286,8 +310,10 @@ export const SOCIAL_CONTEXT_ZOD_ENUM = z.enum(['scientific', 'general', 'youth',
  * AccessPerspective-Typ für Zugangsperspektiven.
  * Definiert verschiedene Arten des Zugangs zu Inhalten (WIE schaust du auf Inhalte?).
  * Unterstützt mehrere Werte (max. 3) für kombinierte Perspektiven.
+ * 'undefined' ist der Standard-Wert, wenn nichts ausgewählt wurde.
  */
 export type AccessPerspective =
+  | 'undefined'
   | 'insight'
   | 'community'
   | 'sustainability'
@@ -296,6 +322,7 @@ export type AccessPerspective =
   | 'future_view'
 
 export const ACCESS_PERSPECTIVE_VALUES: readonly AccessPerspective[] = [
+  'undefined',
   'insight',
   'community',
   'sustainability',
@@ -304,9 +331,18 @@ export const ACCESS_PERSPECTIVE_VALUES: readonly AccessPerspective[] = [
   'future_view',
 ] as const
 
-export const ACCESS_PERSPECTIVE_DEFAULT: AccessPerspective[] = ['insight']
+export const ACCESS_PERSPECTIVE_DEFAULT: AccessPerspective[] = ['undefined']
+
+/**
+ * Filtert 'undefined' aus einem AccessPerspective-Array heraus
+ * Wird verwendet, um zu prüfen, ob tatsächlich eine Auswahl getroffen wurde
+ */
+export function filterUndefinedAccessPerspectives(accessPerspectives: AccessPerspective[]): AccessPerspective[] {
+  return accessPerspectives.filter(ap => ap !== 'undefined')
+}
 
 export const ACCESS_PERSPECTIVE_LABELS: Record<AccessPerspective, string> = {
+  undefined: 'Keine spezifische Zugangsperspektive',
   insight: 'Erkenntnisorientiert',
   community: 'Gemeinschaftsorientiert',
   sustainability: 'Nachhaltigkeitsorientiert',
@@ -323,6 +359,7 @@ export const ACCESS_PERSPECTIVE_LABELS: Record<AccessPerspective, string> = {
  * werden die Instructions mit "AND" kombiniert.
  */
 export const ACCESS_PERSPECTIVE_INSTRUCTIONS: Record<AccessPerspective, string> = {
+  undefined: '', // Keine spezifische Zugangsperspektive - keine Instruction
   insight: 'Emphasize understanding, connections, reflection, and deeper insights. Focus on comprehension, relationships between concepts, and thoughtful analysis.',
   community: 'Emphasize collaboration, participation, social impact, and togetherness. Focus on collective action, shared values, and community benefits.',
   sustainability: 'Emphasize ecological, social, and long-term responsibility. Focus on sustainable practices, environmental considerations, and future generations.',
@@ -337,20 +374,27 @@ export const ACCESS_PERSPECTIVE_INSTRUCTIONS: Record<AccessPerspective, string> 
  * @returns Kombinierte Instruction-String
  */
 export function combineAccessPerspectiveInstructions(accessPerspectives: AccessPerspective[]): string {
-  if (accessPerspectives.length === 0) {
-    return ACCESS_PERSPECTIVE_INSTRUCTIONS[ACCESS_PERSPECTIVE_DEFAULT[0]]
+  // Filtere 'undefined' heraus, da es keine Instruction hat
+  const filtered = accessPerspectives.filter(ap => ap !== 'undefined')
+  
+  if (filtered.length === 0) {
+    return '' // Keine Instructions wenn nur 'undefined' vorhanden
   }
   
-  if (accessPerspectives.length === 1) {
-    return ACCESS_PERSPECTIVE_INSTRUCTIONS[accessPerspectives[0]]
+  if (filtered.length === 1) {
+    return ACCESS_PERSPECTIVE_INSTRUCTIONS[filtered[0]]
   }
   
   // Kombiniere mehrere Instructions mit "AND"
-  const instructions = accessPerspectives.map(ap => ACCESS_PERSPECTIVE_INSTRUCTIONS[ap])
+  const instructions = filtered.map(ap => ACCESS_PERSPECTIVE_INSTRUCTIONS[ap]).filter(inst => inst.length > 0)
+  if (instructions.length === 0) {
+    return ''
+  }
   return `You approach the content from a combined perspective that integrates: ${instructions.join(' AND ')}`
 }
 
 export const ACCESS_PERSPECTIVE_ZOD_ENUM = z.enum([
+  'undefined',
   'insight',
   'community',
   'sustainability',
