@@ -33,6 +33,7 @@ import crypto from 'crypto'
 import type { Collection, UpdateFilter } from 'mongodb'
 import type { QueryLog, QueryRetrievalStep } from '@/types/query-log'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
+import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
 import { computeDocMetaCollectionName, getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
 import { findLibraryOwnerEmail } from '@/lib/chat/loader'
 
@@ -152,20 +153,8 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
   // WICHTIG: Verwende gefilterte Anzahl, da die Filter Teil des Cache-Kontexts sind
   // Die gefilterte Anzahl wird verwendet, um den Cache zu invalidierten, wenn neue Dokumente hinzugefügt werden,
   // die zu den Filtern passen
-  // Konvertiere facetsSelected zu MongoDB-Filter-Format
-  // facetsSelected hat die Struktur { track: ["Community track"] }, muss aber { track: { $in: ["Community track"] } } sein
-  const mongoFilter: Record<string, unknown> = {}
-  if (doc.facetsSelected && Object.keys(doc.facetsSelected).length > 0) {
-    for (const [key, value] of Object.entries(doc.facetsSelected)) {
-      if (Array.isArray(value)) {
-        // Array-Werte müssen in MongoDB $in-Format konvertiert werden
-        mongoFilter[key] = { $in: value }
-      } else if (value !== undefined && value !== null) {
-        // Einzelwerte direkt übernehmen
-        mongoFilter[key] = value
-      }
-    }
-  }
+  // Konvertiere facetsSelected zu MongoDB-Filter-Format (mappt shortTitle zu docMetaJson.shortTitle)
+  const mongoFilter = facetsSelectedToMongoFilter(doc.facetsSelected)
   const documentCount = await getFilteredDocumentCount(doc.libraryId, mongoFilter, doc.userEmail)
   
   // Normalisiere Retriever für Cache-Hash: chunkSummary → chunk (konsistent mit Suchen)
@@ -381,20 +370,8 @@ export async function findQueryByQuestionAndContext(args: {
   // WICHTIG: Verwende gefilterte Anzahl, da die Filter Teil des Cache-Kontexts sind
   // Die gefilterte Anzahl wird verwendet, um den Cache zu invalidierten, wenn neue Dokumente hinzugefügt werden,
   // die zu den Filtern passen
-  // Konvertiere facetsSelected zu MongoDB-Filter-Format
-  // facetsSelected hat die Struktur { track: ["Community track"] }, muss aber { track: { $in: ["Community track"] } } sein
-  const mongoFilter: Record<string, unknown> = {}
-  if (args.facetsSelected && Object.keys(args.facetsSelected).length > 0) {
-    for (const [key, value] of Object.entries(args.facetsSelected)) {
-      if (Array.isArray(value)) {
-        // Array-Werte müssen in MongoDB $in-Format konvertiert werden
-        mongoFilter[key] = { $in: value }
-      } else if (value !== undefined && value !== null) {
-        // Einzelwerte direkt übernehmen
-        mongoFilter[key] = value
-      }
-    }
-  }
+  // Konvertiere facetsSelected zu MongoDB-Filter-Format (mappt shortTitle zu docMetaJson.shortTitle)
+  const mongoFilter = facetsSelectedToMongoFilter(args.facetsSelected)
   const documentCount = await getFilteredDocumentCount(args.libraryId, mongoFilter, args.userEmail)
   
   // Berechne Hash aus allen Cache-relevanten Parametern

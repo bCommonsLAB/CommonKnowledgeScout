@@ -95,9 +95,13 @@ export function ChatDocumentSources({ sources, libraryId, onDocumentClick }: Cha
   const handleShowDocuments = () => {
     if (groupedDocs.length === 0) return
     
-    // Setze Filter auf fileId-Liste
-    const fileIds = groupedDocs.map(d => d.fileId)
-    setFilters({ fileId: fileIds })
+    // Setze Filter auf shortTitle-Liste
+    const shortTitles = groupedDocs
+      .map(d => d.shortTitle || d.title)
+      .filter((title): title is string => !!title)
+    if (shortTitles.length > 0) {
+      setFilters({ shortTitle: shortTitles })
+    }
     
     // Optional: Scroll zur Gallery
     const galleryElement = document.querySelector('[data-gallery-section]')

@@ -233,7 +233,6 @@ export async function queryPineconeByFileIds(
     const ownerEmail = await findLibraryOwnerEmail(libraryId)
     if (ownerEmail) {
       effectiveUserEmail = ownerEmail
-      console.log('[queryPineconeByFileIds] Owner-Email ermittelt für öffentliche Library:', effectiveUserEmail.split('@')[0] + '@...')
     }
   }
 

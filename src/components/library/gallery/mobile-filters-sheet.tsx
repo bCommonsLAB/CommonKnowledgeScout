@@ -17,9 +17,9 @@ export interface MobileFiltersSheetProps {
 }
 
 export function MobileFiltersSheet({ open, onOpenChange, facetDefs, selected, onChange, title, description, docs = [] }: MobileFiltersSheetProps) {
-  // Extrahiere fileId-Filter
-  const fileIdFilter = selected.fileId
-  const hasFileIdFilter = Array.isArray(fileIdFilter) && fileIdFilter.length > 0
+  // Extrahiere shortTitle-Filter
+  const shortTitleFilter = selected.shortTitle
+  const hasShortTitleFilter = Array.isArray(shortTitleFilter) && shortTitleFilter.length > 0
   
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -30,14 +30,14 @@ export function MobileFiltersSheet({ open, onOpenChange, facetDefs, selected, on
         </SheetHeader>
         <div className="mt-6 space-y-3">
           {/* Dokumentenfilter - spezielle Behandlung */}
-          {hasFileIdFilter && (
+          {hasShortTitleFilter && (
             <DocumentFilterGroup
-              fileIds={fileIdFilter}
+              shortTitles={shortTitleFilter}
               docs={docs}
-              onReset={() => onChange('fileId', [])}
-              onRemove={(fileId) => {
-                const remaining = fileIdFilter.filter(id => id !== fileId)
-                onChange('fileId', remaining)
+              onReset={() => onChange('shortTitle', [])}
+              onRemove={(shortTitle) => {
+                const remaining = shortTitleFilter.filter(title => title !== shortTitle)
+                onChange('shortTitle', remaining)
               }}
             />
           )}

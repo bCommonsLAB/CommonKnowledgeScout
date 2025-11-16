@@ -19,7 +19,7 @@ export function useGalleryData(filters: Record<string, string[] | undefined>, mo
       try {
         const params = new URLSearchParams()
         Object.entries(filters).forEach(([k, arr]) => {
-          if (k === 'fileId') return
+          if (k === 'shortTitle') return // shortTitle wird lokal gefiltert, nicht an API gesendet
           if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
         })
         const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
@@ -42,10 +42,13 @@ export function useGalleryData(filters: Record<string, string[] | undefined>, mo
   }, [libraryId, JSON.stringify(filters)])
 
   const filteredDocs = useMemo(() => {
-    const fileIdFilter = filters.fileId
+    const shortTitleFilter = filters.shortTitle
     let result = docs
-    if (fileIdFilter && Array.isArray(fileIdFilter) && fileIdFilter.length > 0) {
-      result = docs.filter(d => fileIdFilter.includes(d.fileId || '') || fileIdFilter.includes(d.id || ''))
+    if (shortTitleFilter && Array.isArray(shortTitleFilter) && shortTitleFilter.length > 0) {
+      result = docs.filter(d => {
+        const docShortTitle = d.shortTitle || d.title
+        return docShortTitle && shortTitleFilter.includes(docShortTitle)
+      })
     }
     if (mode === 'gallery' && searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim()
@@ -57,7 +60,7 @@ export function useGalleryData(filters: Record<string, string[] | undefined>, mo
       })
     }
     return result
-  }, [docs, filters.fileId, mode, searchQuery])
+  }, [docs, filters.shortTitle, mode, searchQuery])
 
   const docsByYear = useMemo(() => {
     const grouped = new Map<number | string, DocCardMeta[]>()

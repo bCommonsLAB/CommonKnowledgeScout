@@ -4,28 +4,26 @@ import React from 'react'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
-import { createDocTitleMap } from '@/utils/gallery/doc-title-map'
 
 export interface DocumentFilterGroupProps {
-  /** Array von fileIds, die gefiltert werden sollen */
-  fileIds: string[]
+  /** Array von shortTitles, die gefiltert werden sollen */
+  shortTitles: string[]
   /** Dokumentenliste für Titel-Lookup */
   docs: Array<{ fileId?: string; id?: string; title?: string; shortTitle?: string }>
   /** Callback wenn Filter zurückgesetzt wird */
   onReset: () => void
   /** Callback wenn einzelner Filter entfernt wird */
-  onRemove: (fileId: string) => void
+  onRemove: (shortTitle: string) => void
 }
 
 /**
- * Komponente zur Anzeige und Verwaltung von fileId-Filtern
+ * Komponente zur Anzeige und Verwaltung von shortTitle-Filtern
  * Zeigt ausgewählte Dokumente mit Möglichkeit zum Entfernen einzelner Filter
  */
-export function DocumentFilterGroup({ fileIds, docs, onReset, onRemove }: DocumentFilterGroupProps) {
+export function DocumentFilterGroup({ shortTitles, docs, onReset, onRemove }: DocumentFilterGroupProps) {
   const { t } = useTranslation()
-  const docTitleMap = createDocTitleMap(docs)
 
-  if (fileIds.length === 0) {
+  if (shortTitles.length === 0) {
     return null
   }
 
@@ -43,18 +41,17 @@ export function DocumentFilterGroup({ fileIds, docs, onReset, onRemove }: Docume
         </Button>
       </div>
       <div className="space-y-1">
-        {fileIds.map((fileId) => {
-          const docTitle = docTitleMap.get(fileId) || fileId
+        {shortTitles.map((shortTitle) => {
           return (
             <div
-              key={fileId}
+              key={shortTitle}
               className="flex items-center justify-between rounded px-2 py-1 bg-primary/10 text-sm"
             >
-              <span title={docTitle} className="truncate flex-1 min-w-0 pr-2">{docTitle}</span>
+              <span title={shortTitle} className="truncate flex-1 min-w-0 pr-2">{shortTitle}</span>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onRemove(fileId)}
+                onClick={() => onRemove(shortTitle)}
                 className="h-5 w-5 p-0 shrink-0"
               >
                 <X className="h-3 w-3" />
@@ -66,5 +63,6 @@ export function DocumentFilterGroup({ fileIds, docs, onReset, onRemove }: Docume
     </div>
   )
 }
+
 
 

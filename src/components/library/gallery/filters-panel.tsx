@@ -20,9 +20,9 @@ export interface FiltersPanelProps {
 export function FiltersPanel({ facetDefs, selected, onChange, title, description, docs = [] }: FiltersPanelProps) {
   const { t } = useTranslation()
   
-  // Extrahiere fileId-Filter
-  const fileIdFilter = selected.fileId
-  const hasFileIdFilter = Array.isArray(fileIdFilter) && fileIdFilter.length > 0
+  // Extrahiere shortTitle-Filter
+  const shortTitleFilter = selected.shortTitle
+  const hasShortTitleFilter = Array.isArray(shortTitleFilter) && shortTitleFilter.length > 0
   
   return (
     <aside className="flex flex-col min-h-0 overflow-hidden h-full">
@@ -38,14 +38,14 @@ export function FiltersPanel({ facetDefs, selected, onChange, title, description
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Dokumentenfilter - spezielle Behandlung */}
-              {hasFileIdFilter && (
+              {hasShortTitleFilter && (
                 <DocumentFilterGroup
-                  fileIds={fileIdFilter}
+                  shortTitles={shortTitleFilter}
                   docs={docs}
-                  onReset={() => onChange('fileId', [])}
-                  onRemove={(fileId) => {
-                    const remaining = fileIdFilter.filter(id => id !== fileId)
-                    onChange('fileId', remaining)
+                  onReset={() => onChange('shortTitle', [])}
+                  onRemove={(shortTitle) => {
+                    const remaining = shortTitleFilter.filter(title => title !== shortTitle)
+                    onChange('shortTitle', remaining)
                   }}
                 />
               )}
@@ -56,7 +56,7 @@ export function FiltersPanel({ facetDefs, selected, onChange, title, description
                 selected={selected}
                 onChange={onChange}
               />
-              {facetDefs.length === 0 && !hasFileIdFilter && (
+              {facetDefs.length === 0 && !hasShortTitleFilter && (
                 <div className="text-sm text-muted-foreground text-center py-8">
                   {t('gallery.noFiltersAvailable')}
                 </div>

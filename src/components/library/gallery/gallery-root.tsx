@@ -46,6 +46,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [showFilters, setShowFilters] = useState(false)
   const [selected, setSelected] = useState<DocCardMeta | null>(null)
+  const isClosingRef = React.useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   const chatReferences = useAtomValue(chatReferencesAtom)
@@ -265,8 +266,18 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     }
   }, [selected])
 
+  // Ref, um zu verhindern, dass Dokument mehrfach geöffnet wird
+  const openingDocRef = React.useRef<string | null>(null)
+  
   // Event handlers
   const handleOpenDocument = (doc: DocCardMeta) => {
+    const docId = doc.fileId || doc.id
+    // Verhindere mehrfaches Öffnen desselben Dokuments
+    if (openingDocRef.current === docId || (selected && (selected.fileId || selected.id) === docId)) {
+      return
+    }
+    openingDocRef.current = docId
+    
     setSelected(doc)
     
     // URL aktualisieren mit slug, falls vorhanden
@@ -285,10 +296,22 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
         console.error('[GalleryRoot] Fehler beim Aktualisieren der URL:', err)
       }
     }
+    
+    // Reset opening flag nach kurzer Verzögerung
+    setTimeout(() => {
+      openingDocRef.current = null
+    }, 200)
   }
   
   const handleCloseDocument = () => {
+    // Verhindere doppelte Aufrufe
+    if (isClosingRef.current) {
+      return
+    }
+    isClosingRef.current = true
+    
     setSelected(null)
+    openingDocRef.current = null // Reset opening flag beim Schließen
     
     // URL bereinigen: doc-Parameter entfernen
     if (pathname && pathname.startsWith('/explore/')) {
@@ -301,6 +324,11 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
         router.replace(newUrl, { scroll: false })
       }
     }
+    
+    // Reset closing flag nach kurzer Verzögerung
+    setTimeout(() => {
+      isClosingRef.current = false
+    }, 100)
   }
   
   const handleShowReferenceLegend = () => {
@@ -398,22 +426,31 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       const customEvent = event as CustomEvent<{ fileIds: string[] }>
       const { fileIds } = customEvent.detail || {}
       if (fileIds && fileIds.length > 0) {
-        setFilters({ fileId: fileIds })
+        // Mappe fileIds zu shortTitles
+        const shortTitles = fileIds
+          .map(fileId => {
+            const doc = docs.find(d => (d.fileId || d.id) === fileId)
+            return doc?.shortTitle || doc?.title
+          })
+          .filter((title): title is string => !!title)
+        if (shortTitles.length > 0) {
+          setFilters({ shortTitle: shortTitles })
+        }
       }
     }
     window.addEventListener('set-gallery-filter', handleSetGalleryFilter)
     return () => window.removeEventListener('set-gallery-filter', handleSetGalleryFilter)
-  }, [setFilters])
+  }, [setFilters, docs])
 
   // Event-Handler für "clear-gallery-filter" (wird von GroupedItemsGrid verwendet)
   React.useEffect(() => {
     const handleClearGalleryFilter = () => {
-      // Entferne fileId-Filter, behalte andere Filter
+      // Entferne shortTitle-Filter, behalte andere Filter
       setFilters(f => {
         const current = f as Record<string, string[] | undefined>
         const next: Record<string, string[]> = {}
         Object.entries(current).forEach(([key, value]) => {
-          if (key !== 'fileId' && Array.isArray(value) && value.length > 0) {
+          if (key !== 'shortTitle' && Array.isArray(value) && value.length > 0) {
             next[key] = value
           }
         })
@@ -613,11 +650,11 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           fileId={selected.fileId || selected.id}
           viewType={detailViewType}
           onSwitchToStoryMode={() => {
-            // Setze fileId-Filter für das aktuelle Dokument
+            // Setze shortTitle-Filter für das aktuelle Dokument
             setFilters(f => {
               const next = { ...(f as Record<string, string[] | undefined>) }
-              const docFileId = selected.fileId || selected.id
-              next.fileId = docFileId ? [docFileId] : undefined
+              const docShortTitle = selected.shortTitle || selected.title
+              next.shortTitle = docShortTitle ? [docShortTitle] : undefined
               return next as typeof f
             })
             handleCloseDocument()

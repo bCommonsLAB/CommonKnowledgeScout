@@ -62,6 +62,7 @@ export const chunksRetriever: ChatRetriever = {
     
     if (fileIds.length === 0) {
       // Keine Dokumente gefunden → Keine Ergebnisse
+      console.warn('[Chunks Retriever] Keine Dokumente gefunden mit Filter:', input.filters)
       return { sources: [], timing: { retrievalMs: Date.now() - t0 }, stats: { candidatesCount: 0, usedInPrompt: 0 } }
     }
 

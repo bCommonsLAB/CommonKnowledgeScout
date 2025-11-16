@@ -82,7 +82,14 @@ export function buildFilterFromQuery(query: URL, defs: FacetDef[]): Record<strin
     }
   }
   
-  // fileId-Filter hinzufügen (wenn vorhanden) - nicht Teil der Facetten-Definitionen
+  // shortTitle-Filter hinzufügen (wenn vorhanden) - nicht Teil der Facetten-Definitionen
+  // Wird später zu fileIds gemappt über MongoDB
+  const shortTitleValues = query.searchParams.getAll('shortTitle')
+  if (shortTitleValues.length > 0) {
+    filter.shortTitle = { $in: shortTitleValues }
+  }
+  
+  // Legacy: fileId-Filter für Rückwärtskompatibilität (wird später zu shortTitle konvertiert)
   const fileIdValues = query.searchParams.getAll('fileId')
   if (fileIdValues.length > 0) {
     filter.fileId = { $in: fileIdValues }

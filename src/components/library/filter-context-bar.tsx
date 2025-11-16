@@ -23,8 +23,7 @@ interface FilterContextBarProps {
  * Filter-Kontext-Bar: Zeigt aktive Filter und Dokumentenanzahl
  * Wird oben in Gallery und Story-Modus angezeigt
  * 
- * WICHTIG: Zeigt nur Facetten-Filter (Track, Jahr, etc.) aus der Gallery/Inhalte.
- * Antwortspezifische Filter (fileId-Filter) werden NICHT angezeigt.
+ * Zeigt Facetten-Filter (Track, Jahr, etc.) und shortTitle-Filter an.
  */
 export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterButton = false, facetDefs = [], ctaLabel, onCta, tooltip }: FilterContextBarProps) {
   const filters = useAtomValue(galleryFiltersAtom)
@@ -36,13 +35,15 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterB
     labelMap.set(def.metaKey, def.label || def.metaKey)
   })
   
-  // Extrahiere alle gesetzten Filter-Werte (NUR Facetten-Filter, KEINE fileId-Filter)
+  // Extrahiere alle gesetzten Filter-Werte (Facetten-Filter und shortTitle-Filter)
   const activeFilters: Array<{ key: string; value: string }> = []
   Object.entries(filters as Record<string, string[] | undefined>).forEach(([key, values]) => {
     if (Array.isArray(values) && values.length > 0) {
-      // Nur Facetten-Filter anzeigen (Track, Jahr, etc.)
       // Verwende Label aus facetDefs, falls verfügbar, sonst metaKey
-      const displayKey = labelMap.get(key) || key
+      // Für shortTitle verwenden wir ein benutzerfreundliches Label
+      const displayKey = key === 'shortTitle' 
+        ? t('gallery.document') 
+        : (labelMap.get(key) || key)
       values.forEach(value => {
         activeFilters.push({ key: displayKey, value: String(value) })
       })

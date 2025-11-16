@@ -167,18 +167,56 @@ export async function POST(
         const facetsSelected: Record<string, unknown> = {}
         const facetMetaKeys = new Set(facetDefs.map(d => d.metaKey))
         
-        // Nur Parameter, die tatsächlich Facetten sind (inkl. fileId)
+        // Nur Parameter, die tatsächlich Facetten sind (inkl. shortTitle)
         parsedUrl.searchParams.forEach((v, k) => {
           // Überspringe Chat-Konfigurations-Parameter
           if (['retriever', 'targetLanguage', 'character', 'socialContext', 'genderInclusive', 'chatId'].includes(k)) {
             return
           }
-          // Facetten-Parameter ODER fileId übernehmen
-          if (facetMetaKeys.has(k) || k === 'fileId') {
+          // Facetten-Parameter ODER shortTitle übernehmen
+          if (facetMetaKeys.has(k) || k === 'shortTitle') {
             if (!facetsSelected[k]) facetsSelected[k] = [] as unknown[]
             ;(facetsSelected[k] as unknown[]).push(v)
           }
         })
+        
+        // Erstelle Kopie von facetsSelected für Cache (behält shortTitle)
+        const facetsSelectedForCache = { ...facetsSelected }
+        
+        // Mappe shortTitle zu fileIds über MongoDB (für Pinecone benötigt)
+        // WICHTIG: facetsSelected wird für Pinecone modifiziert, aber facetsSelectedForCache behält shortTitle für Cache
+        if (facetsSelected.shortTitle && Array.isArray(facetsSelected.shortTitle) && facetsSelected.shortTitle.length > 0) {
+          const { computeDocMetaCollectionName, getDocMetaCollection } = await import('@/lib/repositories/doc-meta-repo')
+          const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
+          const libraryKey = computeDocMetaCollectionName(userEmail || '', libraryId, strategy)
+          const col = await getDocMetaCollection(libraryKey)
+          
+          const shortTitles = facetsSelected.shortTitle as string[]
+          // Exakte Suche nach shortTitle
+          const docs = await col.find(
+            { 'docMetaJson.shortTitle': { $in: shortTitles } },
+            { projection: { fileId: 1, 'docMetaJson.shortTitle': 1, _id: 0 } }
+          ).toArray()
+          
+          const fileIds = docs
+            .map(d => typeof d.fileId === 'string' ? d.fileId : null)
+            .filter((id): id is string => !!id)
+          
+          if (fileIds.length > 0) {
+            // Ersetze shortTitle durch fileId für Pinecone (nur in facetsSelected, nicht in facetsSelectedForCache)
+            delete facetsSelected.shortTitle
+            facetsSelected.fileId = fileIds
+            // Setze auch in URL-Parametern für buildFilters
+            parsedUrl.searchParams.delete('shortTitle')
+            fileIds.forEach(fileId => parsedUrl.searchParams.append('fileId', fileId))
+          } else {
+            // Keine Dokumente gefunden, entferne shortTitle-Filter
+            console.warn('[Stream] Keine Dokumente mit shortTitle gefunden:', { shortTitles })
+            delete facetsSelected.shortTitle
+            delete facetsSelectedForCache.shortTitle
+            parsedUrl.searchParams.delete('shortTitle')
+          }
+        }
 
         // Schritt 1: TOC-Query bestimmen
         // Prüfe ZUERST, ob es eine TOC-Query ist (explizite TOC-Frage ODER asTOC Flag)
@@ -299,7 +337,7 @@ export async function POST(
             socialContext: effectiveChatConfig.socialContext,
             genderInclusive: effectiveChatConfig.genderInclusive,
             retriever: retrieverForCache,
-            facetsSelected: Object.keys(facetsSelected).length > 0 ? facetsSelected : undefined,
+            facetsSelected: Object.keys(facetsSelectedForCache).length > 0 ? facetsSelectedForCache : undefined,
             documentCount,
           })
           
@@ -311,7 +349,7 @@ export async function POST(
               character: characterArrayToString(effectiveChatConfig.character),
               accessPerspective: accessPerspectiveArrayToString(effectiveChatConfig.accessPerspective),
               socialContext: effectiveChatConfig.socialContext,
-              filters: facetsSelected,
+              filters: facetsSelectedForCache,
             },
             cacheHash: cacheHashForLog,
             documentCount,
@@ -332,7 +370,7 @@ export async function POST(
             socialContext: effectiveChatConfig.socialContext,
             genderInclusive: effectiveChatConfig.genderInclusive,
             retriever: retrieverForCache,
-            facetsSelected: Object.keys(facetsSelected).length > 0 ? facetsSelected : undefined,
+            facetsSelected: Object.keys(facetsSelectedForCache).length > 0 ? facetsSelectedForCache : undefined,
           })
 
           // Wenn Cache gefunden wurde und Antwort vorhanden ist
@@ -546,7 +584,7 @@ export async function POST(
           accessPerspective: effectiveChatConfig.accessPerspective, // Array (kann leer sein)
           socialContext: effectiveChatConfig.socialContext,
           genderInclusive: effectiveChatConfig.genderInclusive,
-          facetsSelected,
+          facetsSelected: facetsSelectedForCache, // Verwende facetsSelectedForCache für Cache (behält shortTitle)
           filtersNormalized: { ...built.normalized },
           filtersPinecone: { ...built.pinecone },
         })

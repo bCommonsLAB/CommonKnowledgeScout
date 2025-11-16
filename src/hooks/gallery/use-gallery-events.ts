@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import * as React from 'react'
 import { useAtom, useSetAtom } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
@@ -15,32 +16,70 @@ export function useGalleryEvents(
 ) {
   const [, setFilters] = useAtom(galleryFiltersAtom)
   const setChatReferences = useSetAtom(chatReferencesAtom)
+  
+  // Ref, um zu verhindern, dass derselbe Event mehrfach verarbeitet wird
+  const processingEventRef = React.useRef<string | null>(null)
 
   useEffect(() => {
     const handleOpenDocument = (event: Event) => {
       const customEvent = event as CustomEvent<{ fileId: string; fileName?: string; libraryId: string }>
-      const { fileId } = customEvent.detail || {}
+      const { fileId, libraryId: eventLibraryId } = customEvent.detail || {}
       if (!fileId || !libraryId) return
+      
+      // Prüfe, ob libraryId übereinstimmt (verhindert Verarbeitung von Events aus anderen Libraries)
+      if (eventLibraryId && eventLibraryId !== libraryId) {
+        return
+      }
+      
+      // Verhindere mehrfache Verarbeitung desselben Events
+      const eventKey = `${fileId}-${libraryId}`
+      if (processingEventRef.current === eventKey) {
+        return
+      }
+      processingEventRef.current = eventKey
+      
       const doc = docs.find(d => d.fileId === fileId || d.id === fileId)
       if (doc) {
         onOpenDocument(doc)
       } else {
         // Dokument nicht gefunden → lade es neu und öffne dann
+        // Verwende fileId als Fallback, da wir das Dokument noch nicht haben
+        // Das wird später zu shortTitle gemappt, wenn das Dokument geladen ist
         setFilters(f => {
           const next = { ...(f as Record<string, string[] | undefined>) }
+          // Temporär fileId verwenden, wird später zu shortTitle gemappt
           next.fileId = [fileId]
           return next as typeof f
         })
         setTimeout(() => {
           const docAfterLoad = docs.find(d => d.fileId === fileId || d.id === fileId)
           if (docAfterLoad) {
+            // Mappe zu shortTitle, wenn Dokument gefunden
+            setFilters(f => {
+              const current = f as Record<string, string[] | undefined>
+              const next = { ...current }
+              delete next.fileId
+              const shortTitle = docAfterLoad.shortTitle || docAfterLoad.title
+              if (shortTitle) {
+                next.shortTitle = [shortTitle]
+              }
+              return next as typeof f
+            })
             onOpenDocument(docAfterLoad)
           }
         }, 500)
       }
+      
+      // Reset processing flag nach kurzer Verzögerung
+      setTimeout(() => {
+        processingEventRef.current = null
+      }, 300)
     }
     window.addEventListener('open-document-detail', handleOpenDocument)
-    return () => window.removeEventListener('open-document-detail', handleOpenDocument)
+    return () => {
+      window.removeEventListener('open-document-detail', handleOpenDocument)
+      processingEventRef.current = null
+    }
   }, [docs, libraryId, setFilters, onOpenDocument])
 
   useEffect(() => {

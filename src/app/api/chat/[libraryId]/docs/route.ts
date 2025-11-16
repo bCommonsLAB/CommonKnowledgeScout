@@ -2,6 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
+import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
 import { findDocs, computeDocMetaCollectionName, ensureFacetIndexes, getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
@@ -34,17 +35,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     }
     const builtin = buildFilterFromQuery(url, defs)
     // buildFilterFromQuery liefert Pinecone-Filter-Form; auf Mongo-Form abbilden
-    const filter: Record<string, unknown> = {}
-    if (builtin['authors']) filter['authors'] = builtin['authors']
-    if (builtin['region']) filter['region'] = builtin['region']
-    if (builtin['year']) filter['year'] = builtin['year']
-    if (builtin['docType']) filter['docType'] = builtin['docType']
-    if (builtin['source']) filter['source'] = builtin['source']
-    if (builtin['tags']) filter['tags'] = builtin['tags']
+    // Verwende Utility-Funktion für shortTitle-Mapping zu docMetaJson.shortTitle
+    const filter = facetsSelectedToMongoFilter(builtin)
+    
     // Unterstütze auch dynamische Facettenfelder (z.B. event, track, speakers aus Session-Daten)
+    // Die Utility-Funktion behandelt bereits alle Facetten, aber wir stellen sicher,
+    // dass alle Facetten aus builtin enthalten sind (falls sie nicht bereits durch facetsSelectedToMongoFilter behandelt wurden)
     for (const def of defs) {
       if (builtin[def.metaKey] && !filter[def.metaKey]) {
-        filter[def.metaKey] = builtin[def.metaKey]
+        // Konvertiere zu MongoDB-Format falls nötig
+        const value = builtin[def.metaKey]
+        if (Array.isArray(value)) {
+          filter[def.metaKey] = { $in: value }
+        } else {
+          filter[def.metaKey] = value
+        }
       }
     }
 

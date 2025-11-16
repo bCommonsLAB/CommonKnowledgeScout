@@ -405,9 +405,12 @@ export function DetailOverlay({ open, onClose, libraryId, fileId, viewType, titl
   
   if (!open) return null
   return (
-    <div className='fixed inset-0 z-50'>
+    <div className='fixed inset-0 z-[60]'>
       <div className='absolute inset-0 bg-black/50 lg:bg-transparent' onClick={onClose} />
-      <div className='absolute right-0 top-0 h-full w-full max-w-2xl bg-background shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col overflow-hidden'>
+      <div 
+        className='absolute right-0 top-0 h-full w-full max-w-2xl bg-background shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col overflow-hidden'
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className='flex flex-col gap-3 p-6 border-b shrink-0'>
           <div className='flex items-center justify-between gap-4'>
             <h2 className='text-xl font-semibold'>{displayTitle}</h2>
@@ -431,7 +434,10 @@ export function DetailOverlay({ open, onClose, libraryId, fileId, viewType, titl
                   </a>
                 </Button>
               )}
-              <Button variant='ghost' size='icon' onClick={onClose}>
+              <Button variant='ghost' size='icon' onClick={(e) => {
+                e.stopPropagation()
+                onClose()
+              }}>
                 <X className='h-4 w-4' />
               </Button>
             </div>
