@@ -8,8 +8,6 @@ import { useTranslation } from '@/lib/i18n/hooks'
 export interface DocumentFilterGroupProps {
   /** Array von shortTitles, die gefiltert werden sollen */
   shortTitles: string[]
-  /** Dokumentenliste für Titel-Lookup */
-  docs: Array<{ fileId?: string; id?: string; title?: string; shortTitle?: string }>
   /** Callback wenn Filter zurückgesetzt wird */
   onReset: () => void
   /** Callback wenn einzelner Filter entfernt wird */
@@ -20,7 +18,7 @@ export interface DocumentFilterGroupProps {
  * Komponente zur Anzeige und Verwaltung von shortTitle-Filtern
  * Zeigt ausgewählte Dokumente mit Möglichkeit zum Entfernen einzelner Filter
  */
-export function DocumentFilterGroup({ shortTitles, docs, onReset, onRemove }: DocumentFilterGroupProps) {
+export function DocumentFilterGroup({ shortTitles, onReset, onRemove }: DocumentFilterGroupProps) {
   const { t } = useTranslation()
 
   if (shortTitles.length === 0) {

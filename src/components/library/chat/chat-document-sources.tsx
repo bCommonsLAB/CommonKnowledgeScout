@@ -95,9 +95,9 @@ export function ChatDocumentSources({ sources, libraryId, onDocumentClick }: Cha
   const handleShowDocuments = () => {
     if (groupedDocs.length === 0) return
     
-    // Setze Filter auf shortTitle-Liste
+    // Setze Filter auf fileName-Liste (fileName wird als shortTitle verwendet)
     const shortTitles = groupedDocs
-      .map(d => d.shortTitle || d.title)
+      .map(d => d.fileName)
       .filter((title): title is string => !!title)
     if (shortTitles.length > 0) {
       setFilters({ shortTitle: shortTitles })

@@ -14,10 +14,9 @@ export interface FiltersPanelProps {
   onChange: (name: string, values: string[]) => void
   title: string
   description?: string
-  docs?: Array<{ fileId?: string; id?: string; title?: string; shortTitle?: string }> // Optional: Dokumentenliste für fileId-Filter-Anzeige
 }
 
-export function FiltersPanel({ facetDefs, selected, onChange, title, description, docs = [] }: FiltersPanelProps) {
+export function FiltersPanel({ facetDefs, selected, onChange, title, description }: FiltersPanelProps) {
   const { t } = useTranslation()
   
   // Extrahiere shortTitle-Filter
@@ -41,7 +40,6 @@ export function FiltersPanel({ facetDefs, selected, onChange, title, description
               {hasShortTitleFilter && (
                 <DocumentFilterGroup
                   shortTitles={shortTitleFilter}
-                  docs={docs}
                   onReset={() => onChange('shortTitle', [])}
                   onRemove={(shortTitle) => {
                     const remaining = shortTitleFilter.filter(title => title !== shortTitle)

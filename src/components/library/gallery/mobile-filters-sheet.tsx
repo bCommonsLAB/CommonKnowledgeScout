@@ -13,10 +13,9 @@ export interface MobileFiltersSheetProps {
   onChange: (name: string, values: string[]) => void
   title: string
   description?: string
-  docs?: Array<{ fileId?: string; id?: string; title?: string; shortTitle?: string }> // Optional: Dokumentenliste für fileId-Filter-Anzeige
 }
 
-export function MobileFiltersSheet({ open, onOpenChange, facetDefs, selected, onChange, title, description, docs = [] }: MobileFiltersSheetProps) {
+export function MobileFiltersSheet({ open, onOpenChange, facetDefs, selected, onChange, title, description }: MobileFiltersSheetProps) {
   // Extrahiere shortTitle-Filter
   const shortTitleFilter = selected.shortTitle
   const hasShortTitleFilter = Array.isArray(shortTitleFilter) && shortTitleFilter.length > 0
@@ -33,7 +32,6 @@ export function MobileFiltersSheet({ open, onOpenChange, facetDefs, selected, on
           {hasShortTitleFilter && (
             <DocumentFilterGroup
               shortTitles={shortTitleFilter}
-              docs={docs}
               onReset={() => onChange('shortTitle', [])}
               onRemove={(shortTitle) => {
                 const remaining = shortTitleFilter.filter(title => title !== shortTitle)

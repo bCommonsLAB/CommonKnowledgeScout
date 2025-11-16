@@ -558,7 +558,6 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                 onChange={setFacet}
                 title={t('gallery.filter')}
                 description={texts.filterDescription}
-                docs={docs}
               />
 
               {/* Items Panel (rechte Spalte) */}
@@ -638,7 +637,6 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
         onChange={setFacet}
         title={t('gallery.filter')}
         description={texts.filterDescription}
-        docs={docs}
       />
 
       {/* Detail Overlay */}
