@@ -142,8 +142,8 @@
         "interests": {
           "label": "Was interessiert dich besonders? (Interessenprofil)",
           "helpText": "Wähle, welche Aspekte für dich im Vordergrund stehen sollen. Die Antworten gewichten diese Themen stärker.",
-          "maxSelected": "Max. 3 auswählbar",
-          "selectedCount": "{count} von 3 ausgewählt"
+          "maxSelected": "Max. 5 auswählbar",
+          "selectedCount": "{count} von 5 ausgewählt"
         },
         "languageStyle": {
           "label": "Sprachstil",
@@ -154,23 +154,6 @@
           "start": "Mit dieser Perspektive starten",
           "footer": "Du kannst deine Auswahl später im Story Mode jederzeit ändern."
         }
-      },
-      "perspectivePage": {
-        "title": "Wie sollen Antworten für dich formuliert sein?",
-        "subtitle": "Damit Inhalte so dargestellt werden, wie sie für dich am besten verständlich sind.",
-        "whyThisPageTitle": "Warum diese Seite?",
-        "whyThisPageText": "Jede Person bringt einen anderen Zugang mit. Deine Auswahl sorgt dafür, dass Antworten zu deinem Hintergrund und deinen Interessen passen.",
-        "languageSectionTitle": "Sprache",
-        "languageSectionHelp": "In welcher Sprache möchtest du die Antworten lesen?",
-        "characterSectionTitle": "Thematische Interessen",
-        "characterSectionHelp": "Welche Themen stehen für dich im Vordergrund? Die Antworten gewichten diese Bereiche stärker.",
-        "accessPerspectiveSectionTitle": "Zugangsperspektive",
-        "accessPerspectiveSectionHelp": "Welche Art des Zugangs passt am besten zu dir? Die Antworten heben passende Aspekte stärker hervor.",
-        "socialContextSectionTitle": "Sprachstil",
-        "socialContextSectionHelp": "Wie sollen die Antworten klingen?",
-        "socialContextSectionNote": "Du bestimmst nur den Stil – nicht den Inhalt. Die Antworten basieren auf denselben Quellen.",
-        "saveButton": "Mit dieser Perspektive starten",
-        "backToStoryMode": "Zurück zu Story Mode"
       }
     },
     "searchPlaceholder": "Durchsuchen nach Titel, Speaker, Topic...",
@@ -185,7 +168,9 @@
     "references": "Quellenverzeichnis",
     "referencesDescription": "Die Antwort wurde aus diesen Dokumenten generiert.",
     "sources": "Quellen",
-    "scrollToQuestion": "zur Frage",
+    "source": "Quelle",
+    "answersGeneratedFromSources": "Antworten werden aus {count} {sourceLabel} generiert.",
+    "scrollToQuestion": "zur Fragestellung",
     "closeReferences": "Schließen",
     "usedDocuments": "In der Antwort zitierte Dokumente",
     "otherDocuments": "Andere Dokumente, die sich auch mit dieser Frage beschäftigen",
@@ -231,7 +216,7 @@
   "chat": {
     "source": "Quelle",
     "characterLabels": {
-      "undefined": "Keine spezifische Perspektive",
+      "undefined": "nicht spezifiziert",
       "technical": "Technikorientiert",
       "social-cultural": "Gesellschaft & Kultur",
       "ecology": "Ökologie & Nachhaltigkeit",
@@ -253,7 +238,7 @@
       "creative": "Fokus auf Visionen, Ideen, Experimente und neue Perspektiven."
     },
     "accessPerspectiveLabels": {
-      "undefined": "Keine spezifische Zugangsperspektive",
+      "undefined": "nicht spezifiziert",
       "insight": "Erkenntnisorientiert",
       "community": "Gemeinschaftsorientiert",
       "sustainability": "Nachhaltigkeitsorientiert",
@@ -271,7 +256,7 @@
       "future_view": "Betont Potenzial, Innovation, Möglichkeiten und Zukunftsbilder."
     },
     "socialContextLabels": {
-      "undefined": "Kein spezifischer Sprachstil",
+      "undefined": "nicht spezifiziert",
       "scientific": "Wissenschaftlich",
       "general": "Allgemeinverständlich",
       "youth": "Jugendlich",
@@ -307,10 +292,10 @@
       "languageSectionHelp": "In welcher Sprache möchtest du die Antworten lesen?",
       "characterSectionTitle": "Thematische Interessen",
       "characterSectionHelp": "Welche Themen stehen für dich im Vordergrund? Die Antworten gewichten diese Bereiche stärker.",
-      "characterSectionSelectedCount": "{count} von 3 ausgewählt",
+      "characterSectionSelectedCount": "{count} von 5 ausgewählt",
       "accessPerspectiveSectionTitle": "Zugangsperspektive",
       "accessPerspectiveSectionHelp": "Welche Art des Zugangs passt am besten zu dir? Die Antworten heben passende Aspekte stärker hervor.",
-      "accessPerspectiveSectionSelectedCount": "{count} von 3 ausgewählt",
+      "accessPerspectiveSectionSelectedCount": "{count} von 5 ausgewählt",
       "socialContextSectionTitle": "Sprachstil",
       "socialContextSectionHelp": "Wie sollen die Antworten klingen?",
       "socialContextSectionNote": "Du bestimmst nur den Stil – nicht den Inhalt. Die Antworten basieren auf denselben Quellen.",

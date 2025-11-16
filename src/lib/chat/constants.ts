@@ -93,9 +93,9 @@ export const RETRIEVER_ZOD_ENUM = z.enum(['chunk', 'doc', 'summary'])
 
 export type TargetLanguage = 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'
 
-export const TARGET_LANGUAGE_VALUES: readonly TargetLanguage[] = ['de', 'en', 'it', 'fr', 'es', 'ar'] as const
+export const TARGET_LANGUAGE_VALUES: readonly TargetLanguage[] = ['en', 'de', 'it', 'fr', 'es', 'ar'] as const
 
-export const TARGET_LANGUAGE_DEFAULT: TargetLanguage = 'de'
+export const TARGET_LANGUAGE_DEFAULT: TargetLanguage = 'en'
 
 export const TARGET_LANGUAGE_LABELS: Record<TargetLanguage, string> = {
   de: 'Deutsch',
@@ -106,7 +106,7 @@ export const TARGET_LANGUAGE_LABELS: Record<TargetLanguage, string> = {
   ar: 'Arabisch',
 }
 
-export const TARGET_LANGUAGE_ZOD_ENUM = z.enum(['de', 'en', 'it', 'fr', 'es', 'ar'])
+export const TARGET_LANGUAGE_ZOD_ENUM = z.enum(['en', 'de', 'it', 'fr', 'es', 'ar'])
 
 // ============================================================================
 // CHARAKTER/PERSPEKTIVE (Character)

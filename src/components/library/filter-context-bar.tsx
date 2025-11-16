@@ -7,26 +7,26 @@ import { Filter, X, MessageCircle, ArrowRight } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
-import { createDocTitleMap } from '@/utils/gallery/doc-title-map'
 
 interface FilterContextBarProps {
   docCount: number
   onOpenFilters: () => void
   onClear: () => void
-  showReferenceLegend?: boolean // Optional: Zeigt an, ob Quellenverzeichnis-Modus aktiv ist
   hideFilterButton?: boolean // Optional: Versteckt den Filter-Button (z.B. wenn Panel permanent sichtbar ist)
   facetDefs?: Array<{ metaKey: string; label: string }> // Optional: Facetten-Definitionen für Label-Lookup
   ctaLabel?: string // Optional: Label für CTA-Button
   onCta?: () => void // Optional: Callback für CTA-Button
   tooltip?: string // Optional: Tooltip für CTA-Button
-  docs?: Array<{ fileId?: string; id?: string; title?: string; shortTitle?: string }> // Optional: Dokumentenliste für fileId-Filter-Anzeige
 }
 
 /**
  * Filter-Kontext-Bar: Zeigt aktive Filter und Dokumentenanzahl
  * Wird oben in Gallery und Story-Modus angezeigt
+ * 
+ * WICHTIG: Zeigt nur Facetten-Filter (Track, Jahr, etc.) aus der Gallery/Inhalte.
+ * Antwortspezifische Filter (fileId-Filter) werden NICHT angezeigt.
  */
-export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferenceLegend = false, hideFilterButton = false, facetDefs = [], ctaLabel, onCta, tooltip, docs = [] }: FilterContextBarProps) {
+export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterButton = false, facetDefs = [], ctaLabel, onCta, tooltip }: FilterContextBarProps) {
   const filters = useAtomValue(galleryFiltersAtom)
   const { t } = useTranslation()
   
@@ -36,33 +36,16 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
     labelMap.set(def.metaKey, def.label || def.metaKey)
   })
   
-  // Erstelle eine Map für Dokumentennamen (fileId -> title)
-  const docTitleMap = createDocTitleMap(docs)
-  
-  // Extrahiere alle gesetzten Filter-Werte
+  // Extrahiere alle gesetzten Filter-Werte (NUR Facetten-Filter, KEINE fileId-Filter)
   const activeFilters: Array<{ key: string; value: string }> = []
   Object.entries(filters as Record<string, string[] | undefined>).forEach(([key, values]) => {
     if (Array.isArray(values) && values.length > 0) {
-      if (key === 'fileId') {
-        // fileId-Filter: Zeige Dokumentennamen oder Anzahl
-        if (showReferenceLegend) {
-          // Im Quellenverzeichnis-Modus: Anzahl anzeigen
-          activeFilters.push({ key: t('gallery.references'), value: `${values.length} ${values.length === 1 ? t('gallery.document') : t('gallery.documents')}` })
-        } else {
-          // Normale Anzeige: Dokumentennamen anzeigen
-          values.forEach(fileId => {
-            const docTitle = docTitleMap.get(fileId) || fileId
-            activeFilters.push({ key: t('gallery.document'), value: docTitle })
-          })
-        }
-      } else {
-        // Normale Facetten-Filter: alle Werte hinzufügen
-        // Verwende Label aus facetDefs, falls verfügbar, sonst metaKey
-        const displayKey = labelMap.get(key) || key
-        values.forEach(value => {
-          activeFilters.push({ key: displayKey, value: String(value) })
-        })
-      }
+      // Nur Facetten-Filter anzeigen (Track, Jahr, etc.)
+      // Verwende Label aus facetDefs, falls verfügbar, sonst metaKey
+      const displayKey = labelMap.get(key) || key
+      values.forEach(value => {
+        activeFilters.push({ key: displayKey, value: String(value) })
+      })
     }
   })
 
@@ -70,14 +53,15 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
 
   return (
     <div className="border-b py-2 flex flex-col gap-2">
-      {/* Titel "Quellen" */}
-      <div className="flex items-center justify-between mb-2 pb-2 px-0">
-        <h2 className="text-lg font-semibold">{t('gallery.sources')}</h2>
-      </div>
-      
       {/* Filter-Bar mit Icons, Badges und Buttons */}
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Filter-Icon - nur anzeigen wenn hideFilterButton nicht gesetzt */}
+        {/* Titel mit Dokumentenanzahl */}
+        <h2 className="text-lg font-semibold">
+          {t('gallery.answersGeneratedFromSources', { 
+            count: docCount,
+            sourceLabel: docCount === 1 ? t('gallery.source') : t('gallery.sources')
+          })}
+        </h2>
         {!hideFilterButton && (
         <Button
           variant="ghost"
@@ -90,11 +74,12 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, showReferen
         </Button>
       )}
 
-      {/* Dokumentenanzahl - immer anzeigen */}
-      <div className="text-sm text-muted-foreground shrink-0">
-        {docCount} {docCount === 1 ? t('gallery.document') : t('gallery.documents')}
-        {hasActiveFilters && ` - ${t('gallery.filtered')}:`}
-      </div>
+      {/* Gefiltert-Badge - nur anzeigen wenn Filter aktiv sind */}
+      {hasActiveFilters && (
+        <div className="text-sm text-muted-foreground shrink-0">
+          {t('gallery.filtered')}:
+        </div>
+      )}
 
       {/* Gesetzte Filter als Badges */}
       {hasActiveFilters && (

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Loader2, CheckCircle2, Circle, XCircle } from 'lucide-react'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 import { useTranslation } from '@/lib/i18n/hooks'
@@ -16,13 +17,43 @@ interface StepDisplay {
   icon?: React.ReactNode
 }
 
-export function ProcessingStatus({ steps }: ProcessingStatusProps) {
+export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
   const { t } = useTranslation()
+  const [progress, setProgress] = useState(0)
+  
+  // Kontinuierliche Progressbar-Animation wenn aktiv - halb so schnell durch kleinere Schritte
+  useEffect(() => {
+    if (!isActive) {
+      setProgress(0)
+      return
+    }
+    
+    // Starte mit 10% und bewege sich langsam vorwärts
+    setProgress(10)
+    
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        // Bewege sich langsam von 10% bis 90%, dann zurück zu 10%
+        if (prev >= 90) {
+          return 10
+        }
+        // Erhöhe um 1-1.5% pro Intervall (halb so groß wie vorher = halb so schnell)
+        // Doppelt so viele Schritte für gleiche Distanz
+        const increment = prev < 50 ? 1.4 : 1.4
+        return Math.min(prev + increment, 90)
+      })
+    }, 300) // Aktualisiere alle 300ms für flüssige Animation
+    
+    return () => clearInterval(interval)
+  }, [isActive])
   
   // Wenn keine Steps vorhanden sind, nichts anzeigen
   if (steps.length === 0) {
     return null
   }
+  
+  // Prüfe ob Prozess abgeschlossen ist (complete oder error Step vorhanden)
+  const isComplete = steps.some(s => s.type === 'complete' || s.type === 'error')
 
   // Konvertiere Steps zu Display-Format
   const displaySteps: StepDisplay[] = []
@@ -218,20 +249,44 @@ export function ProcessingStatus({ steps }: ProcessingStatusProps) {
   }
 
   return (
-    <div className="space-y-1.5">
-      {displaySteps.map((step, index) => (
-        <div key={index} className="flex items-start gap-2 text-sm">
-          <div className="flex-shrink-0 mt-0.5">
-            {step.icon || <Circle className="h-3 w-3 text-muted-foreground" />}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-muted-foreground">{step.label}</div>
-            {step.details && (
-              <div className="text-xs text-muted-foreground/80 mt-0.5">{step.details}</div>
-            )}
+    <div className="space-y-2">
+      {/* Kontinuierliche Progressbar oben - nur wenn aktiv und nicht abgeschlossen */}
+      {isActive && !isComplete && (
+        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden relative">
+          {/* Animierte Progressbar mit Shimmer-Effekt */}
+          <div 
+            className="h-full bg-primary rounded-full transition-all duration-300 ease-out relative overflow-hidden"
+            style={{
+              width: `${progress}%`,
+            }}
+          >
+            {/* Shimmer-Effekt für zusätzliche Bewegung - bewegt sich kontinuierlich */}
+            <div 
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent processing-shimmer"
+              style={{
+                width: '50%',
+              }}
+            />
           </div>
         </div>
-      ))}
+      )}
+      
+      {/* Steps-Liste */}
+      <div className="space-y-1.5">
+        {displaySteps.map((step, index) => (
+          <div key={index} className="flex items-start gap-2 text-sm">
+            <div className="flex-shrink-0 mt-0.5">
+              {step.icon || <Circle className="h-3 w-3 text-muted-foreground" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium text-muted-foreground">{step.label}</div>
+              {step.details && (
+                <div className="text-xs text-muted-foreground/80 mt-0.5">{step.details}</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

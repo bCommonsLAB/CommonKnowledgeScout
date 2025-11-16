@@ -16,7 +16,7 @@ import frTranslations from './translations/fr.json'
 import esTranslations from './translations/es.json'
 
 // Unterstützte Sprachen
-export const SUPPORTED_LOCALES = ['de', 'it', 'en', 'fr', 'es'] as const
+export const SUPPORTED_LOCALES = ['en', 'de', 'it', 'fr', 'es'] as const
 export type Locale = typeof SUPPORTED_LOCALES[number]
 
 // Standard-Sprache ist Englisch
@@ -133,9 +133,12 @@ function replaceParams(
  * Ermittelt die aktuelle Sprache aus verschiedenen Quellen
  * Priorität: URL-Parameter > Cookie > Browser-Sprache > Standard
  * 
+ * Standard-Verhalten: Browser-Sprache wird respektiert (wie bei den meisten Webseiten üblich),
+ * aber nur wenn sie unterstützt wird. Wenn nicht, wird DEFAULT_LOCALE verwendet.
+ * 
  * @param searchParams - URL-Suchparameter (z.B. ?lang=de)
- * @param cookieValue - Cookie-Wert für Sprache
- * @param acceptLanguage - Accept-Language Header vom Browser
+ * @param cookieValue - Cookie-Wert für Sprache (wird gesetzt, wenn Benutzer explizit Sprache wählt)
+ * @param acceptLanguage - Accept-Language Header vom Browser (z.B. 'de-DE,de;q=0.9,en;q=0.8')
  * @returns Die ermittelte Sprache
  */
 export function getLocale(
@@ -157,7 +160,7 @@ export function getLocale(
     }
   }
   
-  // 2. Cookie-Wert
+  // 2. Cookie-Wert (wird gesetzt, wenn Benutzer explizit Sprache wählt)
   if (cookieValue) {
     const normalized = normalizeLocale(cookieValue)
     if (SUPPORTED_LOCALES.includes(normalized)) {
@@ -165,7 +168,7 @@ export function getLocale(
     }
   }
   
-  // 3. Browser-Sprache
+  // 3. Browser-Sprache respektieren (nur wenn unterstützt)
   if (acceptLanguage) {
     const languages = acceptLanguage
       .split(',')
@@ -179,7 +182,7 @@ export function getLocale(
     }
   }
   
-  // 4. Standard
+  // 4. Standard (DEFAULT_LOCALE, wenn Browser-Sprache nicht unterstützt wird)
   return DEFAULT_LOCALE
 }
 

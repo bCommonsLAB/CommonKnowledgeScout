@@ -4,15 +4,19 @@ import { useMemo } from 'react'
 import { useAtomValue } from 'jotai'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Loader2, RefreshCw } from 'lucide-react'
+import { Loader2, RefreshCw, BookOpen, Bug } from 'lucide-react'
 import type { StoryTopicsData, StoryQuestion } from '@/types/story-topics'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
 import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
-import { AppLogo } from '@/components/shared/app-logo'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { librariesAtom } from '@/atoms/library-atom'
 import type { AnswerLength, Retriever, TargetLanguage, SocialContext, Character } from '@/lib/chat/constants'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { QueryDetailsDialog } from '@/components/library/chat/query-details-dialog'
+import { ProcessingStatus } from '@/components/library/chat/processing-status'
+import { useUser } from '@clerk/nextjs'
+import { useState } from 'react'
+import type { ChatProcessingStep } from '@/types/chat-processing'
 
 interface CachedTOC {
   answerLength?: AnswerLength
@@ -42,6 +46,7 @@ interface StoryTopicsProps {
   showReloadButton?: boolean // Zeigt an, ob Reload-Button angezeigt werden soll (bei Parameteränderungen)
   onRegenerate?: () => Promise<void> // Callback für Reload-Button
   isRegenerating?: boolean // Loading-State für Regenerierung
+  processingSteps?: ChatProcessingStep[] // Optional: Verarbeitungsschritte für vereinfachte User-Logs
 }
 
 interface StoryConfig {
@@ -68,8 +73,11 @@ export function StoryTopics({
   showReloadButton = false,
   onRegenerate,
   isRegenerating = false,
+  processingSteps = [],
 }: StoryTopicsProps) {
   const { t } = useTranslation()
+  const { isSignedIn } = useUser()
+  const [showDetails, setShowDetails] = useState(false)
   const libraries = useAtomValue(librariesAtom)
   
   // Lese Story-Config direkt aus State statt API-Call
@@ -87,8 +95,10 @@ export function StoryTopics({
 
   if (!visible) return null
 
-  // Loading-State: Zeige Loading-Indikator
-  if (isLoading || !data) {
+  // Loading-State: Zeige Loading-Indikator nur wenn wirklich geladen wird UND keine Daten vorhanden sind
+  // Wenn cachedTOC vorhanden ist, bedeutet das, dass Daten aus dem Cache geladen wurden
+  // und wir sollten die Komponente rendern, auch wenn data noch nicht gesetzt ist (aber cachedTOC ist vorhanden)
+  if (isLoading && !data && !cachedTOC) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
@@ -100,7 +110,11 @@ export function StoryTopics({
   }
 
   // Wenn keine Daten vorhanden: Zeige nichts (Placeholder nur für Entwicklung)
-  if (!topicsData) {
+  // ABER: Wenn cachedTOC vorhanden ist, bedeutet das, dass Daten aus dem Cache geladen wurden
+  // In diesem Fall sollten wir die Komponente rendern, auch wenn topicsData noch nicht gesetzt ist
+  // (z.B. wenn das TOC aus dem Cache geladen wird, aber storyTopicsData noch nicht verfügbar ist)
+  // Der Button sollte immer angezeigt werden, wenn cachedTOC vorhanden ist
+  if (!topicsData && !cachedTOC) {
     return null
   }
 
@@ -111,10 +125,7 @@ export function StoryTopics({
         <div className="space-y-2">
           {topicsTitle && (
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <AppLogo size={24} fallback={<Sparkles className="h-5 w-5 text-primary" />} />
-                <h2 className="text-2xl font-bold m-0">{topicsTitle}</h2>
-              </div>
+              <h2 className="text-2xl font-bold m-0">{topicsTitle}</h2>
               {/* Reload-Button oben rechts */}
               {showReloadButton && onRegenerate && (
                 <TooltipProvider>
@@ -154,7 +165,8 @@ export function StoryTopics({
         </div>
       </div>
 
-      {/* Accordion mit Themen */}
+      {/* Accordion mit Themen - nur anzeigen wenn topicsData vorhanden ist */}
+      {topicsData && topicsData.topics && topicsData.topics.length > 0 && (
       <Accordion type="single" collapsible className="w-full border rounded-lg">
         {topicsData.topics.map((topic) => (
           <AccordionItem key={topic.id} value={topic.id} className="border-b last:border-b-0">
@@ -184,9 +196,21 @@ export function StoryTopics({
           </AccordionItem>
         ))}
       </Accordion>
+      )}
       
       {/* KI-Info-Hinweis für KI-generiertes Inhaltsverzeichnis */}
       <AIGeneratedNotice compact />
+      
+      {/* Vereinfachte User-Logs (Processing Steps) - ähnlich wie bei normalen Antworten */}
+      {processingSteps.length > 0 && (
+        <div className="bg-muted/30 border rounded-lg p-3">
+          <div className="text-sm text-muted-foreground mb-2">{t('chatMessages.processing')}</div>
+          {/* Processing Steps - dezent innerhalb des Blocks */}
+          <div className="mt-2">
+            <ProcessingStatus steps={processingSteps} isActive={isLoading || isRegenerating} />
+          </div>
+        </div>
+      )}
       
       {/* Config-Anzeige unterhalb des TOC */}
       <div className="flex items-center justify-between gap-4 pt-4 mt-4 border-t border-border/50">
@@ -204,6 +228,48 @@ export function StoryTopics({
             filters={cachedTOC?.facetsSelected}
           />
         </div>
+        
+        {/* Debug-Button nur für eingeloggte Benutzer und wenn queryId vorhanden */}
+        {queryId && isSignedIn && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDetails(true)}
+            className="h-6 text-xs text-muted-foreground hover:text-foreground"
+            title="Zeigt technische Debug-Informationen zur Query"
+          >
+            <Bug className="h-3 w-3 mr-1" />
+            Debug
+          </Button>
+        )}
+      </div>
+      
+      {/* Query Details Dialog */}
+      {queryId && (
+        <QueryDetailsDialog
+          open={showDetails}
+          onOpenChange={setShowDetails}
+          libraryId={libraryId}
+          queryId={queryId}
+        />
+      )}
+
+      {/* Quellenverzeichnis-Button - nur auf Mobile sichtbar */}
+      <div className="lg:hidden pt-4">
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => {
+            const event = new CustomEvent('show-toc-references', {
+              detail: { libraryId },
+            })
+            window.dispatchEvent(event)
+          }}
+          className="w-full gap-2"
+        >
+          <BookOpen className="h-4 w-4" />
+          {t('gallery.references')}
+        </Button>
       </div>
     </div>
   )

@@ -76,6 +76,7 @@ export default clerkMiddleware(async (auth, req) => {
   
   // Setze Cookie für Sprachauswahl (30 Tage Gültigkeit)
   if (langParam && SUPPORTED_LOCALES.includes(langParam as Locale)) {
+    // Benutzer hat explizit Sprache über URL-Parameter gewählt
     const expires = new Date();
     expires.setTime(expires.getTime() + 30 * 24 * 60 * 60 * 1000);
     response.cookies.set('locale', langParam, {
@@ -84,7 +85,8 @@ export default clerkMiddleware(async (auth, req) => {
       sameSite: 'lax',
     });
   } else if (!cookieLocale) {
-    // Setze Standard-Sprache als Cookie wenn noch nicht gesetzt
+    // Setze ermittelte Locale als Cookie wenn noch nicht gesetzt
+    // (kann Browser-Sprache sein, wenn unterstützt, sonst DEFAULT_LOCALE)
     const expires = new Date();
     expires.setTime(expires.getTime() + 30 * 24 * 60 * 60 * 1000);
     response.cookies.set('locale', locale, {
@@ -113,7 +115,7 @@ export default clerkMiddleware(async (auth, req) => {
   // Die API-Routen prüfen selbst, ob die Library öffentlich ist
   if (!isPublic) {
     const path = req.nextUrl.pathname;
-    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|facets|config|stats|doc-meta|chats|toc-cache|doc-by-slug|speaker-images)$/.test(path);
+    const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|facets|config|stats|doc-meta|chats|doc-by-slug|speaker-images)$/.test(path);
     const isChatStreamPath = /^\/api\/chat\/[^/]+\/stream$/.test(path);
     const isTranslateDocumentPath = /^\/api\/chat\/[^/]+\/translate-document$/.test(path);
     if (

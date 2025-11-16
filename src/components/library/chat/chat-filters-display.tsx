@@ -46,7 +46,8 @@ export function ChatFiltersDisplay({ libraryId, queryId }: ChatFiltersDisplayPro
         if (cancelled) return
         
         // Prüfe, ob Filter vorhanden sind
-        const facetsSelected = queryLog.facetsSelected
+        // Extrahiere Filter aus cacheParams, falls vorhanden (neue Einträge), sonst Root-Feld (alte Einträge)
+        const facetsSelected = queryLog.cacheParams?.facetsSelected ?? queryLog.facetsSelected
         if (!facetsSelected || Object.keys(facetsSelected).length === 0) {
           setFilters(null)
           return

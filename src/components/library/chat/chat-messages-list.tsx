@@ -1,10 +1,8 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
 import { ChatConversationItem } from './chat-conversation-item'
 import { ProcessingStatus } from './processing-status'
 import { ChatConfigDisplay } from './chat-config-display'
-import { AppLogo } from '@/components/shared/app-logo'
 import type { ChatMessage } from './utils/chat-utils'
 import { groupMessagesToConversations } from './utils/chat-utils'
 import type { ChatProcessingStep } from '@/types/chat-processing'
@@ -157,14 +155,13 @@ export function ChatMessagesList({
 
       {/* Verarbeitungsstatus während des Sendens ODER Cache-Check */}
       {/* WICHTIG: Verstecke Verarbeitungsinfo, wenn Cache gefunden wurde und keine aktive Generierung läuft */}
-      {(isSending || (isCheckingTOC && !cachedStoryTopicsData && !cachedTOC) || (processingSteps.some(s => s.type === 'cache_check' || s.type === 'cache_check_complete') && !cachedStoryTopicsData && !cachedTOC)) && (
+      {/* Processing-Status nur anzeigen wenn:
+          1. Normale Frage gesendet wird (isSending) ODER
+          2. TOC wird geprüft/generiert UND wir sind NICHT im embedded Modus (dort wird StoryTopics mit eigenem Icon angezeigt) ODER
+          3. Cache-Check läuft UND wir sind NICHT im embedded Modus UND keine TOC-Daten vorhanden
+      */}
+      {(isSending || (!isEmbedded && ((isCheckingTOC && !cachedStoryTopicsData && !cachedTOC) || (processingSteps.some(s => s.type === 'cache_check' || s.type === 'cache_check_complete') && !cachedStoryTopicsData && !cachedTOC)))) && (
         <div className="flex gap-3 mb-4">
-          <div className="flex-shrink-0">
-            <AppLogo 
-              size={32} 
-              fallback={<Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />}
-            />
-          </div>
           <div className="flex-1 min-w-0">
             <div className="bg-muted/30 border rounded-lg p-3">
               <div className="text-sm text-muted-foreground">{t('chatMessages.processing')}</div>

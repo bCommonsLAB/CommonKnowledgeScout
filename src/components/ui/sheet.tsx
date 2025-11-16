@@ -51,12 +51,15 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  /** Versteckt den Standard-Close-Button (z.B. wenn ein benutzerdefinierter Close-Button verwendet wird) */
+  hideCloseButton?: boolean
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, children, hideCloseButton = false, ...props }, ref) => (
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content
@@ -65,10 +68,13 @@ const SheetContent = React.forwardRef<
       {...props}
     >
       {children}
+      {/* Standard-Close-Button nur anzeigen wenn nicht versteckt */}
+      {!hideCloseButton && (
       <SheetPrimitive.Close className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary z-10 p-2 sm:p-1">
         <X className="h-7 w-7 sm:h-4 sm:w-4" />
         <span className="sr-only">Schließen</span>
       </SheetPrimitive.Close>
+      )}
     </SheetPrimitive.Content>
   </SheetPortal>
 ))

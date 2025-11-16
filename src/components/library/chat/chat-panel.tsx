@@ -44,6 +44,8 @@ import type { QueryLog } from '@/types/query-log'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
+import { AppLogo } from '@/components/shared/app-logo'
+import { Bot } from 'lucide-react'
 
 interface ChatPanelProps {
   libraryId: string
@@ -158,6 +160,19 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   
   // Chat Stream (muss vor useChatTOC sein, da sendQuestion benötigt wird)
   const checkTOCCacheRef = useRef<(() => Promise<void>) | null>(null)
+  const setTOCDataRef = useRef<((data: {
+    storyTopicsData?: import('@/types/story-topics').StoryTopicsData
+    answer: string
+    references: import('@/types/chat-response').ChatResponse['references']
+    suggestedQuestions: string[]
+    queryId: string
+    answerLength?: import('@/lib/chat/constants').AnswerLength
+    retriever?: import('@/lib/chat/constants').Retriever
+    targetLanguage?: import('@/lib/chat/constants').TargetLanguage
+    character?: import('@/lib/chat/constants').Character[]
+    socialContext?: import('@/lib/chat/constants').SocialContext
+    facetsSelected?: Record<string, unknown>
+  }) => void) | null>(null)
   
   // Chat Stream
   const {
@@ -182,13 +197,24 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     setActiveChatId,
     setOpenConversations,
     setChatReferences,
-    onTOCComplete: async () => {
-      // Wird von useChatTOC behandelt - prüfe Cache nach kurzer Verzögerung
-      setTimeout(() => {
-        if (checkTOCCacheRef.current) {
-          checkTOCCacheRef.current()
-        }
-      }, 1000)
+    onTOCComplete: async (data) => {
+      // Rufe setTOCData direkt auf, wenn verfügbar
+      if (setTOCDataRef.current) {
+        setTOCDataRef.current({
+          storyTopicsData: data.storyTopicsData,
+          answer: data.answer,
+          references: data.references,
+          suggestedQuestions: data.suggestedQuestions,
+          queryId: data.queryId,
+          // Parameter aus aktuellem State
+          answerLength,
+          retriever,
+          targetLanguage,
+          character,
+          socialContext,
+          facetsSelected: galleryFilters || {},
+        })
+      }
     },
     onError: (err) => {
       setError(err)
@@ -219,8 +245,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     setProcessingSteps,
   })
   
-  // Setze Ref für späteren Zugriff
+  // Setze Refs für späteren Zugriff
   checkTOCCacheRef.current = checkTOCCache
+  setTOCDataRef.current = setTOCData
   
   // State für Reload-Button-Anzeige (wenn Parameter geändert wurden)
   const [showReloadButton, setShowReloadButton] = useState(false)
@@ -260,11 +287,12 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         if (cancelled) return
         
         // Vergleiche Parameter
+        // Extrahiere Cache-Felder aus cacheParams, falls vorhanden (neue Einträge), sonst Root-Felder (alte Einträge)
         const queryParams = {
-          targetLanguage: queryLog.targetLanguage,
-          character: queryLog.character,
-          socialContext: queryLog.socialContext,
-          facetsSelected: queryLog.facetsSelected || {},
+          targetLanguage: queryLog.cacheParams?.targetLanguage ?? queryLog.targetLanguage,
+          character: queryLog.cacheParams?.character ?? queryLog.character,
+          socialContext: queryLog.cacheParams?.socialContext ?? queryLog.socialContext,
+          facetsSelected: queryLog.cacheParams?.facetsSelected ?? queryLog.facetsSelected ?? {},
         }
         
         const currentParams = {
@@ -319,6 +347,15 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         const completeStep = lastStep as import('@/types/chat-processing').ChatProcessingStep & {
           storyTopicsData?: import('@/types/story-topics').StoryTopicsData
         }
+        
+        // Debug-Logging: Prüfe, ob storyTopicsData vorhanden ist
+        console.log('[chat-panel] Complete-Step empfangen:', {
+          hasStoryTopicsData: !!completeStep.storyTopicsData,
+          storyTopicsDataKeys: completeStep.storyTopicsData ? Object.keys(completeStep.storyTopicsData) : [],
+          storyTopicsDataTitle: completeStep.storyTopicsData?.title,
+          storyTopicsDataTopicsCount: completeStep.storyTopicsData?.topics?.length,
+        })
+        
         // Prüfe, ob dies eine TOC-Query war
         // WICHTIG: Prüfe sowohl messages als auch processingSteps, da die Message möglicherweise
         // noch nicht in messages ist, wenn der complete-Step kommt
@@ -331,6 +368,13 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             (step as { retriever?: string; reason?: string }).reason?.includes('TOC query')
         )
         const isTOCQuery = isTOCQueryInMessages || isTOCQueryInSteps || !!completeStep.storyTopicsData
+        
+        console.log('[chat-panel] TOC-Query-Prüfung:', {
+          isTOCQueryInMessages,
+          isTOCQueryInSteps,
+          hasStoryTopicsData: !!completeStep.storyTopicsData,
+          isTOCQuery,
+        })
         
         // Für TOC-Queries: Rufe IMMER setTOCData auf, auch wenn storyTopicsData null ist
         // (um isGeneratingTOCRef zurückzusetzen und Endlosschleifen zu verhindern)
@@ -886,22 +930,31 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                   )}
                   {/* StoryTopics nur anzeigen, wenn Dokumente vorhanden sind */}
                   {filteredDocsCount >= 1 && !galleryDataLoading && (
-                    <div className="mb-6 pb-6 border-b">
-                      <StoryTopics 
-                    libraryId={libraryId}
-                    data={cachedStoryTopicsData}
-                    isLoading={isCheckingTOC}
-                    queryId={cachedTOC?.queryId}
-                    cachedTOC={cachedTOC}
-                    showReloadButton={showReloadButton}
-                    onSelectQuestion={(question) => {
-                      setInput(question.text)
-                      setIsChatInputOpen(true)
-                      setTimeout(() => {
-                        inputRef.current?.focus()
-                      }, 100)
-                    }}
-                      />
+                    <div className="flex gap-3 mb-4 pb-6 border-b">
+                      <div className="flex-shrink-0">
+                        <AppLogo 
+                          size={32} 
+                          fallback={<Bot className="h-4 w-4 text-muted-foreground" />}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <StoryTopics 
+                          libraryId={libraryId}
+                          data={cachedStoryTopicsData}
+                          isLoading={isCheckingTOC}
+                          queryId={cachedTOC?.queryId}
+                          cachedTOC={cachedTOC}
+                          showReloadButton={showReloadButton}
+                          processingSteps={processingSteps}
+                          onSelectQuestion={(question) => {
+                            setInput(question.text)
+                            setIsChatInputOpen(true)
+                            setTimeout(() => {
+                              inputRef.current?.focus()
+                            }, 100)
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
                   {/* Logge Render-Entscheidung */}
@@ -1009,24 +1062,33 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                 )}
                 {/* StoryTopics nur anzeigen, wenn Dokumente vorhanden sind */}
                 {filteredDocsCount >= 1 && !galleryDataLoading && (
-                  <div className="mb-6 pb-6 border-b">
-                    <StoryTopics 
-                  libraryId={libraryId}
-                  data={cachedStoryTopicsData}
-                  isLoading={isCheckingTOC}
-                  queryId={cachedTOC?.queryId}
-                  cachedTOC={cachedTOC}
-                  showReloadButton={showReloadButton}
-                  onRegenerate={forceRegenerateTOC}
-                  isRegenerating={isGeneratingTOC}
-                  onSelectQuestion={(question) => {
-                    setInput(question.text)
-                    setIsChatInputOpen(true)
-                    setTimeout(() => {
-                      inputRef.current?.focus()
-                    }, 200)
-                  }}
-                    />
+                  <div className="flex gap-3 mb-4 pb-6 border-b">
+                    <div className="flex-shrink-0">
+                      <AppLogo 
+                        size={32} 
+                        fallback={<Bot className="h-4 w-4 text-muted-foreground" />}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <StoryTopics 
+                        libraryId={libraryId}
+                        data={cachedStoryTopicsData}
+                        isLoading={isCheckingTOC}
+                        queryId={cachedTOC?.queryId}
+                        cachedTOC={cachedTOC}
+                        showReloadButton={showReloadButton}
+                        onRegenerate={forceRegenerateTOC}
+                        isRegenerating={isGeneratingTOC}
+                        processingSteps={processingSteps}
+                        onSelectQuestion={(question) => {
+                          setInput(question.text)
+                          setIsChatInputOpen(true)
+                          setTimeout(() => {
+                            inputRef.current?.focus()
+                          }, 200)
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
                 {/* Logge Render-Entscheidung */}

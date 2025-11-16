@@ -14,6 +14,7 @@ export function DebugPanel({ log }: { log: QueryLog }) {
   const kpis = useMemo(() => computeKpis(log), [log])
   const filterDiff = useMemo(() => hasFilterDiff(log), [log])
   function simplifyLabel(stage: string, level: string): string {
+    if (stage === 'cache_check' && level === 'question') return 'Step 0: Cache Check'
     if (stage === 'embed' && level === 'question') return 'Step 1: Embed question'
     if (stage === 'query' && level === 'chunk') return 'Step 2a: Search chunks'
     if (stage === 'query' && level === 'summary') return 'Step 2b: Load summaries'
@@ -52,6 +53,11 @@ export function DebugPanel({ log }: { log: QueryLog }) {
   const steps = (log.retrieval || []).map((s, i) => ({ key: `step-${i}`, label: simplifyLabel(s.stage, s.level), step: s }))
 
   function explainStepLabelFromStep(step: QueryRetrievalStep): string {
+    if (step.stage === 'cache_check' && step.level === 'question') {
+      return step.cacheFound 
+        ? 'Cache wurde gefunden. Die Antwort wurde aus dem Cache geladen, ohne neue Berechnung durchzuführen.'
+        : 'Cache-Check durchgeführt, aber kein passender Cache gefunden. Die Antwort wird neu generiert.'
+    }
     if (step.stage === 'embed' && step.level === 'question') return 'Your question is translated into a numerical form (vector). This allows the system to measure "similarity" to text passages later.'
     if (step.stage === 'query' && step.level === 'chunk') return 'Search for the most relevant text passages (chunks). Result is a sorted hit list with relevance scores.'
     if (step.stage === 'query' && step.level === 'summary') return 'Chapter summaries are loaded and used as compact context (no ranking needed).'
@@ -67,6 +73,55 @@ export function DebugPanel({ log }: { log: QueryLog }) {
     <div>
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1 mb-1">{label}</div>
       <div className="text-xs text-muted-foreground mb-2">{explainStepLabelFromStep(step)}</div>
+      
+      {/* Cache-Informationen für Cache-Check-Steps */}
+      {step.stage === 'cache_check' && (
+        <div className="rounded border p-3 mb-3 bg-muted/30">
+          <div className="text-sm font-medium mb-2">Cache-Informationen</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs mb-3">
+            <div>
+              <span className="text-muted-foreground">Cache gefunden:</span>{' '}
+              <span className={`font-medium ${step.cacheFound ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {step.cacheFound ? 'Ja' : 'Nein'}
+              </span>
+            </div>
+            {step.documentCount !== undefined && (
+              <div>
+                <span className="text-muted-foreground">Dokumentenanzahl:</span>{' '}
+                <span className="font-medium">{step.documentCount}</span>
+              </div>
+            )}
+            {step.cacheHash && (
+              <div className="md:col-span-2">
+                <span className="text-muted-foreground">Cache-Hash:</span>{' '}
+                <span className="font-mono text-xs break-all">{step.cacheHash}</span>
+              </div>
+            )}
+            {step.cachedQueryId && (
+              <div className="md:col-span-2">
+                <span className="text-muted-foreground">Gecachte Query-ID:</span>{' '}
+                <span className="font-mono text-xs">{step.cachedQueryId}</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Cache-Parameter anzeigen (aus QueryLog.cacheParams) */}
+          {log.cacheParams && (
+            <div className="mt-3 pt-3 border-t border-border/50">
+              <div className="text-xs font-medium mb-2 text-muted-foreground">Cache-Parameter (für Hash-Berechnung)</div>
+              <div className="rounded border p-2 bg-background/50">
+                <pre className="text-xs whitespace-pre-wrap break-words font-mono">
+                  {JSON.stringify(log.cacheParams, null, 2)}
+                </pre>
+                <div className="mt-2 text-[10px] text-muted-foreground">
+                  💡 Diese Parameter wurden für die Hash-Berechnung verwendet. Kopiere diese für Debugging-Zwecke.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
       <div className="rounded border p-2 text-sm mb-2 flex items-center gap-2">
         {typeof step.timingMs === 'number' && <span className="px-2 py-0.5 rounded border">{step.timingMs}ms</span>}
         {typeof step.topKRequested === 'number' && <span className="px-2 py-0.5 rounded border text-xs">topK {step.topKRequested} → {(step.topKReturned || (step.results?.length || 0))}</span>}
@@ -207,16 +262,50 @@ export function DebugPanel({ log }: { log: QueryLog }) {
               </div>
             )}
             
+            {/* Cache-Informationen (wenn vorhanden) */}
+            {log.cacheHash && (
+              <div className="mt-4">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Cache-Status</div>
+                <div className="rounded-lg border-2 p-3 bg-muted/30">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs mb-3">
+                    <div>
+                      <span className="text-muted-foreground">Cache-Hash:</span>{' '}
+                      <span className="font-mono text-xs break-all">{log.cacheHash}</span>
+                    </div>
+                    {log.cacheParams?.documentCount !== undefined && (
+                      <div>
+                        <span className="text-muted-foreground">Dokumentenanzahl (bei Query):</span>{' '}
+                        <span className="font-medium">{log.cacheParams.documentCount}</span>
+                      </div>
+                    )}
+                  </div>
+                  {log.cacheParams && (
+                    <div className="mt-2 pt-2 border-t border-border/50">
+                      <div className="text-xs font-medium mb-1 text-muted-foreground">Cache-Parameter (für Hash-Berechnung)</div>
+                      <div className="rounded border p-2 bg-background/50">
+                        <pre className="text-xs whitespace-pre-wrap break-words font-mono">
+                          {JSON.stringify(log.cacheParams, null, 2)}
+                        </pre>
+                        <div className="mt-1 text-[10px] text-muted-foreground">
+                          💡 Diese Parameter wurden für die Hash-Berechnung verwendet. Kopiere diese für Debugging-Zwecke.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
             {/* Query-Parameter Sektion */}
             <div className="mt-4 text-[11px] uppercase tracking-wide text-muted-foreground">Query-Parameter</div>
             <div className="mt-1 grid grid-cols-2 md:grid-cols-3 gap-2">
               <div className="p-2 rounded border text-sm">
                 <div className="text-xs text-muted-foreground mb-1">Retriever-Methode</div>
-                <div className="font-medium">{getRetrieverLabel(log.retriever)}</div>
+                <div className="font-medium">{getRetrieverLabel(log.cacheParams?.retriever ?? log.retriever)}</div>
               </div>
               <div className="p-2 rounded border text-sm">
                 <div className="text-xs text-muted-foreground mb-1">Antwortlänge</div>
-                <div className="font-medium">{getAnswerLengthLabel(log.answerLength)}</div>
+                <div className="font-medium">{getAnswerLengthLabel(log.cacheParams?.answerLength ?? log.answerLength)}</div>
               </div>
               <div className="p-2 rounded border text-sm">
                 <div className="text-xs text-muted-foreground mb-1">Mode</div>

@@ -34,6 +34,7 @@ export interface ConversationPair {
 
 /**
  * Erstellt ChatMessages aus QueryLog-Daten
+ * Extrahiert Cache-relevante Felder aus cacheParams, falls vorhanden
  */
 export function createMessagesFromQueryLog(queryLog: {
   queryId: string
@@ -50,8 +51,28 @@ export function createMessagesFromQueryLog(queryLog: {
   socialContext?: SocialContext
   genderInclusive?: boolean
   facetsSelected?: GalleryFilters // Gallery-Filter (Facetten)
+  cacheParams?: {
+    answerLength?: AnswerLength
+    retriever?: Retriever
+    targetLanguage?: TargetLanguage
+    character?: Character[]
+    accessPerspective?: AccessPerspective[]
+    socialContext?: SocialContext
+    genderInclusive?: boolean
+    facetsSelected?: Record<string, unknown>
+  }
 }): ChatMessage[] {
   const messages: ChatMessage[] = []
+  
+  // Extrahiere Cache-Felder: Verwende cacheParams, falls vorhanden (neue Einträge), sonst Root-Felder (alte Einträge)
+  const answerLength = queryLog.cacheParams?.answerLength ?? queryLog.answerLength
+  const retriever = queryLog.cacheParams?.retriever ?? queryLog.retriever
+  const targetLanguage = queryLog.cacheParams?.targetLanguage ?? queryLog.targetLanguage
+  const character = queryLog.cacheParams?.character ?? queryLog.character
+  const accessPerspective = queryLog.cacheParams?.accessPerspective ?? queryLog.accessPerspective
+  const socialContext = queryLog.cacheParams?.socialContext ?? queryLog.socialContext
+  const genderInclusive = queryLog.cacheParams?.genderInclusive ?? queryLog.genderInclusive
+  const facetsSelected = (queryLog.cacheParams?.facetsSelected ?? queryLog.facetsSelected) as GalleryFilters | undefined
   
   // Frage als Message
   messages.push({
@@ -60,14 +81,14 @@ export function createMessagesFromQueryLog(queryLog: {
     content: queryLog.question,
     createdAt: typeof queryLog.createdAt === 'string' ? queryLog.createdAt : queryLog.createdAt.toISOString(),
     queryId: queryLog.queryId,
-    answerLength: queryLog.answerLength,
-    retriever: queryLog.retriever,
-    targetLanguage: queryLog.targetLanguage,
-    character: queryLog.character, // Array (kann leer sein)
-    accessPerspective: queryLog.accessPerspective, // Array (kann leer sein)
-    socialContext: queryLog.socialContext,
-    genderInclusive: queryLog.genderInclusive,
-    facetsSelected: queryLog.facetsSelected, // Gallery-Filter (Facetten)
+    answerLength,
+    retriever,
+    targetLanguage,
+    character, // Array (kann leer sein)
+    accessPerspective, // Array (kann leer sein)
+    socialContext,
+    genderInclusive,
+    facetsSelected, // Gallery-Filter (Facetten)
   })
   
   // Antwort als Message (wenn vorhanden)
@@ -85,14 +106,14 @@ export function createMessagesFromQueryLog(queryLog: {
       suggestedQuestions,
       queryId: queryLog.queryId,
       createdAt: typeof queryLog.createdAt === 'string' ? queryLog.createdAt : queryLog.createdAt.toISOString(),
-      answerLength: queryLog.answerLength,
-      retriever: queryLog.retriever,
-      targetLanguage: queryLog.targetLanguage,
-      character: queryLog.character, // Array (kann leer sein)
-      accessPerspective: queryLog.accessPerspective, // Array (kann leer sein)
-      socialContext: queryLog.socialContext,
-      genderInclusive: queryLog.genderInclusive,
-      facetsSelected: queryLog.facetsSelected, // Gallery-Filter (Facetten)
+      answerLength,
+      retriever,
+      targetLanguage,
+      character, // Array (kann leer sein)
+      accessPerspective, // Array (kann leer sein)
+      socialContext,
+      genderInclusive,
+      facetsSelected, // Gallery-Filter (Facetten)
     })
   }
   

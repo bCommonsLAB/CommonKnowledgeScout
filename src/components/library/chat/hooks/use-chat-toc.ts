@@ -9,9 +9,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
 import type { TargetLanguage, Character, SocialContext, AnswerLength, Retriever } from '@/lib/chat/constants'
-import { TOC_QUESTION, characterArrayToString } from '@/lib/chat/constants'
+import { TOC_QUESTION } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
-import { useStoryTopicsCache } from '@/hooks/use-story-topics-cache'
 
 interface CachedTOC {
   answer: string
@@ -74,36 +73,21 @@ interface UseChatTOCResult {
  */
 export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
   const {
-    libraryId,
-    cfg,
-    targetLanguage,
-    character,
-    socialContext,
-    genderInclusive,
-    galleryFilters,
     isSending,
     sendQuestion,
-    setProcessingSteps,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     isEmbedded, // Wird aktuell nicht verwendet, aber Teil der API für zukünftige Verwendung
   } = params
 
   const [cachedStoryTopicsData, setCachedStoryTopicsData] = useState<StoryTopicsData | null>(null)
   const [cachedTOC, setCachedTOC] = useState<CachedTOC | null>(null)
-  const [isCheckingTOC, setIsCheckingTOC] = useState(false)
+  const [isCheckingTOC] = useState(false)
   const [isGeneratingTOC, setIsGeneratingTOC] = useState(false)
-  const { checkCache: checkCacheAPI } = useStoryTopicsCache()
 
-  // Ref für synchrones Tracking, ob Cache-Check läuft (verhindert Race Conditions)
-  const isCheckingTOCRef = useRef(false)
   // Ref für sendQuestion, falls es später gesetzt wurde
   const sendQuestionRef = useRef(sendQuestion)
-  // Ref für Debounce-Timer
+  // Ref für Debounce-Timer (für checkCacheExposed)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
-  // Ref für letzten Cache-Check-Zeitpunkt (verhindert zu häufige Checks)
-  const lastCheckTimeRef = useRef<number>(0)
-  // Ref für Cache-Key (verhindert Checks mit identischen Parametern)
-  const lastCacheKeyRef = useRef<string>('')
   // Ref für Tracking, ob gerade eine TOC-Generierung läuft (verhindert Endlosschleife)
   const isGeneratingTOCRef = useRef(false)
   
@@ -136,215 +120,14 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     }
   }, [isSending, cachedStoryTopicsData, cachedTOC])
 
+  // Cache-Check erfolgt jetzt automatisch beim Senden einer Frage über stream/route.ts
+  // Diese Funktion ist eine No-Op, da der Cache-Check jetzt Teil des Stream-Prozesses ist
   const checkCache = useCallback(async () => {
-    if (!cfg) {
-      return
-    }
-
-    // WICHTIG: Überspringe Check NICHT mehr, wenn bereits eine Generierung läuft
-    // Der Cache-Check sollte IMMER durchgeführt werden, bevor eine Generierung startet
-    // Die Generierung wird durch die Bedingung in generateTOC() verhindert, wenn isCheckingTOC true ist
-    
-    // WICHTIG: Überspringe Check NICHT mehr, wenn bereits Daten vorhanden sind
-    // Beim Seiten-Reload sollten die Daten zunächst leer sein, und der Check sollte
-    // immer durchgeführt werden, um sicherzustellen, dass der Cache korrekt ist
-    // Die Daten werden nur übersprungen, wenn bereits eine Generierung läuft
-
-    // Erstelle Cache-Key aus Parametern
-    const cacheKey = JSON.stringify({
-      libraryId,
-      targetLanguage,
-      character,
-      socialContext,
-      genderInclusive,
-      galleryFilters,
-    })
-    
-    // Wenn bereits ein Check mit denselben Parametern läuft oder gerade gelaufen ist, überspringe
-    if (isCheckingTOCRef.current) {
-      console.log('[useChatTOC] checkCache: Übersprungen - Cache-Check bereits in Progress (Race Condition verhindert)')
-      return
-    }
-    
-    // Wenn derselbe Cache-Key wie beim letzten Check, überspringe (Debounce)
-    // Erhöhe Debounce-Zeit auf 2 Sekunden, um häufige Filter-Änderungen abzufangen
-    const now = Date.now()
-    if (cacheKey === lastCacheKeyRef.current && now - lastCheckTimeRef.current < 2000) {
-      return
-    }
-    
-    // Setze Ref synchron, bevor State-Update (verhindert Race Condition)
-    console.log('[useChatTOC] checkCache: Starte Cache-Check', {
-      libraryId,
-      targetLanguage,
-      character,
-      socialContext,
-      genderInclusive,
-      cacheKey,
-    })
-    isCheckingTOCRef.current = true
-    setIsCheckingTOC(true)
-    lastCacheKeyRef.current = cacheKey
-    lastCheckTimeRef.current = now
-
-    // Füge Cache-Check-Step hinzu
-    if (setProcessingSteps) {
-      setProcessingSteps(prev => {
-        // Entferne alte Cache-Check-Steps, falls vorhanden
-        const filtered = prev.filter(s => s.type !== 'cache_check' && s.type !== 'cache_check_complete')
-        return [...filtered, {
-          type: 'cache_check',
-          parameters: {
-            targetLanguage,
-            // Konvertiere Character-Array zu komma-separiertem String für Processing-Step
-            character: characterArrayToString(character),
-            socialContext,
-            filters: galleryFilters,
-          },
-        }]
-      })
-    }
-
-    try {
-      const result = await checkCacheAPI({
-        libraryId,
-        targetLanguage,
-        character: character, // Array (kann leer sein)
-        socialContext,
-        genderInclusive,
-        galleryFilters,
-      })
-
-      // Füge Cache-Check-Complete-Step hinzu
-      if (setProcessingSteps) {
-        setProcessingSteps(prev => {
-          // Entferne alte Cache-Check-Steps, falls vorhanden, und füge neuen Complete-Step hinzu
-          const filtered = prev.filter(s => s.type !== 'cache_check' && s.type !== 'cache_check_complete')
-          const cacheCheckStep = prev.find(s => s.type === 'cache_check')
-          const newSteps = cacheCheckStep ? [cacheCheckStep] : []
-          return [...filtered, ...newSteps, {
-            type: 'cache_check_complete',
-            found: result?.found || false,
-            queryId: result?.queryId,
-          }]
-        })
-      }
-
-      console.log('[useChatTOC] checkCache: Cache-Check abgeschlossen', {
-        found: result?.found,
-        hasQueryId: !!result?.queryId,
-        hasStoryTopicsData: !!result?.storyTopicsData,
-        hasAnswer: !!result?.answer,
-      })
-      
-      if (result?.found && result.queryId) {
-        // Cache gefunden: Setze Daten und stoppe alle weiteren Processing-Steps
-        // Priorisiere storyTopicsData über answer
-        console.log('[useChatTOC] checkCache: Cache gefunden, setze Daten')
-        if (result.storyTopicsData) {
-          setCachedStoryTopicsData(result.storyTopicsData)
-          // Setze auch cachedTOC für Rückwärtskompatibilität (inkl. Parameter)
-          setCachedTOC({
-            answer: result.answer || '',
-            references: result.references,
-            suggestedQuestions: result.suggestedQuestions,
-            queryId: result.queryId,
-            createdAt: result.createdAt || new Date().toISOString(),
-            answerLength: result.answerLength,
-            retriever: result.retriever,
-            targetLanguage: result.targetLanguage,
-            character: result.character,
-            socialContext: result.socialContext,
-            facetsSelected: result.facetsSelected,
-          })
-        } else if (result.answer) {
-          // Fallback: Normale Antwort (für alte Caches)
-          setCachedTOC({
-            answer: result.answer,
-            references: result.references,
-            suggestedQuestions: result.suggestedQuestions,
-            queryId: result.queryId,
-            createdAt: result.createdAt || new Date().toISOString(),
-            answerLength: result.answerLength,
-            retriever: result.retriever,
-            targetLanguage: result.targetLanguage,
-            character: result.character,
-            socialContext: result.socialContext,
-            facetsSelected: result.facetsSelected,
-          })
-          setCachedStoryTopicsData(null)
-        } else {
-          setCachedTOC(null)
-          setCachedStoryTopicsData(null)
-        }
-        
-        // WICHTIG: Entferne alle Processing-Steps außer Cache-Check-Steps, wenn Cache gefunden wurde
-        // Dies verhindert, dass weitere Schritte angezeigt werden
-        if (setProcessingSteps) {
-          setProcessingSteps(prev => {
-            // Behalte nur Cache-Check-Steps
-            return prev.filter(s => s.type === 'cache_check' || s.type === 'cache_check_complete')
-          })
-        }
-        
-        // WICHTIG: Setze shouldAutoGenerateRef auf false, damit keine automatische Generierung gestartet wird
-        // Dies wird durch die useEffect-Bedingung in chat-panel.tsx überprüft, aber wir setzen es hier
-        // explizit, um Race Conditions zu vermeiden
-      } else {
-        // KEIN Cache gefunden
-        console.log('[useChatTOC] checkCache: Kein Cache gefunden')
-        setCachedTOC(null)
-        setCachedStoryTopicsData(null)
-        // WICHTIG: Entferne alle Processing-Steps außer Cache-Check-Steps
-        // Die automatische Generierung wird dann durch chat-panel.tsx gestartet
-        if (setProcessingSteps) {
-          setProcessingSteps(prev => {
-            // Behalte nur Cache-Check-Steps, damit die Generierung dann neue Steps hinzufügen kann
-            return prev.filter(s => s.type === 'cache_check' || s.type === 'cache_check_complete')
-          })
-        }
-      }
-    } catch (error) {
-      console.error('[useChatTOC] Fehler beim Cache-Check:', error)
-      // Bei Fehler: Setze Cache auf null, keine automatische Generierung
-      setCachedTOC(null)
-      setCachedStoryTopicsData(null)
-      
-      // Füge Fehler-Step hinzu
-      if (setProcessingSteps) {
-        setProcessingSteps(prev => {
-          const filtered = prev.filter(s => s.type !== 'cache_check' && s.type !== 'cache_check_complete')
-          const cacheCheckStep = prev.find(s => s.type === 'cache_check')
-          const newSteps = cacheCheckStep ? [cacheCheckStep] : []
-          return [...filtered, ...newSteps, {
-            type: 'cache_check_complete',
-            found: false,
-            queryId: undefined,
-          }]
-        })
-      }
-    } finally {
-      // Reset Check-Flag NACH der Generierungs-Entscheidung
-      // WICHTIG: Warte kurz, damit die Processing-Steps angezeigt werden können
-      setTimeout(() => {
-        isCheckingTOCRef.current = false
-        setIsCheckingTOC(false)
-      }, 100)
-    }
-  }, [
-    cfg,
-    libraryId,
-    targetLanguage,
-    character,
-    socialContext,
-    genderInclusive,
-    galleryFilters,
-    checkCacheAPI,
-    setProcessingSteps,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // cachedStoryTopicsData und cachedTOC sind nur Setter (stabil), nicht als Werte verwendet
-    // isEmbedded, isSending und sendQuestion werden nicht im checkCache verwendet
-  ])
+    // Cache-Check erfolgt automatisch beim Senden der TOC-Frage über generateTOC()
+    // Die Cache-Daten werden dann über setTOCData() gesetzt, wenn die Antwort kommt
+    // Diese Funktion bleibt für Rückwärtskompatibilität, macht aber nichts
+    console.log('[useChatTOC] checkCache: Cache-Check erfolgt automatisch beim Senden der Frage')
+  }, [])
 
   // Exponiere checkCache für externe Aufrufe (z.B. nach TOC-Query-Löschung)
   // Mit Debounce-Mechanismus, um wiederholte Aufrufe zu verhindern
@@ -380,11 +163,6 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       return
     }
 
-    // Wenn Cache-Check noch läuft, abbrechen
-    if (isCheckingTOC || isCheckingTOCRef.current) {
-      return
-    }
-
     // Prüfe zuerst, ob bereits ein Cache vorhanden ist
     const hasCachedData = cachedStoryTopicsData || cachedTOC
     if (hasCachedData) {
@@ -416,7 +194,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     }
     // HINWEIS: isGeneratingTOCRef wird zurückgesetzt, wenn setTOCData() aufgerufen wird
     // oder wenn die Generierung fehlschlägt (siehe catch-Block oben)
-  }, [isSending, isCheckingTOC, cachedStoryTopicsData, cachedTOC, sendQuestion])
+  }, [isSending, cachedStoryTopicsData, cachedTOC, sendQuestion])
 
   // Erzwingt Neugenerierung des TOC, auch wenn bereits ein Cache vorhanden ist
   const forceRegenerateTOC = useCallback(async () => {
@@ -426,11 +204,6 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
 
     // Wenn bereits eine Generierung läuft, abbrechen
     if (isGeneratingTOCRef.current) {
-      return
-    }
-
-    // Wenn Cache-Check noch läuft, abbrechen
-    if (isCheckingTOC || isCheckingTOCRef.current) {
       return
     }
 
@@ -458,7 +231,7 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       isGeneratingTOCRef.current = false
       setIsGeneratingTOC(false)
     }
-  }, [isSending, isCheckingTOC, sendQuestion])
+  }, [isSending, sendQuestion])
 
 
   // Funktion zum direkten Setzen von TOC-Daten (z.B. nach Stream-Complete)

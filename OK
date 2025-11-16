@@ -1,0 +1,30 @@
+[33mcommit f0cc11071f11748390e0c06c27defeb562a79242[m
+Author: Peter Aichner <peter.aichner@crystal-design.com>
+Date:   Sat Nov 15 17:03:30 2025 +0100
+
+    feat: enhance gallery and chat components with grouped items display
+    
+    - Introduced `GroupedItemsGrid` component to display documents in two categories: used and unused, improving organization of chat references.
+    - Updated `GalleryRoot` to utilize `GroupedItemsGrid`, enhancing the user experience by providing clearer document categorization.
+    - Modified `ChatReferenceList` and `ReferenceGroupHeader` to support the new grouping structure, ensuring consistent presentation of references.
+    - Enhanced localization for new UI elements and improved accessibility features across the gallery components.
+
+ .../library/chat/chat-config-display.tsx           |  42 [32m+++[m[31m--[m
+ .../library/chat/chat-conversation-item.tsx        |   2 [32m+[m[31m-[m
+ src/components/library/chat/chat-message.tsx       |  11 [32m+[m[31m-[m
+ src/components/library/chat/chat-messages-list.tsx |   1 [32m+[m
+ .../library/chat/chat-reference-list.tsx           |  96 [32m+++++[m[31m-----[m
+ .../library/chat/hooks/use-chat-stream.ts          |   4 [32m+[m[31m-[m
+ src/components/library/filter-context-bar.tsx      |  14 [32m+[m[31m-[m
+ src/components/library/gallery/gallery-root.tsx    | 188 [32m+++++++++++++[m[31m-------[m
+ .../library/gallery/grouped-items-grid.tsx         | 193 [32m+++++++++++++++++++++[m
+ src/components/library/gallery/items-grid.tsx      |   6 [32m+[m[31m-[m
+ .../library/gallery/reference-group-header.tsx     |  74 [32m++++++++[m
+ src/components/library/story/story-topics.tsx      |   1 [32m+[m
+ src/hooks/gallery/use-gallery-data.ts              |  44 [32m+++++[m
+ src/lib/i18n/translations/de.json                  |  10 [32m++[m
+ src/lib/i18n/translations/en.json                  |  10 [32m++[m
+ src/lib/i18n/translations/es.json                  |  10 [32m++[m
+ src/lib/i18n/translations/fr.json                  |  10 [32m++[m
+ src/lib/i18n/translations/it.json                  |  10 [32m++[m
+ 18 files changed, 588 insertions(+), 138 deletions(-)

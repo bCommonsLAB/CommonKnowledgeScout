@@ -99,11 +99,24 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                 socialContext?: string
                 genderInclusive?: boolean
                 facetsSelected?: Record<string, unknown>
+                cacheParams?: {
+                  queryType?: string
+                  answerLength?: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'
+                  retriever?: 'chunk' | 'doc' | 'summary' | 'auto'
+                  targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'
+                  character?: import('@/lib/chat/constants').Character[]
+                  accessPerspective?: import('@/lib/chat/constants').AccessPerspective[]
+                  socialContext?: 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language'
+                  genderInclusive?: boolean
+                  facetsSelected?: Record<string, unknown>
+                }
               }
 
               if (queryRes.ok && typeof queryData?.answer === 'string') {
                 // Überspringe TOC-Queries - diese werden separat angezeigt
-                if (queryData.queryType === 'toc') {
+                // Extrahiere queryType aus cacheParams, falls vorhanden (neue Einträge), sonst Root-Feld (alte Einträge)
+                const queryType = queryData.cacheParams?.queryType ?? queryData.queryType
+                if (queryType === 'toc') {
                   continue
                 }
 
@@ -123,6 +136,7 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                   : []
 
                 // Verwende gemeinsame Funktion zur Erstellung der Messages
+                // Extrahiere Cache-Felder aus cacheParams, falls vorhanden (neue Einträge), sonst Root-Felder (alte Einträge)
                 const msgs = createMessagesFromQueryLog({
                   queryId: item.queryId,
                   question: item.question,
@@ -130,14 +144,15 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                   references: references.length > 0 ? references : undefined,
                   suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : undefined,
                   createdAt: item.createdAt,
-                  answerLength: queryData.answerLength as 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt' | undefined,
-                  retriever: queryData.retriever as 'chunk' | 'doc' | 'summary' | 'auto' | undefined,
-                  targetLanguage: queryData.targetLanguage as 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar' | undefined,
-                  character: queryData.character,
-                  accessPerspective: queryData.accessPerspective,
-                  socialContext: queryData.socialContext as 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language' | undefined,
-                  genderInclusive: queryData.genderInclusive,
-                  facetsSelected: queryData.facetsSelected as import('@/atoms/gallery-filters').GalleryFilters | undefined,
+                  answerLength: (queryData.cacheParams?.answerLength ?? queryData.answerLength) as 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt' | undefined,
+                  retriever: (queryData.cacheParams?.retriever ?? queryData.retriever) as 'chunk' | 'doc' | 'summary' | 'auto' | undefined,
+                  targetLanguage: (queryData.cacheParams?.targetLanguage ?? queryData.targetLanguage) as 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar' | undefined,
+                  character: queryData.cacheParams?.character ?? queryData.character,
+                  accessPerspective: queryData.cacheParams?.accessPerspective ?? queryData.accessPerspective,
+                  socialContext: (queryData.cacheParams?.socialContext ?? queryData.socialContext) as 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language' | undefined,
+                  genderInclusive: queryData.cacheParams?.genderInclusive ?? queryData.genderInclusive,
+                  facetsSelected: (queryData.cacheParams?.facetsSelected ?? queryData.facetsSelected) as import('@/atoms/gallery-filters').GalleryFilters | undefined,
+                  cacheParams: queryData.cacheParams, // Übergebe cacheParams für Extraktion in createMessagesFromQueryLog
                 })
                 historyMessages.push(...msgs)
               }

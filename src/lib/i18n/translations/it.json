@@ -127,32 +127,6 @@
         "socialContext": "Stile linguistico",
         "adjustPerspective": "Regola la prospettiva",
         "adjustPerspectiveDescription": "Specifica come i contenuti sono preparati per te: in quale lingua, con quale profilo di interessi e da quale contesto. Così ottieni risposte che riflettono il tuo approccio e le tue priorità."
-      },
-      "storyModePerspectivePage": {
-        "title": "Come dovrebbero essere formulate le risposte per te?",
-        "subtitle": "In modo che i contenuti siano presentati nel modo più comprensibile per te.",
-        "description": "Scegli lingua, interessi e stile linguistico in modo che le spiegazioni corrispondano al tuo approccio. Puoi modificarlo in qualsiasi momento successivamente.",
-        "whyThisPage": "Perché questa pagina?",
-        "whyThisPageDescription": "Ogni persona porta un approccio diverso. La tua selezione garantisce che le risposte corrispondano al tuo background e ai tuoi interessi.",
-        "language": {
-          "label": "Lingua",
-          "helpText": "In quale lingua vorresti leggere le risposte?"
-        },
-        "interests": {
-          "label": "Cosa ti interessa particolarmente? (Profilo di interessi)",
-          "helpText": "Scegli quali aspetti dovrebbero essere in primo piano per te. Le risposte daranno più peso a questi argomenti.",
-          "maxSelected": "Max. 3 selezionabili",
-          "selectedCount": "{count} di 3 selezionati"
-        },
-        "languageStyle": {
-          "label": "Stile linguistico",
-          "helpText": "Come dovrebbero suonare le risposte?",
-          "note": "Determini solo lo stile – non il contenuto. Le risposte rimangono basate sulle stesse fonti."
-        },
-        "button": {
-          "start": "Inizia con questa prospettiva",
-          "footer": "Puoi modificare la tua selezione successivamente nella modalità Storia in qualsiasi momento."
-        }
       }
     },
     "searchPlaceholder": "Cerca per titolo, relatore, argomento...",
@@ -167,6 +141,8 @@
     "references": "Riferimenti",
     "referencesDescription": "La risposta è stata generata da questi documenti.",
     "sources": "Fonti",
+    "source": "Fonte",
+    "answersGeneratedFromSources": "Le risposte vengono generate da {count} {sourceLabel}.",
     "scrollToQuestion": "alla domanda",
     "closeReferences": "Chiudi",
     "usedDocuments": "Documenti citati nella risposta",
@@ -213,7 +189,7 @@
   "chat": {
     "source": "Fonte",
     "characterLabels": {
-      "undefined": "Nessuna prospettiva specifica",
+      "undefined": "non specificato",
       "technical": "Orientato alla tecnologia",
       "social-cultural": "Società & Cultura",
       "ecology": "Ecologia & Sostenibilità",
@@ -235,7 +211,7 @@
       "creative": "Focus su visioni, idee, esperimenti e nuove prospettive."
     },
     "accessPerspectiveLabels": {
-      "undefined": "Nessuna prospettiva di accesso specifica",
+      "undefined": "non specificato",
       "insight": "Orientato all'approfondimento",
       "community": "Orientato alla comunità",
       "sustainability": "Orientato alla sostenibilità",
@@ -253,7 +229,7 @@
       "future_view": "Enfatizza potenziale, innovazione, possibilità e visioni future."
     },
     "socialContextLabels": {
-      "undefined": "Nessuno stile linguistico specifico",
+      "undefined": "non specificato",
       "scientific": "Scientifico",
       "general": "Generalmente comprensibile",
       "youth": "Giovanile",
@@ -289,10 +265,10 @@
       "languageSectionHelp": "In quale lingua vorresti leggere le risposte?",
       "characterSectionTitle": "Interessi tematici",
       "characterSectionHelp": "Quali argomenti sono in primo piano per te? Le risposte danno più peso a queste aree.",
-      "characterSectionSelectedCount": "{count} di 3 selezionati",
+      "characterSectionSelectedCount": "{count} di 5 selezionati",
       "accessPerspectiveSectionTitle": "Prospettiva di accesso",
       "accessPerspectiveSectionHelp": "Quale tipo di accesso ti si addice meglio? Le risposte evidenziano più fortemente gli aspetti corrispondenti.",
-      "accessPerspectiveSectionSelectedCount": "{count} di 3 selezionati",
+      "accessPerspectiveSectionSelectedCount": "{count} di 5 selezionati",
       "socialContextSectionTitle": "Stile linguistico",
       "socialContextSectionHelp": "Come dovrebbero suonare le risposte?",
       "socialContextSectionNote": "Determini solo lo stile – non il contenuto. Le risposte si basano sulle stesse fonti.",

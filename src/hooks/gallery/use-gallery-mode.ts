@@ -13,30 +13,31 @@ export function useGalleryMode() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (mode !== 'story') {
-      if (containerRef.current) {
-        containerRef.current.style.height = ''
-        containerRef.current.style.maxHeight = ''
-      }
-      return
-    }
     const updateHeight = () => {
       if (!containerRef.current) return
+
       const navHeight = document.querySelector('nav')?.offsetHeight || 0
+
       // Prüfe die Tailwind Media Queries direkt aus CSS
       // md: 768px, lg: 1024px
       // Mobile: < 768px, Tablet: 768px - 1023px, Desktop: ≥ 1024px
       const isDesktop = window.matchMedia('(min-width: 1024px)').matches
       const isTablet = window.matchMedia('(min-width: 640px) and (max-width: 1023px)').matches
-      // Unterschiedliche Sicherheitsabstände für Desktop (120px), Tablet (95px) und Mobile (70px)
+
       const safetyMargin = isDesktop ? 115 : isTablet ? 115 : 70
       const availableHeight = window.innerHeight - navHeight - safetyMargin
+
       containerRef.current.style.height = `${availableHeight}px`
       containerRef.current.style.maxHeight = `${availableHeight}px`
     }
+
+    // Initial nach dem Mount und nach Moduswechsel (gallery/story) berechnen
     requestAnimationFrame(() => requestAnimationFrame(updateHeight))
+
     window.addEventListener('resize', updateHeight)
-    return () => window.removeEventListener('resize', updateHeight)
+    return () => {
+      window.removeEventListener('resize', updateHeight)
+    }
   }, [mode])
 
   const setMode = (newMode: 'gallery' | 'story') => {

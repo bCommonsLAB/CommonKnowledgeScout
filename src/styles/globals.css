@@ -147,6 +147,20 @@
   }
 }
 
+/* Processing Status Shimmer Animation */
+@keyframes processing-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.processing-shimmer {
+  animation: processing-shimmer 1.5s ease-in-out infinite;
+}
+
 /* Next.js Entwicklungs-Indikator ausblenden */
 #__next-build-indicator,
 [data-nextjs-toast],

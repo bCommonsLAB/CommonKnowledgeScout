@@ -127,32 +127,6 @@
         "socialContext": "Language Style",
         "adjustPerspective": "Adjust perspective",
         "adjustPerspectiveDescription": "Specify how the contents are prepared for you: in which language, with which interest profile, and from which context. This way you get answers that reflect your approach and priorities."
-      },
-      "storyModePerspectivePage": {
-        "title": "How should answers be formulated for you?",
-        "subtitle": "So that content is presented in a way that is most understandable for you.",
-        "description": "Choose language, interests, and language style so that explanations match your approach. You can change this at any time later.",
-        "whyThisPage": "Why this page?",
-        "whyThisPageDescription": "Every person brings a different approach. Your selection ensures that answers match your background and interests.",
-        "language": {
-          "label": "Language",
-          "helpText": "In which language would you like to read the answers?"
-        },
-        "interests": {
-          "label": "What interests you particularly? (Interest Profile)",
-          "helpText": "Choose which aspects should be in the foreground for you. The answers will weight these topics more strongly.",
-          "maxSelected": "Max. 3 selectable",
-          "selectedCount": "{count} of 3 selected"
-        },
-        "languageStyle": {
-          "label": "Language Style",
-          "helpText": "How should the answers sound?",
-          "note": "You only determine the style – not the content. The answers remain based on the same sources."
-        },
-        "button": {
-          "start": "Start with this perspective",
-          "footer": "You can change your selection later in Story Mode at any time."
-        }
       }
     },
     "searchPlaceholder": "Search by title, speaker, topic...",
@@ -167,6 +141,8 @@
     "references": "References",
     "referencesDescription": "The answer was generated from these documents.",
     "sources": "Sources",
+    "source": "Source",
+    "answersGeneratedFromSources": "Answers are generated from {count} {sourceLabel}.",
     "scrollToQuestion": "to question",
     "closeReferences": "Close",
     "usedDocuments": "Documents cited in the answer",
@@ -213,7 +189,7 @@
   "chat": {
     "source": "Source",
     "characterLabels": {
-      "undefined": "No specific perspective",
+      "undefined": "not specified",
       "technical": "Technology-oriented",
       "social-cultural": "Society & Culture",
       "ecology": "Ecology & Sustainability",
@@ -235,7 +211,7 @@
       "creative": "Focus on visions, ideas, experiments, and new perspectives."
     },
     "accessPerspectiveLabels": {
-      "undefined": "No specific access perspective",
+      "undefined": "not specified",
       "insight": "Insight-oriented",
       "community": "Community-oriented",
       "sustainability": "Sustainability-oriented",
@@ -253,7 +229,7 @@
       "future_view": "Emphasizes potential, innovation, possibilities, and future visions."
     },
     "socialContextLabels": {
-      "undefined": "No specific language style",
+      "undefined": "not specified",
       "scientific": "Scientific",
       "general": "Generally understandable",
       "youth": "Youth-oriented",
@@ -289,10 +265,10 @@
       "languageSectionHelp": "In which language would you like to read the answers?",
       "characterSectionTitle": "Thematic Interests",
       "characterSectionHelp": "Which topics are in the foreground for you? The answers weight these areas more strongly.",
-      "characterSectionSelectedCount": "{count} of 3 selected",
+      "characterSectionSelectedCount": "{count} of 5 selected",
       "accessPerspectiveSectionTitle": "Access Perspective",
       "accessPerspectiveSectionHelp": "Which type of access fits you best? The answers highlight matching aspects more strongly.",
-      "accessPerspectiveSectionSelectedCount": "{count} of 3 selected",
+      "accessPerspectiveSectionSelectedCount": "{count} of 5 selected",
       "socialContextSectionTitle": "Language Style",
       "socialContextSectionHelp": "How should the answers sound?",
       "socialContextSectionNote": "You determine only the style – not the content. The answers are based on the same sources.",

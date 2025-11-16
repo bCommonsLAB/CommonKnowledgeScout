@@ -27,6 +27,8 @@ interface GroupedItemsGridProps {
   libraryId: string
   /** Callback für Dokument-Öffnen */
   onOpenDocument: (doc: DocCardMeta) => void
+  /** Callback für Schließen (z.B. im ReferencesSheet, um das Sheet zu schließen) */
+  onClose?: () => void
 }
 
 /**
@@ -42,6 +44,7 @@ export function GroupedItemsGrid({
   queryId,
   libraryId,
   onOpenDocument,
+  onClose,
 }: GroupedItemsGridProps) {
   const { t } = useTranslation()
   const setChatReferences = useSetAtom(chatReferencesAtom)
@@ -100,9 +103,15 @@ export function GroupedItemsGrid({
     tryScroll()
   }
 
-  // Handler für "Referenzen schließen" Button - setzt Referenzen zurück und zeigt normale Galerie
+  // Handler für "Referenzen schließen" Button
   const handleCloseReferences = () => {
-    // Setze Referenzen zurück
+    // Wenn onClose-Callback vorhanden ist (z.B. im ReferencesSheet), rufe diesen auf
+    if (onClose) {
+      onClose()
+      return
+    }
+    
+    // Standard-Verhalten: Setze Referenzen zurück und zeige normale Galerie
     setChatReferences({ references: [] })
     
     // Setze Filter zurück (entferne fileId-Filter)
@@ -129,6 +138,7 @@ export function GroupedItemsGrid({
               {t('gallery.scrollToQuestion')}
             </Button>
           )}
+          {/* Close-Button: Im Answer-Modus (wenn onClose vorhanden) schließt er das Sheet, sonst setzt er Referenzen zurück */}
           <Button
             variant="outline"
             size="sm"

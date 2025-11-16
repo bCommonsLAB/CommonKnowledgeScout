@@ -30,7 +30,9 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { startQueryLog } from '@/lib/logging/query-logger'
-import { updateQueryLogPartial, findQueryByQuestionAndContext } from '@/lib/db/queries-repo'
+import { updateQueryLogPartial, findQueryByQuestionAndContext, getFilteredDocumentCount } from '@/lib/db/queries-repo'
+import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
+import { appendRetrievalStep } from '@/lib/logging/query-logger'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { buildFilters } from '@/lib/chat/common/filters'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
@@ -245,10 +247,63 @@ export async function POST(
 
         // Schritt 1.5: Cache-Check für bestehende Query
         // Prüfe, ob bereits eine identische Query mit Antwort existiert
-        // Dies gilt sowohl für TOC-Queries als auch für normale Fragen
+        // Verwendet Hash-basierte Suche für optimale Performance
+        // Dies gilt sowohl für TOC-Queries als auch für normale Fragen (gleiche Logik)
+        // WICHTIG: Für konsistenten Cache-Hash müssen wir den Retriever vor dem Cache-Check bestimmen,
+        // da beim Speichern auch der automatisch entschiedene Retriever verwendet wird.
+        // Variablen außerhalb des try-Blocks deklarieren, damit sie später verfügbar sind
+        let cacheHashForLog: string | undefined = undefined
+        let documentCount: number | undefined = undefined
+        let retrieverForCache: string | undefined = undefined
+        
         try {
+          // Schritt 1: Filter aufbauen (für Retriever-Entscheidung benötigt)
+          // Verwende temporären Retriever für Filter-Aufbau (wird später überschrieben)
+          const tempRetrieverForFilters: 'chunk' | 'summary' | 'chunkSummary' = explicitRetrieverValue 
+            ? explicitRetrieverValue 
+            : (isTOCQuery ? 'summary' : 'chunk')
+          const built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, tempRetrieverForFilters)
           
-          // Sende Cache-Check-Step (Start)
+          // Schritt 2: Retriever-Modus automatisch entscheiden (für Cache-Hash benötigt)
+          const retrieverDecision = await decideRetrieverMode({
+            libraryId,
+            userEmail: userEmail || '',
+            filter: built.mongo,
+            isTOCQuery,
+            explicitRetriever: explicitRetrieverValue,
+          })
+          
+          // Konvertiere chunkSummary zu 'chunk' für Cache-Hash (konsistent mit Speichern)
+          const effectiveRetrieverForCache: 'chunk' | 'summary' = retrieverDecision.mode === 'chunkSummary' 
+            ? 'chunk' 
+            : retrieverDecision.mode === 'summary'
+            ? 'summary'
+            : 'chunk'
+          
+          // Verwende expliziten Retriever-Wert, falls vorhanden, sonst automatisch entschiedenen
+          retrieverForCache = explicitRetrieverValue || effectiveRetrieverForCache
+          
+          // Berechne Hash und Dokumentenanzahl für Debug-Logs
+          // WICHTIG: Verwende gefilterte Dokumentenanzahl für Cache-Hash, da die Filter Teil des Cache-Kontexts sind
+          // Die gefilterte Anzahl wird verwendet, um den Cache zu invalidierten, wenn neue Dokumente hinzugefügt werden,
+          // die zu den Filtern passen
+          documentCount = await getFilteredDocumentCount(libraryId, built.mongo, userEmail || undefined)
+          cacheHashForLog = createCacheHash({
+            libraryId,
+            question: message.trim(),
+            queryType: isTOCQuery ? 'toc' : 'question',
+            answerLength,
+            targetLanguage: effectiveChatConfig.targetLanguage,
+            character: effectiveChatConfig.character,
+            accessPerspective: effectiveChatConfig.accessPerspective,
+            socialContext: effectiveChatConfig.socialContext,
+            genderInclusive: effectiveChatConfig.genderInclusive,
+            retriever: retrieverForCache,
+            facetsSelected: Object.keys(facetsSelected).length > 0 ? facetsSelected : undefined,
+            documentCount,
+          })
+          
+          // Sende Cache-Check-Step (Start) mit Debug-Informationen
           send({
             type: 'cache_check',
             parameters: {
@@ -258,20 +313,25 @@ export async function POST(
               socialContext: effectiveChatConfig.socialContext,
               filters: facetsSelected,
             },
+            cacheHash: cacheHashForLog,
+            documentCount,
           })
           
+          // Hash-basierte Cache-Suche (findQueryByQuestionAndContext berechnet intern den Hash)
+          // WICHTIG: Verwende den gleichen Retriever-Wert wie beim Hash-Berechnen oben
           const cachedQuery = await findQueryByQuestionAndContext({
             libraryId,
             userEmail: userEmail || undefined,
             sessionId: sessionId || undefined,
             question: message.trim(),
             queryType: isTOCQuery ? 'toc' : 'question',
+            answerLength,
             targetLanguage: effectiveChatConfig.targetLanguage,
             character: effectiveChatConfig.character,
             accessPerspective: effectiveChatConfig.accessPerspective,
             socialContext: effectiveChatConfig.socialContext,
             genderInclusive: effectiveChatConfig.genderInclusive,
-            retriever: explicitRetrieverValue || undefined,
+            retriever: retrieverForCache,
             facetsSelected: Object.keys(facetsSelected).length > 0 ? facetsSelected : undefined,
           })
 
@@ -283,28 +343,102 @@ export async function POST(
             // Wenn queryId noch nicht gesetzt wurde, setze sie für später
             queryId = finalQueryId
             
-            // Sende Cache-Check-Complete-Step (gefunden)
+            // Debug-Logging: Prüfe, ob storyTopicsData vorhanden ist
+            console.log('[stream/route] Cache gefunden:', {
+              queryId: finalQueryId,
+              hasAnswer: !!cachedQuery.answer,
+              hasStoryTopicsData: !!cachedQuery.storyTopicsData,
+              storyTopicsDataKeys: cachedQuery.storyTopicsData ? Object.keys(cachedQuery.storyTopicsData) : [],
+            })
+            
+            // Sende Cache-Check-Complete-Step (gefunden) mit Debug-Informationen
             send({
               type: 'cache_check_complete',
               found: true,
               queryId: finalQueryId,
+              cacheHash: cacheHashForLog,
+              documentCount,
+              cachedQueryId: cachedQuery.queryId,
             })
             
+            // Sammle Cache-Check-Steps für Logs (auch wenn Cache gefunden wurde)
+            const cacheSteps: ChatProcessingStep[] = [
+              {
+                type: 'cache_check',
+                parameters: {
+                  targetLanguage: effectiveChatConfig.targetLanguage,
+                  character: characterArrayToString(effectiveChatConfig.character),
+                  accessPerspective: accessPerspectiveArrayToString(effectiveChatConfig.accessPerspective),
+                  socialContext: effectiveChatConfig.socialContext,
+                  filters: facetsSelected,
+                },
+                cacheHash: cacheHashForLog,
+                documentCount,
+              },
+              {
+                type: 'cache_check_complete',
+                found: true,
+                queryId: finalQueryId,
+                cacheHash: cacheHashForLog,
+                documentCount,
+                cachedQueryId: cachedQuery.queryId,
+              },
+            ]
+            
+            // Speichere Cache-Check-Step auch im retrieval Array (für Debug-Zwecke)
+            if (cachedQuery.queryId) {
+              const cacheCheckStep = {
+                indexName: '',
+                namespace: '',
+                stage: 'cache_check' as const,
+                level: 'question' as const,
+                cacheHash: cacheHashForLog,
+                documentCount,
+                cacheFound: true,
+                cachedQueryId: cachedQuery.queryId,
+                startedAt: new Date(),
+                endedAt: new Date(),
+                timingMs: 0,
+              }
+              await appendRetrievalStep(cachedQuery.queryId, cacheCheckStep)
+            }
+            
             // Sende sofort als complete-Step mit Cache-Daten
-            send({
+            // WICHTIG: storyTopicsData muss explizit gesetzt werden (auch wenn undefined, damit Frontend es erkennt)
+            const completeStep: ChatProcessingStep & { storyTopicsData?: import('@/types/story-topics').StoryTopicsData } = {
               type: 'complete',
               answer: cachedQuery.answer || '',
               references: cachedQuery.references || [],
               suggestedQuestions: cachedQuery.suggestedQuestions || [],
               queryId: finalQueryId,
               chatId: activeChatId,
-              storyTopicsData: cachedQuery.storyTopicsData,
+            }
+            // Setze storyTopicsData explizit, auch wenn es undefined ist (damit Frontend es erkennt)
+            if (cachedQuery.storyTopicsData !== undefined && cachedQuery.storyTopicsData !== null) {
+              completeStep.storyTopicsData = cachedQuery.storyTopicsData
+              console.log('[stream/route] storyTopicsData wird gesendet:', {
+                hasStoryTopicsData: true,
+                title: cachedQuery.storyTopicsData?.title,
+                topicsCount: cachedQuery.storyTopicsData?.topics?.length,
+              })
+            } else {
+              console.log('[stream/route] storyTopicsData ist nicht vorhanden:', {
+                hasStoryTopicsData: false,
+                storyTopicsDataValue: cachedQuery.storyTopicsData,
+              })
+            }
+            console.log('[stream/route] Sende complete-Step:', {
+              type: completeStep.type,
+              hasStoryTopicsData: !!completeStep.storyTopicsData,
+              answerLength: completeStep.answer?.length,
             })
+            send(completeStep)
             
-            // Aktualisiere Query-Log mit Cache-Info (falls Query bereits existiert)
+            // Speichere Cache-Check-Logs in der gecachten Query (für Debug-Zwecke)
             if (cachedQuery.queryId) {
               await updateQueryLogPartial(cachedQuery.queryId, {
                 status: 'ok',
+                processingLogs: [...(cachedQuery.processingLogs || []), ...cacheSteps],
               })
             }
             
@@ -316,6 +450,8 @@ export async function POST(
             send({
               type: 'cache_check_complete',
               found: false,
+              cacheHash: cacheHashForLog,
+              documentCount,
             })
           }
         } catch (error) {
@@ -331,33 +467,58 @@ export async function POST(
         // An dieser Stelle wird nur fortgesetzt, wenn kein Cache gefunden wurde
 
         // Schritt 2: Filter aufbauen (für Retriever-Entscheidung benötigt)
-        // Verwende temporären Retriever für Filter-Aufbau (wird später überschrieben)
-        // Bei Auto-Modus (explicitRetrieverValue === null): TOC-Queries verwenden 'summary', normale Fragen 'chunk'
-        // HINWEIS: chunkSummary wird hier noch nicht verwendet, da die Entscheidung erst nach Filter-Aufbau getroffen wird.
-        // chunkSummary benötigt die gleichen Filter wie summary (beide filtern auf Dokumentebene).
-        const tempRetrieverForFilters: 'chunk' | 'summary' | 'chunkSummary' = explicitRetrieverValue 
-          ? explicitRetrieverValue 
-          : (isTOCQuery ? 'summary' : 'chunk')
-        const built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, tempRetrieverForFilters)
-
-        // Schritt 3: Retriever-Modus automatisch entscheiden
-        const retrieverDecision = await decideRetrieverMode({
-          libraryId,
-          userEmail: userEmail || '',
-          filter: built.mongo,
-          isTOCQuery,
-          explicitRetriever: explicitRetrieverValue, // null bei 'auto' oder leer → automatische Entscheidung
-        })
-
-        // Konvertiere chunkSummary zu 'chunk' für UI-Kompatibilität (interne Option)
-        const effectiveRetriever: 'chunk' | 'summary' = retrieverDecision.mode === 'chunkSummary' 
-          ? 'chunk' 
-          : retrieverDecision.mode === 'summary'
-          ? 'summary'
-          : 'chunk'
-
-        // Interner Retriever-Modus (kann chunkSummary sein)
-        const internalRetriever: 'chunk' | 'chunkSummary' | 'summary' = retrieverDecision.mode
+        // WICHTIG: Filter wurden bereits oben für Cache-Check aufgebaut, verwende diese
+        // (built wurde bereits im try-Block erstellt, falls Cache-Check durchgeführt wurde)
+        
+        // Wenn Cache-Check bereits durchgeführt wurde, wurden Filter bereits aufgebaut
+        // Ansonsten baue Filter jetzt auf
+        let built: { normalized: Record<string, unknown>; pinecone: Record<string, unknown>; mongo: Record<string, unknown> }
+        let retrieverDecision: { mode: 'chunk' | 'chunkSummary' | 'summary'; reason: string }
+        let effectiveRetriever: 'chunk' | 'summary'
+        let internalRetriever: 'chunk' | 'chunkSummary' | 'summary'
+        
+        if (retrieverForCache !== undefined) {
+          // Filter wurden bereits oben aufgebaut, verwende die bereits getroffene Entscheidung
+          // (Diese Variablen wurden bereits im try-Block gesetzt)
+          // Wir müssen sie hier neu setzen, da sie im try-Block lokal waren
+          const tempRetrieverForFilters: 'chunk' | 'summary' | 'chunkSummary' = explicitRetrieverValue 
+            ? explicitRetrieverValue 
+            : (isTOCQuery ? 'summary' : 'chunk')
+          built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, tempRetrieverForFilters)
+          retrieverDecision = await decideRetrieverMode({
+            libraryId,
+            userEmail: userEmail || '',
+            filter: built.mongo,
+            isTOCQuery,
+            explicitRetriever: explicitRetrieverValue,
+          })
+          effectiveRetriever = retrieverDecision.mode === 'chunkSummary' 
+            ? 'chunk' 
+            : retrieverDecision.mode === 'summary'
+            ? 'summary'
+            : 'chunk'
+          internalRetriever = retrieverDecision.mode
+        } else {
+          // Filter wurden noch nicht aufgebaut (Cache-Check wurde übersprungen)
+          const tempRetrieverForFilters: 'chunk' | 'summary' | 'chunkSummary' = explicitRetrieverValue 
+            ? explicitRetrieverValue 
+            : (isTOCQuery ? 'summary' : 'chunk')
+          built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, tempRetrieverForFilters)
+          retrieverDecision = await decideRetrieverMode({
+            libraryId,
+            userEmail: userEmail || '',
+            filter: built.mongo,
+            isTOCQuery,
+            explicitRetriever: explicitRetrieverValue,
+          })
+          effectiveRetriever = retrieverDecision.mode === 'chunkSummary' 
+            ? 'chunk' 
+            : retrieverDecision.mode === 'summary'
+            ? 'summary'
+            : 'chunk'
+          internalRetriever = retrieverDecision.mode
+          retrieverForCache = explicitRetrieverValue || effectiveRetriever
+        }
 
         send({
           type: 'retriever_selected',
@@ -367,7 +528,7 @@ export async function POST(
 
         const modeNow = internalRetriever === 'summary' ? 'summaries' as const : 'chunks' as const
 
-        // Schritt 4: Query-Log starten
+        // Schritt 3: Query-Log starten
         // Prüfe, ob es eine TOC-Frage ist (bereits oben definiert)
         
         queryId = await startQueryLog({
@@ -389,6 +550,23 @@ export async function POST(
           filtersNormalized: { ...built.normalized },
           filtersPinecone: { ...built.pinecone },
         })
+        
+        // Speichere Cache-Check-Step auch im retrieval Array (auch wenn kein Cache gefunden wurde)
+        if (cacheHashForLog !== undefined && documentCount !== undefined) {
+          const cacheCheckStep = {
+            indexName: '',
+            namespace: '',
+            stage: 'cache_check' as const,
+            level: 'question' as const,
+            cacheHash: cacheHashForLog,
+            documentCount,
+            cacheFound: false,
+            startedAt: new Date(),
+            endedAt: new Date(),
+            timingMs: 0,
+          }
+          await appendRetrievalStep(queryId, cacheCheckStep)
+        }
 
         // Schritt 5: Retriever ausführen (mit Status-Updates)
         send({ type: 'retrieval_start', retriever: effectiveRetriever })

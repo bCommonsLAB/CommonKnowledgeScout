@@ -27,6 +27,7 @@ import type { ChatRetriever, RetrieverInput, RetrieverOutput, RetrievedSource } 
 import { appendRetrievalStep as logAppend, markStepStart, markStepEnd } from '@/lib/logging/query-logger'
 import { getBaseBudget, canAccumulate, getTokenBudget, estimateTokensFromText, canAccumulateTokens } from '@/lib/chat/common/budget'
 import { extractFacetMetadata } from './metadata-extractor'
+import { TOC_QUESTION } from '@/lib/chat/constants'
 
 const env = {
   maxDocs: Number(process.env.SUMMARY_MAX_DOCS ?? 150),
@@ -80,6 +81,7 @@ export const summariesMongoRetriever: ChatRetriever = {
     let stepList = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'list', level: 'summary' })
     
     // Im Event-Modus keine Chapters laden (Performance-Optimierung)
+    // Dokumente werden nach upsertedAt abwärts sortiert (neueste zuerst)
     const items = await findDocSummaries(libraryKey, input.libraryId, input.filters, { 
       limit: env.maxDocs, 
       sort: { upsertedAt: -1 } 
@@ -89,12 +91,16 @@ export const summariesMongoRetriever: ChatRetriever = {
     const budgetTokens = getTokenBudget()
     const mode = decideSummaryMode(items as Array<{ chaptersCount?: number }>, budgetChars, isEventMode)
 
+    // Prüfe, ob es eine TOC-Query ist (erkennbar durch die Frage)
+    const isTOCQuery = input.question.trim() === TOC_QUESTION.trim()
+
     const sources: RetrievedSource[] = []
     let usedChars = 0
     let usedTokens = 0
 
-    // IM SUMMARY-MODUS: Alle gefilterten Dokumente übernehmen (Budget-Limitierung optional)
-    // Budget wird nur als Warnung verwendet, nicht als harte Grenze
+    // IM SUMMARY-MODUS: 
+    // - Für normale Queries: Alle gefilterten Dokumente übernehmen (Budget-Limitierung optional)
+    // - Für TOC-Queries: Budget-Prüfung als harte Grenze (nur neueste Dokumente bis Budget)
     for (const d of items) {
       // Extrahiere Metadaten aus dem Dokument basierend auf Facetten-Definitionen
       const docMeta = d as Record<string, unknown>
@@ -103,17 +109,33 @@ export const summariesMongoRetriever: ChatRetriever = {
       
       if (mode === 'chapters') {
         const ch = Array.isArray(d.chapters) ? d.chapters.slice(0, env.perDocChapterCap) : []
+        let budgetExceeded = false
+        
         for (const c of ch) {
           const title = typeof c?.title === 'string' ? c.title : undefined
           const sum = typeof c?.summary === 'string' ? c.summary : undefined
           if (!sum) continue
           const text = `${title ? `Kapitel: ${title}\n` : ''}${sum.slice(0, env.estimateCharsPerChapter)}`
-          // Im Summary-Modus: Budget prüfen, aber nicht abbrechen
-          // Nur warnen, wenn Budget überschritten wird
-          void canAccumulate(usedChars, text.length, budgetChars)
-          const est = budgetTokens ? estimateTokensFromText(text) : 0
-          void (budgetTokens ? canAccumulateTokens(usedTokens, est, budgetTokens) : true)
-          // Warnung: Budget überschritten, aber trotzdem hinzufügen
+          
+          // Budget-Prüfung: Für TOC-Queries als harte Grenze, sonst nur Warnung
+          if (isTOCQuery) {
+            // TOC-Query: Budget-Prüfung als harte Grenze (nur neueste Dokumente bis Budget)
+            // Prüfe sowohl Zeichen- als auch Token-Budget
+            const wouldExceedChars = !canAccumulate(usedChars, text.length, budgetChars)
+            const wouldExceedTokens = budgetTokens ? !canAccumulateTokens(usedTokens, estimateTokensFromText(text), budgetTokens) : false
+            
+            if (wouldExceedChars || wouldExceedTokens) {
+              // Budget überschritten: Stoppe hier (nur neueste Dokumente werden verwendet)
+              budgetExceeded = true
+              break
+            }
+          } else {
+            // Normale Query: Budget prüfen, aber nicht abbrechen (nur Warnung)
+            void canAccumulate(usedChars, text.length, budgetChars)
+            const est = budgetTokens ? estimateTokensFromText(text) : 0
+            void (budgetTokens ? canAccumulateTokens(usedTokens, est, budgetTokens) : true)
+          }
+          
           sources.push({ 
             id: String(d.fileId ?? ''), 
             fileName: typeof d.fileName === 'string' ? d.fileName : undefined, 
@@ -121,18 +143,36 @@ export const summariesMongoRetriever: ChatRetriever = {
             metadata: hasMetadata ? facetMetadata : undefined,
           })
           usedChars += text.length
-          if (budgetTokens) usedTokens += est
+          if (budgetTokens) usedTokens += estimateTokensFromText(text)
+        }
+        
+        // Wenn Budget überschritten wurde, stoppe auch die äußere Schleife
+        if (isTOCQuery && budgetExceeded) {
+          break
         }
       } else {
         const sum = typeof (d as { docSummary?: unknown }).docSummary === 'string' ? (d as { docSummary: string }).docSummary : ''
         if (!sum) continue
         const text = sum.slice(0, env.estimateCharsPerDoc)
-        // Im Summary-Modus: Budget prüfen, aber nicht abbrechen
-        // Alle Dokumente werden übernommen, Budget dient nur als Warnung
-        void canAccumulate(usedChars, text.length, budgetChars)
-        const est = budgetTokens ? estimateTokensFromText(text) : 0
-        void (budgetTokens ? canAccumulateTokens(usedTokens, est, budgetTokens) : true)
-        // Warnung: Budget überschritten, aber trotzdem hinzufügen
+        
+        // Budget-Prüfung: Für TOC-Queries als harte Grenze, sonst nur Warnung
+        if (isTOCQuery) {
+          // TOC-Query: Budget-Prüfung als harte Grenze (nur neueste Dokumente bis Budget)
+          // Prüfe sowohl Zeichen- als auch Token-Budget
+          const wouldExceedChars = !canAccumulate(usedChars, text.length, budgetChars)
+          const wouldExceedTokens = budgetTokens ? !canAccumulateTokens(usedTokens, estimateTokensFromText(text), budgetTokens) : false
+          
+          if (wouldExceedChars || wouldExceedTokens) {
+            // Budget überschritten: Stoppe hier (nur neueste Dokumente werden verwendet)
+            break
+          }
+        } else {
+          // Normale Query: Budget prüfen, aber nicht abbrechen (nur Warnung)
+          void canAccumulate(usedChars, text.length, budgetChars)
+          const est = budgetTokens ? estimateTokensFromText(text) : 0
+          void (budgetTokens ? canAccumulateTokens(usedTokens, est, budgetTokens) : true)
+        }
+        
         sources.push({ 
           id: String(d.fileId ?? ''), 
           fileName: typeof d.fileName === 'string' ? d.fileName : undefined, 
@@ -140,9 +180,8 @@ export const summariesMongoRetriever: ChatRetriever = {
           metadata: hasMetadata ? facetMetadata : undefined,
         })
         usedChars += text.length
-        if (budgetTokens) usedTokens += est
+        if (budgetTokens) usedTokens += estimateTokensFromText(text)
       }
-      // KEIN break mehr bei Budget-Überschreitung - alle Dokumente werden übernommen
     }
     stepList = markStepEnd({ ...stepList, topKReturned: sources.length })
     await logAppend(input.queryId, {

@@ -16,6 +16,7 @@ import { GroupedItemsGrid } from '@/components/library/gallery/grouped-items-gri
 import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import type { QueryLog } from '@/types/query-log'
+import type { ChatResponse } from '@/types/chat-response'
 import { MobileFiltersSheet } from '@/components/library/gallery/mobile-filters-sheet'
 import { DetailOverlay } from '@/components/library/gallery/detail-overlay'
 import { useGalleryMode } from '@/hooks/gallery/use-gallery-mode'
@@ -29,6 +30,7 @@ import { useTranslation } from '@/lib/i18n/hooks'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { ReferencesSheet } from './references-sheet'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -43,11 +45,16 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const libraries = useAtomValue(librariesAtom)
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [showFilters, setShowFilters] = useState(false)
-  const [showReferenceLegend, setShowReferenceLegend] = useState(false)
   const [selected, setSelected] = useState<DocCardMeta | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   const chatReferences = useAtomValue(chatReferencesAtom)
+  const [showReferencesSheet, setShowReferencesSheet] = useState(false)
+  const [referencesSheetMode, setReferencesSheetMode] = useState<'answer' | 'toc' | null>(null)
+  const [referencesSheetData, setReferencesSheetData] = useState<{
+    references?: ChatResponse['references']
+    queryId?: string
+  } | null>(null)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -296,14 +303,83 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     }
   }
   
-  const handleShowReferenceLegend = () => setShowReferenceLegend(true)
+  const handleShowReferenceLegend = () => {
+    // Auf Mobile: Öffne Sheet statt Desktop-Panel
+    if (isMobile) {
+      setShowReferencesSheet(true)
+      setReferencesSheetMode('answer')
+    }
+  }
   useGalleryEvents(libraryId, docs, handleOpenDocument, handleShowReferenceLegend)
+
+  // Event-Handler für TOC-Quellenverzeichnis (Mobile)
+  React.useEffect(() => {
+    const handleShowTOCReferences = (event: Event) => {
+      const customEvent = event as CustomEvent<{ libraryId: string }>
+      const { libraryId: eventLibraryId } = customEvent.detail || {}
+      if (eventLibraryId === libraryId) {
+        setShowReferencesSheet(true)
+        setReferencesSheetMode('toc')
+        setReferencesSheetData(null)
+      }
+    }
+    window.addEventListener('show-toc-references', handleShowTOCReferences)
+    return () => window.removeEventListener('show-toc-references', handleShowTOCReferences)
+  }, [libraryId])
+
+  // Event-Handler für Antwort-Quellenverzeichnis erweitern (für Mobile)
+  // Dieser Handler wird zusätzlich zu useGalleryEvents ausgeführt
+  React.useEffect(() => {
+    const handleShowAnswerReferences = (event: Event) => {
+      const customEvent = event as CustomEvent<{ references: ChatResponse['references']; libraryId: string; queryId?: string }>
+      const { references: refs, queryId: eventQueryId, libraryId: eventLibraryId } = customEvent.detail || {}
+      if (eventLibraryId === libraryId && refs && refs.length > 0) {
+        // Auf Mobile: Öffne Sheet mit den Referenzen
+        if (isMobile) {
+          setShowReferencesSheet(true)
+          setReferencesSheetMode('answer')
+          setReferencesSheetData({ references: refs, queryId: eventQueryId })
+        }
+      }
+    }
+    window.addEventListener('show-reference-legend', handleShowAnswerReferences)
+    return () => window.removeEventListener('show-reference-legend', handleShowAnswerReferences)
+  }, [libraryId, isMobile])
+
+  // Synchronisiere chatReferences mit Sheet-Daten (für Mobile)
+  React.useEffect(() => {
+    if (isMobile && chatReferences && chatReferences.references && chatReferences.references.length > 0) {
+      // Wenn chatReferences gesetzt ist und Sheet noch nicht geöffnet ist, aktualisiere die Daten
+      if (!showReferencesSheet || referencesSheetMode !== 'answer') {
+        setReferencesSheetData({
+          references: chatReferences.references,
+          queryId: chatReferences.queryId,
+        })
+      }
+    }
+  }, [isMobile, chatReferences, showReferencesSheet, referencesSheetMode])
+
+  // Auto-Close bei Moduswechsel: Schließe Antwort-Quellenverzeichnis wenn Story-Modus verlassen wird
+  React.useEffect(() => {
+    if (mode !== 'story') {
+      // Setze chatReferences zurück
+      if (chatReferences && chatReferences.references && chatReferences.references.length > 0) {
+        const event = new CustomEvent('clear-gallery-filter', {
+          detail: {},
+        })
+        window.dispatchEvent(event)
+      }
+      // Schließe Sheet falls geöffnet
+      if (showReferencesSheet && referencesSheetMode === 'answer') {
+        setShowReferencesSheet(false)
+        setReferencesSheetMode(null)
+        setReferencesSheetData(null)
+      }
+    }
+  }, [mode, chatReferences, showReferencesSheet, referencesSheetMode])
 
   // Filter handlers
   const handleClearFilters = () => {
-    if (filters.fileId && Array.isArray(filters.fileId) && filters.fileId.length > 0) {
-      setShowReferenceLegend(false)
-    }
     setFilters({} as Record<string, string[]>)
     
     // Wenn im Story-Modus: Triggere TOC-Neuberechnung
@@ -429,18 +505,16 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                 docCount={filteredDocs.length}
                 onOpenFilters={() => setShowFilters(true)}
                 onClear={handleClearFilters}
-                showReferenceLegend={showReferenceLegend}
                 facetDefs={facetDefs}
                 ctaLabel={t('gallery.switchToStoryMode')}
                 onCta={() => setMode('story')}
                 tooltip={t('gallery.storyModeTooltip')}
-                docs={docs}
               />
             </div>
 
             {/* Desktop: Grid-Layout */}
             <div className="hidden lg:grid lg:grid-cols-[280px_1fr] lg:gap-6 flex-1 min-h-0 overflow-hidden min-h-[80vh]">
-              {/* Filters Panel */}
+              {/* Filters Panel (linke Spalte) */}
               <FiltersPanel
                 facetDefs={facetDefs}
                 selected={filters as Record<string, string[] | undefined>}
@@ -450,7 +524,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                 docs={docs}
               />
 
-              {/* Items Panel */}
+              {/* Items Panel (rechte Spalte) */}
               <div className="flex flex-col min-h-0 overflow-hidden flex-1">
                 {/* FilterContextBar immer anzeigen - wird nicht mehr durch ReferencesLegend ersetzt */}
                 <div className="flex-shrink-0">
@@ -458,31 +532,17 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                     docCount={filteredDocs.length}
                     onOpenFilters={() => setShowFilters(true)}
                     onClear={handleClearFilters}
-                    showReferenceLegend={showReferenceLegend}
                     hideFilterButton={true}
                     facetDefs={facetDefs}
                     ctaLabel={t('gallery.switchToStoryMode')}
                     onCta={() => setMode('story')}
                     tooltip={t('gallery.storyModeTooltip')}
-                    docs={docs}
                   />
                 </div>
 
                 <section
                   className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
                   data-gallery-section
-                  onWheel={(e: React.WheelEvent<HTMLElement>) => {
-                    const target = e.currentTarget
-                    if (target.scrollHeight > target.clientHeight) {
-                      const { scrollTop, scrollHeight, clientHeight } = target
-                      const deltaY = e.deltaY
-                      const isAtTop = scrollTop <= 0
-                      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1
-                      if ((deltaY > 0 && isAtBottom) || (deltaY < 0 && isAtTop)) {
-                        e.stopPropagation()
-                      }
-                    }
-                  }}
                 >
                   <div>{renderItemsGrid()}</div>
                 </section>
@@ -508,34 +568,22 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
               <ChatPanel libraryId={libraryId} variant='embedded' />
             </div>
             <div className="hidden lg:flex flex-col min-h-0 overflow-hidden rounded-md">
-              {/* FilterContextBar immer anzeigen - wird nicht mehr durch ReferencesLegend ersetzt */}
-              <div className="flex-shrink-0">
-                <FilterContextBar
-                  docCount={filteredDocs.length}
-                  onOpenFilters={() => setShowFilters(true)}
-                  onClear={handleClearFilters}
-                  showReferenceLegend={showReferenceLegend}
-                  hideFilterButton={true}
-                  facetDefs={facetDefs}
-                  docs={docs}
-                />
-              </div>
+              {/* FilterContextBar nur anzeigen wenn KEINE Antwort-Referenzen angezeigt werden (Answer-Modus) */}
+              {!(chatReferences && chatReferences.references && chatReferences.references.length > 0) && (
+                <div className="flex-shrink-0">
+                  <FilterContextBar
+                    docCount={filteredDocs.length}
+                    onOpenFilters={() => setShowFilters(true)}
+                    onClear={handleClearFilters}
+                    hideFilterButton={true}
+                    facetDefs={facetDefs}
+                  />
+                </div>
+              )}
               {/* ReferencesLegend wird nicht mehr angezeigt, wenn chatReferences gesetzt ist (wird durch GroupedItemsGrid ersetzt) */}
               <section
                 className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
                 data-gallery-section
-                onWheel={(e: React.WheelEvent<HTMLElement>) => {
-                  const target = e.currentTarget
-                  if (target.scrollHeight > target.clientHeight) {
-                    const { scrollTop, scrollHeight, clientHeight } = target
-                    const deltaY = e.deltaY
-                    const isAtTop = scrollTop <= 0
-                    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1
-                    if ((deltaY > 0 && isAtBottom) || (deltaY < 0 && isAtTop)) {
-                      e.stopPropagation()
-                    }
-                  }
-                }}
               >
                 <div>{renderItemsGrid()}</div>
               </section>
@@ -575,6 +623,26 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
             handleCloseDocument()
             setMode('story')
           }}
+        />
+      )}
+
+      {/* References Sheet für Mobile */}
+      {showReferencesSheet && referencesSheetMode && libraryId && (
+        <ReferencesSheet
+          open={showReferencesSheet}
+          onOpenChange={(open) => {
+            setShowReferencesSheet(open)
+            if (!open) {
+              setReferencesSheetMode(null)
+              setReferencesSheetData(null)
+            }
+          }}
+          libraryId={libraryId}
+          mode={referencesSheetMode}
+          references={referencesSheetData?.references}
+          queryId={referencesSheetData?.queryId}
+          onOpenDocument={handleOpenDocument}
+          onClearFilters={handleClearFilters}
         />
       )}
     </div>

@@ -8,6 +8,7 @@
  * @module chat
  */
 
+import crypto from 'crypto'
 import type { Character, AccessPerspective } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 
@@ -63,6 +64,27 @@ export interface CacheKeyParams {
   character?: Character[]
   accessPerspective?: AccessPerspective[]
   facetsSelected?: GalleryFilters
+  queryType?: 'toc' | 'question'
+}
+
+/**
+ * Interface für Cache-Hash-Parameter
+ * 
+ * Erweitert CacheKeyParams um libraryId und documentCount für Hash-Berechnung.
+ */
+export interface CacheHashParams {
+  libraryId: string
+  question: string
+  queryType?: 'toc' | 'question'
+  answerLength?: string // Antwortlänge-Parameter (Teil des Cache-Hashes)
+  targetLanguage?: string
+  character?: Character[]
+  accessPerspective?: AccessPerspective[]
+  socialContext?: string
+  genderInclusive?: boolean
+  retriever?: string
+  facetsSelected?: Record<string, unknown>
+  documentCount?: number // Anzahl der Dokumente in der Library (für Cache-Invalidierung bei neuen Dokumenten)
 }
 
 /**
@@ -104,5 +126,87 @@ export function createCacheKey(params: CacheKeyParams): string {
 export function compareCacheKeys(a: CacheKeyParams, b: CacheKeyParams): boolean {
   return createCacheKey(a) === createCacheKey(b)
 }
+
+/**
+ * Normalisiert Facetten-Filter für Hash-Berechnung
+ * 
+ * Konvertiert Record<string, unknown> zu normalisiertem String für konsistente Hash-Berechnung.
+ */
+function normalizeFacetsForHash(facets?: Record<string, unknown>): string {
+  if (!facets || Object.keys(facets).length === 0) return ''
+  
+  const normalized: Record<string, string[]> = {}
+  Object.entries(facets).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      // Normalisiere Array-Werte: zu String, lowercase, sortiert
+      normalized[key] = value.map(v => String(v).toLowerCase().trim()).filter(v => v.length > 0).sort()
+    } else if (value !== undefined && value !== null) {
+      normalized[key] = [String(value).toLowerCase().trim()].filter(v => v.length > 0).sort()
+    }
+  })
+  
+  // Sortiere Keys für konsistenten Vergleich
+  const sortedKeys = Object.keys(normalized).sort()
+  return JSON.stringify(sortedKeys.map(key => ({ [key]: normalized[key] })))
+}
+
+/**
+ * Erstellt einen SHA-256 Hash aus Cache-relevanten Parametern
+ * 
+ * Diese Funktion normalisiert alle Werte (lowercase, sortiert Arrays) und berechnet
+ * einen Hash für schnelle Cache-Lookups in der Datenbank.
+ * 
+ * @param params - Parameter für den Cache-Hash
+ * @returns SHA-256 Hash als Hex-String
+ */
+export function createCacheHash(params: CacheHashParams): string {
+  // Normalisiere alle Werte zu lowercase und sortiere Arrays
+  const normalized: Record<string, string> = {
+    libraryId: params.libraryId.toLowerCase().trim(),
+    question: params.question.toLowerCase().trim(),
+  }
+  
+  // Füge optionale Felder hinzu (nur wenn vorhanden)
+  if (params.queryType) {
+    normalized.queryType = params.queryType.toLowerCase()
+  }
+  if (params.answerLength) {
+    normalized.answerLength = params.answerLength.toLowerCase().trim()
+  }
+  if (params.targetLanguage) {
+    normalized.targetLanguage = params.targetLanguage.toLowerCase().trim()
+  }
+  if (params.socialContext) {
+    normalized.socialContext = params.socialContext.toLowerCase().trim()
+  }
+  if (params.genderInclusive !== undefined) {
+    normalized.genderInclusive = String(params.genderInclusive).toLowerCase()
+  }
+  if (params.retriever) {
+    normalized.retriever = params.retriever.toLowerCase().trim()
+  }
+  if (params.documentCount !== undefined) {
+    normalized.documentCount = String(params.documentCount)
+  }
+  
+  // Normalisiere Arrays (sortiert, lowercase)
+  if (params.character && params.character.length > 0) {
+    normalized.character = params.character.map(c => c.toLowerCase().trim()).sort().join(',')
+  }
+  if (params.accessPerspective && params.accessPerspective.length > 0) {
+    normalized.accessPerspective = params.accessPerspective.map(ap => ap.toLowerCase().trim()).sort().join(',')
+  }
+  if (params.facetsSelected && Object.keys(params.facetsSelected).length > 0) {
+    normalized.facetsSelected = normalizeFacetsForHash(params.facetsSelected)
+  }
+  
+  // Sortiere Keys für konsistenten Vergleich
+  const sortedKeys = Object.keys(normalized).sort()
+  const jsonString = JSON.stringify(sortedKeys.map(key => ({ [key]: normalized[key] })))
+  
+  // Berechne SHA-256 Hash
+  return crypto.createHash('sha256').update(jsonString).digest('hex')
+}
+
 
 

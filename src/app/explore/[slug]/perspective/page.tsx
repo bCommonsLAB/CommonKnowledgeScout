@@ -14,7 +14,7 @@ import { useStoryContext, saveStoryContextToLocalStorage } from '@/hooks/use-sto
 import { useUser } from '@clerk/nextjs'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { Character, SocialContext, TargetLanguage, AccessPerspective } from '@/lib/chat/constants'
-import { CHARACTER_VALUES, ACCESS_PERSPECTIVE_VALUES } from '@/lib/chat/constants'
+import { CHARACTER_VALUES, ACCESS_PERSPECTIVE_VALUES, TARGET_LANGUAGE_VALUES } from '@/lib/chat/constants'
 import Link from 'next/link'
 
 /**
@@ -99,7 +99,7 @@ export default function PerspectivePage() {
   }, [targetLanguage, character, accessPerspective, socialContext])
 
   /**
-   * Toggle-Funktion für Interessenprofil-Auswahl (max. 3)
+   * Toggle-Funktion für Interessenprofil-Auswahl (max. 5)
    * Wenn etwas anderes als 'undefined' gewählt wird, wird 'undefined' automatisch entfernt
    */
   function toggleInterest(value: Character) {
@@ -116,7 +116,7 @@ export default function PerspectivePage() {
       } else {
         // Wenn etwas anderes gewählt wird, entferne 'undefined' und füge den neuen Wert hinzu
         const withoutUndefined = localInterests.filter((i) => i !== 'undefined')
-        if (withoutUndefined.length < 3) {
+        if (withoutUndefined.length < 5) {
           setLocalInterests([...withoutUndefined, value])
         }
       }
@@ -124,7 +124,7 @@ export default function PerspectivePage() {
   }
 
   /**
-   * Toggle-Funktion für Zugangsperspektive-Auswahl (max. 3)
+   * Toggle-Funktion für Zugangsperspektive-Auswahl (max. 5)
    * Wenn etwas anderes als 'undefined' gewählt wird, wird 'undefined' automatisch entfernt
    */
   function toggleAccessPerspective(value: AccessPerspective) {
@@ -141,7 +141,7 @@ export default function PerspectivePage() {
       } else {
         // Wenn etwas anderes gewählt wird, entferne 'undefined' und füge den neuen Wert hinzu
         const withoutUndefined = localAccessPerspective.filter((ap) => ap !== 'undefined')
-        if (withoutUndefined.length < 3) {
+        if (withoutUndefined.length < 5) {
           setLocalAccessPerspective([...withoutUndefined, value])
         }
       }
@@ -330,9 +330,9 @@ export default function PerspectivePage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(targetLanguageLabels).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
+                        {TARGET_LANGUAGE_VALUES.map((lang) => (
+                          <SelectItem key={lang} value={lang}>
+                            {targetLanguageLabels[lang]}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -362,11 +362,11 @@ export default function PerspectivePage() {
                       {CHARACTER_VALUES.map((value) => {
                         const isSelected = localInterests.includes(value)
                         // Für 'undefined': Disabled wenn andere Werte gewählt wurden
-                        // Für andere Werte: Disabled wenn bereits 3 gewählt (ohne 'undefined')
+                        // Für andere Werte: Disabled wenn bereits 5 gewählt (ohne 'undefined')
                         const currentValidCount = localInterests.filter((i) => i !== 'undefined').length
                         const isDisabled = value === 'undefined' 
                           ? currentValidCount > 0
-                          : !isSelected && currentValidCount >= 3
+                          : !isSelected && currentValidCount >= 5
                         const tooltipText = t(`chat.characterTooltips.${value}`)
                         return (
                           <Tooltip key={value}>
@@ -422,11 +422,11 @@ export default function PerspectivePage() {
                       {ACCESS_PERSPECTIVE_VALUES.map((value) => {
                         const isSelected = localAccessPerspective.includes(value)
                         // Für 'undefined': Disabled wenn andere Werte gewählt wurden
-                        // Für andere Werte: Disabled wenn bereits 3 gewählt (ohne 'undefined')
+                        // Für andere Werte: Disabled wenn bereits 5 gewählt (ohne 'undefined')
                         const validAccessPerspectiveCount = localAccessPerspective.filter((ap) => ap !== 'undefined').length
                         const isDisabled = value === 'undefined' 
                           ? validAccessPerspectiveCount > 0
-                          : !isSelected && validAccessPerspectiveCount >= 3
+                          : !isSelected && validAccessPerspectiveCount >= 5
                         const tooltipText = t(`chat.accessPerspectiveTooltips.${value}`)
                         return (
                           <Tooltip key={value}>

@@ -139,16 +139,17 @@ export function ChatConfigDisplay({
         }
         
         // Setze alle Parameter aus QueryLog
-        setQueryAnswerLength(queryLog.answerLength)
-        setQueryRetriever(queryLog.retriever)
-        setQueryTargetLanguage(queryLog.targetLanguage)
-        setQueryCharacter(queryLog.character)
-        setQueryAccessPerspective(queryLog.accessPerspective)
-        setQuerySocialContext(queryLog.socialContext)
+        // Extrahiere Cache-Felder aus cacheParams, falls vorhanden (neue Einträge), sonst Root-Felder (alte Einträge)
+        setQueryAnswerLength(queryLog.cacheParams?.answerLength ?? queryLog.answerLength)
+        setQueryRetriever(queryLog.cacheParams?.retriever ?? queryLog.retriever)
+        setQueryTargetLanguage(queryLog.cacheParams?.targetLanguage ?? queryLog.targetLanguage)
+        setQueryCharacter(queryLog.cacheParams?.character ?? queryLog.character)
+        setQueryAccessPerspective(queryLog.cacheParams?.accessPerspective ?? queryLog.accessPerspective)
+        setQuerySocialContext(queryLog.cacheParams?.socialContext ?? queryLog.socialContext)
         
         // Setze Filter: Verwende übergebene Filter nur wenn keine queryId vorhanden ist
         // Wenn queryId vorhanden ist, verwende immer Filter aus QueryLog
-        const facetsSelected = queryLog.facetsSelected
+        const facetsSelected = queryLog.cacheParams?.facetsSelected ?? queryLog.facetsSelected
         if (!facetsSelected || Object.keys(facetsSelected).length === 0) {
           setFilters(null)
         } else {

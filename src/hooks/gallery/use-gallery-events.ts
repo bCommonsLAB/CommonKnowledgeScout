@@ -48,19 +48,20 @@ export function useGalleryEvents(
       const customEvent = event as CustomEvent<{ references: ChatResponse['references']; libraryId: string; queryId?: string }>
       const { references: refs, queryId } = customEvent.detail || {}
       if (!refs || refs.length === 0) return
+      
+      // Setze nur chatReferences, NICHT die fileId-Filter
+      // GroupedItemsGrid filtert die Dokumente selbst basierend auf references/sources
+      // Die fileId-Filter würden die Dokumentenanzahl in FilterContextBar beeinflussen,
+      // obwohl wir sie dort nicht mehr anzeigen wollen
       setChatReferences({ references: refs, queryId })
       onShowReferenceLegend()
-      const fileIds = Array.from(new Set(refs.map(r => r.fileId)))
-      setFilters(f => {
-        const next = { ...(f as Record<string, string[] | undefined>) }
-        next.fileId = fileIds
-        return next as typeof f
-      })
+      
+      // Scroll zur Gallery-Sektion (falls vorhanden)
       const el = document.querySelector('[data-gallery-section]')
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
     window.addEventListener('show-reference-legend', handleShowLegend)
     return () => window.removeEventListener('show-reference-legend', handleShowLegend)
-  }, [setFilters, setChatReferences, onShowReferenceLegend])
+  }, [setChatReferences, onShowReferenceLegend])
 }
 
