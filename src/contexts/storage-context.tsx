@@ -457,7 +457,10 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     return () => {
       isCancelled = true;
     };
-  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId, hasRedirectedToSettings, libraries, setLibraryStatusAtom, pathname]);
+    // WICHTIG: libraries NICHT in Dependencies, da sonst Endlosschleife:
+    // libraries ändert sich → useEffect läuft → setLibraries → libraries ändert sich → ...
+    // libraries wird innerhalb fetchLibraries über Closure verwendet, was ausreicht
+  }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId, hasRedirectedToSettings, setLibraryStatusAtom, pathname]);
 
   // Aktuelle Bibliothek aktualisieren
   const refreshCurrentLibrary = async () => {
