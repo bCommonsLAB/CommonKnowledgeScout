@@ -90,12 +90,7 @@ export function parseStoryTopicsData(raw: string): StoryTopicsData | null {
 
     // Validiere gegen Zod-Schema
     const validated = storyTopicsDataSchema.parse(contentJson)
-    
-    console.log('[TOC-Parser] ✅ StoryTopicsData erfolgreich validiert:', {
-      title: validated.title,
-      topicsCount: validated.topics.length,
-    })
-    
+        
     return validated as StoryTopicsData
   } catch (error) {
     if (error instanceof z.ZodError) {

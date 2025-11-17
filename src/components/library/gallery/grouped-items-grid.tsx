@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, X } from 'lucide-react'
 import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { openDocumentBySlug } from '@/utils/document-navigation'
 
 interface GroupedItemsGridProps {
   /** Dokumente, die in der Antwort verwendet wurden */
@@ -25,8 +27,8 @@ interface GroupedItemsGridProps {
   queryId?: string
   /** LibraryId */
   libraryId: string
-  /** Callback für Dokument-Öffnen */
-  onOpenDocument: (doc: DocCardMeta) => void
+  /** Callback für Dokument-Öffnen (optional: Fallback für Dokumente ohne slug) */
+  onOpenDocument?: (doc: DocCardMeta) => void
   /** Callback für Schließen (z.B. im ReferencesSheet, um das Sheet zu schließen) */
   onClose?: () => void
 }
@@ -48,15 +50,30 @@ export function GroupedItemsGrid({
 }: GroupedItemsGridProps) {
   const { t } = useTranslation()
   const setChatReferences = useSetAtom(chatReferencesAtom)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
-  // Handler für Dokument-Klick
+  // Handler für Dokument-Klick (für ReferenceGroupHeader)
   const handleDocumentClick = (fileId: string, fileName?: string) => {
     // Finde Dokument in usedDocs oder unusedDocs
     const doc = [...usedDocs, ...unusedDocs].find(
       d => d.fileId === fileId || d.id === fileId
     )
     if (doc) {
+      // Verwende zentrale Utility-Funktion wenn slug vorhanden
+      if (doc.slug) {
+        openDocumentBySlug(doc.slug, libraryId, router, pathname, searchParams)
+      } else if (onOpenDocument) {
+        // Fallback: Verwende onClick-Callback
       onOpenDocument(doc)
+      } else {
+        // Fallback: Öffne Detailansicht über Event
+        const event = new CustomEvent('open-document-detail', {
+          detail: { fileId, fileName, libraryId },
+        })
+        window.dispatchEvent(event)
+      }
     } else {
       // Fallback: Öffne Detailansicht über Event
       const event = new CustomEvent('open-document-detail', {
@@ -124,9 +141,9 @@ export function GroupedItemsGrid({
   return (
     <div className="space-y-8">
       {/* Überschrift "Quellenverzeichnis" mit Buttons "zur Frage" und "Schließen" */}
-      <div className="flex items-center justify-between mb-2 pb-2 px-0 py-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2 pb-2 px-0 py-2">
         <h2 className="text-lg font-semibold">{t('gallery.references')}</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {queryId && (
             <Button
               variant="outline"
@@ -165,7 +182,7 @@ export function GroupedItemsGrid({
           />
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {usedDocs.map((doc) => (
-              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} />
+              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} />
             ))}
           </div>
         </div>
@@ -185,7 +202,7 @@ export function GroupedItemsGrid({
           />
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {unusedDocs.map((doc) => (
-              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} />
+              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} />
             ))}
           </div>
         </div>

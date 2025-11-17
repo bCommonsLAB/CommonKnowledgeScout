@@ -7,10 +7,11 @@ import { useTranslation } from '@/lib/i18n/hooks'
 
 export interface ItemsGridProps {
   docsByYear: Array<[number | string, DocCardMeta[]]>
-  onOpen: (doc: DocCardMeta) => void
+  onOpen?: (doc: DocCardMeta) => void // Optional: Fallback für Dokumente ohne slug
+  libraryId?: string // Optional: Für URL-basierte Navigation
 }
 
-export function ItemsGrid({ docsByYear, onOpen }: ItemsGridProps) {
+export function ItemsGrid({ docsByYear, onOpen, libraryId }: ItemsGridProps) {
   const { t } = useTranslation()
   return (
     <div className='space-y-8'>
@@ -21,7 +22,7 @@ export function ItemsGrid({ docsByYear, onOpen }: ItemsGridProps) {
           </h3>
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6'>
             {yearDocs.map((doc) => (
-              <DocumentCard key={doc.id} doc={doc} onClick={onOpen} />
+              <DocumentCard key={doc.id} doc={doc} onClick={onOpen} libraryId={libraryId} />
             ))}
           </div>
         </div>

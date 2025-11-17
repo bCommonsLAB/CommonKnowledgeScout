@@ -7,6 +7,8 @@ import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { ChatResponse } from '@/types/chat-response'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { openDocumentBySlug } from '@/utils/document-navigation'
 
 export function useGalleryEvents(
   libraryId: string | undefined,
@@ -16,6 +18,9 @@ export function useGalleryEvents(
 ) {
   const [, setFilters] = useAtom(galleryFiltersAtom)
   const setChatReferences = useSetAtom(chatReferencesAtom)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   
   // Ref, um zu verhindern, dass derselbe Event mehrfach verarbeitet wird
   const processingEventRef = React.useRef<string | null>(null)
@@ -40,7 +45,13 @@ export function useGalleryEvents(
       
       const doc = docs.find(d => d.fileId === fileId || d.id === fileId)
       if (doc) {
+        // Verwende zentrale Utility-Funktion wenn slug vorhanden
+        if (doc.slug) {
+          openDocumentBySlug(doc.slug, libraryId, router, pathname, searchParams)
+        } else {
+          // Fallback: Verwende onClick-Callback
         onOpenDocument(doc)
+        }
       } else {
         // Dokument nicht gefunden → lade es neu und öffne dann
         // Verwende fileId als Fallback, da wir das Dokument noch nicht haben
@@ -65,7 +76,13 @@ export function useGalleryEvents(
               }
               return next as typeof f
             })
+            // Verwende zentrale Utility-Funktion wenn slug vorhanden
+            if (docAfterLoad.slug) {
+              openDocumentBySlug(docAfterLoad.slug, libraryId, router, pathname, searchParams)
+            } else {
+              // Fallback: Verwende onClick-Callback
             onOpenDocument(docAfterLoad)
+            }
           }
         }, 500)
       }
@@ -80,7 +97,7 @@ export function useGalleryEvents(
       window.removeEventListener('open-document-detail', handleOpenDocument)
       processingEventRef.current = null
     }
-  }, [docs, libraryId, setFilters, onOpenDocument])
+  }, [docs, libraryId, setFilters, onOpenDocument, router, pathname, searchParams])
 
   useEffect(() => {
     const handleShowLegend = (event: Event) => {

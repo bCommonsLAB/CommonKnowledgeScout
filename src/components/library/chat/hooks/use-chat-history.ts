@@ -41,10 +41,9 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
 
     async function loadHistory() {
       if (!activeChatId) {
-        // Wenn kein aktiver Chat, behalte vorhandene Messages (z.B. neu hinzugefügte TOC-Queries)
-        if (!cancelled) {
-          setMessages((prev) => (prev.length > 0 ? prev : []))
-        }
+        // Wenn kein aktiver Chat, behalte vorhandene Messages (z.B. neu hinzugefügte TOC-Queries oder neu gestellte Fragen).
+        // WICHTIG: Messages immer behalten, auch wenn activeChatId null ist, damit sie bei Perspektiven-/Filter-Änderungen erhalten bleiben.
+        if (!cancelled) setMessages((prev) => prev)
         return
       }
 
@@ -56,7 +55,32 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
             headers: Object.keys(sessionHeaders).length > 0 ? sessionHeaders : undefined,
           }
         )
-        const data = (await res.json()) as {
+        
+        // 404 bedeutet: Keine Historie vorhanden (normaler Zustand, kein Fehler)
+        if (res.status === 404) {
+          if (!cancelled) setMessages((prev) => prev)
+          return
+        }
+        
+        // Prüfe Content-Type bevor JSON-Parsing
+        const contentType = res.headers.get('content-type')
+        if (!contentType || !contentType.includes('application/json')) {
+          // Klone Response, damit wir sie später noch lesen können
+          const clonedRes = res.clone()
+          const text = await clonedRes.text()
+          console.error('[useChatHistory] API gibt kein JSON zurück:', {
+            status: res.status,
+            statusText: res.statusText,
+            contentType,
+            responsePreview: text.substring(0, 200),
+            activeChatId,
+            libraryId,
+          })
+          throw new Error(`API-Fehler: Erwartete JSON, bekam ${contentType || 'unbekannt'}`)
+        }
+
+        // Parse JSON nur wenn Content-Type korrekt ist
+        let data: {
           items?: Array<{
             queryId: string
             createdAt: string
@@ -66,6 +90,14 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
           }>
           error?: unknown
         }
+        
+        try {
+          data = (await res.json()) as typeof data
+        } catch (jsonError) {
+          console.error('[useChatHistory] JSON-Parsing-Fehler:', jsonError)
+          throw new Error('Fehler beim Parsen der API-Antwort als JSON')
+        }
+        
         if (!res.ok) {
           throw new Error(
             typeof data?.error === 'string' ? data.error : 'Fehler beim Laden der Historie'
@@ -170,12 +202,19 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
             // Merge mit vorhandenen Messages: Behalte neu hinzugefügte Messages (z.B. TOC-Queries)
             // die noch nicht in der Historie sind
             setMessages((prev) => {
+              // Wenn Historie leer ist aber vorhandene Messages existieren, behalte diese
+              // (verhindert Überschreibung bei Timing-Problemen oder wenn Historie noch nicht geladen ist)
+              if (historyMessages.length === 0 && prev.length > 0) {
+                return prev
+              }
+
               // Sammle alle queryIds aus der Historie
               const historyQueryIds = new Set(
                 historyMessages.map((m) => m.queryId).filter((id): id is string => !!id)
               )
 
               // Behalte Messages, die nicht in der Historie sind (neu hinzugefügte)
+              // WICHTIG: Behalte auch Messages ohne queryId, die nicht in Historie sind
               const newMessages = prev.filter(
                 (m) => !m.queryId || !historyQueryIds.has(m.queryId)
               )
@@ -192,11 +231,11 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
             prevMessagesLengthRef.current = historyMessages.length
           }
         }
-      } catch {
-        // Bei Fehlern behalte vorhandene Messages, setze nur leer wenn keine vorhanden sind
-        if (!cancelled) {
-          setMessages((prev) => (prev.length > 0 ? prev : []))
-        }
+      } catch (error) {
+        // Bei Fehlern behalte IMMER vorhandene Messages.
+        // WICHTIG: Auch wenn keine Messages vorhanden sind, nicht löschen, da sie möglicherweise gerade geladen werden.
+        console.error('[useChatHistory] Fehler beim Laden der Historie:', error)
+        if (!cancelled) setMessages((prev) => prev)
       }
     }
 

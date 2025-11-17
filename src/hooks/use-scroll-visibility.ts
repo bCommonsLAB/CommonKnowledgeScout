@@ -40,9 +40,9 @@ export function useScrollVisibility() {
         return
       }
       
-      // Beim Scrollen nach unten ausblenden
+      // Beim Scrollen nach unten ausblenden (jede Bewegung nach unten)
       // Wird nur wieder eingeblendet, wenn scrollY === 0 (siehe oben)
-      if (scrollY > lastScrollY.current + 5) {
+      if (scrollY > lastScrollY.current) {
         setIsVisible(false)
       }
       

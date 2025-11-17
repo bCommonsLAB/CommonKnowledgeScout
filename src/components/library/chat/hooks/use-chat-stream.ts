@@ -371,9 +371,8 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
                     if (element && element.parentElement && element.parentElement.contains(element)) {
                       try {
                     element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                      } catch (error) {
-                        // Ignoriere Scroll-Fehler auf älteren Geräten
-                        console.debug('[useChatStream] Scroll-Fehler ignoriert:', error)
+                      } catch {
+                        // Ignoriere Scroll-Fehler auf älteren Geräten (kein Log erforderlich)
                       }
                     } else if (attempts < 3) {
                       // Versuche es nochmal nach kurzer Verzögerung
@@ -402,6 +401,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
         onError?.(formattedError)
         // Entferne die Frage nur, wenn es keine TOC-Query war
         if (!isTOC) {
+          // Entferne fehlerhafte Frage still, um das UI konsistent zu halten.
           setMessages((prev) => prev.filter((m) => m.id !== questionId))
         }
       } finally {

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -10,12 +10,7 @@ import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
 import { GroupedItemsGrid } from './grouped-items-grid'
 import { ItemsGrid } from './items-grid'
-import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
-import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
-import { useSessionHeaders } from '@/hooks/use-session-headers'
 import { useTranslation } from '@/lib/i18n/hooks'
-import { useAtomValue } from 'jotai'
-import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 
 interface ReferencesSheetProps {
   /** Sheet geöffnet/geschlossen */
@@ -30,10 +25,22 @@ interface ReferencesSheetProps {
   references?: ChatResponse['references']
   /** QueryId für Antwort-Modus */
   queryId?: string
-  /** Callback für Dokument-Öffnen */
-  onOpenDocument: (doc: DocCardMeta) => void
+  /** Callback für Dokument-Öffnen (optional: Fallback für Dokumente ohne slug) */
+  onOpenDocument?: (doc: DocCardMeta) => void
   /** Callback für Filter zurücksetzen */
   onClearFilters?: () => void
+  /** Props für TOC-Modus: Gefilterte Dokumente und Jahrgangs-Gruppierung */
+  filteredDocs?: DocCardMeta[]
+  docsByYear?: Array<[number | string, DocCardMeta[]]>
+  /** Props für Answer-Modus: Gruppierte Dokumente */
+  usedDocs?: DocCardMeta[]
+  unusedDocs?: DocCardMeta[]
+  /** Sources für Answer-Modus */
+  sources?: QueryLog['sources']
+  /** Loading-State */
+  loading?: boolean
+  /** Error-State */
+  error?: string | null
 }
 
 /**
@@ -50,82 +57,15 @@ export function ReferencesSheet({
   references,
   queryId,
   onOpenDocument,
+  filteredDocs = [],
+  docsByYear = [],
+  usedDocs = [],
+  unusedDocs = [],
+  sources = [],
+  loading = false,
+  error = null,
 }: ReferencesSheetProps) {
   const { t } = useTranslation()
-  const sessionHeaders = useSessionHeaders()
-  const [sources, setSources] = useState<QueryLog['sources']>([])
-  
-  // Lade aktive Filter aus dem Atom (wie in gallery-root.tsx)
-  const filters = useAtomValue(galleryFiltersAtom)
-
-
-  // Für TOC-Modus: Lade gefilterte Dokumente (verwende aktive Filter aus URL/Atom)
-  const { loading: tocLoading, error: tocError, filteredDocs, docsByYear } = useGalleryData(
-    filters, // Verwende aktive Filter (wie in gallery-root.tsx)
-    'story', // Mode für TOC
-    '', // Keine Suche
-    mode === 'toc' && libraryId ? libraryId : undefined // Nur laden wenn TOC-Modus
-  )
-
-  // Für Answer-Modus: Lade Sources aus QueryLog, falls queryId vorhanden
-  useEffect(() => {
-    if (mode !== 'answer' || !queryId || !libraryId) {
-      setSources([])
-      return
-    }
-
-    let cancelled = false
-
-    async function loadSources() {
-      // Type Guard: queryId ist bereits in useEffect geprüft, aber TypeScript braucht es hier nochmal
-      if (!queryId) return
-      
-      try {
-        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`, {
-          cache: 'no-store',
-          headers: Object.keys(sessionHeaders).length > 0 ? sessionHeaders : undefined,
-        })
-
-        if (!res.ok || cancelled) {
-          return
-        }
-
-        const queryLog = await res.json() as QueryLog
-
-        if (cancelled) {
-          return
-        }
-
-        setSources(queryLog.sources || [])
-      } catch (error) {
-        console.error('[ReferencesSheet] Fehler beim Laden der Sources:', error)
-        setSources([])
-      }
-    }
-
-    loadSources()
-
-    return () => {
-      cancelled = true
-    }
-  }, [mode, queryId, libraryId, sessionHeaders])
-
-  const { loading: answerLoading, error: answerError, filteredDocs: answerFilteredDocs } = useGalleryData(
-    filters, // Verwende aktive Filter (wie in gallery-root.tsx)
-    'story',
-    '', // Keine Suche
-    mode === 'answer' && libraryId ? libraryId : undefined // Nur laden wenn Answer-Modus
-  )
-
-  // Gruppiere Dokumente nach Referenzen für Answer-Modus
-  // WICHTIG: Verwende gefilterte Dokumente, nicht alle Dokumente
-  const { usedDocs: answerUsedDocs, unusedDocs: answerUnusedDocs } = React.useMemo(() => {
-    if (mode !== 'answer' || !references || references.length === 0) {
-      return { usedDocs: [], unusedDocs: [] }
-    }
-    return groupDocsByReferences(answerFilteredDocs, references, sources)
-  }, [mode, references, sources, answerFilteredDocs])
-
 
   // Handler für Schließen im Answer-Modus (wird an GroupedItemsGrid übergeben)
   const handleCloseAnswer = () => {
@@ -145,12 +85,12 @@ export function ReferencesSheet({
         hideCloseButton={true}
       >
         {/* SheetTitle für Barrierefreiheit */}
-        <SheetTitle className="sr-only">{t('gallery.references')}</SheetTitle>
+        <SheetTitle className="sr-only">{mode === 'toc' ? t('gallery.tocReferences') : t('gallery.references')}</SheetTitle>
         
         {/* Header mit Titel und Schließen-Button nur im TOC-Modus (im Answer-Modus hat GroupedItemsGrid bereits einen Header) */}
         {mode === 'toc' && (
           <div className="flex items-center justify-between mb-2 pb-2 px-6 pt-6 border-b flex-shrink-0">
-            <h2 className="text-lg font-semibold">{t('gallery.references')}</h2>
+            <h2 className="text-lg font-semibold">{t('gallery.tocReferences')}</h2>
             <Button
               variant="outline"
               size="sm"
@@ -167,14 +107,14 @@ export function ReferencesSheet({
         <ScrollArea className={`flex-1 px-6 ${mode === 'toc' ? 'py-4' : 'pt-6 pb-4'}`}>
           {mode === 'answer' ? (
             <>
-              {answerLoading ? (
+              {loading ? (
                 <div className="text-sm text-muted-foreground py-8">Lade Dokumente…</div>
-              ) : answerError ? (
-                <div className="text-sm text-destructive py-8">{answerError}</div>
-              ) : references && references.length > 0 && (answerUsedDocs.length > 0 || answerUnusedDocs.length > 0) ? (
+              ) : error ? (
+                <div className="text-sm text-destructive py-8">{error}</div>
+              ) : references && references.length > 0 && (usedDocs.length > 0 || unusedDocs.length > 0) ? (
                 <GroupedItemsGrid
-                  usedDocs={answerUsedDocs}
-                  unusedDocs={answerUnusedDocs}
+                  usedDocs={usedDocs}
+                  unusedDocs={unusedDocs}
                   references={references}
                   sources={sources}
                   queryId={queryId}
@@ -190,16 +130,16 @@ export function ReferencesSheet({
             </>
           ) : (
             <>
-              {tocLoading ? (
+              {loading ? (
                 <div className="text-sm text-muted-foreground py-8">Lade Dokumente…</div>
-              ) : tocError ? (
-                <div className="text-sm text-destructive py-8">{tocError}</div>
+              ) : error ? (
+                <div className="text-sm text-destructive py-8">{error}</div>
               ) : filteredDocs.length === 0 ? (
                 <div className="text-sm text-muted-foreground py-8">
                   Keine Dokumente gefunden.
                 </div>
               ) : (
-                <ItemsGrid docsByYear={docsByYear} onOpen={onOpenDocument} />
+                <ItemsGrid docsByYear={docsByYear} onOpen={onOpenDocument} libraryId={libraryId} />
               )}
             </>
           )}

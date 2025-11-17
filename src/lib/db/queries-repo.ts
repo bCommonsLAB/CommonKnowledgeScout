@@ -181,14 +181,7 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
   const cacheHash = createCacheHash(cacheParams)
   
   // Debug-Logging: Zeige berechneten Hash beim Speichern
-  console.log('[insertQueryLog] Cache-Hash berechnet:', {
-    cacheHash,
-    libraryId: doc.libraryId,
-    question: doc.question.substring(0, 50),
-    queryType: doc.queryType || 'question',
-    documentCount,
-    userEmail: doc.userEmail?.substring(0, 20),
-  })
+ 
   
   const payload: QueryLog = {
     queryId,
@@ -391,16 +384,6 @@ export async function findQueryByQuestionAndContext(args: {
     documentCount,
   })
   
-  // Debug-Logging: Zeige berechneten Hash und Parameter
-  console.log('[findQueryByQuestionAndContext] Cache-Suche:', {
-    cacheHash,
-    libraryId: args.libraryId,
-    question: args.question.substring(0, 50),
-    queryType: args.queryType || 'question',
-    documentCount,
-    userEmail: args.userEmail?.substring(0, 20),
-    sessionId: args.sessionId?.substring(0, 20),
-  })
   
   // Suche direkt nach Hash + libraryId + userEmail/sessionId
   // Prüfe, ob answer oder storyTopicsData vorhanden ist
@@ -423,41 +406,8 @@ export async function findQueryByQuestionAndContext(args: {
   // Suche nach der neuesten passenden Query (sortiert nach createdAt)
   const cachedQuery = await col.findOne(filter, { sort: { createdAt: -1 } })
   
-  // Debug-Logging: Zeige Ergebnis
-  if (cachedQuery) {
-    console.log('[findQueryByQuestionAndContext] Cache gefunden:', {
-      queryId: cachedQuery.queryId,
-      cachedHash: cachedQuery.cacheHash,
-      hasAnswer: !!cachedQuery.answer,
-      hasStoryTopicsData: !!cachedQuery.storyTopicsData,
-    })
-  } else {
-    console.log('[findQueryByQuestionAndContext] Cache NICHT gefunden')
-    // Suche auch ohne Hash, um zu sehen, ob es andere Queries gibt
-    const alternativeFilter: Record<string, unknown> = {
-      libraryId: args.libraryId,
-      question: args.question.trim(),
-      status: { $in: ['ok', 'pending'] },
-      $or: [
-        { answer: { $exists: true, $nin: ['', null] } },
-        { storyTopicsData: { $exists: true, $ne: null } }
-      ],
-    }
-    if (args.userEmail) {
-      alternativeFilter.userEmail = args.userEmail
-    } else {
-      alternativeFilter.sessionId = args.sessionId
-    }
-    const alternativeQuery = await col.findOne(alternativeFilter, { sort: { createdAt: -1 } })
-    if (alternativeQuery) {
-      console.log('[findQueryByQuestionAndContext] Alternative Query gefunden (ohne Hash):', {
-        queryId: alternativeQuery.queryId,
-        cachedHash: alternativeQuery.cacheHash,
-        calculatedHash: cacheHash,
-        hashMatch: alternativeQuery.cacheHash === cacheHash,
-      })
-    }
-  }
+  // Wenn kein Treffer gefunden wurde, könnte hier eine alternative Suche ohne Hash erfolgen
+  // Aktuell wird nur die Hash-basierte Suche verwendet
   
   return cachedQuery || null
 }

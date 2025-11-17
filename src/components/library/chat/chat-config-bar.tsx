@@ -3,7 +3,6 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ChatSelector } from './chat-selector'
 import type { Character, TargetLanguage, SocialContext, AccessPerspective } from '@/lib/chat/constants'
-import type { ChatMessage } from './utils/chat-utils'
 import {
   TARGET_LANGUAGE_VALUES,
   CHARACTER_VALUES,
@@ -24,7 +23,6 @@ interface ChatConfigBarProps {
   libraryId: string
   activeChatId: string | null
   setActiveChatId: (chatId: string | null) => void
-  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
   isEmbedded?: boolean
   children?: React.ReactNode // Für Config-Popover
 }
@@ -49,7 +47,6 @@ export function ChatConfigBar({
   libraryId,
   activeChatId,
   setActiveChatId,
-  setMessages,
   isEmbedded = false,
   children,
 }: ChatConfigBarProps) {
@@ -133,15 +130,10 @@ export function ChatConfigBar({
             activeChatId={activeChatId}
             onChatChange={(chatId) => {
               setActiveChatId(chatId)
-              if (chatId) {
-                // Messages werden durch loadHistory useEffect geladen
-              } else {
-                setMessages([])
-              }
+              // Messages werden durch use-chat-history.ts verwaltet.
             }}
             onCreateNewChat={() => {
-              // Leere Messages, wenn neuer Chat erstellt wird
-              setMessages([])
+              // Neue Chats werden durch die Chat-API und use-chat-history.ts verwaltet.
             }}
           />
         </div>

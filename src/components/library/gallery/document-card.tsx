@@ -6,17 +6,36 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar, MapPin, User } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { SpeakerOrAuthorIcons } from './speaker-icons'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { openDocumentBySlug } from '@/utils/document-navigation'
 
 export interface DocumentCardProps {
   doc: DocCardMeta
-  onClick: (doc: DocCardMeta) => void
+  onClick?: (doc: DocCardMeta) => void // Optional: Fallback für Komponenten ohne slug
+  libraryId?: string // Optional: Falls nicht vorhanden, wird onClick verwendet
 }
 
-export function DocumentCard({ doc, onClick }: DocumentCardProps) {
+export function DocumentCard({ doc, onClick, libraryId }: DocumentCardProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  
+  const handleClick = () => {
+    // Verwende zentrale Utility-Funktion wenn slug vorhanden ist
+    if (doc.slug && libraryId) {
+      openDocumentBySlug(doc.slug, libraryId, router, pathname, searchParams)
+    } else if (onClick) {
+      // Fallback: Verwende onClick-Callback wenn kein slug vorhanden
+      onClick(doc)
+    } else {
+      console.warn('[DocumentCard] Kein slug oder onClick-Callback verfügbar:', doc)
+    }
+  }
+  
   return (
     <Card
       className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20'
-      onClick={() => onClick(doc)}
+      onClick={handleClick}
     >
       <CardHeader className='relative'>
         <div className='flex items-start justify-between'>

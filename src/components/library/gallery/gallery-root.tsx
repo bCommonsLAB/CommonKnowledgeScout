@@ -31,6 +31,7 @@ import type { DocCardMeta } from '@/lib/gallery/types'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ReferencesSheet } from './references-sheet'
+import { openDocumentBySlug } from '@/utils/document-navigation'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -45,7 +46,6 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const libraries = useAtomValue(librariesAtom)
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [showFilters, setShowFilters] = useState(false)
-  const [selected, setSelected] = useState<DocCardMeta | null>(null)
   const isClosingRef = React.useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isMobile, setIsMobile] = useState(false)
@@ -130,11 +130,23 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     initialDetailViewType
   )
   
-  // Debug: Logge detailViewType wenn sich selected ändert
+  const { docs, loading, error, filteredDocs, docsByYear } = useGalleryData(filters, mode, searchQuery, libraryId)
+  
+  // Finde aktuelles Dokument aus URL-Parameter (für DetailOverlay)
+  const docSlug = searchParams?.get('doc')
+  const selectedDoc = React.useMemo(() => {
+    if (!docSlug || !libraryId || loading || docs.length === 0) {
+      return null
+    }
+    return docs.find(doc => doc.slug === docSlug) || null
+  }, [docSlug, libraryId, loading, docs])
+
+  // Debug: Logge detailViewType wenn sich selectedDoc ändert
   useEffect(() => {
-    if (selected) {
+    if (selectedDoc) {
       console.log('[GalleryRoot] DetailOverlay wird geöffnet:', {
-        fileId: selected.fileId || selected.id,
+        fileId: selectedDoc.fileId || selectedDoc.id,
+        slug: docSlug,
         detailViewType,
         initialDetailViewType,
         activeLibraryId: activeLibrary?.id,
@@ -142,8 +154,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
         fullLibraryConfig: JSON.stringify(activeLibrary?.config?.chat, null, 2),
       })
     }
-  }, [selected, detailViewType, initialDetailViewType, activeLibrary])
-  const { docs, loading, error, filteredDocs, docsByYear } = useGalleryData(filters, mode, searchQuery, libraryId)
+  }, [selectedDoc, docSlug, detailViewType, initialDetailViewType, activeLibrary])
   const { facetDefs } = useGalleryFacets(libraryId, filters)
 
   // Lade sources aus QueryLog, falls queryId vorhanden ist
@@ -195,112 +206,21 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     return groupDocsByReferences(filteredDocs, chatReferences.references, sources)
   }, [filteredDocs, chatReferences, sources])
   
-  // Ref, um zu verhindern, dass die Slug-Suche mehrfach ausgeführt wird
-  const slugSearchRef = React.useRef<{ slug: string; libraryId: string; docsCount: number } | null>(null)
-  
-  // Lade Dokument aus URL-Slug, falls vorhanden
-  // Strategie: Warte bis docs geladen sind, dann suche im Frontend nach dem slug
-  useEffect(() => {
-    const docSlug = searchParams?.get('doc')
-    
-    // Wenn kein doc-Parameter in URL, aber Overlay offen ist, schließe es
-    if (!docSlug && selected && pathname?.startsWith('/explore/')) {
-      setSelected(null)
-      return
-    }
-    
-    // Prüfe Bedingungen für Slug-Suche
-    if (!docSlug || !libraryId || loading || docs.length === 0 || selected) {
-      return
-    }
-    
-    // Prüfe, ob wir bereits nach diesem Slug gesucht haben (mit denselben docs)
-    const searchKey = { slug: docSlug, libraryId, docsCount: docs.length }
-    if (
-      slugSearchRef.current &&
-      slugSearchRef.current.slug === searchKey.slug &&
-      slugSearchRef.current.libraryId === searchKey.libraryId &&
-      slugSearchRef.current.docsCount === searchKey.docsCount
-    ) {
-      // Bereits gesucht, überspringe
-      return
-    }
-    
-    // Markiere, dass Suche gestartet wird
-    slugSearchRef.current = searchKey
-    
-    // Finde Dokument anhand des Slugs im Frontend
-    // OPTIMIERUNG: Verwende bereits geladene slug-Daten aus docs, keine API-Calls nötig
-    const findDocBySlug = () => {
-      console.log('[GalleryRoot] Suche Dokument mit slug im Frontend:', { 
-        slug: docSlug, 
-        libraryId,
-        docsCount: docs.length,
-      })
-      
-      // Durchsuche alle docs und prüfe den bereits geladenen slug
-      const foundDoc = docs.find(doc => doc.slug === docSlug)
-      
-      if (foundDoc) {
-        console.log('[GalleryRoot] ✅ Dokument mit slug gefunden:', { 
-          slug: docSlug, 
-          fileId: foundDoc.fileId || foundDoc.id,
-          doc: foundDoc,
-        })
-        setSelected(foundDoc)
-      } else {
-        console.warn('[GalleryRoot] ⚠️ Dokument mit slug nicht gefunden:', { 
-          slug: docSlug,
-          docsCount: docs.length,
-        })
-      }
-    }
-    
-    findDocBySlug()
-  }, [searchParams, libraryId, docs, loading, selected, pathname])
-  
-  // Reset slugSearchRef, wenn selected geändert wird (Overlay geschlossen)
-  useEffect(() => {
-    if (!selected) {
-      slugSearchRef.current = null
-    }
-  }, [selected])
-
-  // Ref, um zu verhindern, dass Dokument mehrfach geöffnet wird
-  const openingDocRef = React.useRef<string | null>(null)
-  
   // Event handlers
+  // Vereinfachte handleOpenDocument: Nutzt zentrale Utility-Funktion
   const handleOpenDocument = (doc: DocCardMeta) => {
-    const docId = doc.fileId || doc.id
-    // Verhindere mehrfaches Öffnen desselben Dokuments
-    if (openingDocRef.current === docId || (selected && (selected.fileId || selected.id) === docId)) {
+    if (!doc.slug) {
+      console.warn('[GalleryRoot] Dokument hat keinen slug, kann nicht geöffnet werden:', doc)
       return
     }
-    openingDocRef.current = docId
-    
-    setSelected(doc)
-    
-    // URL aktualisieren mit slug, falls vorhanden
-    // OPTIMIERUNG: Verwende bereits geladenen slug aus doc, keine API-Calls nötig
-    if (pathname && pathname.startsWith('/explore/') && doc.slug) {
-      try {
-        // Extrahiere library-slug aus pathname
-        const librarySlugMatch = pathname.match(/\/explore\/([^/]+)/)
-        if (librarySlugMatch && librarySlugMatch[1]) {
-          const librarySlug = librarySlugMatch[1]
-          const params = new URLSearchParams(searchParams?.toString() || '')
-          params.set('doc', doc.slug)
-          router.replace(`/explore/${librarySlug}?${params.toString()}`, { scroll: false })
-        }
-      } catch (err) {
-        console.error('[GalleryRoot] Fehler beim Aktualisieren der URL:', err)
-      }
+    // Schließe ReferencesSheet bevor DetailOverlay geöffnet wird (verhindert verschachtelte Overlays)
+    if (showReferencesSheet) {
+      setShowReferencesSheet(false)
+      setReferencesSheetMode(null)
+      setReferencesSheetData(null)
     }
-    
-    // Reset opening flag nach kurzer Verzögerung
-    setTimeout(() => {
-      openingDocRef.current = null
-    }, 200)
+    // Nutze zentrale Utility-Funktion für URL-basierte Navigation
+    openDocumentBySlug(doc.slug, libraryId || '', router, pathname, searchParams)
   }
   
   const handleCloseDocument = () => {
@@ -310,11 +230,9 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     }
     isClosingRef.current = true
     
-    setSelected(null)
-    openingDocRef.current = null // Reset opening flag beim Schließen
-    
     // URL bereinigen: doc-Parameter entfernen
-    if (pathname && pathname.startsWith('/explore/')) {
+    try {
+      if (pathname?.startsWith('/explore/')) {
       const librarySlugMatch = pathname.match(/\/explore\/([^/]+)/)
       if (librarySlugMatch && librarySlugMatch[1]) {
         const librarySlug = librarySlugMatch[1]
@@ -323,6 +241,15 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
         const newUrl = params.toString() ? `/explore/${librarySlug}?${params.toString()}` : `/explore/${librarySlug}`
         router.replace(newUrl, { scroll: false })
       }
+      } else if (pathname?.startsWith('/library')) {
+        // Auch für /library Route unterstützen
+        const params = new URLSearchParams(searchParams?.toString() || '')
+        params.delete('doc')
+        const newUrl = params.toString() ? `/library/gallery?${params.toString()}` : '/library/gallery'
+        router.replace(newUrl, { scroll: false })
+      }
+    } catch (err) {
+      console.error('[GalleryRoot] Fehler beim Entfernen des doc-Parameters:', err)
     }
     
     // Reset closing flag nach kurzer Verzögerung
@@ -338,6 +265,16 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       setReferencesSheetMode('answer')
     }
   }
+  
+  // Koordiniere ReferencesSheet mit DetailOverlay: Schließe Sheet wenn DetailOverlay geöffnet wird (URL-Parameter gesetzt)
+  useEffect(() => {
+    if (docSlug && showReferencesSheet) {
+      setShowReferencesSheet(false)
+      setReferencesSheetMode(null)
+      setReferencesSheetData(null)
+    }
+  }, [docSlug, showReferencesSheet])
+  
   useGalleryEvents(libraryId, docs, handleOpenDocument, handleShowReferenceLegend)
 
   // Event-Handler für TOC-Quellenverzeichnis (Mobile)
@@ -507,7 +444,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     }
     
     // Sonst normale Jahrgangs-Gruppierung
-    return <ItemsGrid docsByYear={docsByYear} onOpen={handleOpenDocument} />
+    return <ItemsGrid docsByYear={docsByYear} onOpen={handleOpenDocument} libraryId={libraryId} />
   }
 
   return (
@@ -639,19 +576,19 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
         description={texts.filterDescription}
       />
 
-      {/* Detail Overlay */}
-      {selected && (
+      {/* Detail Overlay - reagiert nur auf URL-Parameter */}
+      {selectedDoc && (
         <DetailOverlay
-          open={!!selected}
+          open={!!selectedDoc}
           onClose={handleCloseDocument}
           libraryId={libraryId || ''}
-          fileId={selected.fileId || selected.id}
+          fileId={selectedDoc.fileId || selectedDoc.id}
           viewType={detailViewType}
           onSwitchToStoryMode={() => {
             // Setze shortTitle-Filter für das aktuelle Dokument
             setFilters(f => {
               const next = { ...(f as Record<string, string[] | undefined>) }
-              const docShortTitle = selected.shortTitle || selected.title
+              const docShortTitle = selectedDoc.shortTitle || selectedDoc.title
               next.shortTitle = docShortTitle ? [docShortTitle] : undefined
               return next as typeof f
             })
@@ -678,6 +615,16 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           queryId={referencesSheetData?.queryId}
           onOpenDocument={handleOpenDocument}
           onClearFilters={handleClearFilters}
+          // Props für TOC-Modus
+          filteredDocs={filteredDocs}
+          docsByYear={docsByYear}
+          // Props für Answer-Modus
+          usedDocs={usedDocs}
+          unusedDocs={unusedDocs}
+          sources={sources}
+          // Loading und Error States
+          loading={loading}
+          error={error}
         />
       )}
     </div>

@@ -132,15 +132,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const { filteredDocs, loading: galleryDataLoading } = useGalleryData(galleryFilters || {}, 'story', '', libraryId)
   const filteredDocsCount = filteredDocs.length
   
-  // Logge Dokumente-Lade-Status
-  useEffect(() => {
-    console.log('[ChatPanel] Gallery Data Status:', {
-      filteredDocsCount,
-      galleryDataLoading,
-      hasDocs: filteredDocs.length > 0,
-      docsLoaded: !galleryDataLoading && filteredDocs.length > 0,
-    })
-  }, [filteredDocsCount, galleryDataLoading, filteredDocs.length])
+  // Dokumente-Lade-Status wird nur intern für Render-Entscheidungen verwendet.
   
   // Detail View Type aus Library Config (direkt aus Atom, wie in gallery-root.tsx)
   const libraries = useAtomValue(librariesAtom)
@@ -154,6 +146,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     libraryId,
     activeChatId,
   })
+  
+  // activeChatId-Änderungen werden still vom History-Hook verarbeitet.
   
   // Open Conversations State
   const [openConversations, setOpenConversations] = useState<Set<string>>(new Set())
@@ -733,7 +727,21 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       
       const wasTOCQuery = messages.some(msg => msg.queryId === queryId && msg.type === 'question' && msg.content.trim() === TOC_QUESTION.trim())
       
-      setMessages(prev => prev.filter(msg => msg.queryId !== queryId))
+      console.log('[ChatPanel] Query gelöscht:', {
+        queryId,
+        wasTOCQuery,
+        messagesBeforeDelete: messages.length,
+      })
+      
+      setMessages(prev => {
+        const filtered = prev.filter(msg => msg.queryId !== queryId)
+        console.log('[ChatPanel] Messages nach Löschen:', {
+          messagesBefore: prev.length,
+          messagesAfter: filtered.length,
+          deletedQueryId: queryId,
+        })
+        return filtered
+      })
       
       if (wasTOCQuery) {
         setTimeout(() => {
@@ -893,7 +901,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             libraryId={libraryId}
             activeChatId={activeChatId}
             setActiveChatId={setActiveChatId}
-            setMessages={setMessages}
             isEmbedded={isEmbedded}
           >
             <ChatConfigPopover
@@ -1025,7 +1032,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           libraryId={libraryId}
           activeChatId={activeChatId}
           setActiveChatId={setActiveChatId}
-          setMessages={setMessages}
           isEmbedded={isEmbedded}
         >
           <ChatConfigPopover

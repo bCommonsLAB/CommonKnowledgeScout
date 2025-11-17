@@ -239,14 +239,9 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
 
   if (run.isTOCQuery) {
     // For TOC queries: Try to parse StoryTopicsData
-    console.log('[Orchestrator] TOC query detected, attempting to parse StoryTopicsData. Raw length:', raw.length)
-    console.log('[Orchestrator] Raw (first 500 characters):', raw.substring(0, 500))
     const parsedTopicsData = parseStoryTopicsData(raw)
     if (parsedTopicsData) {
-      console.log('[Orchestrator] ✅ StoryTopicsData successfully parsed:', {
-        title: parsedTopicsData.title,
-        topicsCount: parsedTopicsData.topics.length,
-      })
+     
       storyTopicsData = parsedTopicsData
       // Create a Markdown answer from StoryTopicsData for the normal answer
       // (for backward compatibility)
