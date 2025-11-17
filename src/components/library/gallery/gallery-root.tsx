@@ -13,7 +13,10 @@ import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky
 import { FiltersPanel } from '@/components/library/gallery/filters-panel'
 import { ItemsGrid } from '@/components/library/gallery/items-grid'
 import { GroupedItemsGrid } from '@/components/library/gallery/grouped-items-grid'
+import { ItemsTable } from '@/components/library/gallery/items-table'
+import { GroupedItemsTable } from '@/components/library/gallery/grouped-items-table'
 import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
+import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import type { QueryLog } from '@/types/query-log'
 import type { ChatResponse } from '@/types/chat-response'
@@ -50,6 +53,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const isSwitchingToStoryModeRef = React.useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isMobile, setIsMobile] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const chatReferences = useAtomValue(chatReferencesAtom)
   const [showReferencesSheet, setShowReferencesSheet] = useState(false)
   const [referencesSheetMode, setReferencesSheetMode] = useState<'answer' | 'toc' | null>(null)
@@ -434,7 +438,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   }
 
   // Render helpers
-  const renderItemsGrid = () => {
+  const renderItemsView = () => {
     if (!libraryId) return <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
     if (error) return <div className='text-sm text-destructive'>{error}</div>
     if (loading) return <div className='text-sm text-muted-foreground'>Lade Dokumente…</div>
@@ -455,8 +459,21 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       )
     }
     
-    // Wenn chatReferences gesetzt ist, verwende GroupedItemsGrid
+    // Wenn chatReferences gesetzt ist, verwende gruppierte Ansicht
     if (chatReferences && chatReferences.references && chatReferences.references.length > 0) {
+      if (viewMode === 'table') {
+        return (
+          <GroupedItemsTable
+            usedDocs={usedDocs}
+            unusedDocs={unusedDocs}
+            references={chatReferences.references}
+            sources={sources}
+            queryId={chatReferences.queryId}
+            libraryId={libraryId || ''}
+            onOpenDocument={handleOpenDocument}
+          />
+        )
+      }
       return (
         <GroupedItemsGrid
           usedDocs={usedDocs}
@@ -471,6 +488,9 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     }
     
     // Sonst normale Jahrgangs-Gruppierung
+    if (viewMode === 'table') {
+      return <ItemsTable docsByYear={docsByYear} onOpen={handleOpenDocument} libraryId={libraryId} />
+    }
     return <ItemsGrid docsByYear={docsByYear} onOpen={handleOpenDocument} libraryId={libraryId} />
   }
 
@@ -497,6 +517,8 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
             searchPlaceholder={t('gallery.searchPlaceholder')}
             onChangeQuery={setSearchQuery}
             queryValue={searchQuery}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
 
           <div className='flex-1 min-h-0 overflow-hidden flex flex-col min-h-[80vh]'>
@@ -544,15 +566,15 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                   className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
                   data-gallery-section
                 >
-                  <div>{renderItemsGrid()}</div>
+                  <div>{renderItemsView()}</div>
                 </section>
               </div>
             </div>
 
-            {/* Mobile: Items Grid */}
+            {/* Mobile: Items View */}
             <section className="lg:hidden w-full flex flex-col min-h-0 flex-1" data-gallery-section>
               <ScrollArea className="flex-1 min-h-0">
-                <div className="pr-4">{renderItemsGrid()}</div>
+                <div className="pr-4">{renderItemsView()}</div>
               </ScrollArea>
             </section>
           </div>
@@ -585,7 +607,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                 className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
                 data-gallery-section
               >
-                <div>{renderItemsGrid()}</div>
+                <div>{renderItemsView()}</div>
               </section>
             </div>
           </div>
@@ -643,6 +665,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           }}
           libraryId={libraryId}
           mode={referencesSheetMode}
+          viewMode={viewMode}
           references={referencesSheetData?.references}
           queryId={referencesSheetData?.queryId}
           onOpenDocument={handleOpenDocument}

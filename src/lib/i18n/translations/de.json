@@ -193,6 +193,18 @@
     "shareFacebook": "Auf Facebook teilen",
     "copyLink": "Link kopieren",
     "linkCopied": "Link kopiert!",
+    "viewMode": {
+      "grid": "Galerie",
+      "table": "Tabelle"
+    },
+    "table": {
+      "title": "Titel",
+      "authors": "Autor:innen",
+      "year": "Jahr",
+      "date": "Datum",
+      "track": "Track",
+      "region": "Region"
+    },
     "texts": {
       "session": {
         "headline": "Entdecke die Inhalte dieses Events",

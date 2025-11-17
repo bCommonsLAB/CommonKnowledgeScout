@@ -46,7 +46,7 @@ export function CTASection() {
                 </a>
               </Button>
               <Button size="lg" variant="outline" className="gap-2 bg-transparent" asChild>
-                <a href="https://www.peteraichner.org/" target="_blank" rel="noopener noreferrer">
+                <a href="https://bcommonslab.org/" target="_blank" rel="noopener noreferrer">
                   <Mail className="h-5 w-5" />
                   {t('home.cta.buttonContact')}
                 </a>

@@ -124,6 +124,7 @@
         "title": "La tua prospettiva",
         "language": "Lingua",
         "character": "Profilo di interessi",
+        "accessPerspective": "Prospettiva di accesso",
         "socialContext": "Stile linguistico",
         "adjustPerspective": "Regola la prospettiva",
         "adjustPerspectiveDescription": "Specifica come i contenuti sono preparati per te: in quale lingua, con quale profilo di interessi e da quale contesto. Così ottieni risposte che riflettono il tuo approccio e le tue priorità."
@@ -157,6 +158,18 @@
     "openDocument": "Apri documento",
     "openEventWebsite": "Apri sito web evento",
     "loading": "Caricamento…",
+    "viewMode": {
+      "grid": "Galleria",
+      "table": "Tabella"
+    },
+    "table": {
+      "title": "Titolo",
+      "authors": "Autori",
+      "year": "Anno",
+      "date": "Data",
+      "track": "Track",
+      "region": "Regione"
+    },
     "texts": {
       "session": {
         "headline": "Scopri i contenuti di questo evento",

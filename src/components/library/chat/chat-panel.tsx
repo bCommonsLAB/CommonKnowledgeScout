@@ -956,6 +956,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                 retriever={retriever}
                 targetLanguage={targetLanguage}
                 character={character}
+                accessPerspective={accessPerspective}
                 socialContext={socialContext}
                 onQuestionClick={(question) => {
                   setInput(question)
@@ -1074,6 +1075,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               retriever={retriever}
               targetLanguage={targetLanguage}
               character={character}
+              accessPerspective={accessPerspective}
               socialContext={socialContext}
               filters={galleryFilters}
               onQuestionClick={(question) => {

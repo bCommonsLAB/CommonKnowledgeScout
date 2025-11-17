@@ -41,7 +41,7 @@ Knowledge Scout is an experiment by **Crystal Design** and **bcommonsLAB**, deve
 The project is continuously evolving and shaped by feedback and participation.  
 If you have ideas, questions, or suggestions, feel free to reach out at:
 
-📧 **[https://www.peteraichner.org/](https://www.peteraichner.org/)**
+📧 **[https://bcommonslab.org/](https://bcommonslab.org/)**
 
 ---
 
@@ -65,4 +65,4 @@ Knowledge Scout is an open laboratory.
 If you would like to contribute, propose new libraries, or help shape the future of collective knowledge tools, we would love to hear from you.
 
 **Contact us:**  
-📧 _[https://www.peteraichner.org/](https://www.peteraichner.org/)_
+📧 _[https://bcommonslab.org/](https://bcommonslab.org/)_

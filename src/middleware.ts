@@ -38,6 +38,7 @@ const isPublicRoute = createRouteMatcher([
   '/docs(.*)',
   '/explore(.*)',
   '/api/public(.*)',
+  '/api/markdown(.*)',
   '/info(.*)'
 ]);
 

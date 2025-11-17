@@ -6,7 +6,7 @@ import { ChatConfigDisplay } from './chat-config-display'
 import type { ChatMessage } from './utils/chat-utils'
 import { groupMessagesToConversations } from './utils/chat-utils'
 import type { ChatProcessingStep } from '@/types/chat-processing'
-import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext } from '@/lib/chat/constants'
+import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext, AccessPerspective } from '@/lib/chat/constants'
 import { useTranslation } from '@/lib/i18n/hooks'
 
 interface ChatMessagesListProps {
@@ -21,6 +21,7 @@ interface ChatMessagesListProps {
   retriever: Retriever
   targetLanguage: TargetLanguage
   character: Character[] // Array (kann leer sein)
+  accessPerspective: AccessPerspective[] // Array (kann leer sein)
   socialContext: SocialContext
   filters?: Record<string, unknown> // Optional: Filterparameter für Anzeige während Verarbeitung
   onQuestionClick: (question: string) => void
@@ -59,6 +60,7 @@ export function ChatMessagesList({
   retriever,
   targetLanguage,
   character,
+  accessPerspective,
   socialContext,
   filters,
   onQuestionClick,
@@ -172,6 +174,7 @@ export function ChatMessagesList({
                   retriever={retriever}
                   targetLanguage={targetLanguage}
                   character={character}
+                  accessPerspective={accessPerspective}
                   socialContext={socialContext}
                   libraryId={libraryId}
                   filters={filters}

@@ -66,6 +66,7 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
     const paramParts: string[] = []
     if (params.targetLanguage) paramParts.push(`${t('configDisplay.language')} ${params.targetLanguage}`)
     if (params.character) paramParts.push(`${t('configDisplay.character')} ${params.character}`)
+    if (params.accessPerspective) paramParts.push(`${t('configDisplay.accessPerspective')} ${params.accessPerspective}`)
     if (params.socialContext) paramParts.push(`${t('configDisplay.context')} ${params.socialContext}`)
     if (params.filters && Object.keys(params.filters).length > 0) {
       const filterCount = Object.values(params.filters).reduce((sum: number, val: unknown) => {

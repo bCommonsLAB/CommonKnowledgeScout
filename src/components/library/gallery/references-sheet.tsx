@@ -10,7 +10,10 @@ import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
 import { GroupedItemsGrid } from './grouped-items-grid'
 import { ItemsGrid } from './items-grid'
+import { GroupedItemsTable } from './grouped-items-table'
+import { ItemsTable } from './items-table'
 import { useTranslation } from '@/lib/i18n/hooks'
+import type { ViewMode } from './gallery-sticky-header'
 
 interface ReferencesSheetProps {
   /** Sheet geöffnet/geschlossen */
@@ -21,6 +24,8 @@ interface ReferencesSheetProps {
   libraryId: string
   /** Modus: 'answer' für Antwort-Quellenverzeichnis (GroupedItemsGrid), 'toc' für TOC-Quellenverzeichnis (ItemsGrid) */
   mode: 'answer' | 'toc'
+  /** View-Mode: 'grid' für Galerie-Ansicht, 'table' für Tabellen-Ansicht */
+  viewMode?: ViewMode
   /** Referenzen für Antwort-Modus */
   references?: ChatResponse['references']
   /** QueryId für Antwort-Modus */
@@ -54,6 +59,7 @@ export function ReferencesSheet({
   onOpenChange,
   libraryId,
   mode,
+  viewMode = 'grid',
   references,
   queryId,
   onOpenDocument,
@@ -112,16 +118,29 @@ export function ReferencesSheet({
               ) : error ? (
                 <div className="text-sm text-destructive py-8">{error}</div>
               ) : references && references.length > 0 && (usedDocs.length > 0 || unusedDocs.length > 0) ? (
-                <GroupedItemsGrid
-                  usedDocs={usedDocs}
-                  unusedDocs={unusedDocs}
-                  references={references}
-                  sources={sources}
-                  queryId={queryId}
-                  libraryId={libraryId}
-                  onOpenDocument={onOpenDocument}
-                  onClose={handleCloseAnswer}
-                />
+                viewMode === 'table' ? (
+                  <GroupedItemsTable
+                    usedDocs={usedDocs}
+                    unusedDocs={unusedDocs}
+                    references={references}
+                    sources={sources}
+                    queryId={queryId}
+                    libraryId={libraryId}
+                    onOpenDocument={onOpenDocument}
+                    onClose={handleCloseAnswer}
+                  />
+                ) : (
+                  <GroupedItemsGrid
+                    usedDocs={usedDocs}
+                    unusedDocs={unusedDocs}
+                    references={references}
+                    sources={sources}
+                    queryId={queryId}
+                    libraryId={libraryId}
+                    onOpenDocument={onOpenDocument}
+                    onClose={handleCloseAnswer}
+                  />
+                )
               ) : (
                 <div className="text-sm text-muted-foreground py-8">
                   Keine Referenzen verfügbar.
@@ -138,6 +157,8 @@ export function ReferencesSheet({
                 <div className="text-sm text-muted-foreground py-8">
                   Keine Dokumente gefunden.
                 </div>
+              ) : viewMode === 'table' ? (
+                <ItemsTable docsByYear={docsByYear} onOpen={onOpenDocument} libraryId={libraryId} />
               ) : (
                 <ItemsGrid docsByYear={docsByYear} onOpen={onOpenDocument} libraryId={libraryId} />
               )}

@@ -124,6 +124,7 @@
         "title": "Your Perspective",
         "language": "Language",
         "character": "Interest Profile",
+        "accessPerspective": "Access Perspective",
         "socialContext": "Language Style",
         "adjustPerspective": "Adjust perspective",
         "adjustPerspectiveDescription": "Specify how the contents are prepared for you: in which language, with which interest profile, and from which context. This way you get answers that reflect your approach and priorities."
@@ -157,6 +158,18 @@
     "openDocument": "Open Document",
     "openEventWebsite": "Open Event Website",
     "loading": "Loading…",
+    "viewMode": {
+      "grid": "Gallery",
+      "table": "Table"
+    },
+    "table": {
+      "title": "Title",
+      "authors": "Authors",
+      "year": "Year",
+      "date": "Date",
+      "track": "Track",
+      "region": "Region"
+    },
     "texts": {
       "session": {
         "headline": "Discover the contents of this event",

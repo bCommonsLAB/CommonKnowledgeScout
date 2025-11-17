@@ -152,6 +152,10 @@ export function PerspectiveDisplay({
         value: charLabels,
       })
     }
+    console.log('character', character)
+    console.log('accessPerspective', accessPerspective)
+    console.log('socialContext', socialContext)
+    console.log('targetLanguage', targetLanguage)
 
     // Zugangsperspektive
     if (accessPerspective && accessPerspective.length > 0) {

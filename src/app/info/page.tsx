@@ -10,12 +10,12 @@ import { useTranslation } from "@/lib/i18n/hooks"
 import { useSearchParams } from "next/navigation"
 
 const MARKDOWN_FILES: Record<string, string> = {
-  'about': '/docs/footer/about.md',
-  'impressum': '/docs/footer/Impressum.md',
-  'datenschutz': '/docs/footer/privacy.md',
-  'rechtliche-hinweise': '/docs/footer/legal-notice.md',
-  'legal-notice': '/docs/footer/legal-notice.md',
-  'privacy': '/docs/footer/privacy.md',
+  'about': '/api/markdown/footer/about.md',
+  'impressum': '/api/markdown/footer/Impressum.md',
+  'datenschutz': '/api/markdown/footer/privacy.md',
+  'rechtliche-hinweise': '/api/markdown/footer/legal-notice.md',
+  'legal-notice': '/api/markdown/footer/legal-notice.md',
+  'privacy': '/api/markdown/footer/privacy.md',
 }
 
 function InfoPageContent() {

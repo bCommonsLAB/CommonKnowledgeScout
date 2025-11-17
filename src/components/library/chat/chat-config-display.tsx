@@ -301,7 +301,6 @@ export function ChatConfigDisplay({
 
   return (
     <div className="flex flex-col gap-1 mt-1">
-      {/* Perspektiven-Anzeige mit gemeinsamer Komponente */}
       {hasPerspectiveParams && (
         <PerspectiveDisplay
           variant="inline"

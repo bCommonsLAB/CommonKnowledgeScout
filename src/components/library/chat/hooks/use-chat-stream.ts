@@ -11,7 +11,7 @@ import type { ChatMessage } from '../utils/chat-utils'
 import type { ChatResponse } from '@/types/chat-response'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { AnswerLength, Retriever, TargetLanguage, Character, SocialContext, AccessPerspective } from '@/lib/chat/constants'
-import { TOC_QUESTION, characterArrayToString } from '@/lib/chat/constants'
+import { TOC_QUESTION, characterArrayToString, accessPerspectiveArrayToString } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { compareCacheKeys, type CacheKeyParams } from '@/lib/chat/utils/cache-key-utils'
 import { parseSSELines } from '@/utils/sse'
@@ -203,6 +203,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
 
         params.set('targetLanguage', targetLanguage)
         params.set('character', characterArrayToString(character) || '')
+        params.set('accessPerspective', accessPerspectiveArrayToString(accessPerspective) || '')
         params.set('socialContext', socialContext)
         params.set('genderInclusive', String(genderInclusive))
 

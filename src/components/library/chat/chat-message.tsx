@@ -10,7 +10,7 @@ import { BookOpen } from 'lucide-react'
 import type { ChatResponse } from '@/types/chat-response'
 import { QueryDetailsDialog } from './query-details-dialog'
 import { ProcessingLogsDialog } from './processing-logs-dialog'
-import type { Character, TargetLanguage, SocialContext, AnswerLength, Retriever } from '@/lib/chat/constants'
+import type { Character, TargetLanguage, SocialContext, AnswerLength, Retriever, AccessPerspective } from '@/lib/chat/constants'
 import { characterColors, characterIconColors } from '@/lib/chat/constants'
 import { useUser } from '@clerk/nextjs'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
@@ -30,6 +30,7 @@ interface ChatMessageProps {
   messageId?: string
   innerRef?: (id: string, element: HTMLDivElement | null) => void
   character?: Character[] // Array (kann leer sein)
+  accessPerspective?: AccessPerspective[] // Array (kann leer sein)
   answerLength?: AnswerLength
   retriever?: Retriever
   targetLanguage?: TargetLanguage
@@ -66,6 +67,7 @@ export function ChatMessage({
   messageId,
   innerRef,
   character,
+  accessPerspective,
   answerLength,
   retriever,
   targetLanguage,
@@ -114,6 +116,7 @@ export function ChatMessage({
                 retriever={retriever}
                 targetLanguage={targetLanguage}
                 character={character}
+                accessPerspective={accessPerspective}
                 socialContext={socialContext}
                 libraryId={libraryId}
                 queryId={queryId}
@@ -172,6 +175,7 @@ export function ChatMessage({
                       retriever={retriever}
                       targetLanguage={targetLanguage}
                       character={character}
+                      accessPerspective={accessPerspective}
                       socialContext={socialContext}
                       libraryId={libraryId}
                       queryId={queryId}

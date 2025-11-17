@@ -10,7 +10,7 @@ import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
 import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { librariesAtom } from '@/atoms/library-atom'
-import type { AnswerLength, Retriever, TargetLanguage, SocialContext, Character } from '@/lib/chat/constants'
+import type { AnswerLength, Retriever, TargetLanguage, SocialContext, Character, AccessPerspective } from '@/lib/chat/constants'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { QueryDetailsDialog } from '@/components/library/chat/query-details-dialog'
 import { ProcessingStatus } from '@/components/library/chat/processing-status'
@@ -23,6 +23,7 @@ interface CachedTOC {
   retriever?: Retriever
   targetLanguage?: TargetLanguage
   character?: Character[] // Array (kann leer sein)
+  accessPerspective?: AccessPerspective[] // Array (kann leer sein)
   socialContext?: SocialContext
   facetsSelected?: Record<string, unknown>
   queryId?: string
@@ -39,6 +40,7 @@ interface StoryTopicsProps {
   retriever?: Retriever
   targetLanguage?: TargetLanguage
   character?: Character[] // Array (kann leer sein)
+  accessPerspective?: AccessPerspective[] // Array (kann leer sein)
   socialContext?: SocialContext
   queryId?: string // QueryId für Filterparameter-Anzeige
   filters?: Record<string, unknown> // Optional: Filterparameter direkt übergeben
@@ -224,6 +226,7 @@ export function StoryTopics({
             retriever={cachedTOC?.retriever}
             targetLanguage={cachedTOC?.targetLanguage}
             character={cachedTOC?.character}
+            accessPerspective={cachedTOC?.accessPerspective}
             socialContext={cachedTOC?.socialContext}
             filters={cachedTOC?.facetsSelected}
           />

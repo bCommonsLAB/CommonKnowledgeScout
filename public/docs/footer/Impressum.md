@@ -5,7 +5,7 @@
 | **Verantwortlich für den Inhalt dieser Website** | **Responsabile dei contenuti di questo sito** |
 | **bcoop Brixen – Sozialgenossenschaft (Società Cooperativa Sociale)**<br>Via Elvas 7b<br>39042 Brixen (BZ) – Italien | **bcoop Bressanone – Società Cooperativa Sociale**<br>Via Elvas 7b<br>39042 Bressanone (BZ) – Italia |
 | **bcommonslab – Social Laboratory**<br>bcommonslab ist eine Initiative der bcoop Brixen und verantwortet die Entwicklung und Betreuung des Projekts *Knowledge Scout*. | **bcommonslab – Social Laboratory**<br>bcommonslab è un’iniziativa della bcoop Bressanone e cura lo sviluppo e la gestione del progetto *Knowledge Scout*. |
-| **Kontakt:**<br>📧 [https://www.peteraichner.org/](https://www.peteraichner.org/) | **Contatti:**<br>📧 [https://www.peteraichner.org/](https://www.peteraichner.org/) |
+| **Kontakt:**<br>📧 [https://bcommonslab.org/](https://bcommonslab.org/) | **Contatti:**<br>📧 [https://bcommonslab.org/](https://bcommonslab.org/) |
 | --- | --- |
 | **Rechtliche Natur des Angebots** | **Natura giuridica del servizio** |
 | Knowledge Scout ist ein nicht-kommerzielles Forschungs- und Entwicklungsprojekt zur Erkundung kollektiven Wissens. Es dient ausschließlich Bildung, Forschung und experimenteller Exploration. Es ist **kein journalistisches Angebot** im Sinne der *Legge 62/2001*, kein redaktionelles Produkt und kein gewerbliches Online-Dienstangebot. | Knowledge Scout è un progetto di ricerca e sviluppo senza scopo di lucro dedicato all’esplorazione della conoscenza collettiva. È destinato esclusivamente a finalità educative, di ricerca e di esplorazione sperimentale. Non costituisce un **prodotto editoriale** ai sensi della *Legge 62/2001*, né un servizio commerciale o redazionale. |
