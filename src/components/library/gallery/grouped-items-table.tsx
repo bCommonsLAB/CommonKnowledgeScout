@@ -21,6 +21,8 @@ import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 import { ReferenceGroupHeader } from './reference-group-header'
+import { ViewModeToggle } from './view-mode-toggle'
+import type { ViewMode } from './gallery-sticky-header'
 
 interface GroupedItemsTableProps {
   /** Dokumente, die in der Antwort verwendet wurden */
@@ -39,6 +41,10 @@ interface GroupedItemsTableProps {
   onOpenDocument?: (doc: DocCardMeta) => void
   /** Callback für Schließen (z.B. im ReferencesSheet, um das Sheet zu schließen) */
   onClose?: () => void
+  /** View-Mode: 'grid' für Galerie-Ansicht, 'table' für Tabellen-Ansicht */
+  viewMode?: ViewMode
+  /** Callback für View-Mode-Änderung */
+  onViewModeChange?: (mode: ViewMode) => void
 }
 
 /**
@@ -55,6 +61,8 @@ export function GroupedItemsTable({
   libraryId,
   onOpenDocument,
   onClose,
+  viewMode,
+  onViewModeChange,
 }: GroupedItemsTableProps) {
   const { t } = useTranslation()
   const setChatReferences = useSetAtom(chatReferencesAtom)
@@ -208,6 +216,10 @@ export function GroupedItemsTable({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2 pb-2 px-0 py-2">
         <h2 className="text-lg font-semibold">{t('gallery.references')}</h2>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* View-Mode-Toggle - nur anzeigen wenn Props gesetzt sind */}
+          {viewMode !== undefined && onViewModeChange && (
+            <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} compact />
+          )}
           {queryId && (
             <Button
               variant="outline"

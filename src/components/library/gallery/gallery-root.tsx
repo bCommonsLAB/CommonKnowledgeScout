@@ -11,10 +11,8 @@ import { ChatPanel } from '@/components/library/chat/chat-panel'
 import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky-header'
 import { FiltersPanel } from '@/components/library/gallery/filters-panel'
-import { ItemsGrid } from '@/components/library/gallery/items-grid'
-import { GroupedItemsGrid } from '@/components/library/gallery/grouped-items-grid'
-import { ItemsTable } from '@/components/library/gallery/items-table'
-import { GroupedItemsTable } from '@/components/library/gallery/grouped-items-table'
+import { ItemsView } from '@/components/library/gallery/items-view'
+import { GroupedItemsView } from '@/components/library/gallery/grouped-items-view'
 import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
@@ -461,21 +459,10 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     
     // Wenn chatReferences gesetzt ist, verwende gruppierte Ansicht
     if (chatReferences && chatReferences.references && chatReferences.references.length > 0) {
-      if (viewMode === 'table') {
-        return (
-          <GroupedItemsTable
-            usedDocs={usedDocs}
-            unusedDocs={unusedDocs}
-            references={chatReferences.references}
-            sources={sources}
-            queryId={chatReferences.queryId}
-            libraryId={libraryId || ''}
-            onOpenDocument={handleOpenDocument}
-          />
-        )
-      }
       return (
-        <GroupedItemsGrid
+        <GroupedItemsView
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
           usedDocs={usedDocs}
           unusedDocs={unusedDocs}
           references={chatReferences.references}
@@ -488,10 +475,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     }
     
     // Sonst normale Jahrgangs-Gruppierung
-    if (viewMode === 'table') {
-      return <ItemsTable docsByYear={docsByYear} onOpen={handleOpenDocument} libraryId={libraryId} />
-    }
-    return <ItemsGrid docsByYear={docsByYear} onOpen={handleOpenDocument} libraryId={libraryId} />
+    return <ItemsView viewMode={viewMode} docsByYear={docsByYear} onOpen={handleOpenDocument} libraryId={libraryId} />
   }
 
   return (
@@ -599,6 +583,8 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                     onClear={handleClearFilters}
                     hideFilterButton={true}
                     facetDefs={facetDefs}
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
                   />
                 </div>
               )}
@@ -666,6 +652,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           libraryId={libraryId}
           mode={referencesSheetMode}
           viewMode={viewMode}
+          onViewModeChange={setViewMode}
           references={referencesSheetData?.references}
           queryId={referencesSheetData?.queryId}
           onOpenDocument={handleOpenDocument}

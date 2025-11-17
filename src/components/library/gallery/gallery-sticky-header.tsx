@@ -2,11 +2,9 @@
 
 import React from 'react'
 import { Input } from '@/components/ui/input'
-import { Search, Grid3x3, Table2 } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
-import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n/hooks'
-import { cn } from '@/lib/utils'
+import { ViewModeToggle } from './view-mode-toggle'
 
 export type ViewMode = 'grid' | 'table'
 
@@ -38,8 +36,6 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
     viewMode = 'grid',
     onViewModeChange,
   } = props
-
-  const { t } = useTranslation()
 
   // Verwende gemeinsamen Scroll-Visibility-Hook (wie TopNav)
   // isVisible === false bedeutet: Header-Bereich ausblenden (condensed)
@@ -82,34 +78,7 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
         </div>
         {/* View Mode Toggle */}
         {onViewModeChange && (
-          <div className="flex items-center gap-1 border rounded-md p-1 bg-muted/50">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onViewModeChange('grid')}
-              className={cn(
-                "h-8 px-3 gap-2",
-                viewMode === 'grid' && "bg-background shadow-sm"
-              )}
-              aria-label={t('gallery.viewMode.grid')}
-            >
-              <Grid3x3 className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('gallery.viewMode.grid')}</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onViewModeChange('table')}
-              className={cn(
-                "h-8 px-3 gap-2",
-                viewMode === 'table' && "bg-background shadow-sm"
-              )}
-              aria-label={t('gallery.viewMode.table')}
-            >
-              <Table2 className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('gallery.viewMode.table')}</span>
-            </Button>
-          </div>
+          <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
         )}
       </div>
     </div>

@@ -66,15 +66,15 @@ export function HowItWorks() {
                       backgroundPosition: 'center',
                     }}
                   >
-                    {/* Dunkles Overlay für bessere Lesbarkeit */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/40" />
+                    {/* Helles Overlay für bessere Lesbarkeit */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/80 to-white/60" />
                     
                     {/* Copyright-Icon für Bildquelle */}
                     <div className="absolute bottom-3 right-3 z-10">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
-                            className="flex h-6 w-6 items-center justify-center rounded-full bg-transparent text-white/70 hover:text-white transition-colors"
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-transparent text-foreground/70 hover:text-foreground transition-colors"
                             aria-label={t('common.imageSource')}
                           >
                             <Copyright className="h-3.5 w-3.5" />
@@ -87,12 +87,12 @@ export function HowItWorks() {
                     </div>
 
                     <CardContent className="relative z-0 pt-8 flex-1 flex flex-col">
-                      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
-                        <Icon className="h-6 w-6 text-white" />
+                      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-foreground/10 backdrop-blur-sm">
+                        <Icon className="h-6 w-6 text-foreground" />
                       </div>
-                      <h3 className="mb-2 text-xl font-semibold text-white">{step.title}</h3>
-                      <p className="mb-3 text-white/90 leading-relaxed">{step.description}</p>
-                      <p className="text-sm text-white/80 leading-relaxed flex-1">{step.detail}</p>
+                      <h3 className="mb-3 text-xl font-semibold text-foreground">{step.title}</h3>
+                      <p className="mb-3 text-foreground/90 leading-relaxed">{step.description}</p>
+                      <p className="text-sm text-foreground/90 leading-relaxed flex-1">{step.detail}</p>
                     </CardContent>
                   </Card>
                 </div>

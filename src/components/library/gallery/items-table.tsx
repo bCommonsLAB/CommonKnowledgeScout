@@ -58,10 +58,10 @@ export function ItemsTable({ docsByYear, onOpen, libraryId }: ItemsTableProps) {
   }
 
   return (
-    <div className="space-y-8">
+    <div>
       {docsByYear.map(([year, yearDocs]) => (
         <div key={year}>
-          <h3 className="text-lg font-semibold mb-4 pb-2 border-b pt-4">
+          <h3 className="text-lg font-semibold">
             {year === 'Ohne Jahrgang' ? t('gallery.noYear') : t('gallery.year', { year })}
           </h3>
           <div className="rounded-md border">

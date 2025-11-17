@@ -14,10 +14,10 @@ export interface ItemsGridProps {
 export function ItemsGrid({ docsByYear, onOpen, libraryId }: ItemsGridProps) {
   const { t } = useTranslation()
   return (
-    <div className='space-y-8'>
+    <div className='space-y-2'>
       {docsByYear.map(([year, yearDocs]) => (
         <div key={year}>
-          <h3 className='text-lg font-semibold mb-4 pb-2 border-b pt-4'>
+          <h3 className='text-lg font-semibold mb-4 pb-2 border-b'>
             {year === 'Ohne Jahrgang' ? t('gallery.noYear') : t('gallery.year', { year })}
           </h3>
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6'>

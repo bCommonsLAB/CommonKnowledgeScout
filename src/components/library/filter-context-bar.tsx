@@ -7,6 +7,8 @@ import { Filter, X, MessageCircle, ArrowRight } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
+import { ViewModeToggle } from '@/components/library/gallery/view-mode-toggle'
+import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
 
 interface FilterContextBarProps {
   docCount: number
@@ -17,6 +19,8 @@ interface FilterContextBarProps {
   ctaLabel?: string // Optional: Label für CTA-Button
   onCta?: () => void // Optional: Callback für CTA-Button
   tooltip?: string // Optional: Tooltip für CTA-Button
+  viewMode?: ViewMode // Optional: View-Mode für Toggle
+  onViewModeChange?: (mode: ViewMode) => void // Optional: Callback für View-Mode-Änderung
 }
 
 /**
@@ -25,7 +29,7 @@ interface FilterContextBarProps {
  * 
  * Zeigt Facetten-Filter (Track, Jahr, etc.) und shortTitle-Filter an.
  */
-export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterButton = false, facetDefs = [], ctaLabel, onCta, tooltip }: FilterContextBarProps) {
+export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterButton = false, facetDefs = [], ctaLabel, onCta, tooltip, viewMode, onViewModeChange }: FilterContextBarProps) {
   const filters = useAtomValue(galleryFiltersAtom)
   const { t } = useTranslation()
   
@@ -104,6 +108,13 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterB
           <X className="h-3 w-3 mr-1" />
           {t('gallery.reset')}
         </Button>
+      )}
+
+      {/* View-Mode-Toggle - nur anzeigen wenn Props gesetzt sind */}
+      {viewMode !== undefined && onViewModeChange && (
+        <div className="flex items-center shrink-0 ml-auto">
+          <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} compact />
+        </div>
       )}
 
       {/* CTA-Button - immer rechtsbündig */}
