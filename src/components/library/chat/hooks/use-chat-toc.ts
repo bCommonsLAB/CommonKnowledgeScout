@@ -126,7 +126,6 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     // Cache-Check erfolgt automatisch beim Senden der TOC-Frage über generateTOC()
     // Die Cache-Daten werden dann über setTOCData() gesetzt, wenn die Antwort kommt
     // Diese Funktion bleibt für Rückwärtskompatibilität, macht aber nichts
-    console.log('[useChatTOC] checkCache: Cache-Check erfolgt automatisch beim Senden der Frage')
   }, [])
 
   // Exponiere checkCache für externe Aufrufe (z.B. nach TOC-Query-Löschung)

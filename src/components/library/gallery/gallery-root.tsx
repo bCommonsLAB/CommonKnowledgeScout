@@ -79,12 +79,6 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     const galleryConfig = activeLibrary?.config?.chat?.gallery
     const vt = galleryConfig?.detailViewType
     const result = (vt === 'book' || vt === 'session') ? vt : 'book'
-    console.log('[GalleryRoot] initialDetailViewType:', {
-      libraryId,
-      detailViewType: vt,
-      result,
-      galleryConfig: JSON.stringify(galleryConfig),
-    })
     return result
   }, [activeLibrary?.config?.chat?.gallery, libraryId])
 

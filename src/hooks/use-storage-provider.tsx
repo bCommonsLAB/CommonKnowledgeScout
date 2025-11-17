@@ -37,21 +37,12 @@ export function useStorageProvider() {
   const [provider, setProvider] = useState<StorageProvider | null>(null)
 
   useEffect(() => {
-    // Logging der aktiven Library und Provider-Initialisierung
-    // eslint-disable-next-line no-console
-    console.log('[useStorageProvider] useEffect:', {
-      activeLibraryId,
-      libraries: libraries.map(lib => ({ id: lib.id, label: lib.label })),
-    });
-
     if (!activeLibraryId) {
-      console.log('[useStorageProvider] Keine aktive Bibliothek, setze Provider auf null')
       setProvider(null)
       return
     }
 
     if (libraries.length === 0) {
-      console.log('[useStorageProvider] Bibliotheksliste ist leer, warte auf Bibliotheken')
       setProvider(null)
       return
     }
@@ -69,17 +60,14 @@ export function useStorageProvider() {
     const isPublicLibrary = currentLibrary?.config?.publicPublishing?.isPublic === true
     
     if (isPublicLibrary) {
-      console.log(`[useStorageProvider] Öffentliche Library erkannt (${currentLibrary?.label}), kein Storage Provider benötigt`)
       setProvider(null)
       return
     }
 
-    console.log(`[useStorageProvider] Initialisiere Provider für Bibliothek: ${activeLibraryId}`)
     const factory = StorageFactory.getInstance()
     
     factory.getProvider(activeLibraryId)
       .then(provider => {
-        console.log(`[useStorageProvider] Provider erfolgreich initialisiert: ${provider.name} (ID: ${provider.id})`)
         setProvider(provider)
       })
       .catch(error => {
@@ -109,7 +97,6 @@ export function useStorageProvider() {
           )
           
           if (supportedLibrary) {
-            console.log(`[useStorageProvider] Wechsle zu unterstützter Bibliothek: ${supportedLibrary.label}`)
             // TODO: activeLibraryId auf supportedLibrary.id setzen
             // Für jetzt setzen wir Provider auf null
           }

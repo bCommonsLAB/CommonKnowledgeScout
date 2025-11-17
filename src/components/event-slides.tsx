@@ -69,17 +69,17 @@ export function EventSlides({ slides, libraryId }: EventSlidesProps) {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden">
+    <div className="w-full max-w-full overflow-x-hidden box-border">
       <h2 className="text-2xl font-bold mb-6">{t('event.presentationSlides')}</h2>
-      <div className="space-y-8 w-full max-w-full overflow-x-hidden">
+      <div className="space-y-8 w-full max-w-full overflow-x-hidden box-border">
         {slides.map((slide) => {
           // Resolve relative image paths to Storage API URLs
           const imageUrl = resolveImageUrl(slide.image_url, libraryId);
           
           return (
-            <div key={slide.page_num} className="flex gap-6 items-start">
-              <div className="flex-shrink-0 w-64">
-                <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden">
+            <div key={slide.page_num} className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start w-full max-w-full box-border">
+              <div className="flex-shrink-0 w-full sm:w-64 max-w-full box-border">
+                <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden w-full max-w-full">
                   {imageUrl ? (
                     // Verwende Storage-API-URL für relative Pfade oder next/image für externe URLs
                     <Image
@@ -87,6 +87,7 @@ export function EventSlides({ slides, libraryId }: EventSlidesProps) {
                       alt={slide.title || `Slide ${slide.page_num}`}
                       fill
                       className="object-cover"
+                      sizes="(max-width: 640px) 100vw, 256px"
                       onError={(e) => {
                         // Fallback bei fehlerhaftem Bild
                         const target = e.target as HTMLImageElement;
@@ -103,7 +104,7 @@ export function EventSlides({ slides, libraryId }: EventSlidesProps) {
                   </Badge>
                 </div>
               </div>
-              <div className="flex-1 pt-1">
+              <div className="flex-1 pt-1 w-full max-w-full min-w-0">
                 {slide.title && (
                   <h3 className="text-lg font-semibold mb-2 text-balance">{slide.title}</h3>
                 )}

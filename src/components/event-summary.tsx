@@ -20,15 +20,15 @@ export function EventSummary({ summary, videoUrl }: EventSummaryProps) {
   }
 
   return (
-    <Card className="px-6 pt-0 pb-6 w-full max-w-full overflow-x-hidden">
+    <Card className="px-6 pt-0 pb-6 w-full max-w-full overflow-x-hidden box-border">
       {/* Markdown Content mit zentralem MarkdownPreview */}
 
       {/* Video Embed */}
       {videoUrl && (
-        <div className="mb-6 aspect-video rounded-lg overflow-hidden bg-muted">
+        <div className="mb-6 aspect-video rounded-lg overflow-hidden bg-muted w-full max-w-full box-border relative">
           <iframe
             src={videoUrl}
-            className="w-full h-full"
+            className="absolute inset-0 w-full h-full max-w-full"
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
             title="Event Video"

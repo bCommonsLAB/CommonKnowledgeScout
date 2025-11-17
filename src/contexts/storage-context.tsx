@@ -748,26 +748,12 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   };
 
   React.useEffect(() => {
-    // TEMP: Logging für Bibliotheks-Reload nach Redirect
-    // eslint-disable-next-line no-console
-    console.log('[StorageContext] useEffect: currentLibrary', currentLibrary);
     if (currentLibrary) {
-      // TEMP: Logging für Token in Konfiguration
-      // eslint-disable-next-line no-console
-      console.log('[StorageContext] Bibliothek geladen. Token vorhanden:', !!currentLibrary.config?.accessToken, 'Config:', currentLibrary.config);
-      // TEMP: Logging für Provider-Status
-      if (provider) {
-        // eslint-disable-next-line no-console
-        console.log('[StorageContext] Provider geladen:', provider.name, 'AuthInfo:', provider.getAuthInfo?.());
-      }
-      
       // Status-Logik: Nur OAuth-basierte Provider benötigen Authentifizierung
       // Lokale Dateisystem-Bibliotheken sind immer "ready"
       if (currentLibrary.type === 'local') {
         setLibraryStatus('ready');
         setLibraryStatusAtom('ready');
-        // eslint-disable-next-line no-console
-        console.log('[StorageContext] Lokale Bibliothek - Status auf "ready" gesetzt.');
       } else if (currentLibrary.type === 'onedrive' || currentLibrary.type === 'gdrive') {
         // OAuth-basierte Provider: Token-Status aus localStorage prüfen
         let hasToken = false;
@@ -785,39 +771,17 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         if (hasToken) {
           setLibraryStatus('ready');
           setLibraryStatusAtom('ready');
-          // eslint-disable-next-line no-console
-          console.log('[StorageContext] OAuth-Provider: Status auf "ready" gesetzt, Token im localStorage gefunden.');
         } else {
           setLibraryStatus('waitingForAuth');
           setLibraryStatusAtom('waitingForAuth');
-          // eslint-disable-next-line no-console
-          console.log('[StorageContext] OAuth-Provider: Status auf "waitingForAuth" gesetzt, kein Token im localStorage.');
         }
       } else {
         // Unbekannter Provider-Typ - sicherheitshalber auf ready setzen
         setLibraryStatus('ready');
         setLibraryStatusAtom('ready');
-        // eslint-disable-next-line no-console
-        console.log('[StorageContext] Unbekannter Provider-Typ, Status auf "ready" gesetzt.');
       }
     }
   }, [currentLibrary, provider, setLibraryStatusAtom]);
-
-  // TEMP: Logging für API-Calls
-  React.useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log('[StorageContext] API-Call ausgelöst. Aktueller Status:', libraryStatus);
-  }, [libraryStatus]);
-
-  useEffect(() => {
-    // Logging der Library-IDs im StorageContext
-    // eslint-disable-next-line no-console
-    console.log('[StorageContextProvider] Render:', {
-      activeLibraryId,
-      currentLibraryId: currentLibrary?.id,
-      providerId: provider?.id
-    });
-  }, [activeLibraryId, currentLibrary, provider]);
 
   return (
     <StorageContext.Provider value={value}>

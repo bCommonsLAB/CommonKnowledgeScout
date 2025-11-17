@@ -176,8 +176,8 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
       </div>
 
       {/* Main Content */}
-      <div className="w-full px-4 py-8">
-        <div className="space-y-8">
+      <div className="w-full max-w-full px-4 py-8 box-border overflow-x-hidden">
+        <div className="space-y-8 w-full max-w-full">
           {/* Markdown Content Section - full width (verwendet markdown Feld, fallback auf summary) */}
           {(data.markdown || data.summary) && (
             <>

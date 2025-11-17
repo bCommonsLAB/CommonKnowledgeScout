@@ -438,8 +438,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         return
       }
       
-      console.log('[ChatPanel] gallery-filters-cleared Event empfangen, starte TOC-Cache-Check')
-      
       // Setze hasCheckedCacheRef zurück, damit Cache-Check erneut durchgeführt wird
       hasCheckedCacheRef.current = false
       
@@ -459,19 +457,15 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   
   useEffect(() => {
     if (!cfg) {
-      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - cfg nicht vorhanden')
       return
     }
     if (!isEmbedded) {
-      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - nicht im embedded Modus')
       return // Nur im Story-Mode (embedded)
     }
     if (perspectiveOpen) {
-      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - Popover ist geöffnet')
       return // Im embedded-Modus: Nur wenn Popover geschlossen
     }
     if (isSending) {
-      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - Query läuft bereits')
       return // Wenn bereits eine Query läuft, überspringe Check
     }
     
@@ -481,7 +475,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       (msg) => msg.type === 'question' && msg.content.trim() !== TOC_QUESTION.trim()
     )
     if (hasNormalQuestions) {
-      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - normale Fragen vorhanden')
       // Benutzer hat bereits normale Fragen gestellt, kein Cache-Check für TOC nötig
       return
     }
@@ -501,10 +494,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     
     // Wenn sich Filter oder Parameter geändert haben, setze hasCheckedCacheRef zurück
     if (filtersChanged || paramsChanged) {
-      console.log('[ChatPanel] useEffect #1 (parameter-change): Parameter geändert, setze hasCheckedCacheRef zurück', {
-        filtersChanged,
-        paramsChanged,
-      })
       hasCheckedCacheRef.current = false
       lastFiltersRef.current = currentFiltersKey
       lastParamsRef.current = currentParamsKey
@@ -512,31 +501,14 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     
     // Wenn bereits geprüft wurde und sich nichts geändert hat, überspringe
     if (hasCheckedCacheRef.current && !filtersChanged && !paramsChanged) {
-      console.log('[ChatPanel] useEffect #1 (parameter-change): Übersprungen - bereits geprüft, keine Änderungen')
       return
     }
     
     // Cache-Check durchführen (nur für TOC, nicht für normale Fragen)
     // WICHTIG: Prüfe auch, ob Dokumente geladen sind (mindestens 1)
     if (filteredDocsCount < 1 || galleryDataLoading) {
-      console.log('[ChatPanel] useEffect #1 (parameter-change): Cache-Check übersprungen - Dokumente noch nicht geladen', {
-        filteredDocsCount,
-        galleryDataLoading,
-      })
       return
     }
-    
-    console.log('[ChatPanel] useEffect #1 (parameter-change): Starte Cache-Check', {
-      targetLanguage,
-      character,
-      socialContext,
-      genderInclusive,
-      filtersChanged,
-      paramsChanged,
-      hasCheckedCacheRef: hasCheckedCacheRef.current,
-      filteredDocsCount,
-      galleryDataLoading,
-    })
     hasCheckedCacheRef.current = true
     shouldAutoGenerateRef.current = true // Markiere für automatische Generierung, falls kein Cache
     checkTOCCache()
@@ -547,36 +519,21 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   // WICHTIG: Warte, bis der Cache-Check abgeschlossen ist (isCheckingTOC === false)
   useEffect(() => {
     if (!isEmbedded) {
-      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - nicht im embedded Modus')
       return
     }
     if (isSending || isCheckingTOC || isGeneratingTOC) {
-      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - Prozess läuft bereits', {
-        isSending,
-        isCheckingTOC,
-        isGeneratingTOC,
-      })
       return // Warte, bis Cache-Check abgeschlossen ist
     }
     if (cachedStoryTopicsData || cachedTOC) {
-      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - Cache bereits vorhanden', {
-        hasStoryTopicsData: !!cachedStoryTopicsData,
-        hasCachedTOC: !!cachedTOC,
-      })
       // Cache gefunden, keine Generierung nötig
       shouldAutoGenerateRef.current = false
       return
     }
     if (!sendQuestion) {
-      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - sendQuestion nicht verfügbar')
       return
     }
     // WICHTIG: Prüfe auch, ob Dokumente geladen sind (mindestens 1)
     if (filteredDocsCount < 1 || galleryDataLoading) {
-      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - Dokumente noch nicht geladen', {
-        filteredDocsCount,
-        galleryDataLoading,
-      })
       return
     }
     
@@ -588,31 +545,17 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     // 1. shouldAutoGenerateRef gesetzt ist (beim ersten Laden) ODER
     // 2. Cache-Check abgeschlossen wurde und kein Cache gefunden wurde
     if (!shouldAutoGenerateRef.current && (!hasCacheCheckSteps || !cacheCheckComplete)) {
-      console.log('[ChatPanel] useEffect #2 (auto-generate): Übersprungen - Cache-Check noch nicht abgeschlossen', {
-        shouldAutoGenerateRef: shouldAutoGenerateRef.current,
-        hasCacheCheckSteps,
-        cacheCheckComplete,
-      })
       return // Kein Cache-Check durchgeführt oder noch nicht abgeschlossen
     }
     
     // Cache-Check abgeschlossen und kein Cache gefunden → Starte Generierung
-    console.log('[ChatPanel] useEffect #2 (auto-generate): Starte automatische TOC-Generierung', {
-      shouldAutoGenerateRef: shouldAutoGenerateRef.current,
-      hasCacheCheckSteps,
-      cacheCheckComplete,
-      filteredDocsCount,
-      galleryDataLoading,
-    })
     // WICHTIG: Warte zusätzlich 300ms, damit die Cache-Check-Steps angezeigt werden können
     shouldAutoGenerateRef.current = false
     setTimeout(() => {
       // Prüfe nochmal, ob in der Zwischenzeit ein Cache gefunden wurde
       if (cachedStoryTopicsData || cachedTOC) {
-        console.log('[ChatPanel] useEffect #2 (auto-generate): Generierung abgebrochen - Cache wurde in der Zwischenzeit gefunden')
         return // Cache wurde in der Zwischenzeit gefunden, keine Generierung
       }
-      console.log('[ChatPanel] useEffect #2 (auto-generate): Rufe generateTOC() auf')
       generateTOC()
     }, 300)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -627,17 +570,14 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       return
     }
     if (perspectiveOpen) {
-      console.log('[ChatPanel] useEffect #3 (sendQuestion-available): Übersprungen - Popover ist geöffnet')
       prevSendQuestionRef.current = sendQuestion
       return // Nur wenn Popover geschlossen
     }
     if (cachedStoryTopicsData || cachedTOC) {
-      console.log('[ChatPanel] useEffect #3 (sendQuestion-available): Übersprungen - TOC bereits vorhanden')
       prevSendQuestionRef.current = sendQuestion
       return // TOC bereits vorhanden
     }
     if (hasCheckedCacheRef.current) {
-      console.log('[ChatPanel] useEffect #3 (sendQuestion-available): Übersprungen - Cache-Check bereits durchgeführt')
       prevSendQuestionRef.current = sendQuestion
       return // Cache-Check bereits durchgeführt
     }
@@ -648,27 +588,14 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     if (wasUndefined && isNowDefined) {
       // WICHTIG: Prüfe auch, ob Dokumente geladen sind (mindestens 1)
       if (filteredDocsCount < 1 || galleryDataLoading) {
-        console.log('[ChatPanel] useEffect #3 (sendQuestion-available): Cache-Check übersprungen - Dokumente noch nicht geladen', {
-          filteredDocsCount,
-          galleryDataLoading,
-        })
         prevSendQuestionRef.current = sendQuestion
         return
       }
       
-      console.log('[ChatPanel] useEffect #3 (sendQuestion-available): sendQuestion wurde verfügbar, starte ersten Cache-Check', {
-        filteredDocsCount,
-        galleryDataLoading,
-      })
       // Erster Cache-Check beim Laden
       hasCheckedCacheRef.current = true
       shouldAutoGenerateRef.current = true // Markiere für automatische Generierung, falls kein Cache
       checkTOCCache()
-    } else {
-      console.log('[ChatPanel] useEffect #3 (sendQuestion-available): Übersprungen - sendQuestion nicht von undefined zu definiert gewechselt', {
-        wasUndefined,
-        isNowDefined,
-      })
     }
     
     prevSendQuestionRef.current = sendQuestion
@@ -685,12 +612,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
         Object.assign(headers, sessionHeaders)
       }
       
-      console.log('[ChatPanel] Lösche Query:', {
-        queryId,
-        libraryId,
-        hasSessionHeaders: Object.keys(sessionHeaders).length > 0,
-        sessionHeaders,
-      })
       
       const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`, {
         method: 'DELETE',
@@ -727,19 +648,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       
       const wasTOCQuery = messages.some(msg => msg.queryId === queryId && msg.type === 'question' && msg.content.trim() === TOC_QUESTION.trim())
       
-      console.log('[ChatPanel] Query gelöscht:', {
-        queryId,
-        wasTOCQuery,
-        messagesBeforeDelete: messages.length,
-      })
-      
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.queryId !== queryId)
-        console.log('[ChatPanel] Messages nach Löschen:', {
-          messagesBefore: prev.length,
-          messagesAfter: filtered.length,
-          deletedQueryId: queryId,
-        })
         return filtered
       })
       
@@ -965,20 +875,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                     </div>
                   )}
                   {/* Logge Render-Entscheidung */}
-                  {isEmbedded && (() => {
-                    const shouldShowIntro = (cachedStoryTopicsData || cachedTOC || isCheckingTOC) && filteredDocsCount >= 1 && !galleryDataLoading
-                    const shouldShowTopics = filteredDocsCount >= 1 && !galleryDataLoading
-                    console.log('[ChatPanel] Render-Entscheidung Themenübersicht:', {
-                      shouldShowIntro,
-                      shouldShowTopics,
-                      filteredDocsCount,
-                      galleryDataLoading,
-                      hasCachedStoryTopicsData: !!cachedStoryTopicsData,
-                      hasCachedTOC: !!cachedTOC,
-                      isCheckingTOC,
-                    })
-                    return null
-                  })()}
                 </>
               )}
               
@@ -1097,21 +993,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                     </div>
                   </div>
                 )}
-                {/* Logge Render-Entscheidung */}
-                {isEmbedded && (() => {
-                  const shouldShowIntro = (cachedStoryTopicsData || cachedTOC || isCheckingTOC) && filteredDocsCount >= 1 && !galleryDataLoading
-                  const shouldShowTopics = filteredDocsCount >= 1 && !galleryDataLoading
-                  console.log('[ChatPanel] Render-Entscheidung Themenübersicht (default variant):', {
-                    shouldShowIntro,
-                    shouldShowTopics,
-                    filteredDocsCount,
-                    galleryDataLoading,
-                    hasCachedStoryTopicsData: !!cachedStoryTopicsData,
-                    hasCachedTOC: !!cachedTOC,
-                    isCheckingTOC,
-                  })
-                  return null
-                })()}
               </>
             )}
             
