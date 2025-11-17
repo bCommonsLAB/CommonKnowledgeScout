@@ -473,7 +473,15 @@ export function DetailOverlay({ open, onClose, libraryId, fileId, viewType, titl
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={onSwitchToStoryMode}
+                        onClick={() => {
+                          console.log('[DetailOverlay] 🎯 Button "In-Story-Mode ansehen" geklickt:', {
+                            fileId,
+                            libraryId,
+                            viewType,
+                            timestamp: new Date().toISOString(),
+                          })
+                          onSwitchToStoryMode()
+                        }}
                         className="flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all"
                       >
                         <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />

@@ -81,11 +81,22 @@ export default function ExplorePage() {
   const handleModeChange = (value: string) => {
     const newMode = value as 'gallery' | 'story'
     const params = new URLSearchParams(searchParams?.toString() || '')
+    
+    // WICHTIG: Entferne doc Parameter beim Wechsel zum Story-Mode
+    // Der doc Parameter sollte nicht im Story-Mode vorhanden sein
     if (newMode === 'story') {
+      const hadDoc = params.has('doc')
+      params.delete('doc')
       params.set('mode', 'story')
+      console.log('[ExplorePage] ✅ Story-Mode: doc Parameter entfernt:', {
+        hatteDoc: hadDoc,
+        docWertVorher: searchParams?.get('doc'),
+        paramsNachher: params.toString(),
+      })
     } else {
       params.delete('mode')
     }
+    
     router.replace(`/explore/${slug}${params.toString() ? `?${params.toString()}` : ''}`)
   }
 

@@ -31,7 +31,7 @@ import type { DocCardMeta } from '@/lib/gallery/types'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ReferencesSheet } from './references-sheet'
-import { openDocumentBySlug } from '@/utils/document-navigation'
+import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -47,6 +47,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [showFilters, setShowFilters] = useState(false)
   const isClosingRef = React.useRef(false)
+  const isSwitchingToStoryModeRef = React.useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   const chatReferences = useAtomValue(chatReferencesAtom)
@@ -84,6 +85,18 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode()
+  
+  // Debug: Logge mode und searchParams Änderungen
+  React.useEffect(() => {
+    console.log('[GalleryRoot] 🔄 Mode oder searchParams geändert:', {
+      mode,
+      docParam: searchParams?.get('doc'),
+      modeParam: searchParams?.get('mode'),
+      allSearchParams: searchParams?.toString(),
+      pathname,
+      timestamp: new Date().toISOString(),
+    })
+  }, [mode, searchParams, pathname])
   
   // Prüfe beim Wechsel zum Story-Modus, ob Perspektive gesetzt ist
   useEffect(() => {
@@ -127,12 +140,40 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const { docs, loading, error, filteredDocs, docsByYear } = useGalleryData(filters, mode, searchQuery, libraryId)
   
   // Finde aktuelles Dokument aus URL-Parameter (für DetailOverlay)
+  // WICHTIG: Ignoriere selectedDoc, wenn wir gerade zum Story-Mode wechseln
   const docSlug = searchParams?.get('doc')
   const selectedDoc = React.useMemo(() => {
-    if (!docSlug || !libraryId || loading || docs.length === 0) {
+    console.log('[GalleryRoot] 🔍 selectedDoc Berechnung:', {
+      docSlug,
+      isSwitchingToStoryMode: isSwitchingToStoryModeRef.current,
+      libraryId,
+      loading,
+      docsLength: docs.length,
+      allSearchParams: searchParams?.toString(),
+      timestamp: new Date().toISOString(),
+    })
+    
+    // Wenn wir gerade zum Story-Mode wechseln, ignoriere selectedDoc
+    if (isSwitchingToStoryModeRef.current) {
+      console.log('[GalleryRoot] ⏭️ Ignoriere selectedDoc (Story-Mode-Wechsel aktiv)')
       return null
     }
-    return docs.find(doc => doc.slug === docSlug) || null
+    if (!docSlug || !libraryId || loading || docs.length === 0) {
+      console.log('[GalleryRoot] ⏭️ Kein selectedDoc (Bedingungen nicht erfüllt):', {
+        hasDocSlug: !!docSlug,
+        hasLibraryId: !!libraryId,
+        isLoading: loading,
+        hasDocs: docs.length > 0,
+      })
+      return null
+    }
+    const found = docs.find(doc => doc.slug === docSlug) || null
+    console.log('[GalleryRoot] ✅ selectedDoc gefunden:', {
+      found: !!found,
+      fileId: found?.fileId || found?.id,
+      slug: found?.slug,
+    })
+    return found
   }, [docSlug, libraryId, loading, docs])
 
   // Debug: Logge detailViewType wenn sich selectedDoc ändert
@@ -218,37 +259,29 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   }
   
   const handleCloseDocument = () => {
+    console.log('[GalleryRoot] 🚪 handleCloseDocument aufgerufen:', {
+      currentDocSlug: searchParams?.get('doc'),
+      pathname,
+      allSearchParams: searchParams?.toString(),
+      isClosingAlready: isClosingRef.current,
+      timestamp: new Date().toISOString(),
+    })
+    
     // Verhindere doppelte Aufrufe
     if (isClosingRef.current) {
+      console.log('[GalleryRoot] ⏭️ handleCloseDocument übersprungen (bereits am Schließen)')
       return
     }
     isClosingRef.current = true
     
-    // URL bereinigen: doc-Parameter entfernen
-    try {
-      if (pathname?.startsWith('/explore/')) {
-      const librarySlugMatch = pathname.match(/\/explore\/([^/]+)/)
-      if (librarySlugMatch && librarySlugMatch[1]) {
-        const librarySlug = librarySlugMatch[1]
-        const params = new URLSearchParams(searchParams?.toString() || '')
-        params.delete('doc')
-        const newUrl = params.toString() ? `/explore/${librarySlug}?${params.toString()}` : `/explore/${librarySlug}`
-        router.replace(newUrl, { scroll: false })
-      }
-      } else if (pathname?.startsWith('/library')) {
-        // Auch für /library Route unterstützen
-        const params = new URLSearchParams(searchParams?.toString() || '')
-        params.delete('doc')
-        const newUrl = params.toString() ? `/library/gallery?${params.toString()}` : '/library/gallery'
-        router.replace(newUrl, { scroll: false })
-      }
-    } catch (err) {
-      console.error('[GalleryRoot] Fehler beim Entfernen des doc-Parameters:', err)
-    }
+    // Verwende zentrale Utility-Funktion zum Entfernen des doc-Parameters
+    console.log('[GalleryRoot] 📞 Rufe closeDocument() auf')
+    closeDocument(router, pathname, searchParams)
     
     // Reset closing flag nach kurzer Verzögerung
     setTimeout(() => {
       isClosingRef.current = false
+      console.log('[GalleryRoot] ✅ Closing flag zurückgesetzt')
     }, 100)
   }
   
@@ -571,7 +604,20 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       />
 
       {/* Detail Overlay - reagiert nur auf URL-Parameter */}
-      {selectedDoc && (
+      {(() => {
+        const shouldRender = !!selectedDoc
+        console.log('[GalleryRoot] 🎨 DetailOverlay Render-Entscheidung:', {
+          shouldRender,
+          selectedDoc: selectedDoc ? {
+            fileId: selectedDoc.fileId || selectedDoc.id,
+            slug: selectedDoc.slug,
+          } : null,
+          docSlug,
+          isSwitchingToStoryMode: isSwitchingToStoryModeRef.current,
+          timestamp: new Date().toISOString(),
+        })
+        return shouldRender
+      })() && selectedDoc && (
         <DetailOverlay
           open={!!selectedDoc}
           onClose={handleCloseDocument}
@@ -579,15 +625,116 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           fileId={selectedDoc.fileId || selectedDoc.id}
           viewType={detailViewType}
           onSwitchToStoryMode={() => {
-            // Setze shortTitle-Filter für das aktuelle Dokument
-            setFilters(f => {
-              const next = { ...(f as Record<string, string[] | undefined>) }
-              const docShortTitle = selectedDoc.shortTitle || selectedDoc.title
-              next.shortTitle = docShortTitle ? [docShortTitle] : undefined
-              return next as typeof f
+            console.log('[GalleryRoot] 🎬 onSwitchToStoryMode START:', {
+              selectedDoc: {
+                fileId: selectedDoc?.fileId || selectedDoc?.id,
+                slug: selectedDoc?.slug,
+                shortTitle: selectedDoc?.shortTitle || selectedDoc?.title,
+              },
+              currentDocSlug: searchParams?.get('doc'),
+              currentMode: searchParams?.get('mode'),
+              allSearchParams: searchParams?.toString(),
+              pathname,
+              timestamp: new Date().toISOString(),
             })
-            handleCloseDocument()
-            setMode('story')
+            
+            // Setze Flag, um zu verhindern, dass selectedDoc während des Wechsels verwendet wird
+            isSwitchingToStoryModeRef.current = true
+            console.log('[GalleryRoot] ✅ isSwitchingToStoryModeRef auf true gesetzt')
+            
+            // WICHTIG: Zuerst URL aktualisieren (doc Parameter entfernen), dann Filter setzen
+            // Dies verhindert, dass das DetailOverlay wieder geöffnet wird
+            const docShortTitle = selectedDoc.shortTitle || selectedDoc.title
+            console.log('[GalleryRoot] 📝 docShortTitle für Filter:', docShortTitle)
+            
+            // Entferne doc Parameter explizit und navigiere direkt zur Story-Mode URL
+            // Verwende bereinigte searchParams, um Race Condition zu vermeiden
+            try {
+              const params = new URLSearchParams(searchParams?.toString() || '')
+              console.log('[GalleryRoot] 🔧 URL-Parameter vor Bereinigung:', params.toString())
+              
+              // Entferne doc Parameter explizit (MUSS zuerst passieren!)
+              const hadDoc = params.has('doc')
+              params.delete('doc')
+              console.log('[GalleryRoot] 🗑️ doc Parameter entfernt:', {
+                hatteDoc: hadDoc,
+                docWertVorher: searchParams?.get('doc'),
+              })
+              
+              // Setze mode Parameter auf story
+              params.set('mode', 'story')
+              console.log('[GalleryRoot] ✅ mode=story gesetzt')
+              
+              const newUrl = pathname?.startsWith('/explore/')
+                ? (() => {
+                    const librarySlugMatch = pathname.match(/\/explore\/([^/]+)/)
+                    if (librarySlugMatch && librarySlugMatch[1]) {
+                      return `/explore/${librarySlugMatch[1]}?${params.toString()}`
+                    }
+                    return null
+                  })()
+                : `/library/gallery?${params.toString()}`
+              
+              console.log('[GalleryRoot] 🧭 Navigiere zu:', {
+                newUrl,
+                paramsString: params.toString(),
+                pathname,
+              })
+              
+              // Navigiere basierend auf aktueller Route
+              if (pathname?.startsWith('/explore/')) {
+                const librarySlugMatch = pathname.match(/\/explore\/([^/]+)/)
+                if (librarySlugMatch && librarySlugMatch[1]) {
+                  const librarySlug = librarySlugMatch[1]
+                  router.replace(`/explore/${librarySlug}?${params.toString()}`, { scroll: false })
+                }
+              } else {
+                // Library-Route
+                router.replace(`/library/gallery?${params.toString()}`, { scroll: false })
+              }
+              
+              console.log('[GalleryRoot] ⏳ Setze Filter nach Navigation (setTimeout 0ms)')
+              
+              // Setze Filter NACH der Navigation, um Race Condition zu vermeiden
+              // Verwende setTimeout, um sicherzustellen, dass die Navigation zuerst abgeschlossen ist
+              setTimeout(() => {
+                console.log('[GalleryRoot] 🔄 Setze Filter jetzt:', {
+                  docShortTitle,
+                  timestamp: new Date().toISOString(),
+                })
+                setFilters(f => {
+                  const next = { ...(f as Record<string, string[] | undefined>) }
+                  next.shortTitle = docShortTitle ? [docShortTitle] : undefined
+                  console.log('[GalleryRoot] ✅ Filter gesetzt:', {
+                    shortTitle: next.shortTitle,
+                    alleFilter: Object.keys(next),
+                  })
+                  return next as typeof f
+                })
+                // Reset Flag nach kurzer Verzögerung, damit useSearchParams aktualisiert werden kann
+                setTimeout(() => {
+                  console.log('[GalleryRoot] 🔄 Reset isSwitchingToStoryModeRef auf false')
+                  isSwitchingToStoryModeRef.current = false
+                }, 100)
+              }, 0)
+            } catch (err) {
+              console.error('[GalleryRoot] ❌ Fehler beim Wechsel zum Story-Mode:', err)
+              // Reset Flag auch bei Fehler
+              isSwitchingToStoryModeRef.current = false
+              // Fallback: Verwende handleCloseDocument und setMode
+              handleCloseDocument()
+              setMode('story')
+              // Setze Filter auch im Fallback
+              if (docShortTitle) {
+                setTimeout(() => {
+                  setFilters(f => {
+                    const next = { ...(f as Record<string, string[] | undefined>) }
+                    next.shortTitle = [docShortTitle]
+                    return next as typeof f
+                  })
+                }, 0)
+              }
+            }
           }}
         />
       )}

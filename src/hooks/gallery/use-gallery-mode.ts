@@ -41,12 +41,49 @@ export function useGalleryMode() {
   }, [mode])
 
   const setMode = (newMode: 'gallery' | 'story') => {
+    console.log('[useGalleryMode] 🔄 setMode aufgerufen:', {
+      newMode,
+      currentMode: mode,
+      pathname,
+      currentSearchParams: searchParams?.toString(),
+      docParam: searchParams?.get('doc'),
+      timestamp: new Date().toISOString(),
+    })
+    
     const params = new URLSearchParams(searchParams?.toString() || '')
-    if (newMode === 'story') params.set('mode', 'story')
-    else params.delete('mode')
+    
+    // WICHTIG: Entferne doc Parameter beim Wechsel zum Story-Mode
+    // Der doc Parameter sollte nicht im Story-Mode vorhanden sein
+    if (newMode === 'story') {
+      const hadDoc = params.has('doc')
+      params.delete('doc')
+      params.set('mode', 'story')
+      console.log('[useGalleryMode] ✅ Story-Mode: doc Parameter entfernt:', {
+        hatteDoc: hadDoc,
+        docWertVorher: searchParams?.get('doc'),
+        paramsNachher: params.toString(),
+      })
+    } else {
+      params.delete('mode')
+      console.log('[useGalleryMode] ✅ Gallery-Mode gesetzt')
+    }
+    
     const isExplore = pathname?.startsWith('/explore/')
-    if (isExplore) router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ''}`)
-    else router.push(`/library/gallery${params.toString() ? `?${params.toString()}` : ''}`)
+    const newUrl = isExplore
+      ? `${pathname}${params.toString() ? `?${params.toString()}` : ''}`
+      : `/library/gallery${params.toString() ? `?${params.toString()}` : ''}`
+    
+    console.log('[useGalleryMode] 🧭 Navigiere zu:', {
+      newUrl,
+      paramsString: params.toString(),
+      isExplore,
+    })
+    
+    if (isExplore) {
+      router.replace(newUrl)
+    } else {
+      router.push(newUrl)
+    }
   }
 
   return { mode, setMode, containerRef }
