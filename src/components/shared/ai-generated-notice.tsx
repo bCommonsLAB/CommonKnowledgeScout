@@ -49,7 +49,7 @@ export function AIGeneratedNotice({ sources, compact = false, className = "" }: 
               </span>
             )}
             {" "}
-            <Link href="/rechtliche-hinweise" className="underline hover:text-foreground">
+            <Link href="/info?type=rechtliche-hinweise" className="underline hover:text-foreground">
               {t('common.aiGenerated.learnMore')}
             </Link>
           </div>
@@ -67,7 +67,7 @@ export function AIGeneratedNotice({ sources, compact = false, className = "" }: 
           <div className="text-xs">
             <span>{t('common.aiGenerated.contentGenerated')}</span>
             {" "}
-            <Link href="/rechtliche-hinweise" className="underline hover:text-foreground ml-1">
+            <Link href="/info?type=rechtliche-hinweise" className="underline hover:text-foreground ml-1">
               {t('common.aiGenerated.learnMoreAboutAI')}
             </Link>
           </div>

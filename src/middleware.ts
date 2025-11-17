@@ -37,7 +37,8 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/docs(.*)',
   '/explore(.*)',
-  '/api/public(.*)'
+  '/api/public(.*)',
+  '/info(.*)'
 ]);
 
 // Public routes Log (nur in Development)
@@ -47,6 +48,10 @@ if (process.env.NODE_ENV === 'development') {
     '/docs(.*)',
     '/explore(.*)',
     '/api/public(.*)',
+    '/datenschutz',
+    '/impressum',
+    '/rechtliche-hinweise',
+    '/ueber',
   ]);
 }
 

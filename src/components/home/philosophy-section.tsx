@@ -1,7 +1,7 @@
 'use client'
 
 import { Card, CardContent } from "@/components/ui/card"
-import { Shield, Eye, Users2 } from "lucide-react"
+import { Shield, Eye, Users2, FileText } from "lucide-react"
 import { useTranslation } from "@/lib/i18n/hooks"
 
 export function PhilosophySection() {
@@ -19,38 +19,47 @@ export function PhilosophySection() {
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            <Card className="border-2">
-              <CardContent className="pt-6 text-center">
-                <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent/10">
-                  <Eye className="h-7 w-7 text-accent" />
+          <div className="grid gap-6 md:grid-cols-3 md:items-stretch">
+            {/* Nachvollziehbar - Auge + Dokument */}
+            <Card className="relative border-2 overflow-hidden flex flex-col bg-black dark:bg-card min-h-[240px] md:min-h-[260px]">
+              {/* Hintergrund-Icon: Auge + Dokument */}
+              <div className="absolute top-6 left-0 right-0 flex justify-center opacity-[0.25] dark:opacity-[0.08]">
+                <div className="relative">
+                  <Eye className="h-32 w-32 text-white dark:text-foreground" strokeWidth={1.5} />
+                  <FileText className="absolute -bottom-2 -right-2 h-16 w-16 text-white dark:text-foreground" strokeWidth={1.5} />
                 </div>
-                <h3 className="mb-2 font-semibold">{t('home.philosophy.transparent.title')}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                </div>
+              <CardContent className="relative z-10 pt-20 pb-8 px-6 text-center flex-1 flex flex-col justify-end">
+                <h3 className="mb-3 font-semibold text-white dark:text-foreground">{t('home.philosophy.transparent.title')}</h3>
+                <p className="text-sm text-white/90 dark:text-muted-foreground leading-relaxed">
                   {t('home.philosophy.transparent.description')}
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="border-2">
-              <CardContent className="pt-6 text-center">
-                <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent/10">
-                  <Users2 className="h-7 w-7 text-accent" />
+            {/* Menschlich - Zwei Personen */}
+            <Card className="relative border-2 overflow-hidden flex flex-col bg-black dark:bg-card min-h-[240px] md:min-h-[260px]">
+              {/* Hintergrund-Icon: Zwei Personen */}
+              <div className="absolute top-6 left-0 right-0 flex justify-center opacity-[0.25] dark:opacity-[0.08]">
+                <Users2 className="h-32 w-32 text-white dark:text-foreground" strokeWidth={1.5} />
                 </div>
-                <h3 className="mb-2 font-semibold">{t('home.philosophy.human.title')}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+              <CardContent className="relative z-10 pt-20 pb-8 px-6 text-center flex-1 flex flex-col justify-end">
+                <h3 className="mb-3 font-semibold text-white dark:text-foreground">{t('home.philosophy.human.title')}</h3>
+                <p className="text-sm text-white/90 dark:text-muted-foreground leading-relaxed">
                   {t('home.philosophy.human.description')}
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="border-2">
-              <CardContent className="pt-6 text-center">
-                <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent/10">
-                  <Shield className="h-7 w-7 text-accent" />
+            {/* Vertrauenswürdig - Schild */}
+            <Card className="relative border-2 overflow-hidden flex flex-col bg-black dark:bg-card min-h-[240px] md:min-h-[260px]">
+              {/* Hintergrund-Icon: Schild */}
+              <div className="absolute top-6 left-0 right-0 flex justify-center opacity-[0.25] dark:opacity-[0.08]">
+                <Shield className="h-32 w-32 text-white dark:text-foreground" strokeWidth={1.5} />
                 </div>
-                <h3 className="mb-2 font-semibold">{t('home.philosophy.trustworthy.title')}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{t('home.philosophy.trustworthy.description')}</p>
+              <CardContent className="relative z-10 pt-20 pb-8 px-6 text-center flex-1 flex flex-col justify-end">
+                <h3 className="mb-3 font-semibold text-white dark:text-foreground">{t('home.philosophy.trustworthy.title')}</h3>
+                <p className="text-sm text-white/90 dark:text-muted-foreground leading-relaxed">{t('home.philosophy.trustworthy.description')}</p>
               </CardContent>
             </Card>
           </div>

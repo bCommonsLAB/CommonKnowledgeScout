@@ -81,7 +81,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     const vt = galleryConfig?.detailViewType
     const result = (vt === 'book' || vt === 'session') ? vt : 'book'
     return result
-  }, [activeLibrary?.config?.chat?.gallery, libraryId])
+  }, [activeLibrary?.config?.chat?.gallery])
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode()
@@ -174,7 +174,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       slug: found?.slug,
     })
     return found
-  }, [docSlug, libraryId, loading, docs])
+  }, [docSlug, libraryId, loading, docs, searchParams])
 
   // Debug: Logge detailViewType wenn sich selectedDoc ändert
   useEffect(() => {
@@ -624,118 +624,9 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           libraryId={libraryId || ''}
           fileId={selectedDoc.fileId || selectedDoc.id}
           viewType={detailViewType}
-          onSwitchToStoryMode={() => {
-            console.log('[GalleryRoot] 🎬 onSwitchToStoryMode START:', {
-              selectedDoc: {
-                fileId: selectedDoc?.fileId || selectedDoc?.id,
-                slug: selectedDoc?.slug,
-                shortTitle: selectedDoc?.shortTitle || selectedDoc?.title,
-              },
-              currentDocSlug: searchParams?.get('doc'),
-              currentMode: searchParams?.get('mode'),
-              allSearchParams: searchParams?.toString(),
-              pathname,
-              timestamp: new Date().toISOString(),
-            })
-            
-            // Setze Flag, um zu verhindern, dass selectedDoc während des Wechsels verwendet wird
-            isSwitchingToStoryModeRef.current = true
-            console.log('[GalleryRoot] ✅ isSwitchingToStoryModeRef auf true gesetzt')
-            
-            // WICHTIG: Zuerst URL aktualisieren (doc Parameter entfernen), dann Filter setzen
-            // Dies verhindert, dass das DetailOverlay wieder geöffnet wird
-            const docShortTitle = selectedDoc.shortTitle || selectedDoc.title
-            console.log('[GalleryRoot] 📝 docShortTitle für Filter:', docShortTitle)
-            
-            // Entferne doc Parameter explizit und navigiere direkt zur Story-Mode URL
-            // Verwende bereinigte searchParams, um Race Condition zu vermeiden
-            try {
-              const params = new URLSearchParams(searchParams?.toString() || '')
-              console.log('[GalleryRoot] 🔧 URL-Parameter vor Bereinigung:', params.toString())
-              
-              // Entferne doc Parameter explizit (MUSS zuerst passieren!)
-              const hadDoc = params.has('doc')
-              params.delete('doc')
-              console.log('[GalleryRoot] 🗑️ doc Parameter entfernt:', {
-                hatteDoc: hadDoc,
-                docWertVorher: searchParams?.get('doc'),
-              })
-              
-              // Setze mode Parameter auf story
-              params.set('mode', 'story')
-              console.log('[GalleryRoot] ✅ mode=story gesetzt')
-              
-              const newUrl = pathname?.startsWith('/explore/')
-                ? (() => {
-                    const librarySlugMatch = pathname.match(/\/explore\/([^/]+)/)
-                    if (librarySlugMatch && librarySlugMatch[1]) {
-                      return `/explore/${librarySlugMatch[1]}?${params.toString()}`
-                    }
-                    return null
-                  })()
-                : `/library/gallery?${params.toString()}`
-              
-              console.log('[GalleryRoot] 🧭 Navigiere zu:', {
-                newUrl,
-                paramsString: params.toString(),
-                pathname,
-              })
-              
-              // Navigiere basierend auf aktueller Route
-              if (pathname?.startsWith('/explore/')) {
-                const librarySlugMatch = pathname.match(/\/explore\/([^/]+)/)
-                if (librarySlugMatch && librarySlugMatch[1]) {
-                  const librarySlug = librarySlugMatch[1]
-                  router.replace(`/explore/${librarySlug}?${params.toString()}`, { scroll: false })
-                }
-              } else {
-                // Library-Route
-                router.replace(`/library/gallery?${params.toString()}`, { scroll: false })
-              }
-              
-              console.log('[GalleryRoot] ⏳ Setze Filter nach Navigation (setTimeout 0ms)')
-              
-              // Setze Filter NACH der Navigation, um Race Condition zu vermeiden
-              // Verwende setTimeout, um sicherzustellen, dass die Navigation zuerst abgeschlossen ist
-              setTimeout(() => {
-                console.log('[GalleryRoot] 🔄 Setze Filter jetzt:', {
-                  docShortTitle,
-                  timestamp: new Date().toISOString(),
-                })
-                setFilters(f => {
-                  const next = { ...(f as Record<string, string[] | undefined>) }
-                  next.shortTitle = docShortTitle ? [docShortTitle] : undefined
-                  console.log('[GalleryRoot] ✅ Filter gesetzt:', {
-                    shortTitle: next.shortTitle,
-                    alleFilter: Object.keys(next),
-                  })
-                  return next as typeof f
-                })
-                // Reset Flag nach kurzer Verzögerung, damit useSearchParams aktualisiert werden kann
-                setTimeout(() => {
-                  console.log('[GalleryRoot] 🔄 Reset isSwitchingToStoryModeRef auf false')
-                  isSwitchingToStoryModeRef.current = false
-                }, 100)
-              }, 0)
-            } catch (err) {
-              console.error('[GalleryRoot] ❌ Fehler beim Wechsel zum Story-Mode:', err)
-              // Reset Flag auch bei Fehler
-              isSwitchingToStoryModeRef.current = false
-              // Fallback: Verwende handleCloseDocument und setMode
-              handleCloseDocument()
-              setMode('story')
-              // Setze Filter auch im Fallback
-              if (docShortTitle) {
-                setTimeout(() => {
-                  setFilters(f => {
-                    const next = { ...(f as Record<string, string[] | undefined>) }
-                    next.shortTitle = [docShortTitle]
-                    return next as typeof f
-                  })
-                }, 0)
-              }
-            }
-          }}
+          doc={selectedDoc}
+          currentMode={mode}
+          isSwitchingRef={isSwitchingToStoryModeRef}
         />
       )}
 

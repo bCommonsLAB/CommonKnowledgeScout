@@ -58,10 +58,7 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterB
       <div className="flex items-center gap-2 flex-wrap">
         {/* Titel mit Dokumentenanzahl */}
         <h2 className="text-lg font-semibold">
-          {t('gallery.answersGeneratedFromSources', { 
-            count: docCount,
-            sourceLabel: docCount === 1 ? t('gallery.source') : t('gallery.sources')
-          })}
+          {t('gallery.tocReferences')}: {docCount} {docCount === 1 ? t('gallery.source') : t('gallery.sources')}
         </h2>
         {!hideFilterButton && (
         <Button
@@ -73,8 +70,7 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterB
           <Filter className="h-3 w-3 lg:mr-1" />
           <span className="hidden lg:inline">{t('gallery.filter')}</span>
         </Button>
-      )}
-
+        )}
       {/* Gefiltert-Badge - nur anzeigen wenn Filter aktiv sind */}
       {hasActiveFilters && (
         <div className="text-sm text-muted-foreground shrink-0">

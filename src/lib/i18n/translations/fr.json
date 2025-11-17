@@ -23,7 +23,7 @@
       "subtitle": "Un processus simple qui rend la vraie connaissance accessible",
       "step1": {
         "title": "Choisissez une bibliothèque",
-        "description": "Choisissez un domaine thématique qui vous intéresse.",
+        "description": "Choisissez un domaine thématique qui vous tient à cœur et plongez dans le contenu.",
         "detail": "Tout le contenu provient de sources ouvertes et vérifiables."
       },
       "step2": {
@@ -415,6 +415,24 @@
     "retrieverAutoTooltip": "Le système analyse automatiquement votre question et sélectionne la meilleure méthode (Spécifique ou Vue d'ensemble).",
     "retrieverChunkTooltip": "Rechercher des passages de texte pertinents (morceaux) pour la question et générer la réponse à partir de ceux-ci. Uniquement du contenu spécifique – mais plus précis.",
     "retrieverDocTooltip": "Créer une réponse à partir de résumés de tous les chapitres/documents. Plus de vue d'ensemble – mais quelque peu moins précis."
+  },
+  "legalNotice": {
+    "loadingContent": "Chargement du contenu...",
+    "loadError": "Le fichier Markdown n'a pas pu être chargé.",
+    "lastUpdate": "Dernière mise à jour :"
+  },
+  "footer": {
+    "transparency": "Le contenu provient de sources ouvertes et d'archives publiques. Les réponses sont formulées à l'aide de modèles d'IA transparents.",
+    "learnMore": "En savoir plus →",
+    "privacy": "Protection des données",
+    "imprint": "Mentions légales",
+    "legalNotice": "Avertissements légaux",
+    "about": "À propos du projet",
+    "documentation": "Documentation",
+    "projectInfo": "Une expérience du département innovation de {crystalDesign} & {bcommonslab} - une initiative de bcoop Brixen",
+    "crystalDesign": "Crystal Design GmbH",
+    "bcommonslab": "b*CommonsLAB",
+    "collaboration": "– en collaboration avec des communautés ouvertes et des partenaires de recherche."
   }
 }
 

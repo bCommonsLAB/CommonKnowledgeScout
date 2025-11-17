@@ -76,17 +76,41 @@ export function ChatConfigDisplay({
   }, [effectiveTargetLanguage, effectiveCharacter, effectiveAccessPerspective, effectiveSocialContext])
 
   // Lade alle Parameter aus QueryLog, falls queryId vorhanden ist
-  // WICHTIG: Wenn queryId vorhanden ist, werden IMMER die historischen Parameter aus QueryLog verwendet,
-  // nicht die aktuellen Props (z.B. galleryFilters). Props werden nur verwendet, wenn keine queryId vorhanden ist.
+  // WICHTIG: Wenn filtersProp übergeben wird (z.B. während einer neuen Query), verwende diese IMMER,
+  // auch wenn queryId vorhanden ist. Nur wenn keine filtersProp übergeben wird UND queryId vorhanden ist,
+  // werden die historischen Parameter aus QueryLog geladen.
   useEffect(() => {
-    // Wenn queryId vorhanden ist, lade IMMER aus QueryLog (ignoriere Props für historische Antworten)
-    if (queryId && libraryId) {
-      // queryId vorhanden: Lade aus QueryLog (wird weiter unten behandelt)
-      // Setze Props nicht direkt, da sie aus QueryLog geladen werden
+    // Wenn filtersProp übergeben wird, verwende diese IMMER (auch wenn queryId vorhanden ist)
+    // Dies ist wichtig für laufende Queries, bei denen die Filter noch nicht in QueryLog gespeichert sind
+    if (filtersProp && Object.keys(filtersProp).length > 0) {
+      console.log('[ChatConfigDisplay] ✅ Verwende filtersProp (wird übergeben):', {
+        filtersProp,
+        queryId,
+        hasQueryId: !!queryId,
+      })
+      setFilters(filtersProp)
+      // Setze auch andere Props, falls vorhanden
+      if (answerLength) setQueryAnswerLength(answerLength)
+      if (retriever) setQueryRetriever(retriever)
+      if (targetLanguage) setQueryTargetLanguage(targetLanguage)
+      if (character) setQueryCharacter(character)
+      if (accessPerspective) setQueryAccessPerspective(accessPerspective)
+      if (socialContext) setQuerySocialContext(socialContext)
+      // Wenn filtersProp vorhanden ist, müssen wir nicht aus QueryLog laden
+      // Aber wenn queryId vorhanden ist, können wir trotzdem andere Parameter aus QueryLog laden
+      if (queryId && libraryId) {
+        // Lade andere Parameter aus QueryLog (aber nicht Filter, da filtersProp vorhanden ist)
+        // Dies wird weiter unten behandelt
+      } else {
+        // Keine queryId, verwende Props direkt
+        return
+      }
+    } else if (queryId && libraryId) {
+      // queryId vorhanden, aber keine filtersProp: Lade aus QueryLog (historische Antworten)
       // Weiter mit QueryLog-Ladung unten
     } else {
       // Wenn keine queryId vorhanden ist, verwende Props (z.B. während der Verarbeitung)
-      if (answerLength || retriever || targetLanguage || character || accessPerspective || socialContext || filtersProp) {
+      if (answerLength || retriever || targetLanguage || character || accessPerspective || socialContext) {
         // Props vorhanden: Verwende diese direkt, keine Query-Ladung nötig
         setQueryAnswerLength(answerLength)
         setQueryRetriever(retriever)
@@ -94,7 +118,7 @@ export function ChatConfigDisplay({
         setQueryCharacter(character) // Array (kann leer sein)
         setQueryAccessPerspective(accessPerspective) // Array (kann leer sein)
         setQuerySocialContext(socialContext)
-        setFilters(filtersProp || null)
+        setFilters(null) // Keine filtersProp, setze auf null
         return
       }
 
@@ -147,13 +171,33 @@ export function ChatConfigDisplay({
         setQueryAccessPerspective(queryLog.cacheParams?.accessPerspective ?? queryLog.accessPerspective)
         setQuerySocialContext(queryLog.cacheParams?.socialContext ?? queryLog.socialContext)
         
-        // Setze Filter: Verwende übergebene Filter nur wenn keine queryId vorhanden ist
-        // Wenn queryId vorhanden ist, verwende immer Filter aus QueryLog
-        const facetsSelected = queryLog.cacheParams?.facetsSelected ?? queryLog.facetsSelected
-        if (!facetsSelected || Object.keys(facetsSelected).length === 0) {
-          setFilters(null)
+        // Setze Filter: Nur wenn keine filtersProp übergeben wurde, verwende Filter aus QueryLog
+        // Wenn filtersProp vorhanden ist, wurde es bereits oben gesetzt
+        if (!filtersProp || Object.keys(filtersProp).length === 0) {
+          const facetsSelected = queryLog.cacheParams?.facetsSelected ?? queryLog.facetsSelected
+          
+          console.log('[ChatConfigDisplay] 🔍 Filter aus QueryLog geladen:', {
+            queryId,
+            hasCacheParams: !!queryLog.cacheParams,
+            facetsSelectedFromCache: queryLog.cacheParams?.facetsSelected,
+            facetsSelectedFromRoot: queryLog.facetsSelected,
+            finalFacetsSelected: facetsSelected,
+            hasShortTitle: !!(facetsSelected?.shortTitle),
+            shortTitleValue: facetsSelected?.shortTitle,
+            filtersPropWasEmpty: !filtersProp || Object.keys(filtersProp).length === 0,
+          })
+          
+          if (!facetsSelected || Object.keys(facetsSelected).length === 0) {
+            setFilters(null)
+          } else {
+            setFilters(facetsSelected)
+          }
         } else {
-          setFilters(facetsSelected)
+          console.log('[ChatConfigDisplay] ⏭️ Überspringe Filter-Ladung aus QueryLog (filtersProp vorhanden):', {
+            queryId,
+            filtersProp,
+          })
+          // filtersProp wurde bereits oben gesetzt, nichts zu tun
         }
         setIsLoadingParams(false)
       } catch (error) {
@@ -242,6 +286,15 @@ export function ChatConfigDisplay({
   const hasAnswerLengthOrRetriever = !!(effectiveAnswerLength || effectiveRetriever)
   const hasFilters = !!(filters && Object.keys(filters).length > 0)
   
+  console.log('[ChatConfigDisplay] 🔍 Render-Prüfung:', {
+    hasPerspectiveParams,
+    hasAnswerLengthOrRetriever,
+    hasFilters,
+    filters,
+    filterKeys: filters ? Object.keys(filters) : [],
+    shouldRender: !!(hasPerspectiveParams || hasAnswerLengthOrRetriever || hasFilters),
+  })
+  
   if (!hasPerspectiveParams && !hasAnswerLengthOrRetriever && !hasFilters) {
     return null
   }
@@ -293,16 +346,29 @@ export function ChatConfigDisplay({
       {/* Filter-Anzeige (falls vorhanden) */}
       {hasFilters && filters && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          
           <span className="flex items-center gap-1 flex-wrap">
             {Object.entries(filters).map(([metaKey, value], index) => {
               // Überspringe interne Filter
-              if (metaKey === 'user' || metaKey === 'libraryId' || metaKey === 'kind') {
+              // fileId wird auch übersprungen, da es nur intern verwendet wird (shortTitle wird stattdessen angezeigt)
+              if (metaKey === 'user' || metaKey === 'libraryId' || metaKey === 'kind' || metaKey === 'fileId') {
                 return null
               }
               
+              // Für shortTitle verwenden wir ein benutzerfreundliches Label (wie in FilterContextBar)
               const def = facetDefs.find(d => d.metaKey === metaKey)
-              const label = def?.label || metaKey
+              const label = metaKey === 'shortTitle' 
+                ? t('gallery.document')
+                : (def?.label || metaKey)
               const formattedValue = formatFilterValue(value)
+              
+              console.log('[ChatConfigDisplay] 🔍 Filter-Anzeige:', {
+                metaKey,
+                value,
+                formattedValue,
+                label,
+                isEmpty: !formattedValue || formattedValue.trim() === '',
+              })
               
               if (!formattedValue || formattedValue.trim() === '') {
                 return null

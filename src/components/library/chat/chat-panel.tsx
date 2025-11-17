@@ -455,6 +455,72 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     }
   }, [isEmbedded, checkTOCCache])
   
+  // Event-Listener für Filter-Änderungen im Story-Modus
+  // Wenn Filter gesetzt werden (z.B. beim Wechsel von Detail-Overlay zu Story-Mode),
+  // soll das TOC neu berechnet werden
+  useEffect(() => {
+    const handleFiltersChanged = () => {
+      // Nur im Story-Modus (embedded) reagieren
+      if (!isEmbedded) {
+        console.log('[ChatPanel] ⏭️ gallery-filters-changed Event ignoriert (nicht im embedded-Modus)')
+        return
+      }
+      
+      // Wenn bereits eine Query läuft, überspringe (verhindert Race Conditions)
+      if (isSending || isGeneratingTOC) {
+        console.log('[ChatPanel] ⏭️ gallery-filters-changed Event ignoriert (Query läuft bereits):', {
+          isSending,
+          isGeneratingTOC,
+        })
+        return
+      }
+      
+      console.log('[ChatPanel] 🎯 gallery-filters-changed Event empfangen:', {
+        isEmbedded,
+        currentFilters: JSON.stringify(galleryFilters || {}),
+        timestamp: new Date().toISOString(),
+      })
+      
+      // Setze hasCheckedCacheRef zurück, damit Cache-Check erneut durchgeführt wird
+      hasCheckedCacheRef.current = false
+      
+      // Setze auch lastFiltersRef zurück, damit Filter-Änderung erkannt wird
+      // WICHTIG: Setze auf leeren String, damit der useEffect #1 die Änderung erkennt
+      lastFiltersRef.current = ''
+      
+      // Setze shouldAutoGenerateRef, damit die TOC neu generiert wird
+      shouldAutoGenerateRef.current = true
+      
+      console.log('[ChatPanel] ✅ Refs zurückgesetzt:', {
+        hasCheckedCacheRef: hasCheckedCacheRef.current,
+        lastFiltersRef: lastFiltersRef.current,
+        shouldAutoGenerateRef: shouldAutoGenerateRef.current,
+      })
+      
+      // WICHTIG: checkTOCCache() ist eine No-Op, daher müssen wir die TOC direkt neu generieren
+      // Verwende forceRegenerateTOC(), um sicherzustellen, dass die TOC mit den neuen Filtern neu generiert wird
+      // forceRegenerateTOC() löscht den Cache automatisch und generiert die TOC neu
+      // Warte kurz, damit die Filter-Setzung abgeschlossen ist
+      setTimeout(() => {
+        // Prüfe nochmal, ob wir immer noch im Story-Mode sind und keine Query läuft
+        if (!isSending && !isGeneratingTOC) {
+          console.log('[ChatPanel] 🔄 Starte TOC-Neuberechnung nach Filter-Änderung (forceRegenerateTOC)')
+          void forceRegenerateTOC()
+        } else {
+          console.log('[ChatPanel] ⏭️ Überspringe TOC-Neuberechnung (Query läuft bereits):', {
+            isSending,
+            isGeneratingTOC,
+          })
+        }
+      }, 500)
+    }
+    
+    window.addEventListener('gallery-filters-changed', handleFiltersChanged)
+    return () => {
+      window.removeEventListener('gallery-filters-changed', handleFiltersChanged)
+    }
+  }, [isEmbedded, galleryFilters, isSending, isGeneratingTOC, cachedStoryTopicsData, cachedTOC, forceRegenerateTOC])
+  
   useEffect(() => {
     if (!cfg) {
       return

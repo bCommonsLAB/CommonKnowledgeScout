@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from "@/components/ui/button"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { Compass, Mail, Eye } from "lucide-react"
 import { useTranslation } from "@/lib/i18n/hooks"
 
@@ -36,20 +37,28 @@ export function CTASection() {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex flex-wrap justify-center gap-4">
-            <Button size="lg" className="gap-2">
-              <Compass className="h-5 w-5" />
-              {t('home.cta.buttonResearch')}
-            </Button>
-            <Button size="lg" variant="outline" className="gap-2 bg-transparent">
-              <Mail className="h-5 w-5" />
-              {t('home.cta.buttonContact')}
-            </Button>
-            <Button size="lg" variant="outline" className="gap-2 bg-transparent">
-              <Eye className="h-5 w-5" />
-              {t('home.cta.buttonView')}
-            </Button>
-          </div>
+          <TooltipProvider>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button size="lg" className="gap-2" asChild>
+                <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" target="_blank" rel="noopener noreferrer">
+                  <Compass className="h-5 w-5" />
+                  {t('home.cta.buttonResearch')}
+                </a>
+              </Button>
+              <Button size="lg" variant="outline" className="gap-2 bg-transparent" asChild>
+                <a href="https://www.peteraichner.org/" target="_blank" rel="noopener noreferrer">
+                  <Mail className="h-5 w-5" />
+                  {t('home.cta.buttonContact')}
+                </a>
+              </Button>
+              <Button size="lg" variant="outline" className="gap-2 bg-transparent" asChild>
+                <a href="/info?type=about">
+                  <Eye className="h-5 w-5" />
+                  {t('home.cta.buttonView')}
+                </a>
+              </Button>
+            </div>
+          </TooltipProvider>
         </div>
       </div>
     </section>

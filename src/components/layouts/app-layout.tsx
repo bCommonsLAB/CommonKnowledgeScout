@@ -17,11 +17,14 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname()
   
-  // Homepage und Explore-Seiten bekommen scrollbares Layout
-  const isHomePage = pathname === '/' || pathname?.startsWith('/explore')
+  // Homepage, Explore-Seiten, Docs und Info-Seiten bekommen scrollbares Layout
+  const isScrollablePage = pathname === '/' || 
+    pathname?.startsWith('/explore') ||
+    pathname?.startsWith('/docs') ||
+    pathname === '/info'
   
-  if (isHomePage) {
-    // Scrollbares Layout für Homepage
+  if (isScrollablePage) {
+    // Scrollbares Layout für Homepage und rechtliche Seiten
     return (
       <>
         <TopNavWrapper />

@@ -1,7 +1,8 @@
 'use client'
 
 import { Card, CardContent } from "@/components/ui/card"
-import { Library, MessageSquare, Lightbulb } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Library, MessageSquare, Lightbulb, Copyright } from "lucide-react"
 import { useTranslation } from "@/lib/i18n/hooks"
 
 export function HowItWorks() {
@@ -14,6 +15,8 @@ export function HowItWorks() {
       title: t('home.howItWorks.step1.title'),
       description: t('home.howItWorks.step1.description'),
       detail: t('home.howItWorks.step1.detail'),
+      imageUrl: 'https://ragtempproject.blob.core.windows.net/knowledgescout/images/clarisse-meyer-jKU2NneZAbI-unsplash_low.jpg',
+      imageAttribution: 'Photo by <a href="https://unsplash.com/@clarissemeyer?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText" target="_blank" rel="noopener noreferrer" class="underline">Clarisse Meyer</a> on <a href="https://unsplash.com/photos/books-in-glass-bookshelf-jKU2NneZAbI?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText" target="_blank" rel="noopener noreferrer" class="underline">Unsplash</a>',
     },
     {
       number: "2",
@@ -21,6 +24,8 @@ export function HowItWorks() {
       title: t('home.howItWorks.step2.title'),
       description: t('home.howItWorks.step2.description'),
       detail: t('home.howItWorks.step2.detail'),
+      imageUrl: 'https://ragtempproject.blob.core.windows.net/knowledgescout/images/kelly-sikkema-sWRPYgjpygQ-unsplash_low.jpg',
+      imageAttribution: 'Photo by <a href="https://unsplash.com/@kellysikkema?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText" target="_blank" rel="noopener noreferrer" class="underline">Kelly Sikkema</a> on <a href="https://unsplash.com/photos/two-white-speech-bubbles-on-brown-surface-sWRPYgjpygQ?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText" target="_blank" rel="noopener noreferrer" class="underline">Unsplash</a>',
     },
     {
       number: "3",
@@ -28,6 +33,8 @@ export function HowItWorks() {
       title: t('home.howItWorks.step3.title'),
       description: t('home.howItWorks.step3.description'),
       detail: t('home.howItWorks.step3.detail'),
+      imageUrl: 'https://ragtempproject.blob.core.windows.net/knowledgescout/images/neom-EbIvcXzgU4s-unsplash_low.jpg',
+      imageAttribution: 'Photo by <a href="https://unsplash.com/@neom?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText" target="_blank" rel="noopener noreferrer" class="underline">NEOM</a> on <a href="https://unsplash.com/photos/man-standing-in-tent-looking-at-distance-EbIvcXzgU4s?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText" target="_blank" rel="noopener noreferrer" class="underline">Unsplash</a>',
     },
   ]
   return (
@@ -40,26 +47,59 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-3">
-          {steps.map((step) => {
-            const Icon = step.icon
-            return (
-              <Card key={step.number} className="relative border-2">
-                <div className="absolute -top-4 left-6 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  {step.number}
-                </div>
-                <CardContent className="pt-8">
-                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
-                    <Icon className="h-6 w-6 text-accent" />
+        <TooltipProvider>
+          <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-3 md:items-stretch">
+            {steps.map((step) => {
+              const Icon = step.icon
+              return (
+                <div key={step.number} className="relative flex flex-col">
+                  {/* Nummerierung über der Card */}
+                  <div className="absolute -top-4 left-6 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                    {step.number}
                   </div>
-                  <h3 className="mb-2 text-xl font-semibold">{step.title}</h3>
-                  <p className="mb-3 text-muted-foreground leading-relaxed">{step.description}</p>
-                  <p className="text-sm text-muted-foreground/80 leading-relaxed">{step.detail}</p>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+                  
+                  <Card 
+                    className="relative border-2 overflow-hidden flex-1 flex flex-col"
+                    style={{
+                      backgroundImage: `url(${step.imageUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }}
+                  >
+                    {/* Dunkles Overlay für bessere Lesbarkeit */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/40" />
+                    
+                    {/* Copyright-Icon für Bildquelle */}
+                    <div className="absolute bottom-3 right-3 z-10">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-transparent text-white/70 hover:text-white transition-colors"
+                            aria-label={t('common.imageSource')}
+                          >
+                            <Copyright className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <p className="text-xs [&_a]:underline [&_a]:hover:text-primary [&_a]:transition-colors" dangerouslySetInnerHTML={{ __html: step.imageAttribution }} />
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+
+                    <CardContent className="relative z-0 pt-8 flex-1 flex flex-col">
+                      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
+                        <Icon className="h-6 w-6 text-white" />
+                      </div>
+                      <h3 className="mb-2 text-xl font-semibold text-white">{step.title}</h3>
+                      <p className="mb-3 text-white/90 leading-relaxed">{step.description}</p>
+                      <p className="text-sm text-white/80 leading-relaxed flex-1">{step.detail}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+            })}
+          </div>
+        </TooltipProvider>
         <div className="mx-auto mt-16 max-w-3xl text-center">
           <p className="text-lg leading-relaxed text-muted-foreground text-pretty">
             {t('home.howItWorks.subtext')}

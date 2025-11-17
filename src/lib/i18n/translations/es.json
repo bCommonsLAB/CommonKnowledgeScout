@@ -23,7 +23,7 @@
       "subtitle": "Un proceso simple que hace accesible el conocimiento real",
       "step1": {
         "title": "Elige una biblioteca",
-        "description": "Elige un área temática que te interese.",
+        "description": "Elige un área temática que te importa y sumérgete en el contenido.",
         "detail": "Todo el contenido proviene de fuentes abiertas y verificables."
       },
       "step2": {
@@ -415,6 +415,24 @@
     "retrieverAutoTooltip": "El sistema analiza automáticamente tu pregunta y selecciona el mejor método (Específico o Resumen).",
     "retrieverChunkTooltip": "Buscar pasajes de texto relevantes (fragmentos) para la pregunta y generar la respuesta a partir de ellos. Solo contenido específico – pero más preciso.",
     "retrieverDocTooltip": "Crear una respuesta a partir de resúmenes de todos los capítulos/documentos. Más resumen – pero algo menos preciso."
+  },
+  "legalNotice": {
+    "loadingContent": "Cargando contenido...",
+    "loadError": "No se pudo cargar el archivo Markdown.",
+    "lastUpdate": "Última actualización:"
+  },
+  "footer": {
+    "transparency": "El contenido proviene de fuentes abiertas y archivos públicos. Las respuestas se formulan utilizando modelos de IA transparentes.",
+    "learnMore": "Saber más →",
+    "privacy": "Protección de datos",
+    "imprint": "Aviso legal",
+    "legalNotice": "Avisos legales",
+    "about": "Acerca del proyecto",
+    "documentation": "Documentación",
+    "projectInfo": "Un experimento del departamento de innovación de {crystalDesign} & {bcommonslab} - una iniciativa de bcoop Brixen",
+    "crystalDesign": "Crystal Design GmbH",
+    "bcommonslab": "b*CommonsLAB",
+    "collaboration": "– en colaboración con comunidades abiertas y socios de investigación."
   }
 }
 

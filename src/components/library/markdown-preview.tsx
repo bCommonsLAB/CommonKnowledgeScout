@@ -790,19 +790,39 @@ md.renderer.rules.link_open = function (tokens, idx) {
 
 // Tables
 md.renderer.rules.table_open = function() {
-  return '<div class="overflow-x-auto my-4"><table class="min-w-full divide-y divide-muted-foreground/20">';
+  return '<div class="overflow-x-auto my-4"><table class="min-w-full divide-y divide-muted-foreground/20 border-collapse">';
+};
+
+md.renderer.rules.table_close = function() {
+  return '</table></div>';
 };
 
 md.renderer.rules.thead_open = function() {
   return '<thead class="bg-muted">';
 };
 
+md.renderer.rules.tbody_open = function() {
+  return '<tbody class="divide-y divide-muted-foreground/10">';
+};
+
+md.renderer.rules.tr_open = function() {
+  return '<tr class="border-b border-muted-foreground/10">';
+};
+
 md.renderer.rules.th_open = function() {
-  return '<th class="px-4 py-2 text-left text-sm font-semibold">';
+  return '<th class="px-4 py-3 text-left text-sm font-semibold align-top w-1/2">';
+};
+
+md.renderer.rules.th_close = function() {
+  return '</th>';
 };
 
 md.renderer.rules.td_open = function() {
-  return '<td class="px-4 py-2 text-sm border-t border-muted-foreground/10">';
+  return '<td class="px-4 py-3 text-sm align-top w-1/2 prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold [&_em]:italic [&_a]:text-primary [&_a]:underline [&_h3]:!text-lg [&_h3]:!font-semibold [&_h3]:!mt-4 [&_h3]:!mb-2 [&_h3]:first:!mt-0 [&_hr]:!border-t [&_hr]:!border-muted-foreground/20 [&_hr]:!my-3 [&_hr]:!block">';
+};
+
+md.renderer.rules.td_close = function() {
+  return '</td>';
 };
 
 // Emphasis

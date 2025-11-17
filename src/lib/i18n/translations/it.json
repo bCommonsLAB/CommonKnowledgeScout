@@ -23,7 +23,7 @@
       "subtitle": "Un processo semplice che rende accessibile la vera conoscenza",
       "step1": {
         "title": "Scegli una libreria",
-        "description": "Scegli un'area tematica che ti interessa.",
+        "description": "Scegli un'area tematica che ti sta a cuore e immergiti nei contenuti.",
         "detail": "Tutti i contenuti provengono da fonti aperte e verificabili."
       },
       "step2": {
@@ -415,6 +415,24 @@
     "retrieverAutoTooltip": "Il sistema analizza automaticamente la tua domanda e seleziona il metodo migliore (Specifico o Panoramica).",
     "retrieverChunkTooltip": "Cerca passaggi di testo rilevanti (chunk) per la domanda e genera la risposta da essi. Solo contenuti specifici – ma più precisi.",
     "retrieverDocTooltip": "Crea una risposta dai riassunti di tutti i capitoli/documenti. Più panoramica – ma un po' meno precisa."
+  },
+  "legalNotice": {
+    "loadingContent": "Caricamento contenuti...",
+    "loadError": "Impossibile caricare il file Markdown.",
+    "lastUpdate": "Ultimo aggiornamento:"
+  },
+  "footer": {
+    "transparency": "I contenuti provengono da fonti aperte e archivi pubblici. Le risposte sono formulate utilizzando modelli di IA trasparenti.",
+    "learnMore": "Scopri di più →",
+    "privacy": "Protezione dei dati",
+    "imprint": "Note legali",
+    "legalNotice": "Avvertenze legali",
+    "about": "Informazioni sul progetto",
+    "documentation": "Documentazione",
+    "projectInfo": "Un esperimento del dipartimento innovazione di {crystalDesign} & {bcommonslab} - un'iniziativa di bcoop Bressanone",
+    "crystalDesign": "Crystal Design GmbH",
+    "bcommonslab": "b*CommonsLAB",
+    "collaboration": "– in collaborazione con comunità aperte e partner di ricerca."
   }
 }
 

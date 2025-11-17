@@ -3,15 +3,17 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { X, MessageCircle, ArrowRight, ExternalLink, Loader2 } from 'lucide-react'
+import { X, ExternalLink, Loader2 } from 'lucide-react'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useDocumentTranslation } from '@/hooks/use-document-translation'
+import { SwitchToStoryModeButton } from '@/components/library/gallery/switch-to-story-mode-button'
+import { DocumentShareButton } from '@/components/library/gallery/document-share-button'
 import type { BookDetailData } from '@/components/library/book-detail'
 import type { SessionDetailData } from '@/components/library/session-detail'
+import type { DocCardMeta } from '@/lib/gallery/types'
 
 export interface DetailOverlayProps {
   open: boolean
@@ -20,13 +22,28 @@ export interface DetailOverlayProps {
   fileId: string
   viewType: 'book' | 'session'
   title?: string
-  onSwitchToStoryMode?: () => void
+  /** Optional: Dokument-Metadaten für den SwitchToStoryModeButton */
+  doc?: DocCardMeta
+  /** Optional: Aktueller Mode für den SwitchToStoryModeButton */
+  currentMode?: 'gallery' | 'story'
+  /** Optional: Ref für Flag, um zu verhindern, dass selectedDoc während des Wechsels verwendet wird */
+  isSwitchingRef?: React.MutableRefObject<boolean>
 }
 
 // localStorage Key für globale Präferenz (gilt für alle Dokumente)
 const PREFER_TRANSLATION_KEY = 'detail-view-prefer-translation'
 
-export function DetailOverlay({ open, onClose, libraryId, fileId, viewType, title, onSwitchToStoryMode }: DetailOverlayProps) {
+export function DetailOverlay({ 
+  open, 
+  onClose, 
+  libraryId, 
+  fileId, 
+  viewType, 
+  title, 
+  doc,
+  currentMode = 'gallery',
+  isSwitchingRef,
+}: DetailOverlayProps) {
   const { t, locale } = useTranslation()
   const { translateDocument, loading: translationLoading } = useDocumentTranslation()
   
@@ -464,36 +481,16 @@ export function DetailOverlay({ open, onClose, libraryId, fileId, viewType, titl
               </Tabs>
             )}
             
-            {/* CTA-Button für Story Mode */}
-            {onSwitchToStoryMode && (
-              <div className="shrink-0">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => {
-                          console.log('[DetailOverlay] 🎯 Button "In-Story-Mode ansehen" geklickt:', {
-                            fileId,
-                            libraryId,
-                            viewType,
-                            timestamp: new Date().toISOString(),
-                          })
-                          onSwitchToStoryMode()
-                        }}
-                        className="flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all"
-                      >
-                        <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-                        <span>{t('gallery.detailViewStoryModeCta')}</span>
-                        <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{t('gallery.storyModeTooltip')}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+            {/* Share-Button und CTA-Button für Story Mode */}
+            {doc && (
+              <div className="flex items-center gap-2 shrink-0">
+                <DocumentShareButton doc={doc} title={displayTitle} />
+                <SwitchToStoryModeButton
+                  doc={doc}
+                  currentMode={currentMode}
+                  onClose={onClose}
+                  isSwitchingRef={isSwitchingRef}
+                />
               </div>
             )}
           </div>
