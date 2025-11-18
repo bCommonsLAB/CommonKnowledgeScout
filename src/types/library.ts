@@ -68,7 +68,10 @@ export interface LibraryChatConfig {
 
   /** Vektor-Store-Overrides; Index = Libraryname, außer es wird überschrieben */
   vectorStore?: {
-    indexOverride?: string;
+    /** MongoDB Collection-Name (wird automatisch gesetzt bei Migration) */
+    collectionName?: string;
+    /** Pinecone Index-Name (ersetzt indexOverride) */
+    indexName?: string;
   };
 
   /** Zielsprache für Chat-Antworten */

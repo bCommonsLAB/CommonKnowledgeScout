@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation"
 import { TopNavWrapper } from "@/components/top-nav-wrapper"
 import { DebugFooterWrapper } from "@/components/debug/debug-footer-wrapper"
 import { JobMonitorPanel } from "@/components/shared/job-monitor-panel"
-import { ChatSidePanel } from "@/components/shared/chat-panel"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -45,7 +44,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </div>
         <JobMonitorPanel />
-        <ChatSidePanel />
         <DebugFooterWrapper />
       </div>
     </>

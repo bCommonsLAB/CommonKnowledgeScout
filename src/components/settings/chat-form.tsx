@@ -47,7 +47,7 @@ const chatFormSchema = z.object({
   footerText: z.string().optional(),
   companyLink: z.string().url().optional().or(z.literal("")).transform(v => v || undefined),
   vectorStore: z.object({
-    indexOverride: z.string().optional(),
+    indexName: z.string().optional(),
   }).optional(),
   targetLanguage: z.preprocess(
     (val) => {
@@ -132,7 +132,7 @@ export function ChatForm() {
       maxCharsWarningMessage: t('settings.chatForm.maxCharsWarningDefault'),
       footerText: "",
       companyLink: undefined,
-      vectorStore: { indexOverride: undefined },
+      vectorStore: { indexName: undefined },
       targetLanguage: TARGET_LANGUAGE_DEFAULT,
       character: CHARACTER_DEFAULT,
       socialContext: SOCIAL_CONTEXT_DEFAULT,
@@ -226,8 +226,8 @@ export function ChatForm() {
         footerText: typeof c.footerText === 'string' ? c.footerText : "",
         companyLink: typeof c.companyLink === 'string' ? c.companyLink : undefined,
         vectorStore: {
-          indexOverride: typeof (c.vectorStore as { indexOverride?: string })?.indexOverride === 'string'
-            ? (c.vectorStore as { indexOverride?: string })!.indexOverride
+          indexName: typeof (c.vectorStore as { indexName?: string })?.indexName === 'string'
+            ? (c.vectorStore as { indexName?: string })!.indexName
             : undefined,
         },
         targetLanguage: finalTargetLanguage,
@@ -398,7 +398,7 @@ export function ChatForm() {
 
           <FormField
             control={form.control}
-            name="vectorStore.indexOverride"
+            name="vectorStore.indexName"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t('settings.chatForm.indexOverride')}</FormLabel>

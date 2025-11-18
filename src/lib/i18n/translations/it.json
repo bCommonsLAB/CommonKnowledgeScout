@@ -16,7 +16,7 @@
       "loading": "Caricamento librerie...",
       "noLibraries": "Nessuna libreria pubblica disponibile ancora.",
       "buttonQuery": "Interroga",
-      "buttonOpenEvent": "Apri evento"
+      "buttonOpenEvent": "Esplora questo evento"
     },
     "howItWorks": {
       "title": "Come funziona",
@@ -89,8 +89,8 @@
   "navigation": {
     "home": "Home",
     "docs": "Docs",
-    "library": "Biblioteca",
-    "gallery": "Galleria",
+    "library": "Archivio",
+    "gallery": "Esplora",
     "templates": "Modelli",
     "eventMonitor": "Monitor eventi",
     "sessionManager": "Gestore sessioni"

@@ -26,7 +26,8 @@
 
 import { Library } from '@/types/library'
 import { LibraryService, type UserLibraries } from '@/lib/services/library-service'
-import { normalizeChatConfig, getVectorIndexForLibrary } from '@/lib/chat/config'
+import { normalizeChatConfig, getVectorIndexForLibrary, slugifyIndexName } from '@/lib/chat/config'
+import { computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
 
 export interface LibraryChatContext {
   library: Library
@@ -99,11 +100,12 @@ export function invalidateLibraryContextCache(libraryId: string): void {
 }
 
 /**
- * Findet die Owner-Email einer öffentlichen Library
+ * Findet die Owner-Email einer Library (nur noch für Migration verwendet).
  * @param libraryId Die Library-ID
  * @returns Die Owner-Email oder null wenn nicht gefunden
+ * @deprecated Nur noch für Migration verwendet, wird nach Migration entfernt
  */
-export async function findLibraryOwnerEmail(libraryId: string): Promise<string | null> {
+async function findLibraryOwnerEmailForMigration(libraryId: string): Promise<string | null> {
   const { getCollection } = await import('@/lib/mongodb-service')
   
   try {
@@ -112,12 +114,7 @@ export async function findLibraryOwnerEmail(libraryId: string): Promise<string |
     
     for (const entry of allEntries) {
       if (entry.libraries && Array.isArray(entry.libraries)) {
-        const library = entry.libraries.find(
-          (lib: Library) =>
-            lib.id === libraryId &&
-            lib.config?.publicPublishing?.isPublic === true
-        )
-        
+        const library = entry.libraries.find((lib: Library) => lib.id === libraryId)
         if (library) {
           return entry.email
         }
@@ -126,48 +123,111 @@ export async function findLibraryOwnerEmail(libraryId: string): Promise<string |
     
     return null
   } catch (error) {
-    console.error('[findLibraryOwnerEmail] Fehler:', error)
+    console.error('[findLibraryOwnerEmailForMigration] Fehler:', error)
     return null
   }
 }
 
 /**
- * Findet die Owner-Email einer öffentlichen Library nach Slug
- * @param slugName Der Slug-Name der Library
- * @returns Die Owner-Email oder null wenn nicht gefunden
+ * Migriert eine Library-Config: Berechnet und speichert collectionName und indexName.
+ * Migriert auch indexOverride → indexName.
+ * @param library Die zu migrierende Library
+ * @param userEmail Die User-Email (falls vorhanden, sonst wird Owner-Email ermittelt)
+ * @returns Die migrierte Library
  */
-async function findLibraryOwnerEmailBySlug(slugName: string): Promise<string | null> {
-  const { getCollection } = await import('@/lib/mongodb-service')
+async function migrateLibraryConfig(library: Library, userEmail?: string): Promise<Library> {
+  // Prüfe ob Migration bereits durchgeführt wurde
+  const hasCollectionName = !!library.config?.chat?.vectorStore?.collectionName
+  const hasIndexName = !!library.config?.chat?.vectorStore?.indexName
+  const hasIndexOverride = !!library.config?.chat?.vectorStore?.indexOverride
   
-  try {
-    const collection = await getCollection<UserLibraries>('libraries')
-    const allEntries = await collection.find({}).toArray()
-    
-    for (const entry of allEntries) {
-      if (entry.libraries && Array.isArray(entry.libraries)) {
-        const library = entry.libraries.find(
-          (lib: Library) =>
-            lib.config?.publicPublishing?.isPublic === true &&
-            lib.config?.publicPublishing?.slugName === slugName
-        )
-        
-        if (library) {
-          return entry.email
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('[findLibraryOwnerEmailBySlug] Fehler:', error)
-    return null
+  if (hasCollectionName && hasIndexName && !hasIndexOverride) {
+    // Migration bereits durchgeführt
+    return library
   }
+  
+  console.log('[migrateLibraryConfig] Starte Migration für Library:', library.id)
+  
+  // Ermittle Owner-Email für Collection-Name-Berechnung (nur wenn nicht vorhanden)
+  let effectiveEmail = userEmail
+  if (!effectiveEmail) {
+    effectiveEmail = await findLibraryOwnerEmailForMigration(library.id) || undefined
+  }
+  
+  // Berechne Collection-Name nach alter Logik
+  const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
+  const collectionName = computeDocMetaCollectionName(effectiveEmail || '', library.id, strategy)
+  
+  // Berechne Index-Name nach alter Logik (mit Email-Präfix) für Migration
+  // Diese Funktion bildet die alte Logik nach, die Email-Präfix verwendet hat
+  const { slugifyIndexName } = await import('@/lib/chat/config')
+  
+  // Alte Logik: indexOverride hat Priorität
+  const oldIndexOverride = library.config?.chat?.vectorStore?.indexOverride
+  let indexName: string
+  
+  if (oldIndexOverride && oldIndexOverride.trim().length > 0) {
+    // indexOverride wurde verwendet (ohne Email-Präfix)
+    indexName = slugifyIndexName(oldIndexOverride)
+  } else {
+    // Basis aus Label berechnen
+    const base = slugifyIndexName(library.label) || slugifyIndexName(`lib-${library.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12) || 'default'}`)
+    
+    // Alte Logik: Mit Email-Präfix (wenn Email vorhanden)
+    if (effectiveEmail && effectiveEmail.trim().length > 0) {
+      const emailSlug = slugifyIndexName(effectiveEmail)
+      indexName = slugifyIndexName(`${emailSlug}-${base}`)
+    } else {
+      indexName = base
+    }
+  }
+  
+  // Erstelle neue Config mit migrierten Werten
+  const updatedConfig = {
+    ...library.config,
+    chat: {
+      ...library.config?.chat,
+      vectorStore: {
+        ...library.config?.chat?.vectorStore,
+        collectionName,
+        // Migration: indexOverride → indexName
+        indexName: library.config?.chat?.vectorStore?.indexOverride || indexName,
+        // Entferne indexOverride nach Migration
+        ...(library.config?.chat?.vectorStore?.indexOverride ? {} : {}),
+      },
+    },
+  }
+  
+  // Entferne indexOverride aus vectorStore
+  if (updatedConfig.chat?.vectorStore?.indexOverride) {
+    delete updatedConfig.chat.vectorStore.indexOverride
+  }
+  
+  const migratedLibrary: Library = {
+    ...library,
+    config: updatedConfig,
+  }
+  
+  // Speichere migrierte Library zurück (nur wenn Owner-Email bekannt)
+  if (effectiveEmail) {
+    const libService = LibraryService.getInstance()
+    await libService.updateLibrary(effectiveEmail, migratedLibrary)
+    console.log('[migrateLibraryConfig] Migration abgeschlossen für Library:', library.id, {
+      collectionName,
+      indexName: migratedLibrary.config?.chat?.vectorStore?.indexName,
+    })
+  } else {
+    console.warn('[migrateLibraryConfig] Konnte Library nicht speichern, keine Owner-Email gefunden:', library.id)
+  }
+  
+  return migratedLibrary
 }
 
 /**
  * Lädt eine Bibliothek für einen Benutzer (per E-Mail) und liefert
  * die normalisierte Chat-Konfiguration sowie den abgeleiteten Indexnamen.
  * Verwendet Caching, um wiederholte MongoDB-Queries zu vermeiden.
+ * Führt automatische Migration durch, wenn collectionName oder indexName fehlen.
  */
 export async function loadLibraryChatContext(
   userEmail: string,
@@ -198,7 +258,7 @@ export async function loadLibraryChatContext(
   }
   
   const libraries = await libService.getUserLibraries(userEmail)
-  const library = libraries.find(l => l.id === libraryId)
+  let library = libraries.find(l => l.id === libraryId)
   
   if (!library) {
     // Versuche auch öffentliche Library zu laden (zuerst über ID, dann über Slug)
@@ -215,8 +275,18 @@ export async function loadLibraryChatContext(
     return null
   }
 
+  // Migration: Prüfe ob collectionName und indexName vorhanden sind
+  const needsMigration = !library.config?.chat?.vectorStore?.collectionName || 
+                         !library.config?.chat?.vectorStore?.indexName ||
+                         !!library.config?.chat?.vectorStore?.indexOverride
+  
+  if (needsMigration) {
+    library = await migrateLibraryConfig(library, userEmail)
+  }
+
   const chat = normalizeChatConfig(library.config?.chat)
-  const vectorIndex = getVectorIndexForLibrary({ id: library.id, label: library.label }, library.config?.chat, userEmail)
+  // Verwende indexName aus Config (deterministisch, getVectorIndexForLibrary prüft Config automatisch)
+  const vectorIndex = getVectorIndexForLibrary({ id: library.id, label: library.label }, library.config?.chat)
   
   const context = { library, vectorIndex, chat }
   setCachedContext(userEmail, libraryId, context)
@@ -225,12 +295,13 @@ export async function loadLibraryChatContext(
 
 /**
  * Lädt eine öffentliche Bibliothek direkt über ihre ID
+ * Führt automatische Migration durch, wenn collectionName oder indexName fehlen.
  */
 export async function loadPublicLibraryById(
   libraryId: string
 ): Promise<LibraryChatContext | null> {
   const libService = LibraryService.getInstance()
-  const library = await libService.getPublicLibraryById(libraryId)
+  let library = await libService.getPublicLibraryById(libraryId)
   
   if (!library) {
     return null
@@ -241,32 +312,32 @@ export async function loadPublicLibraryById(
     return null
   }
 
+  // Migration: Prüfe ob collectionName und indexName vorhanden sind
+  const needsMigration = !library.config?.chat?.vectorStore?.collectionName || 
+                         !library.config?.chat?.vectorStore?.indexName ||
+                         !!library.config?.chat?.vectorStore?.indexOverride
+  
+  if (needsMigration) {
+    library = await migrateLibraryConfig(library)
+  }
+
   const chat = normalizeChatConfig(library.config?.chat)
   
-  // Für öffentliche Libraries: Ermittle Owner-Email für Index-Berechnung
-  // Wenn indexOverride gesetzt ist, wird dieser direkt verwendet (ohne Email-Präfix)
-  // Ansonsten verwenden wir die Owner-Email für die Index-Berechnung
-  const ownerEmail = await findLibraryOwnerEmail(libraryId)
-  
-  // Verwende Owner-Email für Index-Berechnung (auch im anonymen Modus)
-  // indexOverride hat Priorität und wird direkt verwendet
-  const vectorIndex = getVectorIndexForLibrary(
-    { id: library.id, label: library.label }, 
-    library.config?.chat, 
-    ownerEmail || undefined
-  )
+  // Verwende indexName aus Config (deterministisch, keine Owner-Email mehr, getVectorIndexForLibrary prüft Config automatisch)
+  const vectorIndex = getVectorIndexForLibrary({ id: library.id, label: library.label }, library.config?.chat)
   
   return { library, vectorIndex, chat }
 }
 
 /**
  * Lädt eine öffentliche Bibliothek nach Slug-Name
+ * Führt automatische Migration durch, wenn collectionName oder indexName fehlen.
  */
 export async function loadPublicLibraryBySlug(
   slugName: string
 ): Promise<LibraryChatContext | null> {
   const libService = LibraryService.getInstance()
-  const library = await libService.getPublicLibraryBySlug(slugName)
+  let library = await libService.getPublicLibraryBySlug(slugName)
   
   if (!library) {
     return null
@@ -277,20 +348,19 @@ export async function loadPublicLibraryBySlug(
     return null
   }
 
+  // Migration: Prüfe ob collectionName und indexName vorhanden sind
+  const needsMigration = !library.config?.chat?.vectorStore?.collectionName || 
+                         !library.config?.chat?.vectorStore?.indexName ||
+                         !!library.config?.chat?.vectorStore?.indexOverride
+  
+  if (needsMigration) {
+    library = await migrateLibraryConfig(library)
+  }
+
   const chat = normalizeChatConfig(library.config?.chat)
   
-  // Für öffentliche Libraries: Ermittle Owner-Email für Index-Berechnung
-  // Wenn indexOverride gesetzt ist, wird dieser direkt verwendet (ohne Email-Präfix)
-  // Ansonsten verwenden wir die Owner-Email für die Index-Berechnung
-  const ownerEmail = await findLibraryOwnerEmailBySlug(slugName)
-  
-  // Verwende Owner-Email für Index-Berechnung (auch im anonymen Modus)
-  // indexOverride hat Priorität und wird direkt verwendet
-  const vectorIndex = getVectorIndexForLibrary(
-    { id: library.id, label: library.label }, 
-    library.config?.chat, 
-    ownerEmail || undefined
-  )
+  // Verwende indexName aus Config (deterministisch, keine Owner-Email mehr, getVectorIndexForLibrary prüft Config automatisch)
+  const vectorIndex = getVectorIndexForLibrary({ id: library.id, label: library.label }, library.config?.chat)
   
   return { library, vectorIndex, chat }
 }

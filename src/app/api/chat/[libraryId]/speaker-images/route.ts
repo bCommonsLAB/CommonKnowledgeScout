@@ -1,7 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { computeDocMetaCollectionName, getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
+import { getCollectionNameForLibrary, getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
 
 /**
  * API-Route für lazy-loading von Speaker-Image-URLs
@@ -42,27 +42,9 @@ export async function GET(
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
 
-    // Für öffentliche Libraries: Verwende Owner-Email für MongoDB-Collection
-    // Für authentifizierte Nutzer: Verwende ihre Email
-    let effectiveUserEmail = userEmail
-    if (!effectiveUserEmail && ctx.library.config?.publicPublishing?.isPublic) {
-      const { findLibraryOwnerEmail } = await import('@/lib/chat/loader')
-      const ownerEmail = await findLibraryOwnerEmail(libraryId)
-      if (ownerEmail) {
-        effectiveUserEmail = ownerEmail
-        console.log('[API][speaker-images] Verwende Owner-Email für öffentliche Library:', { libraryId, ownerEmail })
-      }
-    }
-
-    if (!effectiveUserEmail) {
-      console.log('[API][speaker-images] Fehler: Keine Email verfügbar', { libraryId, isPublic: ctx.library.config?.publicPublishing?.isPublic })
-      return NextResponse.json({ error: 'Benutzer-Email erforderlich' }, { status: 400 })
-    }
-
-    // Collection-Name berechnen
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(effectiveUserEmail, libraryId, strategy)
-    console.log('[API][speaker-images] MongoDB Collection:', { libraryKey, strategy, effectiveUserEmail })
+    // Verwende Collection-Name aus Config (deterministisch, keine Owner-Email-Ermittlung mehr)
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
+    console.log('[API][speaker-images] MongoDB Collection:', { libraryKey })
     const col = await getDocMetaCollection(libraryKey)
 
     // Lade nur speakers_image_url für das spezifische Dokument

@@ -16,7 +16,7 @@
       "loading": "Loading libraries...",
       "noLibraries": "No public libraries available yet.",
       "buttonQuery": "Query",
-      "buttonOpenEvent": "Open Event"
+      "buttonOpenEvent": "Explore this Event"
     },
     "howItWorks": {
       "title": "How it works",
@@ -89,8 +89,8 @@
   "navigation": {
     "home": "Home",
     "docs": "Docs",
-    "library": "Library",
-    "gallery": "Gallery",
+    "library": "Archive",
+    "gallery": "Explore",
     "templates": "Templates",
     "eventMonitor": "Event Monitor",
     "sessionManager": "Session Manager"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
+import { getCollectionNameForLibrary } from '@/lib/repositories/doc-meta-repo'
 import { getCollection } from '@/lib/mongodb-service'
 import type { DocMeta } from '@/types/doc-meta'
 
@@ -53,27 +53,10 @@ export async function GET(
       return NextResponse.json({ error: 'slug erforderlich' }, { status: 400 })
     }
 
-    // Für öffentliche Libraries: Verwende Owner-Email für MongoDB-Collection
-    let effectiveUserEmail = userEmail
-    if (!effectiveUserEmail && ctx.library.config?.publicPublishing?.isPublic) {
-      const { findLibraryOwnerEmail } = await import('@/lib/chat/loader')
-      const ownerEmail = await findLibraryOwnerEmail(libraryId)
-      if (ownerEmail) {
-        effectiveUserEmail = ownerEmail
-      }
-    }
-
-    if (!effectiveUserEmail) {
-      return NextResponse.json({ error: 'Benutzer-Email erforderlich' }, { status: 400 })
-    }
-
-    // MongoDB Collection-Name bestimmen
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(effectiveUserEmail, libraryId, strategy)
+    // Verwende Collection-Name aus Config (deterministisch, keine Owner-Email-Ermittlung mehr)
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
     console.log('[doc-by-slug] MongoDB Collection:', {
       libraryKey,
-      strategy,
-      effectiveUserEmail,
     })
     
     const col = await getCollection<DocMeta>(libraryKey)

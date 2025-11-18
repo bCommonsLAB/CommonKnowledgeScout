@@ -227,33 +227,21 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       isSignedIn
     });
 
-    // OPTIMIERUNG: Auf öffentlichen Seiten (Homepage/Explore) keine Libraries laden
-    // Auch wenn der Benutzer angemeldet ist, werden Libraries auf Explore-Seiten nicht benötigt
-    // Sie werden dort direkt aus der API geladen
-    const isPublicPage = pathname === '/' || (pathname && pathname.startsWith('/explore'));
+    // WICHTIG: Auch auf öffentlichen Seiten müssen die eigenen Libraries geladen werden,
+    // wenn der Benutzer angemeldet ist (für LibrarySwitcher im Top-Menü)
+    // Öffentliche Libraries werden separat geladen (z.B. in LibraryGrid)
     
-    if (isPublicPage) {
-      AuthLogger.debug('StorageContext', 'Public page detected, skipping library load', {
-        pathname,
-        isSignedIn,
-        isAuthLoaded,
-        isUserLoaded
-      });
-      setIsLoading(false);
-      setLibraryStatus('ready');
-      setLibraryStatusAtom('ready');
-      return;
-    }
-
     if (!isAuthLoaded || !isUserLoaded) {
       AuthLogger.debug('StorageContext', 'Waiting for auth/user to load');
       return;
     }
     
+    // Wenn nicht angemeldet: Keine Libraries laden (nur öffentliche Libraries werden separat geladen)
     if (!isSignedIn) {
-      AuthLogger.warn('StorageContext', 'User not signed in');
-      setError("Sie müssen angemeldet sein, um auf die Bibliothek zugreifen zu können.");
+      AuthLogger.debug('StorageContext', 'User not signed in, skipping library load');
       setIsLoading(false);
+      setLibraryStatus('ready');
+      setLibraryStatusAtom('ready');
       return;
     }
 

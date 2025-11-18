@@ -16,7 +16,7 @@
       "loading": "Cargando bibliotecas...",
       "noLibraries": "Aún no hay bibliotecas públicas disponibles.",
       "buttonQuery": "Consultar",
-      "buttonOpenEvent": "Abrir evento"
+      "buttonOpenEvent": "Explorar este evento"
     },
     "howItWorks": {
       "title": "Cómo funciona",
@@ -89,8 +89,8 @@
   "navigation": {
     "home": "Inicio",
     "docs": "Docs",
-    "library": "Biblioteca",
-    "gallery": "Galería",
+    "library": "Archivo",
+    "gallery": "Explorar",
     "templates": "Plantillas",
     "eventMonitor": "Monitor de eventos",
     "sessionManager": "Gestor de sesiones"

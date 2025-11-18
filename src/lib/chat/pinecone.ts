@@ -222,23 +222,13 @@ export async function queryPineconeByFileIds(
     throw new Error(
       `Index nicht gefunden: "${indexName}". ` +
       `Bitte prüfe, ob der Index in Pinecone existiert oder ob der Index-Name in der Library-Konfiguration korrekt ist. ` +
-      `Tipp: Verwende config.vectorStore.indexOverride in der Library-Konfiguration, um einen spezifischen Index-Namen festzulegen.`
+      `Tipp: Verwende config.vectorStore.indexName in der Library-Konfiguration, um einen spezifischen Index-Namen festzulegen.`
     )
   }
 
-  // Owner-Email für öffentliche Libraries ermitteln (wenn userEmail leer)
-  let effectiveUserEmail = userEmail
-  if (!effectiveUserEmail) {
-    const { findLibraryOwnerEmail } = await import('@/lib/chat/loader')
-    const ownerEmail = await findLibraryOwnerEmail(libraryId)
-    if (ownerEmail) {
-      effectiveUserEmail = ownerEmail
-    }
-  }
-
-  if (!effectiveUserEmail) {
-    throw new Error('Benutzer-Email erforderlich für Pinecone-Abfrage')
-  }
+  // Für anonyme Nutzer: Keine Owner-Email-Ermittlung mehr
+  // userEmail kann leer sein für öffentliche Libraries (Filter wird entsprechend angepasst)
+  const effectiveUserEmail = userEmail || ''
 
   // Pinecone-Filter mit $and-Struktur aufbauen
   // HINWEIS: MongoDB-spezifische Filter (track, year, speakers, etc.) werden NICHT übernommen,

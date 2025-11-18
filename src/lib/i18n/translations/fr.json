@@ -16,7 +16,7 @@
       "loading": "Chargement des bibliothèques...",
       "noLibraries": "Aucune bibliothèque publique disponible pour le moment.",
       "buttonQuery": "Interroger",
-      "buttonOpenEvent": "Ouvrir l'événement"
+      "buttonOpenEvent": "Explorer cet événement"
     },
     "howItWorks": {
       "title": "Comment ça marche",
@@ -89,8 +89,8 @@
   "navigation": {
     "home": "Accueil",
     "docs": "Docs",
-    "library": "Bibliothèque",
-    "gallery": "Galerie",
+    "library": "Archives",
+    "gallery": "Explorer",
     "templates": "Modèles",
     "eventMonitor": "Moniteur d'événements",
     "sessionManager": "Gestionnaire de sessions"
