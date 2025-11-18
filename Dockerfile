@@ -41,8 +41,14 @@ COPY . .
 # Dokumentation bauen (muss vor Next.js Build passieren, damit public/docs vorhanden ist)
 RUN pnpm docs:build || echo "Warnung: Docs-Build fehlgeschlagen, fahre fort..."
 
+# Verifiziere, dass die Markdown-Dateien vorhanden sind (vor Next.js Build)
+RUN ls -la /app/public/docs/footer/ || echo "Warnung: Footer-Verzeichnis nicht gefunden"
+
 # Next.js Build
 RUN pnpm build
+
+# Verifiziere erneut nach dem Build, dass die Dateien noch vorhanden sind
+RUN ls -la /app/public/docs/footer/ || echo "Warnung: Footer-Verzeichnis nach Build nicht gefunden"
 
 # --- Runtime Stage ---
 FROM node:20-alpine AS runner
@@ -77,8 +83,13 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/next.config.js ./next.config.js
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
+# Public-Ordner kopieren (inkl. Markdown-Dateien für Footer)
+# Verwende --chown für korrekte Berechtigungen
+COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
+
+# Verifiziere, dass die Markdown-Dateien vorhanden sind (nur für Debugging)
+RUN ls -la /app/public/docs/footer/ || echo "Warnung: Footer-Verzeichnis nicht gefunden"
 
 # Optional: falls du eine .env.production hast
 # COPY .env.production .env
