@@ -26,11 +26,10 @@ export async function GET(
     const noFallback = url.searchParams.get('noFallback') === '1'
     if (!fileId) return NextResponse.json({ error: 'fileId erforderlich' }, { status: 400 })
 
-    FileLogger.info('file-status', 'Request', { libraryId, fileId, user: userEmail })
+    // Request/Kontext Logs entfernt (zu viele Logs bei jedem Request)
 
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
-    FileLogger.info('file-status', 'Kontext', { libraryId, vectorIndex: ctx.vectorIndex })
     const idx = await describeIndex(ctx.vectorIndex, apiKey)
     if (!idx?.host) {
       FileLogger.warn('file-status', 'Index nicht gefunden', { libraryId, index: ctx.vectorIndex })
@@ -50,7 +49,7 @@ export async function GET(
       const libService = LibraryService.getInstance()
       const libs = await libService.getUserLibraries(userEmail)
       for (const lib of libs) {
-        const altIndex = getVectorIndexForLibrary({ id: lib.id, label: lib.label }, lib.config?.chat, userEmail)
+        const altIndex = getVectorIndexForLibrary({ id: lib.id, label: lib.label }, lib.config?.chat)
         if (altIndex === ctx.vectorIndex) continue
         const alt = await describeIndex(altIndex, apiKey)
         if (!alt?.host) continue
@@ -108,7 +107,7 @@ export async function GET(
       errorMessage: typeof meta?.errorMessage === 'string' ? meta.errorMessage : undefined,
       _debug: { lookupMethod, expectedId: `${fileId}-meta`, foundId }
     }
-    FileLogger.info('file-status', 'Response', { libraryId, fileId, status: payload.status, lookupMethod })
+    // Response Log entfernt (zu viele Logs bei jedem Response)
     return NextResponse.json(payload)
   } catch {
     return NextResponse.json({ error: 'Interner Fehler' }, { status: 500 })

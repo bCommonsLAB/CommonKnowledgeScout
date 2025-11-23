@@ -45,7 +45,10 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
       fileExtension: 'md',
       extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native',
       useCache: defaults.useCache ?? true,
-      includeImages: defaults.includeImages ?? false,
+      // Für Mistral OCR: Beide Parameter standardmäßig true
+      includeOcrImages: defaults.extractionMethod === 'mistral_ocr' ? true : undefined,
+      includePageImages: defaults.extractionMethod === 'mistral_ocr' ? true : undefined,
+      includeImages: defaults.includeImages ?? false, // Rückwärtskompatibilität
       template: typeof defaults.template === 'string' ? defaults.template : undefined,
     };
     const policies = {

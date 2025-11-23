@@ -716,6 +716,8 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
       // Schritt 2: Root-Verzeichnis auflisten
       logStep("Root-Verzeichnis", "info", "Liste Root-Verzeichnis auf...");
       try {
+        // Verwende useRootItems Hook wenn möglich, sonst direkter Provider-Call
+        // (In diesem Test-Kontext ist direkter Call OK, da es ein einmaliger Test ist)
         const rootItems = await provider.listItemsById('root');
         logStep("Root-Verzeichnis", "success", `Root-Verzeichnis erfolgreich aufgelistet. ${rootItems.length} Elemente gefunden.`, {
           itemCount: rootItems.length,

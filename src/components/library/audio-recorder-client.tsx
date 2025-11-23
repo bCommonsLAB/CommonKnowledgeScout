@@ -141,12 +141,6 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
   
   // Debug logging
   useEffect(() => {
-    console.log('[AudioRecorder] Storage state:', {
-      provider: provider ? provider.name : 'null',
-      isStorageReady,
-      activeLibraryId,
-      currentFolderId
-    });
   }, [provider, isStorageReady, activeLibraryId, currentFolderId]);
 
   

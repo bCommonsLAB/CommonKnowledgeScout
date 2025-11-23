@@ -49,13 +49,15 @@ import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
 import { runTemplateTransform } from '@/lib/external-jobs/template-run'
 import { analyzeAndMergeChapters } from '@/lib/external-jobs/chapters'
 import { saveMarkdown } from '@/lib/external-jobs/storage'
-import { maybeProcessImages } from '@/lib/external-jobs/images'
+import { processAllImageSources } from '@/lib/external-jobs/images'
 import { runIngestion } from '@/lib/external-jobs/ingest'
 import { setJobCompleted } from '@/lib/external-jobs/complete'
 import { handleProgressIfAny } from '@/lib/external-jobs/progress'
 import { buildProvider } from '@/lib/external-jobs/provider'
 import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
 import { preprocess } from '@/lib/external-jobs/preprocess'
+import { runExtractOnly } from '@/lib/external-jobs/extract-only'
+import { getSecretaryConfig } from '@/lib/env'
 // parseSecretaryMarkdownStrict ungenutzt entfernt
 
 // OneDrive-Utilities entfernt: Provider übernimmt Token/Uploads.
@@ -154,16 +156,98 @@ export async function POST(
     // entfernt
     const phase = (typeof body?.phase === 'string' && body.phase) || (typeof (body?.data as { phase?: unknown })?.phase === 'string' && (body!.data as { phase: string }).phase) || undefined;
     const hasError = !!(body as { error?: unknown })?.error;
-    const hasFinalPayload = !!((body?.data as { extracted_text?: unknown })?.extracted_text || (body?.data as { images_archive_url?: unknown })?.images_archive_url || (body as { status?: unknown })?.status === 'completed' || body?.phase === 'template_completed');
-    // Diagnose: Eingang loggen (minimal, aber ausreichend zur Nachverfolgung)
+    // WICHTIG: Bei Mistral OCR wird pages_archive_url verwendet, nicht images_archive_url
+    // Beide URLs sollten als finales Payload erkannt werden
+    // NEU: mistral_ocr_raw_url wird jetzt statt mistral_ocr_raw gesendet (bei großen Dokumenten)
+    const hasFinalPayload = !!(
+      (body?.data as { extracted_text?: unknown })?.extracted_text || 
+      (body?.data as { images_archive_url?: unknown })?.images_archive_url || 
+      (body?.data as { pages_archive_url?: unknown })?.pages_archive_url ||
+      (body?.data as { mistral_ocr_raw_url?: unknown })?.mistral_ocr_raw_url ||
+      (body?.data as { mistral_ocr_raw?: unknown })?.mistral_ocr_raw || // Rückwärtskompatibilität
+      (body as { status?: unknown })?.status === 'completed' || 
+      body?.phase === 'template_completed'
+    );
+    // Diagnose: Eingang loggen (erweitert für Debugging)
     try {
+      const bodyDataKeys = body?.data && typeof body.data === 'object' ? Object.keys(body.data as Record<string, unknown>) : []
+      const bodyDataSample: Record<string, unknown> = {}
+      if (body?.data && typeof body.data === 'object') {
+        const data = body.data as Record<string, unknown>
+        // Logge wichtige Felder für Debugging
+        bodyDataSample.hasExtractedText = !!data.extracted_text
+        bodyDataSample.hasMistralOcrRaw = !!data.mistral_ocr_raw
+        bodyDataSample.hasMistralOcrRawUrl = !!data.mistral_ocr_raw_url // NEU: URL statt direkter Daten bei großen Dokumenten
+        bodyDataSample.hasMistralOcrRawMetadata = !!data.mistral_ocr_raw_metadata // NEU: Metadaten (model, pages_count, usage_info)
+        bodyDataSample.hasPagesArchiveUrl = !!data.pages_archive_url
+        bodyDataSample.hasPagesArchiveData = !!data.pages_archive_data
+        bodyDataSample.hasImagesArchiveUrl = !!data.images_archive_url
+        bodyDataSample.hasImagesArchiveData = !!data.images_archive_data
+        if (data.mistral_ocr_raw && typeof data.mistral_ocr_raw === 'object') {
+          const raw = data.mistral_ocr_raw as Record<string, unknown>
+          bodyDataSample.mistralOcrRawKeys = Object.keys(raw)
+          if (Array.isArray(raw.pages)) {
+            bodyDataSample.mistralOcrRawPagesCount = raw.pages.length
+            // Prüfe ob Bilder vorhanden sind
+            const pagesWithImages = raw.pages.filter((page: unknown) => {
+              if (page && typeof page === 'object' && 'images' in page) {
+                const p = page as { images?: unknown[] }
+                return Array.isArray(p.images) && p.images.length > 0
+              }
+              return false
+            })
+            bodyDataSample.mistralOcrRawPagesWithImages = pagesWithImages.length
+          }
+        }
+        // Logge pages_archive_url Wert (falls vorhanden)
+        if (data.pages_archive_url) {
+          bodyDataSample.pagesArchiveUrlValue = typeof data.pages_archive_url === 'string' ? data.pages_archive_url : 'not_string'
+        }
+      }
       await repo.appendLog(jobId, { phase: 'callback_received', details: {
         internalBypass,
         hasToken: !!ctx.callbackToken,
         phaseInBody: body?.phase || body?.data?.phase || null,
         hasFinalPayload,
         keys: typeof body === 'object' && body ? Object.keys(body as Record<string, unknown>) : [],
+        dataKeys: bodyDataKeys,
+        dataSample: bodyDataSample,
       } } as unknown as Record<string, unknown>);
+      
+      // Zusätzlich: Logge kompletten Body-Struktur in FileLogger für Debugging
+      FileLogger.info('callback-route', 'Callback Body Debug', {
+        jobId,
+        phase: body?.phase,
+        hasData: !!body?.data,
+        dataKeys: bodyDataKeys,
+        dataSample: bodyDataSample,
+        // Logge auch den kompletten Body (aber ohne große Base64-Strings)
+        bodyStructure: body && typeof body === 'object' ? {
+          phase: body.phase,
+          message: (body as { message?: unknown }).message,
+          process: body.process,
+          data: (() => {
+            if (!body.data || typeof body.data !== 'object') return null
+            const data = body.data as Record<string, unknown>
+            return {
+              hasExtractedText: !!data.extracted_text,
+              extractedTextLength: typeof data.extracted_text === 'string' 
+                ? data.extracted_text.length 
+                : 0,
+              hasMistralOcrRaw: !!data.mistral_ocr_raw,
+              hasMistralOcrRawUrl: !!data.mistral_ocr_raw_url, // NEU: URL statt direkter Daten bei großen Dokumenten
+              hasPagesArchiveUrl: !!data.pages_archive_url,
+              pagesArchiveUrl: data.pages_archive_url,
+              hasPagesArchiveData: !!data.pages_archive_data,
+              hasImagesArchiveUrl: !!data.images_archive_url,
+              hasImagesArchiveData: !!data.images_archive_data,
+              metadataKeys: data.metadata && typeof data.metadata === 'object'
+                ? Object.keys(data.metadata as Record<string, unknown>)
+                : [],
+            }
+          })(),
+        } : null,
+      });
     } catch {}
 
     // Terminal: "failed"-Phase immer sofort abbrechen
@@ -181,22 +265,163 @@ export async function POST(
 
     if (short) return NextResponse.json(short.body, { status: short.status })
 
-    if (hasError) {
+    // NEU: Error-Webhook-Verarbeitung (Secretary Service sendet jetzt Error-Webhooks)
+    // Bei MongoDB-Fehlern wird ein Error-Webhook mit phase: "error" gesendet
+    // Der Error-Webhook kann auch extracted_text und mistral_ocr_raw_url enthalten
+    if (phase === 'error' || hasError) {
       clearWatchdog(jobId);
-      bufferLog(jobId, { phase: 'failed', details: (body as { error?: unknown })?.error });
+      const errorData = (body as { error?: unknown })?.error || (body?.data as { error?: unknown })?.error
+      const errorCode = errorData && typeof errorData === 'object' && 'code' in errorData 
+        ? String((errorData as { code?: unknown }).code)
+        : 'worker_error'
+      const errorMessage = errorData && typeof errorData === 'object' && 'message' in errorData
+        ? String((errorData as { message?: unknown }).message)
+        : 'Externer Worker-Fehler'
+      
+      // Bei Error-Webhooks können auch extracted_text und mistral_ocr_raw_url vorhanden sein
+      // Diese sollten trotzdem verarbeitet werden, auch wenn der Job als failed markiert wird
+      const errorExtractedText = (body?.data as { extracted_text?: unknown })?.extracted_text as string | undefined
+      const errorMistralOcrRawUrl = (body?.data as { mistral_ocr_raw_url?: unknown })?.mistral_ocr_raw_url as string | undefined
+      
+      bufferLog(jobId, { 
+        phase: 'failed', 
+        details: errorData,
+        hasExtractedText: !!errorExtractedText,
+        hasMistralOcrRawUrl: !!errorMistralOcrRawUrl
+      });
+      
       // Bei Fehler: gepufferte Logs persistieren
       // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
       void drainBufferedLogs(jobId);
-      await repo.setStatus(jobId, 'failed', { error: { code: 'worker_error', message: 'Externer Worker-Fehler', details: ((body as { error?: unknown })?.error || {}) as Record<string, unknown> } });
-      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: (body as { error?: { message?: string } })?.error?.message, jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+      
+      // Speichere auch extracted_text im Payload, falls vorhanden (für spätere Verarbeitung)
+      if (errorExtractedText) {
+        try {
+          await repo.setResult(jobId, { extracted_text: errorExtractedText }, job.result || {})
+        } catch {}
+      }
+      
+      await repo.setStatus(jobId, 'failed', { 
+        error: { 
+          code: errorCode, 
+          message: errorMessage, 
+          details: {
+            ...(errorData as Record<string, unknown> || {}),
+            ...(errorMistralOcrRawUrl ? { mistral_ocr_raw_url: errorMistralOcrRawUrl } : {})
+          }
+        } 
+      });
+      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: errorMessage, jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed' });
     }
 
     // Finale Payload
     const extractedText: string | undefined = (body?.data as { extracted_text?: unknown })?.extracted_text as string | undefined;
     const imagesArchiveUrlFromWorker: string | undefined = (body?.data as { images_archive_url?: unknown })?.images_archive_url as string | undefined;
+    
+    // Mistral OCR: pages_archive_data kann direkt als Base64 vorhanden sein (Legacy)
+    const pagesArchiveData: string | undefined = (body?.data as { pages_archive_data?: unknown })?.pages_archive_data as string | undefined;
+    // Mistral OCR: pages_archive_url ist die neue Variante (ZIP-Download von URL)
+    const pagesArchiveUrl: string | undefined = (body?.data as { pages_archive_url?: unknown })?.pages_archive_url as string | undefined;
+    const imagesArchiveData: string | undefined = (body?.data as { images_archive_data?: unknown })?.images_archive_data as string | undefined;
+    
+    // Mistral OCR: mistral_ocr_raw kann direkt vorhanden sein (kleine Dokumente) oder als URL (große Dokumente)
+    // NEU: Bei großen Dokumenten wird mistral_ocr_raw_url gesendet statt mistral_ocr_raw
+    // NEU: mistral_ocr_raw_metadata enthält Metadaten (model, pages_count, usage_info) ohne große Daten
+    const mistralOcrRawUrl: string | undefined = (body?.data as { mistral_ocr_raw_url?: unknown })?.mistral_ocr_raw_url as string | undefined
+    const mistralOcrRawMetadata: unknown = (body?.data as { mistral_ocr_raw_metadata?: unknown })?.mistral_ocr_raw_metadata
+    let mistralOcrRaw: unknown = (body?.data as { mistral_ocr_raw?: unknown })?.mistral_ocr_raw
+    
+    // Mistral OCR: mistral_ocr_images_url enthält eingebettete Bilder als ZIP-Archiv
+    // WICHTIG: Bilder sind NIEMALS in mistral_ocr_raw eingebettet, sondern werden separat bereitgestellt
+    const mistralOcrImagesUrl: string | undefined = (body?.data as { mistral_ocr_images_url?: unknown })?.mistral_ocr_images_url as string | undefined
+    
+    // Wenn mistral_ocr_raw_url vorhanden ist, lade die Daten herunter
+    if (mistralOcrRawUrl && !mistralOcrRaw) {
+      try {
+        const { baseUrl: baseRaw, apiKey } = getSecretaryConfig()
+        const isAbsolute = /^https?:\/\//i.test(mistralOcrRawUrl)
+        let downloadUrl = mistralOcrRawUrl
+        if (!isAbsolute) {
+          const base = baseRaw.replace(/\/$/, '')
+          const rel = mistralOcrRawUrl.startsWith('/') ? mistralOcrRawUrl : `/${mistralOcrRawUrl}`
+          downloadUrl = base.endsWith('/api') && rel.startsWith('/api/') ? `${base}${rel.substring(4)}` : `${base}${rel}`
+        }
+        const headers: Record<string, string> = {}
+        if (apiKey) {
+          headers['Authorization'] = `Bearer ${apiKey}`
+          headers['X-Service-Token'] = apiKey
+        }
+        
+        bufferLog(jobId, {
+          phase: 'mistral_ocr_raw_download_start',
+          message: `Lade Mistral OCR Raw-Daten von URL: ${downloadUrl}`
+        })
+        
+        const resp = await fetch(downloadUrl, { method: 'GET', headers })
+        if (resp.ok) {
+          mistralOcrRaw = await resp.json()
+          bufferLog(jobId, {
+            phase: 'mistral_ocr_raw_downloaded',
+            message: 'Mistral OCR Raw-Daten erfolgreich heruntergeladen'
+          })
+        } else {
+          bufferLog(jobId, {
+            phase: 'mistral_ocr_raw_download_failed',
+            message: `Download fehlgeschlagen: ${resp.status}`
+          })
+        }
+      } catch (error) {
+        bufferLog(jobId, {
+          phase: 'mistral_ocr_raw_download_error',
+          message: `Fehler beim Download: ${error instanceof Error ? error.message : String(error)}`
+        })
+      }
+    }
+    
+    // Debug: Logge kompletten Body-Struktur für Troubleshooting
+    FileLogger.info('callback-route', 'Callback Body Structure', {
+      jobId,
+      phase: body?.phase,
+      hasData: !!body?.data,
+      dataKeys: body?.data && typeof body.data === 'object' ? Object.keys(body.data as Record<string, unknown>) : [],
+      hasExtractedText: !!extractedText,
+      hasPagesArchiveUrl: !!pagesArchiveUrl,
+      hasPagesArchiveData: !!pagesArchiveData,
+      hasMistralOcrRaw: !!mistralOcrRaw,
+      hasMistralOcrRawUrl: !!mistralOcrRawUrl,
+      hasMistralOcrRawMetadata: !!mistralOcrRawMetadata,
+      hasMistralOcrImagesUrl: !!mistralOcrImagesUrl,
+      mistralOcrRawType: typeof mistralOcrRaw,
+      pagesArchiveUrlValue: pagesArchiveUrl,
+    });
+    const hasMistralOcrImages = mistralOcrRaw && typeof mistralOcrRaw === 'object' && 'pages' in mistralOcrRaw
+      ? Array.isArray((mistralOcrRaw as { pages?: unknown }).pages) && (mistralOcrRaw as { pages: Array<{ images?: Array<{ image_base64?: string | null }> }> }).pages.some(
+          (page) => page.images && page.images.length > 0 && page.images.some(img => img.image_base64 && img.image_base64 !== null)
+        )
+      : false;
+    
+    // Debug-Logging für Bilder-Verfügbarkeit
+    bufferLog(jobId, { 
+      phase: 'images_check', 
+      message: 'Bilder-Verfügbarkeit prüfen',
+      hasPagesArchiveData: !!pagesArchiveData,
+      hasPagesArchiveUrl: !!pagesArchiveUrl,
+      hasImagesArchiveData: !!imagesArchiveData,
+      hasImagesArchiveUrl: !!imagesArchiveUrlFromWorker,
+      hasMistralOcrImages,
+      hasMistralOcrImagesUrl: !!mistralOcrImagesUrl,
+      pagesArchiveDataLength: pagesArchiveData?.length || 0,
+      imagesArchiveDataLength: imagesArchiveData?.length || 0,
+      bodyPhase: body?.phase,
+      bodyDataKeys: body?.data && typeof body.data === 'object' ? Object.keys(body.data as Record<string, unknown>) : [],
+      mistralOcrRawType: typeof mistralOcrRaw,
+      mistralOcrRawKeys: mistralOcrRaw && typeof mistralOcrRaw === 'object' ? Object.keys(mistralOcrRaw as Record<string, unknown>) : [],
+    });
 
-    if (!extractedText && !imagesArchiveUrlFromWorker && body?.phase !== 'template_completed') {
+    // Prüfe auch auf pages_archive_data, pages_archive_url, mistral_ocr_images_url und mistral_ocr_raw für Mistral OCR
+    // WICHTIG: mistral_ocr_images_url ist ein separater Endpoint für eingebettete Bilder (nicht in mistral_ocr_raw)
+    if (!extractedText && !imagesArchiveUrlFromWorker && !pagesArchiveData && !pagesArchiveUrl && !imagesArchiveData && !mistralOcrImagesUrl && !hasMistralOcrImages && body?.phase !== 'template_completed') {
       bumpWatchdog(jobId);
       bufferLog(jobId, { phase: 'noop' });
       return NextResponse.json({ status: 'ok', jobId, kind: 'noop' });
@@ -207,48 +432,37 @@ export async function POST(
     const templatePhaseEnabled = phasesParam?.template !== false;
     const ingestPhaseEnabled = phasesParam?.ingest !== false;
     const imagesPhaseEnabled = (job.parameters && typeof job.parameters === 'object' && (job.parameters as { phases?: { images?: boolean } }).phases) ? ((job.parameters as { phases?: { images?: boolean } }).phases!.images !== false) : true
+    
+      bufferLog(jobId, { 
+        phase: 'phases_check', 
+        message: 'Phasen-Status prüfen',
+        templatePhaseEnabled,
+        ingestPhaseEnabled,
+        imagesPhaseEnabled,
+        hasExtractedText: !!extractedText,
+        hasPagesArchiveData: !!pagesArchiveData,
+        hasPagesArchiveUrl: !!pagesArchiveUrl,
+        hasMistralOcrImages,
+        hasMistralOcrImagesUrl: !!mistralOcrImagesUrl,
+        hasImagesArchiveUrl: !!imagesArchiveUrlFromWorker
+      });
 
     // Kurzschluss: Extract‑Only (Template und Ingest deaktiviert)
     if (!templatePhaseEnabled && !ingestPhaseEnabled) {
-      try { await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'phase_disabled' } }); } catch {}
-      try { await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'phase_disabled' } }); } catch {}
-
-      // Falls möglich: Shadow‑Twin direkt speichern, damit Datei im Zielordner erscheint
-      let savedItemId: string | undefined
-      try {
-        if (extractedText) {
-          const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
-          const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-          const uniqueName = `${baseName}.${lang}.md`
-          const parentId = job.correlation?.source?.parentId || 'root'
-          const { createMarkdownWithFrontmatter } = await import('@/lib/markdown/compose')
-          const ssotFlat: Record<string, unknown> = {
-            job_id: jobId,
-            source_file: job.correlation.source?.name || baseName,
-            extract_status: 'completed',
-            template_status: 'skipped',
-            summary_language: lang,
-          }
-          const markdown = createMarkdownWithFrontmatter(extractedText, ssotFlat)
-          const saved = await saveMarkdown({ ctx, parentId, fileName: uniqueName, markdown })
-          savedItemId = saved.savedItemId
-        }
-      } catch {}
-
-      // Extract-Phase sauber abschließen
-      try { await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date() }) } catch {}
-      try { await repo.traceEndSpan(jobId, 'extract', 'completed', {}) } catch {}
-
-      await repo.setStatus(jobId, 'completed');
-      clearWatchdog(jobId);
-      await repo.setResult(jobId, {
-        extracted_text: extractedText,
-        images_archive_url: imagesArchiveUrlFromWorker || undefined,
-        metadata: (body?.data as { metadata?: unknown })?.metadata as Record<string, unknown> | undefined,
-      }, { savedItemId, savedItems: savedItemId ? [savedItemId] : [] });
-      await repo.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen (extract only: phases disabled)' } as unknown as Record<string, unknown>);
-      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
-      return NextResponse.json({ status: 'ok', jobId, kind: 'extract_only', savedItemId });
+      const result = await runExtractOnly(
+        ctx,
+        repo,
+        extractedText,
+        pagesArchiveData,
+        pagesArchiveUrl,
+        imagesArchiveData,
+        imagesArchiveUrlFromWorker,
+        mistralOcrRaw,
+        hasMistralOcrImages,
+        mistralOcrImagesUrl,
+        imagesPhaseEnabled
+      )
+      return NextResponse.json({ status: 'ok', jobId, kind: 'extract_only', savedItemId: result.savedItemId })
     }
 
     // Bibliothek laden (um Typ zu bestimmen)
@@ -294,9 +508,14 @@ export async function POST(
 
       if (lib) {
         // Einheitliche Serverinitialisierung des Providers (DB-Config, Token enthalten)
+        // Provider wird einmal erstellt und an alle Module weitergegeben
         const provider = await buildProvider({ userEmail: job.userEmail, libraryId: job.libraryId, jobId, repo })
 
-        const targetParentId = job.correlation?.source?.parentId || 'root';
+        // DETERMINISTISCHE ARCHITEKTUR: Verwende Shadow-Twin-Verzeichnis aus Job-State
+        // Der Kontext wurde beim Job-Start bestimmt und im Job-State gespeichert
+        // Jeder Job hat seinen eigenen isolierten Kontext - keine gegenseitige Beeinflussung
+        const shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
+        const targetParentId = shadowTwinFolderId || job.correlation?.source?.parentId || 'root';
 
         // Optionale Template-Verarbeitung (Phase 2)
         let metadataFromTemplate: Record<string, unknown> | null = null;
@@ -560,17 +779,55 @@ export async function POST(
         // Entfernt: frühes Doc‑Meta‑Upsert. Doc‑Meta wird erst am Ende der Ingestion final geschrieben.
 
         // Bilder-ZIP optional verarbeiten (modular)
-        if (imagesArchiveUrlFromWorker && imagesPhaseEnabled) {
+        // Unterstützt alle Quellen: pages_archive_data, images_archive_data, mistral_ocr_raw, images_archive_url
+        if (imagesPhaseEnabled) {
           try {
-            const imageRes = await maybeProcessImages({ ctx, parentId: targetParentId, imagesZipUrl: imagesArchiveUrlFromWorker, extractedText, lang })
-            if (imageRes && Array.isArray(imageRes.savedItemIds)) savedItems.push(...imageRes.savedItemIds)
-            try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'images_processed', attributes: { savedItems: savedItems.length } }) } catch {}
+            // Verwende Shadow-Twin-State aus Job-Dokument (beim Job-Start berechnet)
+            const shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
+            
+            const imageResult = await processAllImageSources(ctx, provider, {
+              pagesArchiveData,
+              pagesArchiveUrl,
+              pagesArchiveFilename: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename,
+              imagesArchiveData,
+              imagesArchiveFilename: (body?.data as { images_archive_filename?: string })?.images_archive_filename,
+              imagesArchiveUrl: imagesArchiveUrlFromWorker,
+              mistralOcrRaw,
+              hasMistralOcrImages,
+              mistralOcrImagesUrl,
+              extractedText,
+              lang,
+              targetParentId,
+              imagesPhaseEnabled,
+              shadowTwinFolderId, // Verwende State aus Job-Dokument
+            })
+
+            if (imageResult) {
+              savedItems.push(...imageResult.savedItemIds)
+            }
+            try {
+              await repo.traceAddEvent(jobId, {
+                spanId: 'template',
+                name: 'images_processed',
+                attributes: { savedItems: savedItems.length },
+              })
+            } catch {}
           } catch {
             bufferLog(jobId, { phase: 'images_extract_failed', message: 'ZIP-Extraktion fehlgeschlagen' })
             clearWatchdog(jobId)
             void drainBufferedLogs(jobId)
-            await repo.setStatus(jobId, 'failed', { error: { code: 'images_extract_failed', message: 'ZIP-Archiv konnte nicht extrahiert werden' } })
-            getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Bilder-Extraktion fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name })
+            await repo.setStatus(jobId, 'failed', {
+              error: { code: 'images_extract_failed', message: 'ZIP-Archiv konnte nicht extrahiert werden' },
+            })
+            getJobEventBus().emitUpdate(job.userEmail, {
+              type: 'job_update',
+              jobId,
+              status: 'failed',
+              updatedAt: new Date().toISOString(),
+              message: 'Bilder-Extraktion fehlgeschlagen',
+              jobType: job.job_type,
+              fileName: job.correlation?.source?.name,
+            })
             return NextResponse.json({ status: 'ok', jobId, kind: 'failed_images_extract' })
           }
         }
@@ -710,8 +967,39 @@ export async function POST(
       }
 
       const completed = await setJobCompleted({ ctx, result: { savedItemId } })
-      // @ts-expect-error custom field for UI refresh
-      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, refreshFolderId: (job.correlation?.source?.parentId || 'root') });
+      
+      // Aktualisiere Shadow-Twin-State: Setze processingStatus auf 'ready', da Job abgeschlossen ist
+      if (job.shadowTwinState) {
+        const updatedState = { ...job.shadowTwinState, processingStatus: 'ready' as const };
+        await repo.setShadowTwinState(jobId, updatedState);
+        FileLogger.info('callback-route', 'Shadow-Twin-State auf ready gesetzt', {
+          jobId,
+          shadowTwinFolderId: updatedState.shadowTwinFolderId
+        });
+      }
+      
+      // WICHTIG: Refresh sowohl Parent als auch Shadow-Twin-Verzeichnis (falls vorhanden)
+      // Dies stellt sicher, dass beide Ordner aktualisiert werden und die Shadow-Twin-Analyse neu läuft
+      const shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
+      const parentId = job.correlation?.source?.parentId || 'root'
+      const refreshFolderIds = shadowTwinFolderId && shadowTwinFolderId !== parentId
+        ? [parentId, shadowTwinFolderId]
+        : [parentId]
+      
+      getJobEventBus().emitUpdate(job.userEmail, { 
+        type: 'job_update', 
+        jobId, 
+        status: 'completed', 
+        progress: 100, 
+        updatedAt: new Date().toISOString(), 
+        message: 'completed', 
+        jobType: job.job_type, 
+        fileName: job.correlation?.source?.name, 
+        sourceItemId: job.correlation?.source?.itemId, 
+        refreshFolderId: parentId, // Primary refresh folder (für Rückwärtskompatibilität)
+        refreshFolderIds, // Array mit allen zu refreshenden Ordnern (Parent + Shadow-Twin)
+        shadowTwinFolderId: shadowTwinFolderId || null, // Shadow-Twin-Verzeichnis-ID für Client-Analyse
+      } as unknown as import('@/lib/events/job-event-bus').JobUpdateEvent);
       return NextResponse.json({ status: 'ok', jobId: completed.jobId, kind: 'final', savedItemId, savedItemsCount: savedItems.length });
     }
 

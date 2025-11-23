@@ -60,6 +60,7 @@ The Chat module provides RAG-based chat functionality for knowledge exploration.
 - `analyzeQuestionForRetriever()`: Question analysis function
 - `buildPrompt()`: Prompt building function
 - `callOpenAI()`: LLM calling function
+- `getVectorIndexForLibrary(library, chatConfig?)`: Get vector index name for library
 
 ## Usage Examples
 
@@ -86,6 +87,18 @@ const result = await runChatOrchestrated({
   retriever: 'chunk',
   chatConfig: { targetLanguage: 'de' }
 });
+```
+
+### Getting Vector Index Name
+```typescript
+import { getVectorIndexForLibrary } from '@/lib/chat/config';
+
+// Get vector index name for a library
+// Uses config.vectorStore.indexName if set, otherwise derives from library label
+const indexName = getVectorIndexForLibrary(
+  { id: 'lib-id', label: 'My Library' },
+  { vectorStore: { indexName: 'custom-index' } } // optional chat config
+);
 ```
 
 ## Dependencies
@@ -124,6 +137,10 @@ Story mode provides structured topic exploration:
 - **Character**: Various character perspectives
 - **Social Context**: Formal, informal, technical
 - **Gender Inclusive**: Gender-neutral formulations
+
+
+
+
 
 
 

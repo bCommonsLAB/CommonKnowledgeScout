@@ -29,6 +29,7 @@
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import type { Library } from '@/types/library';
+import { findShadowTwinFolder, findShadowTwinMarkdown, generateShadowTwinName } from '@/lib/storage/shadow-twin';
 
 export interface GateContext {
   repo: ExternalJobsRepository;
@@ -53,21 +54,71 @@ function getBaseName(name: string | undefined): string | undefined {
 
 export async function gateExtractPdf(ctx: GateContext): Promise<GateResult> {
   const { repo, userEmail, library, source, options } = ctx;
-  // 1) Shadow‑Twin per Namensschema prüfen
-  if (library && source?.parentId) {
+  
+  // 1) Shadow‑Twin per Namensschema prüfen (erweiterte Suche: Verzeichnis oder Datei)
+  if (library && source?.parentId && source?.name) {
     try {
       const provider = await getServerProvider(userEmail, library.id);
-      const siblings = await provider.listItemsById(source.parentId);
       const base = getBaseName(source.name);
       const lang = (options?.targetLanguage || 'de').toLowerCase();
-      const expected = base ? `${base}.${lang}.md` : undefined;
-      if (expected && siblings.some(it => it.type === 'file' && it.metadata?.name?.toLowerCase?.() === expected.toLowerCase())) {
-        return { exists: true, reason: 'shadow_twin_exists', details: { matched: expected } };
+      
+      // 1a) Zuerst Shadow-Twin-Verzeichnis prüfen
+      const shadowTwinFolder = await findShadowTwinFolder(source.parentId, source.name, provider);
+      if (shadowTwinFolder) {
+        // Markdown-Datei im Verzeichnis prüfen (beide Varianten: Transcript und Transformiert)
+        if (base) {
+          const markdownInFolder = await findShadowTwinMarkdown(shadowTwinFolder.id, base, lang, provider, true);
+          if (markdownInFolder) {
+            return { 
+              exists: true, 
+              reason: 'shadow_twin_exists', 
+              details: { 
+                type: 'folder',
+                folderId: shadowTwinFolder.id,
+                folderName: shadowTwinFolder.metadata.name,
+                markdownId: markdownInFolder.id,
+                markdownName: markdownInFolder.metadata.name
+              } 
+            };
+          }
+        }
+      }
+      
+      // 1b) Wenn kein Verzeichnis: Shadow-Twin-Dateien im gleichen Verzeichnis prüfen
+      // Suche nach beiden Varianten: Transcript (ohne Language) und Transformiert (mit Language)
+      const siblings = await provider.listItemsById(source.parentId);
+      if (base) {
+        // Transformiertes File (mit Language-Suffix)
+        const transformedName = generateShadowTwinName(base, lang, false);
+        const transformedExists = siblings.some(
+          it => it.type === 'file' && 
+          it.metadata?.name?.toLowerCase?.() === transformedName.toLowerCase()
+        );
+        
+        // Transcript-File (ohne Language-Suffix)
+        const transcriptName = generateShadowTwinName(base, lang, true);
+        const transcriptExists = siblings.some(
+          it => it.type === 'file' && 
+          it.metadata?.name?.toLowerCase?.() === transcriptName.toLowerCase()
+        );
+        
+        if (transformedExists || transcriptExists) {
+          return { 
+            exists: true, 
+            reason: 'shadow_twin_exists', 
+            details: { 
+              type: 'file',
+              transformed: transformedExists ? transformedName : undefined,
+              transcript: transcriptExists ? transcriptName : undefined
+            } 
+          };
+        }
       }
     } catch {
       // ignore
     }
   }
+  
   // 2) Fallback: letzter Job, der bereits einen Shadow‑Twin gespeichert hat
   if (source?.itemId && library?.id) {
     try {

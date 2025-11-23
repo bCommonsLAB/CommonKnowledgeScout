@@ -16,7 +16,9 @@ export interface TransformSaveOptions {
   fileExtension: string;
   extractionMethod?: string; // Optional für PDF-Transformation
   useCache?: boolean; // Neu: Cache-Option für alle Transformationen
-  includeImages?: boolean; // Neu: Bilder mit extrahieren und speichern
+  includeOcrImages?: boolean; // Mistral OCR Bilder als Base64 (in mistral_ocr_raw.pages[*].images[*].image_base64)
+  includePageImages?: boolean; // Seiten-Bilder als ZIP (parallel extrahiert)
+  includeImages?: boolean; // Rückwärtskompatibilität: für Standard-Endpoint (deprecated)
   context?: string; // Optionaler Kontext für LLM-Optimierung
 }
 
@@ -31,8 +33,12 @@ interface TransformSaveOptionsProps {
   defaultExtractionMethod?: string; // Neu: Standard-Extraktionsmethode
   showUseCache?: boolean; // Neu: Zeigt Cache-Option
   defaultUseCache?: boolean; // Neu: Standard-Cache-Einstellung
-  showIncludeImages?: boolean; // Neu: Zeigt Bilder-Option
-  defaultIncludeImages?: boolean; // Neu: Standard-Bilder-Einstellung
+  showIncludeImages?: boolean; // Neu: Zeigt Bilder-Option (deprecated, verwende showIncludeOcrImages/showIncludePageImages)
+  defaultIncludeImages?: boolean; // Neu: Standard-Bilder-Einstellung (deprecated)
+  showIncludeOcrImages?: boolean; // Zeigt Mistral OCR Bilder-Option
+  showIncludePageImages?: boolean; // Zeigt Seiten-Bilder-Option
+  defaultIncludeOcrImages?: boolean; // Standard: Mistral OCR Bilder
+  defaultIncludePageImages?: boolean; // Standard: Seiten-Bilder
   showCreateShadowTwin?: boolean; // Neu: Checkbox für Shadow-Twin ein-/ausblenden
 }
 
@@ -49,6 +55,10 @@ export function TransformSaveOptions({
   defaultUseCache = false,
   showIncludeImages = false,
   defaultIncludeImages = false,
+  showIncludeOcrImages = false,
+  defaultIncludeOcrImages = false,
+  showIncludePageImages = false,
+  defaultIncludePageImages = false,
   showCreateShadowTwin = true
 }: TransformSaveOptionsProps) {
   // Hilfsfunktion zum Extrahieren des Basisnamens ohne Erweiterung
@@ -71,7 +81,9 @@ export function TransformSaveOptions({
       fileExtension: defaultExtension,
       extractionMethod: defaultExtractionMethod,
       useCache: defaultUseCache,
-      includeImages: defaultIncludeImages
+      includeOcrImages: defaultIncludeOcrImages,
+      includePageImages: defaultIncludePageImages,
+      includeImages: defaultIncludeImages // Rückwärtskompatibilität
     };
   });
 
@@ -233,9 +245,37 @@ export function TransformSaveOptions({
                 checked={options.includeImages || false}
                 onCheckedChange={(checked) => updateOptions({ includeImages: !!checked })}
               />
-              <Label htmlFor="include-images">Bilder mit extrahieren</Label>
+              <Label htmlFor="include-images">Bilder mit extrahieren (deprecated)</Label>
               <p className="text-xs text-muted-foreground ml-6">
                 Speichert zusätzlich alle PDF-Seiten als Bilder für Qualitätskontrolle
+              </p>
+            </div>
+          )}
+          
+          {showIncludeOcrImages && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-ocr-images"
+                checked={options.includeOcrImages !== undefined ? options.includeOcrImages : (options.extractionMethod === 'mistral_ocr' ? true : false)}
+                onCheckedChange={(checked) => updateOptions({ includeOcrImages: !!checked })}
+              />
+              <Label htmlFor="include-ocr-images">Mistral OCR Bilder extrahieren</Label>
+              <p className="text-xs text-muted-foreground ml-6">
+                Extrahiert Bilder, die von Mistral OCR erkannt wurden (als Base64 in mistral_ocr_raw)
+              </p>
+            </div>
+          )}
+          
+          {showIncludePageImages && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-page-images"
+                checked={options.includePageImages !== undefined ? options.includePageImages : (options.extractionMethod === 'mistral_ocr' ? true : false)}
+                onCheckedChange={(checked) => updateOptions({ includePageImages: !!checked })}
+              />
+              <Label htmlFor="include-page-images">Seiten-Bilder als ZIP extrahieren</Label>
+              <p className="text-xs text-muted-foreground ml-6">
+                Extrahiert alle PDF-Seiten als Bilder und speichert sie als ZIP-Archiv (parallel zur OCR-Verarbeitung)
               </p>
             </div>
           )}

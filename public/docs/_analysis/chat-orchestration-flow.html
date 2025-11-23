@@ -1,0 +1,3457 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/_analysis/chat-orchestration-flow.html">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Chat-Orchestrierungs-Flow: Vereinfachte Dokumentation - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/print-site.css">
+    
+      <link rel="stylesheet" href="../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#chat-orchestrierungs-flow-vereinfachte-dokumentation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Chat-Orchestrierungs-Flow: Vereinfachte Dokumentation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Overview
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/intro.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intro
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/features.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/module-hierarchy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Module Hierarchy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/dependency-graph.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Dependency Graph
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/shadow-twin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/pdf-transformation-phases.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Transformation Phases
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/setup.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/getting-started.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/settings.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/library.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using the Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/event-monitor.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Event Monitor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/batch-session-import.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Session Import
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/troubleshooting.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/faq.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FAQ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Use Cases
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Use Cases
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/library-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/file-transformation-pdf.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/file-transformation-media.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Media Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/web-scraping.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Web Scraping
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/publishing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Publishing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/chat-exploration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/batch-operations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Operations
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Concepts
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/storage-provider.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage Provider
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/localstorage.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileSystem (Local)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/image-transformation.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/pdf/extraction-methods.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Extraction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/metadata.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/overview.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/global-state.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Global State
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/header.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Header
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/breadcrumb.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Breadcrumb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-tree.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileTree
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-list.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FileList
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/upload.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upload
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/file-preview.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FilePreview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transcription.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/transform.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transform
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/batch-transcription.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Transcription
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/error-handling-logging-testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Error Handling & Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/initialization-sequence.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Initialization
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/library/components.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Components
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/shadowtwins.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/extended-shadowtwin.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extended Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/features/transformation-service.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Transformation Service
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/video-transformation.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/file-index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    File Index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_2" id="__nav_7_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Modules
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/storage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/chat.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/glossary.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/secretary-services.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Secretary Services
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/track-processor.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Track Processor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chat-response-generation-process.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Operations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Operations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/deployment/docker.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker Deployment
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/quick-setup.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Quick Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/desktop/package-strategy.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electron Package Strategy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      Übersicht
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flow-diagramm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Flow-Diagramm
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detaillierte-fallbeschreibungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Detaillierte Fallbeschreibungen
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detaillierte Fallbeschreibungen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fall-1-toc-query-story-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fall 1: TOC-Query (Story Mode)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fall-2-normale-frage-summary-modus-nur-explizit" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fall 2: Normale Frage - Summary-Modus (nur explizit)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fall-3-toc-query-chunksummary-modus" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fall 3: TOC-Query - ChunkSummary-Modus
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fall-4-normale-frage-chunk-modus-rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fall 4: Normale Frage - Chunk-Modus (RAG)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entscheidungslogik-decideretrievermode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Entscheidungslogik: decideRetrieverMode()
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Entscheidungslogik: decideRetrieverMode()">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prioritaten-in-reihenfolge" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prioritäten (in Reihenfolge):
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#konfiguration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Konfiguration:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#warnungs-logik" class="md-nav__link">
+    <span class="md-ellipsis">
+      Warnungs-Logik
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Warnungs-Logik">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#warnung-bei-zu-wenig-relevanten-dokumenten" class="md-nav__link">
+    <span class="md-ellipsis">
+      Warnung bei zu wenig relevanten Dokumenten
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checkbox-fur-themenubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checkbox für Themenübersicht
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Checkbox für Themenübersicht">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#feature-als-themenubersicht-anzeigen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Feature: "Als Themenübersicht anzeigen"
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementierte-anderungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementierte Änderungen
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementierte Änderungen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-vereinfachte-toc-logik" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Vereinfachte TOC-Logik
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-normale-fragen-immer-rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Normale Fragen: Immer RAG
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-frage-analyse-entfernt" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Frage-Analyse entfernt
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-checkbox-fur-themenubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Checkbox für Themenübersicht
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#zusammenfassung-vereinfachte-logik" class="md-nav__link">
+    <span class="md-ellipsis">
+      Zusammenfassung: Vereinfachte Logik
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Zusammenfassung: Vereinfachte Logik">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementiert" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementiert:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementierungsstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementierungsstatus
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nachste-schritte-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      Nächste Schritte (optional)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-analyse-timing-daten" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance-Analyse: Timing-Daten
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance-Analyse: Timing-Daten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gemessene-timings-beispiel-aus-produktion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gemessene Timings (Beispiel aus Produktion)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detaillierte-schritt-analyse" class="md-nav__link">
+    <span class="md-ellipsis">
+      Detaillierte Schritt-Analyse
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detaillierte Schritt-Analyse">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-embedding-generierung-embed" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Embedding-Generierung (embed)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-vector-suche-query" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Vector-Suche (query)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-fetch-neighbors-fetchneighbors-kritisch" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Fetch Neighbors (fetchNeighbors) ⚠️ KRITISCH
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-prompt-building" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Prompt-Building
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-llm-aufruf" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. LLM-Aufruf
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#identifizierte-performance-probleme" class="md-nav__link">
+    <span class="md-ellipsis">
+      Identifizierte Performance-Probleme
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Identifizierte Performance-Probleme">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-1-fetch-neighbors-ist-zu-langsam" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔴 Problem 1: Fetch Neighbors ist zu langsam
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#problem-2-vector-suche-konnte-schneller-sein" class="md-nav__link">
+    <span class="md-ellipsis">
+      🟡 Problem 2: Vector-Suche könnte schneller sein
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#problem-3-embedding-generierung-ist-akzeptabel" class="md-nav__link">
+    <span class="md-ellipsis">
+      🟢 Problem 3: Embedding-Generierung ist akzeptabel
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimierungsvorschlage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimierungsvorschläge
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Optimierungsvorschläge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prioritat-1-fetch-neighbors-optimieren-hoch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Priorität 1: Fetch Neighbors optimieren (Hoch)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prioritat-2-vector-suche-optimieren-mittel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Priorität 2: Vector-Suche optimieren (Mittel)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prioritat-3-monitoring-verbessern-niedrig" class="md-nav__link">
+    <span class="md-ellipsis">
+      Priorität 3: Monitoring verbessern (Niedrig)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flow-validierung-aktueller-stand" class="md-nav__link">
+    <span class="md-ellipsis">
+      Flow-Validierung: Aktueller Stand
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Flow-Validierung: Aktueller Stand">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validierung-flow-stimmt-noch" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Validierung: Flow stimmt noch
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verbesserungen-identifiziert" class="md-nav__link">
+    <span class="md-ellipsis">
+      ⚠️ Verbesserungen identifiziert
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#empfohlene-optimierungen-priorisiert" class="md-nav__link">
+    <span class="md-ellipsis">
+      Empfohlene Optimierungen (Priorisiert)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Empfohlene Optimierungen (Priorisiert)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sofort-umsetzbar-quick-wins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sofort umsetzbar (Quick Wins)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mittelfristig-wochen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mittelfristig (Wochen)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#langfristig-monate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Langfristig (Monate)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#zusammenfassung-performance-optimierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Zusammenfassung: Performance-Optimierung
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Zusammenfassung: Performance-Optimierung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aktuelle-performance-rag-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Aktuelle Performance (RAG-Flow)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimierungspotenzial" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimierungspotenzial
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nachste-schritte" class="md-nav__link">
+    <span class="md-ellipsis">
+      Nächste Schritte
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementierte-optimierungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementierte Optimierungen
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementierte Optimierungen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fetch-neighbors-batching-implementiert" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Fetch Neighbors Batching (Implementiert)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dynamische-window-groe-implementiert" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Dynamische Window-Größe (Implementiert)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dynamisches-top-k-implementiert" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Dynamisches Top-K (Implementiert)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-verbesserungen-zusammenfassung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance-Verbesserungen: Zusammenfassung
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance-Verbesserungen: Zusammenfassung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vorher-gemessen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vorher (gemessen)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nachher-geschatzt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Nachher (geschätzt)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementierte-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementierte Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#konfiguration_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Konfiguration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monitoring-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitoring &amp; Testing
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Monitoring &amp; Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#empfohlene-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Empfohlene Tests
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance-Monitoring
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="chat-orchestrierungs-flow-vereinfachte-dokumentation">Chat-Orchestrierungs-Flow: Vereinfachte Dokumentation<a class="headerlink" href="#chat-orchestrierungs-flow-vereinfachte-dokumentation" title="Permanent link">&para;</a></h1>
+<h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
+<p>Dieses Dokument beschreibt den vereinfachten Flow der Chat-Orchestrierung von der Frage bis zur Antwort. Die Logik wurde stark vereinfacht: TOC-Queries verwenden Summary oder ChunkSummary basierend auf Token-Budget, normale Fragen verwenden immer RAG (chunk) mit Warnung bei zu wenig relevanten Dokumenten.</p>
+<h2 id="flow-diagramm">Flow-Diagramm<a class="headerlink" href="#flow-diagramm" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                   1. Request empfangen                          │
+│              (POST /api/chat/[libraryId]/stream)                 │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   2. Authentifizierung &amp;                         │
+│                      Library-Context laden                       │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   3. Query-Typ bestimmen                        │
+│              • isTOCQuery? (TOC_QUESTION)                        │
+│              • Normale Frage                                    │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                ┌───────────┴───────────┐
+                │                       │
+                ▼                                                   ▼
+    ┌───────────────────┐   ┌──────────────────────┐
+    │   TOC-Query       │   │   Normale Frage      │
+    │   (Story Mode)    │   │   (immer RAG)        │
+    └─────────┬─────────┘   └──────────┬───────────┘
+              │                        │
+              │                        │
+              │                        │
+              │                        │
+              │                        │
+              │                        │
+              │                        │
+              └────────────┬────────────┘
+                           │
+                           ▼
+        ┌──────────────────────────────────────┐
+        │  4. Retriever-Entscheidung           │
+        │  TOC: summary oder chunkSummary      │
+        │  (basierend auf Token-Budget)        │
+        │  Normale Frage: chunk (RAG)          │
+        └───────────┬──────────────────────────┘
+                    │
+        ┌───────────┼───────────┐
+        │           │           │
+        ▼           ▼           ▼
+    ┌────────┐ ┌──────────┐ ┌────────┐
+    │Summary │ │ChunkSumm │ │ Chunk  │
+    │(TOC)   │ │(TOC)     │ │(RAG)   │
+    └───┬────┘ └────┬─────┘ └───┬────┘
+        │           │           │
+        └───────────┼───────────┘
+                    │
+                    ▼
+        ┌───────────────────────┐
+        │  5. Retrieval          │
+        │  (Quellen abrufen)    │
+        │  • RAG: Score-Prüfung │
+        │  • Warnung bei &lt; 0.7  │
+        └───────────┬────────────┘
+                    │
+                    ▼
+        ┌───────────────────────┐
+        │  6. Prompt-Building   │
+        │  • TOC-Prompt         │
+        │  • Normal-Prompt      │
+        └───────────┬────────────┘
+                    │
+                    ▼
+        ┌───────────────────────┐
+        │  7. LLM-Aufruf        │
+        │  (OpenAI API)         │
+        └───────────┬────────────┘
+                    │
+                    ▼
+        ┌───────────────────────┐
+        │  8. Response-Parsing  │
+        │  • StoryTopicsData    │
+        │  • Normal-Answer      │
+        │  • Warnung hinzufügen │
+        └───────────┬────────────┘
+                    │
+                    ▼
+        ┌───────────────────────┐
+        │  9. Complete          │
+        │  (Stream beenden)     │
+        └───────────────────────┘
+</code></pre></div>
+<h2 id="detaillierte-fallbeschreibungen">Detaillierte Fallbeschreibungen<a class="headerlink" href="#detaillierte-fallbeschreibungen" title="Permanent link">&para;</a></h2>
+<h3 id="fall-1-toc-query-story-mode">Fall 1: TOC-Query (Story Mode)<a class="headerlink" href="#fall-1-toc-query-story-mode" title="Permanent link">&para;</a></h3>
+<p><strong>Trigger</strong>: <code>isTOCQuery === true</code> (Frage entspricht <code>TOC_QUESTION</code> ODER <code>asTOC === true</code>)</p>
+<p><strong>Flow</strong>:
+1. ✅ <strong>Retriever-Entscheidung</strong>: Basierend auf Token-Budget
+   - Berechnet: <code>estimatedTokens = totalChunks × CHAT_AVG_TOKENS_PER_CHUNK</code>
+   - Wenn <code>estimatedTokens &gt;= CHAT_MAX_INPUT_TOKENS</code>: <code>summary</code> (MongoDB Summaries)
+   - Wenn <code>estimatedTokens &lt; CHAT_MAX_INPUT_TOKENS</code>: <code>chunkSummary</code> (alle Chunks)
+2. ✅ <strong>Retrieval</strong>: 
+   - <code>summary</code>: <code>summariesMongoRetriever</code> - Lädt alle MongoDB-Dokument-Summaries
+   - <code>chunkSummary</code>: <code>chunkSummaryRetriever</code> - Lädt alle Chunks der gefilterten Dokumente
+3. ✅ <strong>Prompt</strong>: <code>buildTOCPrompt()</code> - Spezieller Prompt für Themenübersicht
+4. ✅ <strong>LLM</strong>: Generiert strukturierte Themenübersicht
+5. ✅ <strong>Parsing</strong>: <code>parseStoryTopicsData()</code> - Extrahiert strukturierte Daten
+6. ✅ <strong>Output</strong>: <code>StoryTopicsData</code> + Markdown-Answer (für Rückwärtskompatibilität)</p>
+<p><strong>Vorteile</strong>:
+- Automatische Entscheidung basierend auf Token-Budget
+- Bei wenigen Dokumenten: Präziser (chunkSummary)
+- Bei vielen Dokumenten: Übersichtlich (summary)</p>
+<p><strong>Nachteile</strong>:
+- Abhängig von Qualität der Summaries (bei summary)</p>
+<hr />
+<h3 id="fall-2-normale-frage-summary-modus-nur-explizit">Fall 2: Normale Frage - Summary-Modus (nur explizit)<a class="headerlink" href="#fall-2-normale-frage-summary-modus-nur-explizit" title="Permanent link">&para;</a></h3>
+<p><strong>Trigger</strong>: 
+- Explizit: <code>retriever=summary</code> oder <code>retriever=doc</code></p>
+<p><strong>Flow</strong>:
+1. ✅ <strong>Retriever-Entscheidung</strong>: <code>summary</code> (nur wenn explizit gesetzt)
+2. ✅ <strong>Retrieval</strong>: <code>summariesMongoRetriever</code>
+   - Lädt alle MongoDB-Dokument-Summaries (gefiltert)
+   - Keine Embedding-Suche
+3. ✅ <strong>Prompt</strong>: <code>buildPrompt()</code> - Normaler Prompt mit Summaries
+4. ✅ <strong>LLM</strong>: Generiert Antwort basierend auf Summaries
+5. ✅ <strong>Parsing</strong>: <code>parseStructuredLLMResponse()</code> - Standard-Parsing</p>
+<p><strong>Hinweis</strong>: Dieser Modus wird nur noch verwendet, wenn explizit gewählt. Automatisch wird immer RAG verwendet.</p>
+<hr />
+<h3 id="fall-3-toc-query-chunksummary-modus">Fall 3: TOC-Query - ChunkSummary-Modus<a class="headerlink" href="#fall-3-toc-query-chunksummary-modus" title="Permanent link">&para;</a></h3>
+<p><strong>Trigger</strong>: 
+- TOC-Query UND <code>estimatedTokens &lt; CHAT_MAX_INPUT_TOKENS</code></p>
+<p><strong>Entscheidungskriterien</strong>:
+<div class="highlight"><pre><span></span><code><span class="nx">estimatedTokens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">totalChunks</span><span class="w"> </span><span class="err">×</span><span class="w"> </span><span class="nx">CHAT_AVG_TOKENS_PER_CHUNK</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">estimatedTokens</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">CHAT_MAX_INPUT_TOKENS</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;chunkSummary&#39;</span><span class="w"> </span><span class="c1">// Für TOC</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p><strong>Flow</strong>:
+1. ✅ <strong>Retriever-Entscheidung</strong>: <code>chunkSummary</code> (nur für TOC)
+   - Automatisch basierend auf Token-Budget
+   - Berechnet: <code>sumChunkCounts()</code> aus MongoDB
+2. ✅ <strong>Retrieval</strong>: <code>chunkSummaryRetriever</code>
+   - Schritt 1: Lädt gefilterte Dokumente aus MongoDB (nur <code>fileIds</code>)
+   - Schritt 2: Lädt <strong>alle</strong> Chunks dieser Dokumente aus Pinecone
+   - <strong>OHNE Embedding-Suche</strong> (direkter Filter: <code>fileId: { $in: [...] }</code>)
+   - Filter-Struktur: <code>{ $and: [libraryId, user, fileId: { $in: [...] }, kind: { $ne: 'chapterSummary' }] }</code>
+3. ✅ <strong>Prompt</strong>: <code>buildTOCPrompt()</code> - TOC-Prompt mit allen Chunks
+4. ✅ <strong>LLM</strong>: Generiert strukturierte Themenübersicht
+5. ✅ <strong>Parsing</strong>: <code>parseStoryTopicsData()</code> - Extrahiert strukturierte Daten</p>
+<p><strong>Vorteile</strong>:
+- Vollständiger Kontext (alle Chunks)
+- Präzisere Themenübersicht als Summary-Modus
+- Keine Embedding-Suche nötig</p>
+<p><strong>Hinweis</strong>: Dieser Modus wird nur für TOC-Queries verwendet, nicht für normale Fragen.</p>
+<hr />
+<h3 id="fall-4-normale-frage-chunk-modus-rag">Fall 4: Normale Frage - Chunk-Modus (RAG)<a class="headerlink" href="#fall-4-normale-frage-chunk-modus-rag" title="Permanent link">&para;</a></h3>
+<p><strong>Trigger</strong>: 
+- Immer für normale Fragen (automatisch)
+- Explizit: <code>retriever=chunk</code></p>
+<p><strong>Flow</strong>:
+1. ✅ <strong>Retriever-Entscheidung</strong>: <code>chunk</code> (RAG) - Immer für normale Fragen
+2. ✅ <strong>Retrieval</strong>: <code>chunksRetriever</code>
+   - Schritt 1: Embedding der Frage generieren
+   - Schritt 2: Semantische Suche in Pinecone (Vector-Similarity)
+   - Schritt 3: Top-K relevante Chunks zurückgeben
+   - Optional: Chapter-Summaries zusätzlich abrufen
+   - <strong>Warnung</strong>: Wenn alle Scores &lt; 0.7 → Warnung generieren
+3. ✅ <strong>Prompt</strong>: <code>buildPrompt()</code> - Normaler Prompt mit relevanten Chunks
+4. ✅ <strong>LLM</strong>: Generiert Antwort basierend auf relevanten Chunks
+5. ✅ <strong>Parsing</strong>: <code>parseStructuredLLMResponse()</code> - Standard-Parsing
+6. ✅ <strong>Warnung</strong>: Falls vorhanden, wird zur Antwort hinzugefügt</p>
+<p><strong>Vorteile</strong>:
+- Semantisch relevante Chunks (beste Qualität)
+- Funktioniert auch bei vielen Dokumenten
+- Flexibel (Top-K kann angepasst werden)
+- Warnung bei zu wenig relevanten Dokumenten</p>
+<p><strong>Nachteile</strong>:
+- Langsamer (Embedding-Generierung + Vektor-Suche)
+- Teurer (mehr API-Calls)</p>
+<hr />
+<h2 id="entscheidungslogik-decideretrievermode">Entscheidungslogik: <code>decideRetrieverMode()</code><a class="headerlink" href="#entscheidungslogik-decideretrievermode" title="Permanent link">&para;</a></h2>
+<h3 id="prioritaten-in-reihenfolge">Prioritäten (in Reihenfolge):<a class="headerlink" href="#prioritaten-in-reihenfolge" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>TOC-Query</strong>: Entscheidung basierend auf Token-Budget
+   <div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">isTOCQuery</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">totalChunks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">sumChunkCounts</span><span class="p">(</span><span class="nx">filter</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">estimatedTokens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">totalChunks</span><span class="w"> </span><span class="err">×</span><span class="w"> </span><span class="nx">CHAT_AVG_TOKENS_PER_CHUNK</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">estimatedTokens</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">CHAT_MAX_INPUT_TOKENS</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;chunkSummary&#39;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="c1">// Präziser bei wenigen Dokumenten</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;summary&#39;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="c1">// Übersichtlich bei vielen Dokumenten</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Explizite Auswahl</strong>: Respektiere User-Input
+   <div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">explicitRetriever</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">explicitRetriever</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="s1">&#39;auto&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// chunkSummary nur für TOC verfügbar</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="kt">explicitRetriever</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;doc&#39;</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">&#39;summary&#39;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nx">explicitRetriever</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Normale Fragen</strong>: Immer RAG
+   <div class="highlight"><pre><span></span><code><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;chunk&#39;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="c1">// Immer RAG für normale Fragen</span>
+</code></pre></div></p>
+</li>
+</ol>
+<h3 id="konfiguration">Konfiguration:<a class="headerlink" href="#konfiguration" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>CHAT_MAX_INPUT_TOKENS</code>: Token-Budget (Standard: aus <code>budget.ts</code>)</li>
+<li><code>CHAT_AVG_TOKENS_PER_CHUNK</code>: Durchschnittliche Token pro Chunk (Standard: 300)</li>
+<li><code>RAG_MIN_SCORE_THRESHOLD</code>: Mindest-Score für relevante Dokumente (Standard: 0.7)</li>
+</ul>
+<hr />
+<h2 id="warnungs-logik">Warnungs-Logik<a class="headerlink" href="#warnungs-logik" title="Permanent link">&para;</a></h2>
+<h3 id="warnung-bei-zu-wenig-relevanten-dokumenten">Warnung bei zu wenig relevanten Dokumenten<a class="headerlink" href="#warnung-bei-zu-wenig-relevanten-dokumenten" title="Permanent link">&para;</a></h3>
+<p><strong>Trigger</strong>: 
+- RAG-Modus (chunk)
+- Alle gefundenen Dokumente haben Score &lt; 0.7</p>
+<p><strong>Warnung</strong>:
+<div class="highlight"><pre><span></span><code>&quot;Die zugrundeliegenden Dokumente enthalten zu wenig passenden Inhalt. 
+Bitte formulieren Sie die Frage um oder erweitern Sie die Anzahl der 
+zugrundeliegenden Dokumente (Facettenfilter anpassen).&quot;
+</code></pre></div></p>
+<p><strong>Implementierung</strong>:
+- Prüfung nach <code>queryVectors()</code> in <code>chunksRetriever</code>
+- Warnung wird in <code>RetrieverOutput.warning</code> zurückgegeben
+- Im Orchestrator wird Warnung zur Antwort hinzugefügt</p>
+<hr />
+<h2 id="checkbox-fur-themenubersicht">Checkbox für Themenübersicht<a class="headerlink" href="#checkbox-fur-themenubersicht" title="Permanent link">&para;</a></h2>
+<h3 id="feature-als-themenubersicht-anzeigen">Feature: "Als Themenübersicht anzeigen"<a class="headerlink" href="#feature-als-themenubersicht-anzeigen" title="Permanent link">&para;</a></h3>
+<p><strong>Beschreibung</strong>: 
+- Checkbox im Chat-Input für normale Fragen
+- Wenn aktiviert: Antwort wird als Themenübersicht (StoryTopicsData) formatiert
+- Ermöglicht es Benutzern, normale Fragen als strukturierte Themenübersicht zu erhalten</p>
+<p><strong>Implementierung</strong>:
+- Parameter <code>asTOC</code> im Request-Body
+- Wenn <code>asTOC === true</code>: <code>isTOCQuery</code> wird auf <code>true</code> gesetzt
+- Verwendet TOC-Prompt und StoryTopicsData-Parsing</p>
+<hr />
+<h2 id="implementierte-anderungen">Implementierte Änderungen<a class="headerlink" href="#implementierte-anderungen" title="Permanent link">&para;</a></h2>
+<h3 id="1-vereinfachte-toc-logik">1. Vereinfachte TOC-Logik<a class="headerlink" href="#1-vereinfachte-toc-logik" title="Permanent link">&para;</a></h3>
+<ul>
+<li>TOC verwendet <code>summary</code> oder <code>chunkSummary</code> basierend auf Token-Budget</li>
+<li><code>chunkSummary</code> nur für TOC verfügbar (nicht für normale Fragen)</li>
+</ul>
+<h3 id="2-normale-fragen-immer-rag">2. Normale Fragen: Immer RAG<a class="headerlink" href="#2-normale-fragen-immer-rag" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Automatisch immer <code>chunk</code> (RAG) für normale Fragen</li>
+<li>Keine Token-Budget-Prüfung mehr für normale Fragen</li>
+<li>Warnung bei zu wenig relevanten Dokumenten (Score &lt; 0.7)</li>
+</ul>
+<h3 id="3-frage-analyse-entfernt">3. Frage-Analyse entfernt<a class="headerlink" href="#3-frage-analyse-entfernt" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Keine LLM-basierte Frage-Analyse mehr</li>
+<li>Chat-Title wird direkt aus Frage generiert (erste 60 Zeichen)</li>
+<li>Vereinfachter Flow ohne zusätzliche LLM-Calls</li>
+</ul>
+<h3 id="4-checkbox-fur-themenubersicht">4. Checkbox für Themenübersicht<a class="headerlink" href="#4-checkbox-fur-themenubersicht" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Checkbox "Als Themenübersicht anzeigen" im Chat-Input</li>
+<li>Ermöglicht normale Fragen als Themenübersicht zu formatieren</li>
+</ul>
+<hr />
+<h2 id="zusammenfassung-vereinfachte-logik">Zusammenfassung: Vereinfachte Logik<a class="headerlink" href="#zusammenfassung-vereinfachte-logik" title="Permanent link">&para;</a></h2>
+<h3 id="implementiert">Implementiert:<a class="headerlink" href="#implementiert" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>TOC-Query:
+  Wenn estimatedTokens &lt; CHAT_MAX_INPUT_TOKENS → chunkSummary (präziser)
+  Wenn estimatedTokens &gt;= CHAT_MAX_INPUT_TOKENS → summary (übersichtlich)
+
+Normale Frage:
+  Immer → chunk (RAG)
+  Warnung wenn alle Scores &lt; 0.7
+
+Checkbox &quot;Als Themenübersicht&quot;:
+  Setzt isTOCQuery = true → verwendet TOC-Logik
+</code></pre></div>
+<hr />
+<h2 id="implementierungsstatus">Implementierungsstatus<a class="headerlink" href="#implementierungsstatus" title="Permanent link">&para;</a></h2>
+<ol>
+<li>✅ TOC-Logik vereinfacht (Token-Budget basiert)</li>
+<li>✅ Normale Fragen: Immer RAG</li>
+<li>✅ Warnung bei zu wenig relevanten Dokumenten</li>
+<li>✅ Frage-Analyse entfernt</li>
+<li>✅ Checkbox für Themenübersicht hinzugefügt</li>
+<li>✅ Dokumentation aktualisiert</li>
+</ol>
+<h2 id="nachste-schritte-optional">Nächste Schritte (optional)<a class="headerlink" href="#nachste-schritte-optional" title="Permanent link">&para;</a></h2>
+<ol>
+<li>⚠️ Tests für Edge-Cases (wenige Dokumente, viele Dokumente)</li>
+<li>⚠️ Monitoring: Welcher Modus wird wann gewählt?</li>
+<li>⚠️ Top-K Erweiterung evaluieren (bei zu wenig relevanten Dokumenten)</li>
+</ol>
+<hr />
+<h2 id="performance-analyse-timing-daten">Performance-Analyse: Timing-Daten<a class="headerlink" href="#performance-analyse-timing-daten" title="Permanent link">&para;</a></h2>
+<h3 id="gemessene-timings-beispiel-aus-produktion">Gemessene Timings (Beispiel aus Produktion)<a class="headerlink" href="#gemessene-timings-beispiel-aus-produktion" title="Permanent link">&para;</a></h3>
+<p><strong>RAG-Flow (chunk-Modus) - Normale Frage:</strong></p>
+<div class="highlight"><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
+│ Schritt                    │ Timing    │ Anteil │ Status   │
+├─────────────────────────────────────────────────────────────┤
+│ 1. Embedding-Generierung   │ ~514ms    │ 11%    │ ✅ OK    │
+│ 2. Vector-Suche (Query)    │ ~1187ms   │ 26%    │ ⚠️ Langsam│
+│ 3. Fetch Neighbors          │ ~2902ms   │ 64%    │ ❌ Sehr  │
+│                            │           │        │   langsam │
+│ 4. Prompt-Building         │ ~50-100ms │ 1-2%   │ ✅ OK    │
+│ 5. LLM-Aufruf             │ ~2000-5000ms│ 44-55%│ ⚠️ Variabel│
+│                            │           │        │           │
+│ TOTAL                      │ ~4600-8700ms│ 100% │ ⚠️        │
+└─────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="detaillierte-schritt-analyse">Detaillierte Schritt-Analyse<a class="headerlink" href="#detaillierte-schritt-analyse" title="Permanent link">&para;</a></h3>
+<h4 id="1-embedding-generierung-embed">1. Embedding-Generierung (<code>embed</code>)<a class="headerlink" href="#1-embedding-generierung-embed" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Timing</strong>: ~514ms</li>
+<li><strong>Was passiert</strong>: Frage wird in Embedding-Vektor umgewandelt</li>
+<li><strong>API-Call</strong>: OpenAI Embeddings API</li>
+<li><strong>Bewertung</strong>: ✅ Akzeptabel (~500ms ist normal für Embeddings)</li>
+<li><strong>Optimierungspotenzial</strong>: Gering (abhängig von OpenAI)</li>
+</ul>
+<h4 id="2-vector-suche-query">2. Vector-Suche (<code>query</code>)<a class="headerlink" href="#2-vector-suche-query" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Timing</strong>: ~1187ms</li>
+<li><strong>Was passiert</strong>: </li>
+<li>Semantische Suche in Pinecone</li>
+<li>Top-K relevante Chunks finden (Standard: 20)</li>
+<li>Parallel: Chapter-Summaries suchen (Top-10)</li>
+<li><strong>API-Call</strong>: Pinecone Query API (2 parallel)</li>
+<li><strong>Bewertung</strong>: ⚠️ Langsam (könnte optimiert werden)</li>
+<li><strong>Optimierungspotenzial</strong>: </li>
+<li>Parallelisierung bereits implementiert ✅</li>
+<li>Top-K könnte reduziert werden (wenn nicht alle benötigt)</li>
+<li>Pinecone-Index-Performance prüfen</li>
+</ul>
+<h4 id="3-fetch-neighbors-fetchneighbors-kritisch">3. Fetch Neighbors (<code>fetchNeighbors</code>) ⚠️ <strong>KRITISCH</strong><a class="headerlink" href="#3-fetch-neighbors-fetchneighbors-kritisch" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Timing</strong>: ~2902ms (64% der Retrieval-Zeit!)</li>
+<li><strong>Was passiert</strong>:</li>
+<li>Window-basierte Nachbar-Chunks abrufen</li>
+<li>Beispiel: Top-20 Chunks → Window ±1-3 → ~60-74 IDs</li>
+<li>Alle IDs in einem Request abrufen</li>
+<li><strong>API-Call</strong>: Pinecone Fetch API (1 Request mit vielen IDs)</li>
+<li><strong>Bewertung</strong>: ❌ <strong>Sehr langsam</strong> - größter Performance-Flaschenhals</li>
+<li><strong>Problem</strong>: </li>
+<li>Ein einzelner Request mit vielen IDs (74+ IDs)</li>
+<li>Pinecone Fetch API kann bei vielen IDs langsam sein</li>
+<li>Window-Größe (<code>windowByLength</code>) bestimmt Anzahl der IDs</li>
+<li><strong>Optimierungspotenzial</strong>: </li>
+<li><strong>Hoch</strong>: Batch-Größe reduzieren oder parallelisieren</li>
+<li><strong>Hoch</strong>: Window-Größe dynamisch anpassen</li>
+<li><strong>Mittel</strong>: Optional machen (nur wenn wirklich nötig)</li>
+<li><strong>Niedrig</strong>: Fallback auf Original-Matches wenn zu langsam</li>
+</ul>
+<h4 id="4-prompt-building">4. Prompt-Building<a class="headerlink" href="#4-prompt-building" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Timing</strong>: ~50-100ms (geschätzt)</li>
+<li><strong>Was passiert</strong>: Prompt aus Quellen zusammenbauen</li>
+<li><strong>Bewertung</strong>: ✅ OK (lokale Operation)</li>
+<li><strong>Optimierungspotenzial</strong>: Gering</li>
+</ul>
+<h4 id="5-llm-aufruf">5. LLM-Aufruf<a class="headerlink" href="#5-llm-aufruf" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Timing</strong>: ~2000-5000ms (variabel)</li>
+<li><strong>Was passiert</strong>: OpenAI API-Call für Antwort-Generierung</li>
+<li><strong>Bewertung</strong>: ⚠️ Variabel (abhängig von Antwortlänge, Modell, Last)</li>
+<li><strong>Optimierungspotenzial</strong>: </li>
+<li>Modell-Auswahl (gpt-4o-mini ist schneller als gpt-4o)</li>
+<li>Streaming bereits implementiert ✅</li>
+<li>Token-Budget-Management bereits implementiert ✅</li>
+</ul>
+<h3 id="identifizierte-performance-probleme">Identifizierte Performance-Probleme<a class="headerlink" href="#identifizierte-performance-probleme" title="Permanent link">&para;</a></h3>
+<h4 id="problem-1-fetch-neighbors-ist-zu-langsam">🔴 Problem 1: Fetch Neighbors ist zu langsam<a class="headerlink" href="#problem-1-fetch-neighbors-ist-zu-langsam" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Impact</strong>: Hoch (64% der Retrieval-Zeit)</li>
+<li><strong>Ursache</strong>: Ein Request mit vielen IDs (74+)</li>
+<li><strong>Lösung</strong>: </li>
+<li>Batch-Größe reduzieren (z.B. max 20 IDs pro Request)</li>
+<li>Parallelisierung (mehrere Requests parallel)</li>
+<li>Window-Größe dynamisch anpassen (kleineres Window bei vielen Chunks)</li>
+<li>Optional machen (nur wenn wirklich nötig)</li>
+</ul>
+<h4 id="problem-2-vector-suche-konnte-schneller-sein">🟡 Problem 2: Vector-Suche könnte schneller sein<a class="headerlink" href="#problem-2-vector-suche-konnte-schneller-sein" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Impact</strong>: Mittel (26% der Retrieval-Zeit)</li>
+<li><strong>Ursache</strong>: Pinecone Query-Performance</li>
+<li><strong>Lösung</strong>: </li>
+<li>Top-K reduzieren (wenn nicht alle benötigt)</li>
+<li>Index-Performance prüfen</li>
+<li>Caching für ähnliche Queries</li>
+</ul>
+<h4 id="problem-3-embedding-generierung-ist-akzeptabel">🟢 Problem 3: Embedding-Generierung ist akzeptabel<a class="headerlink" href="#problem-3-embedding-generierung-ist-akzeptabel" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Impact</strong>: Niedrig (11% der Retrieval-Zeit)</li>
+<li><strong>Status</strong>: ✅ OK</li>
+</ul>
+<h3 id="optimierungsvorschlage">Optimierungsvorschläge<a class="headerlink" href="#optimierungsvorschlage" title="Permanent link">&para;</a></h3>
+<h4 id="prioritat-1-fetch-neighbors-optimieren-hoch">Priorität 1: Fetch Neighbors optimieren (Hoch)<a class="headerlink" href="#prioritat-1-fetch-neighbors-optimieren-hoch" title="Permanent link">&para;</a></h4>
+<p><strong>Option A: Batch-Größe reduzieren</strong>
+<div class="highlight"><pre><span></span><code><span class="c1">// Aktuell: Ein Request mit allen IDs</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">fetched</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetchVectors</span><span class="p">(</span><span class="nx">idx</span><span class="p">.</span><span class="nx">host</span><span class="p">,</span><span class="w"> </span><span class="nx">apiKey</span><span class="p">,</span><span class="w"> </span><span class="nx">ids</span><span class="p">)</span><span class="w"> </span><span class="c1">// 74 IDs</span>
+
+<span class="c1">// Optimiert: Mehrere Requests mit kleineren Batches</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">BATCH_SIZE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">20</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">batches</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">let</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">ids</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">BATCH_SIZE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">batches</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">ids</span><span class="p">.</span><span class="nx">slice</span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">BATCH_SIZE</span><span class="p">))</span>
+<span class="p">}</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">fetched</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nb">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">(</span>
+<span class="w">  </span><span class="nx">batches</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">batch</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">fetchVectors</span><span class="p">(</span><span class="nx">idx</span><span class="p">.</span><span class="nx">host</span><span class="p">,</span><span class="w"> </span><span class="nx">apiKey</span><span class="p">,</span><span class="w"> </span><span class="nx">batch</span><span class="p">))</span>
+<span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Option B: Window-Größe dynamisch anpassen</strong>
+<div class="highlight"><pre><span></span><code><span class="c1">// Aktuell: Feste Window-Größe basierend auf answerLength</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">windowByLength</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">input</span><span class="p">.</span><span class="nx">answerLength</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;ausführlich&#39;</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">3</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">...</span>
+
+<span class="c1">// Optimiert: Dynamisch basierend auf Anzahl der Matches</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">windowSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">matches</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">30</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">1</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">matches.length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">15</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">2</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">3</span>
+</code></pre></div></p>
+<p><strong>Option C: Optional machen</strong>
+<div class="highlight"><pre><span></span><code><span class="c1">// Nur wenn wirklich nötig (z.B. wenn Chunks sequenziell sind)</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">needsNeighbors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">matches</span><span class="p">.</span><span class="nx">some</span><span class="p">(</span><span class="nx">m</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">base</span><span class="p">,</span><span class="w"> </span><span class="nx">chunk</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">parseId</span><span class="p">(</span><span class="nx">m</span><span class="p">.</span><span class="nx">id</span><span class="p">)</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nb">Number</span><span class="p">.</span><span class="nb">isFinite</span><span class="p">(</span><span class="nx">chunk</span><span class="p">)</span>
+<span class="p">})</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">needsNeighbors</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Fetch neighbors</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Verwende Original-Matches direkt</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<h4 id="prioritat-2-vector-suche-optimieren-mittel">Priorität 2: Vector-Suche optimieren (Mittel)<a class="headerlink" href="#prioritat-2-vector-suche-optimieren-mittel" title="Permanent link">&para;</a></h4>
+<p><strong>Option A: Top-K reduzieren</strong>
+<div class="highlight"><pre><span></span><code><span class="c1">// Aktuell: baseTopK = 20</span>
+<span class="c1">// Optimiert: Dynamisch basierend auf Budget</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">baseTopK</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">budget</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">50000</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">30</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">budget</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">30000</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">20</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">15</span>
+</code></pre></div></p>
+<p><strong>Option B: Caching für ähnliche Queries</strong>
+<div class="highlight"><pre><span></span><code><span class="c1">// Cache für Embeddings ähnlicher Fragen (z.B. innerhalb von 5 Minuten)</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">cacheKey</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">hashQuestion</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">question</span><span class="p">)</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">cached</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">getCachedEmbedding</span><span class="p">(</span><span class="nx">cacheKey</span><span class="p">)</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">cached</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Verwende cached embedding</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<h4 id="prioritat-3-monitoring-verbessern-niedrig">Priorität 3: Monitoring verbessern (Niedrig)<a class="headerlink" href="#prioritat-3-monitoring-verbessern-niedrig" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Detaillierte Timing-Logs für jeden Schritt</li>
+<li>Alerts bei langsamen Queries (&gt;5s)</li>
+<li>Dashboard für Performance-Metriken</li>
+</ul>
+<hr />
+<h2 id="flow-validierung-aktueller-stand">Flow-Validierung: Aktueller Stand<a class="headerlink" href="#flow-validierung-aktueller-stand" title="Permanent link">&para;</a></h2>
+<h3 id="validierung-flow-stimmt-noch">✅ Validierung: Flow stimmt noch<a class="headerlink" href="#validierung-flow-stimmt-noch" title="Permanent link">&para;</a></h3>
+<p>Der dokumentierte Flow entspricht der aktuellen Implementierung:</p>
+<ol>
+<li>✅ <strong>TOC-Query-Logik</strong>: </li>
+<li>Token-Budget-basierte Entscheidung zwischen <code>summary</code> und <code>chunkSummary</code></li>
+<li>
+<p>Implementiert in <code>decideRetrieverMode()</code></p>
+</li>
+<li>
+<p>✅ <strong>Normale Fragen</strong>: </p>
+</li>
+<li>Immer RAG (<code>chunk</code>-Modus)</li>
+<li>Warnung bei Score &lt; 0.7</li>
+<li>
+<p>Implementiert in <code>chunksRetriever</code></p>
+</li>
+<li>
+<p>✅ <strong>Retrieval-Schritte</strong>:</p>
+</li>
+<li>Embedding-Generierung ✅</li>
+<li>Vector-Suche (parallel für Chunks und Chapter-Summaries) ✅</li>
+<li>Fetch Neighbors (Window-basiert) ✅</li>
+<li>
+<p>Score-Boosting (Chapter-Boost, Lexical-Boost) ✅</p>
+</li>
+<li>
+<p>✅ <strong>Prompt-Building</strong>:</p>
+</li>
+<li>TOC-Prompt für TOC-Queries ✅</li>
+<li>
+<p>Normal-Prompt für normale Fragen ✅</p>
+</li>
+<li>
+<p>✅ <strong>LLM-Aufruf</strong>:</p>
+</li>
+<li>Streaming implementiert ✅</li>
+<li>Token-Budget-Management ✅</li>
+<li>
+<p>Retry-Logik bei zu langen Prompts ✅</p>
+</li>
+<li>
+<p>✅ <strong>Response-Parsing</strong>:</p>
+</li>
+<li>StoryTopicsData für TOC-Queries ✅</li>
+<li>Normal-Parsing für normale Fragen ✅</li>
+<li>Warnung wird hinzugefügt ✅</li>
+</ol>
+<h3 id="verbesserungen-identifiziert">⚠️ Verbesserungen identifiziert<a class="headerlink" href="#verbesserungen-identifiziert" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Performance</strong>: Fetch Neighbors ist zu langsam (siehe oben)</li>
+<li><strong>Monitoring</strong>: Timing-Daten werden gesammelt, aber nicht ausgewertet</li>
+<li><strong>Optimierung</strong>: Window-Größe könnte dynamischer sein</li>
+</ol>
+<hr />
+<h2 id="empfohlene-optimierungen-priorisiert">Empfohlene Optimierungen (Priorisiert)<a class="headerlink" href="#empfohlene-optimierungen-priorisiert" title="Permanent link">&para;</a></h2>
+<h3 id="sofort-umsetzbar-quick-wins">Sofort umsetzbar (Quick Wins)<a class="headerlink" href="#sofort-umsetzbar-quick-wins" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Fetch Neighbors batching</strong> (Priorität: Hoch)</li>
+<li>Batch-Größe auf 20 IDs reduzieren</li>
+<li>Parallelisierung implementieren</li>
+<li>
+<p>Geschätzte Verbesserung: ~50% schneller (2902ms → ~1450ms)</p>
+</li>
+<li>
+<p><strong>Window-Größe dynamisch anpassen</strong> (Priorität: Mittel)</p>
+</li>
+<li>Kleinere Window-Größe bei vielen Matches</li>
+<li>Geschätzte Verbesserung: ~30% weniger IDs → ~20% schneller</li>
+</ol>
+<h3 id="mittelfristig-wochen">Mittelfristig (Wochen)<a class="headerlink" href="#mittelfristig-wochen" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Top-K dynamisch anpassen</strong> (Priorität: Mittel)</li>
+<li>Basierend auf Budget und Anzahl der Matches</li>
+<li>
+<p>Geschätzte Verbesserung: ~10-15% schneller</p>
+</li>
+<li>
+<p><strong>Caching für Embeddings</strong> (Priorität: Niedrig)</p>
+</li>
+<li>Cache für ähnliche Fragen</li>
+<li>Geschätzte Verbesserung: ~500ms bei Cache-Hit</li>
+</ol>
+<h3 id="langfristig-monate">Langfristig (Monate)<a class="headerlink" href="#langfristig-monate" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Monitoring-Dashboard</strong> (Priorität: Niedrig)</li>
+<li>Performance-Metriken visualisieren</li>
+<li>Alerts bei langsamen Queries</li>
+</ol>
+<hr />
+<h2 id="zusammenfassung-performance-optimierung">Zusammenfassung: Performance-Optimierung<a class="headerlink" href="#zusammenfassung-performance-optimierung" title="Permanent link">&para;</a></h2>
+<h3 id="aktuelle-performance-rag-flow">Aktuelle Performance (RAG-Flow)<a class="headerlink" href="#aktuelle-performance-rag-flow" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Total Retrieval</strong>: ~4600ms</li>
+<li><strong>Langsamster Schritt</strong>: Fetch Neighbors (~2902ms, 64%)</li>
+<li><strong>Zweiter Schritt</strong>: Vector-Suche (~1187ms, 26%)</li>
+<li><strong>Schnellster Schritt</strong>: Embedding (~514ms, 11%)</li>
+</ul>
+<h3 id="optimierungspotenzial">Optimierungspotenzial<a class="headerlink" href="#optimierungspotenzial" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Fetch Neighbors</strong>: ~50% schneller möglich (Batching)</li>
+<li><strong>Vector-Suche</strong>: ~10-15% schneller möglich (dynamisches Top-K)</li>
+<li><strong>Gesamt</strong>: ~30-40% schneller möglich (~4600ms → ~2800-3200ms)</li>
+</ul>
+<h3 id="nachste-schritte">Nächste Schritte<a class="headerlink" href="#nachste-schritte" title="Permanent link">&para;</a></h3>
+<ol>
+<li>✅ Flow validiert - stimmt noch</li>
+<li>✅ Performance-Probleme identifiziert</li>
+<li>✅ Optimierungsvorschläge dokumentiert</li>
+<li>✅ Implementierung der Quick Wins abgeschlossen</li>
+</ol>
+<hr />
+<h2 id="implementierte-optimierungen">Implementierte Optimierungen<a class="headerlink" href="#implementierte-optimierungen" title="Permanent link">&para;</a></h2>
+<h3 id="fetch-neighbors-batching-implementiert">✅ Fetch Neighbors Batching (Implementiert)<a class="headerlink" href="#fetch-neighbors-batching-implementiert" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Ein einzelner Request mit vielen IDs (74+) war sehr langsam (~2902ms).</p>
+<p><strong>Lösung</strong>: 
+- IDs werden in Batches aufgeteilt (Standard: 20 IDs pro Batch)
+- Batches werden parallel mit <code>Promise.all()</code> abgerufen
+- Ergebnisse werden zusammengeführt</p>
+<p><strong>Code-Änderungen</strong> (<code>src/lib/chat/retrievers/chunks.ts</code>):
+<div class="highlight"><pre><span></span><code><span class="c1">// Batching: IDs in kleinere Batches aufteilen und parallel abrufen</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">BATCH_SIZE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Number</span><span class="p">(</span><span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">CHAT_FETCH_BATCH_SIZE</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="mf">20</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">batches</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[][]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[]</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">let</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">ids</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">BATCH_SIZE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">batches</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">ids</span><span class="p">.</span><span class="nx">slice</span><span class="p">(</span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">BATCH_SIZE</span><span class="p">))</span>
+<span class="p">}</span>
+
+<span class="c1">// Parallel abrufen: Mehrere kleinere Requests sind schneller als ein großer Request</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">fetchedBatches</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nb">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">(</span>
+<span class="w">  </span><span class="nx">batches</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">batch</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">fetchVectors</span><span class="p">(</span><span class="nx">idx</span><span class="p">.</span><span class="nx">host</span><span class="p">,</span><span class="w"> </span><span class="nx">apiKey</span><span class="p">,</span><span class="w"> </span><span class="nx">batch</span><span class="p">))</span>
+<span class="p">)</span>
+
+<span class="c1">// Ergebnisse zusammenführen</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">fetched</span><span class="o">:</span><span class="w"> </span><span class="kt">Record</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">metadata?</span><span class="o">:</span><span class="w"> </span><span class="kt">Record</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">unknown</span><span class="o">&gt;</span><span class="w"> </span><span class="p">}</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{}</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">batch</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nx">fetchedBatches</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nb">Object</span><span class="p">.</span><span class="nx">assign</span><span class="p">(</span><span class="nx">fetched</span><span class="p">,</span><span class="w"> </span><span class="nx">batch</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p><strong>Konfiguration</strong>:
+- Umgebungsvariable: <code>CHAT_FETCH_BATCH_SIZE</code> (Standard: 20)
+- Kann über <code>.env</code> angepasst werden</p>
+<p><strong>Erwartete Verbesserung</strong>: ~50% schneller (2902ms → ~1450ms)</p>
+<hr />
+<h3 id="dynamische-window-groe-implementiert">✅ Dynamische Window-Größe (Implementiert)<a class="headerlink" href="#dynamische-window-groe-implementiert" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Feste Window-Größe führte bei vielen Matches zu sehr vielen IDs.</p>
+<p><strong>Lösung</strong>:
+- Window-Größe wird dynamisch basierend auf Anzahl der Matches angepasst
+- Bei vielen Matches (&gt;30): Window-Größe 1
+- Bei mittleren Matches (&gt;15): Window-Größe 2
+- Sonst: Ursprüngliche Window-Größe basierend auf <code>answerLength</code></p>
+<p><strong>Code-Änderungen</strong> (<code>src/lib/chat/retrievers/chunks.ts</code>):
+<div class="highlight"><pre><span></span><code><span class="c1">// Dynamische Window-Größe: Kleinere Window-Größe bei vielen Matches</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">baseWindow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">input</span><span class="p">.</span><span class="nx">answerLength</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;ausführlich&#39;</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">3</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">input.answerLength</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;mittel&#39;</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">2</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">1</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">dynamicWindow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">matches</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">30</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">1</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">matches.length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">15</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">2</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">baseWindow</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">windowByLength</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">dynamicWindow</span><span class="p">,</span><span class="w"> </span><span class="nx">baseWindow</span><span class="p">)</span><span class="w"> </span><span class="c1">// Nicht größer als ursprünglich</span>
+</code></pre></div></p>
+<p><strong>Erwartete Verbesserung</strong>: ~30% weniger IDs → ~20% schneller</p>
+<hr />
+<h3 id="dynamisches-top-k-implementiert">✅ Dynamisches Top-K (Implementiert)<a class="headerlink" href="#dynamisches-top-k-implementiert" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Festes <code>baseTopK = 20</code> war nicht optimal für verschiedene Budgets.</p>
+<p><strong>Lösung</strong>:
+- Top-K wird dynamisch basierend auf verfügbarem Budget berechnet
+- Größeres Budget ermöglicht mehr Chunks</p>
+<p><strong>Code-Änderungen</strong> (<code>src/lib/chat/retrievers/chunks.ts</code>):
+<div class="highlight"><pre><span></span><code><span class="c1">// Dynamisches Top-K basierend auf Budget: Größeres Budget ermöglicht mehr Chunks</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">baseTopK</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">budget</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">50000</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">30</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">budget</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">30000</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">20</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">15</span>
+</code></pre></div></p>
+<p><strong>Logik</strong>:
+- Budget &gt; 50000: Top-K = 30
+- Budget &gt; 30000: Top-K = 20
+- Sonst: Top-K = 15</p>
+<p><strong>Erwartete Verbesserung</strong>: ~10-15% schneller</p>
+<hr />
+<h2 id="performance-verbesserungen-zusammenfassung">Performance-Verbesserungen: Zusammenfassung<a class="headerlink" href="#performance-verbesserungen-zusammenfassung" title="Permanent link">&para;</a></h2>
+<h3 id="vorher-gemessen">Vorher (gemessen)<a class="headerlink" href="#vorher-gemessen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Total Retrieval</strong>: ~4600ms</li>
+<li><strong>Fetch Neighbors</strong>: ~2902ms (64%)</li>
+<li><strong>Vector-Suche</strong>: ~1187ms (26%)</li>
+<li><strong>Embedding</strong>: ~514ms (11%)</li>
+</ul>
+<h3 id="nachher-geschatzt">Nachher (geschätzt)<a class="headerlink" href="#nachher-geschatzt" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Total Retrieval</strong>: ~2800-3200ms (~30-40% schneller)</li>
+<li><strong>Fetch Neighbors</strong>: ~1450ms (~50% schneller durch Batching)</li>
+<li><strong>Vector-Suche</strong>: ~1000-1070ms (~10-15% schneller durch dynamisches Top-K)</li>
+<li><strong>Embedding</strong>: ~514ms (unverändert)</li>
+</ul>
+<h3 id="implementierte-features">Implementierte Features<a class="headerlink" href="#implementierte-features" title="Permanent link">&para;</a></h3>
+<ol>
+<li>✅ Fetch Neighbors Batching mit Parallelisierung</li>
+<li>✅ Dynamische Window-Größe basierend auf Anzahl der Matches</li>
+<li>✅ Dynamisches Top-K basierend auf Budget</li>
+<li>✅ Konfigurierbare Batch-Größe über Umgebungsvariable</li>
+</ol>
+<h3 id="konfiguration_1">Konfiguration<a class="headerlink" href="#konfiguration_1" title="Permanent link">&para;</a></h3>
+<p><strong>Neue Umgebungsvariable</strong>:
+- <code>CHAT_FETCH_BATCH_SIZE</code>: Batch-Größe für Fetch Neighbors (Standard: 20)
+  - Kann in <code>.env</code> gesetzt werden
+  - Empfohlener Wert: 20-30 (abhängig von Pinecone-Performance)</p>
+<hr />
+<h2 id="monitoring-testing">Monitoring &amp; Testing<a class="headerlink" href="#monitoring-testing" title="Permanent link">&para;</a></h2>
+<h3 id="empfohlene-tests">Empfohlene Tests<a class="headerlink" href="#empfohlene-tests" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Unit-Tests</strong>: Batching-Logik mit verschiedenen ID-Anzahlen</li>
+<li><strong>Integration-Tests</strong>: Gesamter Retrieval-Flow mit Timing-Messungen</li>
+<li><strong>Edge-Cases</strong>: </li>
+<li>Leere IDs-Liste</li>
+<li>Sehr viele IDs (&gt;100)</li>
+<li>Einzelne ID</li>
+<li>Batch-Größe größer als Anzahl der IDs</li>
+</ol>
+<h3 id="performance-monitoring">Performance-Monitoring<a class="headerlink" href="#performance-monitoring" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Timing-Daten werden bereits in <code>QueryRetrievalStep</code> gespeichert</li>
+<li>Empfehlung: Dashboard für Performance-Metriken erstellen</li>
+<li>Alerts bei langsamen Queries (&gt;5s) einrichten</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

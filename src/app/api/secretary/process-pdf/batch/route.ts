@@ -21,7 +21,9 @@ interface BatchRequestBody {
   options?: {
     targetLanguage?: string;
     extractionMethod?: string;
-    includeImages?: boolean;
+    includeOcrImages?: boolean; // Mistral OCR Bilder als Base64
+    includePageImages?: boolean; // Seiten-Bilder als ZIP
+    includeImages?: boolean; // Rückwärtskompatibilität
     useCache?: boolean;
     template?: string;
     policies?: import('@/lib/processing/phase-policy').PhasePolicies;
@@ -47,8 +49,27 @@ export async function POST(request: NextRequest) {
     const items = Array.isArray(body?.items) ? body.items : [];
     const batchName = typeof body?.batchName === 'string' ? body.batchName : undefined;
     const options = body?.options || {};
+    
+    // Für Mistral OCR: Beide Parameter standardmäßig true
+    const extractionMethod = options?.extractionMethod || 'native';
+    const isMistralOcr = extractionMethod === 'mistral_ocr';
+    const includeOcrImages = options?.includeOcrImages !== undefined
+      ? options.includeOcrImages
+      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    const includePageImages = options?.includePageImages !== undefined
+      ? options.includePageImages
+      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    
     // Diagnose: Eingehende Policies loggen (einmal pro Batch)
-    FileLogger.info('process-pdf-batch', 'Incoming batch options', { libraryId, batchName, policiesIn: options?.policies });
+    FileLogger.info('process-pdf-batch', 'Incoming batch options', { 
+      libraryId, 
+      batchName, 
+      policiesIn: options?.policies,
+      extractionMethod,
+      includeOcrImages,
+      includePageImages,
+      isMistralOcr
+    });
     if (!libraryId || items.length === 0) {
       return NextResponse.json({ error: 'libraryId und items erforderlich' }, { status: 400 });
     }
@@ -65,6 +86,13 @@ export async function POST(request: NextRequest) {
         const jobSecret = crypto.randomBytes(24).toString('base64url');
         const jobSecretHash = repo.hashSecret(jobSecret);
         const policiesEffective = options?.policies || legacyToPolicies({ doExtractPDF: true });
+        // Leite phases aus policies ab (wie in process-pdf/route.ts Zeile 129)
+        // WICHTIG: Dies stellt sicher, dass beide Workflows (manuell vs. Batch) konsistent sind
+        const phases = { 
+          extract: policiesEffective.extract !== 'ignore', 
+          template: policiesEffective.metadata !== 'ignore', 
+          ingest: policiesEffective.ingest !== 'ignore' 
+        };
         await repo.create({
           jobId,
           jobSecretHash,
@@ -80,8 +108,10 @@ export async function POST(request: NextRequest) {
             source: { mediaType: 'pdf', mimeType: it.mimeType || 'application/pdf', name: it.name || 'document.pdf', itemId: it.fileId, parentId: it.parentId },
             options: {
               targetLanguage: options?.targetLanguage || 'de',
-              extractionMethod: options?.extractionMethod || 'native',
-              includeImages: options?.includeImages ?? false,
+              extractionMethod: extractionMethod,
+              includeOcrImages: includeOcrImages,
+              includePageImages: includePageImages,
+              includeImages: options?.includeImages ?? false, // Rückwärtskompatibilität
               useCache: options?.useCache ?? true,
             },
             batchId,
@@ -97,10 +127,14 @@ export async function POST(request: NextRequest) {
           ],
           parameters: {
             targetLanguage: options?.targetLanguage || 'de',
-            extractionMethod: options?.extractionMethod || 'native',
-            includeImages: options?.includeImages ?? false,
+            extractionMethod: extractionMethod,
+            includeOcrImages: includeOcrImages,
+            includePageImages: includePageImages,
+            includeImages: options?.includeImages ?? false, // Rückwärtskompatibilität
             useCache: options?.useCache ?? true,
             template: options?.template,
+            // Leite phases aus policies ab (konsistent mit process-pdf/route.ts)
+            phases,
             // Nur neue Policies
             policies: policiesEffective,
             batchId,

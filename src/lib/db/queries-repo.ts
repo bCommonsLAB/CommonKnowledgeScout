@@ -72,11 +72,18 @@ export async function getDocumentCount(library: Library): Promise<number> {
  * @returns Anzahl der gefilterten Dokumente
  */
 export async function getFilteredDocumentCount(
-  library: Library,
+  libraryOrId: Library | string,
   filter: Record<string, unknown>
 ): Promise<number> {
   try {
-    const libraryKey = getCollectionNameForLibrary(library)
+    let libraryKey: string;
+    if (typeof libraryOrId === 'string') {
+      // Wenn libraryId übergeben wurde, verwende sie direkt als Collection-Name
+      // (getCollectionNameForLibrary verwendet nur library.id und library.config?.chat?.vectorStore?.collectionName)
+      libraryKey = libraryOrId;
+    } else {
+      libraryKey = getCollectionNameForLibrary(libraryOrId);
+    }
     const col = await getDocMetaCollection(libraryKey)
     
     // Zähle gefilterte Dokumente
@@ -137,7 +144,7 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
   // die zu den Filtern passen
   // Konvertiere facetsSelected zu MongoDB-Filter-Format (mappt shortTitle zu docMetaJson.shortTitle)
   const mongoFilter = facetsSelectedToMongoFilter(doc.facetsSelected)
-  const documentCount = await getFilteredDocumentCount(doc.libraryId, mongoFilter, doc.userEmail)
+  const documentCount = await getFilteredDocumentCount(doc.libraryId, mongoFilter)
   
   // Normalisiere Retriever für Cache-Hash: chunkSummary → chunk (konsistent mit Suchen)
   // Beim Suchen wird chunkSummary zu 'chunk' konvertiert, daher müssen wir das auch beim Speichern tun
@@ -347,7 +354,7 @@ export async function findQueryByQuestionAndContext(args: {
   // die zu den Filtern passen
   // Konvertiere facetsSelected zu MongoDB-Filter-Format (mappt shortTitle zu docMetaJson.shortTitle)
   const mongoFilter = facetsSelectedToMongoFilter(args.facetsSelected)
-  const documentCount = await getFilteredDocumentCount(args.libraryId, mongoFilter, args.userEmail)
+  const documentCount = await getFilteredDocumentCount(args.libraryId, mongoFilter)
   
   // Berechne Hash aus allen Cache-relevanten Parametern
   // WICHTIG: queryType muss konsistent sein - wenn undefined, verwende 'question' als Default

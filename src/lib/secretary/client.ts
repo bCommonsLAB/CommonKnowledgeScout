@@ -681,7 +681,7 @@ export async function transformPdf(
   template?: string,
   extractionMethod: string = 'native',
   useCache: boolean = true,
-  includeImages: boolean = false,
+  includeOcrImages?: boolean, // Mistral OCR Bilder als Base64 (in mistral_ocr_raw.pages[*].images[*].image_base64)
   skipTemplate?: boolean,
   context?: { originalItemId?: string; parentId?: string; originalFileName?: string; policies?: import('@/lib/processing/phase-policy').PhasePolicies }
 ): Promise<SecretaryPdfResponse> {
@@ -728,12 +728,20 @@ export async function transformPdf(
       } catch {}
     })();
     
+    // Für Mistral OCR: Beide Parameter standardmäßig true
+    const isMistralOcr = extractionMethod === 'mistral_ocr';
+    const includeOcrImagesValue = includeOcrImages !== undefined 
+      ? includeOcrImages 
+      : (isMistralOcr ? true : false); // Standard: true für Mistral OCR
+    const includePageImagesValue = isMistralOcr ? true : false; // Standard: true für Mistral OCR
+    
     const formData = new FormData();
     formData.append('file', file);
     formData.append('targetLanguage', targetLanguage);
     formData.append('extractionMethod', extractionMethod);
     formData.append('useCache', useCache.toString());
-    formData.append('includeImages', includeImages.toString());
+    formData.append('includeOcrImages', includeOcrImagesValue.toString());
+    formData.append('includePageImages', includePageImagesValue.toString());
     // Policies als JSON übergeben (neues Format)
     if (context?.policies) {
       formData.append('policies', JSON.stringify(context.policies));

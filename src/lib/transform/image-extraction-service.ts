@@ -26,6 +26,7 @@
 
 import { StorageProvider, StorageItem } from "@/lib/storage/types";
 import { FileLogger } from "@/lib/debug/logger";
+import { generateShadowTwinFolderName } from "@/lib/storage/shadow-twin";
 
 /**
  * Interface für extrahierte Bilder mit zugehörigem Text
@@ -62,6 +63,7 @@ export class ImageExtractionService {
    * @param extractedText Der extrahierte Text aus der PDF (optional)
    * @param targetLanguage Die Zielsprache für die Markdown-Dateien (optional)
    * @param textContents Array mit seiten-spezifischen Texten (optional)
+   * @param shadowTwinFolderId Optional: ID des Shadow-Twin-Verzeichnisses. Wenn vorhanden, werden Bilder dort gespeichert statt in separatem Ordner.
    * @returns Ergebnis der Speicherung
    */
   static async saveZipArchive(
@@ -72,25 +74,39 @@ export class ImageExtractionService {
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
     extractedText?: string,
     targetLanguage?: string,
-    textContents?: Array<{ page: number; content: string }>
+    textContents?: Array<{ page: number; content: string }>,
+    shadowTwinFolderId?: string
   ): Promise<ImageExtractionResult> {
     try {
       FileLogger.info('ImageExtractionService', 'Starte ZIP-Extraktion und Bild-Speicherung', {
         fileName,
         originalFile: originalItem.metadata.name,
-        base64DataLength: base64ZipData.length
+        base64DataLength: base64ZipData.length,
+        hasShadowTwinFolder: !!shadowTwinFolderId
       });
       
-      // Generiere Ordnername: .{pdf-name-ohne-extension}
-      const folderName = this.generateImageFolderName(originalItem.metadata.name);
+      let folderItem: StorageItem;
       
-      // Erstelle den Ordner
-      const folderItem = await provider.createFolder(originalItem.parentId, folderName);
+      if (shadowTwinFolderId) {
+        // Verwende Shadow-Twin-Verzeichnis
+        folderItem = await provider.getItemById(shadowTwinFolderId);
+        if (!folderItem || folderItem.type !== 'folder') {
+          throw new Error(`Shadow-Twin-Verzeichnis mit ID ${shadowTwinFolderId} nicht gefunden oder kein Verzeichnis`);
+        }
+        FileLogger.info('ImageExtractionService', 'Verwende Shadow-Twin-Verzeichnis', {
+          folderId: folderItem.id,
+          folderName: folderItem.metadata.name
+        });
+      } else {
+        // Erstelle separaten Ordner (Rückwärtskompatibilität)
+        const folderName = generateShadowTwinFolderName(originalItem.metadata.name);
+        folderItem = await provider.createFolder(originalItem.parentId, folderName);
+        FileLogger.info('ImageExtractionService', 'Ordner erstellt', {
+          folderId: folderItem.id,
+          folderName: folderName
+        });
+      }
       
-      FileLogger.info('ImageExtractionService', 'Ordner erstellt', {
-        folderId: folderItem.id,
-        folderName: folderName
-      });
       
       // Base64 zu Buffer konvertieren
       const buffer = Buffer.from(base64ZipData, 'base64');
@@ -257,7 +273,7 @@ export class ImageExtractionService {
       await refreshItems(originalItem.parentId);
       
       FileLogger.info('ImageExtractionService', 'ZIP-Extraktion vollständig abgeschlossen', {
-        folderName,
+        folderName: folderItem.metadata.name,
         extractedFilesCount: processedFiles,
         totalSavedItems: savedItems.length
       });
@@ -295,14 +311,97 @@ export class ImageExtractionService {
   }
   
   /**
-   * Generiert den Ordnernamen für die Bilder
-   * @param pdfFileName Name der PDF-Datei
-   * @returns Ordnername im Format .{name-ohne-extension}
+   * Speichert Mistral OCR Bilder im Shadow-Twin-Verzeichnis
+   * @param images Array von Mistral OCR Bildern mit Base64-Daten
+   * @param shadowTwinFolderId ID des Shadow-Twin-Verzeichnisses
+   * @param provider Der Storage-Provider
+   * @returns Array von gespeicherten StorageItems
    */
-  private static generateImageFolderName(pdfFileName: string): string {
-    // Entferne die Dateiendung
-    const nameWithoutExtension = pdfFileName.replace(/\.[^/.]+$/, '');
-    return `.${nameWithoutExtension}`;
+  static async saveMistralOcrImages(
+    images: Array<{ id: string; image_base64: string }>,
+    shadowTwinFolderId: string,
+    provider: StorageProvider
+  ): Promise<StorageItem[]> {
+    const savedItems: StorageItem[] = [];
+    
+    FileLogger.info('ImageExtractionService', 'Starte Mistral OCR Bild-Speicherung', {
+      imageCount: images.length,
+      shadowTwinFolderId
+    });
+    
+    // Stelle sicher, dass Shadow-Twin-Verzeichnis existiert
+    const folderItem = await provider.getItemById(shadowTwinFolderId);
+    if (!folderItem || folderItem.type !== 'folder') {
+      throw new Error(`Shadow-Twin-Verzeichnis mit ID ${shadowTwinFolderId} nicht gefunden oder kein Verzeichnis`);
+    }
+    
+    for (const image of images) {
+      try {
+        // Extrahiere Base64-Daten aus Data URL (Format: data:image/jpeg;base64,...)
+        let base64Data = image.image_base64;
+        if (base64Data.startsWith('data:')) {
+          // Entferne Data URL Prefix
+          const commaIndex = base64Data.indexOf(',');
+          if (commaIndex !== -1) {
+            base64Data = base64Data.substring(commaIndex + 1);
+          }
+        }
+        
+        // Konvertiere Base64 zu Buffer
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        // Bestimme MIME-Type und Extension aus image.id oder Data URL
+        let mimeType = 'image/jpeg';
+        
+        if (image.image_base64.startsWith('data:')) {
+          const mimeMatch = image.image_base64.match(/data:image\/([^;]+)/);
+          if (mimeMatch) {
+            const mimePart = mimeMatch[1].toLowerCase();
+            if (mimePart === 'png') {
+              mimeType = 'image/png';
+            } else if (mimePart === 'jpeg' || mimePart === 'jpg') {
+              mimeType = 'image/jpeg';
+            }
+          }
+        } else {
+          // Versuche Extension aus image.id zu extrahieren
+          const idExtension = image.id.split('.').pop()?.toLowerCase();
+          if (idExtension === 'png') {
+            mimeType = 'image/png';
+          } else if (idExtension === 'jpg' || idExtension === 'jpeg') {
+            mimeType = 'image/jpeg';
+          }
+        }
+        
+        // Verwende image.id als Dateinamen (z.B. "img-0.jpeg")
+        const fileName = image.id;
+        
+        // Erstelle File-Objekt
+        const blob = new Blob([buffer], { type: mimeType });
+        const file = new File([blob], fileName, { type: mimeType });
+        
+        // Speichere im Shadow-Twin-Verzeichnis
+        const savedItem = await provider.uploadFile(shadowTwinFolderId, file);
+        savedItems.push(savedItem);
+        
+        FileLogger.info('ImageExtractionService', 'Mistral OCR Bild gespeichert', {
+          fileName,
+          fileSize: buffer.length,
+          mimeType,
+          savedItemId: savedItem.id
+        });
+      } catch (error) {
+        FileLogger.error('ImageExtractionService', `Fehler beim Speichern von Mistral OCR Bild ${image.id}`, error);
+        // Weitermachen mit nächstem Bild
+      }
+    }
+    
+    FileLogger.info('ImageExtractionService', 'Mistral OCR Bild-Speicherung abgeschlossen', {
+      totalImages: images.length,
+      savedItems: savedItems.length
+    });
+    
+    return savedItems;
   }
   
   /**

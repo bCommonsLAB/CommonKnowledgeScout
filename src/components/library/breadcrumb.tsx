@@ -102,23 +102,11 @@ export function Breadcrumb({ className }: BreadcrumbProps) {
     const startTime = performance.now();
     scrollStartTime.current = startTime;
     
-    UILogger.debug('Breadcrumb', 'Starting auto-scroll', {
-      pathDepth: currentPath.length,
-      currentScrollLeft: breadcrumbRef.current.scrollLeft,
-      targetScrollLeft: breadcrumbRef.current.scrollWidth,
-      activeLibrary: activeLibrary?.label
-    });
 
     breadcrumbRef.current.scrollLeft = breadcrumbRef.current.scrollWidth;
 
     const timeoutId = setTimeout(() => {
       if (scrollStartTime.current === startTime) {
-        const duration = performance.now() - startTime;
-        UILogger.info('Breadcrumb', 'Auto-scroll completed', {
-          duration: `${duration.toFixed(2)}ms`,
-          finalScrollLeft: breadcrumbRef.current?.scrollLeft,
-          pathDepth: currentPath.length
-        });
         scrollStartTime.current = null;
       }
     }, 100);

@@ -11,6 +11,7 @@ import { useAtomValue } from 'jotai'
 import { activeLibraryIdAtom } from '@/atoms/library-atom'
 import { StorageItem, StorageProvider } from '@/lib/storage/types'
 import { toast } from 'sonner'
+import { useRootItems } from '@/hooks/use-root-items'
 
 interface CombinedChatDialogProps {
   provider: StorageProvider | null
@@ -25,6 +26,7 @@ interface CombinedChatDialogProps {
 export function CombinedChatDialog({ provider, items, selectedTemplate, selectedLanguage, defaultFileName, systemPrompt = 'Du bist ein hilfreicher, faktenbasierter Assistent. Nutze ausschließlich den bereitgestellten Kontext.', templateBody = '' }: CombinedChatDialogProps) {
   const [open, setOpen] = useAtom(combinedChatDialogOpenAtom)
   const libraryId = useAtomValue(activeLibraryIdAtom)
+  const getRootItems = useRootItems()
   const [instructions, setInstructions] = useState<string>(templateBody)
   const [answer, setAnswer] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(false)
@@ -45,7 +47,7 @@ export function CombinedChatDialog({ provider, items, selectedTemplate, selected
         if (templateBody) {
           if (!cancelled) setTemplateContent(templateBody)
         } else {
-          const roots = await provider.listItemsById('root')
+          const roots = await getRootItems()
           const templatesFolder = roots.find(it => it.type === 'folder' && it.metadata?.name === 'templates')
           if (!templatesFolder) return
           const items = await provider.listItemsById(templatesFolder.id)

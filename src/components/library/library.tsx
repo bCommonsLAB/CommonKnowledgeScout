@@ -60,7 +60,7 @@ import { TranscriptionDialog } from "./transcription-dialog"
 import { TransformationDialog } from "./transformation-dialog"
 import { IngestionDialog } from "./ingestion-dialog"
 import { StorageItem } from "@/lib/storage/types"
-import { NavigationLogger, StateLogger, UILogger } from "@/lib/debug/logger"
+import { NavigationLogger, StateLogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
 import { useToast } from "@/components/ui/use-toast"
 import { ChevronLeft } from "lucide-react"
@@ -68,10 +68,6 @@ import { useSearchParams } from "next/navigation"
 import { useFolderNavigation } from "@/hooks/use-folder-navigation"
 import { uiPanePrefsAtom } from "@/atoms/ui-prefs-atom"
 export function Library() {
-  // Performance-Messung für Kaltstart (nur Client)
-  const startupT0Ref = React.useRef<number>(
-    typeof performance !== 'undefined' ? performance.now() : 0
-  );
   // Globale Atoms
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const [, setLoadingState] = useAtom(loadingStateAtom);
@@ -126,27 +122,15 @@ export function Library() {
     if (urlInitAppliedRef.current) return;
 
     if (!folderIdFromUrl) {
-      NavigationLogger.debug('debug@init', 'No folderId in URL', {
-        currentFolderId
-      });
       urlInitAppliedRef.current = true;
       return;
     }
 
     if (!providerInstance || libraryStatus !== 'ready') {
-      NavigationLogger.debug('debug@init', 'Provider not ready, deferring URL apply', {
-        folderIdFromUrl,
-        libraryStatus,
-        hasProvider: !!providerInstance
-      });
       return;
     }
 
     if (folderIdFromUrl !== currentFolderId) {
-      NavigationLogger.info('debug@init', 'Applying folderId from URL (ready)', {
-        folderIdFromUrl,
-        currentFolderId
-      });
       void navigateToFolder(folderIdFromUrl);
     }
     urlInitAppliedRef.current = true;
@@ -162,27 +146,21 @@ export function Library() {
   // Optimierter loadItems mit Cache-Check
   const loadItems = useCallback(async () => {
     if (loadInFlightRef.current) {
-      NavigationLogger.debug('Library', 'Skip loadItems - load already in flight');
       return;
     }
     if (!providerInstance || libraryStatus !== 'ready') {
-      NavigationLogger.debug('Library', 'Skipping loadItems - not ready', {
-        hasProvider: !!providerInstance,
-        status: libraryStatus
-      });
       return;
     }
 
     // Schutz: Wenn Provider/Context noch auf alte Library zeigt, keine Items übernehmen
     if (currentLibrary?.id && currentLibrary.id !== activeLibraryId) {
-      NavigationLogger.debug('Library', 'Skip loadItems - library mismatch', {
-        providerLibraryId: currentLibrary.id,
-        activeLibraryId
-      });
       return;
     }
 
+    // RACE-CONDITION-FIX: Setze lastLoadedFolder SOFORT, bevor der API-Call gemacht wird,
+    // um doppelte Calls zu vermeiden (wird bei Context-Change zurückgesetzt)
     loadInFlightRef.current = true;
+    setLastLoadedFolder(currentFolderId); // Optimistisch setzen
     setLoadingState({ isLoading: true, loadingFolderId: currentFolderId });
 
     try {
@@ -201,60 +179,65 @@ export function Library() {
         // Übernehme nur, wenn der Snapshot noch aktuell ist
         if (expectedLibraryId === activeLibraryId && expectedFolderId === currentFolderId) {
           setFolderItems(cachedItems);
-          setLastLoadedFolder(currentFolderId);
+          // lastLoadedFolder wurde bereits oben optimistisch gesetzt
+        } else {
+          // Context hat sich geändert, setze lastLoadedFolder zurück
+          setLastLoadedFolder(null);
         }
         return;
       }
 
-      NavigationLogger.info('Library', 'Fetching items from provider', {
-        folderId: currentFolderId,
-        cacheHit: false
-      });
-      
       const items = await listItems(currentFolderId);
 
       // Falls während des Ladens die Library oder der Ordner wechselte: Ergebnis verwerfen
       if (expectedLibraryId !== activeLibraryId || expectedFolderId !== currentFolderId) {
-        NavigationLogger.debug('Library', 'Discard loaded items due to context change', {
-          expectedLibraryId,
-          activeLibraryId,
-          expectedFolderId,
-          currentFolderId
-        });
+        // Context hat sich geändert, setze lastLoadedFolder zurück
+        setLastLoadedFolder(null);
         return;
       }
       
-      // Update Cache und State
-      if (currentFolderId !== 'root') {
+      // Update Cache und State (auch für Root-Items)
+      // PERFORMANCE-OPTIMIERUNG: Cache auch für Root-Items verwenden
         const newFolderCache = { ...libraryState.folderCache };
+      if (currentFolderId === 'root') {
+        // Root-Items auch cachen (für FileTree und andere Komponenten)
+        // Erstelle virtuelles Root-Item im Cache
+        if (!newFolderCache['root']) {
+          newFolderCache['root'] = {
+            id: 'root',
+            parentId: '',
+            type: 'folder',
+            metadata: {
+              name: 'root',
+              size: 0,
+              modifiedAt: new Date(),
+              mimeType: 'application/folder'
+            },
+            children: items
+          };
+        } else {
+          newFolderCache['root'] = {
+            ...newFolderCache['root'],
+            children: items
+          };
+        }
+      } else {
         const parent = newFolderCache[currentFolderId];
         if (parent) {
           newFolderCache[currentFolderId] = {
             ...parent,
             children: items
           };
-          StateLogger.info('Library', 'Updating folder cache', {
-            folderId: currentFolderId,
-            itemCount: items.length,
-            cacheSize: Object.keys(newFolderCache).length
-          });
+        }
+      }
+      
           setLibraryState(state => ({
             ...state,
             folderCache: newFolderCache
           }));
-        }
-      }
       
       setFolderItems(items);
-      setLastLoadedFolder(currentFolderId);
-      
-      StateLogger.info('Library', 'Items loaded successfully', {
-        folderId: currentFolderId,
-        itemCount: items.length,
-        fileCount: items.filter(i => i.type === 'file').length,
-        folderCount: items.filter(i => i.type === 'folder').length,
-        tSinceMountMs: startupT0Ref.current ? Number((performance.now() - startupT0Ref.current).toFixed(1)) : undefined
-      });
+      // lastLoadedFolder wurde bereits oben optimistisch gesetzt
       
     } catch (error) {
       if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
@@ -321,53 +304,64 @@ export function Library() {
     const isReady = !!providerInstance && libraryStatus === 'ready';
     
     if (!isReady) {
-      NavigationLogger.debug('Library', 'Waiting for initialization', {
-        hasProvider: !!providerInstance,
-        status: libraryStatus
-      });
+      return;
+    }
+
+    // Prüfe, ob eine folderId in der URL steht
+    const folderIdFromUrl = searchParams?.get('folderId');
+    
+    // Wenn eine folderId in der URL steht und currentFolderId noch 'root' ist,
+    // verhindere das Laden von Root-Items (wird durch navigateToFolder geladen)
+    // Dies verhindert unnötige Root-Loads beim direkten Navigieren zu einem Unterordner
+    // WICHTIG: Prüfe direkt folderIdFromUrl, nicht urlInitAppliedRef (Race-Condition vermeiden)
+    if (folderIdFromUrl && currentFolderId === 'root') {
+      return;
+    }
+
+    // Root-Items laden nur wenn:
+    // 1. Wir tatsächlich im Root sind UND
+    // 2. Root noch nicht geladen wurde UND
+    // 3. Keine folderId in der URL steht (wird durch navigateToFolder geladen)
+    if (currentFolderId === 'root' && lastLoadedFolder !== 'root' && !loadInFlightRef.current) {
+      loadItems();
       return;
     }
 
     // Wenn eine folderId in der URL steht und noch nicht angewendet wurde,
-    // verhindere das initiale Laden von "root" (vermeidet Doppel-Load)
-    const folderIdFromUrl = searchParams?.get('folderId');
-    if (!urlInitAppliedRef.current && folderIdFromUrl && folderIdFromUrl !== currentFolderId) {
-      NavigationLogger.debug('debug@init', 'Skip initial root load; URL folderId pending', {
-        folderIdFromUrl,
-        currentFolderId,
-        lastLoadedFolder
-      });
+    // verhindere das initiale Laden des aktuellen Ordners (vermeidet Doppel-Load)
+    if (folderIdFromUrl && folderIdFromUrl !== currentFolderId && currentFolderId !== 'root') {
       return;
     }
 
     // Nur laden wenn noch nicht geladen
     if (lastLoadedFolder !== currentFolderId && !loadInFlightRef.current) {
-      UILogger.info('Library', 'Initial load triggered', {
-        currentFolderId,
-        lastLoadedFolder,
-        tSinceMountMs: startupT0Ref.current ? Number((performance.now() - startupT0Ref.current).toFixed(1)) : undefined
-      });
-      NavigationLogger.info('Library', 'Loading initial items', {
-        folderId: currentFolderId
-      });
       loadItems();
     }
   }, [providerInstance, libraryStatus, currentFolderId, lastLoadedFolder, activeLibraryId, loadItems, searchParams]);
 
   // Zusätzlicher Reset bei Bibliothekswechsel (robust gegen Status-Race)
+  // WICHTIG: Nur bei Bibliothekswechsel, nicht bei Ordnerwechsel!
+  // currentFolderId wird NICHT in die Dependencies aufgenommen, da sonst der Cache
+  // bei jedem Ordnerwechsel zurückgesetzt wird, was den Breadcrumb-Pfad löscht
+  const prevActiveLibraryIdRef = React.useRef<string | undefined>(activeLibraryId);
   useEffect(() => {
     if (!activeLibraryId) return;
-    StateLogger.info('Library', 'Active library changed - reset initial load state', {
-      activeLibraryId,
-      currentFolderId
-    });
+    
+    // Nur zurücksetzen, wenn sich die Bibliothek wirklich geändert hat
+    const libraryChanged = prevActiveLibraryIdRef.current !== undefined && 
+                          prevActiveLibraryIdRef.current !== activeLibraryId;
+    
+    if (libraryChanged) {
     setLastLoadedFolder(null);
     setFolderItems([]);
     setLibraryState(state => ({ ...state, folderCache: {} }));
     // WICHTIG: Ordnerauswahl und Shadow-Twin zurücksetzen
     setSelectedFile(null);
     setSelectedShadowTwin(null);
-  }, [activeLibraryId, setLastLoadedFolder, setFolderItems, setLibraryState, currentFolderId, setSelectedFile, setSelectedShadowTwin]);
+    }
+    
+    prevActiveLibraryIdRef.current = activeLibraryId;
+  }, [activeLibraryId, setLastLoadedFolder, setFolderItems, setLibraryState, setSelectedFile, setSelectedShadowTwin]);
 
   // Reset Cache wenn sich die Library ändert
   useEffect(() => {

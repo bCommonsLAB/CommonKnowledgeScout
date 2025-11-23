@@ -205,8 +205,7 @@ export function slugifyIndexName(input: string): string {
  */
 export function getVectorIndexForLibrary(
   library: { id: string; label: string },
-  chatConfig?: LibraryChatConfig,
-  userEmail?: string
+  chatConfig?: LibraryChatConfig
 ): string {
   // Globale Override-Möglichkeit für schnelle Fehleranalyse/Dev
   const envOverride = (process.env.PINECONE_INDEX_OVERRIDE || '').trim()

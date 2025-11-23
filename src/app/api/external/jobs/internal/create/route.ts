@@ -17,7 +17,16 @@ export async function POST(request: NextRequest) {
     const userEmail = typeof body.userEmail === 'string' ? body.userEmail : 'test@example.com'
     const targetLanguage = typeof body.targetLanguage === 'string' ? body.targetLanguage : 'de'
     const extractionMethod = typeof body.extractionMethod === 'string' ? body.extractionMethod : 'native'
-    const includeImages = Boolean(body.includeImages)
+    
+    // Für Mistral OCR: Beide Parameter standardmäßig true
+    const isMistralOcr = extractionMethod === 'mistral_ocr';
+    const includeOcrImages = body.includeOcrImages !== undefined
+      ? Boolean(body.includeOcrImages)
+      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    const includePageImages = body.includePageImages !== undefined
+      ? Boolean(body.includePageImages)
+      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    const includeImages = Boolean(body.includeImages) // Rückwärtskompatibilität
 
     if (!libraryId) return NextResponse.json({ error: 'libraryId erforderlich' }, { status: 400 })
 
@@ -30,7 +39,13 @@ export async function POST(request: NextRequest) {
       jobId,
       libraryId,
       source: { mediaType: 'pdf', mimeType: 'application/pdf', name: fileName, parentId },
-      options: { targetLanguage, extractionMethod, includeImages }
+      options: { 
+        targetLanguage, 
+        extractionMethod, 
+        includeOcrImages, 
+        includePageImages, 
+        includeImages // Rückwärtskompatibilität
+      }
     } satisfies ExternalJob['correlation']
 
     const job: ExternalJob = {
@@ -51,7 +66,13 @@ export async function POST(request: NextRequest) {
         { name: 'store_shadow_twin', status: 'pending' },
         { name: 'ingest_rag', status: 'pending' },
       ],
-      parameters: { targetLanguage, extractionMethod, includeImages }
+      parameters: { 
+        targetLanguage, 
+        extractionMethod, 
+        includeOcrImages, 
+        includePageImages, 
+        includeImages // Rückwärtskompatibilität
+      }
     }
     await repo.create(job)
 

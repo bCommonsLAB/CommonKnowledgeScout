@@ -1120,11 +1120,21 @@ export class OneDriveProvider implements StorageProvider {
         itemPath = `root:/${encodedPath}`
         
         // Versuche Item-ID über Pfad zu erhalten
-        const pathItemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/${itemPath}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        })
+        let pathItemResponse: Response;
+        try {
+          pathItemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/${itemPath}`, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`
+            }
+          });
+        } catch (fetchError) {
+          // Netzwerkfehler abfangen
+          throw new StorageError(
+            `Netzwerkfehler beim Abrufen des Pfads "${fullPath}": ${fetchError instanceof Error ? fetchError.message : 'Failed to fetch'}`,
+            "NETWORK_ERROR",
+            this.id
+          );
+        }
 
         if (pathItemResponse.ok) {
           const pathItem = await pathItemResponse.json() as OneDriveFile
@@ -1151,11 +1161,21 @@ export class OneDriveProvider implements StorageProvider {
       }
 
       // Dateiinformationen abrufen, um den MIME-Typ zu erhalten
-      const itemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
+      let itemResponse: Response;
+      try {
+        itemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+      } catch (fetchError) {
+        // Netzwerkfehler abfangen
+        throw new StorageError(
+          `Netzwerkfehler beim Abrufen der Dateiinformationen: ${fetchError instanceof Error ? fetchError.message : 'Failed to fetch'}`,
+          "NETWORK_ERROR",
+          this.id
+        );
+      }
 
       if (!itemResponse.ok) {
         const errorData = await itemResponse.json();
@@ -1177,11 +1197,21 @@ export class OneDriveProvider implements StorageProvider {
       }
 
       // Dateiinhalt abrufen
-      const contentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/content`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
+      let contentResponse: Response;
+      try {
+        contentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/content`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+      } catch (fetchError) {
+        // Netzwerkfehler abfangen
+        throw new StorageError(
+          `Netzwerkfehler beim Abrufen des Dateiinhalts: ${fetchError instanceof Error ? fetchError.message : 'Failed to fetch'}`,
+          "NETWORK_ERROR",
+          this.id
+        );
+      }
 
       if (!contentResponse.ok) {
         throw new StorageError(
@@ -1199,6 +1229,14 @@ export class OneDriveProvider implements StorageProvider {
       console.error('[OneDriveProvider] getBinary Fehler:', error);
       if (error instanceof StorageError) {
         throw error;
+      }
+      // Netzwerkfehler erkennen (Failed to fetch)
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new StorageError(
+          "Netzwerkfehler: Verbindung zu OneDrive konnte nicht hergestellt werden. Bitte überprüfen Sie Ihre Internetverbindung.",
+          "NETWORK_ERROR",
+          this.id
+        );
       }
       throw new StorageError(
         error instanceof Error ? error.message : "Unbekannter Fehler beim Abrufen des Binärinhalts",

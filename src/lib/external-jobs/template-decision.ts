@@ -98,6 +98,7 @@ export async function decideTemplateRun(args: TemplateDecisionArgs): Promise<Tem
     }
     if (policies.metadata === 'force') return { shouldRun: true, reason: 'policy_force' }
     if (policies.metadata === 'skip') return { shouldRun: false, reason: 'policy_skip' }
+    if (policies.metadata === 'ignore') return { shouldRun: false, reason: 'policy_ignore' }
     if (policies.metadata === 'auto') {
       if (isFrontmatterCompleteFromBody) return { shouldRun: false, reason: 'frontmatter_complete_body' }
       if (gateExists) return { shouldRun: false, reason: gateReason || 'artifact_gate_exists' }

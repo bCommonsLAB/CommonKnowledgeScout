@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { loadPdfDefaults } from "@/lib/pdf-defaults";
 import { useStorage } from "@/contexts/storage-context";
 import { useAtom } from "jotai";
+import { useRootItems } from "@/hooks/use-root-items";
 import { pdfOverridesAtom } from "@/atoms/pdf-defaults";
 import type { PdfTransformOptions } from "@/lib/transform/transform-service";
 import {
@@ -28,6 +29,7 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
   const { t } = useTranslation()
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const { provider, listItems } = useStorage();
+  const getRootItems = useRootItems();
   const [templates, setTemplates] = React.useState<string[]>([]);
   const [overrides, setOverrides] = useAtom(pdfOverridesAtom);
   const [values, setValues] = React.useState<Partial<PdfTransformOptions>>({});
@@ -44,7 +46,7 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
     async function loadTemplates() {
       try {
         if (!provider) return;
-        const root = await listItems('root');
+        const root = await getRootItems();
         const folder = root.find(it => it.type === 'folder' && it.metadata.name === 'templates');
         if (!folder) { setTemplates([]); return; }
         const items = await listItems(folder.id);
@@ -56,7 +58,7 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
     }
     void loadTemplates();
     return () => { cancelled = true; };
-  }, [provider, listItems, open]);
+  }, [provider, getRootItems, open]);
 
   function update(partial: Partial<PdfTransformOptions>) {
     setValues(prev => ({ ...prev, ...partial }));
@@ -71,7 +73,10 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
       fileExtension: 'md',
       extractionMethod: typeof values.extractionMethod === 'string' ? values.extractionMethod : 'native',
       useCache: values.useCache ?? true,
-      includeImages: values.includeImages ?? false,
+      // Für Mistral OCR: Beide Parameter standardmäßig true
+      includeOcrImages: values.extractionMethod === 'mistral_ocr' ? true : undefined,
+      includePageImages: values.extractionMethod === 'mistral_ocr' ? true : undefined,
+      includeImages: values.includeImages ?? false, // Rückwärtskompatibilität
       useIngestionPipeline: values.useIngestionPipeline ?? false,
       template: typeof values.template === 'string' ? values.template : undefined,
     };
@@ -120,8 +125,19 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
               Cache verwenden
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={!!values.includeImages} onCheckedChange={(c) => update({ includeImages: !!c })} />
-              Bilder extrahieren
+              <Checkbox 
+                checked={values.extractionMethod === 'mistral_ocr' 
+                  ? (values.includeOcrImages !== undefined ? values.includeOcrImages : true)
+                  : (!!values.includeImages)} 
+                onCheckedChange={(c) => {
+                  if (values.extractionMethod === 'mistral_ocr') {
+                    update({ includeOcrImages: !!c, includePageImages: !!c });
+                  } else {
+                    update({ includeImages: !!c });
+                  }
+                }} 
+              />
+              {values.extractionMethod === 'mistral_ocr' ? 'OCR & Seiten-Bilder extrahieren' : 'Bilder extrahieren'}
             </label>
           </div>
           <div className="space-y-2">

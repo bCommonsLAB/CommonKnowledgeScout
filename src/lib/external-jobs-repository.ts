@@ -197,6 +197,14 @@ export class ExternalJobsRepository {
     );
   }
 
+  async setShadowTwinState(jobId: string, shadowTwinState: ExternalJob['shadowTwinState']): Promise<void> {
+    const col = await this.getCollection();
+    await col.updateOne(
+      { jobId },
+      { $set: { shadowTwinState, updatedAt: new Date() } }
+    );
+  }
+
   async get(jobId: string): Promise<ExternalJob | null> {
     const col = await this.getCollection();
     return col.findOne({ jobId });

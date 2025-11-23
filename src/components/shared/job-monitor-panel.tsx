@@ -258,8 +258,21 @@ export function JobMonitorPanel() {
             upsertJobStatus({ itemId: evt.sourceItemId, status: evt.status });
           }
           // Refresh der Dateiliste triggern, falls serverseitig Ordner-ID mitgeliefert wird
+          // WICHTIG: Refresh sowohl Parent als auch Shadow-Twin-Verzeichnis (falls vorhanden)
           if (evt.refreshFolderId && (evt.status === 'completed' || evt.message === 'stored_local')) {
-            try { window.dispatchEvent(new CustomEvent('library_refresh', { detail: { folderId: evt.refreshFolderId } })); } catch {}
+            try {
+              // Refresh alle betroffenen Ordner (Parent + Shadow-Twin)
+              const refreshFolderIds = (evt as { refreshFolderIds?: string[] }).refreshFolderIds || [evt.refreshFolderId]
+              refreshFolderIds.forEach(folderId => {
+                window.dispatchEvent(new CustomEvent('library_refresh', { 
+                  detail: { 
+                    folderId,
+                    shadowTwinFolderId: (evt as { shadowTwinFolderId?: string | null }).shadowTwinFolderId || null,
+                    triggerShadowTwinAnalysis: true // Flag für Shadow-Twin-Analyse-Neuberechnung
+                  } 
+                }))
+              })
+            } catch {}
           }
           setItems(prev => {
             const idx = prev.findIndex(p => p.jobId === evt.jobId);

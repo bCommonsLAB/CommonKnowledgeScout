@@ -25,6 +25,7 @@ import {
 } from "@/atoms/template-atom"
 import { useStorage } from "@/contexts/storage-context"
 import { templateContextDocsAtom } from '@/atoms/template-context-atom'
+import { useRootItems } from '@/hooks/use-root-items'
 import { Checkbox } from "@/components/ui/checkbox"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -78,6 +79,7 @@ export function TemplateManagement() {
     provider: providerInstance, 
     listItems
   } = useStorage()
+  const getRootItems = useRootItems()
   const contextDocs = useAtomValue(templateContextDocsAtom)
 
   const form = useForm<TemplateFormValues>({
@@ -136,7 +138,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
     try {
       console.log('[TemplateManagement] Suche nach Templates-Ordner...');
-      const rootItems = await listItems('root');
+      const rootItems = await getRootItems();
       const templatesFolder = rootItems.find(item => 
         item.type === 'folder' && item.metadata.name === 'templates'
       );
@@ -655,7 +657,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
   async function ensurePromptTestsFolder(): Promise<string> {
     if (!providerInstance) throw new Error('Kein Provider verfügbar')
-    const roots = await listItems('root')
+    const roots = await getRootItems()
     const found = roots.find(it => it.type === 'folder' && it.metadata.name === 'prompt-tests')
     if (found) return found.id
     const created = await providerInstance.createFolder('root', 'prompt-tests')

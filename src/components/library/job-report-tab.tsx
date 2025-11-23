@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react'
+import { useAtomValue } from 'jotai'
 import { IngestionBookDetail } from './ingestion-book-detail'
 import { UILogger } from '@/lib/debug/logger'
 import type { StorageProvider } from '@/lib/storage/types'
@@ -8,6 +9,8 @@ import { MarkdownPreview } from '@/components/library/markdown-preview'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
+import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom'
+import { useRootItems } from '@/hooks/use-root-items'
 
 interface JobReportTabProps {
   libraryId: string
@@ -48,17 +51,77 @@ interface JobDto {
 export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode = 'merged', viewMode = 'full', mdFileId, onJumpTo, rawContent, forcedTab }: JobReportTabProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Hole Shadow-Twin-State für die aktuelle Datei, um das Bildverzeichnis zu bestimmen
+  const shadowTwinStates = useAtomValue(shadowTwinStateAtom)
+  const shadowTwinState = shadowTwinStates.get(fileId)
+  
+  // State für Fallback-Suche des Shadow-Twin-Verzeichnisses
+  const [fallbackFolderId, setFallbackFolderId] = useState<string | null>(null)
+  
+  // Fallback: Wenn shadowTwinFolderId nicht verfügbar ist, versuche das Shadow-Twin-Verzeichnis zu finden
+  useEffect(() => {
+    if (shadowTwinState?.shadowTwinFolderId || !provider || !fileName) return
+    
+    let cancelled = false
+    async function findFolder() {
+      try {
+        // Hole das Item, um parentId zu bekommen
+        const item = await provider.getItemById(fileId)
+        if (!item || cancelled) return
+        
+        const { findShadowTwinFolder } = await import('@/lib/storage/shadow-twin')
+        const folder = await findShadowTwinFolder(item.parentId, fileName, provider)
+        if (folder && !cancelled) {
+          setFallbackFolderId(folder.id)
+          FileLogger.info('JobReportTab', 'Shadow-Twin-Verzeichnis via Fallback gefunden', {
+            fileId,
+            fileName,
+            folderId: folder.id,
+            folderName: folder.metadata.name
+          })
+        }
+      } catch (error) {
+        FileLogger.error('JobReportTab', 'Fehler beim Finden des Shadow-Twin-Verzeichnisses', error)
+      }
+    }
+    void findFolder()
+    return () => { cancelled = true }
+  }, [fileId, fileName, provider, shadowTwinState?.shadowTwinFolderId])
+  
+  // Verwende shadowTwinFolderId wenn verfügbar, sonst Fallback, sonst 'root'
+  const currentFolderId = shadowTwinState?.shadowTwinFolderId || fallbackFolderId || 'root'
+  const getRootItems = useRootItems()
   const [job, setJob] = useState<JobDto | null>(null)
   const [templateFields, setTemplateFields] = useState<string[] | null>(null)
   const [frontmatterMeta, setFrontmatterMeta] = useState<Record<string, unknown> | null>(null)
   const [section] = useState<'meta' | 'chapters'>('meta')
   const [parseErrors, setParseErrors] = useState<string[]>([])
   const [fullContent, setFullContent] = useState<string>('')
+  const [debouncedContent, setDebouncedContent] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'markdown' | 'meta' | 'chapters' | 'ingestion' | 'process'>(forcedTab || 'markdown')
 
   useEffect(() => {
     if (forcedTab) setActiveTab(forcedTab)
   }, [forcedTab])
+
+  // Debounce Content-Änderungen, um unnötige Re-Renders während der Job-Verarbeitung zu vermeiden
+  // WICHTIG: Wenn der Job abgeschlossen ist, rendere sofort (kein Debounce)
+  useEffect(() => {
+    const isJobCompleted = job?.status === 'completed' || job?.status === 'failed'
+    
+    if (isJobCompleted) {
+      // Job abgeschlossen: Rendere sofort ohne Debounce
+      setDebouncedContent(fullContent)
+    } else {
+      // Job läuft noch: Debounce Content-Änderungen (500ms)
+      const timeoutId = setTimeout(() => {
+        setDebouncedContent(fullContent)
+      }, 500)
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [fullContent, job?.status])
 
   const stripFrontmatter = (markdown: string): string => markdown.replace(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/, '')
 
@@ -152,7 +215,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
           : undefined
         const templateName = typeof tpl === 'string' ? tpl : undefined
         if (!templateName || !provider) return
-        const rootItems = await provider.listItemsById('root')
+        const rootItems = await getRootItems()
         const templatesFolder = rootItems.find(it => it.type === 'folder' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'templates'))
         if (!templatesFolder) return
         const tplItems = await provider.listItemsById(templatesFolder.id)
@@ -264,9 +327,41 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
 
           <TabsContent value="markdown" className="mt-3">
             <div className="border rounded-md">
-              {fullContent && fullContent.trim().length > 0 ? (
-                <MarkdownPreview content={stripFrontmatter(fullContent)} />
-              ) : null}
+              {(() => {
+                // Prüfe Verarbeitungsstatus: Rendere nur wenn 'ready' oder wenn kein Status vorhanden (Rückwärtskompatibilität)
+                const processingStatus = shadowTwinState?.processingStatus;
+                const isReady = processingStatus === 'ready' || processingStatus === undefined;
+                const isProcessing = processingStatus === 'processing';
+                const isError = processingStatus === 'error';
+                
+                if (isError) {
+                  return (
+                    <div className="p-4 text-sm text-destructive">
+                      Fehler bei der Verarbeitung: {shadowTwinState?.analysisError || 'Unbekannter Fehler'}
+                    </div>
+                  );
+                }
+                
+                if (isProcessing) {
+                  return (
+                    <div className="p-4 text-sm text-muted-foreground">
+                      Verarbeitung läuft... Bitte warten Sie, bis der Job abgeschlossen ist.
+                    </div>
+                  );
+                }
+                
+                if (debouncedContent && debouncedContent.trim().length > 0 && isReady) {
+                  return (
+                    <MarkdownPreview 
+                      content={stripFrontmatter(debouncedContent)} 
+                      currentFolderId={currentFolderId}
+                      provider={provider}
+                    />
+                  );
+                }
+                
+                return null;
+              })()}
             </div>
           </TabsContent>
 

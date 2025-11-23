@@ -2,74 +2,134 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>http://localhost:3000/docs/index.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/github-branch-protection-setup.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/mongodb-indexes.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/_analysis/chat-orchestration-flow.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/_analysis/cleanup-summary.html</loc>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_analysis/dependencies.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_analysis/documentation-progress.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/_analysis/documentation-updates-linter-fixes.html</loc>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/_analysis/file-inventory.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/_analysis/story-mode-initial-load-analysis.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/_analysis/terminal-logs-analysis.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/_analysis/unused-code-analysis.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/_analysis/unused-components-explore.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/browser-test-analysis-latest.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/browser-test-analysis.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/library-root-loading-analysis.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/performance-analysis-loading.html</loc>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/architecture/dependency-graph.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/architecture/module-hierarchy.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/pdf-transformation-phases.html</loc>
+         <lastmod>2025-11-23</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/shadow-twin.html</loc>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/file-index.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/modules/chat.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/modules/library.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/modules/storage.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/index.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/batch-operations.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/chat-exploration.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/file-transformation-media.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/file-transformation-pdf.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/library-setup.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/publishing.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/web-scraping.html</loc>
-         <lastmod>2025-11-09</lastmod>
+         <lastmod>2025-11-23</lastmod>
     </url>
 </urlset>

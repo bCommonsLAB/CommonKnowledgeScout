@@ -49,7 +49,15 @@ export async function handleProgressIfAny(
   const message = (typeof (body as { message?: unknown })?.message === 'string' && (body as { message: string }).message) || (typeof (body?.data as { message?: unknown })?.message === 'string' && (body!.data as { message: string }).message) || undefined
 
   const hasError = !!(body as { error?: unknown })?.error
-  const hasFinalPayload = !!((body?.data as { extracted_text?: unknown })?.extracted_text || (body?.data as { images_archive_url?: unknown })?.images_archive_url || (body as { status?: unknown })?.status === 'completed' || body?.phase === 'template_completed')
+  // WICHTIG: Bei Mistral OCR wird pages_archive_url verwendet, nicht images_archive_url
+  // Beide URLs sollten als finales Payload erkannt werden
+  const hasFinalPayload = !!(
+    (body?.data as { extracted_text?: unknown })?.extracted_text || 
+    (body?.data as { images_archive_url?: unknown })?.images_archive_url || 
+    (body?.data as { pages_archive_url?: unknown })?.pages_archive_url ||
+    (body as { status?: unknown })?.status === 'completed' || 
+    body?.phase === 'template_completed'
+  )
 
   if (!hasFinalPayload && !hasError && (progressValue !== undefined || phase || message)) {
     // Sicherstellen, dass die Extract-Phase als running markiert ist (Span-Erzeugung)
@@ -60,7 +68,12 @@ export async function handleProgressIfAny(
         await repo.updateStep(jobId, 'extract_pdf', { status: 'running', startedAt: new Date() })
       }
     } catch {}
-    bumpWatchdog(jobId)
+    
+    // WICHTIG: Watchdog verlängern bei postprocessing Phase, besonders bei großen Dokumenten
+    // Bei großen Dokumenten kann das Speichern der Bilder sehr lange dauern
+    const isPostprocessing = phase === 'postprocessing'
+    const extendedTimeout = isPostprocessing ? 300_000 : undefined // 5 Minuten für postprocessing
+    bumpWatchdog(jobId, extendedTimeout)
     bufferLog(jobId, { phase: phase || 'progress', progress: typeof progressValue === 'number' ? Math.max(0, Math.min(100, progressValue)) : undefined, message })
     try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'progress', attributes: { phase: phase || 'progress', progress: progressValue, message, workerId } }) } catch {}
     getJobEventBus().emitUpdate(job.userEmail, {

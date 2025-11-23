@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { useAtomValue } from "jotai";
 import { activeLibraryAtom, selectedFileAtom, libraryStatusAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
+import { activeLibraryIdAtom } from "@/atoms/library-atom";
+import { useRootItems } from "@/hooks/use-root-items";
 import { TransformService, TransformSaveOptions, TransformResult } from "@/lib/transform/transform-service";
 import { transformTextWithTemplate } from "@/lib/secretary/client";
 import { Label } from "@/components/ui/label";
@@ -71,6 +73,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   const [customTemplateNames, setCustomTemplateNames] = React.useState<string[]>([]);
   const libraryStatus = useAtomValue(libraryStatusAtom);
   const { listItems } = useStorage();
+  const getRootItems = useRootItems();
   
   // Text State mit entferntem Frontmatter initialisieren (strikt)
   const [text, setText] = React.useState(() => {
@@ -211,7 +214,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
 
       try {
         // Templates-Ordner finden oder erstellen
-        const rootItems = await listItems('root');
+        const rootItems = await getRootItems();
         let templatesFolder = rootItems.find(item => 
           item.type === 'folder' && item.metadata.name === 'templates'
         );
@@ -241,7 +244,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     }
 
     loadTemplatesIfNeeded();
-  }, [provider, libraryStatus, activeLibrary, listItems]);
+  }, [provider, libraryStatus, activeLibrary, getRootItems]);
 
   // Aktualisiere den Dateinamen, wenn das Template geändert wird
   React.useEffect(() => {
@@ -341,7 +344,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         
         try {
           // Templates-Ordner finden
-          const rootItems = await listItems('root');
+          const rootItems = await getRootItems();
           const templatesFolder = rootItems.find(item => 
             item.type === 'folder' && item.metadata.name === 'templates'
           );
@@ -851,12 +854,106 @@ function getYouTubeId(url: string): string | null {
 }
 
 /**
+ * Konvertiert einen relativen Bildpfad zu einer Storage-API-URL
+ * @param imagePath Relativer Bildpfad (z.B. "img-0.jpeg")
+ * @param currentFolderId ID des aktuellen Verzeichnisses (wo die Markdown-Datei liegt)
+ * @param libraryId Die Library-ID
+ * @returns Storage-API-URL oder ursprünglicher Pfad bei Fehler
+ */
+function resolveImageUrl(imagePath: string, currentFolderId: string, libraryId: string | undefined): string {
+  if (!imagePath || !libraryId) return imagePath;
+  
+  // Prüfe ob es bereits eine absolute URL ist (HTTP/HTTPS oder bereits aufgelöste Storage-API-URL)
+  // Berücksichtige auch HTML-encoded URLs (&amp; statt &)
+  const decodedPath = imagePath.replace(/&amp;/g, '&');
+  if (decodedPath.startsWith('http://') || 
+      decodedPath.startsWith('https://') || 
+      decodedPath.startsWith('/api/storage/')) {
+    return imagePath; // Gib die ursprüngliche URL zurück (mit Encoding falls vorhanden)
+  }
+  
+  // Normalisiere den Pfad (entferne führende/trailing Slashes)
+  const normalizedPath = imagePath.replace(/^\/+|\/+$/g, '');
+  
+  // Prüfe auf Path-Traversal-Versuche
+  if (normalizedPath.includes('..')) {
+    console.warn('[MarkdownPreview] Path traversal detected, ignoring:', normalizedPath);
+    return imagePath;
+  }
+  
+  // Konstruiere den vollständigen Pfad relativ zum aktuellen Verzeichnis
+  // WICHTIG: currentFolderId ist bereits base64-kodiert, muss zuerst dekodiert werden
+  let fullPath: string;
+  if (currentFolderId === 'root') {
+    fullPath = normalizedPath;
+  } else {
+    try {
+      // Dekodiere currentFolderId von base64 zu UTF-8 String
+      // atob() gibt einen binären String zurück, der dann mit TextDecoder zu UTF-8 dekodiert werden muss
+      const binaryString = atob(currentFolderId);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const decodedFolderPath = new TextDecoder().decode(bytes);
+      // Füge den Bildpfad hinzu
+      fullPath = `${decodedFolderPath}/${normalizedPath}`;
+    } catch (error) {
+      // Falls Dekodierung fehlschlägt, verwende currentFolderId direkt (Fallback)
+      console.warn('[MarkdownPreview] Fehler beim Dekodieren von currentFolderId:', error);
+      fullPath = `${currentFolderId}/${normalizedPath}`;
+    }
+  }
+  
+  // Debug-Log für Bild-URL-Auflösung (nur wenn currentFolderId 'root' ist, um Problem zu identifizieren)
+  if (currentFolderId === 'root') {
+    FileLogger.debug('MarkdownPreview', 'Bild-URL-Auflösung mit root', {
+      imagePath,
+      currentFolderId,
+      normalizedPath,
+      fullPath,
+      libraryId
+    });
+  }
+  
+  try {
+    // Konvertiere UTF-8-String zu base64-kodierter fileId
+    const utf8Bytes = new TextEncoder().encode(fullPath);
+    let binary = '';
+    for (let i = 0; i < utf8Bytes.length; i++) {
+      binary += String.fromCharCode(utf8Bytes[i]);
+    }
+    const fileId = btoa(binary);
+    
+    // Baue Storage-API-URL
+    const resolvedUrl = `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(libraryId)}`;
+    
+    // Debug-Log für erfolgreiche Auflösung (nur wenn currentFolderId nicht 'root' ist)
+    if (currentFolderId !== 'root') {
+      FileLogger.debug('MarkdownPreview', 'Bild-URL erfolgreich aufgelöst', {
+        imagePath,
+        currentFolderId,
+        fullPath,
+        fileId,
+        resolvedUrl
+      });
+    }
+    
+    return resolvedUrl;
+  } catch (error) {
+    console.error('[MarkdownPreview] Fehler beim Konvertieren des Bildpfads:', error);
+    return imagePath;
+  }
+}
+
+/**
  * Converts Obsidian paths and prepares markdown content
  */
 function processObsidianContent(
   content: string, 
   currentFolderId: string = 'root',
-  provider: StorageProvider | null = null
+  provider: StorageProvider | null = null,
+  libraryId: string | undefined = undefined
 ): string {
   if (!provider) return content;
 
@@ -916,8 +1013,36 @@ function processObsidianContent(
     }
   );
 
-  // Add base URL to relative image paths
-  if (currentFolderId) {
+  // Resolve relative image paths to Storage API URLs
+  if (currentFolderId && libraryId) {
+    // Markdown image syntax: ![alt](path)
+    content = content.replace(
+      /!\[(.*?)\]\((?!http)(.*?)\)/g,
+      (match, alt, imagePath) => {
+        const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, libraryId);
+        return `![${alt}](${resolvedUrl})`;
+      }
+    );
+    
+    // HTML image tags: <img-0.jpeg> or <img src="img-0.jpeg">
+    content = content.replace(
+      /<img-(\d+\.(?:jpeg|jpg|png|gif|webp))>/gi,
+      (match, imagePath) => {
+        const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, libraryId);
+        return `![${imagePath}](${resolvedUrl})`;
+      }
+    );
+    
+    // HTML img tags with src attribute: <img src="img-0.jpeg">
+    content = content.replace(
+      /<img\s+src=["'](?!http)([^"']+)["'][^>]*>/gi,
+      (match, imagePath) => {
+        const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, libraryId);
+        return `<img src="${resolvedUrl}">`;
+      }
+    );
+  } else if (currentFolderId) {
+    // Fallback: Add base URL to relative image paths (ohne libraryId)
     content = content.replace(
       /!\[(.*?)\]\((?!http)(.*?)\)/g,
       `![$1](${currentFolderId}/$2)`
@@ -950,6 +1075,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   compact = false
 }: MarkdownPreviewProps) {
   const currentItem = useAtomValue(selectedFileAtom);
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [activeTab, setActiveTab] = React.useState<string>("preview");
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
@@ -967,9 +1093,11 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       activeTab,
       hasProvider: !!provider,
       hasOnTransform: !!onTransform,
-      hasOnRefreshFolder: !!onRefreshFolder
+      hasOnRefreshFolder: !!onRefreshFolder,
+      currentFolderIdProp: currentFolderId,
+      currentFolderIdType: typeof currentFolderId
     });
-  }, [content.length, currentItem?.id, currentItem?.metadata.name, activeTab, provider, onTransform, onRefreshFolder]);
+  }, [content.length, currentItem?.id, currentItem?.metadata.name, activeTab, provider, onTransform, onRefreshFolder, currentFolderId]);
   
   // Bei Änderung der Datei-ID auf Vorschau-Tab zurücksetzen
   React.useEffect(() => {
@@ -994,13 +1122,81 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     const processedContent = processObsidianContent(
       mainContent,
       currentFolderId,
-      provider
+      provider,
+      activeLibraryId
     );
 
     const rendered = md.render(processedContent);
     
+    // Nachbearbeitung: Ersetze Bild-URLs im gerenderten HTML
+    // Remarkable lässt HTML-Tags durch, daher müssen wir die Bild-URLs im HTML ersetzen
+    if (currentFolderId && activeLibraryId) {
+      // Ersetze ALLE <img> Tags im gerenderten HTML (auch die von Remarkable generierten)
+      // WICHTIG: Füge loading="lazy" hinzu, um Bilder nur zu laden, wenn sie im Viewport sind
+      // WICHTIG: Füge onerror Handler hinzu, um fehlgeschlagene Requests nicht zu wiederholen
+      let processedHtml = rendered.replace(
+        /<img\s+([^>]*?)>/gi,
+        (match, attributes) => {
+          // Extrahiere src-Attribut (falls vorhanden)
+          const srcMatch = attributes.match(/src=["']([^"']+)["']/i);
+          if (!srcMatch) return match; // Kein src-Attribut, überspringe
+          
+          const imagePath = srcMatch[1];
+          // Überspringe bereits absolute URLs (http/https oder Storage-API)
+          if (imagePath.startsWith('http://') || 
+              imagePath.startsWith('https://') || 
+              imagePath.startsWith('/api/storage/')) {
+            // Auch für absolute URLs: loading="lazy" hinzufügen, falls nicht vorhanden
+            if (!attributes.includes('loading=')) {
+              return `<img ${attributes} loading="lazy">`;
+            }
+            return match;
+          }
+          
+          // Resolve relative URLs
+          const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId);
+          
+          // Ersetze src-Attribut
+          let updatedAttributes = attributes.replace(/src=["'][^"']+["']/i, `src="${resolvedUrl}"`);
+          
+          // Füge loading="lazy" hinzu, falls nicht vorhanden
+          if (!updatedAttributes.includes('loading=')) {
+            updatedAttributes = `loading="lazy" ${updatedAttributes}`;
+          }
+          
+          // Füge onerror Handler hinzu, falls nicht vorhanden
+          if (!updatedAttributes.includes('onerror=')) {
+            updatedAttributes = `${updatedAttributes} onerror="this.style.display='none'"`;
+          }
+          
+          return `<img ${updatedAttributes}>`;
+        }
+      );
+      
+      // Ersetze auch einfache <img-0.jpeg> Tags (falls Remarkable sie nicht konvertiert)
+      // Diese werden möglicherweise als Text gerendert, nicht als HTML-Tag
+      processedHtml = processedHtml.replace(
+        /&lt;img-(\d+\.(?:jpeg|jpg|png|gif|webp))&gt;/gi,
+        (match, imagePath) => {
+          const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId);
+          return `<img src="${resolvedUrl}" alt="${imagePath}" loading="lazy" onerror="this.style.display='none'">`;
+        }
+      );
+      
+      // Ersetze auch als Text gerenderte <img-0.jpeg> Tags (nicht HTML-encoded)
+      processedHtml = processedHtml.replace(
+        /<img-(\d+\.(?:jpeg|jpg|png|gif|webp))>/gi,
+        (match, imagePath) => {
+          const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId);
+          return `<img src="${resolvedUrl}" alt="${imagePath}" loading="lazy" onerror="this.style.display='none'">`;
+        }
+      );
+      
+      return processedHtml;
+    }
+    
     return rendered;
-  }, [content, currentFolderId, provider]);
+  }, [content, currentFolderId, provider, activeLibraryId]);
   
   // Logging nach dem Rendern in useEffect
   React.useEffect(() => {

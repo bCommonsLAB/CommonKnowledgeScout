@@ -38,6 +38,7 @@ Complete index of all documented source files with descriptions, exports, and us
 | `src/components/library/library.tsx` | library | Main library component | `Library` | Library page |
 | `src/components/library/library-header.tsx` | library | Library header component | TBD | Library component |
 | `src/components/library/library-switcher.tsx` | library | Library switcher component | TBD | Library header |
+| `src/components/library/file-list.tsx` | library | File list with header actions and record operations | `FileList` | Library component |
 
 ## Chat System ✅
 
@@ -47,7 +48,7 @@ Complete index of all documented source files with descriptions, exports, and us
 | `src/lib/chat/constants.ts` | chat | Chat constants | `AnswerLength`, `Retriever`, `TargetLanguage`, `Character`, `SocialContext` | Chat system |
 | `src/lib/chat/orchestrator.ts` | chat | Chat orchestration | `runChatOrchestrated`, `OrchestratorInput`, `OrchestratorOutput` | Chat API routes |
 | `src/lib/chat/loader.ts` | chat | Chat loader | `loadLibraryChatContext`, `LibraryChatContext` | Chat orchestrator |
-| `src/lib/chat/config.ts` | chat | Chat configuration | `chatConfigSchema`, `normalizeChatConfig`, `getVectorIndexForLibrary` | Chat system |
+| `src/lib/chat/config.ts` | chat | Chat configuration | `chatConfigSchema`, `normalizeChatConfig`, `getVectorIndexForLibrary(library, chatConfig?)` | Chat system |
 | `src/lib/chat/retrievers/chunks.ts` | chat | Chunk retriever | `chunksRetriever` | Chat orchestrator |
 | `src/lib/chat/retrievers/summaries-mongo.ts` | chat | Summary retriever | `summariesMongoRetriever` | Chat orchestrator |
 | `src/lib/chat/common/prompt.ts` | chat | Prompt building | `buildPrompt`, `buildTOCPrompt`, `getSourceDescription` | Chat orchestrator |
@@ -68,7 +69,7 @@ Complete index of all documented source files with descriptions, exports, and us
 | `src/lib/external-jobs/template-run.ts` | external-jobs | Template transformation execution | `runTemplateTransform` | Job callback |
 | `src/lib/external-jobs/chapters.ts` | external-jobs | Chapter detection and merging | `analyzeAndMergeChapters` | Job callback |
 | `src/lib/external-jobs/storage.ts` | external-jobs | Markdown file storage | `saveMarkdown` | Job callback |
-| `src/lib/external-jobs/images.ts` | external-jobs | Image archive extraction | `maybeProcessImages` | Job callback |
+| `src/lib/external-jobs/images.ts` | external-jobs | Image archive extraction | `processAllImageSources` | Job callback |
 | `src/lib/external-jobs/ingest.ts` | external-jobs | RAG ingestion pipeline | `runIngestion` | Job callback, job start |
 | `src/lib/external-jobs/complete.ts` | external-jobs | Job completion handler | `setJobCompleted` | Job callback, job start |
 | `src/lib/external-jobs/preprocess.ts` | external-jobs | Job preprocessing and analysis | `preprocess`, `PreprocessResult` | Job start, job callback |
@@ -112,12 +113,25 @@ Complete index of all documented source files with descriptions, exports, and us
 | `src/lib/processing/gates.ts` | processing | Phase gate checking utilities | `gateExtractPdf`, `gateTransformTemplate`, `gateIngestRag`, `GateContext`, `GateResult` | Template decision, external jobs |
 | `src/lib/processing/phase-policy.ts` | processing | Processing phase control policies | `PhaseDirective`, `PhasePolicies`, policy utilities | External jobs, gates, Secretary API routes |
 
+## Shadow-Twin System ✅
+
+| File Path | Module | Description | Exports | Used In |
+|-----------|--------|-------------|---------|---------|
+| `src/lib/shadow-twin/shared.ts` | shadow-twin | Shared Shadow-Twin types and utilities | `ShadowTwinState`, `toMongoShadowTwinState` | Backend (Job documents), Frontend (Atoms) |
+| `src/lib/shadow-twin/analyze-shadow-twin.ts` | shadow-twin | Shadow-Twin analysis logic | `analyzeShadowTwin` | Frontend hooks, job start |
+| `src/lib/storage/shadow-twin.ts` | shadow-twin | Shadow-Twin file and directory utilities | `generateShadowTwinName`, `generateShadowTwinFolderName`, `findShadowTwinFolder`, `findShadowTwinMarkdown` | External jobs, gates, analysis |
+| `src/lib/external-jobs/shadow-twin-helpers.ts` | shadow-twin | Shadow-Twin folder creation utilities | `findOrCreateShadowTwinFolder(provider, parentId, originalName, jobId)` → `string | undefined` | External jobs |
+| `src/atoms/shadow-twin-atom.ts` | shadow-twin | Frontend Shadow-Twin state atom | `shadowTwinStateAtom`, `FrontendShadowTwinState` | Library components, file list, file preview |
+| `src/hooks/use-shadow-twin-analysis.ts` | shadow-twin | React hook for Shadow-Twin analysis | `useShadowTwinAnalysis` | File list component |
+
+**Documentation**: See [Shadow-Twin Architecture](../architecture/shadow-twin.md) and [PDF Transformation Phases](../architecture/pdf-transformation-phases.md)
+
 ## Database Repositories ✅
 
 | File Path | Module | Description | Exports | Used In |
 |-----------|--------|-------------|---------|---------|
 | `src/lib/db/chats-repo.ts` | chat | MongoDB repository for chat management | `createChat`, `listChats`, `getChatById`, `touchChat`, `deleteChat` | Chat API routes, chat components |
-| `src/lib/db/queries-repo.ts` | chat | MongoDB repository for query logging | `insertQueryLog`, `appendRetrievalStep`, `updateQueryLogPartial`, `getQueryLogById`, `listRecentQueries` | Chat API routes, chat modules, query logger |
+| `src/lib/db/queries-repo.ts` | chat | MongoDB repository for query logging | `insertQueryLog`, `appendRetrievalStep`, `updateQueryLogPartial`, `getQueryLogById`, `listRecentQueries`, `getFilteredDocumentCount(libraryOrId, filter)` | Chat API routes, chat modules, query logger |
 | `src/lib/repositories/doc-meta-repo.ts` | chat | MongoDB repository for document metadata | `computeDocMetaCollectionName`, `ensureFacetIndexes`, `upsertDocMeta`, `findDocs`, `deleteDocMeta` | Summary retriever, ingestion service |
 
 ## API Routes ✅

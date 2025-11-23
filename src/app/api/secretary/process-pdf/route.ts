@@ -42,7 +42,27 @@ export async function POST(request: NextRequest) {
 
     const targetLanguage = (formData.get('targetLanguage') as string) || 'de';
     const extractionMethod = (formData.get('extractionMethod') as string) || 'native';
-    const includeImages = (formData.get('includeImages') as string) ?? 'false';
+    
+    // Neue Parameter-Namen für Mistral OCR:
+    // - includeOcrImages: Mistral OCR Bilder als Base64 (in mistral_ocr_raw.pages[*].images[*].image_base64)
+    // - includePageImages: Seiten-Bilder als ZIP (parallel extrahiert)
+    // Rückwärtskompatibilität: includeImages bleibt für Standard-Endpoint
+    const includeOcrImagesRaw = formData.get('includeOcrImages') as string | null;
+    const includePageImagesRaw = formData.get('includePageImages') as string | null;
+    const includeImagesRaw = formData.get('includeImages') as string | null; // Rückwärtskompatibilität
+    
+    // Für Mistral OCR: Beide Parameter standardmäßig true, wenn nicht explizit gesetzt
+    const isMistralOcr = extractionMethod === 'mistral_ocr';
+    const includeOcrImages = includeOcrImagesRaw !== null 
+      ? includeOcrImagesRaw === 'true'
+      : (isMistralOcr ? true : (includeImagesRaw === 'true')); // Standard: true für Mistral OCR, sonst aus includeImages
+    const includePageImages = includePageImagesRaw !== null
+      ? includePageImagesRaw === 'true'
+      : (isMistralOcr ? true : false); // Standard: true für Mistral OCR
+    
+    // Für Rückwärtskompatibilität: includeImages bleibt für Standard-Endpoint
+    const includeImages = includeImagesRaw !== null ? includeImagesRaw === 'true' : false;
+    
     const useCache = (formData.get('useCache') as string) ?? 'true';
 
     const policiesFromClient: PhasePolicies | undefined = (() => {
@@ -81,7 +101,9 @@ export async function POST(request: NextRequest) {
       options: {
         targetLanguage,
         extractionMethod,
-        includeImages: includeImages === 'true',
+        includeOcrImages, // Mistral OCR Bilder als Base64
+        includePageImages, // Seiten-Bilder als ZIP
+        includeImages: includeImages, // Rückwärtskompatibilität für Standard-Endpoint
         useCache: useCache === 'true',
       },
       batchId: (formData.get('batchId') as string) || undefined,
@@ -112,7 +134,9 @@ export async function POST(request: NextRequest) {
     ], {
       targetLanguage,
       extractionMethod,
-      includeImages: includeImages === 'true',
+      includeOcrImages,
+      includePageImages,
+      includeImages, // Rückwärtskompatibilität
       useCache: useCache === 'true',
       template: (formData.get('template') as string) || undefined,
       phases,
@@ -129,7 +153,9 @@ export async function POST(request: NextRequest) {
           fileName: correlation.source?.name,
           extractionMethod,
           targetLanguage,
-          includeImages: includeImages === 'true',
+          includeOcrImages,
+          includePageImages,
+          includeImages, // Rückwärtskompatibilität
           useCache: useCache === 'true',
           template: (formData.get('template') as string) || undefined,
           phases,

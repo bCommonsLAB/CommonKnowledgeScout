@@ -26,7 +26,7 @@
 
 import { Library } from '@/types/library'
 import { LibraryService, type UserLibraries } from '@/lib/services/library-service'
-import { normalizeChatConfig, getVectorIndexForLibrary, slugifyIndexName } from '@/lib/chat/config'
+import { normalizeChatConfig, getVectorIndexForLibrary } from '@/lib/chat/config'
 import { computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
 
 export interface LibraryChatContext {
@@ -138,8 +138,8 @@ async function findLibraryOwnerEmailForMigration(libraryId: string): Promise<str
 async function migrateLibraryConfig(library: Library, userEmail?: string): Promise<Library> {
   // Prüfe ob Migration bereits durchgeführt wurde
   const hasCollectionName = !!library.config?.chat?.vectorStore?.collectionName
-  const hasIndexName = !!library.config?.chat?.vectorStore?.indexName
-  const hasIndexOverride = !!library.config?.chat?.vectorStore?.indexOverride
+  const hasIndexName = !!library.config?.chat?.vectorStore?.indexName   
+  const hasIndexOverride = !!(library.config?.chat?.vectorStore as { indexOverride?: boolean })?.indexOverride
   
   if (hasCollectionName && hasIndexName && !hasIndexOverride) {
     // Migration bereits durchgeführt
@@ -163,7 +163,7 @@ async function migrateLibraryConfig(library: Library, userEmail?: string): Promi
   const { slugifyIndexName } = await import('@/lib/chat/config')
   
   // Alte Logik: indexOverride hat Priorität
-  const oldIndexOverride = library.config?.chat?.vectorStore?.indexOverride
+  const oldIndexOverride = (library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride
   let indexName: string
   
   if (oldIndexOverride && oldIndexOverride.trim().length > 0) {
@@ -191,16 +191,15 @@ async function migrateLibraryConfig(library: Library, userEmail?: string): Promi
         ...library.config?.chat?.vectorStore,
         collectionName,
         // Migration: indexOverride → indexName
-        indexName: library.config?.chat?.vectorStore?.indexOverride || indexName,
-        // Entferne indexOverride nach Migration
-        ...(library.config?.chat?.vectorStore?.indexOverride ? {} : {}),
+        indexName: (library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride || indexName,
       },
     },
   }
   
-  // Entferne indexOverride aus vectorStore
-  if (updatedConfig.chat?.vectorStore?.indexOverride) {
-    delete updatedConfig.chat.vectorStore.indexOverride
+  // Entferne indexOverride aus vectorStore (falls vorhanden)
+  const vectorStore = updatedConfig.chat?.vectorStore as { indexOverride?: string; collectionName?: string; indexName?: string } | undefined;
+  if (vectorStore && 'indexOverride' in vectorStore) {
+    delete vectorStore.indexOverride;
   }
   
   const migratedLibrary: Library = {
@@ -278,7 +277,7 @@ export async function loadLibraryChatContext(
   // Migration: Prüfe ob collectionName und indexName vorhanden sind
   const needsMigration = !library.config?.chat?.vectorStore?.collectionName || 
                          !library.config?.chat?.vectorStore?.indexName ||
-                         !!library.config?.chat?.vectorStore?.indexOverride
+                         !!(library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride
   
   if (needsMigration) {
     library = await migrateLibraryConfig(library, userEmail)
@@ -315,7 +314,7 @@ export async function loadPublicLibraryById(
   // Migration: Prüfe ob collectionName und indexName vorhanden sind
   const needsMigration = !library.config?.chat?.vectorStore?.collectionName || 
                          !library.config?.chat?.vectorStore?.indexName ||
-                         !!library.config?.chat?.vectorStore?.indexOverride
+                         !!(library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride
   
   if (needsMigration) {
     library = await migrateLibraryConfig(library)
@@ -351,7 +350,7 @@ export async function loadPublicLibraryBySlug(
   // Migration: Prüfe ob collectionName und indexName vorhanden sind
   const needsMigration = !library.config?.chat?.vectorStore?.collectionName || 
                          !library.config?.chat?.vectorStore?.indexName ||
-                         !!library.config?.chat?.vectorStore?.indexOverride
+                         !!(library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride
   
   if (needsMigration) {
     library = await migrateLibraryConfig(library)

@@ -34,18 +34,28 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
   const rightRef = React.useRef<HTMLDivElement | null>(null);
   const syncingFromPdfRef = React.useRef(false);
   const syncingFromMarkdownRef = React.useRef(false);
+  // Ref um zu markieren, ob currentPage durch Scroll-Sync geändert wurde (nicht extern)
+  const isInternalPageChangeRef = React.useRef<boolean>(false);
   const [stepStatuses, setStepStatuses] = React.useState<{ p1?: "completed" | "in_progress" | "failed" | "pending"; p2?: "completed" | "in_progress" | "failed" | "pending"; p3?: "completed" | "in_progress" | "failed" | "pending" }>({});
 
   // Globaler Page→Scroll Sync: scrolle beide Paneele zur aktuellen Seite (falls Marker vorhanden)
+  // WICHTIG: Nur reagieren, wenn die Änderung NICHT durch Scroll-Sync verursacht wurde
   React.useEffect(() => {
+    // Überspringe, wenn die Änderung durch Scroll-Sync verursacht wurde
+    if (isInternalPageChangeRef.current) return;
+    // Überspringe auch, wenn bereits ein Sync läuft (verhindert Endlosschleife)
+    if (syncingFromPdfRef.current || syncingFromMarkdownRef.current) return;
+    
     const scrollToMarker = (root: HTMLElement | null, selector: string) => {
       if (!root) return;
       const el = root.querySelector(selector) as HTMLElement | null;
       if (!el) return;
       root.scrollTo({ top: el.offsetTop - 16, behavior: 'smooth' });
     };
-    // Links: PDF nutzt [data-page]
-    scrollToMarker(leftRef.current, `[data-page="${currentPage}"]`);
+    // Links: PDF nutzt [data-page] - ABER: PdfCanvasViewer hat eigenen Scroll-Container!
+    // Wir scrollen hier nur, wenn es wirklich eine externe Änderung ist (z.B. Eingabe im Header)
+    // Für PDF-Scroll-Sync verwenden wir den IntersectionObserver-Mechanismus
+    // scrollToMarker(leftRef.current, `[data-page="${currentPage}"]`);
     // Rechts: Markdown nutzt [data-page-marker]
     scrollToMarker(rightRef.current, `[data-page-marker="${currentPage}"]`);
   }, [currentPage]);
@@ -130,7 +140,12 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
       syncingFromMarkdownRef.current = true;
       const el = targetPane.querySelector(`[data-page="${best.page}"]`) as HTMLElement | null;
       if (el) targetPane.scrollTo({ top: el.offsetTop - 16, behavior: 'smooth' });
-      if (best.page !== currentPage) setCurrentPage(best.page);
+      if (best.page !== currentPage) {
+        // Markiere als interne Änderung (durch Scroll-Sync), damit useEffect nicht reagiert
+        isInternalPageChangeRef.current = true;
+        setCurrentPage(best.page);
+        window.setTimeout(() => { isInternalPageChangeRef.current = false; }, 100);
+      }
       window.setTimeout(() => { syncingFromMarkdownRef.current = false; }, 250);
     }, { root: container, threshold: [0, 0.25, 0.5, 0.75, 1] });
     markers.forEach(m => observer.observe(m));
@@ -158,7 +173,12 @@ export function PdfPhasesView({ item, provider, markdownContent }: PdfPhasesView
       syncingFromPdfRef.current = true;
       const el = targetPane.querySelector(`[data-page-marker="${best.page}"]`) as HTMLElement | null;
       if (el) targetPane.scrollTo({ top: el.offsetTop - 16, behavior: 'smooth' });
-      if (best.page !== currentPage) setCurrentPage(best.page);
+      if (best.page !== currentPage) {
+        // Markiere als interne Änderung (durch Scroll-Sync), damit useEffect nicht reagiert
+        isInternalPageChangeRef.current = true;
+        setCurrentPage(best.page);
+        window.setTimeout(() => { isInternalPageChangeRef.current = false; }, 100);
+      }
       window.setTimeout(() => { syncingFromPdfRef.current = false; }, 250);
     }, { root: container, threshold: [0, 0.25, 0.5, 0.75, 1] });
     markers.forEach(m => observer.observe(m));
