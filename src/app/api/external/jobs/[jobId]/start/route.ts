@@ -48,6 +48,7 @@ export async function POST(
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   const { jobId } = await params;
+  const repo = new ExternalJobsRepository();
   try {
     // Interner Worker darf ohne Clerk durch, wenn Token korrekt
     const internal = isInternalAuthorized(request)
@@ -60,8 +61,6 @@ export async function POST(
       if (!userEmail) return NextResponse.json({ error: 'Benutzer-E-Mail nicht verfügbar' }, { status: 403 })
     }
     if (!jobId) return NextResponse.json({ error: 'jobId erforderlich' }, { status: 400 })
-
-    const repo = new ExternalJobsRepository()
     let job: Awaited<ReturnType<typeof repo.get>>
     try {
       job = await repo.get(jobId)

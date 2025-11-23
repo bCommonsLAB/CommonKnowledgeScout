@@ -65,6 +65,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
     
     let cancelled = false
     async function findFolder() {
+      if (!provider || !fileName) return; // Type guard für TypeScript
       try {
         // Hole das Item, um parentId zu bekommen
         const item = await provider.getItemById(fileId)
@@ -74,7 +75,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
         const folder = await findShadowTwinFolder(item.parentId, fileName, provider)
         if (folder && !cancelled) {
           setFallbackFolderId(folder.id)
-          FileLogger.info('JobReportTab', 'Shadow-Twin-Verzeichnis via Fallback gefunden', {
+          UILogger.info('JobReportTab', 'Shadow-Twin-Verzeichnis via Fallback gefunden', {
             fileId,
             fileName,
             folderId: folder.id,
@@ -82,7 +83,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
           })
         }
       } catch (error) {
-        FileLogger.error('JobReportTab', 'Fehler beim Finden des Shadow-Twin-Verzeichnisses', error)
+        UILogger.error('JobReportTab', 'Fehler beim Finden des Shadow-Twin-Verzeichnisses', error)
       }
     }
     void findFolder()
@@ -217,10 +218,10 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
         if (!templateName || !provider) return
         const rootItems = await getRootItems()
         const templatesFolder = rootItems.find(it => it.type === 'folder' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'templates'))
-        if (!templatesFolder) return
+        if (!templatesFolder || !provider) return
         const tplItems = await provider.listItemsById(templatesFolder.id)
         const match = tplItems.find(it => it.type === 'file' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === templateName.toLowerCase()))
-        if (!match) return
+        if (!match || !provider) return
         const bin = await provider.getBinary(match.id)
         const text = await bin.blob.text()
         // Extrahiere Frontmatter zwischen den ersten beiden --- und lese die Keys bis zu :
@@ -282,6 +283,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
         UILogger.info('JobReportTab', 'Frontmatter: Lade Datei', { mdId, sourceMode })
         // Wenn kein Shadow‑Twin vorhanden ist: nichts laden/anzeigen
         if (!mdId) { setFullContent(''); setFrontmatterMeta(null); return }
+        if (!provider) return // Type guard für TypeScript
         const bin = await provider.getBinary(mdId)
         const text = await bin.blob.text()
         setFullContent(text)
