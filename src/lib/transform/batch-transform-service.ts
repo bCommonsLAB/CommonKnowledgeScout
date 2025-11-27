@@ -280,30 +280,13 @@ export class BatchTransformService {
         } else {
           // Benutzerdefiniertes Template: Lade Template-Inhalt
           try {
-            // Templates-Ordner finden
-            const rootItems = await provider.listItemsById('root');
-            const templatesFolder = rootItems.find((item: StorageItem) => 
-              item.type === 'folder' && item.metadata.name === 'templates'
-            );
-            
-            if (!templatesFolder) {
-              throw new Error('Templates-Ordner nicht gefunden');
-            }
-            
-            // Template-Datei finden
-            const templateItems = await provider.listItemsById(templatesFolder.id);
-            const templateFile = templateItems.find((item: StorageItem) => 
-              item.type === 'file' && 
-              item.metadata.name === `${template}.md`
-            );
-            
-            if (!templateFile) {
-              throw new Error(`Template-Datei "${template}.md" nicht gefunden`);
-            }
-            
-            // Template-Inhalt laden
-            const { blob: templateBlob } = await provider.getBinary(templateFile.id);
-            const templateContent = await templateBlob.text();
+            // Verwende zentrale Template-Service Library
+            const { loadTemplate } = await import('@/lib/templates/template-service')
+            const templateResult = await loadTemplate({
+              provider,
+              preferredTemplateName: template
+            })
+            const templateContent = templateResult.templateContent
             
             // Direkter Secretary Service Call mit Template-Content
             transformedText = await transformTextWithTemplate(

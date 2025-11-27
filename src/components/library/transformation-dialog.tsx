@@ -86,21 +86,9 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
       if (!isOpen || !provider || !activeLibraryId) return;
 
       try {
-        const rootItems = await getRootItems();
-        let templatesFolder = rootItems.find(item => 
-          item.type === 'folder' && item.metadata.name === 'templates'
-        );
-        
-        if (!templatesFolder) {
-          templatesFolder = await provider.createFolder('root', 'templates');
-        }
-
-        const templateItems = await listItems(templatesFolder.id);
-        const templateFiles = templateItems.filter(item => 
-          item.type === 'file' && item.metadata.name.endsWith('.md')
-        );
-
-        const templateNames = templateFiles.map(file => file.metadata.name.replace('.md', ''));
+        // Verwende zentrale Template-Service Library
+        const { listAvailableTemplates } = await import('@/lib/templates/template-service')
+        const templateNames = await listAvailableTemplates(provider)
         if (!cancelled) setCustomTemplateNames(templateNames);
       } catch (error) {
         if (!cancelled) setCustomTemplateNames([]);

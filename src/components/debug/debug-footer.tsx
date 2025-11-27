@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, selectedFileAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 import { galleryFiltersAtom } from '@/atoms/gallery-filters';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 
 interface IngestionBreakdown {
@@ -38,6 +38,7 @@ export default function DebugFooter() {
   const [isFullHeight, setIsFullHeight] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<'performance' | 'system' | 'shadow-twin'>('performance');
   const pathname = usePathname();
+  const router = useRouter();
 
   // Modul-Erkennung: grobe Heuristik per Route
   const moduleKey = React.useMemo<"gallery" | "library" | "other">(() => {
@@ -255,6 +256,19 @@ export default function DebugFooter() {
     }
   }, [setToggleArea]);
 
+  // Integration-Test Seite mit aktuellem Kontext öffnen
+  const handleOpenIntegrationTests = React.useCallback(() => {
+    if (!activeLibraryId || !currentFolderId) {
+      toast.error('Aktive Library oder Ordner unbekannt – bitte zuerst eine Library und einen Ordner wählen.');
+      return;
+    }
+    const params = new URLSearchParams({
+      libraryId: activeLibraryId,
+      folderId: currentFolderId,
+    });
+    router.push(`/integration-tests?${params.toString()}`);
+  }, [router, activeLibraryId, currentFolderId]);
+
   // Copy Logs Funktion
   const handleCopyLogs = React.useCallback(() => {
     try {
@@ -383,6 +397,14 @@ export default function DebugFooter() {
               onClick={() => setClearLogs()}
             >
               Clear Logs
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6"
+              onClick={handleOpenIntegrationTests}
+            >
+              Integration Test
             </Button>
           </div>
           </div>

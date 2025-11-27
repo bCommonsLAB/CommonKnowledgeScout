@@ -38,9 +38,18 @@ export interface FrontmatterEntry {
 
 export function extractFrontmatterBlock(markdown: string): string | null {
   if (typeof markdown !== 'string' || markdown.length === 0) return null;
-  // Nur Frontmatter am Dokumentanfang akzeptieren und Abschluss-Delimiter auf eigener Zeile erzwingen.
-  // Dadurch kollidieren wir nicht mit '---' in Tabellen oder Texten innerhalb des Frontmatters (z. B. in JSON-Strings).
-  const m = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  // Robustere Erkennung:
+  // - optionales UTF‑8‑BOM am Anfang
+  // - optionale Leerzeilen vor dem ersten Frontmatter‑Block
+  // - Abschluss‑Delimiter auf eigener Zeile (mit oder ohne Zeilenumbruch danach)
+  //
+  // Wichtig: Der Regex muss den kompletten Block inkl. Delimiter zurückgeben.
+  // Non-greedy Match (`*?`) stoppt beim ersten passenden End-Delimiter.
+  // Unterstützt sowohl \n (Unix) als auch \r\n (Windows) Zeilenumbrüche.
+  //
+  // Pattern: Anfang → optionales BOM → optionale Leerzeilen → `---` + Zeilenumbruch
+  //          → Inhalt (non-greedy) → Zeilenumbruch + `---` → optionaler Zeilenumbruch oder Ende
+  const m = markdown.match(/^\uFEFF?(?:\s*[\r\n])*---[\r\n]+([\s\S]*?)[\r\n]+---(?:\s*[\r\n]|$)/);
   return m ? m[0] : null;
 }
 

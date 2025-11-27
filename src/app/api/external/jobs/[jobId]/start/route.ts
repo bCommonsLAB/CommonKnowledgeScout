@@ -28,20 +28,31 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuth, currentUser } from '@clerk/nextjs/server'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { getPublicAppUrl, getSecretaryConfig } from '@/lib/env'
+import { getPublicAppUrl } from '@/lib/env'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
-import { startWatchdog, bumpWatchdog } from '@/lib/external-jobs-watchdog'
-import { preprocess } from '@/lib/external-jobs/preprocess'
+import { startWatchdog, bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog'
 import type { RequestContext } from '@/types/external-jobs'
-import type { PreprocessResult } from '@/lib/external-jobs/preprocess'
-import { runIngestion } from '@/lib/external-jobs/ingest'
+import { preprocessorPdfExtract } from '@/lib/external-jobs/preprocessor-pdf-extract'
+import { preprocessorTransformTemplate } from '@/lib/external-jobs/preprocessor-transform-template'
 import { setJobCompleted } from '@/lib/external-jobs/complete'
-import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { isInternalAuthorized } from '@/lib/external-jobs/auth'
-import { findShadowTwinFolder, findShadowTwinMarkdown } from '@/lib/storage/shadow-twin'
 import { FileLogger } from '@/lib/debug/logger'
+import { adoptLegacyMarkdownToShadowTwin } from '@/lib/external-jobs/legacy-markdown-adoption'
+import { cleanupLegacyMarkdownAfterTemplate } from '@/lib/external-jobs/legacy-markdown-cleanup'
+import { checkJobStartability } from '@/lib/external-jobs/job-status-check'
+import { prepareSecretaryRequest } from '@/lib/external-jobs/secretary-request'
+import { tracePreprocessEvents } from '@/lib/external-jobs/trace-helpers'
+import { handleJobError } from '@/lib/external-jobs/error-handler'
 import { analyzeShadowTwin } from '@/lib/shadow-twin/analyze-shadow-twin'
 import { toMongoShadowTwinState } from '@/lib/shadow-twin/shared'
+import { gateExtractPdf } from '@/lib/processing/gates'
+import { getPolicies, shouldRunExtract } from '@/lib/processing/phase-policy'
+import type { Library } from '@/types/library'
+import { LibraryService } from '@/lib/services/library-service'
+import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-loader'
+import { runIngestPhase } from '@/lib/external-jobs/phase-ingest'
+import { runTemplatePhase } from '@/lib/external-jobs/phase-template'
+import { readPhasesAndPolicies } from '@/lib/external-jobs/policies'
 
 export async function POST(
   request: NextRequest,
@@ -93,56 +104,16 @@ export async function POST(
       })
       // Watchdog-Fehler nicht kritisch - Job kann trotzdem fortgesetzt werden
     }
-    // Prüfe, ob Job bereits gestartet wurde
-    // WICHTIG: Erlaube Neustart von fehlgeschlagenen Jobs
-    // Ein Job kann erneut gestartet werden, wenn:
-    // 1. Er noch nie gestartet wurde (kein request_ack Event), ODER
-    // 2. Er fehlgeschlagen ist (status === 'failed'), ODER
-    // 3. Das letzte request_ack Event älter als 10 Minuten ist (Job könnte hängen geblieben sein)
-    const alreadyRequested = (() => {
-      try {
-        const evts = ((job as unknown as { trace?: { events?: Array<{ name?: unknown; ts?: unknown }> } }).trace?.events) || []
-        if (!Array.isArray(evts)) return false
-        
-        const now = Date.now()
-        const tenMinutesAgo = now - 600_000 // 10 Minuten in Millisekunden
-        
-        // Finde das neueste relevante Event
-        const relevantEvents = evts.filter(e => {
-          if (typeof e?.name !== 'string') return false
-          return e.name === 'request_ack' || e.name === 'secretary_request_ack' || e.name === 'secretary_request_accepted'
-        })
-        
-        if (relevantEvents.length === 0) return false
-        
-        // Prüfe, ob das neueste Event jünger als 10 Minuten ist
-        const newestEvent = relevantEvents.reduce((latest, current) => {
-          const currentTs = current.ts instanceof Date ? current.ts.getTime() : (typeof current.ts === 'string' ? new Date(current.ts).getTime() : 0)
-          const latestTs = latest.ts instanceof Date ? latest.ts.getTime() : (typeof latest.ts === 'string' ? new Date(latest.ts).getTime() : 0)
-          return currentTs > latestTs ? current : latest
-        })
-        
-        const eventTs = newestEvent.ts instanceof Date ? newestEvent.ts.getTime() : (typeof newestEvent.ts === 'string' ? new Date(newestEvent.ts).getTime() : 0)
-        
-        // Wenn Event älter als 10 Minuten ist, erlaube Neustart
-        if (eventTs < tenMinutesAgo) {
-          FileLogger.info('start-route', 'request_ack Event ist älter als 10 Minuten - erlaube Neustart', {
-            jobId,
-            eventAgeMs: now - eventTs,
-            eventAgeMinutes: Math.floor((now - eventTs) / 60000)
-          })
-          return false
-        }
-        
-        return true
-      } catch { return false }
-    })()
-    // Erlaube Neustart, wenn Job fehlgeschlagen ist
-    const isFailed = job.status === 'failed'
-    if (alreadyRequested && !isFailed) {
+    // Prüfe, ob Job gestartet werden kann
+    const startability = checkJobStartability(job)
+    if (!startability.canStart) {
       try { await repo.traceAddEvent(jobId, { spanId: 'job', name: 'start_already_started' }) } catch {}
       return NextResponse.json({ ok: true, status: 'already_started' }, { status: 202 })
     }
+    
+    // Erlaube Neustart, wenn Job fehlgeschlagen ist
+    const isFailed = job.status === 'failed'
+    // Wenn Job fehlgeschlagen ist, lösche processId, damit neue Callbacks akzeptiert werden
     // Wenn Job fehlgeschlagen ist, lösche processId, damit neue Callbacks akzeptiert werden
     if (isFailed && job.processId) {
       try {
@@ -359,33 +330,29 @@ export async function POST(
       }
     }
 
-    // PreProcess vor dem Extract: Sichtbarkeit im Trace sicherstellen
-    let pre: PreprocessResult | null = null
+    // Phasen-spezifische Preprozessoren aufrufen (bauen auf derselben Storage/Library-Logik auf)
     const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
+    let preExtractResult: Awaited<ReturnType<typeof preprocessorPdfExtract>> | null = null
+    let preTemplateResult: Awaited<ReturnType<typeof preprocessorTransformTemplate>> | null = null
     try {
-      await repo.traceStartSpan(jobId, { spanId: 'preprocess', parentSpanId: 'job', name: 'preprocess' })
-      pre = await preprocess(ctxPre)
-      await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: 'preprocess_summary', attributes: { hasMarkdown: pre.hasMarkdown, hasFrontmatter: pre.hasFrontmatter, frontmatterValid: pre.frontmatterValid } })
-      await repo.traceEndSpan(jobId, 'preprocess', 'completed', {})
+      preExtractResult = await preprocessorPdfExtract(ctxPre)
     } catch (error) {
-      FileLogger.error('start-route', 'Fehler beim Preprocessing', {
+      FileLogger.error('start-route', 'Fehler im preprocessorPdfExtract', {
         jobId,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       })
-      // Preprocessing-Fehler nicht kritisch - Job kann trotzdem fortgesetzt werden
-      // pre bleibt null, was bedeutet, dass Extract/Template ausgeführt werden müssen
+    }
+    try {
+      preTemplateResult = await preprocessorTransformTemplate(ctxPre)
+    } catch (error) {
+      FileLogger.error('start-route', 'Fehler im preprocessorTransformTemplate', {
+        jobId,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
 
-    const form = new FormData()
-    form.append('file', file)
-    // opts wurde bereits oben deklariert (Zeile 138) - verwende es hier direkt
-    form.append('target_language', typeof opts['targetLanguage'] === 'string' ? String(opts['targetLanguage']) : 'de')
-    form.append('extraction_method', typeof opts['extractionMethod'] === 'string' ? String(opts['extractionMethod']) : 'native')
-    form.append('useCache', String(typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true))
-    // Für Standard-Endpoint: includeImages bleibt für Rückwärtskompatibilität
-    // Für Mistral OCR wird es später zu includeOcrImages umbenannt
-    const standardIncludeImages = typeof opts['includeImages'] === 'boolean' ? opts['includeImages'] : false
-    form.append('includeImages', String(standardIncludeImages))
+    // Trace-Events für Preprocess aus Template-Preprozessor ableiten (für Validatoren/Debugging)
+    await tracePreprocessEvents(jobId, preExtractResult, preTemplateResult, repo)
 
     const appUrl = getPublicAppUrl()
     if (!appUrl) {
@@ -421,18 +388,152 @@ export async function POST(
       phases: (job.parameters as Record<string, unknown> | undefined)?.['phases'] ?? undefined,
     } })
 
-    form.append('callback_url', callbackUrl)
-
-    // Entscheidungslogik: Ingest-only, wenn Shadow‑Twin + gültiges FM vorhanden und Phasen es erlauben
+    // Entscheidungslogik: Gate-basierte Prüfung für Extract-Phase
+    // 1. Policies extrahieren
+    const policies = getPolicies({ parameters: job.parameters })
+    
+    // 2. Gate für Extract-Phase prüfen (Shadow-Twin existiert?)
+    let extractGateExists = false
+    let extractGateReason: string | undefined
+    let library: Library | undefined
+    try {
+      // Library-Informationen für Gate benötigt
+      const libraryService = LibraryService.getInstance()
+      const libraries = await libraryService.getUserLibraries(job.userEmail)
+      library = libraries.find(l => l.id === job.libraryId) as Library | undefined
+      
+      if (!library) {
+        FileLogger.warn('start-route', 'Library nicht gefunden für Gate-Prüfung', {
+          jobId,
+          libraryId: job.libraryId,
+          userEmail: job.userEmail
+        })
+      } else {
+        FileLogger.info('start-route', 'Prüfe Extract-Gate', {
+          jobId,
+          libraryId: library.id,
+          sourceName: job.correlation?.source?.name,
+          sourceParentId: job.correlation?.source?.parentId,
+          targetLanguage: job.correlation?.options?.targetLanguage
+        })
+        
+        const gateResult = await gateExtractPdf({
+          repo,
+          jobId,
+          userEmail: job.userEmail,
+          library,
+          source: job.correlation?.source,
+          options: job.correlation?.options as { targetLanguage?: string } | undefined
+        })
+        
+        FileLogger.info('start-route', 'Extract-Gate Ergebnis', {
+          jobId,
+          gateExists: gateResult.exists,
+          reason: gateResult.reason,
+          details: gateResult.details
+        })
+        
+        if (gateResult.exists) {
+          extractGateExists = true
+          extractGateReason = gateResult.reason || 'shadow_twin_exists'
+          FileLogger.info('start-route', 'Extract-Gate: Shadow-Twin gefunden', {
+            jobId,
+            reason: extractGateReason,
+            details: gateResult.details
+          })
+        } else {
+          FileLogger.info('start-route', 'Extract-Gate: Kein Shadow-Twin gefunden', {
+            jobId
+          })
+        }
+      }
+    } catch (error) {
+      FileLogger.error('start-route', 'Fehler beim Prüfen des Extract-Gates', {
+        jobId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      // Bei Fehler: Gate-Prüfung überspringen, normale Logik verwenden
+      // extractGateExists bleibt false, was bedeutet, dass Extract ausgeführt wird
+    }
+    
+    // 3. Entscheidung: Soll Extract ausgeführt werden?
+    // Kombiniere Gate-Prüfung mit Policy-Logik
     const phases = (job.parameters && typeof job.parameters === 'object') ? (job.parameters as { phases?: { extract?: boolean; template?: boolean; ingest?: boolean } }).phases : undefined
     const extractEnabled = phases?.extract !== false
     const templateEnabled = phases?.template !== false
     const ingestEnabled = phases?.ingest !== false
-    const needExtract = !(pre && pre.hasMarkdown)
-    const needTemplate = !(pre && pre.hasFrontmatter && pre.frontmatterValid)
-    const runExtract = extractEnabled && needExtract
+    
+    // Policy-Directive für Extract bestimmen
+    // Mapping: 'force' → 'force', 'skip'/'auto' → 'do' (Gate respektieren), 'ignore' → 'ignore'
+    const extractDirective: 'ignore' | 'do' | 'force' = 
+      policies.extract === 'force' ? 'force' :
+      policies.extract === 'ignore' ? 'ignore' :
+      extractEnabled ? 'do' : 'ignore'
+    
+    // Gate-basierte Entscheidung: Soll Extract ausgeführt werden?
+    // shouldRunExtract() kombiniert bereits Gate-Ergebnis mit Policy-Directive
+    // - 'force' → immer true (Gate wird ignoriert)
+    // - 'ignore' → immer false
+    // - 'do' → !gateExists (Gate wird respektiert)
+    const shouldRunExtractPhase = shouldRunExtract(extractGateExists, extractDirective)
+    
+    // Preprocess/Preprozessoren als Quelle für Entscheidungen verwenden
+    const needExtract = preExtractResult ? preExtractResult.needExtract : true
+    const needTemplate = preTemplateResult ? preTemplateResult.needTemplate : true
+    
+    // Finale Entscheidung: Extract nur wenn Phase enabled UND Gate/Policy es erlaubt
+    // WICHTIG: shouldRunExtractPhase ist bereits die finale Gate+Policy-Entscheidung
+    const runExtract = extractEnabled && shouldRunExtractPhase
     const runTemplate = templateEnabled && needTemplate
     const runIngestOnly = ingestEnabled && !runExtract && !runTemplate
+    
+    // Wenn Template nicht ausgeführt werden soll, aber Phase enabled ist, Step als skipped markieren
+    // Dies passiert, wenn der Template-Preprozessor needTemplate === false liefert (Frontmatter valide)
+    // **WICHTIG**: Wenn Legacy-Datei im PDF-Ordner existiert und Frontmatter valide ist,
+    // muss sie in den Shadow-Twin-Folder übernommen werden (TC-2.5 Reparatur-Szenario)
+    let templateSkipReason: string | undefined = undefined
+    if (templateEnabled && !runTemplate) {
+      // Legacy-Datei-Übernahme: Wenn Frontmatter valide ist, Legacy-Datei in Shadow-Twin verschieben
+      const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
+      const legacyAdopted = await adoptLegacyMarkdownToShadowTwin(ctxPre, preTemplateResult, provider, repo)
+      
+      // Step-Reason basierend auf Legacy-Adoption setzen
+      templateSkipReason = legacyAdopted && preTemplateResult?.markdownFileId
+        ? 'legacy_markdown_adopted'
+        : 'preprocess_frontmatter_valid'
+      
+      try {
+        await repo.updateStep(jobId, 'transform_template', {
+          status: 'completed',
+          endedAt: new Date(),
+          details: { skipped: true, reason: templateSkipReason, needTemplate: false },
+        })
+      } catch {}
+    }
+    
+    // Logging für Debugging
+    FileLogger.info('start-route', 'Extract-Entscheidung', {
+      jobId,
+      extractGateExists,
+      extractGateReason,
+      extractDirective,
+      extractEnabled,
+      shouldRunExtractPhase,
+      runExtract,
+      needExtract,
+      preHasMarkdown: preExtractResult?.hasMarkdown,
+    })
+    
+    // Wenn Gate gefunden wurde, aber trotzdem ausgeführt wird (z.B. force), logge Warnung
+    if (extractGateExists && runExtract && extractDirective !== 'force') {
+      FileLogger.warn('start-route', 'Extract wird ausgeführt trotz vorhandenem Shadow-Twin', {
+        jobId,
+        extractGateExists,
+        extractDirective,
+        shouldRunExtractPhase
+      })
+    }
 
     if (runIngestOnly) {
       try { await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'preprocess_has_markdown' } }) } catch {}
@@ -440,100 +541,143 @@ export async function POST(
       try { await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() }) } catch {}
       try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_start', attributes: { libraryId: job.libraryId } }) } catch {}
 
-      const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-      const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
-      const twinName = `${baseName}.${lang}.md`
-      const parentId = job.correlation?.source?.parentId || 'root'
-      const originalName = job.correlation.source?.name || 'output'
+      // **WICHTIG**: Wenn Legacy-Datei im PDF-Ordner existiert und Frontmatter valide ist,
+      // muss sie in den Shadow-Twin-Folder übernommen werden (TC-2.5 Reparatur-Szenario)
+      const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
+      await adoptLegacyMarkdownToShadowTwin(ctxPre, preTemplateResult, provider, repo)
       
-      // Erweiterte Shadow-Twin-Suche: Zuerst Verzeichnis prüfen, dann Datei
-      let twin: { id: string } | undefined
-      
-      // 1. Prüfe auf Shadow-Twin-Verzeichnis
-      const shadowTwinFolder = await findShadowTwinFolder(parentId, originalName, provider)
-      if (shadowTwinFolder) {
-        // Markdown-Datei im Verzeichnis finden
-        const markdownInFolder = await findShadowTwinMarkdown(shadowTwinFolder.id, baseName, lang, provider)
-        if (markdownInFolder) {
-          twin = { id: markdownInFolder.id }
-        }
-      }
-      
-      // 2. Wenn kein Verzeichnis gefunden: Shadow-Twin-Datei wie bisher suchen
-      if (!twin) {
-      const siblings = await provider.listItemsById(parentId)
-        twin = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === twinName) as { id: string } | undefined
-      }
-      
-      if (!twin) {
+      // Shadow-Twin-Markdown-Datei laden
+      const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider)
+      if (!shadowTwinData) {
         await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'Shadow‑Twin nicht gefunden' } })
         await repo.setStatus(jobId, 'failed', { error: { code: 'shadow_twin_missing', message: 'Shadow‑Twin nicht gefunden' } })
         return NextResponse.json({ error: 'Shadow‑Twin nicht gefunden' }, { status: 404 })
       }
-      
-      const bin2 = await provider.getBinary(twin.id)
-      const markdownText = await bin2.blob.text()
-      const parsed = parseSecretaryMarkdownStrict(markdownText)
-      const meta = (parsed?.meta && typeof parsed.meta === 'object') ? (parsed.meta as Record<string, unknown>) : {}
+
+      // Policies lesen
+      const phasePolicies = readPhasesAndPolicies(job.parameters)
+
+      // Ingest-Phase ausführen
       const ctx2: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
-      try {
-        const res = await runIngestion({ ctx: ctx2, savedItemId: twin.id, fileName: twinName, markdown: markdownText, meta: meta as unknown as import('@/types/external-jobs').Frontmatter })
-        const total = res.chunksUpserted + (res.docUpserted ? 1 : 0)
-        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_pinecone_upserted', attributes: { chunks: res.chunksUpserted, doc: res.docUpserted, total, vectorFileId: twin.id } }) } catch {}
-        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_doc_id', attributes: { vectorFileId: twin.id, fileName: twinName } }) } catch {}
-        await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date() })
-        const completed = await setJobCompleted({ ctx: ctx2, result: { savedItemId: twin.id } })
-        getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId })
-        return NextResponse.json({ ok: true, jobId: completed.jobId, kind: 'ingest_only' })
-      } catch (err) {
-        const reason = err instanceof Error ? err.message : String(err)
-        await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: reason } })
-        await repo.setStatus(jobId, 'failed', { error: { code: 'ingestion_failed', message: reason } })
-        return NextResponse.json({ error: reason }, { status: 500 })
+      const ingestResult = await runIngestPhase({
+        ctx: ctx2,
+        provider,
+        repo,
+        markdown: shadowTwinData.markdown,
+        meta: shadowTwinData.meta,
+        savedItemId: shadowTwinData.fileId,
+        policies: { ingest: phasePolicies.ingest as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
+      })
+
+      if (ingestResult.error) {
+        await repo.setStatus(jobId, 'failed', { error: { code: 'ingestion_failed', message: ingestResult.error } })
+        return NextResponse.json({ error: ingestResult.error }, { status: 500 })
       }
+
+      if (ingestResult.completed) {
+        const completed = await setJobCompleted({ ctx: ctx2, result: { savedItemId: shadowTwinData.fileId } })
+        getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, libraryId: job.libraryId })
+        return NextResponse.json({ ok: true, jobId: completed.jobId, kind: 'ingest_only' })
+      }
+
+      return NextResponse.json({ ok: true, jobId, kind: 'ingest_only', skipped: ingestResult.skipped })
     }
 
     // Template-only: vorhandenes Markdown nutzen, Frontmatter reparieren lassen
     if (!runExtract && runTemplate) {
-      const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-      const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
-      const twinName = `${baseName}.${lang}.md`
-      const parentId = job.correlation?.source?.parentId || 'root'
-      const originalName = job.correlation.source?.name || 'output'
+      // Markiere Extract-Step als skipped, wenn Extract übersprungen wurde (Gate oder Phase deaktiviert)
+      // WICHTIG: Dies muss auch hier passieren, wenn Template ausgeführt wird
+      try {
+        await repo.updateStep(jobId, 'extract_pdf', {
+          status: 'completed',
+          endedAt: new Date(),
+          details: {
+            skipped: true,
+            reason: extractGateExists ? 'shadow_twin_exists' : 'phase_disabled',
+            gateReason: extractGateReason
+          }
+        })
+      } catch {}
       
-      // Erweiterte Shadow-Twin-Suche: Zuerst Verzeichnis prüfen, dann Datei
-      let twin: { id: string } | undefined
+      // Optionaler Hinweis auf ein Legacy-Markdown im PDF-Ordner aus dem Preprocess
+      // Dies wird insbesondere für Reparatur-Szenarien (z.B. TC-2.5) verwendet:
+      // - Vor dem Lauf existiert eine transformierte Datei im PDF-Ordner
+      // - Nach erfolgreichem Template-Lauf soll diese Datei entfernt werden,
+      //   damit nur noch konsolidierte Artefakte im Shadow-Twin-Verzeichnis liegen.
+      const legacyMarkdownId = preTemplateResult?.markdownFileId
       
-      // 1. Prüfe auf Shadow-Twin-Verzeichnis
-      const shadowTwinFolder = await findShadowTwinFolder(parentId, originalName, provider)
-      if (shadowTwinFolder) {
-        // Markdown-Datei im Verzeichnis finden
-        const markdownInFolder = await findShadowTwinMarkdown(shadowTwinFolder.id, baseName, lang, provider)
-        if (markdownInFolder) {
-          twin = { id: markdownInFolder.id }
-        }
+      // Shadow-Twin-Markdown-Datei laden
+      const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
+      const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider)
+      if (!shadowTwinData) {
+        return NextResponse.json({ error: 'Shadow‑Twin nicht gefunden' }, { status: 404 })
       }
-      
-      // 2. Wenn kein Verzeichnis gefunden: Shadow-Twin-Datei wie bisher suchen
-      if (!twin) {
-      const siblings = await provider.listItemsById(parentId)
-        twin = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === twinName) as { id: string } | undefined
-      }
-      
-      if (!twin) return NextResponse.json({ error: 'Shadow‑Twin nicht gefunden' }, { status: 404 })
-      const bin2 = await provider.getBinary(twin.id)
-      const markdownText = await bin2.blob.text()
-      const parsed = parseSecretaryMarkdownStrict(markdownText) as unknown as { body?: string }
-      const bodyOnly = typeof parsed?.body === 'string' ? parsed.body as string : markdownText
 
-      // interner Callback mit extracted_text → Orchestrator führt Template/Save/Ingest aus
-      const internalToken = process.env.INTERNAL_TEST_TOKEN || ''
-      const cbRes = await fetch(`${getPublicAppUrl().replace(/\/$/, '')}/api/external/jobs/${jobId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(internalToken ? { 'X-Internal-Token': internalToken } : {}) },
-        body: JSON.stringify({ data: { extracted_text: bodyOnly } })
+      // Policies lesen
+      const phasePolicies = readPhasesAndPolicies(job.parameters)
+      
+      // Library-Config für Template-Auswahl
+      const libraryConfig = undefined // libraryConfig wird derzeit nicht verwendet
+
+      // Target-Parent-ID bestimmen (Shadow-Twin-Folder oder Parent)
+      // WICHTIG: Job-Objekt neu laden, um aktuelles Shadow-Twin-State zu erhalten
+      // Das Shadow-Twin-State wurde beim Job-Start analysiert und gespeichert
+      const updatedJob = await repo.get(jobId)
+      const shadowTwinFolderId = updatedJob?.shadowTwinState?.shadowTwinFolderId || shadowTwinState?.shadowTwinFolderId
+      const targetParentId = shadowTwinFolderId || job.correlation?.source?.parentId || 'root'
+
+      // Template-Phase ausführen
+      // WICHTIG: Aktualisiertes Job-Objekt verwenden, damit runTemplatePhase das aktuelle Shadow-Twin-State sieht
+      const ctxPreUpdated: RequestContext = { request, jobId, job: updatedJob || job, body: {}, callbackToken: undefined, internalBypass: true }
+      const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
+      const extractedText = stripAllFrontmatter(shadowTwinData.markdown)
+      const templateResult = await runTemplatePhase({
+        ctx: ctxPreUpdated,
+        provider,
+        repo,
+        extractedText,
+        bodyMetadata: shadowTwinData.meta,
+        policies: { metadata: phasePolicies.metadata as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
+        autoSkip: true,
+        imagesPhaseEnabled: false, // Template-Only: keine Bilder verarbeiten
+        targetParentId,
+        libraryConfig,
       })
-      if (!cbRes.ok) return NextResponse.json({ error: 'Template-Only Callback fehlgeschlagen', status: cbRes.status }, { status: 502 })
+
+      if (templateResult.status === 'failed') {
+        const errorMessage = templateResult.errorMessage || 'Template-Phase fehlgeschlagen'
+        return NextResponse.json({ error: errorMessage }, { status: 500 })
+      }
+
+      // Reparatur-Logik: Legacy-Markdown im PDF-Ordner nach erfolgreichem Template-Lauf entfernen
+      await cleanupLegacyMarkdownAfterTemplate(jobId, legacyMarkdownId, preTemplateResult, provider, repo)
+
+      // Shadow-Twin-State aktualisieren: processingStatus auf 'ready' setzen
+      // Template-Only: Nach erfolgreichem Template-Lauf ist der Shadow-Twin vollständig
+      try {
+        const updatedJob = await repo.get(jobId)
+        if (updatedJob?.shadowTwinState) {
+          const mongoState = toMongoShadowTwinState({
+            ...updatedJob.shadowTwinState,
+            processingStatus: 'ready' as const,
+          })
+          await repo.setShadowTwinState(jobId, mongoState)
+        }
+      } catch (error) {
+        FileLogger.error('start-route', 'Fehler beim Aktualisieren des Shadow-Twin-States', {
+          jobId,
+          error: error instanceof Error ? error.message : String(error)
+        })
+        // Fehler nicht kritisch - Job kann trotzdem abgeschlossen werden
+      }
+
+      // Job als completed markieren (Template-Only: keine weiteren Phasen)
+      const { setJobCompleted } = await import('@/lib/external-jobs/complete')
+      await setJobCompleted({
+        ctx: ctxPreUpdated,
+        result: {},
+      })
+
       return NextResponse.json({ ok: true, jobId, kind: 'template_only' })
     }
 
@@ -553,118 +697,158 @@ export async function POST(
       await repo.setStatus(jobId, 'failed', { error: { code: 'status_update_error', message: 'Fehler beim Setzen des Status' } })
       return NextResponse.json({ error: 'Fehler beim Setzen des Status' }, { status: 500 })
     }
-    form.append('callback_token', secret)
 
-    const { baseUrl, apiKey } = getSecretaryConfig()
-    if (!apiKey) return NextResponse.json({ error: 'SECRETARY_SERVICE_API_KEY fehlt' }, { status: 500 })
-    
-    // Entscheidungslogik: Mistral OCR verwendet eigenen Endpoint
-    // extractionMethod wurde bereits oben deklariert (Zeile 139) - verwende es hier direkt
-    
-    // Für Mistral OCR: Beide Parameter standardmäßig auf true setzen
-    // includeOcrImages: Mistral OCR Bilder als Base64 (in mistral_ocr_raw.pages[*].images[*].image_base64)
-    // includePageImages: Seiten-Bilder als ZIP (parallel extrahiert)
-    // includeOcrImages und includePageImages wurden bereits oben deklariert (Zeile 140-145) - verwende sie hier direkt
-    
-    FileLogger.info('start-route', 'Starte PDF-Transformation', {
-      jobId,
-      extractionMethod,
-      includeOcrImages,
-      useCache: typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true,
-      fileName: filename,
-      baseUrl
-    });
-    
-    let url: string
-    let formForRequest: FormData
-    
-    if (extractionMethod === 'mistral_ocr') {
-      // Verwende neuen Mistral OCR Endpoint
-      // baseUrl kann mit oder ohne /api enden - normalisiere es
-      const normalizedBaseUrl = baseUrl.replace(/\/$/, ''); // Entferne trailing slash
-      // Wenn baseUrl bereits /api enthält, verwende nur /pdf/process-mistral-ocr
-      // Sonst füge /api/pdf/process-mistral-ocr hinzu
-      const endpoint = normalizedBaseUrl.endsWith('/api') 
-        ? '/pdf/process-mistral-ocr'
-        : '/api/pdf/process-mistral-ocr';
-      url = `${normalizedBaseUrl}${endpoint}`
-      
-      // includePageImages wurde bereits oben deklariert (Zeile 143-145) - verwende es hier direkt
-      
-      FileLogger.info('start-route', 'Verwende Mistral OCR Endpoint', {
+    // WICHTIG: Request nur senden, wenn Extract ausgeführt werden soll
+    if (!runExtract) {
+      FileLogger.info('start-route', 'Extract-Phase übersprungen - kein Request an Secretary Service', {
         jobId,
-        url,
-        includeOcrImages,
-        includePageImages
-      });
-      
-      // Erstelle neuen FormData mit Mistral OCR spezifischen Parametern
-      // Laut Dokumentation: includeOcrImages → includeImages (Mistral OCR Base64), includePageImages (Seiten-ZIP)
-      formForRequest = new FormData()
-      formForRequest.append('file', file)
-      formForRequest.append('includeImages', String(includeOcrImages)) // Mistral OCR Bilder als Base64 (Secretary Service erwartet includeImages)
-      formForRequest.append('includePageImages', String(includePageImages)) // Seiten-Bilder als ZIP (parallel)
-      formForRequest.append('useCache', String(typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true))
-      formForRequest.append('callback_url', callbackUrl)
-      formForRequest.append('callback_token', secret)
-      
-      // Optional: page_start und page_end falls vorhanden
-      if (typeof opts['page_start'] === 'number') {
-        formForRequest.append('page_start', String(opts['page_start']))
-      }
-      if (typeof opts['page_end'] === 'number') {
-        formForRequest.append('page_end', String(opts['page_end']))
-      }
-      
-      // Debug: Logge alle FormData-Einträge
-      const formDataEntries: Record<string, string> = {}
-      formForRequest.forEach((value, key) => {
-        if (value instanceof File) {
-          formDataEntries[key] = `File(${value.name}, ${value.size} bytes)`
-        } else {
-          formDataEntries[key] = String(value)
-        }
+        extractGateExists,
+        extractGateReason,
+        extractDirective,
+        shouldRunExtractPhase,
+        runExtract
       })
+
+      // Watchdog explizit stoppen, da kein externer Worker-Callback mehr erwartet wird.
+      // Andernfalls würde der Watchdog den Job fälschlicherweise nach Timeout auf "failed" setzen.
+      try {
+        clearWatchdog(jobId)
+      } catch {}
       
-      FileLogger.info('start-route', 'Mistral OCR FormData erstellt', {
-        jobId,
-        hasFile: !!file,
-        fileName: file.name,
-        fileSize: file.size,
-        formDataEntries, // Alle FormData-Einträge loggen
-        includeOcrImages: String(includeOcrImages),
-        includePageImages: String(includePageImages),
-        useCache: String(typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true),
-        callbackUrl
-      });
+      // Markiere Extract-Step als skipped
+      try {
+        await repo.updateStep(jobId, 'extract_pdf', {
+          status: 'completed',
+          endedAt: new Date(),
+          details: {
+            skipped: true,
+            reason: extractGateExists ? 'shadow_twin_exists' : 'phase_disabled',
+            gateReason: extractGateReason
+          }
+        })
+      } catch {}
       
-      // Kein template Parameter für Mistral OCR Endpoint
-      // Kein extraction_method Parameter (ist immer Mistral OCR)
-    } else {
-      // Verwende Standard PDF Process Endpoint
-      // baseUrl kann mit oder ohne /api enden - normalisiere es
-      const normalizedBaseUrl = baseUrl.replace(/\/$/, ''); // Entferne trailing slash
-      // Wenn baseUrl bereits /api enthält, verwende nur /pdf/process
-      // Sonst füge /api/pdf/process hinzu
-      const endpoint = normalizedBaseUrl.endsWith('/api')
-        ? '/pdf/process'
-        : '/api/pdf/process';
-      url = `${normalizedBaseUrl}${endpoint}`
-      formForRequest = form // Verwende bestehenden FormData
+      // Wenn auch Template und Ingest übersprungen werden, Job als completed markieren
+      if (!runTemplate && !runIngestOnly) {
+        // Extract-Only-Modus: Extract wurde übersprungen (Gate), Template/Ingest deaktiviert
+        // Trace-Event für Validator hinzufügen
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'extract',
+            name: 'extract_only_mode',
+            attributes: {
+              message: 'Extract-Only Modus aktiviert (Extract übersprungen via Gate)',
+              skipped: true,
+              reason: extractGateExists ? 'shadow_twin_exists' : 'phase_disabled',
+            },
+          })
+        } catch {
+          // Trace-Fehler nicht kritisch
+        }
+
+        // Template- und Ingest-Phase sind über Phasen-Konfiguration deaktiviert.
+        // Für eine konsistente Statuskommunikation müssen die Steps explizit als
+        // "skipped" markiert werden. WICHTIG: Wenn Template bereits einen Reason hat
+        // (z.B. legacy_markdown_adopted), diesen nicht überschreiben.
+        try {
+          const currentStep = job.steps?.find(s => s?.name === 'transform_template')
+          const currentReason = currentStep?.details && typeof currentStep.details === 'object' && 'reason' in currentStep.details
+            ? String(currentStep.details.reason)
+            : undefined
+          
+          // Nur überschreiben, wenn noch kein Reason gesetzt wurde
+          if (!currentReason || currentReason === 'pending') {
+            await repo.updateStep(jobId, 'transform_template', {
+              status: 'completed',
+              endedAt: new Date(),
+              details: {
+                skipped: true,
+                reason: templateSkipReason || 'phase_disabled',
+              },
+            })
+          }
+        } catch {}
+        try {
+          await repo.updateStep(jobId, 'ingest_rag', {
+            status: 'completed',
+            endedAt: new Date(),
+            details: {
+              skipped: true,
+              reason: 'phase_disabled',
+            },
+          })
+        } catch {}
+
+        // Shadow-Twin-State auf "ready" setzen, falls bereits vorhanden.
+        // Auch wenn keine neuen Artefakte erzeugt wurden, signalisiert dies,
+        // dass der Job abgeschlossen ist und ein existierender Shadow-Twin
+        // für die Anzeige verwendet werden kann.
+        // WICHTIG: Verwende toMongoShadowTwinState für korrekte Konvertierung
+        try {
+          if (job.shadowTwinState) {
+            const { toMongoShadowTwinState } = await import('@/lib/shadow-twin/shared')
+            const mongoState = toMongoShadowTwinState({
+              ...job.shadowTwinState,
+              processingStatus: 'ready' as const,
+            })
+            await repo.setShadowTwinState(jobId, mongoState)
+          } else {
+            // Falls kein Shadow-Twin-State existiert, aber ein Shadow-Twin-Verzeichnis vorhanden ist,
+            // analysiere es und setze den Status auf "ready"
+            if (job.correlation?.source?.itemId && library) {
+              try {
+                const { analyzeShadowTwin } = await import('@/lib/shadow-twin/analyze-shadow-twin')
+                const shadowTwinState = await analyzeShadowTwin(job.correlation.source.itemId, provider)
+                if (shadowTwinState) {
+                  const { toMongoShadowTwinState } = await import('@/lib/shadow-twin/shared')
+                  const mongoState = toMongoShadowTwinState({
+                    ...shadowTwinState,
+                    processingStatus: 'ready' as const,
+                  })
+                  await repo.setShadowTwinState(jobId, mongoState)
+                }
+              } catch {
+                // Fehler bei Shadow-Twin-Analyse nicht kritisch
+              }
+            }
+          }
+        } catch {
+          // Fehler bei Status-Aktualisierung nicht kritisch
+        }
+
+        const completed = await setJobCompleted({ 
+          ctx: { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }, 
+          result: {} 
+        })
+        getJobEventBus().emitUpdate(job.userEmail, {
+          type: 'job_update',
+          jobId,
+          status: 'completed',
+          progress: 100,
+          updatedAt: new Date().toISOString(),
+          message: 'completed (all phases skipped)',
+          jobType: job.job_type,
+          fileName: job.correlation?.source?.name,
+          sourceItemId: job.correlation?.source?.itemId,
+          libraryId: job.libraryId
+        })
+        return NextResponse.json({ ok: true, jobId: completed.jobId, kind: 'all_phases_skipped' })
+      }
       
-      FileLogger.info('start-route', 'Verwende Standard PDF Process Endpoint', {
-        jobId,
-        url
-      });
+      // Wenn nur Extract übersprungen wird, aber Template/Ingest laufen sollen, return
+      // (Template-only Flow wird oben bereits behandelt)
+      return NextResponse.json({ ok: true, jobId, kind: 'extract_skipped' })
     }
-    
-    const headers: Record<string, string> = { 'x-worker': 'true', 'Authorization': `Bearer ${apiKey}`, 'X-Service-Token': apiKey }
+
+    // Bereite Secretary-Service-Request vor
+    const requestConfig = prepareSecretaryRequest(job, file, callbackUrl, secret)
+    const { url, formData: formForRequest, headers } = requestConfig
     
     FileLogger.info('start-route', 'Sende Request an Secretary Service', {
       jobId,
       url,
       method: 'POST',
-      hasApiKey: !!apiKey
+      hasApiKey: !!requestConfig.headers['Authorization']
     });
     
     let resp: Response
@@ -725,7 +909,7 @@ export async function POST(
       dataKeys: data && typeof data === 'object' ? Object.keys(data) : [],
       status: (data as { status?: string })?.status
     });
-    getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 0, updatedAt: new Date().toISOString(), message: 'enqueued', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId })
+    getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 0, updatedAt: new Date().toISOString(), message: 'enqueued', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, libraryId: job.libraryId })
     // Watchdog wurde bereits beim Start gestartet - nur aktualisieren (bump)
     // Dies stellt sicher, dass der Timer zurückgesetzt wird, wenn der Request erfolgreich war
     try {
@@ -741,18 +925,23 @@ export async function POST(
   } catch (err) {
     // WICHTIG: Bei Fehlern Status auf 'failed' setzen, damit Job nicht hängen bleibt
     const errorMessage = err instanceof Error ? err.message : 'Unerwarteter Fehler'
-    FileLogger.error('start-route', 'Fehler beim Starten des Jobs', {
-      jobId,
-      error: errorMessage,
-      stack: err instanceof Error ? err.stack : undefined
-    })
     try {
-      await repo.setStatus(jobId, 'failed', { error: { code: 'start_error', message: errorMessage } })
-    } catch (statusError) {
-      FileLogger.error('start-route', 'Fehler beim Setzen des Status', {
-        jobId,
-        error: statusError instanceof Error ? statusError.message : String(statusError)
-      })
+      // Versuche Job zu laden für Kontext
+      const jobForError = await repo.get(jobId).catch(() => null)
+      if (jobForError) {
+        await handleJobError(err, {
+          jobId,
+          userEmail: jobForError.userEmail,
+          jobType: jobForError.job_type,
+          fileName: jobForError.correlation?.source?.name,
+          sourceItemId: jobForError.correlation?.source?.itemId,
+        }, repo, 'start_error')
+      } else {
+        // Fallback: Nur Status setzen ohne vollständigen Kontext
+        await repo.setStatus(jobId, 'failed', { error: { code: 'start_error', message: errorMessage } })
+      }
+    } catch {
+      // Fehler beim Error-Handling nicht weiter propagieren
     }
     return NextResponse.json({ error: errorMessage }, { status: 500 })
   }

@@ -48,6 +48,13 @@ export async function GET(request: NextRequest) {
     const storageFactory = StorageFactory.getInstance();
     storageFactory.setLibraries(clientLibraries);
     
+    // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
+    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    storageFactory.setApiBaseUrl(baseUrl);
+    storageFactory.setUserEmail(userEmail);
+    
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);
 
@@ -58,8 +65,23 @@ export async function GET(request: NextRequest) {
       }
 
       case 'get': {
-        const item = await provider.getItemById(fileId);
-        return NextResponse.json(item);
+        try {
+          const item = await provider.getItemById(fileId);
+          return NextResponse.json(item);
+        } catch (error) {
+          console.error('[Storage API] Fehler beim Laden des Items', {
+            fileId,
+            libraryId,
+            error: error instanceof Error ? error.message : String(error),
+            errorName: error instanceof Error ? error.name : undefined,
+            errorStack: error instanceof Error ? error.stack : undefined
+          });
+          return NextResponse.json({ 
+            error: error instanceof Error ? error.message : 'Fehler beim Laden des Items',
+            fileId,
+            libraryId
+          }, { status: 500 });
+        }
       }
 
       case 'binary': {
@@ -123,6 +145,13 @@ export async function POST(request: NextRequest) {
     // Storage Factory initialisieren
     const storageFactory = StorageFactory.getInstance();
     storageFactory.setLibraries(clientLibraries);
+    
+    // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
+    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    storageFactory.setApiBaseUrl(baseUrl);
+    storageFactory.setUserEmail(userEmail);
     
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);
@@ -189,6 +218,13 @@ export async function DELETE(request: NextRequest) {
     const storageFactory = StorageFactory.getInstance();
     storageFactory.setLibraries(clientLibraries);
     
+    // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
+    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    storageFactory.setApiBaseUrl(baseUrl);
+    storageFactory.setUserEmail(userEmail);
+    
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);
 
@@ -234,6 +270,13 @@ export async function PATCH(request: NextRequest) {
     // Storage Factory initialisieren
     const storageFactory = StorageFactory.getInstance();
     storageFactory.setLibraries(clientLibraries);
+    
+    // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
+    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    storageFactory.setApiBaseUrl(baseUrl);
+    storageFactory.setUserEmail(userEmail);
     
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);

@@ -104,6 +104,9 @@ function JobReportTabWithShadowTwin({
 }) {
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const shadowTwinState = shadowTwinStates.get(fileId);
+  // WICHTIG: Verwende IMMER die transformierte Datei (.de.md), nicht das Transcript (.md)
+  // Das Transcript hat kein Frontmatter und sollte nicht für Metadaten verwendet werden
+  // NIEMALS auf transcriptFiles zurückfallen, da diese kein Frontmatter haben!
   const mdFileId = shadowTwinState?.transformed?.id || null;
   
   return (

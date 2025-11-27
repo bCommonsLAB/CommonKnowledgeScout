@@ -68,6 +68,19 @@ export async function runExtractOnly(
   const { jobId, job, body } = ctx
 
   bufferLog(jobId, { phase: 'extract_only_mode', message: 'Extract-Only Modus aktiviert' })
+  
+  // Trace-Event für Extract-Only-Modus hinzufügen (für Validator)
+  try {
+    await repo.traceAddEvent(jobId, {
+      spanId: 'extract',
+      name: 'extract_only_mode',
+      attributes: {
+        message: 'Extract-Only Modus aktiviert',
+      },
+    })
+  } catch {
+    // Trace-Fehler nicht kritisch
+  }
 
   // Mark template and ingest steps as skipped
   try {
@@ -133,12 +146,19 @@ export async function runExtractOnly(
           const { analyzeShadowTwin } = await import('@/lib/shadow-twin/analyze-shadow-twin')
           const updatedShadowTwinState = await analyzeShadowTwin(job.correlation.source.itemId, provider)
           if (updatedShadowTwinState) {
+            // Im Extract-Only-Fall gilt: Sobald das Transcript erfolgreich im Shadow-Twin-Verzeichnis
+            // gespeichert wurde, betrachten wir den Shadow-Twin als "ready". Template- und Ingest-Phasen
+            // sind bewusst deaktiviert, daher gibt es keine weiteren serverseitigen Schritte mehr, die den
+            // Shadow-Twin vervollständigen würden. Bild-Fehler sind nicht fatal und ändern den Jobstatus nicht.
             const { toMongoShadowTwinState } = await import('@/lib/shadow-twin/shared')
-            const mongoState = toMongoShadowTwinState(updatedShadowTwinState)
+            const mongoState = toMongoShadowTwinState({
+              ...updatedShadowTwinState,
+              processingStatus: 'ready' as const,
+            })
             await repo.setShadowTwinState(jobId, mongoState)
             bufferLog(jobId, {
               phase: 'extract_only_shadow_twin_state_updated',
-              message: 'Shadow-Twin-State nach Markdown-Speicherung neu berechnet',
+              message: 'Shadow-Twin-State nach Markdown-Speicherung neu berechnet (processingStatus=ready)',
               shadowTwinFolderId: updatedShadowTwinState.shadowTwinFolderId || null,
             })
           }
@@ -237,6 +257,32 @@ export async function runExtractOnly(
   // Set job status to completed
   await repo.setStatus(jobId, 'completed')
   clearWatchdog(jobId)
+  // Shadow-Twin-State nach Abschluss des Extract-Only-Laufs explizit auf "ready" setzen,
+  // sofern bereits ein Shadow-Twin-State existiert. Damit ist für das UI klar erkennbar,
+  // dass der Shadow-Twin für diese Datei vollständig vorliegt, auch ohne Template/Ingest.
+  // WICHTIG: Dieser Fallback stellt sicher, dass der Status auch dann auf "ready" gesetzt wird,
+  // wenn die vorherige Aktualisierung nach der Shadow-Twin-Reanalyse nicht gegriffen hat.
+  try {
+    const latest = await repo.get(jobId)
+    const latestState = (latest as unknown as { shadowTwinState?: import('@/lib/shadow-twin/shared').ShadowTwinState | undefined }).shadowTwinState
+    if (latestState) {
+      // Immer auf "ready" setzen, auch wenn der Status bereits "ready" ist (idempotent)
+      // Dies stellt sicher, dass auch Fälle wie TC-1.2 korrekt behandelt werden,
+      // bei denen der Status möglicherweise noch "processing" ist
+      const { toMongoShadowTwinState } = await import('@/lib/shadow-twin/shared')
+      const mongoState = toMongoShadowTwinState({
+        ...latestState,
+        processingStatus: 'ready' as const,
+      })
+      await repo.setShadowTwinState(jobId, mongoState)
+      bufferLog(jobId, {
+        phase: 'extract_only_final_status_update',
+        message: 'Shadow-Twin-State final auf "ready" gesetzt (Fallback nach Job-Abschluss)',
+      })
+    }
+  } catch {
+    // Fehler bei der Status-Aktualisierung sind nicht kritisch für den Job-Abschluss
+  }
   await repo.setResult(
     jobId,
     {

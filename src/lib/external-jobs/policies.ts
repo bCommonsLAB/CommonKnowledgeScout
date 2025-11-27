@@ -22,8 +22,12 @@
 import type { PhasePolicies, RequestContext } from '@/types/external-jobs'
 import { getPolicies } from '@/lib/processing/phase-policy'
 
-export function readPhasesAndPolicies(ctx: RequestContext): PhasePolicies {
-  const parameters = ctx.job.parameters || {}
+export function readPhasesAndPolicies(ctxOrParams: RequestContext | Record<string, unknown> | undefined): PhasePolicies {
+  const parameters = (ctxOrParams && 'job' in ctxOrParams && (ctxOrParams as RequestContext).job?.parameters)
+    ? (ctxOrParams as RequestContext).job.parameters || {}
+    : (ctxOrParams && typeof ctxOrParams === 'object' && !('job' in ctxOrParams))
+      ? ctxOrParams as Record<string, unknown>
+      : {}
   const p = getPolicies({ parameters })
   return { metadata: p.metadata, ingest: p.ingest }
 }

@@ -104,7 +104,13 @@ class LocalStorageProvider implements StorageProvider {
       });
       */
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store'
+        });
         
         if (!response.ok) {
           console.error(`[LocalStorageProvider] API call failed:`, {
@@ -161,19 +167,27 @@ class LocalStorageProvider implements StorageProvider {
         return data as StorageItem[];
         
       } catch (error) {
+        const errorDetails = error instanceof Error ? {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.split('\n').slice(0, 3)
+        } : { error: String(error) };
+        
         console.error(`[LocalStorageProvider] Exception in listItemsById:`, {
-          error: error instanceof Error ? {
-            message: error.message,
-            name: error.name,
-            stack: error.stack?.split('\n').slice(0, 3)
-          } : error,
+          ...errorDetails,
           libraryId: this.library.id,
           folderId,
           userEmail: this.userEmail,
           libraryPath: this.library.path
         });
         
-        AuthLogger.error('LocalStorageProvider', 'Exception in listItemsById', error);
+        AuthLogger.error('LocalStorageProvider', 'Exception in listItemsById', {
+          ...errorDetails,
+          libraryId: this.library.id,
+          folderId,
+          hasUserEmail: !!this.userEmail,
+          libraryPath: this.library.path
+        });
         
         // Re-throw den Fehler mit zusätzlichem Kontext
         if (error instanceof Error) {

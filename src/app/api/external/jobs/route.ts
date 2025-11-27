@@ -87,6 +87,10 @@ export async function GET(request: NextRequest) {
         worker: j.worker,
         jobType: j.job_type,
         fileName: j.correlation?.source?.name,
+        sourceItemId: j.correlation?.source?.itemId,
+        sourceParentId: j.correlation?.source?.parentId,
+        shadowTwinFolderId: j.shadowTwinState?.shadowTwinFolderId, // Shadow-Twin-Verzeichnis-ID (falls vorhanden)
+        libraryId: j.libraryId,
         batchName: j.correlation?.batchName,
         batchId: j.correlation?.batchId,
         updatedAt: j.updatedAt,

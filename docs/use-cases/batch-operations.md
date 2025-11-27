@@ -37,6 +37,7 @@ Process multiple files simultaneously for transformation, transcription, or inge
 ## Result
 
 Multiple files are processed in parallel. Results appear as they complete, with success/failure status for each file.
+Internally the same three phases are used as for single-file PDF transformation (Extract → Template → Ingestion); depending on existing artifacts, individual phases may be skipped automatically.
 
 ## Tips
 

@@ -14,6 +14,8 @@ export async function POST(request: NextRequest) {
     const libraryId = typeof body.libraryId === 'string' ? body.libraryId : ''
     const parentId = typeof body.parentId === 'string' ? body.parentId : 'root'
     const fileName = typeof body.fileName === 'string' ? body.fileName : 'test.pdf'
+    const itemId = typeof body.itemId === 'string' ? body.itemId : undefined
+    const mimeType = typeof body.mimeType === 'string' ? body.mimeType : 'application/pdf'
     const userEmail = typeof body.userEmail === 'string' ? body.userEmail : 'test@example.com'
     const targetLanguage = typeof body.targetLanguage === 'string' ? body.targetLanguage : 'de'
     const extractionMethod = typeof body.extractionMethod === 'string' ? body.extractionMethod : 'native'
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest) {
     const correlation = {
       jobId,
       libraryId,
-      source: { mediaType: 'pdf', mimeType: 'application/pdf', name: fileName, parentId },
+      source: { mediaType: 'pdf', mimeType, name: fileName, parentId, itemId },
       options: { 
         targetLanguage, 
         extractionMethod, 

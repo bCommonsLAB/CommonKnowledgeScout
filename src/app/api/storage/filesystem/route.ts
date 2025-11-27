@@ -408,10 +408,32 @@ export async function GET(request: NextRequest) {
       }
 
       case 'get': {
-        const absolutePath = getPathFromId(library, fileId);
-        const stats = await fs.stat(absolutePath);
-        const item = await statsToStorageItem(library, absolutePath, stats);
-        return NextResponse.json(item, { headers: debugHeaders });
+        try {
+          const absolutePath = getPathFromId(library, fileId);
+          const stats = await fs.stat(absolutePath);
+          const item = await statsToStorageItem(library, absolutePath, stats);
+          return NextResponse.json(item, { headers: debugHeaders });
+        } catch (error) {
+          const nodeError = error as NodeJS.ErrnoException;
+          if (nodeError.code === 'ENOENT') {
+            const absolutePath = getPathFromId(library, fileId);
+            console.error('[API][filesystem][get] Datei nicht gefunden:', {
+              fileId,
+              absolutePath,
+              libraryId,
+              userEmail,
+              requestId
+            });
+            return NextResponse.json({ 
+              error: 'Datei nicht gefunden',
+              errorCode: 'FILE_NOT_FOUND',
+              fileId,
+              absolutePath,
+              requestId
+            }, { status: 404 });
+          }
+          throw error; // Andere Fehler weiterwerfen
+        }
       }
 
       case 'binary': {
@@ -654,7 +676,10 @@ export async function POST(request: NextRequest) {
           const arrayBuffer = await file.arrayBuffer();
           
           const buffer = Buffer.from(arrayBuffer);
-          await fs.writeFile(filePath, buffer);
+          
+          // WICHTIG: Verwende { flag: 'w' } um sicherzustellen, dass die Datei überschrieben wird
+          // Dies stellt sicher, dass die Datei auch dann aktualisiert wird, wenn sie bereits existiert
+          await fs.writeFile(filePath, buffer, { flag: 'w' });
   
           const stats = await fs.stat(filePath);
           

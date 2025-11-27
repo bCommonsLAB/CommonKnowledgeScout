@@ -15,7 +15,6 @@ import { useAtomValue } from "jotai";
 import { activeLibraryAtom, selectedFileAtom, libraryStatusAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { activeLibraryIdAtom } from "@/atoms/library-atom";
-import { useRootItems } from "@/hooks/use-root-items";
 import { TransformService, TransformSaveOptions, TransformResult } from "@/lib/transform/transform-service";
 import { transformTextWithTemplate } from "@/lib/secretary/client";
 import { Label } from "@/components/ui/label";
@@ -72,8 +71,6 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   // Template-Management Integration
   const [customTemplateNames, setCustomTemplateNames] = React.useState<string[]>([]);
   const libraryStatus = useAtomValue(libraryStatusAtom);
-  const { listItems } = useStorage();
-  const getRootItems = useRootItems();
   
   // Text State mit entferntem Frontmatter initialisieren (strikt)
   const [text, setText] = React.useState(() => {
@@ -213,28 +210,9 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
       }
 
       try {
-        // Templates-Ordner finden oder erstellen
-        const rootItems = await getRootItems();
-        let templatesFolder = rootItems.find(item => 
-          item.type === 'folder' && item.metadata.name === 'templates'
-        );
-        
-        if (!templatesFolder) {
-          // Templates-Ordner erstellen
-          templatesFolder = await provider.createFolder('root', 'templates');
-        }
-
-        // Template-Dateien laden
-        const templateItems = await listItems(templatesFolder.id);
-        const templateFiles = templateItems.filter(item => 
-          item.type === 'file' && item.metadata.name.endsWith('.md')
-        );
-
-        // Nur Template-Namen extrahieren
-        const templateNames = templateFiles.map(file => 
-          file.metadata.name.replace('.md', '')
-        );
-
+        // Verwende zentrale Template-Service Library
+        const { listAvailableTemplates } = await import('@/lib/templates/template-service')
+        const templateNames = await listAvailableTemplates(provider)
         setCustomTemplateNames(templateNames);
       } catch (error) {
         console.error('Fehler beim Laden der Templates:', error);
@@ -244,7 +222,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     }
 
     loadTemplatesIfNeeded();
-  }, [provider, libraryStatus, activeLibrary, getRootItems]);
+  }, [provider, libraryStatus, activeLibrary]);
 
   // Aktualisiere den Dateinamen, wenn das Template geändert wird
   React.useEffect(() => {
@@ -343,30 +321,13 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         FileLogger.info('TextTransform', 'Lade benutzerdefinierten Template-Inhalt', { templateName: template });
         
         try {
-          // Templates-Ordner finden
-          const rootItems = await getRootItems();
-          const templatesFolder = rootItems.find(item => 
-            item.type === 'folder' && item.metadata.name === 'templates'
-          );
-          
-          if (!templatesFolder) {
-            throw new Error('Templates-Ordner nicht gefunden');
-          }
-          
-          // Template-Datei finden
-          const templateItems = await listItems(templatesFolder.id);
-          const templateFile = templateItems.find(item => 
-            item.type === 'file' && 
-            item.metadata.name === `${template}.md`
-          );
-          
-          if (!templateFile) {
-            throw new Error(`Template-Datei "${template}.md" nicht gefunden`);
-          }
-          
-          // Template-Inhalt laden
-          const { blob } = await provider.getBinary(templateFile.id);
-          const templateContent = await blob.text();
+          // Verwende zentrale Template-Service Library
+          const { loadTemplate } = await import('@/lib/templates/template-service')
+          const templateResult = await loadTemplate({
+            provider,
+            preferredTemplateName: template
+          })
+          const templateContent = templateResult.templateContent
           
           FileLogger.info('TextTransform', 'Template-Inhalt geladen', { 
             templateName: template,

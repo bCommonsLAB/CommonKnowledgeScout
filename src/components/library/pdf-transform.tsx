@@ -8,7 +8,6 @@ import { useAtomValue } from "jotai";
 import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
-import { useRootItems } from "@/hooks/use-root-items";
 import { TransformService, TransformResult, PdfTransformOptions } from "@/lib/transform/transform-service";
 import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
@@ -26,7 +25,6 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
   const provider = useStorageProvider();
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const { refreshItems } = useStorage();
-  const getRootItems = useRootItems();
   const [templateOptions, setTemplateOptions] = useState<string[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   
@@ -66,23 +64,14 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     if (!provider) return;
     try {
       setIsLoadingTemplates(true);
-      const rootItems = await getRootItems();
-      const templatesFolder = rootItems.find(it => it.type === 'folder' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'templates'));
-      if (!templatesFolder) {
-        setTemplateOptions([]);
-        return;
-      }
-      const tplItems = await provider.listItemsById(templatesFolder.id);
-      const md = tplItems
-        .filter(it => it.type === 'file' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string')
-        .map(it => ((it as { metadata: { name: string } }).metadata.name))
-        .filter(name => name.toLowerCase().endsWith('.md'))
-        .sort((a, b) => a.localeCompare(b));
-      setTemplateOptions(md);
+      // Verwende zentrale Template-Service Library
+      const { listAvailableTemplates } = await import('@/lib/templates/template-service')
+      const templates = await listAvailableTemplates(provider)
+      setTemplateOptions(templates);
 
       // Default bestimmen: pdfanalyse.md > erstes .md
-      const preferred = md.find(n => n.toLowerCase() === 'pdfanalyse.md');
-      const chosen = preferred || md[0] || undefined;
+      const preferred = templates.find(n => n.toLowerCase() === 'pdfanalyse.md');
+      const chosen = preferred || templates[0] || undefined;
       setSaveOptions(prev => ({ ...prev, template: chosen }));
     } catch (e) {
       FileLogger.warn('PdfTransform', 'Templates konnten nicht geladen werden', { error: e instanceof Error ? e.message : String(e) });

@@ -11,7 +11,6 @@ import { useAtomValue } from 'jotai'
 import { activeLibraryIdAtom } from '@/atoms/library-atom'
 import { StorageItem, StorageProvider } from '@/lib/storage/types'
 import { toast } from 'sonner'
-import { useRootItems } from '@/hooks/use-root-items'
 
 interface CombinedChatDialogProps {
   provider: StorageProvider | null
@@ -26,7 +25,6 @@ interface CombinedChatDialogProps {
 export function CombinedChatDialog({ provider, items, selectedTemplate, selectedLanguage, defaultFileName, systemPrompt = 'Du bist ein hilfreicher, faktenbasierter Assistent. Nutze ausschließlich den bereitgestellten Kontext.', templateBody = '' }: CombinedChatDialogProps) {
   const [open, setOpen] = useAtom(combinedChatDialogOpenAtom)
   const libraryId = useAtomValue(activeLibraryIdAtom)
-  const getRootItems = useRootItems()
   const [instructions, setInstructions] = useState<string>(templateBody)
   const [answer, setAnswer] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(false)
@@ -47,17 +45,21 @@ export function CombinedChatDialog({ provider, items, selectedTemplate, selected
         if (templateBody) {
           if (!cancelled) setTemplateContent(templateBody)
         } else {
-          const roots = await getRootItems()
-          const templatesFolder = roots.find(it => it.type === 'folder' && it.metadata?.name === 'templates')
-          if (!templatesFolder) return
-          const items = await provider.listItemsById(templatesFolder.id)
-          const tpl = items.find(it => it.type === 'file' && it.metadata?.name?.toLowerCase() === `${selectedTemplate.toLowerCase()}.md`)
-          if (!tpl) return
-          const { blob } = await provider.getBinary(tpl.id)
-          const text = await blob.text()
-          if (!cancelled) { setTemplateContent(text); setInstructions(text) }
+          // Verwende zentrale Template-Service Library
+          const { loadTemplate } = await import('@/lib/templates/template-service')
+          const result = await loadTemplate({
+            provider,
+            preferredTemplateName: selectedTemplate
+          })
+          if (!cancelled) {
+            setTemplateContent(result.templateContent)
+            setInstructions(result.templateContent)
+          }
         }
-      } catch { /* ignore */ }
+      } catch (error) {
+        // Fehler beim Laden des Templates - ignorieren für UI (wird in anderen Komponenten behandelt)
+        console.warn('Template konnte nicht geladen werden:', error)
+      }
     }
     loadTemplate()
     return () => { cancelled = true }

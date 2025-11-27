@@ -76,7 +76,7 @@ document.de.md       (Transformed - Phase 2 output)
 
 ### Job Document (Primary Source)
 
-Shadow-Twin state is calculated at job start and stored in MongoDB:
+Shadow-Twin state is calculated at job start, updated by the processing phases, and stored in MongoDB:
 
 ```typescript
 interface ExternalJob {
@@ -88,6 +88,7 @@ interface ExternalJob {
     mediaFiles?: Array<{ id: string; metadata: { name: string } }>;
     analysisTimestamp: number;
     analysisError?: string;
+    processingStatus?: 'processing' | 'ready' | 'error' | null;
   };
 }
 ```

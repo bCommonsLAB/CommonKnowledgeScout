@@ -15,6 +15,8 @@ export function loadPdfDefaults(libraryId: string): Partial<PdfTransformOptions>
     if (typeof parsed.extractionMethod === 'string') result.extractionMethod = parsed.extractionMethod;
     if (typeof parsed.useCache === 'boolean') result.useCache = parsed.useCache;
     if (typeof parsed.includeImages === 'boolean') result.includeImages = parsed.includeImages;
+    if (typeof parsed.includeOcrImages === 'boolean') result.includeOcrImages = parsed.includeOcrImages;
+    if (typeof parsed.includePageImages === 'boolean') result.includePageImages = parsed.includePageImages;
     if (typeof parsed.template === 'string') result.template = parsed.template;
     if (typeof parsed.useIngestionPipeline === 'boolean') result.useIngestionPipeline = parsed.useIngestionPipeline;
     return result;
@@ -31,11 +33,17 @@ export function savePdfDefaults(libraryId: string, options: PdfTransformOptions)
       extractionMethod: options.extractionMethod,
       useCache: options.useCache,
       includeImages: options.includeImages,
+      includeOcrImages: options.includeOcrImages,
+      includePageImages: options.includePageImages,
       template: options.template,
       useIngestionPipeline: options.useIngestionPipeline,
     };
-    if (typeof window !== 'undefined') window.localStorage.setItem(KEY(libraryId), JSON.stringify(toStore));
-  } catch {}
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(KEY(libraryId), JSON.stringify(toStore));
+    }
+  } catch (error) {
+    console.error('Fehler beim Speichern der PDF-Standardwerte:', error);
+  }
 }
 
 

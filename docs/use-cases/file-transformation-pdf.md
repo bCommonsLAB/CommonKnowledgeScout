@@ -33,10 +33,12 @@ Transform PDF files into structured Markdown documents. Text, images, and struct
 - **Shadow-Twin Directory**: Created automatically if images are present (`.document.pdf/`)
 
 ### Phase 2: Template/Metadata
-- **What happens**: Frontmatter added, document structured
+- **What happens**: Frontmatter is added and the document is structured (chapters, topics, etc.).
 - **Input**: Markdown without frontmatter (`document.md`)
 - **Output**: Markdown with frontmatter (`document.de.md` - Transformed)
-- **Note**: This phase can be skipped if frontmatter already exists
+- **Automatic skipping**:
+  - If the document already has chapter metadata (`chapters` in frontmatter), the template phase is skipped.
+  - If only `pages` are missing, they are automatically reconstructed from the `--- Seite N ---` markers in the body (no extra analysis needed).
 
 ### Phase 3: Ingestion (RAG)
 - **What happens**: Markdown → Vector storage, MongoDB
@@ -58,6 +60,7 @@ If images are extracted, a Shadow-Twin directory is created:
 ```
 
 ### Shadow-Twin Files (when no images)
+### Shadow-Twin Files (when no images)
 
 If no images are extracted, files are saved directly next to the PDF:
 ```
@@ -65,6 +68,7 @@ document.pdf
 document.md          (Transcript - Phase 1 output, no frontmatter)
 document.de.md       (Transformed - Phase 2 output, with frontmatter)
 ```
+For more detailed information about the Shadow-Twin structure, see the **Shadow-Twin Architecture Documentation**.
 
 ## File Naming Convention
 
