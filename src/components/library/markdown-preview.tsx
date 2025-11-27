@@ -826,7 +826,6 @@ function getYouTubeId(url: string): string | null {
  * @param libraryId Die Library-ID
  * @param baseItem Optional: Die Basisdatei (z.B. PDF) für Shadow-Twin-Auflösung
  * @param provider Optional: Storage Provider für Shadow-Twin-Auflösung
- * @param shadowTwinFolderId Optional: ID des Shadow-Twin-Verzeichnisses (wenn bereits bekannt)
  * @returns Storage-API-URL oder ursprünglicher Pfad bei Fehler
  */
 function resolveImageUrl(
@@ -834,8 +833,7 @@ function resolveImageUrl(
   currentFolderId: string, 
   libraryId: string | undefined,
   baseItem?: StorageItem | null,
-  provider?: StorageProvider | null,
-  shadowTwinFolderId?: string
+  provider?: StorageProvider | null
 ): string {
   if (!imagePath || !libraryId) return imagePath;
   
