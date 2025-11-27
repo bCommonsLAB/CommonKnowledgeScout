@@ -138,7 +138,7 @@ async function findLibraryOwnerEmailForMigration(libraryId: string): Promise<str
 async function migrateLibraryConfig(library: Library, userEmail?: string): Promise<Library> {
   // Prüfe ob Migration bereits durchgeführt wurde
   const hasCollectionName = !!library.config?.chat?.vectorStore?.collectionName
-  const hasIndexName = !!library.config?.chat?.vectorStore?.indexName   
+  const hasIndexName = !!library.config?.chat?.vectorStore?.indexName
   const hasIndexOverride = !!(library.config?.chat?.vectorStore as { indexOverride?: boolean })?.indexOverride
   
   if (hasCollectionName && hasIndexName && !hasIndexOverride) {

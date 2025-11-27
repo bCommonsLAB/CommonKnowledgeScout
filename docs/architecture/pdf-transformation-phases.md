@@ -212,15 +212,23 @@ Ingest transformed Markdown into vector database (Pinecone) and MongoDB for RAG 
    - Document metadata stored in MongoDB
    - Chapter summaries stored for fast retrieval
 
-4. **Image Upload**:
-   - Images from Shadow-Twin directory uploaded to Azure Storage
-   - URLs stored in metadata for frontend access
+4. **Image Upload (Shadow-Twin → Azure Storage)**:
+   - All image handling in Phase 3 is based on the **Shadow-Twin directory** and is centralized in the ingestion service.
+   - **Session-mode documents (events with slides)**:
+     - `docMetaJson.slides[].image_url` is interpreted as a reference into the Shadow-Twin.
+     - Each slide image is resolved via `findShadowTwinImage`, uploaded to Azure Storage under the scoped path `…/{libraryId}/sessions/{fileId}/{hash}.{ext}` and de-duplicated by hash.
+     - The resulting Azure URLs replace the original `slides[].image_url` values and are used directly by the frontend (`EventSlides`).
+   - **Book-mode documents (no slides)**:
+     - A **cover image** is detected in the Shadow-Twin directory (`preview_001.jpg`), uploaded to Azure under `…/{libraryId}/books/{fileId}/{hash}.{ext}` and stored as `docMetaJson.coverImageUrl`; this field is also available as a facet and is used by the gallery and book-detail views.
+     - Inline images in the Markdown body (Markdown `![]()`, HTML `<img>` and Obsidian `<img-x.ext>` syntax) are resolved against the Shadow-Twin, uploaded to Azure under the `books` scope and **all references in the Markdown are rewritten** to use the Azure URLs.
+   - Frontend components (gallery cards, document detail, markdown viewer) use **only these Azure URLs**; direct access to Shadow-Twin image files from the browser is no longer required.
 
 ### Input
 
 - Transformed Markdown (`document.de.md`)
-- Images from Shadow-Twin directory
-- Library configuration
+- Shadow-Twin directory (transcript, transformed Markdown, extracted images)
+- Library configuration (including ingestion policies and facets)
+- Storage provider + `shadowTwinFolderId` from the job’s `shadowTwinState`
 
 ### Output
 
@@ -235,10 +243,13 @@ Ingest transformed Markdown into vector database (Pinecone) and MongoDB for RAG 
   - **`src/app/api/external/jobs/[jobId]/route.ts`**: Runs the regular ingestion after the template phase (including gates, policies, and error handling).
 - **Ingestion phase (core modules)**
   - **`src/lib/external-jobs/ingest.ts`**: RAG ingestion pipeline (wrapper around the ingestion service)
-  - **`src/lib/chat/ingestion-service.ts`**: Ingestion service (chunking, embeddings, Pinecone upsert, MongoDB metadata)
+  - **`src/lib/chat/ingestion-service.ts`**: Ingestion service (chunking, embeddings, Pinecone/MongoDB upsert, **image processing and Azure upload** via `processSlideImagesToAzure`, `processMarkdownImagesToAzure`, `processCoverImageToAzure`)
   - **`src/lib/processing/gates.ts`** (`gateIngestRag`): Gate checking (skip if already ingested; uses Pinecone `listVectors`)
   - **`src/lib/external-jobs/complete.ts`**: Job completion handler (status, result, events)
-- **`src/lib/repositories/doc-meta-repo.ts`**: MongoDB document metadata repository
+- **Storage & metadata**
+  - **`src/lib/repositories/doc-meta-repo.ts`**: MongoDB document metadata repository (incl. `coverImageUrl`)
+  - **`src/lib/storage/shadow-twin.ts`**: Shadow-Twin utilities (`findShadowTwinImage`, `resolveShadowTwinImageUrl`) for resolving images by relative path
+  - **`src/lib/services/azure-storage-service.ts`**: Azure Storage client (scoped blob paths `books` / `sessions`, hash-based de-duplication)
 
 ### Execution in Code (IST)
 

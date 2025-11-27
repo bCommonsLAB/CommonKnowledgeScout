@@ -91,13 +91,36 @@ export class AzureStorageService {
   }
 
   /**
-   * Generiert Blob-Pfad für ein Bild
+   * Generiert Blob-Pfad für ein Bild (alte Struktur für Rückwärtskompatibilität)
    */
   private getBlobPath(libraryId: string, hash: string, extension: string): string {
     if (!this.config) throw new Error('Azure Storage nicht konfiguriert')
     const sanitizedLibraryId = sanitizeLibraryId(libraryId)
     const filename = `${hash}.${extension}`
     return `${sanitizedLibraryId}/${this.config.uploadDir}/${filename}`
+  }
+
+  /**
+   * Generiert Blob-Pfad für ein Bild mit Scope (books/sessions) und ownerId (fileId)
+   * Neue Struktur: {libraryId}/{scope}/{ownerId}/{hash}.{extension}
+   * 
+   * WICHTIG: uploadDir wird NICHT verwendet, da der Scope bereits die Unterscheidung macht.
+   * Der Scope ersetzt uploadDir für die neue Struktur.
+   */
+  private getBlobPathWithScope(
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    hash: string,
+    extension: string
+  ): string {
+    if (!this.config) throw new Error('Azure Storage nicht konfiguriert')
+    const sanitizedLibraryId = sanitizeLibraryId(libraryId)
+    const sanitizedOwnerId = sanitizeLibraryId(ownerId) // Verwende sanitizeLibraryId auch für ownerId
+    const filename = `${hash}.${extension}`
+    // Struktur: {libraryId}/{scope}/{ownerId}/{hash}.{extension}
+    // Scope ersetzt uploadDir für die neue Struktur
+    return `${sanitizedLibraryId}/${scope}/${sanitizedOwnerId}/${filename}`
   }
 
   /**
@@ -206,6 +229,190 @@ export class AzureStorageService {
       FileLogger.error('AzureStorageService', 'Fehler beim Upload des Bildes', error)
       throw new Error(
         `Upload fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+      )
+    }
+  }
+
+  /**
+   * Generiert öffentliche Azure Blob URL mit Scope
+   */
+  getImageUrlWithScope(
+    containerName: string,
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    hash: string,
+    extension: string
+  ): string {
+    if (!this.config) throw new Error('Azure Storage nicht konfiguriert')
+    const blobPath = this.getBlobPathWithScope(libraryId, scope, ownerId, hash, extension)
+    return `${this.config.baseUrl}/${blobPath}`
+  }
+
+  /**
+   * Prüft ob ein Bild mit Scope bereits existiert
+   */
+  async imageExistsWithScope(
+    containerName: string,
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    hash: string,
+    extension: string
+  ): Promise<boolean> {
+    if (!this.isConfigured()) return false
+
+    try {
+      const containerClient = this.getContainerClient(containerName)
+      if (!containerClient) return false
+
+      const blobPath = this.getBlobPathWithScope(libraryId, scope, ownerId, hash, extension)
+      const blobClient = containerClient.getBlockBlobClient(blobPath)
+
+      const exists = await blobClient.exists()
+      return exists
+    } catch (error) {
+      FileLogger.error('AzureStorageService', 'Fehler beim Prüfen ob Bild existiert', error)
+      return false
+    }
+  }
+
+  /**
+   * Gibt URL für existierendes Bild mit Scope zurück (falls vorhanden)
+   */
+  async getImageUrlByHashWithScope(
+    containerName: string,
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    hash: string,
+    extension: string
+  ): Promise<string | null> {
+    if (!this.isConfigured()) return null
+
+    const exists = await this.imageExistsWithScope(containerName, libraryId, scope, ownerId, hash, extension)
+    if (exists) {
+      return this.getImageUrlWithScope(containerName, libraryId, scope, ownerId, hash, extension)
+    }
+    return null
+  }
+
+  /**
+   * Lädt ein Bild auf Azure Storage hoch mit Scope-Struktur
+   * @param containerName Container Name
+   * @param libraryId Library ID
+   * @param scope 'books' oder 'sessions'
+   * @param ownerId fileId oder sessionId
+   * @param hash Hash des Bildes
+   * @param extension Dateiendung
+   * @param buffer Bild-Daten als Buffer
+   * @returns Öffentliche Azure Blob URL
+   */
+  async uploadImageToScope(
+    containerName: string,
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    hash: string,
+    extension: string,
+    buffer: Buffer
+  ): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new Error('Azure Storage nicht konfiguriert')
+    }
+
+    try {
+      const containerClient = this.getContainerClient(containerName)
+      if (!containerClient) {
+        throw new Error('Container Client konnte nicht erstellt werden')
+      }
+
+      const blobPath = this.getBlobPathWithScope(libraryId, scope, ownerId, hash, extension)
+      const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
+
+      // MIME-Type basierend auf Extension bestimmen
+      const contentType = this.getContentType(extension)
+
+      await blockBlobClient.uploadData(buffer, {
+        blobHTTPHeaders: {
+          blobContentType: contentType,
+          blobCacheControl: 'public, max-age=31536000', // 1 Jahr Cache für statische Bilder
+        },
+      })
+
+      const url = this.getImageUrlWithScope(containerName, libraryId, scope, ownerId, hash, extension)
+      FileLogger.info('AzureStorageService', 'Bild hochgeladen (mit Scope)', {
+        libraryId,
+        scope,
+        ownerId,
+        hash,
+        extension,
+        blobPath,
+        url,
+      })
+
+      return url
+    } catch (error) {
+      FileLogger.error('AzureStorageService', 'Fehler beim Upload des Bildes', error)
+      throw new Error(
+        `Upload fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+      )
+    }
+  }
+
+  /**
+   * Löscht alle Bilder für einen Owner (z.B. alle Bilder eines Buchs)
+   * @param containerName Container Name
+   * @param libraryId Library ID
+   * @param scope 'books' oder 'sessions'
+   * @param ownerId fileId oder sessionId
+   */
+  async deleteImagesForOwner(
+    containerName: string,
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string
+  ): Promise<void> {
+    if (!this.isConfigured()) {
+      throw new Error('Azure Storage nicht konfiguriert')
+    }
+
+    try {
+      const containerClient = this.getContainerClient(containerName)
+      if (!containerClient) {
+        throw new Error('Container Client konnte nicht erstellt werden')
+      }
+
+      const sanitizedLibraryId = sanitizeLibraryId(libraryId)
+      const sanitizedOwnerId = sanitizeLibraryId(ownerId)
+      // Struktur: {libraryId}/{scope}/{ownerId}/ (ohne uploadDir)
+      const prefix = `${sanitizedLibraryId}/${scope}/${sanitizedOwnerId}/`
+
+      FileLogger.info('AzureStorageService', 'Lösche Bilder für Owner', {
+        libraryId,
+        scope,
+        ownerId,
+        prefix,
+      })
+
+      // Liste alle Blobs mit diesem Prefix
+      let deletedCount = 0
+      for await (const blob of containerClient.listBlobsFlat({ prefix })) {
+        const blobClient = containerClient.getBlockBlobClient(blob.name)
+        await blobClient.delete()
+        deletedCount++
+      }
+
+      FileLogger.info('AzureStorageService', 'Bilder gelöscht', {
+        libraryId,
+        scope,
+        ownerId,
+        deletedCount,
+      })
+    } catch (error) {
+      FileLogger.error('AzureStorageService', 'Fehler beim Löschen der Bilder', error)
+      throw new Error(
+        `Löschung fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       )
     }
   }

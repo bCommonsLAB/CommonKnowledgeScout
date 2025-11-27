@@ -414,19 +414,19 @@ export async function POST(
     const ingestPhaseEnabled = phasesParam?.ingest !== false;
     const imagesPhaseEnabled = (job.parameters && typeof job.parameters === 'object' && (job.parameters as { phases?: { images?: boolean } }).phases) ? ((job.parameters as { phases?: { images?: boolean } }).phases!.images !== false) : true
     
-      bufferLog(jobId, { 
-        phase: 'phases_check', 
-        message: 'Phasen-Status prüfen',
-        templatePhaseEnabled,
-        ingestPhaseEnabled,
-        imagesPhaseEnabled,
-        hasExtractedText: !!extractedText,
-        hasPagesArchiveData: !!pagesArchiveData,
-        hasPagesArchiveUrl: !!pagesArchiveUrl,
-        hasMistralOcrImages,
+    bufferLog(jobId, { 
+      phase: 'phases_check', 
+      message: 'Phasen-Status prüfen',
+      templatePhaseEnabled,
+      ingestPhaseEnabled,
+      imagesPhaseEnabled,
+      hasExtractedText: !!extractedText,
+      hasPagesArchiveData: !!pagesArchiveData,
+      hasPagesArchiveUrl: !!pagesArchiveUrl,
+      hasMistralOcrImages,
         hasMistralOcrImagesUrl: !!mistralOcrImagesUrl,
-        hasImagesArchiveUrl: !!imagesArchiveUrlFromWorker
-      });
+      hasImagesArchiveUrl: !!imagesArchiveUrlFromWorker
+    });
 
     // Kurzschluss: Extract‑Only (Template und Ingest deaktiviert)
     if (!templatePhaseEnabled && !ingestPhaseEnabled) {
@@ -472,9 +472,9 @@ export async function POST(
       const policies = readPhasesAndPolicies(ctx);
       const autoSkip = true;
 
-      // Einheitliche Serverinitialisierung des Providers (DB-Config, Token enthalten)
-      // Provider wird einmal erstellt und an alle Module weitergegeben
-      const provider = await buildProvider({ userEmail: job.userEmail, libraryId: job.libraryId, jobId, repo })
+        // Einheitliche Serverinitialisierung des Providers (DB-Config, Token enthalten)
+        // Provider wird einmal erstellt und an alle Module weitergegeben
+        const provider = await buildProvider({ userEmail: job.userEmail, libraryId: job.libraryId, jobId, repo })
 
         // DETERMINISTISCHE ARCHITEKTUR: Verwende Shadow-Twin-Verzeichnis aus Job-State
         // Der Kontext wurde beim Job-Start bestimmt und im Job-State gespeichert
@@ -495,25 +495,25 @@ export async function POST(
           policies: { metadata: policies.metadata as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
           autoSkip,
           imagesPhaseEnabled,
-          pagesArchiveData,
-          pagesArchiveUrl,
-          pagesArchiveFilename: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename,
-          imagesArchiveData,
-          imagesArchiveFilename: (body?.data as { images_archive_filename?: string })?.images_archive_filename,
-          imagesArchiveUrl: imagesArchiveUrlFromWorker,
-          mistralOcrRaw,
-          hasMistralOcrImages,
+              pagesArchiveData,
+              pagesArchiveUrl,
+              pagesArchiveFilename: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename,
+              imagesArchiveData,
+              imagesArchiveFilename: (body?.data as { images_archive_filename?: string })?.images_archive_filename,
+              imagesArchiveUrl: imagesArchiveUrlFromWorker,
+              mistralOcrRaw,
+              hasMistralOcrImages,
           mistralOcrImagesUrl,
-          targetParentId,
+              targetParentId,
           libraryConfig: undefined, // libraryConfig wird derzeit nicht verwendet
         })
 
         // Fatal: Wenn Template-Transformation fehlgeschlagen ist, abbrechen
         if (templateResult.status === 'failed') {
-          clearWatchdog(jobId)
+            clearWatchdog(jobId)
           const errorMessage = templateResult.errorMessage || 'Template-Transformation fehlgeschlagen'
           bufferLog(jobId, { phase: 'failed', message: `${errorMessage} (fatal)` })
-          void drainBufferedLogs(jobId)
+            void drainBufferedLogs(jobId)
           await handleJobError(
             new Error(errorMessage),
             {

@@ -816,12 +816,27 @@ function getYouTubeId(url: string): string | null {
 
 /**
  * Konvertiert einen relativen Bildpfad zu einer Storage-API-URL
+ * 
+ * WICHTIG: Diese Funktion verwendet die zentrale Shadow-Twin-Bild-Auflösung,
+ * wenn baseItem und provider verfügbar sind. Andernfalls verwendet sie
+ * die Legacy-Logik mit currentFolderId.
+ * 
  * @param imagePath Relativer Bildpfad (z.B. "img-0.jpeg")
- * @param currentFolderId ID des aktuellen Verzeichnisses (wo die Markdown-Datei liegt)
+ * @param currentFolderId ID des aktuellen Verzeichnisses (wo die Markdown-Datei liegt) - Legacy-Fallback
  * @param libraryId Die Library-ID
+ * @param baseItem Optional: Die Basisdatei (z.B. PDF) für Shadow-Twin-Auflösung
+ * @param provider Optional: Storage Provider für Shadow-Twin-Auflösung
+ * @param shadowTwinFolderId Optional: ID des Shadow-Twin-Verzeichnisses (wenn bereits bekannt)
  * @returns Storage-API-URL oder ursprünglicher Pfad bei Fehler
  */
-function resolveImageUrl(imagePath: string, currentFolderId: string, libraryId: string | undefined): string {
+function resolveImageUrl(
+  imagePath: string, 
+  currentFolderId: string, 
+  libraryId: string | undefined,
+  baseItem?: StorageItem | null,
+  provider?: StorageProvider | null,
+  shadowTwinFolderId?: string
+): string {
   if (!imagePath || !libraryId) return imagePath;
   
   // Prüfe ob es bereits eine absolute URL ist (HTTP/HTTPS oder bereits aufgelöste Storage-API-URL)
@@ -842,7 +857,16 @@ function resolveImageUrl(imagePath: string, currentFolderId: string, libraryId: 
     return imagePath;
   }
   
-  // Konstruiere den vollständigen Pfad relativ zum aktuellen Verzeichnis
+  // Verwende zentrale Shadow-Twin-Bild-Auflösung, wenn baseItem und provider verfügbar sind
+  // Diese wird asynchron aufgelöst, daher geben wir hier einen Platzhalter zurück
+  // Die tatsächliche Auflösung erfolgt in einem useEffect
+  if (baseItem && provider) {
+    // Asynchrone Auflösung wird in useEffect durchgeführt
+    // Hier geben wir einen Platzhalter zurück, der später ersetzt wird
+    return imagePath; // Wird in useEffect aufgelöst
+  }
+  
+  // Legacy-Logik: Konstruiere den vollständigen Pfad relativ zum aktuellen Verzeichnis
   // WICHTIG: currentFolderId ist bereits base64-kodiert, muss zuerst dekodiert werden
   let fullPath: string;
   if (currentFolderId === 'root') {

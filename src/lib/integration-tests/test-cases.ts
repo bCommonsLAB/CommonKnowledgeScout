@@ -49,6 +49,10 @@ export interface ExpectedOutcome {
   expectTemplateRepair?: boolean;
   /** Ingestion soll laufen */
   expectIngestionRun?: boolean;
+  /** MongoDB-Dokument soll upserted sein (unabhängig von Pinecone) */
+  expectMongoUpsert?: boolean;
+  /** Pinecone-Vektoren sollen upserted sein (unabhängig von MongoDB) */
+  expectPineconeUpsert?: boolean;
   /** Nach dem Testlauf existiert ein Shadow-Twin-Verzeichnis */
   expectShadowTwinExists?: boolean;
   /** Legacy-Markdown im PDF-Ordner soll nach dem Lauf gelöscht sein */
@@ -331,6 +335,90 @@ export const integrationTestCases: IntegrationTestCase[] = [
     expected: {
       shouldComplete: true,
       expectIngestionRun: false,
+      expectShadowTwinExists: true,
+    },
+  },
+  {
+    id: 'TC-3.4',
+    label: 'MongoDB-only Ingestion mit force-Policy',
+    description:
+      'Nur MongoDB-Dokument soll upserted werden. Prüft, ob docMeta in MongoDB existiert. ' +
+      'Ingestion wird mit force-Policy ausgeführt, auch wenn bereits Daten existieren.',
+    category: 'phase3',
+    phases: { extract: false, template: false, ingest: true },
+    policies: {
+      extract: 'ignore',
+      metadata: 'ignore',
+      ingest: 'force',
+    },
+    expected: {
+      shouldComplete: true,
+      expectIngestionRun: true,
+      expectMongoUpsert: true,
+      expectPineconeUpsert: true, // Ingestion macht beide, aber wir prüfen MongoDB separat
+      expectShadowTwinExists: true,
+    },
+  },
+  {
+    id: 'TC-3.5',
+    label: 'MongoDB-only Ingestion mit auto-Policy',
+    description:
+      'Nur MongoDB-Dokument soll upserted werden. Prüft, ob docMeta in MongoDB existiert. ' +
+      'Ingestion wird mit auto-Policy ausgeführt (Gate-basiert).',
+    category: 'phase3',
+    phases: { extract: false, template: false, ingest: true },
+    policies: {
+      extract: 'ignore',
+      metadata: 'ignore',
+      ingest: 'auto',
+    },
+    expected: {
+      shouldComplete: true,
+      expectIngestionRun: true,
+      expectMongoUpsert: true,
+      expectPineconeUpsert: true, // Ingestion macht beide, aber wir prüfen MongoDB separat
+      expectShadowTwinExists: true,
+    },
+  },
+  {
+    id: 'TC-3.6',
+    label: 'Pinecone-only Ingestion mit force-Policy',
+    description:
+      'Nur Pinecone-Vektoren sollen upserted werden. Prüft, ob Vektoren in Pinecone existieren. ' +
+      'Ingestion wird mit force-Policy ausgeführt, auch wenn bereits Vektoren existieren.',
+    category: 'phase3',
+    phases: { extract: false, template: false, ingest: true },
+    policies: {
+      extract: 'ignore',
+      metadata: 'ignore',
+      ingest: 'force',
+    },
+    expected: {
+      shouldComplete: true,
+      expectIngestionRun: true,
+      expectMongoUpsert: true, // Ingestion macht beide, aber wir prüfen Pinecone separat
+      expectPineconeUpsert: true,
+      expectShadowTwinExists: true,
+    },
+  },
+  {
+    id: 'TC-3.7',
+    label: 'Pinecone-only Ingestion mit auto-Policy',
+    description:
+      'Nur Pinecone-Vektoren sollen upserted werden. Prüft, ob Vektoren in Pinecone existieren. ' +
+      'Ingestion wird mit auto-Policy ausgeführt (Gate-basiert).',
+    category: 'phase3',
+    phases: { extract: false, template: false, ingest: true },
+    policies: {
+      extract: 'ignore',
+      metadata: 'ignore',
+      ingest: 'auto',
+    },
+    expected: {
+      shouldComplete: true,
+      expectIngestionRun: true,
+      expectMongoUpsert: true, // Ingestion macht beide, aber wir prüfen Pinecone separat
+      expectPineconeUpsert: true,
       expectShadowTwinExists: true,
     },
   },

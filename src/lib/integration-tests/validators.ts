@@ -252,6 +252,162 @@ async function validateIngestion(
 }
 
 /**
+ * Validiert, ob MongoDB-Dokument für fileId existiert
+ */
+async function validateMongoUpsert(
+  job: import('@/types/external-job').ExternalJob,
+  expected: ExpectedOutcome,
+  messages: ValidationMessage[]
+): Promise<void> {
+  if (!expected.expectMongoUpsert) return
+
+  const fileId = job.correlation?.source?.itemId
+  if (!fileId) {
+    pushMessage(messages, 'warn', 'Keine fileId im Job gefunden, kann MongoDB nicht prüfen')
+    return
+  }
+
+  try {
+    const { loadLibraryChatContext } = await import('@/lib/chat/loader')
+    const { getCollectionNameForLibrary } = await import('@/lib/repositories/doc-meta-repo')
+    const { getByFileIds } = await import('@/lib/repositories/doc-meta-repo')
+
+    const ctx = await loadLibraryChatContext(job.userEmail, job.libraryId)
+    if (!ctx) {
+      pushMessage(messages, 'error', 'Bibliothek nicht gefunden, kann MongoDB nicht prüfen')
+      return
+    }
+
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
+    const docMap = await getByFileIds(libraryKey, job.libraryId, [fileId])
+    const docMeta = docMap.get(fileId)
+
+    if (!docMeta) {
+      pushMessage(
+        messages,
+        'error',
+        `MongoDB-Dokument wird erwartet, aber docMeta für fileId "${fileId}" nicht gefunden`
+      )
+    } else {
+      const chunkCount = typeof docMeta.chunkCount === 'number' ? docMeta.chunkCount : 0
+      const chaptersCount = typeof docMeta.chaptersCount === 'number' ? docMeta.chaptersCount : 0
+      pushMessage(
+        messages,
+        'info',
+        `MongoDB-Dokument gefunden: fileId="${fileId}", chunkCount=${chunkCount}, chaptersCount=${chaptersCount}`
+      )
+    }
+  } catch (error) {
+    pushMessage(
+      messages,
+      'error',
+      `Fehler beim Prüfen von MongoDB: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+}
+
+/**
+ * Validiert, ob Pinecone-Vektoren für fileId existieren
+ */
+async function validatePineconeUpsert(
+  job: import('@/types/external-job').ExternalJob,
+  expected: ExpectedOutcome,
+  messages: ValidationMessage[]
+): Promise<void> {
+  if (!expected.expectPineconeUpsert) return
+
+  const fileId = job.correlation?.source?.itemId
+  if (!fileId) {
+    pushMessage(messages, 'warn', 'Keine fileId im Job gefunden, kann Pinecone nicht prüfen')
+    return
+  }
+
+  const apiKey = process.env.PINECONE_API_KEY
+  if (!apiKey) {
+    pushMessage(messages, 'warn', 'PINECONE_API_KEY nicht gesetzt, kann Pinecone nicht prüfen')
+    return
+  }
+
+  try {
+    const { loadLibraryChatContext } = await import('@/lib/chat/loader')
+    const { describeIndex, fetchVectors, queryVectors } = await import('@/lib/chat/pinecone')
+
+    const ctx = await loadLibraryChatContext(job.userEmail, job.libraryId)
+    if (!ctx) {
+      pushMessage(messages, 'error', 'Bibliothek nicht gefunden, kann Pinecone nicht prüfen')
+      return
+    }
+
+    const idx = await describeIndex(ctx.vectorIndex, apiKey)
+    if (!idx?.host) {
+      pushMessage(messages, 'error', `Pinecone-Index "${ctx.vectorIndex}" nicht gefunden oder ohne Host`)
+      return
+    }
+
+    // Versuche Meta-Vektor zu finden
+    const metaId = `${fileId}-meta`
+    const fetched = await fetchVectors(idx.host, apiKey, [metaId], '')
+    const metaVector = fetched[metaId]
+
+    if (metaVector) {
+      const chunkCount = typeof metaVector.metadata?.chunkCount === 'number' ? metaVector.metadata.chunkCount : 0
+      pushMessage(
+        messages,
+        'info',
+        `Pinecone Meta-Vektor gefunden: id="${metaId}", chunkCount=${chunkCount}`
+      )
+    } else {
+      // Fallback: Query nach fileId
+      const zeroVector = new Array<number>(idx.dimension || 3072).fill(0)
+      const queryResult = await queryVectors(idx.host, apiKey, zeroVector, 1, {
+        user: { $eq: job.userEmail },
+        libraryId: { $eq: job.libraryId },
+        fileId: { $eq: fileId },
+        kind: { $eq: 'doc' },
+      })
+
+      if (queryResult.length > 0) {
+        const foundVector = queryResult[0]
+        const chunkCount = typeof foundVector.metadata?.chunkCount === 'number' ? foundVector.metadata.chunkCount : 0
+        pushMessage(
+          messages,
+          'info',
+          `Pinecone Meta-Vektor gefunden (via Query): id="${foundVector.id}", chunkCount=${chunkCount}`
+        )
+      } else {
+        // Prüfe auch Chunk-Vektoren
+        const chunkQueryResult = await queryVectors(idx.host, apiKey, zeroVector, 5, {
+          user: { $eq: job.userEmail },
+          libraryId: { $eq: job.libraryId },
+          fileId: { $eq: fileId },
+          kind: { $eq: 'chunk' },
+        })
+
+        if (chunkQueryResult.length > 0) {
+          pushMessage(
+            messages,
+            'info',
+            `Pinecone Chunk-Vektoren gefunden: ${chunkQueryResult.length} Chunks für fileId="${fileId}"`
+          )
+        } else {
+          pushMessage(
+            messages,
+            'error',
+            `Pinecone-Vektoren werden erwartet, aber keine Vektoren für fileId "${fileId}" gefunden`
+          )
+        }
+      }
+    }
+  } catch (error) {
+    pushMessage(
+      messages,
+      'error',
+      `Fehler beim Prüfen von Pinecone: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+}
+
+/**
  * Validiert einen einzelnen External-Job gegen die erwarteten Ergebnisse eines Testfalls.
  */
 export async function validateExternalJobForTestCase(
@@ -614,6 +770,8 @@ export async function validateExternalJobForTestCase(
   summarizeShadowTwinState(job, testCase.expected, messages)
   await validateShadowTwin(job, testCase.expected, messages)
   await validateIngestion(job, testCase.expected, messages)
+  await validateMongoUpsert(job, testCase.expected, messages)
+  await validatePineconeUpsert(job, testCase.expected, messages)
 
   const hasError = messages.some(m => m.type === 'error')
   return {

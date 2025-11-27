@@ -553,7 +553,7 @@ export async function POST(
         await repo.setStatus(jobId, 'failed', { error: { code: 'shadow_twin_missing', message: 'Shadow‑Twin nicht gefunden' } })
         return NextResponse.json({ error: 'Shadow‑Twin nicht gefunden' }, { status: 404 })
       }
-
+      
       // Policies lesen
       const phasePolicies = readPhasesAndPolicies(job.parameters)
 
@@ -667,7 +667,7 @@ export async function POST(
         FileLogger.error('start-route', 'Fehler beim Aktualisieren des Shadow-Twin-States', {
           jobId,
           error: error instanceof Error ? error.message : String(error)
-        })
+      })
         // Fehler nicht kritisch - Job kann trotzdem abgeschlossen werden
       }
 
@@ -701,7 +701,7 @@ export async function POST(
     // WICHTIG: Request nur senden, wenn Extract ausgeführt werden soll
     if (!runExtract) {
       FileLogger.info('start-route', 'Extract-Phase übersprungen - kein Request an Secretary Service', {
-        jobId,
+      jobId,
         extractGateExists,
         extractGateReason,
         extractDirective,
@@ -792,7 +792,7 @@ export async function POST(
               processingStatus: 'ready' as const,
             })
             await repo.setShadowTwinState(jobId, mongoState)
-          } else {
+        } else {
             // Falls kein Shadow-Twin-State existiert, aber ein Shadow-Twin-Verzeichnis vorhanden ist,
             // analysiere es und setze den Status auf "ready"
             if (job.correlation?.source?.itemId && library) {
@@ -822,7 +822,7 @@ export async function POST(
         })
         getJobEventBus().emitUpdate(job.userEmail, {
           type: 'job_update',
-          jobId,
+        jobId,
           status: 'completed',
           progress: 100,
           updatedAt: new Date().toISOString(),
@@ -930,7 +930,7 @@ export async function POST(
       const jobForError = await repo.get(jobId).catch(() => null)
       if (jobForError) {
         await handleJobError(err, {
-          jobId,
+        jobId,
           userEmail: jobForError.userEmail,
           jobType: jobForError.job_type,
           fileName: jobForError.correlation?.source?.name,

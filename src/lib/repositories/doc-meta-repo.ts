@@ -177,7 +177,7 @@ export async function findDocs(
   libraryId: string,
   filter: Record<string, unknown>,
   options: FindDocsOptions = {}
-): Promise<Array<{ id: string; fileId: string; fileName?: string; title?: string; shortTitle?: string; authors?: string[]; speakers?: string[]; speakers_image_url?: string[]; year?: number | string; track?: string; date?: string; region?: string; upsertedAt?: string; docType?: string; source?: string; tags?: string[]; slug?: string }>> {
+): Promise<Array<{ id: string; fileId: string; fileName?: string; title?: string; shortTitle?: string; authors?: string[]; speakers?: string[]; speakers_image_url?: string[]; year?: number | string; track?: string; date?: string; region?: string; upsertedAt?: string; docType?: string; source?: string; tags?: string[]; slug?: string; coverImageUrl?: string }>> {
   const col = await getDocMetaCollection(libraryKey)
   // PERFORMANCE: libraryId wird NICHT gefiltert, da die Collection bereits nur Dokumente dieser Library enthält
   // Die Collection selbst ist bereits nach Library getrennt (doc_meta__${libraryId})
@@ -208,6 +208,7 @@ export async function findDocs(
       'docMetaJson.date': 1, // date aus docMetaJson (für Sessions)
       'docMetaJson.speakers_image_url': 1, // speakers_image_url aus docMetaJson (für Sessions)
       'docMetaJson.slug': 1, // slug für URL-basierte Dokument-Öffnung
+      'docMetaJson.coverImageUrl': 1, // coverImageUrl aus docMetaJson (für Bücher)
     }
   })
   if (options.sort) cursor.sort(options.sort)
@@ -243,6 +244,10 @@ export async function findDocs(
     const slugDocMeta = docMeta && typeof (docMeta as { slug?: unknown }).slug === 'string' 
       ? (docMeta as { slug: string }).slug 
       : undefined
+    // coverImageUrl: Aus docMetaJson.coverImageUrl extrahieren (für Bücher)
+    const coverImageUrlDocMeta = docMeta && typeof (docMeta as { coverImageUrl?: unknown }).coverImageUrl === 'string' 
+      ? (docMeta as { coverImageUrl: string }).coverImageUrl 
+      : undefined
     return {
       id: `${r.fileId}-meta`,
       fileId: r.fileId,
@@ -261,6 +266,7 @@ export async function findDocs(
       source: typeof r.source === 'string' ? r.source : undefined,
       tags: Array.isArray(r.tags) ? r.tags : undefined,
       slug: slugDocMeta || undefined,
+      coverImageUrl: coverImageUrlDocMeta || undefined,
     }
   })
 }

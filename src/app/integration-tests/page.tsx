@@ -194,9 +194,9 @@ export default function IntegrationTestsPage() {
               <thead className="bg-muted">
                 <tr>
                   <th className="w-8 px-2 py-1 text-left" />
-                  <th className="px-2 py-1 text-left">ID</th>
+                  <th className="w-20 px-2 py-1 text-left">ID</th>
                   <th className="px-2 py-1 text-left">Beschreibung</th>
-                  <th className="px-2 py-1 text-left">Kategorie</th>
+                  <th className="w-24 px-2 py-1 text-left">Kategorie</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,10 +214,10 @@ export default function IntegrationTestsPage() {
                           onCheckedChange={() => toggleSingle(tc.id)}
                         />
                       </td>
-                      <td className="px-2 py-1">
+                      <td className="px-2 py-1 w-20">
                         <Label
                           htmlFor={tc.id}
-                          className="font-mono text-xs cursor-pointer"
+                          className="font-mono text-xs cursor-pointer whitespace-nowrap"
                         >
                           {tc.id}
                         </Label>

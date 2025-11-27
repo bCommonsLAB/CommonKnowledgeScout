@@ -730,6 +730,39 @@ export async function DELETE(request: NextRequest) {
     const absolutePath = getPathFromId(library, fileId);
     const stats = await fs.stat(absolutePath);
     
+    // Prüfe ob es sich um ein Buch handelt (PDF-Datei) und lösche Azure-Bilder
+    if (!stats.isDirectory()) {
+      // Prüfe MIME-Type (PDF-Dateien)
+      const isPdf = absolutePath.toLowerCase().endsWith('.pdf')
+      if (isPdf) {
+        // Prüfe ob Azure Storage konfiguriert ist
+        const { getAzureStorageConfig } = await import('@/lib/config/azure-storage')
+        const azureConfig = getAzureStorageConfig()
+        if (azureConfig) {
+          const { AzureStorageService } = await import('@/lib/services/azure-storage-service')
+          const azureStorage = new AzureStorageService()
+          if (azureStorage.isConfigured()) {
+            try {
+              await azureStorage.deleteImagesForOwner(
+                azureConfig.containerName,
+                libraryId,
+                'books',
+                fileId
+              )
+              vLog(`[API] Azure-Bilder für Buch gelöscht: fileId=${fileId}`)
+            } catch (azureError) {
+              // Fehler beim Löschen der Azure-Bilder: Loggen, aber nicht abbrechen
+              console.warn('[API] Fehler beim Löschen der Azure-Bilder', {
+                fileId,
+                libraryId,
+                error: azureError instanceof Error ? azureError.message : String(azureError),
+              })
+            }
+          }
+        }
+      }
+    }
+    
     if (stats.isDirectory()) {
       await fs.rm(absolutePath, { recursive: true });
     } else {

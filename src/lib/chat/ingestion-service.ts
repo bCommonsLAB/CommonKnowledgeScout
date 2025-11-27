@@ -55,6 +55,404 @@ export class IngestionService {
    * - Kapitel-Metadaten je Chunk beilegen
    */
   /**
+   * Verarbeitet Markdown-Bilder und lädt sie auf Azure Storage hoch
+   * Extrahiert Bildreferenzen aus Markdown-Body und ersetzt sie durch Azure-URLs
+   * @param markdownBody Markdown-Text mit Bildreferenzen
+   * @param provider Storage Provider für Zugriff auf Shadow-Twin-Verzeichnis
+   * @param libraryId Library ID
+   * @param fileId File ID (für Verzeichnisstruktur)
+   * @param shadowTwinFolderId Shadow-Twin-Verzeichnis-ID (optional, wird ermittelt falls nicht angegeben)
+   * @param jobId Job ID für Logging
+   * @returns Object mit aktualisiertem Markdown und Fehlerliste
+   */
+  private static async processMarkdownImagesToAzure(
+    markdownBody: string,
+    provider: StorageProvider,
+    libraryId: string,
+    fileId: string,
+    shadowTwinFolderId: string | undefined,
+    jobId?: string,
+    isSessionMode: boolean = false
+  ): Promise<{ markdown: string; imageErrors: Array<{ imagePath: string; error: string }> }> {
+    const azureConfig = getAzureStorageConfig()
+    if (!azureConfig) {
+      FileLogger.info('ingestion', 'Azure Storage nicht konfiguriert, überspringe Markdown-Bild-Upload')
+      return { markdown: markdownBody, imageErrors: [] }
+    }
+
+    const azureStorage = new AzureStorageService()
+    if (!azureStorage.isConfigured()) {
+      FileLogger.warn('ingestion', 'Azure Storage Service nicht konfiguriert')
+      return { markdown: markdownBody, imageErrors: [] }
+    }
+
+    // Prüfe ob Container existiert
+    const containerExists = await azureStorage.containerExists(azureConfig.containerName)
+    if (!containerExists) {
+      const errorMessage = `[Schritt: Azure Container Prüfung] Azure Storage Container '${azureConfig.containerName}' existiert nicht.`
+      FileLogger.error('ingestion', 'Azure Container existiert nicht', {
+        containerName: azureConfig.containerName,
+        fileId,
+      })
+      if (jobId) {
+        bufferLog(jobId, {
+          phase: 'markdown_images_container_error',
+          message: errorMessage,
+        })
+      }
+      // Bei Container-Fehler: Markdown unverändert zurückgeben
+      return { markdown: markdownBody, imageErrors: [{ imagePath: '', error: errorMessage }] }
+    }
+
+    const errors: Array<{ imagePath: string; error: string }> = []
+    let updatedMarkdown = markdownBody
+
+    // Regex-Patterns für Bildreferenzen (analog zu markdown-preview.tsx)
+    const imagePatterns = [
+      // Markdown-Syntax: ![alt](path)
+      {
+        regex: /!\[(.*?)\]\((?!http)(.*?)\)/g,
+        extractPath: (match: RegExpMatchArray) => match[2],
+        replace: (alt: string, newUrl: string) => `![${alt}](${newUrl})`,
+      },
+      // HTML img-Tags: <img src="path">
+      {
+        regex: /<img\s+src=["'](?!http)([^"']+)["'][^>]*>/gi,
+        extractPath: (match: RegExpMatchArray) => match[1],
+        replace: (alt: string, newUrl: string) => `<img src="${newUrl}">`,
+      },
+      // Obsidian-Syntax: <img-0.jpeg>
+      {
+        regex: /<img-(\d+\.(?:jpeg|jpg|png|gif|webp))>/gi,
+        extractPath: (match: RegExpMatchArray) => match[1],
+        replace: (alt: string, newUrl: string) => `<img src="${newUrl}" alt="${alt}">`,
+      },
+    ]
+
+    // Sammle alle Bildreferenzen
+    const imageReferences: Array<{ match: RegExpMatchArray; pattern: typeof imagePatterns[0] }> = []
+    for (const pattern of imagePatterns) {
+      const matches = Array.from(markdownBody.matchAll(pattern.regex))
+      for (const match of matches) {
+        // Prüfe ob bereits Azure-URL oder absolute URL
+        const imagePath = pattern.extractPath(match)
+        if (imagePath && !imagePath.startsWith('http://') && !imagePath.startsWith('https://') && !imagePath.startsWith('/api/storage/')) {
+          imageReferences.push({ match, pattern })
+        }
+      }
+    }
+
+    if (imageReferences.length === 0) {
+      FileLogger.info('ingestion', 'Keine relativen Bildreferenzen im Markdown gefunden', { fileId })
+      return { markdown: markdownBody, imageErrors: [] }
+    }
+
+    FileLogger.info('ingestion', 'Verarbeite Markdown-Bilder für Azure Upload', {
+      fileId,
+      imageCount: imageReferences.length,
+    })
+    if (jobId) {
+      bufferLog(jobId, {
+        phase: 'markdown_images_processing',
+        message: `Verarbeite ${imageReferences.length} Markdown-Bilder für Azure Upload`,
+      })
+    }
+
+    // Verarbeite jede Bildreferenz
+    for (const { match, pattern } of imageReferences) {
+      const imagePath = pattern.extractPath(match)
+      if (!imagePath) continue
+
+      try {
+        // Normalisiere Pfad
+        const normalizedPath = imagePath.replace(/^\/+|\/+$/g, '')
+        if (normalizedPath.includes('..')) {
+          const errorMsg = '[Schritt: Bild-Pfad Validierung] Path traversal erkannt'
+          FileLogger.warn('ingestion', errorMsg, { imagePath, fileId })
+          errors.push({ imagePath, error: errorMsg })
+          continue
+        }
+
+        // Verwende zentrale Shadow-Twin-Bild-Auflösung
+        // Diese Funktion sucht automatisch im Shadow-Twin-Verzeichnis und im Parent-Verzeichnis
+        const { findShadowTwinImage } = await import('@/lib/storage/shadow-twin')
+        
+        // Lade baseItem für Bild-Suche
+        const baseItem = await provider.getItemById(fileId)
+        if (!baseItem) {
+          const errorMsg = `Base-Item nicht gefunden: ${fileId}`
+          FileLogger.error('ingestion', errorMsg, { fileId, imagePath: normalizedPath })
+          errors.push({ imagePath, error: errorMsg })
+          continue
+        }
+        
+        // Finde Bild-Datei mit zentraler Funktion
+        const imageFile = await findShadowTwinImage(
+          baseItem,
+          normalizedPath,
+          provider,
+          shadowTwinFolderId
+        )
+        
+        if (!imageFile) {
+          const errorMsg = `Bild nicht gefunden: ${normalizedPath}`
+          FileLogger.warn('ingestion', errorMsg, {
+            fileId,
+            imagePath: normalizedPath,
+            shadowTwinFolderId: shadowTwinFolderId || 'none',
+          })
+          errors.push({ imagePath, error: errorMsg })
+          continue
+        }
+        
+        // Lade Bild aus Storage
+        const bin = await provider.getBinary(imageFile.id)
+        const buffer = Buffer.from(await bin.blob.arrayBuffer())
+
+        // Berechne Hash
+        const hash = calculateImageHash(buffer)
+
+        // Bestimme Extension
+        const extension = normalizedPath.split('.').pop()?.toLowerCase() || 'jpg'
+
+        // Bestimme Scope basierend auf Dokumenttyp
+        // Session-Modus → 'sessions', Book-Modus → 'books'
+        const scope: 'books' | 'sessions' = isSessionMode ? 'sessions' : 'books'
+
+        // Prüfe ob Bild bereits existiert
+        const existingUrl = await azureStorage.getImageUrlByHashWithScope(
+          azureConfig.containerName,
+          libraryId,
+          scope,
+          fileId,
+          hash,
+          extension
+        )
+
+        let azureUrl: string
+        if (existingUrl) {
+          azureUrl = existingUrl
+          FileLogger.info('ingestion', 'Bild bereits vorhanden, verwende vorhandene URL', {
+            fileId,
+            hash,
+            azureUrl,
+            scope,
+          })
+          if (jobId) {
+            bufferLog(jobId, {
+              phase: 'markdown_image_deduplicated',
+              message: `Bild ${imagePath}: Hash ${hash} bereits vorhanden`,
+            })
+          }
+        } else {
+          // Lade auf Azure hoch
+          azureUrl = await azureStorage.uploadImageToScope(
+            azureConfig.containerName,
+            libraryId,
+            scope,
+            fileId,
+            hash,
+            extension,
+            buffer
+          )
+          FileLogger.info('ingestion', 'Bild auf Azure hochgeladen', {
+            fileId,
+            imagePath,
+            hash,
+            extension,
+            azureUrl,
+          })
+          if (jobId) {
+            bufferLog(jobId, {
+              phase: 'markdown_image_uploaded',
+              message: `Bild ${imagePath}: ${hash}.${extension} hochgeladen`,
+            })
+          }
+        }
+
+        // Ersetze Bildreferenz im Markdown
+        const altText = match[1] || imagePath
+        updatedMarkdown = updatedMarkdown.replace(match[0], pattern.replace(altText, azureUrl))
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+        FileLogger.warn('ingestion', 'Fehler beim Verarbeiten des Markdown-Bildes', {
+          fileId,
+          imagePath,
+          error: errorMessage,
+        })
+
+        let userFriendlyError = errorMessage
+        if (errorMessage.includes('not found') || errorMessage.includes('nicht gefunden')) {
+          userFriendlyError = `[Schritt: Bild-Upload] Bild nicht gefunden: ${imagePath}`
+        } else if (errorMessage.includes('does not exist')) {
+          userFriendlyError = `[Schritt: Bild-Upload] Bild-Datei existiert nicht: ${imagePath}`
+        } else if (errorMessage.includes('Upload fehlgeschlagen')) {
+          userFriendlyError = `[Schritt: Bild-Upload] Upload fehlgeschlagen für ${imagePath}: ${errorMessage.replace('Upload fehlgeschlagen: ', '')}`
+        } else {
+          userFriendlyError = `[Schritt: Bild-Upload] ${errorMessage}`
+        }
+
+        errors.push({ imagePath, error: userFriendlyError })
+        if (jobId) {
+          bufferLog(jobId, {
+            phase: 'markdown_image_error',
+            message: `Bild ${imagePath}: ${userFriendlyError}`,
+          })
+        }
+      }
+    }
+
+    FileLogger.info('ingestion', 'Markdown-Bilder verarbeitet', {
+      fileId,
+      processed: imageReferences.length - errors.length,
+      errors: errors.length,
+    })
+    if (jobId) {
+      bufferLog(jobId, {
+        phase: 'markdown_images_processed',
+        message: `${imageReferences.length - errors.length} Markdown-Bilder verarbeitet${errors.length > 0 ? `, ${errors.length} Fehler` : ''}`,
+      })
+    }
+
+    return { markdown: updatedMarkdown, imageErrors: errors }
+  }
+
+  /**
+   * Findet und lädt Cover-Bild (preview-001.jpg oder page-001.*) aus Shadow-Twin-Verzeichnis
+   * @param provider Storage Provider
+   * @param shadowTwinFolderId Shadow-Twin-Verzeichnis-ID
+   * @param libraryId Library ID
+   * @param fileId File ID
+   * @param jobId Job ID für Logging
+   * @param isSessionMode Wenn true: Verwendet 'sessions' Scope, sonst 'books' Scope
+   * @returns Azure URL des Cover-Bilds oder null
+   */
+  private static async processCoverImageToAzure(
+    provider: StorageProvider,
+    shadowTwinFolderId: string | undefined,
+    libraryId: string,
+    fileId: string,
+    jobId?: string,
+    isSessionMode: boolean = false
+  ): Promise<string | null> {
+    const azureConfig = getAzureStorageConfig()
+    if (!azureConfig) {
+      FileLogger.info('ingestion', 'Azure Storage nicht konfiguriert, überspringe Cover-Bild-Upload')
+      return null
+    }
+
+    const azureStorage = new AzureStorageService()
+    if (!azureStorage.isConfigured()) {
+      FileLogger.warn('ingestion', 'Azure Storage Service nicht konfiguriert')
+      return null
+    }
+
+    // Cover-Priorität: einziges Cover-Bild ist preview_001.jpg im Shadow-Twin-Verzeichnis.
+    // Wichtig: Dateiname verwendet Unterstrich, nicht Bindestrich.
+    const coverCandidates = [
+      'preview_001.jpg',
+    ]
+
+    // Verwende die gleiche Logik wie bei Markdown-Bildern: findShadowTwinImage mit baseItem
+    // Diese Funktion sucht automatisch im Shadow-Twin-Verzeichnis und im Parent-Verzeichnis
+    const baseItem = await provider.getItemById(fileId)
+    if (!baseItem) {
+      FileLogger.warn('ingestion', 'Base-Item nicht gefunden für Cover-Bild', { fileId })
+      return null
+    }
+
+    // Verwende zentrale findShadowTwinImage Funktion (wie bei Markdown-Bildern)
+    const { findShadowTwinImage } = await import('@/lib/storage/shadow-twin')
+
+    for (const candidate of coverCandidates) {
+      try {
+        // Verwende findShadowTwinImage um das tatsächliche StorageItem zu finden
+        const imageItem = await findShadowTwinImage(baseItem, candidate, provider, shadowTwinFolderId)
+        if (!imageItem) {
+          // Versuche nächsten Kandidaten
+          continue
+        }
+
+        // Lade Cover-Bild aus Storage
+        const bin = await provider.getBinary(imageItem.id)
+        const buffer = Buffer.from(await bin.blob.arrayBuffer())
+
+        // Berechne Hash
+        const hash = calculateImageHash(buffer)
+
+        // Bestimme Extension
+        const extension = candidate.split('.').pop()?.toLowerCase() || 'jpg'
+
+        // Bestimme Scope basierend auf Dokumenttyp
+        const scope: 'books' | 'sessions' = isSessionMode ? 'sessions' : 'books'
+
+        // Prüfe ob Bild bereits existiert
+        const existingUrl = await azureStorage.getImageUrlByHashWithScope(
+          azureConfig.containerName,
+          libraryId,
+          scope,
+          fileId,
+          hash,
+          extension
+        )
+
+        let azureUrl: string
+        if (existingUrl) {
+          azureUrl = existingUrl
+          FileLogger.info('ingestion', 'Cover-Bild bereits vorhanden, verwende vorhandene URL', {
+            fileId,
+            candidate,
+            hash,
+            azureUrl,
+            scope,
+          })
+          if (jobId) {
+            bufferLog(jobId, {
+              phase: 'cover_image_deduplicated',
+              message: `Cover-Bild ${candidate}: Hash ${hash} bereits vorhanden`,
+            })
+          }
+        } else {
+          // Lade auf Azure hoch
+          azureUrl = await azureStorage.uploadImageToScope(
+            azureConfig.containerName,
+            libraryId,
+            scope,
+            fileId,
+            hash,
+            extension,
+            buffer
+          )
+          FileLogger.info('ingestion', 'Cover-Bild auf Azure hochgeladen', {
+            fileId,
+            candidate,
+            hash,
+            extension,
+            azureUrl,
+          })
+          if (jobId) {
+            bufferLog(jobId, {
+              phase: 'cover_image_uploaded',
+              message: `Cover-Bild ${candidate}: ${hash}.${extension} hochgeladen`,
+            })
+          }
+        }
+
+        return azureUrl
+      } catch (error) {
+        FileLogger.debug('ingestion', 'Fehler beim Laden des Cover-Bild-Kandidaten (Fallback)', {
+          candidate,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        continue
+      }
+    }
+
+    FileLogger.info('ingestion', 'Kein Cover-Bild gefunden', { fileId, shadowTwinFolderId })
+    return null
+  }
+
+  /**
    * Verarbeitet Slide-Bilder und lädt sie auf Azure Storage hoch
    * Dedupliziert Bilder basierend auf Hash
    * @returns Object mit updatedSlides und errors Array
@@ -134,10 +532,12 @@ export class IngestionService {
         // Bestimme Extension
         const extension = normalizedPath.split('.').pop()?.toLowerCase() || 'jpg'
 
-        // Prüfe ob Bild bereits existiert
-        const existingUrl = await azureStorage.getImageUrlByHash(
+        // Prüfe ob Bild bereits existiert (mit Scope-Struktur für Sessions)
+        const existingUrl = await azureStorage.getImageUrlByHashWithScope(
           azureConfig.containerName,
           libraryId,
+          'sessions',
+          fileId,
           hash,
           extension
         )
@@ -158,10 +558,12 @@ export class IngestionService {
             })
           }
         } else {
-          // Lade auf Azure hoch
-          azureUrl = await azureStorage.uploadImage(
+          // Lade auf Azure hoch (mit Scope-Struktur für Sessions)
+          azureUrl = await azureStorage.uploadImageToScope(
             azureConfig.containerName,
             libraryId,
+            'sessions',
+            fileId,
             hash,
             extension,
             buffer
@@ -229,6 +631,7 @@ export class IngestionService {
     meta?: Record<string, unknown>,
     jobId?: string,
     provider?: StorageProvider,
+    shadowTwinFolderId?: string,
   ): Promise<{ chunksUpserted: number; docUpserted: boolean; index: string; imageErrors?: Array<{ slideIndex: number; imageUrl: string; error: string }> }> {
     const repo = new ExternalJobsRepository()
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
@@ -692,9 +1095,89 @@ export class IngestionService {
       
       // Mongo-Dokument vorbereiten (vollständige Metadaten)
       const docMetaJsonObj = (((metaEffective as Record<string, unknown>)['__jsonClean'] as Record<string, unknown>) || ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || metaEffective || {}) as Record<string, unknown>
-      // Markdown-Body als separates Feld für Detailansicht hinzufügen (nicht Summary für Retrieval)
-      if (body && typeof body === 'string' && body.trim().length > 0) {
-        docMetaJsonObj.markdown = body.trim()
+      
+      // Verarbeite Markdown-Bilder und Cover-Bild für Bücher (nur wenn kein Session-Modus)
+      // WICHTIG: Verwende shadowTwinFolderId aus Parameter (kommt von job.shadowTwinState)
+      // Dies ist die zentrale Logik, die auch Template-Phase verwendet
+      let coverImageUrl: string | null = null
+      const isSessionMode = chaptersInput.length === 0 && Array.isArray((metaEffective as { slides?: unknown }).slides) && ((metaEffective as { slides?: unknown }).slides as Array<unknown>).length > 0
+      
+      if (provider && !isSessionMode && body && typeof body === 'string' && body.trim().length > 0) {
+        try {
+          // shadowTwinFolderId kommt bereits aus job.shadowTwinState (zentrale Logik)
+          if (shadowTwinFolderId) {
+            FileLogger.info('ingestion', 'Verwende Shadow-Twin-Verzeichnis aus Job-State für Bild-Verarbeitung', {
+              fileId,
+              shadowTwinFolderId,
+            })
+          } else {
+            FileLogger.warn('ingestion', 'Kein Shadow-Twin-Verzeichnis im Job-State verfügbar', {
+              fileId,
+            })
+          }
+          
+          // Verarbeite Cover-Bild
+          coverImageUrl = await IngestionService.processCoverImageToAzure(
+            provider,
+            shadowTwinFolderId,
+            libraryId,
+            fileId,
+            jobId,
+            isSessionMode
+          )
+          if (coverImageUrl) {
+            docMetaJsonObj.coverImageUrl = coverImageUrl
+            FileLogger.info('ingestion', 'Cover-Bild verarbeitet', { fileId, coverImageUrl, isSessionMode })
+            if (jobId) {
+              bufferLog(jobId, {
+                phase: 'cover_image_processed',
+                message: `Cover-Bild erfolgreich verarbeitet: ${coverImageUrl}`,
+              })
+            }
+          }
+          
+          // Verarbeite Markdown-Bilder
+          const markdownResult = await IngestionService.processMarkdownImagesToAzure(
+            body,
+            provider,
+            libraryId,
+            fileId,
+            shadowTwinFolderId,
+            jobId,
+            isSessionMode
+          )
+          
+          // Verwende aktualisiertes Markdown (mit Azure-URLs)
+          docMetaJsonObj.markdown = markdownResult.markdown.trim()
+          
+          if (markdownResult.imageErrors.length > 0) {
+            FileLogger.warn('ingestion', 'Fehler beim Verarbeiten einiger Markdown-Bilder', {
+              fileId,
+              errorCount: markdownResult.imageErrors.length,
+            })
+            if (jobId) {
+              bufferLog(jobId, {
+                phase: 'markdown_images_errors',
+                message: `${markdownResult.imageErrors.length} Fehler beim Verarbeiten der Markdown-Bilder`,
+              })
+            }
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          FileLogger.warn('ingestion', 'Fehler beim Verarbeiten der Markdown-Bilder/Cover', {
+            fileId,
+            error: errorMessage,
+          })
+          // Bei Fehlern: Original-Markdown verwenden
+          if (body && typeof body === 'string' && body.trim().length > 0) {
+            docMetaJsonObj.markdown = body.trim()
+          }
+        }
+      } else {
+        // Kein Provider oder Session-Modus: Markdown unverändert verwenden
+        if (body && typeof body === 'string' && body.trim().length > 0) {
+          docMetaJsonObj.markdown = body.trim()
+        }
       }
       // WICHTIG: Stelle sicher, dass die aktualisierten Slides (mit Azure-URLs) in docMetaJsonObj sind
       if (metaEffective.slides && Array.isArray(metaEffective.slides)) {

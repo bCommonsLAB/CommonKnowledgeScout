@@ -137,6 +137,8 @@ export interface IngestArgs {
   fileName: string
   markdown: string
   meta?: Frontmatter
+  provider?: import('@/lib/storage/types').StorageProvider
+  shadowTwinFolderId?: string
 }
 
 export interface IngestResult {

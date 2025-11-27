@@ -1,11 +1,11 @@
 'use client'
 
 import React from 'react'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, MapPin, User } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { SpeakerOrAuthorIcons } from './speaker-icons'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 
@@ -37,22 +37,43 @@ export function DocumentCard({ doc, onClick, libraryId }: DocumentCardProps) {
       className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20'
       onClick={handleClick}
     >
-      <CardHeader className='relative'>
-        <div className='flex items-start justify-between'>
-          <SpeakerOrAuthorIcons doc={doc} />
-          {doc.year ? <Badge variant='secondary'>{String(doc.year)}</Badge> : null}
+      <CardHeader className='relative pb-1'>
+        {/* Jahr-Badge schwebend oben rechts, um mehr Breite für den Titel zu lassen */}
+        {doc.year ? (
+          <Badge variant='secondary' className='absolute top-2 right-3 text-xs px-2 py-0.5'>
+            {String(doc.year)}
+          </Badge>
+        ) : null}
+
+        <div className='flex items-start gap-3'>
+          <div className='flex items-start gap-2 flex-1 min-w-0'>
+            {/* Cover-Bild-Thumbnail (falls vorhanden) */}
+            {doc.coverImageUrl ? (
+              <div className='flex-shrink-0 w-[80px] h-[120px] bg-secondary rounded border border-border overflow-hidden shadow-sm'>
+                <Image
+                  src={doc.coverImageUrl}
+                  alt={doc.shortTitle || doc.title || doc.fileName || 'Cover'}
+                  width={80}
+                  height={120}
+                  className='w-full h-full object-cover'
+                  unoptimized
+                />
+              </div>
+            ) : null}
+            <div className='flex-1 min-w-0'>
+              <CardTitle className='text-lg line-clamp-2'>{doc.shortTitle || doc.title || doc.fileName || 'Dokument'}</CardTitle>
+              <CardDescription className='line-clamp-2'>{doc.title || doc.fileName}</CardDescription>
+            </div>
+          </div>
         </div>
-        <CardTitle className='text-lg line-clamp-2'>{doc.shortTitle || doc.title || doc.fileName || 'Dokument'}</CardTitle>
-        <CardDescription className='line-clamp-2'>{doc.title || doc.fileName}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className='space-y-2'>
           {Array.isArray(doc.authors) && doc.authors.length > 0 ? (
             <div className='flex items-center text-sm text-muted-foreground'>
               <User className='h-2.5 w-2.5 mr-2' />
-              <span className='line-clamp-1'>
-                {doc.authors[0]}
-                {doc.authors.length > 1 ? ` +${doc.authors.length - 1} weitere` : ''}
+              <span className='line-clamp-2'>
+                {doc.authors.join(', ')}
               </span>
             </div>
           ) : null}

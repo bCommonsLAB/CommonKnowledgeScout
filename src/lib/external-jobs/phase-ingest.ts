@@ -18,6 +18,7 @@ import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { handleJobError } from '@/lib/external-jobs/error-handler'
 import { FileLogger } from '@/lib/debug/logger'
 import { getServerProvider } from '@/lib/storage/server-provider'
+import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-loader'
 
 export interface IngestPhaseArgs {
   ctx: RequestContext
@@ -51,9 +52,26 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
     savedItemId,
     policies,
     extractedText,
+    provider,
   } = args
 
   const { jobId, job } = ctx
+  
+  // Lade Job-Dokument neu, um sicherzustellen, dass shadowTwinState aktuell ist
+  // (kann sich während der Verarbeitung ändern)
+  const freshJob = await repo.get(jobId)
+  if (!freshJob) {
+    FileLogger.error('phase-ingest', 'Job nicht gefunden', { jobId })
+    return {
+      completed: false,
+      skipped: false,
+      error: 'Job nicht gefunden',
+    }
+  }
+  
+  // Verwende Shadow-Twin-State aus aktuellem Job-Dokument (beim Job-Start berechnet)
+  // Dies ist die zentrale Logik, die auch Template-Phase verwendet
+  const shadowTwinFolderId = freshJob.shadowTwinState?.shadowTwinFolderId
 
   // Gate-Prüfung für RAG-Ingestion
   let ingestGateExists = false
@@ -118,30 +136,52 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
     }
   }
 
-  // Lade gespeicherten Markdown-Inhalt erneut (vereinfachend: extractedText)
+  // Verwende übergebenen Provider oder erstelle Fallback-Provider für Bild-Verarbeitung (Cover + Markdown-Bilder)
+  const ingestionProvider = provider || await getServerProvider(job.userEmail, job.libraryId)
+  
   // Stabiler Schlüssel: Original-Quell-Item (PDF) bevorzugen, sonst Shadow‑Twin, sonst Fallback
   const fileId = (job.correlation.source?.itemId as string | undefined) || savedItemId || `${jobId}-md`
-  const fileName = `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`
-  // Fallback: Wenn kein extractedText, versuche Markdown aus Storage zu laden
+  
+  // Lade Markdown-Inhalt: Verwende zentrale loadShadowTwinMarkdown() Funktion (wie Template-Phase)
+  // Diese Funktion findet automatisch die richtige Shadow-Twin-Datei (Verzeichnis oder Parent)
   let markdownForIngestion = extractedText || markdown || ''
+  let metaForIngestion = meta
+  
   if (!markdownForIngestion) {
     try {
-      const fallbackProvider = await getServerProvider(job.userEmail, job.libraryId)
-      // Suche Datei im Parent anhand erwarteten Namens
-      const parentId = job.correlation.source?.parentId || 'root'
-      const siblings = await fallbackProvider.listItemsById(parentId)
-      const twin = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === fileName) as { id: string } | undefined
-      if (twin) {
-        const bin = await fallbackProvider.getBinary(twin.id)
-        markdownForIngestion = await bin.blob.text()
+      // Verwende zentrale Shadow-Twin-Loader-Funktion
+      const shadowTwinResult = await loadShadowTwinMarkdown(ctx, ingestionProvider)
+      if (shadowTwinResult) {
+        markdownForIngestion = shadowTwinResult.markdown
+        // Meta aus Shadow-Twin überschreibt übergebenes Meta (falls vorhanden)
+        if (Object.keys(shadowTwinResult.meta).length > 0) {
+          metaForIngestion = shadowTwinResult.meta
+        }
+        // Aktualisiere fileId und fileName aus gefundener Datei
+        const actualFileId = shadowTwinResult.fileId || fileId
+        const actualFileName = shadowTwinResult.fileName || `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`
+        
+        FileLogger.info('phase-ingest', 'Markdown aus Shadow-Twin geladen', {
+          jobId,
+          fileId: actualFileId,
+          fileName: actualFileName,
+          markdownLength: markdownForIngestion.length,
+        })
+      } else {
+        FileLogger.warn('phase-ingest', 'Shadow-Twin-Markdown nicht gefunden, verwende Fallback', {
+          jobId,
+          fileId,
+        })
       }
     } catch (err) {
-      FileLogger.error('phase-ingest', 'Fehler beim Laden des Markdown-Fallbacks', {
+      FileLogger.error('phase-ingest', 'Fehler beim Laden des Shadow-Twin-Markdown', {
         jobId,
         error: err instanceof Error ? err.message : String(err),
       })
     }
   }
+  
+  const fileName = `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`
 
   let res
   try {
@@ -150,7 +190,9 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
       savedItemId: fileId,
       fileName,
       markdown: markdownForIngestion,
-      meta: meta as unknown as Record<string, unknown>,
+      meta: metaForIngestion as unknown as Record<string, unknown>,
+      provider: ingestionProvider,
+      shadowTwinFolderId,
     })
   } catch (err) {
     // Ingestion fehlgeschlagen → Step/Job als failed markieren

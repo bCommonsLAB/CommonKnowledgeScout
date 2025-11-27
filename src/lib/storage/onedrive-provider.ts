@@ -1123,9 +1123,9 @@ export class OneDriveProvider implements StorageProvider {
         let pathItemResponse: Response;
         try {
           pathItemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/${itemPath}`, {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`
-            }
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
           });
         } catch (fetchError) {
           // Netzwerkfehler abfangen
@@ -1164,10 +1164,10 @@ export class OneDriveProvider implements StorageProvider {
       let itemResponse: Response;
       try {
         itemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
       } catch (fetchError) {
         // Netzwerkfehler abfangen
         throw new StorageError(
@@ -1200,10 +1200,10 @@ export class OneDriveProvider implements StorageProvider {
       let contentResponse: Response;
       try {
         contentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/content`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
       } catch (fetchError) {
         // Netzwerkfehler abfangen
         throw new StorageError(

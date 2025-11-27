@@ -381,12 +381,12 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
         setDisplayedFileName(fileName)
         
         try {
-          const bin = await provider.getBinary(mdId)
-          const text = await bin.blob.text()
+        const bin = await provider.getBinary(mdId)
+        const text = await bin.blob.text()
           UILogger.info('JobReportTab', 'Datei erfolgreich geladen', { mdId, textLength: text.length, fileName })
-          setFullContent(text)
-          const { frontmatter, meta, errors } = parseSecretaryMarkdownStrict(text)
-          UILogger.debug('JobReportTab', 'Frontmatter: Block gefunden?', { found: !!frontmatter, length: frontmatter ? frontmatter.length : 0 })
+        setFullContent(text)
+        const { frontmatter, meta, errors } = parseSecretaryMarkdownStrict(text)
+        UILogger.debug('JobReportTab', 'Frontmatter: Block gefunden?', { found: !!frontmatter, length: frontmatter ? frontmatter.length : 0 })
           if (!frontmatter) { 
             // Prüfe, ob dies ein Transcript ohne Frontmatter ist
             const isTranscript = !shadowTwinState?.transformed && shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0
@@ -402,11 +402,11 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
             setFrontmatterMeta(null); 
             return 
           }
-          setFrontmatterMeta(Object.keys(meta).length ? meta : null)
-          setParseErrors(errors)
+        setFrontmatterMeta(Object.keys(meta).length ? meta : null)
+        setParseErrors(errors)
         } catch (error) {
           UILogger.error('JobReportTab', 'Fehler beim Laden der Markdown-Datei', { mdId, fileName, error })
-          setFrontmatterMeta(null)
+        setFrontmatterMeta(null)
           setDisplayedFileName(null)
           setError(`Fehler beim Laden der Datei: ${error instanceof Error ? error.message : String(error)}`)
         }
@@ -484,11 +484,11 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
                 
                 if (debouncedContent && debouncedContent.trim().length > 0 && isReady) {
                   return (
-                    <MarkdownPreview 
+                <MarkdownPreview 
                       content={stripFrontmatter(debouncedContent)} 
-                      currentFolderId={currentFolderId}
-                      provider={provider}
-                    />
+                  currentFolderId={currentFolderId}
+                  provider={provider}
+                />
                   );
                 }
                 

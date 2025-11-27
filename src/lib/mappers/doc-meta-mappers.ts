@@ -66,6 +66,8 @@ export function mapToBookDetail(input: unknown): BookDetailData {
     fileId: toStr(root.fileId),
     fileName: toStr(root.fileName),
     upsertedAt: toStr(root.upsertedAt),
+    markdown: toStr(docMetaJson.markdown),
+    coverImageUrl: toStr((docMetaJson as { coverImageUrl?: unknown }).coverImageUrl),
     chapters: chaptersIn.map((c, i) => {
       const ch = (c && typeof c === 'object') ? c as Record<string, unknown> : {};
       const order = toNum(ch.order) ?? (i + 1);
