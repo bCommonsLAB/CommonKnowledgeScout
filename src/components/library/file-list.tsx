@@ -1,22 +1,23 @@
 'use client';
 
 import * as React from "react"
-import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, ScrollText, Folder as FolderIcon, Layers } from "lucide-react"
+import { useSearchParams } from "next/navigation"
+import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, Folder as FolderIcon } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
 import { useAtomValue, useAtom } from 'jotai';
-import { jobStatusByItemIdAtom } from '@/atoms/job-status';
 import { 
-  activeLibraryIdAtom, 
+  activeLibraryIdAtom,
   selectedFileAtom, 
   folderItemsAtom,
   sortedFilteredFilesAtom,
   sortFieldAtom,
   sortOrderAtom,
-  selectedShadowTwinAtom
+  selectedShadowTwinAtom,
+  currentFolderIdAtom
 } from '@/atoms/library-atom';
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input"
@@ -34,6 +35,8 @@ import { useMemo, useCallback } from "react"
 import { FileLogger, StateLogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
+import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
+import { shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -44,6 +47,7 @@ interface FileGroup {
   baseItem?: StorageItem;
   transcriptFiles?: StorageItem[]; // NEU: alle Transkripte
   transformed?: StorageItem;
+  shadowTwinFolderId?: string; // Optional: ID des Shadow-Twin-Verzeichnisses
 }
 
 // Memoized file icon component
@@ -136,7 +140,6 @@ interface FileRowProps {
   onSelectRelatedFile?: (file: StorageItem) => void;
   onRename?: (item: StorageItem, newName: string) => Promise<void>;
   compact?: boolean;
-  systemFolderId?: string;
 }
 
 const FileRow = React.memo(function FileRow({ 
@@ -149,10 +152,8 @@ const FileRow = React.memo(function FileRow({
   fileGroup,
   onSelectRelatedFile,
   onRename,
-  compact = false,
-  systemFolderId
+  compact = false
 }: FileRowProps) {
-  const navigateToFolder = useFolderNavigation();
   const [isEditing, setIsEditing] = React.useState(false);
   const [editName, setEditName] = React.useState(item.metadata.name);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -195,14 +196,7 @@ const FileRow = React.memo(function FileRow({
   }, [onSelect, isEditing]);
 
   // Entfernt: ungenutzter Handler handleTranscriptClick
-
-  // Handler für Transformierte-Datei-Icon Click
-  const handleTransformedClick = React.useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (fileGroup?.transformed && onSelectRelatedFile) {
-      onSelectRelatedFile(fileGroup.transformed);
-    }
-  }, [fileGroup, onSelectRelatedFile]);
+  // Entfernt: handleTransformedClick - wird jetzt im Shadow-Twin-Icon-Handler behandelt
 
   // Starte Rename-Modus
   const startRename = React.useCallback(() => {
@@ -421,125 +415,7 @@ const FileRow = React.memo(function FileRow({
     }
   }, [item, selectedBatchItems, selectedTransformationItems, setSelectedBatchItems, setSelectedTransformationItems]);
 
-  React.useEffect(() => {
-    if (fileGroup) {
-      FileLogger.debug('FileRow', 'Transkripte für Zeile', {
-        baseItem: fileGroup.baseItem?.metadata.name,
-        transcripts: fileGroup.transcriptFiles?.map(t => t.metadata.name)
-      });
-    }
-  }, [fileGroup]);
-
-  // Zentraler Jobstatus (muss vor möglichen early-returns stehen, um Hook-Order zu garantieren)
-  const jobStatusMap = useAtomValue(jobStatusByItemIdAtom);
-  const jobStatus = jobStatusMap[item.id];
-  const jobStatusIcon = jobStatus ? (
-    <span title={jobStatus} className={cn('inline-block h-3 w-3 rounded-full',
-      jobStatus === 'queued' && 'bg-blue-600',
-      jobStatus === 'running' && 'bg-yellow-600',
-      jobStatus === 'completed' && 'bg-green-600',
-      jobStatus === 'failed' && 'bg-red-600'
-    )} aria-label={`job-${jobStatus}`} />
-  ) : null;
-
-  // Pinecone-Doc-Status (kind:'doc') für Shadow‑Twins/Markdowns anzeigen
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const [docStatus, setDocStatus] = React.useState<{
-    status?: 'ok' | 'stale' | 'not_indexed';
-    extract_status?: string;
-    template_status?: string;
-    ingest_status?: string;
-    hasError?: boolean;
-    chunkCount?: number;
-    chaptersCount?: number;
-  } | null>(null);
-  React.useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        // Für Markdown/Shadow‑Twins und auch PDFs (Basisdateien)
-        const mt = (item.metadata.mimeType || '').toLowerCase();
-        const isMd = mt.startsWith('text/') || item.metadata.name.toLowerCase().endsWith('.md');
-        const isPdf = mt === 'application/pdf' || item.metadata.name.toLowerCase().endsWith('.pdf');
-        if (!isMd && !isPdf) return;
-
-        // Canonical: Wir verwenden IMMER die Basis‑PDF‑ID als fileId in Pinecone
-        // - Für PDF‑Zeilen: die eigene ID
-        // - Für MD‑Zeilen: die ID der Basisdatei aus der FileGroup, falls vorhanden; fallback: eigene ID
-        let targetId = item.id;
-        if (isMd && fileGroup?.baseItem?.id) {
-          targetId = fileGroup.baseItem.id;
-          FileLogger.info('FileRow', 'Doc-Status via Basis-PDF', { mdId: item.id, pdfId: targetId });
-        }
-
-        FileLogger.info('FileRow', 'Lade Doc-Status', { fileId: targetId, name: item.metadata.name });
-        const res = await fetch(`/api/chat/${activeLibraryId}/file-status?fileId=${encodeURIComponent(targetId)}&noFallback=1`, { cache: 'no-store' });
-        if (!res.ok) return;
-        const json = await res.json();
-        try { console.log('[file-status]', { fileId: targetId, response: json }); } catch {}
-        if (cancelled) return;
-        setDocStatus({
-          status: json.status,
-          extract_status: json.extract_status,
-          template_status: json.template_status,
-          ingest_status: json.ingest_status,
-          hasError: json.hasError,
-          chunkCount: typeof json.chunkCount === 'number' ? json.chunkCount : undefined,
-          chaptersCount: typeof json.chaptersCount === 'number' ? json.chaptersCount : undefined,
-        });
-        FileLogger.info('FileRow', 'Doc-Status geladen', { fileId: targetId, status: json.status });
-      } catch {
-        // ignore
-      }
-    }
-    void load();
-    return () => { cancelled = true; };
-  }, [item.id, item.metadata.mimeType, item.metadata.name, fileGroup?.baseItem?.id, activeLibraryId]);
-
-  const docStatusIcon = React.useMemo(() => {
-    if (!docStatus) return null;
-    const s = (docStatus.status || '').toLowerCase();
-    const noIndex = s === '' || s === 'not_indexed';
-    const chunks = typeof docStatus.chunkCount === 'number' ? docStatus.chunkCount : undefined;
-    const chapters = typeof docStatus.chaptersCount === 'number' ? docStatus.chaptersCount : undefined;
-    // Farbe:
-    // - grau: not_indexed
-    // - gelb: stale ODER (ok und chunks <= 1 bzw. unbekannt) → Teilpipeline
-    // - grün: ok und chunks >= 2 → Vollingestion
-    const isPartial = s === 'ok' && (typeof chunks !== 'number' || chunks <= 1);
-    const isStale = s === 'stale';
-    const isWarn = isStale || isPartial;
-    const color = noIndex ? 'bg-gray-400' : isWarn ? 'bg-yellow-600' : 'bg-green-600';
-
-    // Tooltip mit Begründung + Handlungsempfehlung
-    const lines: string[] = [];
-    lines.push(`Ingestion-Status: ${docStatus.status || '—'}`);
-    if (typeof chunks === 'number' || typeof chapters === 'number') {
-      const parts: string[] = [];
-      if (typeof chunks === 'number') parts.push(`Chunks=${chunks}`);
-      if (typeof chapters === 'number') parts.push(`Kapitel=${chapters}`);
-      if (parts.length) lines.push(parts.join(' • '));
-    }
-    if (noIndex) {
-      lines.push('Nicht im Index.');
-      lines.push('Aktion: Ingestion/Upsert starten.');
-    } else if (isStale) {
-      lines.push('Index ist veraltet gegenüber der Datei.');
-      lines.push('Aktion: Datei erneut upserten (Re-Ingestion).');
-    } else if (isPartial) {
-      lines.push('Dokument-Metadaten vorhanden, aber keine/zu wenige Chunks.');
-      lines.push('Aktion: Ingestion abschließen (Chunks erzeugen/upserten).');
-    }
-    // Zusatzfelder (falls vorhanden) für Diagnose
-    const extra: string[] = [];
-    if (typeof (docStatus as { extract_status?: unknown }).extract_status === 'string') extra.push(`extract=${(docStatus as { extract_status: string }).extract_status}`);
-    if (typeof (docStatus as { template_status?: unknown }).template_status === 'string') extra.push(`template=${(docStatus as { template_status: string }).template_status}`);
-    if (typeof (docStatus as { ingest_status?: unknown }).ingest_status === 'string') extra.push(`ingest=${(docStatus as { ingest_status: string }).ingest_status}`);
-    if (extra.length) lines.push(extra.join(' • '));
-
-    const tt = lines.join('\n');
-    return <span title={tt} className={cn('inline-block h-3 w-3 rounded-full', color)} aria-label={`doc-${docStatus.status || 'unknown'}`} />
-  }, [docStatus]);
+  // Transcripts werden automatisch aus fileGroup geladen
 
   // Compact-Modus: vereinfachte Darstellung
   if (compact) {
@@ -620,10 +496,8 @@ const FileRow = React.memo(function FileRow({
         {formatDate(metadata.modifiedAt)}
       </span>
       <div className="flex items-center justify-start gap-1">
-        {jobStatusIcon}
-        {docStatusIcon}
-        {/* System-Unterordner (z. B. extrahierte Seiten) */}
-        {systemFolderId && (
+        {/* Shadow-Twin-Icon: Zeigt an ob Shadow-Twin existiert (Datei oder Verzeichnis) */}
+        {(fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0) || fileGroup?.transformed || fileGroup?.shadowTwinFolderId ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -633,43 +507,31 @@ const FileRow = React.memo(function FileRow({
                   className="h-6 w-6 p-0 hover:bg-muted"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigateToFolder(systemFolderId);
-                  }}
-                >
-                  <Layers className="h-4 w-4 text-violet-500" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Seiten-Ordner öffnen</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {/* Zeige Icons für alle vorhandenen Transkripte */}
-        {fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0 && fileGroup.transcriptFiles.map((transcript) => (
-          <TooltipProvider key={transcript.id}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 p-0 hover:bg-muted"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onSelectRelatedFile) onSelectRelatedFile(transcript);
+                    // Wenn transformierte Datei vorhanden, diese öffnen, sonst erstes Transkript
+                    if (fileGroup?.transformed && onSelectRelatedFile) {
+                      onSelectRelatedFile(fileGroup.transformed);
+                    } else if (fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0 && onSelectRelatedFile) {
+                      onSelectRelatedFile(fileGroup.transcriptFiles[0]);
+                    }
                   }}
                 >
                   <FileText className="h-4 w-4 text-blue-500" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Transkript anzeigen: {transcript.metadata.name}</p>
+                <p>
+                  {fileGroup?.transformed 
+                    ? `Transformierte Datei anzeigen: ${fileGroup.transformed.metadata.name}`
+                    : fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0
+                    ? `Shadow-Twin anzeigen: ${fileGroup.transcriptFiles[0].metadata.name}`
+                    : 'Shadow-Twin vorhanden'}
+                </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        ))}
-        {/* Plus-Symbol nur anzeigen, wenn kein Transkript vorhanden und transkribierbar */}
-        {(!fileGroup?.transcriptFiles || fileGroup.transcriptFiles.length === 0) && isTranscribable && !metadata.hasTranscript ? (
+        ) : null}
+        {/* Plus-Symbol nur anzeigen, wenn kein Shadow-Twin vorhanden und transkribierbar */}
+        {(!fileGroup?.transcriptFiles || fileGroup.transcriptFiles.length === 0) && !fileGroup?.transformed && isTranscribable && !metadata.hasTranscript ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -694,26 +556,6 @@ const FileRow = React.memo(function FileRow({
             </Tooltip>
           </TooltipProvider>
         ) : null}
-        {/* Icon für transformierte Datei */}
-        {fileGroup?.transformed && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 p-0 hover:bg-muted"
-                  onClick={handleTransformedClick}
-                >
-                  <ScrollText className="h-4 w-4 text-green-500" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Transformierte Datei anzeigen</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
         {/* Delete direkt neben Dokument-Icons */}
         <TooltipProvider>
           <Tooltip>
@@ -759,16 +601,44 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const currentCategoryFilter = useAtomValue(fileCategoryFilterAtom);
   const allItemsInFolder = useAtomValue(folderItemsAtom);
+  const currentFolderId = useAtomValue(currentFolderIdAtom);
   const navigateToFolder = useFolderNavigation();
   const listContainerRef = React.useRef<HTMLDivElement | null>(null);
+  
+  // Prüfe, ob eine folderId in der URL steht
+  const searchParams = useSearchParams();
+  const folderIdFromUrl = searchParams?.get('folderId');
+  
+  // Zeige nur Items an, wenn currentFolderId mit dem geladenen Ordner übereinstimmt
+  // Oder wenn keine folderId in der URL steht (normale Root-Anzeige)
+  const shouldShowItems = React.useMemo(() => {
+    // Wenn eine folderId in der URL steht, zeige nur Items an, wenn currentFolderId nicht 'root' ist
+    // (verhindert, dass Root-Items angezeigt werden, wenn direkt zu einem Unterverzeichnis navigiert wird)
+    if (folderIdFromUrl && folderIdFromUrl !== 'root') {
+      return currentFolderId !== 'root';
+    }
+    // Normale Anzeige: zeige Items immer an
+    return true;
+  }, [folderIdFromUrl, currentFolderId]);
+
+  // Shadow-Twin-Analyse für alle Dateien im Ordner
+  // Shadow-Twin-Analyse mit Trigger für manuelles Neustarten
+  const shadowTwinAnalysisTriggerRef = React.useRef(0);
+  useShadowTwinAnalysis(allItemsInFolder ?? [], provider, shadowTwinAnalysisTriggerRef.current);
+  const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
 
   // Kein mobiles Flag mehr notwendig
 
   const folders = useMemo(() => {
+    // Wenn eine folderId in der URL steht und currentFolderId noch 'root' ist,
+    // zeige keine Items an (verhindert, dass Root-Items kurz angezeigt werden)
+    if (!shouldShowItems) {
+      return [];
+    }
     const items = allItemsInFolder ?? [];
     // Verstecke dot-Verzeichnisse generell in der Liste
     return items.filter(item => item.type === 'folder' && !item.metadata.name.startsWith('.'));
-  }, [allItemsInFolder]);
+  }, [allItemsInFolder, shouldShowItems]);
 
   // Hilfsfunktion zum Finden einer FileGroup in der Map
   const findFileGroup = useCallback((map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
@@ -797,20 +667,20 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // Initialisierung - nur auf Provider und Mobile-Flag achten
   React.useEffect(() => {
     if (!provider) {
-      FileLogger.info('FileList', 'Waiting for provider');
+      // Warte auf Provider (kein Log nötig)
       return;
     }
 
     const initialize = async () => {
       if (isInitialized) {
-        FileLogger.debug('FileList', 'Already initialized');
+        // Bereits initialisiert (kein Log nötig)
         return;
       }
 
-      FileLogger.info('FileList', 'Starting initialization');
+      // Starte Initialisierung (kein Log nötig)
 
       try {
-        FileLogger.info('FileList', 'Initialization complete');
+        // Initialisierung abgeschlossen (kein Log nötig)
         setIsInitialized(true);
       } catch (error) {
         FileLogger.error('FileList', 'Error initializing FileList', error);
@@ -828,11 +698,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // NEU: Reagieren auf Bibliothekswechsel
   const prevLibraryIdRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    StateLogger.debug('FileList', 'Render', {
-      currentLibraryId: activeLibraryId,
-      activeLibraryIdAtom: activeLibraryId
-    });
-
     // Nur bei tatsächlichem Bibliothekswechsel zurücksetzen
     if (prevLibraryIdRef.current !== null && prevLibraryIdRef.current !== activeLibraryId) {
       setIsInitialized(false);
@@ -866,36 +731,46 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     return shadowTwinPattern.test(name);
   }
 
-  // Gruppiere die Dateien nach Basename
+  // Gruppiere die Dateien nach Basename (verwendet zentrale Shadow-Twin-Analyse)
   const fileGroups = useMemo(() => {
     if (!items) return new Map<string, FileGroup>();
 
     // Schritt 1: Gruppiere alle Dateien nach Basename
     const groupsMap = new Map<string, StorageItem[]>();
+    
     for (const item of items) {
-      if (item.type !== 'file') continue;
-      const base = getBaseName(item.metadata.name);
-      if (!groupsMap.has(base)) groupsMap.set(base, []);
-      groupsMap.get(base)!.push(item);
+      if (item.type === 'file') {
+        const base = getBaseName(item.metadata.name);
+        if (!groupsMap.has(base)) groupsMap.set(base, []);
+        groupsMap.get(base)!.push(item);
+      }
     }
 
-    // Schritt 2: Erstelle FileGroups
+    // Schritt 2: Erstelle FileGroups unter Verwendung der zentralen Shadow-Twin-Analyse
     const fileGroupsMap = new Map<string, FileGroup>();
     for (const [base, groupItems] of Array.from(groupsMap.entries())) {
       // Finde Hauptdatei (erste Nicht-ShadowTwin-Datei)
       const mainFile = groupItems.find((item) => !isShadowTwin(item.metadata.name));
-      // Finde alle ShadowTwins
+      // Finde alle ShadowTwins im gleichen Verzeichnis (alte Logik für Kompatibilität)
       const shadowTwins = groupItems.filter((item) => isShadowTwin(item.metadata.name));
+      
+      // Verwende lowercase Key für konsistente Gruppierung
+      const baseKey = base.toLowerCase();
+      
       if (mainFile) {
-        fileGroupsMap.set(base, {
+        // Verwende zentrale Shadow-Twin-Analyse
+        const shadowTwinState = shadowTwinStates.get(mainFile.id);
+        
+        fileGroupsMap.set(baseKey, {
           baseItem: mainFile,
-          transcriptFiles: shadowTwins.length > 0 ? shadowTwins : undefined,
-          transformed: undefined
+          transcriptFiles: shadowTwinState?.transcriptFiles || (shadowTwins.length > 0 ? shadowTwins : undefined),
+          transformed: shadowTwinState?.transformed,
+          shadowTwinFolderId: shadowTwinState?.shadowTwinFolderId,
         });
       } else {
         // Keine Hauptdatei: Jede ShadowTwin einzeln anzeigen
         for (const twin of shadowTwins) {
-          fileGroupsMap.set(`${base}__shadow_${twin.id}`, {
+          fileGroupsMap.set(`${baseKey}__shadow_${twin.id}`, {
             baseItem: twin,
             transcriptFiles: undefined,
             transformed: undefined
@@ -903,31 +778,28 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
         }
       }
     }
-    // Debug-Logging für Gruppierung
-    FileLogger.debug('FileList', 'Gruppierung Ergebnis (Basename, alle Endungen)', {
-      groups: Array.from(fileGroupsMap.entries()).map(([base, group]) => ({
-        base,
-        baseItem: group.baseItem?.metadata.name,
-        transcripts: group.transcriptFiles?.map(t => t.metadata.name)
-      }))
-    });
     return fileGroupsMap;
-  }, [items]);
+  }, [items, shadowTwinStates]);
+
+  // Verwende fileGroups direkt (Shadow-Twin-Analyse erfolgt bereits über Hook)
+  // Wenn eine folderId in der URL steht und currentFolderId noch 'root' ist,
+  // zeige keine Items an (verhindert, dass Root-Items kurz angezeigt werden)
+  const fileGroupsWithShadowTwinFolders = shouldShowItems ? fileGroups : new Map<string, FileGroup>();
 
   // Navigationsliste: nur Hauptdateien in der aktuell sichtbaren Reihenfolge
   const mainFileItems = React.useMemo(() => {
-    return Array.from((fileGroups ?? new Map()).values())
+    return Array.from((fileGroupsWithShadowTwinFolders ?? new Map()).values())
       .map(g => g.baseItem)
       .filter((it): it is StorageItem => Boolean(it));
-  }, [fileGroups]);
+  }, [fileGroupsWithShadowTwinFolders]);
 
   // Hilfsfunktion: Gruppe anhand baseItem.id finden
   const findGroupByBaseItemId = React.useCallback((baseItemId: string) => {
-    for (const g of Array.from((fileGroups ?? new Map()).values())) {
+    for (const g of Array.from((fileGroupsWithShadowTwinFolders ?? new Map()).values())) {
       if (g.baseItem && g.baseItem.id === baseItemId) return g;
     }
     return undefined;
-  }, [fileGroups]);
+  }, [fileGroupsWithShadowTwinFolders]);
 
   // Auswahl-Helfer für Keyboard-Navigation (dupliziert nicht die UI-spezifischen Click-Handler)
   const selectByKeyboard = React.useCallback((item: StorageItem) => {
@@ -966,25 +838,13 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     listContainerRef.current?.focus();
   }, []);
 
-  // Mapping: Basename -> dot-Systemordner (z. B. ".<basename>")
-  const systemFolderByBase = useMemo(() => {
-    const map = new Map<string, StorageItem>();
-    const items = allItemsInFolder ?? [];
-    for (const it of items) {
-      if (it.type !== 'folder') continue;
-      const name = it.metadata.name;
-      if (!name.startsWith('.')) continue;
-      const base = name.slice(1);
-      if (base) map.set(base, it);
-    }
-    return map;
-  }, [allItemsInFolder]);
+  // Alte systemFolderByBase-Logik entfernt (wird nicht mehr benötigt)
 
   // Berechne, ob alle Dateien ausgewählt sind
   const isAllSelected = useMemo(() => {
-    if (!fileGroups || !fileGroups.size) return false;
+    if (!fileGroupsWithShadowTwinFolders || !fileGroupsWithShadowTwinFolders.size) return false;
     // Verwende nur die Hauptdateien (baseItem) aus den FileGroups
-    const mainItems = Array.from((fileGroups ?? new Map()).values())
+    const mainItems = Array.from((fileGroupsWithShadowTwinFolders ?? new Map()).values())
       .map(group => group.baseItem)
       .filter((item): item is StorageItem => item !== undefined);
     // Je nach Filter unterschiedliche Dateien zählen
@@ -1042,18 +902,10 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
         const allTextSelected = textItems.length === 0 || selectedTransformationItems.length === textItems.length;
         return allMediaSelected && allTextSelected;
     }
-  }, [fileGroups, selectedBatchItems, selectedTransformationItems, currentCategoryFilter]);
+  }, [fileGroupsWithShadowTwinFolders, selectedBatchItems, selectedTransformationItems, currentCategoryFilter]);
   
   // Erweiterte handleSelect Funktion für Review-Mode
   const handleSelect = useCallback((item: StorageItem, group?: FileGroup) => {
-    FileLogger.debug('FileList', 'handleSelect aufgerufen', {
-      itemId: item.id,
-      itemName: item.metadata.name,
-      groupBase: group?.baseItem?.metadata.name,
-      transcriptCount: group?.transcriptFiles?.length ?? 0,
-      hasTranscripts: !!(group && group.transcriptFiles && group.transcriptFiles.length > 0)
-    });
-    
     // Nur die ausgewählte Datei setzen - Review-Modus wird über Toggle-Button gesteuert
     setSelectedFile(item);
     
@@ -1061,20 +913,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     // dann automatisch das Shadow-Twin setzen
     if (group && group.transcriptFiles && group.transcriptFiles.length > 0) {
       const shadowTwin = group.transcriptFiles[0];
-      FileLogger.info('FileList', 'Basis-Datei mit Shadow-Twin ausgewählt', {
-        twinId: shadowTwin.id,
-        twinName: shadowTwin.metadata.name,
-        baseFileId: item.id,
-        baseFileName: item.metadata.name
-      });
       setSelectedShadowTwin(shadowTwin);
     } else {
-      FileLogger.info('FileList', 'Datei ohne Shadow-Twin ausgewählt', {
-        itemId: item.id,
-        itemName: item.metadata.name,
-        groupExists: !!group,
-        transcriptCount: group?.transcriptFiles?.length ?? 0
-      });
       setSelectedShadowTwin(null);
     }
   }, [setSelectedFile, setSelectedShadowTwin]);
@@ -1093,38 +933,75 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
   // Aktualisierte handleRefresh Funktion
   const handleRefresh = useCallback(async () => {
-    if (!items || items.length === 0) return;
-    
-    const parentId = items[0]?.parentId;
-    if (!parentId) return;
+    if (!currentFolderId) return;
     
     setIsRefreshing(true);
     
     try {
-      const refreshedItems = await refreshItems(parentId);
+      // Dateiliste neu laden
+      const refreshedItems = await refreshItems(currentFolderId);
       setFolderItems(refreshedItems);
+      
+      // Shadow-Twin-Analyse neu starten, indem wir den Trigger erhöhen
+      // Dies wird von useShadowTwinAnalysis erkannt und führt zu einer Neu-Analyse
+      shadowTwinAnalysisTriggerRef.current += 1;
+      
+      FileLogger.info('FileList', 'Dateiliste und Shadow-Twins aktualisiert', {
+        folderId: currentFolderId,
+        itemCount: refreshedItems.length,
+        triggerValue: shadowTwinAnalysisTriggerRef.current
+      });
+      
+      toast.success('Dateiliste und Shadow-Twins aktualisiert');
     } catch (error) {
       FileLogger.error('FileList', 'Fehler beim Aktualisieren der Dateiliste', error);
+      toast.error('Fehler beim Aktualisieren der Dateiliste');
     } finally {
       setIsRefreshing(false);
     }
-  }, [items, refreshItems, setFolderItems]);
+  }, [currentFolderId, refreshItems, setFolderItems]);
 
   // Globales Ordner-Refresh-Ereignis (z. B. nach Shadow‑Twin Speicherung)
   React.useEffect(() => {
     const onRefresh = (e: Event) => {
       try {
-        const detail = (e as CustomEvent).detail as { folderId?: string } | undefined;
+        const detail = (e as CustomEvent).detail as { 
+          folderId?: string
+          shadowTwinFolderId?: string | null
+          triggerShadowTwinAnalysis?: boolean
+        } | undefined;
         const folderId = detail?.folderId;
         const currentParentId = items && items[0] ? items[0].parentId : undefined;
-        if (folderId && currentParentId && folderId === currentParentId) {
+        const shadowTwinFolderId = detail?.shadowTwinFolderId;
+        
+        // Refresh sowohl Parent als auch Shadow-Twin-Verzeichnis, wenn geöffnet
+        // Dies stellt sicher, dass beide Ordner aktualisiert werden, wenn ein Job abgeschlossen wird
+        const shouldRefresh = folderId && currentParentId && (
+          folderId === currentParentId || 
+          (shadowTwinFolderId && shadowTwinFolderId === currentParentId)
+        );
+        
+        if (shouldRefresh) {
           void handleRefresh();
+          
+          // WICHTIG: Shadow-Twin-Analyse neu triggern, wenn angefordert
+          // Dies stellt sicher, dass das Shadow-Twin-State nach einer Transformation neu berechnet wird
+          if (detail?.triggerShadowTwinAnalysis) {
+            FileLogger.info('FileList', 'Trigger Shadow-Twin-Analyse nach Transformation', {
+              folderId,
+              shadowTwinFolderId: detail.shadowTwinFolderId,
+              currentFolderId,
+              currentParentId
+            })
+            // Erhöhe den Trigger-Wert, um eine erzwungene Neu-Analyse auszulösen
+            shadowTwinAnalysisTriggerRef.current += 1
+          }
         }
       } catch {}
     };
     window.addEventListener('library_refresh', onRefresh as unknown as EventListener);
     return () => window.removeEventListener('library_refresh', onRefresh as unknown as EventListener);
-  }, [items, handleRefresh]);
+  }, [items, handleRefresh, currentFolderId]);
 
   const handleCreateTranscript = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1158,7 +1035,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     try {
       // Finde die FileGroup für dieses Item
       const itemStem = getBaseName(itemToDelete.metadata.name);
-      const fileGroup = findFileGroup(fileGroups, itemStem);
+      const fileGroup = findFileGroup(fileGroupsWithShadowTwinFolders, itemStem);
 
       // Bestätigungsnachricht vorbereiten
       let confirmMessage = `Möchten Sie "${itemToDelete.metadata.name}" wirklich löschen?`;
@@ -1237,7 +1114,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
         description: `Die Datei konnte nicht gelöscht werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       });
     }
-  }, [provider, handleRefresh, fileGroups, setSelectedFile, setSelectedBatchItems, findFileGroup]);
+  }, [provider, handleRefresh, fileGroupsWithShadowTwinFolders, setSelectedFile, setSelectedBatchItems, findFileGroup]);
 
   const handleRename = React.useCallback(async (item: StorageItem, newName: string) => {
     if (!provider) {
@@ -1250,7 +1127,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     try {
       // Finde die FileGroup für dieses Item
       const itemStem = getBaseName(item.metadata.name);
-      const fileGroup = findFileGroup(fileGroups, itemStem);
+      const fileGroup = findFileGroup(fileGroupsWithShadowTwinFolders, itemStem);
 
       if (fileGroup && item.id === fileGroup.baseItem?.id) {
         // Dies ist die Basis-Datei - benenne auch abhängige Dateien um
@@ -1304,7 +1181,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       });
       throw error;
     }
-  }, [provider, handleRefresh, fileGroups, findFileGroup]);
+  }, [provider, handleRefresh, fileGroupsWithShadowTwinFolders, findFileGroup]);
 
   const handleBatchTranscription = () => {
     if (selectedBatchItems.length > 0) {
@@ -1375,7 +1252,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     const startTime = performance.now();
     if (checked) {
       // Verwende nur die Hauptdateien (baseItem) aus den FileGroups
-      const mainItems = Array.from((fileGroups ?? new Map()).values())
+      const mainItems = Array.from((fileGroupsWithShadowTwinFolders ?? new Map()).values())
         .map(group => group.baseItem)
         .filter((item): item is StorageItem => item !== undefined);
       const selectableItems = mainItems.filter(item => {
@@ -1446,15 +1323,12 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       setSelectedBatchItems([]);
       setSelectedTransformationItems([]);
     }
-  }, [fileGroups, currentCategoryFilter, setSelectedBatchItems, setSelectedTransformationItems, selectedBatchItems.length, selectedTransformationItems.length, items.length]);
+  }, [fileGroupsWithShadowTwinFolders, currentCategoryFilter, setSelectedBatchItems, setSelectedTransformationItems, selectedBatchItems.length, selectedTransformationItems.length, items.length]);
 
   React.useEffect(() => {
-    // Logging der Library-IDs - verzögert ausführen
+    // Logging der Library-IDs - verzögert ausführen (entfernt - nicht operationell wichtig)
     const timeoutId = setTimeout(() => {
-      StateLogger.debug('FileList', 'Render', {
-        currentLibraryId: currentLibrary?.id,
-        activeLibraryIdAtom: activeLibraryId
-      });
+      // Render-Log entfernt
     }, 0);
     
     return () => clearTimeout(timeoutId);
@@ -1486,7 +1360,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
             {/* Batch-Actions als Icons */}
             {selectedBatchItems.length > 0 && (
               <Button size="icon" title="Transkribieren" aria-label="Transkribieren" onClick={handleBatchTranscription}>
-                <ScrollText className="h-4 w-4" />
+                <FileText className="h-4 w-4" />
               </Button>
             )}
             {selectedTransformationItems.length > 0 && (
@@ -1616,14 +1490,12 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
           {/* File Rows */}
           <div className="divide-y">
-            {Array.from((fileGroups ?? new Map()).values())
+            {Array.from((fileGroupsWithShadowTwinFolders ?? new Map()).values())
               .map((group) => {
                 // Zeige nur die Hauptdatei (baseItem) an
                 const item = group.baseItem;
                 if (!item) return null;
-                // System-Unterordner-Id, wenn ein ".<basename>"-Folder existiert
-                const systemFolder = systemFolderByBase.get(getBaseName(item.metadata.name));
-                const systemFolderId = systemFolder?.id;
+                // Alte systemFolderId-Logik entfernt
                 const isActive = !!activeFile && activeFile.id === item.id
                 return (
                   <FileRow
@@ -1638,7 +1510,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                     onSelectRelatedFile={handleSelectRelatedFile}
                     onRename={handleRename}
                     compact={compact}
-                    systemFolderId={systemFolderId}
                   />
                 );
               })}

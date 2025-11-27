@@ -32,6 +32,7 @@ import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { transformAudio, transformText, transformVideo, transformPdf, transformImage, SecretaryAudioResponse, SecretaryVideoResponse, SecretaryPdfResponse, SecretaryImageResponse } from "@/lib/secretary/client";
 import { ImageExtractionService, ImageExtractionResult } from "./image-extraction-service";
 import { FileLogger } from '@/lib/debug/logger';
+import { generateShadowTwinFolderName } from "@/lib/storage/shadow-twin";
 
 export interface TransformSaveOptions {
   targetLanguage: string;
@@ -39,7 +40,9 @@ export interface TransformSaveOptions {
   createShadowTwin: boolean;
   fileExtension: string;
   useCache?: boolean; // Neu: Cache-Option für alle Transformationen
-  includeImages?: boolean; // Neu: Bilder mit extrahieren und speichern
+  includeOcrImages?: boolean; // Mistral OCR Bilder als Base64 (in mistral_ocr_raw.pages[*].images[*].image_base64)
+  includePageImages?: boolean; // Seiten-Bilder als ZIP (parallel extrahiert)
+  includeImages?: boolean; // Rückwärtskompatibilität: für Standard-Endpoint (deprecated, verwende includeOcrImages/includePageImages)
   useIngestionPipeline?: boolean; // Neu: Auto-RAG nach Speicherung
 }
 
@@ -447,18 +450,32 @@ export class TransformService {
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
     libraryId: string
   ): Promise<TransformResult> {
+    // Für Mistral OCR: Beide Parameter standardmäßig true
+    const isMistralOcr = options.extractionMethod === 'mistral_ocr';
+    const includeOcrImages = options.includeOcrImages !== undefined 
+      ? options.includeOcrImages 
+      : (isMistralOcr ? true : (options.includeImages ?? false)); // Standard: true für Mistral OCR
+    const includePageImages = options.includePageImages !== undefined
+      ? options.includePageImages
+      : (isMistralOcr ? true : false); // Standard: true für Mistral OCR
+    
     FileLogger.info('TransformService', 'PDF-Transformation gestartet', {
       fileName: originalItem.metadata.name,
-      includeImages: options.includeImages,
       extractionMethod: options.extractionMethod,
-      targetLanguage: options.targetLanguage
+      targetLanguage: options.targetLanguage,
+      includeOcrImages,
+      includePageImages,
+      includeImages: options.includeImages // Rückwärtskompatibilität
     });
-    FileLogger.debug('TransformService', 'IncludeImages Option', {
+    FileLogger.debug('TransformService', 'Bild-Optionen', {
+      includeOcrImages,
+      includePageImages,
       includeImages: options.includeImages,
-      type: typeof options.includeImages
+      isMistralOcr
     });
     
     // PDF-Datei wird transformiert - hole die vollständige Response
+    // transformPdf erwartet includeOcrImages als Parameter (nicht includePageImages, das wird intern gesetzt)
     const response = await transformPdf(
       file,
       options.targetLanguage,
@@ -466,7 +483,7 @@ export class TransformService {
       options.template,
       options.extractionMethod,
       options.useCache ?? true,
-      options.includeImages ?? false,
+      includeOcrImages, // Mistral OCR Bilder als Base64
       undefined, // skipTemplate wird nicht mehr verwendet; Flags steuern Phasen
       {
         originalItemId: originalItem.id,
@@ -503,13 +520,24 @@ export class TransformService {
       dataKeys: response && response.data ? Object.keys(response.data) : []
     });
     
-    // Prüfe auf images_archive_data
-    FileLogger.debug('TransformService', 'Images Archive Check', {
-      hasImagesArchiveData: !!(response && response.data && response.data.images_archive_data),
+    // Prüfe auf images_archive_data und Mistral OCR Bilder
+    const hasZipImages = !!(response && response.data && response.data.images_archive_data);
+    const hasMistralOcrImages = !!(response && response.data && response.data.mistral_ocr_raw?.pages?.some((page) => 
+      page.images && page.images.length > 0 && page.images.some(img => img.image_base64 && img.image_base64 !== null)
+    ));
+    
+    FileLogger.debug('TransformService', 'Images Check', {
+      hasImagesArchiveData: hasZipImages,
       hasImagesArchiveFilename: !!(response && response.data && response.data.images_archive_filename),
       imagesArchiveDataLength: response && response.data && response.data.images_archive_data ? response.data.images_archive_data.length : 0,
-      imagesArchiveFilename: response && response.data ? response.data.images_archive_filename : 'undefined'
+      imagesArchiveFilename: response && response.data ? response.data.images_archive_filename : 'undefined',
+      hasMistralOcrImages: hasMistralOcrImages,
+      mistralOcrPagesCount: response && response.data && response.data.mistral_ocr_raw?.pages ? response.data.mistral_ocr_raw.pages.length : 0
     });
+    
+    // Entscheidungslogik: Shadow-Twin-Verzeichnis oder Datei?
+    // Erstelle Verzeichnis, wenn Bilder vorhanden sind (ZIP oder Mistral OCR)
+    const shouldCreateShadowTwinFolder = (includePageImages && hasZipImages) || (includeOcrImages && hasMistralOcrImages);
     
     if (response && response.data && response.data.extracted_text) {
       FileLogger.info('TransformService', 'Extracted-Text gefunden', {
@@ -567,12 +595,31 @@ export class TransformService {
       });
     }
     
-    let imageExtractionResult: ImageExtractionResult | undefined;
-    if (options.includeImages && response && response.data && response.data.images_archive_data) {
+    // Shadow-Twin-Verzeichnis erstellen, wenn Bilder vorhanden
+    let shadowTwinFolderId: string | undefined;
+    if (shouldCreateShadowTwinFolder) {
       try {
-        FileLogger.info('TransformService', 'Starte Bild-Extraktion', {
+        const folderName = generateShadowTwinFolderName(originalItem.metadata.name);
+        const folderItem = await provider.createFolder(originalItem.parentId, folderName);
+        shadowTwinFolderId = folderItem.id;
+        FileLogger.info('TransformService', 'Shadow-Twin-Verzeichnis erstellt', {
+          folderId: folderItem.id,
+          folderName: folderName
+        });
+      } catch (error) {
+        FileLogger.error('TransformService', 'Fehler beim Erstellen des Shadow-Twin-Verzeichnisses', error);
+        // Weiter ohne Verzeichnis (Fallback auf Datei)
+      }
+    }
+    
+    // Bilder speichern (ZIP-Archive)
+    let imageExtractionResult: ImageExtractionResult | undefined;
+    if (includePageImages && hasZipImages && response && response.data && response.data.images_archive_data) {
+      try {
+        FileLogger.info('TransformService', 'Starte ZIP-Bild-Extraktion', {
           imagesArchiveFilename: response.data.images_archive_filename,
-          imagesArchiveDataLength: response.data.images_archive_data.length
+          imagesArchiveDataLength: response.data.images_archive_data.length,
+          shadowTwinFolderId: shadowTwinFolderId
         });
         imageExtractionResult = await ImageExtractionService.saveZipArchive(
           response.data.images_archive_data,
@@ -582,14 +629,67 @@ export class TransformService {
           refreshItems,
           transformedText, // Extrahierten Text weitergeben
           options.targetLanguage, // Target Language weitergeben
-          response.data.metadata?.text_contents // Seiten-spezifische Texte weitergeben
+          response.data.metadata?.text_contents, // Seiten-spezifische Texte weitergeben
+          shadowTwinFolderId // Shadow-Twin-Verzeichnis-ID (optional)
         );
-        FileLogger.info('TransformService', 'Bild-Extraktion abgeschlossen', {
+        FileLogger.info('TransformService', 'ZIP-Bild-Extraktion abgeschlossen', {
           folderCreated: !!imageExtractionResult.folderItem,
           savedItemsCount: imageExtractionResult.savedItems.length
         });
       } catch (error) {
-        FileLogger.error('TransformService', 'Fehler bei der Bild-Extraktion', error);
+        FileLogger.error('TransformService', 'Fehler bei der ZIP-Bild-Extraktion', error);
+        // Bild-Extraktion ist optional, daher weitermachen
+      }
+    }
+    
+    // Mistral OCR Bilder speichern
+    if (includeOcrImages && hasMistralOcrImages && shadowTwinFolderId && response && response.data && response.data.mistral_ocr_raw?.pages) {
+      try {
+        // Sammle alle Bilder aus allen Seiten
+        const allImages: Array<{ id: string; image_base64: string }> = [];
+        for (const page of response.data.mistral_ocr_raw.pages) {
+          if (page.images && Array.isArray(page.images)) {
+            for (const image of page.images) {
+              if (image.id && image.image_base64) {
+                allImages.push({
+                  id: image.id,
+                  image_base64: image.image_base64
+                });
+              }
+            }
+          }
+        }
+        
+        if (allImages.length > 0) {
+          FileLogger.info('TransformService', 'Starte Mistral OCR Bild-Speicherung', {
+            imageCount: allImages.length,
+            shadowTwinFolderId: shadowTwinFolderId
+          });
+          
+          const savedMistralImages = await ImageExtractionService.saveMistralOcrImages(
+            allImages,
+            shadowTwinFolderId,
+            provider
+          );
+          
+          FileLogger.info('TransformService', 'Mistral OCR Bild-Speicherung abgeschlossen', {
+            savedItemsCount: savedMistralImages.length
+          });
+          
+          // Füge gespeicherte Bilder zu imageExtractionResult hinzu
+          if (imageExtractionResult) {
+            imageExtractionResult.savedItems.push(...savedMistralImages);
+          } else {
+            // Erstelle neues Result wenn noch keins existiert
+            imageExtractionResult = {
+              extractedImages: [],
+              folderItem: await provider.getItemById(shadowTwinFolderId) as StorageItem | undefined,
+              savedItems: savedMistralImages
+            };
+          }
+        }
+      } catch (error) {
+        FileLogger.error('TransformService', 'Fehler bei der Mistral OCR Bild-Speicherung', error);
         // Bild-Extraktion ist optional, daher weitermachen
       }
     }
@@ -614,13 +714,18 @@ export class TransformService {
         markdownLength: markdownContent.length
       });
       
+      // Wenn Shadow-Twin-Verzeichnis existiert: Markdown im Verzeichnis speichern
+      // Sonst: Markdown im Parent-Verzeichnis speichern (wie bisher)
+      const parentIdForMarkdown = shadowTwinFolderId || originalItem.parentId;
+      
       const result = await TransformService.saveTwinFile(
         markdownContent,
         originalItem,
         options.fileName,
         options.fileExtension,
         provider,
-        refreshItems
+        refreshItems,
+        parentIdForMarkdown // Parent-ID für Markdown (Verzeichnis oder Original-Parent)
       );
       
       FileLogger.info('TransformService', 'Shadow-Twin erfolgreich gespeichert', {
@@ -840,7 +945,8 @@ export class TransformService {
     fileName: string,
     fileExtension: string,
     provider: StorageProvider,
-    refreshItems: (folderId: string) => Promise<StorageItem[]>
+    refreshItems: (folderId: string) => Promise<StorageItem[]>,
+    parentId?: string // Optional: Parent-ID für Markdown (Shadow-Twin-Verzeichnis oder Original-Parent)
   ): Promise<{ savedItem?: StorageItem; updatedItems: StorageItem[] }> {
     console.log('[TransformService] saveTwinFile aufgerufen mit:', {
       originalItemName: originalItem.metadata.name,
@@ -848,17 +954,21 @@ export class TransformService {
       fileExtension: fileExtension
     });
     
+    // Bestimme Parent-ID (Shadow-Twin-Verzeichnis oder Original-Parent)
+    const targetParentId = parentId || originalItem.parentId;
+    
     // NEU: Detaillierte Debug-Logs
     FileLogger.info('TransformService', 'saveTwinFile gestartet', {
       originalItemName: originalItem.metadata.name,
       fileName: fileName,
       fileExtension: fileExtension,
       contentLength: content.length,
-      parentId: originalItem.parentId
+      parentId: targetParentId,
+      isShadowTwinFolder: !!parentId
     });
     
     // Hole aktuelle Dateien im Verzeichnis
-    const currentItems = await refreshItems(originalItem.parentId);
+    const currentItems = await refreshItems(targetParentId);
     FileLogger.debug('TransformService', 'Aktuelle Dateien im Verzeichnis', {
       parentId: originalItem.parentId,
       itemCount: currentItems.length,
@@ -910,11 +1020,11 @@ export class TransformService {
     
     // In dasselbe Verzeichnis wie die Originaldatei hochladen
     FileLogger.info('TransformService', 'Starte Upload', {
-      parentId: originalItem.parentId,
+      parentId: targetParentId,
       fileName: uniqueFileName
     });
     
-    const savedItem = await provider.uploadFile(originalItem.parentId, file);
+    const savedItem = await provider.uploadFile(targetParentId, file);
     
     FileLogger.info('TransformService', 'Upload erfolgreich', {
       savedItemId: savedItem.id,
@@ -923,7 +1033,7 @@ export class TransformService {
     });
     
     // Aktualisierte Dateiliste holen
-    const updatedItems = await refreshItems(originalItem.parentId);
+    const updatedItems = await refreshItems(targetParentId);
     
     FileLogger.info('TransformService', 'Dateiliste aktualisiert', {
       updatedItemsCount: updatedItems.length,

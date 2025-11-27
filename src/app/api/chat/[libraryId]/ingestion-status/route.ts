@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { FileLogger } from '@/lib/debug/logger'
-import { computeDocMetaCollectionName, getByFileIds } from '@/lib/repositories/doc-meta-repo'
+import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/doc-meta-repo'
 
 interface ChapterDto {
   chapterId: string
@@ -71,24 +71,8 @@ export async function GET(
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
 
-    // Für öffentliche Libraries: Verwende Owner-Email für MongoDB-Collection
-    // Für authentifizierte Nutzer: Verwende ihre Email
-    let effectiveUserEmail = userEmail
-    if (!effectiveUserEmail && ctx.library.config?.publicPublishing?.isPublic) {
-      // Versuche Owner-Email zu ermitteln (für öffentliche Libraries)
-      const { findLibraryOwnerEmail } = await import('@/lib/chat/loader')
-      const ownerEmail = await findLibraryOwnerEmail(libraryId)
-      if (ownerEmail) {
-        effectiveUserEmail = ownerEmail
-      }
-    }
-
-    if (!effectiveUserEmail) {
-      return NextResponse.json({ error: 'Benutzer-Email erforderlich' }, { status: 400 })
-    }
-
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(effectiveUserEmail, libraryId, strategy)
+    // Verwende Collection-Name aus Config (deterministisch, keine Owner-Email-Ermittlung mehr)
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
 
     const map = await getByFileIds(libraryKey, libraryId, [fileId])
     const docMeta = map.get(fileId)

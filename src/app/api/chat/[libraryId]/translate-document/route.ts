@@ -4,7 +4,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getTranslation, saveTranslation } from '@/lib/db/translations-repo'
 import { translateBookData, translateSessionData } from '@/lib/chat/common/document-translation'
 import { mapToBookDetail, mapToSessionDetail } from '@/lib/mappers/doc-meta-mappers'
-import { computeDocMetaCollectionName, getByFileIds } from '@/lib/repositories/doc-meta-repo'
+import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/doc-meta-repo'
 import type { TargetLanguage } from '@/lib/chat/constants'
 import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants'
 import type { BookDetailData } from '@/components/library/book-detail'
@@ -143,26 +143,8 @@ export async function POST(
     
     console.log('[translate-document] ⚠️ Kein Cache gefunden, starte Übersetzung')
 
-    // Für öffentliche Libraries: Verwende Owner-Email für MongoDB-Collection
-    let effectiveUserEmail = userEmail
-    if (!effectiveUserEmail && ctx.library.config?.publicPublishing?.isPublic) {
-      const { findLibraryOwnerEmail } = await import('@/lib/chat/loader')
-      const ownerEmail = await findLibraryOwnerEmail(libraryId)
-      if (ownerEmail) {
-        effectiveUserEmail = ownerEmail
-      }
-    }
-
-    if (!effectiveUserEmail) {
-      return NextResponse.json(
-        { error: 'Benutzer-Email erforderlich' },
-        { status: 400 }
-      )
-    }
-
-    // Dokument-Metadaten laden
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(effectiveUserEmail, libraryId, strategy)
+    // Verwende Collection-Name aus Config (deterministisch, keine Owner-Email-Ermittlung mehr)
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
     const docMetaMap = await getByFileIds(libraryKey, libraryId, [fileId])
     const docMeta = docMetaMap.get(fileId)
 

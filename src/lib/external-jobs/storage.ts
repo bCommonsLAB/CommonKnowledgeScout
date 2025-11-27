@@ -33,20 +33,79 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
   const repo = new ExternalJobsRepository()
   const provider = await getServerProvider(ctx.job.userEmail, ctx.job.libraryId)
 
+  // DETERMINISTISCHE ARCHITEKTUR: Verwende einfach parentId, das bereits korrekt gesetzt wurde
+  // Der Kontext wurde beim Job-Start bestimmt und im Job-State gespeichert
+  // Jeder Job hat seinen eigenen isolierten Kontext - keine gegenseitige Beeinflussung
+  const targetParentId = parentId
+  const shadowTwinFolderId: string | undefined = ctx.job.shadowTwinState?.shadowTwinFolderId
+  
+  bufferLog(ctx.jobId, {
+    phase: 'markdown_save',
+    message: `Speichere Markdown${shadowTwinFolderId && parentId === shadowTwinFolderId ? ' im Shadow-Twin-Verzeichnis' : ''}`,
+    parentId: targetParentId,
+    shadowTwinFolderId: shadowTwinFolderId || null
+  })
+
   const file = new File([new Blob([markdown], { type: 'text/markdown' })], fileName, { type: 'text/markdown' })
   try {
-    await repo.traceAddEvent(ctx.jobId, { spanId: 'template', name: 'postprocessing_save', attributes: { name: fileName } })
+    await repo.traceAddEvent(ctx.jobId, {
+      spanId: 'template',
+      name: 'postprocessing_save',
+      attributes: {
+        name: fileName,
+        parentId: targetParentId,
+        shadowTwinFolderId: shadowTwinFolderId || null,
+      },
+    })
   } catch {}
-  const saved = await provider.uploadFile(parentId, file)
-  try { await repo.traceAddEvent(ctx.jobId, { spanId: 'template', name: 'stored_local', attributes: { savedItemId: saved.id, name: saved.metadata?.name } }) } catch {}
-  bufferLog(ctx.jobId, { phase: 'stored_local', message: 'Shadow‑Twin gespeichert' })
+  const saved = await provider.uploadFile(targetParentId, file)
+  try {
+    await repo.traceAddEvent(ctx.jobId, {
+      spanId: 'template',
+      name: 'stored_local',
+      attributes: {
+        savedItemId: saved.id,
+        name: saved.metadata?.name,
+        parentId: targetParentId,
+        shadowTwinFolderId: shadowTwinFolderId || null,
+      },
+    })
+  } catch {}
+  bufferLog(ctx.jobId, {
+    phase: 'stored_local',
+    message: `Shadow‑Twin gespeichert${shadowTwinFolderId ? ' im Shadow-Twin-Verzeichnis' : ''}`,
+  })
 
   try {
-    const p = await provider.getPathById(parentId)
+    const p = await provider.getPathById(targetParentId)
     const uniqueName = (saved.metadata?.name as string | undefined) || fileName
-    await repo.appendLog(ctx.jobId, { phase: 'stored_path', message: `${p}/${uniqueName}` } as unknown as Record<string, unknown>)
-    // @ts-expect-error custom field for UI refresh
-    getJobEventBus().emitUpdate(ctx.job.userEmail, { type: 'job_update', jobId: ctx.jobId, status: 'running', progress: 98, updatedAt: new Date().toISOString(), message: 'stored_local', jobType: ctx.job.job_type, fileName: uniqueName, sourceItemId: ctx.job.correlation?.source?.itemId, refreshFolderId: parentId })
+    await repo.appendLog(
+      ctx.jobId,
+      {
+        phase: 'stored_path',
+        message: `${p}/${uniqueName}`,
+      } as unknown as Record<string, unknown>
+    )
+    // WICHTIG: Refresh sowohl Parent als auch Shadow-Twin-Verzeichnis (falls vorhanden)
+    // Dies stellt sicher, dass beide Ordner aktualisiert werden und die Shadow-Twin-Analyse neu läuft
+    const refreshFolderIds = shadowTwinFolderId && shadowTwinFolderId !== parentId
+      ? [parentId, shadowTwinFolderId]
+      : [parentId]
+    
+    getJobEventBus().emitUpdate(ctx.job.userEmail, {
+      type: 'job_update',
+      jobId: ctx.jobId,
+      status: 'running',
+      progress: 98,
+      updatedAt: new Date().toISOString(),
+      message: 'stored_local',
+      jobType: ctx.job.job_type,
+      fileName: uniqueName,
+      sourceItemId: ctx.job.correlation?.source?.itemId,
+      refreshFolderId: parentId, // Primary refresh folder (für Rückwärtskompatibilität)
+      refreshFolderIds, // Array mit allen zu refreshenden Ordnern (Parent + Shadow-Twin)
+      shadowTwinFolderId: shadowTwinFolderId || null, // Shadow-Twin-Verzeichnis-ID für Client-Analyse
+    } as unknown as import('@/lib/events/job-event-bus').JobUpdateEvent)
   } catch {}
   return { savedItemId: saved.id }
 }

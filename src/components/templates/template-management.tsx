@@ -25,6 +25,7 @@ import {
 } from "@/atoms/template-atom"
 import { useStorage } from "@/contexts/storage-context"
 import { templateContextDocsAtom } from '@/atoms/template-context-atom'
+import { useRootItems } from '@/hooks/use-root-items'
 import { Checkbox } from "@/components/ui/checkbox"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -78,6 +79,7 @@ export function TemplateManagement() {
     provider: providerInstance, 
     listItems
   } = useStorage()
+  const getRootItems = useRootItems()
   const contextDocs = useAtomValue(templateContextDocsAtom)
 
   const form = useForm<TemplateFormValues>({
@@ -136,18 +138,11 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
     try {
       console.log('[TemplateManagement] Suche nach Templates-Ordner...');
-      const rootItems = await listItems('root');
-      const templatesFolder = rootItems.find(item => 
-        item.type === 'folder' && item.metadata.name === 'templates'
-      );
-      if (templatesFolder) {
-        console.log('[TemplateManagement] Templates-Ordner gefunden:', templatesFolder.id);
-        return templatesFolder.id;
-      }
-      console.log('[TemplateManagement] Templates-Ordner nicht gefunden, erstelle neuen...');
-      const newFolder = await providerInstance.createFolder('root', 'templates');
-      console.log('[TemplateManagement] Neuer Templates-Ordner erstellt:', newFolder.id);
-      return newFolder.id;
+      // Verwende zentrale Template-Service Library
+      const { ensureTemplatesFolderId } = await import('@/lib/templates/template-service')
+      const templatesFolderId = await ensureTemplatesFolderId(providerInstance)
+      console.log('[TemplateManagement] Templates-Ordner gefunden/erstellt:', templatesFolderId);
+      return templatesFolderId;
     } catch (error) {
       console.error('Fehler beim Erstellen des Templates-Ordners:', {
         error: error instanceof Error ? {
@@ -173,7 +168,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       }
       throw new Error(errorMessage);
     }
-  }, [providerInstance, activeLibrary, listItems]);
+  }, [providerInstance, activeLibrary]);
 
   // Templates laden mit der gleichen Logik wie Library-Komponente
   const loadTemplates = useCallback(async () => {
@@ -655,7 +650,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
   async function ensurePromptTestsFolder(): Promise<string> {
     if (!providerInstance) throw new Error('Kein Provider verfügbar')
-    const roots = await listItems('root')
+    const roots = await getRootItems()
     const found = roots.find(it => it.type === 'folder' && it.metadata.name === 'prompt-tests')
     if (found) return found.id
     const created = await providerInstance.createFolder('root', 'prompt-tests')

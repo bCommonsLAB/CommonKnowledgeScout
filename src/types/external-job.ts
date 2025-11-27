@@ -64,6 +64,21 @@ export interface ExternalJobIngestionInfo {
   upsertAt?: Date;
 }
 
+/**
+ * Shadow-Twin-State für MongoDB (nur IDs und Namen, keine vollständigen StorageItem-Objekte)
+ */
+export interface ExternalJobShadowTwinState {
+  baseItem: { id: string; metadata: { name: string } };
+  transformed?: { id: string; metadata: { name: string } };
+  transcriptFiles?: Array<{ id: string; metadata: { name: string } }>;
+  shadowTwinFolderId?: string;
+  mediaFiles?: Array<{ id: string; metadata: { name: string } }>;
+  analysisTimestamp: number;
+  analysisError?: string;
+  /** Verarbeitungsstatus des Shadow-Twins */
+  processingStatus?: 'pending' | 'processing' | 'ready' | 'error';
+}
+
 export interface ExternalJob {
   jobId: string;
   jobSecretHash: string; // sha256 of secret
@@ -83,6 +98,7 @@ export interface ExternalJob {
   cumulativeMeta?: Record<string, unknown>;
   metaHistory?: Array<{ at: Date; meta: Record<string, unknown>; source: string }>;
   ingestion?: ExternalJobIngestionInfo;
+  shadowTwinState?: ExternalJobShadowTwinState; // Neu: Shadow-Twin-State beim Job-Start berechnet
   createdAt: Date;
   updatedAt: Date;
   error?: {

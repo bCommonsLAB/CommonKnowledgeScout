@@ -14,10 +14,21 @@ export async function POST(request: NextRequest) {
     const libraryId = typeof body.libraryId === 'string' ? body.libraryId : ''
     const parentId = typeof body.parentId === 'string' ? body.parentId : 'root'
     const fileName = typeof body.fileName === 'string' ? body.fileName : 'test.pdf'
+    const itemId = typeof body.itemId === 'string' ? body.itemId : undefined
+    const mimeType = typeof body.mimeType === 'string' ? body.mimeType : 'application/pdf'
     const userEmail = typeof body.userEmail === 'string' ? body.userEmail : 'test@example.com'
     const targetLanguage = typeof body.targetLanguage === 'string' ? body.targetLanguage : 'de'
     const extractionMethod = typeof body.extractionMethod === 'string' ? body.extractionMethod : 'native'
-    const includeImages = Boolean(body.includeImages)
+    
+    // Für Mistral OCR: Beide Parameter standardmäßig true
+    const isMistralOcr = extractionMethod === 'mistral_ocr';
+    const includeOcrImages = body.includeOcrImages !== undefined
+      ? Boolean(body.includeOcrImages)
+      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    const includePageImages = body.includePageImages !== undefined
+      ? Boolean(body.includePageImages)
+      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    const includeImages = Boolean(body.includeImages) // Rückwärtskompatibilität
 
     if (!libraryId) return NextResponse.json({ error: 'libraryId erforderlich' }, { status: 400 })
 
@@ -29,8 +40,14 @@ export async function POST(request: NextRequest) {
     const correlation = {
       jobId,
       libraryId,
-      source: { mediaType: 'pdf', mimeType: 'application/pdf', name: fileName, parentId },
-      options: { targetLanguage, extractionMethod, includeImages }
+      source: { mediaType: 'pdf', mimeType, name: fileName, parentId, itemId },
+      options: { 
+        targetLanguage, 
+        extractionMethod, 
+        includeOcrImages, 
+        includePageImages, 
+        includeImages // Rückwärtskompatibilität
+      }
     } satisfies ExternalJob['correlation']
 
     const job: ExternalJob = {
@@ -51,7 +68,13 @@ export async function POST(request: NextRequest) {
         { name: 'store_shadow_twin', status: 'pending' },
         { name: 'ingest_rag', status: 'pending' },
       ],
-      parameters: { targetLanguage, extractionMethod, includeImages }
+      parameters: { 
+        targetLanguage, 
+        extractionMethod, 
+        includeOcrImages, 
+        includePageImages, 
+        includeImages // Rückwärtskompatibilität
+      }
     }
     await repo.create(job)
 

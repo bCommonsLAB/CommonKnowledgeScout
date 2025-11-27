@@ -28,7 +28,7 @@ import { queryPineconeByFileIds, type QueryMatch } from '@/lib/chat/pinecone'
 import { getBaseBudget } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend } from '@/lib/logging/query-logger'
 import { extractFacetMetadata } from './metadata-extractor'
-import { computeDocMetaCollectionName, findDocs } from '@/lib/repositories/doc-meta-repo'
+import { getCollectionNameForLibrary, findDocs } from '@/lib/repositories/doc-meta-repo'
 
 const env = {
   maxDocs: Number(process.env.CHUNK_SUMMARY_MAX_DOCS ?? 100),
@@ -50,8 +50,10 @@ export const chunkSummaryRetriever: ChatRetriever = {
     const budget = getBaseBudget(input.answerLength)
 
     // Schritt 1: Gefilterte Dokumente aus MongoDB abrufen (nur fileIds)
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(input.userEmail || '', input.libraryId, strategy)
+    if (!ctx) {
+      throw new Error('Library context nicht gefunden')
+    }
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
     
     let stepList = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'list', level: 'chunkSummary' })
     

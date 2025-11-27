@@ -12,10 +12,11 @@ import { cn } from '@/lib/utils';
 import { subscribeToLogs } from '@/lib/debug/logger';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { toast } from 'sonner';
-import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, selectedFileAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 import { galleryFiltersAtom } from '@/atoms/gallery-filters';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 
 interface IngestionBreakdown {
   doc: number;
@@ -35,8 +36,9 @@ interface IngestionStatsResponse {
 export default function DebugFooter() {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isFullHeight, setIsFullHeight] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<'performance' | 'system'>('performance');
+  const [activeTab, setActiveTab] = React.useState<'performance' | 'system' | 'shadow-twin'>('performance');
   const pathname = usePathname();
+  const router = useRouter();
 
   // Modul-Erkennung: grobe Heuristik per Route
   const moduleKey = React.useMemo<"gallery" | "library" | "other">(() => {
@@ -254,6 +256,19 @@ export default function DebugFooter() {
     }
   }, [setToggleArea]);
 
+  // Integration-Test Seite mit aktuellem Kontext öffnen
+  const handleOpenIntegrationTests = React.useCallback(() => {
+    if (!activeLibraryId || !currentFolderId) {
+      toast.error('Aktive Library oder Ordner unbekannt – bitte zuerst eine Library und einen Ordner wählen.');
+      return;
+    }
+    const params = new URLSearchParams({
+      libraryId: activeLibraryId,
+      folderId: currentFolderId,
+    });
+    router.push(`/integration-tests?${params.toString()}`);
+  }, [router, activeLibraryId, currentFolderId]);
+
   // Copy Logs Funktion
   const handleCopyLogs = React.useCallback(() => {
     try {
@@ -383,6 +398,14 @@ export default function DebugFooter() {
             >
               Clear Logs
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6"
+              onClick={handleOpenIntegrationTests}
+            >
+              Integration Test
+            </Button>
           </div>
           </div>
 
@@ -449,11 +472,12 @@ export default function DebugFooter() {
             {/* Main Content */}
             <ResizablePanel defaultSize={85} minSize={80}>
               <div className="h-full flex flex-col">
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'performance' | 'system')} className="flex-1 flex flex-col overflow-hidden">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'performance' | 'system' | 'shadow-twin')} className="flex-1 flex flex-col overflow-hidden">
                   <div className="border-b px-2 flex-shrink-0">
                     <TabsList className="h-7">
                       <TabsTrigger value="performance" className="text-xs">Performance</TabsTrigger>
                       <TabsTrigger value="system" className="text-xs">System</TabsTrigger>
+                      <TabsTrigger value="shadow-twin" className="text-xs">Shadow-Twin</TabsTrigger>
                     </TabsList>
                   </div>
 
@@ -584,6 +608,15 @@ export default function DebugFooter() {
                       <ScrollBar orientation="vertical" />
                     </ScrollArea>
                   </TabsContent>
+
+                  <TabsContent value="shadow-twin" className="flex-1 p-0 m-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+                    <ScrollArea className="flex-1 w-full">
+                      <div className="p-4">
+                        <ShadowTwinDebugContent />
+                      </div>
+                      <ScrollBar orientation="vertical" />
+                    </ScrollArea>
+                  </TabsContent>
                 </Tabs>
               </div>
             </ResizablePanel>
@@ -592,5 +625,107 @@ export default function DebugFooter() {
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Shadow-Twin-Debug-Content-Komponente
+ * Zeigt den Shadow-Twin-State der ausgewählten Datei an
+ */
+function ShadowTwinDebugContent() {
+  const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
+  const selectedFile = useAtomValue(selectedFileAtom);
+
+  if (!selectedFile) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        Keine Datei ausgewählt. Wählen Sie eine Datei aus, um den Shadow-Twin-State zu sehen.
+      </div>
+    );
+  }
+
+  const state = shadowTwinStates.get(selectedFile.id);
+
+  if (!state) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        Kein Shadow-Twin-State für &quot;{selectedFile.metadata.name}&quot; vorhanden. Die Analyse läuft möglicherweise noch.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-4">
+        {/* Linke Spalte: Alle Informationen */}
+        <div className="space-y-3">
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1">Base Item</div>
+            <div className="text-xs break-all">{state.baseItem.metadata.name}</div>
+            <div className="text-[10px] text-muted-foreground mt-1 break-all">{state.baseItem.id}</div>
+          </div>
+
+          {state.transformed && (
+            <div>
+              <div className="text-xs font-medium text-muted-foreground mb-1">Transformed</div>
+              <div className="text-xs break-all">{state.transformed.metadata.name}</div>
+              <div className="text-[10px] text-muted-foreground mt-1 break-all">{state.transformed.id}</div>
+            </div>
+          )}
+
+          {state.shadowTwinFolderId && (
+            <div>
+              <div className="text-xs font-medium text-muted-foreground mb-1">Shadow-Twin Folder</div>
+              <div className="text-[10px] text-muted-foreground break-all">{state.shadowTwinFolderId}</div>
+            </div>
+          )}
+
+          {state.transcriptFiles && state.transcriptFiles.length > 0 && (
+            <div>
+              <div className="text-xs font-medium text-muted-foreground mb-1">
+                Transcript Files ({state.transcriptFiles.length})
+              </div>
+              <div className="space-y-1">
+                {state.transcriptFiles.map((file) => (
+                  <div key={file.id} className="text-xs break-all">{file.metadata.name}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {state.mediaFiles && state.mediaFiles.length > 0 && (
+            <div>
+              <div className="text-xs font-medium text-muted-foreground mb-1">
+                Media Files ({state.mediaFiles.length})
+              </div>
+              <div className="space-y-1">
+                {state.mediaFiles.map((file) => (
+                  <div key={file.id} className="text-xs break-all">{file.metadata.name}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1">Analysis Timestamp</div>
+            <div className="text-xs">{new Date(state.analysisTimestamp).toLocaleString('de-DE')}</div>
+          </div>
+
+          {state.analysisError && (
+            <div>
+              <div className="text-xs font-medium text-red-600 mb-1">Error</div>
+              <div className="text-xs text-red-600 break-all">{state.analysisError}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Rechte Spalte: JSON aufgeklappt */}
+        <div>
+          <pre className="p-2 bg-muted rounded text-[10px] overflow-auto max-h-[600px]">
+            {JSON.stringify(state, null, 2)}
+          </pre>
+        </div>
+      </div>
+    </div>
   );
 } 

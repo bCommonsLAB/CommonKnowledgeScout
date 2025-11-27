@@ -183,11 +183,12 @@ export class AuthLogger extends BaseLogger {
   }
 
   static error(component: string, message: string, error?: unknown) {
-    return this.createLog('state', 'error', component, `🔐 AUTH: ${message}`, error instanceof Error ? { 
+    const details: Record<string, unknown> = error instanceof Error ? { 
       error: error.message, 
       stack: error.stack,
       name: error.name
-    } : { error });
+    } : (error && typeof error === 'object' && !Array.isArray(error) ? error as Record<string, unknown> : { error: error !== undefined ? String(error) : 'unknown error' });
+    return this.createLog('state', 'error', component, `🔐 AUTH: ${message}`, details);
   }
 
   // Spezielle Methoden für verschiedene Auth-Events

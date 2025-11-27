@@ -146,10 +146,21 @@ export const currentPathAtom = atom(
     // Pfad aufbauen
     const path: StorageItem[] = [];
     let currentId = currentFolderId;
+    const missingIds: string[] = [];
     
     while (currentId && currentId !== 'root') {
       const folder = folderCache[currentId];
-      if (!folder) break;
+      if (!folder) {
+        // Debug: Fehlende Ordner im Cache protokollieren
+        missingIds.push(currentId);
+        console.warn('[currentPathAtom] Ordner nicht im Cache gefunden', {
+          currentId,
+          currentFolderId,
+          cacheKeys: Object.keys(folderCache),
+          missingIds
+        });
+        break;
+      }
       path.unshift(folder);
       currentId = folder.parentId;
     }

@@ -29,7 +29,7 @@ import { queryPineconeByFileIds, fetchVectors, describeIndex } from '@/lib/chat/
 import { getBaseBudget } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend } from '@/lib/logging/query-logger'
 import { extractFacetMetadata } from './metadata-extractor'
-import { computeDocMetaCollectionName, findDocs } from '@/lib/repositories/doc-meta-repo'
+import { getCollectionNameForLibrary, findDocs } from '@/lib/repositories/doc-meta-repo'
 import { splitIntoBatches, mergeResults } from './utils/batching'
 
 export const chunksRetriever: ChatRetriever = {
@@ -50,8 +50,10 @@ export const chunksRetriever: ChatRetriever = {
     const baseTopK = budget > 50000 ? 30 : budget > 30000 ? 20 : 15
 
     // Schritt 1: MongoDB-Filter anwenden → FileIDs extrahieren
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(input.userEmail || '', input.libraryId, strategy)
+    if (!ctx) {
+      throw new Error('Library context nicht gefunden')
+    }
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
     
     const docs = await findDocs(libraryKey, input.libraryId, input.filters || {}, {
       limit: 1000, // Maximal 1000 Dokumente für FileID-Extraktion

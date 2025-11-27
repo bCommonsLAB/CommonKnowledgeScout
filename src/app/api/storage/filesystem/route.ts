@@ -408,10 +408,32 @@ export async function GET(request: NextRequest) {
       }
 
       case 'get': {
-        const absolutePath = getPathFromId(library, fileId);
-        const stats = await fs.stat(absolutePath);
-        const item = await statsToStorageItem(library, absolutePath, stats);
-        return NextResponse.json(item, { headers: debugHeaders });
+        try {
+          const absolutePath = getPathFromId(library, fileId);
+          const stats = await fs.stat(absolutePath);
+          const item = await statsToStorageItem(library, absolutePath, stats);
+          return NextResponse.json(item, { headers: debugHeaders });
+        } catch (error) {
+          const nodeError = error as NodeJS.ErrnoException;
+          if (nodeError.code === 'ENOENT') {
+            const absolutePath = getPathFromId(library, fileId);
+            console.error('[API][filesystem][get] Datei nicht gefunden:', {
+              fileId,
+              absolutePath,
+              libraryId,
+              userEmail,
+              requestId
+            });
+            return NextResponse.json({ 
+              error: 'Datei nicht gefunden',
+              errorCode: 'FILE_NOT_FOUND',
+              fileId,
+              absolutePath,
+              requestId
+            }, { status: 404 });
+          }
+          throw error; // Andere Fehler weiterwerfen
+        }
       }
 
       case 'binary': {
@@ -423,69 +445,125 @@ export async function GET(request: NextRequest) {
           timestamp: new Date().toISOString()
         });
 
-        if (!fileId || fileId === 'root') {
-          console.error('[API][filesystem] Ungültige Datei-ID für binary:', {
-            fileId,
-            libraryId,
-            userEmail
+        try {
+          if (!fileId || fileId === 'root') {
+            console.error('[API][filesystem] Ungültige Datei-ID für binary:', {
+              fileId,
+              libraryId,
+              userEmail
+            });
+            return NextResponse.json({ 
+              error: 'Invalid file ID',
+              errorCode: 'INVALID_FILE_ID',
+              requestId 
+            }, { status: 400 });
+          }
+
+          const absolutePath = getPathFromId(library, fileId);
+
+          const stats = await fs.stat(absolutePath);
+          
+          if (!stats.isFile()) {
+            console.error('[API][filesystem] Keine Datei:', {
+              path: absolutePath,
+              libraryId,
+              fileId,
+              userEmail
+            });
+            return NextResponse.json({ 
+              error: 'Not a file',
+              errorCode: 'NOT_A_FILE',
+              requestId 
+            }, { status: 400 });
+          }
+
+          const content = await fs.readFile(absolutePath);
+
+          const mimeType = mime.lookup(absolutePath) || 'application/octet-stream';
+          vLog(`[API][filesystem][binary] 🏷️ MIME-Type erkannt:`, {
+            mimeType,
+            filename: pathLib.basename(absolutePath),
+            extension: pathLib.extname(absolutePath)
           });
-          return NextResponse.json({ 
-            error: 'Invalid file ID',
-            errorCode: 'INVALID_FILE_ID',
-            requestId 
-          }, { status: 400 });
-        }
-
-        const absolutePath = getPathFromId(library, fileId);
-
-        const stats = await fs.stat(absolutePath);
-        
-        if (!stats.isFile()) {
-          console.error('[API][filesystem] Keine Datei:', {
-            path: absolutePath,
+          
+          // Spezielle Headers für PDFs, damit sie im Browser angezeigt werden
+          // WICHTIG: Bereinige alle Header-Werte, die nicht-ASCII-Zeichen enthalten könnten
+          // HTTP-Header müssen ByteString-kompatibel sein (nur ASCII-Zeichen 0-255)
+          const cleanedPath = absolutePath
+            .replace(/['']/g, "'") // Typografische Apostrophe → Standard-Apostroph
+            .replace(/[""]/g, '"') // Typografische Anführungszeichen → Standard-Anführungszeichen
+            .replace(/[–—]/g, '-') // En/Em-Dash → Bindestrich
+            .replace(/[^\x20-\x7E]/g, '_'); // Alle anderen nicht-ASCII-Zeichen → Unterstrich
+          
+          const headers: HeadersInit = {
+            'Content-Type': mimeType,
+            'Content-Length': stats.size.toString(),
+            'Cache-Control': 'no-store',
+            'X-Debug-Request-Id': requestId,
+            'X-Debug-File-Path': cleanedPath, // Bereinigter Pfad für Header-Kompatibilität
+            'X-Debug-File-Size': stats.size.toString(),
+            'X-Debug-Mime-Type': mimeType
+          };
+          
+          // Für PDFs Content-Disposition auf inline setzen
+          // WICHTIG: Dateinamen bereinigen, um Probleme mit nicht-ASCII-Zeichen in HTTP-Headers zu vermeiden
+          // RFC 5987-konforme Kodierung verwenden für Dateinamen mit Sonderzeichen
+          if (mimeType === 'application/pdf') {
+            const rawFilename = pathLib.basename(absolutePath);
+            // Bereinige Dateinamen: Ersetze problematische Zeichen (z.B. typografische Apostrophe) durch ASCII-Äquivalente
+            const cleanedFilename = rawFilename
+              .replace(/['']/g, "'") // Typografische Apostrophe → Standard-Apostroph
+              .replace(/[""]/g, '"') // Typografische Anführungszeichen → Standard-Anführungszeichen
+              .replace(/[–—]/g, '-') // En/Em-Dash → Bindestrich
+              .replace(/[^\x20-\x7E]/g, '_'); // Alle anderen nicht-ASCII-Zeichen → Unterstrich
+            
+            // Verwende RFC 5987-konforme Kodierung für den Dateinamen im Header
+            // Format: filename="fallback"; filename*=UTF-8''encoded
+            const encodedFilename = encodeURIComponent(rawFilename).replace(/'/g, "%27");
+            headers['Content-Disposition'] = `inline; filename="${cleanedFilename}"; filename*=UTF-8''${encodedFilename}`;
+          }
+          
+          vLog(`[API][filesystem][binary] 🚀 Sende Response:`, {
+            status: 200,
+            headers: Object.fromEntries(Object.entries(headers).filter(([key]) => !key.startsWith('X-Debug-'))),
+            contentLength: content.length
+          });
+          
+          return new NextResponse(content, { headers });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorName = error instanceof Error ? error.name : 'UnknownError';
+          const errorStack = error instanceof Error ? error.stack : undefined;
+          
+          console.error('[API][filesystem] 💥 FEHLER:', {
+            error: {
+              message: errorMessage,
+              name: errorName,
+              stack: errorStack
+            },
+            action: 'binary',
             libraryId,
             fileId,
-            userEmail
+            userEmail,
+            requestId
           });
+          
+          // Prüfe, ob es ein Header-Encoding-Problem ist
+          const isHeaderEncodingError = errorMessage.includes('ByteString') || errorMessage.includes('character at index');
+          
           return NextResponse.json({ 
-            error: 'Not a file',
-            errorCode: 'NOT_A_FILE',
+            error: isHeaderEncodingError 
+              ? 'Dateiname enthält ungültige Zeichen für HTTP-Header'
+              : 'Fehler beim Laden der Datei',
+            errorCode: isHeaderEncodingError ? 'HEADER_ENCODING_ERROR' : 'FILE_LOAD_ERROR',
+            errorDetails: {
+              message: errorMessage,
+              name: errorName,
+              isHeaderEncodingError
+            },
             requestId 
-          }, { status: 400 });
+          }, { status: 500 });
         }
-
-        const content = await fs.readFile(absolutePath);
-
-        const mimeType = mime.lookup(absolutePath) || 'application/octet-stream';
-        vLog(`[API][filesystem][binary] 🏷️ MIME-Type erkannt:`, {
-          mimeType,
-          filename: pathLib.basename(absolutePath),
-          extension: pathLib.extname(absolutePath)
-        });
-        
-        // Spezielle Headers für PDFs, damit sie im Browser angezeigt werden
-        const headers: HeadersInit = {
-          'Content-Type': mimeType,
-          'Content-Length': stats.size.toString(),
-          'Cache-Control': 'no-store',
-          'X-Debug-Request-Id': requestId,
-          'X-Debug-File-Path': absolutePath,
-          'X-Debug-File-Size': stats.size.toString(),
-          'X-Debug-Mime-Type': mimeType
-        };
-        
-        // Für PDFs Content-Disposition auf inline setzen
-        if (mimeType === 'application/pdf') {
-          headers['Content-Disposition'] = `inline; filename="${encodeURIComponent(pathLib.basename(absolutePath))}"`;
-        }
-        
-        vLog(`[API][filesystem][binary] 🚀 Sende Response:`, {
-          status: 200,
-          headers: Object.fromEntries(Object.entries(headers).filter(([key]) => !key.startsWith('X-Debug-'))),
-          contentLength: content.length
-        });
-        
-        return new NextResponse(content, { headers });
       }
 
       case 'path': {
@@ -598,7 +676,10 @@ export async function POST(request: NextRequest) {
           const arrayBuffer = await file.arrayBuffer();
           
           const buffer = Buffer.from(arrayBuffer);
-          await fs.writeFile(filePath, buffer);
+          
+          // WICHTIG: Verwende { flag: 'w' } um sicherzustellen, dass die Datei überschrieben wird
+          // Dies stellt sicher, dass die Datei auch dann aktualisiert wird, wenn sie bereits existiert
+          await fs.writeFile(filePath, buffer, { flag: 'w' });
   
           const stats = await fs.stat(filePath);
           
@@ -648,6 +729,39 @@ export async function DELETE(request: NextRequest) {
   try {
     const absolutePath = getPathFromId(library, fileId);
     const stats = await fs.stat(absolutePath);
+    
+    // Prüfe ob es sich um ein Buch handelt (PDF-Datei) und lösche Azure-Bilder
+    if (!stats.isDirectory()) {
+      // Prüfe MIME-Type (PDF-Dateien)
+      const isPdf = absolutePath.toLowerCase().endsWith('.pdf')
+      if (isPdf) {
+        // Prüfe ob Azure Storage konfiguriert ist
+        const { getAzureStorageConfig } = await import('@/lib/config/azure-storage')
+        const azureConfig = getAzureStorageConfig()
+        if (azureConfig) {
+          const { AzureStorageService } = await import('@/lib/services/azure-storage-service')
+          const azureStorage = new AzureStorageService()
+          if (azureStorage.isConfigured()) {
+            try {
+              await azureStorage.deleteImagesForOwner(
+                azureConfig.containerName,
+                libraryId,
+                'books',
+                fileId
+              )
+              vLog(`[API] Azure-Bilder für Buch gelöscht: fileId=${fileId}`)
+            } catch (azureError) {
+              // Fehler beim Löschen der Azure-Bilder: Loggen, aber nicht abbrechen
+              console.warn('[API] Fehler beim Löschen der Azure-Bilder', {
+                fileId,
+                libraryId,
+                error: azureError instanceof Error ? azureError.message : String(azureError),
+              })
+            }
+          }
+        }
+      }
+    }
     
     if (stats.isDirectory()) {
       await fs.rm(absolutePath, { recursive: true });

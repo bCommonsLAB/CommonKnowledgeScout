@@ -20,6 +20,7 @@ import { DocumentPreview } from './document-preview';
 import { FileLogger } from "@/lib/debug/logger"
 import { JobReportTab } from './job-report-tab';
 import { PdfPhasesView } from './pdf-phases-view';
+import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
@@ -86,6 +87,39 @@ function getFileType(fileName: string): string {
       }
       return 'unknown';
   }
+}
+
+// Komponente, die JobReportTab mit Shadow-Twin-Unterstützung umschließt
+// Verwendet jetzt das zentrale Shadow-Twin-Atom
+function JobReportTabWithShadowTwin({
+  libraryId,
+  fileId,
+  fileName,
+  provider
+}: {
+  libraryId: string;
+  fileId: string;
+  fileName: string;
+  provider: StorageProvider | null;
+}) {
+  const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
+  const shadowTwinState = shadowTwinStates.get(fileId);
+  // WICHTIG: Verwende IMMER die transformierte Datei (.de.md), nicht das Transcript (.md)
+  // Das Transcript hat kein Frontmatter und sollte nicht für Metadaten verwendet werden
+  // NIEMALS auf transcriptFiles zurückfallen, da diese kein Frontmatter haben!
+  const mdFileId = shadowTwinState?.transformed?.id || null;
+  
+  return (
+    <JobReportTab 
+      libraryId={libraryId} 
+      fileId={fileId} 
+      fileName={fileName} 
+      provider={provider}
+      mdFileId={mdFileId}
+      sourceMode="frontmatter"
+      viewMode="metaOnly"
+    />
+  );
 }
 
 // Separate Komponente für den Content Loader
@@ -252,6 +286,25 @@ function PreviewContent({
   // } | null>(null);
   const setSelectedFile = useSetAtom(selectedFileAtom);
   
+  // Hole Shadow-Twin-State für die aktuelle Datei
+  const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
+  const shadowTwinState = shadowTwinStates.get(item.id);
+  
+  // Bestimme das Verzeichnis für Bild-Auflösung im Markdown-Viewer:
+  // 
+  // Strategie:
+  // 1. Wenn shadowTwinFolderId aus dem Shadow-Twin-State verfügbar ist, verwende es
+  //    (für PDF-Dateien, deren Markdown im JobReportTab angezeigt wird)
+  // 2. Wenn die Datei selbst eine Markdown-Datei im Shadow-Twin-Verzeichnis ist,
+  //    dann ist item.parentId bereits das Shadow-Twin-Verzeichnis - verwende es
+  // 3. Sonst verwende item.parentId (normale Dateien)
+  //
+  // WICHTIG: Für Markdown-Dateien, die im Shadow-Twin-Verzeichnis liegen, ist item.parentId
+  // bereits das Shadow-Twin-Verzeichnis. Dies ist die korrekte Basis für Bild-Referenzen.
+  // Der Shadow-Twin-State wird für die PDF-Datei gespeichert, nicht für die Markdown-Datei,
+  // daher müssen wir item.parentId verwenden, wenn die Markdown-Datei direkt geöffnet wird.
+  const currentFolderId = shadowTwinState?.shadowTwinFolderId || item.parentId;
+  
   // Debug-Log für PreviewContent
   React.useEffect(() => {
     FileLogger.info('PreviewContent', 'PreviewContent gerendert', {
@@ -261,9 +314,14 @@ function PreviewContent({
       contentLength: content.length,
       hasError: !!error,
       hasProvider: !!provider,
-      activeLibraryId
+      activeLibraryId,
+      currentFolderId,
+      shadowTwinFolderId: shadowTwinState?.shadowTwinFolderId,
+      parentId: item.parentId,
+      hasShadowTwinState: !!shadowTwinState,
+      shadowTwinStateKeys: shadowTwinState ? Object.keys(shadowTwinState) : []
     });
-  }, [item.id, item.metadata.name, fileType, content.length, error, provider, activeLibraryId]);
+  }, [item.id, item.metadata.name, fileType, content.length, error, provider, activeLibraryId, currentFolderId, shadowTwinState?.shadowTwinFolderId, item.parentId, shadowTwinState]);
   
   React.useEffect(() => {
     setActiveTab("preview");
@@ -300,14 +358,6 @@ function PreviewContent({
     });
     return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>;
   }
-
-  // Debug-Log vor Switch-Statement
-  FileLogger.debug('PreviewContent', 'Switch-Statement erreicht', {
-    itemId: item.id,
-    itemName: item.metadata.name,
-    fileType,
-    switchCase: fileType
-  });
 
   switch (fileType) {
     case 'audio':
@@ -356,7 +406,7 @@ function PreviewContent({
               <TabsContent value="preview" className="h-full mt-0">
                 <MarkdownPreview 
                   content={content}
-                  currentFolderId={item.parentId}
+                  currentFolderId={currentFolderId}
                   provider={provider}
                   className="h-full"
                   compact
@@ -370,7 +420,12 @@ function PreviewContent({
                 </div>
               </TabsContent>
               <TabsContent value="report" className="h-full mt-0">
-                <JobReportTab libraryId={activeLibraryId} fileId={item.id} fileName={item.metadata.name} provider={provider} />
+                <JobReportTabWithShadowTwin 
+                  libraryId={activeLibraryId} 
+                  fileId={item.id} 
+                  fileName={item.metadata.name} 
+                  provider={provider}
+                />
               </TabsContent>
               <TabsContent value="edit" className="h-full mt-0">
                 <TextEditor 

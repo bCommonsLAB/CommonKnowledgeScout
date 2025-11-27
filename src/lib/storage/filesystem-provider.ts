@@ -443,6 +443,24 @@ export class FileSystemProvider implements StorageProvider {
       pathItems.push(folder);
       parentId = folder.id;
     }
+    
+    // PERFORMANCE-OPTIMIERUNG: Füge Zielordner hinzu, wenn er ein Ordner ist
+    // (verhindert zusätzlichen getItemById-Call in useFolderNavigation)
+    if (itemId !== 'root' && pathItems.length > 0) {
+      const lastPathItem = pathItems[pathItems.length - 1];
+      // Wenn der letzte Pfad-Ordner nicht der Zielordner ist, lade ihn
+      if (lastPathItem.id !== itemId) {
+        try {
+          const targetItem = await this.getItemById(itemId);
+          if (targetItem.type === 'folder') {
+            pathItems.push(targetItem);
+          }
+        } catch {
+          // Ignore - Zielordner konnte nicht geladen werden
+        }
+      }
+    }
+    
     return [{
       id: 'root',
       parentId: '',

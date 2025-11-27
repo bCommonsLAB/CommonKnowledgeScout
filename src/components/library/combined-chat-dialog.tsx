@@ -45,17 +45,21 @@ export function CombinedChatDialog({ provider, items, selectedTemplate, selected
         if (templateBody) {
           if (!cancelled) setTemplateContent(templateBody)
         } else {
-          const roots = await provider.listItemsById('root')
-          const templatesFolder = roots.find(it => it.type === 'folder' && it.metadata?.name === 'templates')
-          if (!templatesFolder) return
-          const items = await provider.listItemsById(templatesFolder.id)
-          const tpl = items.find(it => it.type === 'file' && it.metadata?.name?.toLowerCase() === `${selectedTemplate.toLowerCase()}.md`)
-          if (!tpl) return
-          const { blob } = await provider.getBinary(tpl.id)
-          const text = await blob.text()
-          if (!cancelled) { setTemplateContent(text); setInstructions(text) }
+          // Verwende zentrale Template-Service Library
+          const { loadTemplate } = await import('@/lib/templates/template-service')
+          const result = await loadTemplate({
+            provider,
+            preferredTemplateName: selectedTemplate
+          })
+          if (!cancelled) {
+            setTemplateContent(result.templateContent)
+            setInstructions(result.templateContent)
+          }
         }
-      } catch { /* ignore */ }
+      } catch (error) {
+        // Fehler beim Laden des Templates - ignorieren für UI (wird in anderen Komponenten behandelt)
+        console.warn('Template konnte nicht geladen werden:', error)
+      }
     }
     loadTemplate()
     return () => { cancelled = true }

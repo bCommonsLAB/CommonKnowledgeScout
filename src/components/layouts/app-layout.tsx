@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation"
 import { TopNavWrapper } from "@/components/top-nav-wrapper"
 import { DebugFooterWrapper } from "@/components/debug/debug-footer-wrapper"
 import { JobMonitorPanel } from "@/components/shared/job-monitor-panel"
-import { ChatSidePanel } from "@/components/shared/chat-panel"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -17,11 +16,12 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname()
   
-  // Homepage, Explore-Seiten, Docs und Info-Seiten bekommen scrollbares Layout
+  // Homepage, Explore-Seiten, Docs, Info-Seiten und bestimmte Tools bekommen scrollbares Layout
   const isScrollablePage = pathname === '/' || 
     pathname?.startsWith('/explore') ||
     pathname?.startsWith('/docs') ||
-    pathname === '/info'
+    pathname === '/info' ||
+    pathname?.startsWith('/integration-tests')
   
   if (isScrollablePage) {
     // Scrollbares Layout für Homepage und rechtliche Seiten
@@ -45,7 +45,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </div>
         <JobMonitorPanel />
-        <ChatSidePanel />
         <DebugFooterWrapper />
       </div>
     </>

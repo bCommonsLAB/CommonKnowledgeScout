@@ -11,6 +11,7 @@ export interface JobUpdateEvent {
   jobType?: string;
   fileName?: string;
   sourceItemId?: string;
+  libraryId?: string;
 }
 
 type UserEmail = string;

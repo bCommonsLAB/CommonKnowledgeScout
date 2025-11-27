@@ -267,19 +267,9 @@ export class LibraryService {
    * Sichere Client-Bibliotheken aus vollständigen Bibliotheken erstellen
    */
   toClientLibraries(libraries: Library[]): ClientLibrary[] {
-    console.log('[LibraryService] === TO CLIENT LIBRARIES START ===');
+    // Debug-Logs entfernt (zu viele Logs bei jedem Library-Load)
     
     return libraries.map(lib => {
-      // Debug: Zeige Chat-Config vor dem Mapping
-      if (lib.config?.chat) {
-        console.log(`[LibraryService] Library ${lib.id} Chat-Config:`, {
-          hasGallery: !!(lib.config.chat as { gallery?: unknown }).gallery,
-          detailViewType: ((lib.config.chat as { gallery?: { detailViewType?: unknown } }).gallery)?.detailViewType,
-          facetsCount: Array.isArray(((lib.config.chat as { gallery?: { facets?: unknown } }).gallery)?.facets) 
-            ? ((lib.config.chat as { gallery?: { facets?: unknown[] } }).gallery)!.facets!.length 
-            : 0
-        });
-      }
       
       // Basis-Konfiguration für alle Bibliothekstypen (nur sichere Felder)
       const baseConfig = {
@@ -309,12 +299,6 @@ export class LibraryService {
       
       // Für OneDrive-Bibliotheken die OAuth-Parameter hinzufügen
       if (lib.type === 'onedrive') {
-        console.log(`[LibraryService] Verarbeite OneDrive Library ${lib.id}:`, {
-          hasClientSecret: !!lib.config?.clientSecret,
-          clientSecretValue: lib.config?.clientSecret,
-          willMask: !!lib.config?.clientSecret
-        });
-        
         config = {
           ...config,
           tenantId: lib.config?.tenantId,
@@ -325,10 +309,6 @@ export class LibraryService {
           // Tokens werden NICHT mehr in der Datenbank gespeichert
           // Der Client muss den Token-Status aus localStorage prüfen
         };
-        
-        console.log(`[LibraryService] OneDrive Config nach Maskierung:`, {
-          clientSecretValue: config.clientSecret
-        });
       }
       
       // Gleiches für andere OAuth-Provider wie Google Drive
@@ -352,8 +332,6 @@ export class LibraryService {
         isEnabled: lib.isEnabled,
         config
       };
-      
-      console.log('[LibraryService] === TO CLIENT LIBRARIES END ===');
       
       return result;
     });

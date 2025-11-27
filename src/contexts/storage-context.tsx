@@ -122,15 +122,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   const { user, isLoaded: isUserLoaded } = useSafeUser();
   const pathname = usePathname();
 
-  // Auth-Debug-Logging
-  React.useEffect(() => {
-    AuthLogger.clientAuth('StorageContext', {
-      isSignedIn,
-      isLoaded: isAuthLoaded,
-      userId: user?.id,
-      email: user?.primaryEmailAddress?.emailAddress
-    });
-  }, [isAuthLoaded, isSignedIn, user?.id, user?.primaryEmailAddress?.emailAddress]);
+  // Auth-Debug-Logging entfernt (zu viele Logs bei jedem Auth-Status-Update)
   
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [currentLibrary, setCurrentLibrary] = useState<ClientLibrary | null>(null);
@@ -152,24 +144,20 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   useEffect(() => {
     setLibraryStatus('initializing');
     if (providerFromHook) {
-      console.log(`[StorageContext] Provider-Wechsel: ${previousProviderRef.current?.name || 'Kein Provider'} -> ${providerFromHook.name}`);
-      
       // Cleanup des alten Providers
       if (previousProviderRef.current) {
         try {
           previousProviderRef.current.disconnect?.();
-          console.log(`[StorageContext] Alten Provider ${previousProviderRef.current.name} aufgeräumt`);
         } catch (error) {
-          console.error('[StorageContext] Fehler beim Aufräumen des alten Providers:', error);
+          AuthLogger.debug('StorageContext', 'Error cleaning up old provider', { error });
         }
       }
 
       // Validierung des neuen Providers
       try {
         validateProvider(providerFromHook);
-        console.log(`[StorageContext] Provider ${providerFromHook.name} validiert`);
       } catch (error) {
-        console.error('[StorageContext] Provider-Validierung fehlgeschlagen:', error);
+        AuthLogger.error('StorageContext', 'Provider validation failed', error);
         setError(error instanceof Error ? error.message : 'Provider-Validierung fehlgeschlagen');
         return;
       }
@@ -187,7 +175,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   // Zusätzlicher Effect: Provider-Cache leeren bei Library-Wechsel
   useEffect(() => {
     if (activeLibraryId && previousProviderRef.current && previousProviderRef.current.id !== activeLibraryId) {
-      console.log('[StorageContext] Aktive Bibliothek geändert, lösche alten Provider aus Cache', {
+      AuthLogger.debug('StorageContext', 'Aktive Bibliothek geändert, lösche alten Provider aus Cache', {
         alteBibliothek: previousProviderRef.current.id,
         neueBibliothek: activeLibraryId
       });
@@ -221,39 +209,19 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
 
   // Bibliotheken aus der API laden
   useEffect(() => {
-    AuthLogger.debug('StorageContext', 'Library Loading Effect triggered', {
-      isAuthLoaded,
-      isUserLoaded,
-      isSignedIn
-    });
-
-    // OPTIMIERUNG: Auf öffentlichen Seiten (Homepage/Explore) keine Libraries laden
-    // Auch wenn der Benutzer angemeldet ist, werden Libraries auf Explore-Seiten nicht benötigt
-    // Sie werden dort direkt aus der API geladen
-    const isPublicPage = pathname === '/' || (pathname && pathname.startsWith('/explore'));
+    // WICHTIG: Auch auf öffentlichen Seiten müssen die eigenen Libraries geladen werden,
+    // wenn der Benutzer angemeldet ist (für LibrarySwitcher im Top-Menü)
+    // Öffentliche Libraries werden separat geladen (z.B. in LibraryGrid)
     
-    if (isPublicPage) {
-      AuthLogger.debug('StorageContext', 'Public page detected, skipping library load', {
-        pathname,
-        isSignedIn,
-        isAuthLoaded,
-        isUserLoaded
-      });
+    if (!isAuthLoaded || !isUserLoaded) {
+      return;
+    }
+    
+    // Wenn nicht angemeldet: Keine Libraries laden (nur öffentliche Libraries werden separat geladen)
+    if (!isSignedIn) {
       setIsLoading(false);
       setLibraryStatus('ready');
       setLibraryStatusAtom('ready');
-      return;
-    }
-
-    if (!isAuthLoaded || !isUserLoaded) {
-      AuthLogger.debug('StorageContext', 'Waiting for auth/user to load');
-      return;
-    }
-    
-    if (!isSignedIn) {
-      AuthLogger.warn('StorageContext', 'User not signed in');
-      setError("Sie müssen angemeldet sein, um auf die Bibliothek zugreifen zu können.");
-      setIsLoading(false);
       return;
     }
 
@@ -268,10 +236,6 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       return;
     }
 
-    AuthLogger.info('StorageContext', 'Starting library load', { 
-      userEmail: `${userEmail.split('@')[0]}@...` 
-    });
-    console.log('[StorageContext] Lade Bibliotheken...');
     setIsLoading(true);
     
     let retryCount = 0;
@@ -284,7 +248,6 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       
       try {
         const apiEndpoint = `/api/libraries?email=${encodeURIComponent(userEmail)}`;
-        AuthLogger.apiCall('StorageContext', apiEndpoint, 'start', { attempt: retryCount + 1 });
         
         const res = await fetch(apiEndpoint);
         
@@ -295,7 +258,10 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             attempt: retryCount + 1 
           });
           if (res.status === 404 && retryCount < maxRetries) {
-            console.log(`[StorageContext] API nicht verfügbar, versuche erneut (${retryCount + 1}/${maxRetries})...`);
+            AuthLogger.debug('StorageContext', `API nicht verfügbar, versuche erneut`, { 
+              attempt: retryCount + 1, 
+              maxRetries 
+            });
             retryCount++;
             setTimeout(fetchLibraries, retryDelay);
             return;
@@ -310,7 +276,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             }
           } catch (jsonError) {
             // Falls JSON-Parsing fehlschlägt, verwende die Standard-Nachricht
-            console.warn('[StorageContext] Konnte Fehlermeldung nicht aus Response lesen:', jsonError);
+            AuthLogger.debug('StorageContext', 'Could not read error message from response', { error: jsonError });
           }
           
           throw new Error(res.status === 404 
@@ -332,18 +298,9 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             .filter(lib => typeof lib?.id === 'string' && lib.id.trim() !== '')
             .filter(lib => {
               const isSupported = isSupportedLibraryType(lib.type);
-              if (!isSupported) {
-                console.warn(`[StorageContext] Nicht unterstützter Bibliothekstyp "${lib.type}" für Bibliothek "${lib.label}" - wird ausgeblendet`);
-                AuthLogger.warn('StorageContext', `Unsupported library type filtered out`, {
-                  libraryType: lib.type,
-                  libraryLabel: lib.label,
-                  libraryId: lib.id
-                });
-              }
+              // Unsupported library types are silently filtered out (normal case)
               return isSupported;
             });
-          
-          console.log(`[StorageContext] Bibliotheken geladen: ${data.length} total, ${supportedLibraries.length} unterstützt`);
           
           // WICHTIG: Intelligentes State-Merge statt Überschreiben
           // Prüfe ob Libraries bereits im State sind (z.B. von Explore-Seite)
@@ -355,8 +312,6 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
           // 2. Füge neue Libraries hinzu oder aktualisiere vorhandene
           const librariesToKeep = existingLibraries.filter(lib => !newLibraryIds.has(lib.id))
           const mergedLibraries = [...librariesToKeep, ...supportedLibraries]
-          
-          console.log(`[StorageContext] State-Merge: ${existingLibraries.length} vorhanden, ${supportedLibraries.length} neu, ${mergedLibraries.length} nach Merge`);
           setLibraries(mergedLibraries);
           
           // Setze StorageFactory Libraries (nur unterstützte)
@@ -365,16 +320,13 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
           
           // Setze User-Email für API-Calls
           factory.setUserEmail(userEmail);
-          AuthLogger.info('StorageContext', 'User email set in StorageFactory', {
-            email: `${userEmail.split('@')[0]}@...`
-          });
           
           // Prüfe, ob der Benutzer keine unterstützten Bibliotheken hat und noch nicht zur Settings-Seite weitergeleitet wurde
           if (supportedLibraries.length === 0 && !hasRedirectedToSettings && typeof window !== 'undefined') {
             const currentPath = window.location.pathname;
             // Nur weiterleiten, wenn wir nicht bereits auf der Settings-Seite sind
             if (!currentPath.startsWith('/settings')) {
-              console.log('[StorageContext] Neuer Benutzer ohne Bibliotheken - leite zur Settings-Seite weiter');
+              AuthLogger.info('StorageContext', 'New user without libraries - redirecting to settings');
               setHasRedirectedToSettings(true);
               
               // Sanfte Weiterleitung mit kurzer Verzögerung
@@ -388,7 +340,6 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
           // Setze die erste unterstützte Bibliothek als aktiv, falls noch keine ausgewählt ist
           if (supportedLibraries.length > 0) {
             const storedLibraryId = localStorage.getItem('activeLibraryId');
-            console.log('[StorageContext] Gespeicherte activeLibraryId aus localStorage:', storedLibraryId);
             
             // Zusätzliche Validierung: Prüfe, ob die ID ein gültiges UUID-Format hat
             const isValidUUID = storedLibraryId && 
@@ -399,21 +350,20 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             const validStoredId = isValidUUID && supportedLibraries.some(lib => lib.id === storedLibraryId);
             
             if (validStoredId) {
-              console.log(`[StorageContext] Gespeicherte Bibliothek wird verwendet: ${storedLibraryId}`);
               setActiveLibraryId(storedLibraryId);
             } else {
               if (storedLibraryId && !isValidUUID) {
-                console.warn(`[StorageContext] Ungültige Library-ID im localStorage gefunden: "${storedLibraryId}" - wird bereinigt`);
+                AuthLogger.warn('StorageContext', 'Invalid library ID found in localStorage - cleaning up', {
+                  storedLibraryId
+                });
                 localStorage.removeItem('activeLibraryId');
               }
               
               const firstLibId = supportedLibraries[0].id;
-              console.log(`[StorageContext] Setze erste unterstützte Bibliothek als aktiv: ${firstLibId}`);
               setActiveLibraryId(firstLibId);
               localStorage.setItem('activeLibraryId', firstLibId);
             }
           } else {
-            console.warn('[StorageContext] Keine unterstützten Bibliotheken verfügbar');
             AuthLogger.warn('StorageContext', 'No supported libraries available', {
               totalLibraries: data.length,
               supportedLibraries: supportedLibraries.length
@@ -423,7 +373,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             setLibraries([]);
           }
         } else {
-          console.error('[StorageContext] Ungültiges Format der Bibliotheksdaten:', data);
+          AuthLogger.error('StorageContext', 'Invalid library data format', { data });
           setError('Fehler beim Laden der Bibliotheken: Ungültiges Format');
           setLibraries([]);
         }
@@ -431,11 +381,13 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         if (isCancelled) return; // Ignoriere Fehler wenn gecancelt
         
         AuthLogger.error('StorageContext', 'Library fetch failed', err);
-        console.error('[StorageContext] Fehler beim Laden der Bibliotheken:', err);
         
         if (retryCount < maxRetries) {
           AuthLogger.warn('StorageContext', `Retrying library fetch (${retryCount + 1}/${maxRetries})`);
-          console.log(`[StorageContext] Fehler, versuche erneut (${retryCount + 1}/${maxRetries})...`);
+          AuthLogger.debug('StorageContext', 'Fehler, versuche erneut', { 
+            attempt: retryCount + 1, 
+            maxRetries 
+          });
           retryCount++;
           setTimeout(fetchLibraries, retryDelay);
           return;
@@ -470,7 +422,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       // Aktualisiere die Bibliothek durch Neuladen der Bibliotheken
       await refreshLibraries();
     } catch (error) {
-      console.error('[StorageContext] Fehler beim Aktualisieren der Bibliothek:', error);
+      AuthLogger.error('StorageContext', 'Failed to update library', error);
     }
   };
 
@@ -511,7 +463,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         setLibraries(mergedLibraries);
       }
     } catch (error) {
-      console.error('[StorageContext] Fehler beim Aktualisieren der Bibliotheken:', error);
+      AuthLogger.error('StorageContext', 'Failed to update libraries', error);
     }
   };
 
@@ -519,62 +471,61 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   const listItems = async (folderId: string): Promise<StorageItem[]> => {
     // Überprüfe, ob der Provider zur aktuellen Bibliothek passt
     if (!provider || !currentLibrary) {
-      console.error('[StorageContext] Kein Provider oder keine aktuelle Bibliothek verfügbar für listItems');
+      AuthLogger.error('StorageContext', 'No provider or current library available for listItems');
       throw new Error('Keine aktive Bibliothek verfügbar. Bitte wählen Sie eine Bibliothek aus.');
     }
     
-    // Wichtig: Stelle sicher, dass der Provider zur aktuellen Bibliothek gehört
-    if (provider.id !== currentLibrary.id) {
-      console.warn('[StorageContext][listItems] Provider-ID stimmt nicht mit aktueller Bibliothek überein!', {
-        providerId: provider.id,
-        currentLibraryId: currentLibrary.id,
-        activeLibraryId
-      });
-      
-      // Versuche den korrekten Provider zu laden
-      try {
-        const factory = StorageFactory.getInstance();
-        const correctProvider = await factory.getProvider(currentLibrary.id);
-        console.log('[StorageContext][listItems] Korrekter Provider geladen:', correctProvider.name);
+    // Request-Deduplizierung: Erstelle Key für diesen Request
+    const requestKey = `${currentLibrary.id}:${folderId}`;
+    
+    // Verwende deduplicateRequest um doppelte Requests zu vermeiden
+    const { deduplicateRequest } = await import('@/lib/storage/request-deduplicator');
+    
+    return deduplicateRequest(requestKey, async () => {
+      // Wichtig: Stelle sicher, dass der Provider zur aktuellen Bibliothek gehört
+      if (provider.id !== currentLibrary.id) {
+        AuthLogger.warn('StorageContext', 'Provider ID does not match current library', {
+          providerId: provider.id,
+          currentLibraryId: currentLibrary.id,
+          activeLibraryId
+        });
         
-        // Verwende den korrekten Provider für diesen Aufruf
-        return await correctProvider.listItemsById(folderId);
-      } catch (error) {
-        console.error('[StorageContext][listItems] Fehler beim Laden des korrekten Providers:', error);
-        throw error;
+        // Versuche den korrekten Provider zu laden
+        try {
+          const factory = StorageFactory.getInstance();
+          const correctProvider = await factory.getProvider(currentLibrary.id);
+          AuthLogger.debug('StorageContext', 'Korrekter Provider geladen', { providerName: correctProvider.name });
+          
+          // Verwende den korrekten Provider für diesen Aufruf
+          return await correctProvider.listItemsById(folderId);
+        } catch (error) {
+          AuthLogger.error('StorageContext', 'Failed to load correct provider', error);
+          throw error;
+        }
       }
-    }
-    
-    // Logging: Library-IDs vergleichen
-    setLastRequestedLibraryId(currentLibrary?.id || null);
-    console.log('[StorageContext][listItems] Aufruf:', {
-      requestedLibraryId: currentLibrary?.id,
-      activeLibraryId,
-      currentLibrary,
-      providerId: provider.id,
-      providerName: provider.name
-    });
-    
-    // Prüfe zuerst, ob der Provider authentifiziert ist
-    if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function' && !provider.isAuthenticated()) {
-      console.log('[StorageContext][listItems] Provider ist nicht authentifiziert, überspringe Aufruf');
-      setIsAuthRequired(true);
-      setAuthProvider(provider.name);
-      setLibraryStatus('waitingForAuth');
-      // Werfe einen AUTH_REQUIRED Fehler, aber logge ihn nicht
-      throw new StorageError(
-        "Nicht authentifiziert. Bitte authentifizieren Sie sich bei " + provider.name + ".",
-        "AUTH_REQUIRED",
-        provider.id
-      );
-    }
-    
-    try {
-      const items = await provider.listItemsById(folderId);
-      console.log(`[StorageContext][listItems] Erfolgreich ${items.length} Items geladen`);
-      return items;
-    } catch (error) {
-      if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
+      
+      // Logging: Library-IDs vergleichen
+      setLastRequestedLibraryId(currentLibrary?.id || null);
+      
+      // Prüfe zuerst, ob der Provider authentifiziert ist
+      if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function' && !provider.isAuthenticated()) {
+        AuthLogger.debug('StorageContext', 'Provider ist nicht authentifiziert, überspringe Aufruf');
+        setIsAuthRequired(true);
+        setAuthProvider(provider.name);
+        setLibraryStatus('waitingForAuth');
+        // Werfe einen AUTH_REQUIRED Fehler, aber logge ihn nicht
+        throw new StorageError(
+          "Nicht authentifiziert. Bitte authentifizieren Sie sich bei " + provider.name + ".",
+          "AUTH_REQUIRED",
+          provider.id
+        );
+      }
+      
+      try {
+        const items = await provider.listItemsById(folderId);
+        return items;
+      } catch (error) {
+        if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
         setIsAuthRequired(true);
         setAuthProvider(provider.name);
         setLibraryStatus('waitingForAuth');
@@ -602,7 +553,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
           }
         }
         
-        console.error('[StorageContext] Fehler beim Auflisten der Items:', {
+        AuthLogger.error('StorageContext', 'Error listing items', {
           error: error instanceof Error ? {
             message: error.message,
             name: error.name,
@@ -619,19 +570,20 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         throw userFriendlyError;
       }
       throw error;
-    }
+      }
+    });
   };
 
   const refreshItems = async (folderId: string): Promise<StorageItem[]> => {
     // Überprüfe, ob der Provider zur aktuellen Bibliothek passt
     if (!provider || !currentLibrary) {
-      console.error('[StorageContext] Kein Provider oder keine aktuelle Bibliothek verfügbar für refreshItems');
+      AuthLogger.error('StorageContext', 'No provider or current library available for refreshItems');
       return [];
     }
     
     // Wichtig: Stelle sicher, dass der Provider zur aktuellen Bibliothek gehört
     if (provider.id !== currentLibrary.id) {
-      console.warn('[StorageContext][refreshItems] Provider-ID stimmt nicht mit aktueller Bibliothek überein!', {
+      AuthLogger.warn('StorageContext', 'Provider ID does not match current library (refresh)', {
         providerId: provider.id,
         currentLibraryId: currentLibrary.id,
         activeLibraryId
@@ -641,28 +593,21 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       try {
         const factory = StorageFactory.getInstance();
         const correctProvider = await factory.getProvider(currentLibrary.id);
-        console.log('[StorageContext][refreshItems] Korrekter Provider geladen:', correctProvider.name);
+          AuthLogger.debug('StorageContext', 'Korrekter Provider geladen (refresh)', { providerName: correctProvider.name });
         
         // Verwende den korrekten Provider für diesen Aufruf
         return await correctProvider.listItemsById(folderId);
       } catch (error) {
-        console.error('[StorageContext][refreshItems] Fehler beim Laden des korrekten Providers:', error);
+        AuthLogger.error('StorageContext', 'Failed to load correct provider (refresh)', error);
         throw error;
       }
     }
     
     setLastRequestedLibraryId(currentLibrary?.id || null);
-    console.log('[StorageContext][refreshItems] Aufruf:', {
-      requestedLibraryId: currentLibrary?.id,
-      activeLibraryId,
-      currentLibrary,
-      providerId: provider.id,
-      providerName: provider.name
-    });
     
     // Prüfe zuerst, ob der Provider authentifiziert ist
     if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function' && !provider.isAuthenticated()) {
-      console.log('[StorageContext][refreshItems] Provider ist nicht authentifiziert, überspringe Aufruf');
+      AuthLogger.debug('StorageContext', 'Provider ist nicht authentifiziert, überspringe Refresh');
       setIsAuthRequired(true);
       setAuthProvider(provider.name);
       setLibraryStatus('waitingForAuth');
@@ -693,7 +638,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   const refreshAuthStatus = React.useCallback(async () => {
     if (!currentLibrary) return;
     
-    console.log('[StorageContext] Aktualisiere Authentifizierungsstatus manuell');
+    AuthLogger.debug('StorageContext', 'Aktualisiere Authentifizierungsstatus manuell');
     
     try {
       // Versuche den Provider zu laden oder zu erstellen
@@ -703,7 +648,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       // Prüfe den Authentifizierungsstatus direkt beim Provider
       const isAuth = provider.isAuthenticated();
       
-      console.log('[StorageContext] Provider Authentifizierungsstatus:', {
+      AuthLogger.debug('StorageContext', 'Provider Authentifizierungsstatus', {
         libraryId: currentLibrary.id,
         providerName: provider.name,
         isAuthenticated: isAuth
@@ -714,16 +659,14 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         setLibraryStatusAtom('ready');
         setIsAuthRequired(false);
         setAuthProvider(null);
-        console.log('[StorageContext] Provider ist authentifiziert - Status auf "ready" gesetzt');
       } else {
         setLibraryStatus('waitingForAuth');
         setLibraryStatusAtom('waitingForAuth');
         setIsAuthRequired(true);
         setAuthProvider(currentLibrary.type);
-        console.log('[StorageContext] Provider ist NICHT authentifiziert - Status auf "waitingForAuth" gesetzt');
       }
     } catch (error) {
-      console.error('[StorageContext] Fehler beim Prüfen des Authentifizierungsstatus:', error);
+      AuthLogger.error('StorageContext', 'Fehler beim Prüfen des Authentifizierungsstatus', { error });
       // Bei Fehler annehmen, dass Authentifizierung erforderlich ist
       setLibraryStatus('waitingForAuth');
       setLibraryStatusAtom('waitingForAuth');
@@ -767,7 +710,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             const tokensJson = localStorage.getItem(localStorageKey);
             hasToken = !!tokensJson;
           } catch (error) {
-            console.error('[StorageContext] Fehler beim Prüfen der Tokens im localStorage:', error);
+            AuthLogger.debug('StorageContext', 'Error checking tokens in localStorage', { error });
           }
         }
         

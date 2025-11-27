@@ -73,9 +73,11 @@ export const summariesMongoRetriever: ChatRetriever = {
     
     // HINWEIS: Wir nutzen hier vorhandene Repos. findDocs liefert gefilterte Dokumente.
     // Dynamische Importe vermeiden Zyklen.
-    const { computeDocMetaCollectionName, findDocSummaries } = await import('@/lib/repositories/doc-meta-repo')
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(input.userEmail || '', input.libraryId, strategy)
+    if (!ctx) {
+      throw new Error('Library context nicht gefunden')
+    }
+    const { getCollectionNameForLibrary, findDocSummaries } = await import('@/lib/repositories/doc-meta-repo')
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
 
     // Logging: list(summary) Step öffnen
     let stepList = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'list', level: 'summary' })

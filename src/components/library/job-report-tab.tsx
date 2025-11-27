@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react'
+import { useAtomValue } from 'jotai'
 import { IngestionBookDetail } from './ingestion-book-detail'
 import { UILogger } from '@/lib/debug/logger'
 import type { StorageProvider } from '@/lib/storage/types'
@@ -8,6 +9,7 @@ import { MarkdownPreview } from '@/components/library/markdown-preview'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
+import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom'
 
 interface JobReportTabProps {
   libraryId: string
@@ -48,17 +50,78 @@ interface JobDto {
 export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode = 'merged', viewMode = 'full', mdFileId, onJumpTo, rawContent, forcedTab }: JobReportTabProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Hole Shadow-Twin-State für die aktuelle Datei, um das Bildverzeichnis zu bestimmen
+  const shadowTwinStates = useAtomValue(shadowTwinStateAtom)
+  const shadowTwinState = shadowTwinStates.get(fileId)
+  
+  // State für Fallback-Suche des Shadow-Twin-Verzeichnisses
+  const [fallbackFolderId, setFallbackFolderId] = useState<string | null>(null)
+  
+  // Fallback: Wenn shadowTwinFolderId nicht verfügbar ist, versuche das Shadow-Twin-Verzeichnis zu finden
+  useEffect(() => {
+    if (shadowTwinState?.shadowTwinFolderId || !provider || !fileName) return
+    
+    let cancelled = false
+    async function findFolder() {
+      if (!provider || !fileName) return; // Type guard für TypeScript
+      try {
+        // Hole das Item, um parentId zu bekommen
+        const item = await provider.getItemById(fileId)
+        if (!item || cancelled) return
+        
+        const { findShadowTwinFolder } = await import('@/lib/storage/shadow-twin')
+        const folder = await findShadowTwinFolder(item.parentId, fileName, provider)
+        if (folder && !cancelled) {
+          setFallbackFolderId(folder.id)
+          UILogger.info('JobReportTab', 'Shadow-Twin-Verzeichnis via Fallback gefunden', {
+            fileId,
+            fileName,
+            folderId: folder.id,
+            folderName: folder.metadata.name
+          })
+        }
+      } catch (error) {
+        UILogger.error('JobReportTab', 'Fehler beim Finden des Shadow-Twin-Verzeichnisses', error)
+      }
+    }
+    void findFolder()
+    return () => { cancelled = true }
+  }, [fileId, fileName, provider, shadowTwinState?.shadowTwinFolderId])
+  
+  // Verwende shadowTwinFolderId wenn verfügbar, sonst Fallback, sonst 'root'
+  const currentFolderId = shadowTwinState?.shadowTwinFolderId || fallbackFolderId || 'root'
   const [job, setJob] = useState<JobDto | null>(null)
   const [templateFields, setTemplateFields] = useState<string[] | null>(null)
   const [frontmatterMeta, setFrontmatterMeta] = useState<Record<string, unknown> | null>(null)
   const [section] = useState<'meta' | 'chapters'>('meta')
   const [parseErrors, setParseErrors] = useState<string[]>([])
   const [fullContent, setFullContent] = useState<string>('')
+  const [debouncedContent, setDebouncedContent] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'markdown' | 'meta' | 'chapters' | 'ingestion' | 'process'>(forcedTab || 'markdown')
+  const [displayedFileName, setDisplayedFileName] = useState<string | null>(null)
 
   useEffect(() => {
     if (forcedTab) setActiveTab(forcedTab)
   }, [forcedTab])
+
+  // Debounce Content-Änderungen, um unnötige Re-Renders während der Job-Verarbeitung zu vermeiden
+  // WICHTIG: Wenn der Job abgeschlossen ist, rendere sofort (kein Debounce)
+  useEffect(() => {
+    const isJobCompleted = job?.status === 'completed' || job?.status === 'failed'
+    
+    if (isJobCompleted) {
+      // Job abgeschlossen: Rendere sofort ohne Debounce
+      setDebouncedContent(fullContent)
+    } else {
+      // Job läuft noch: Debounce Content-Änderungen (500ms)
+      const timeoutId = setTimeout(() => {
+        setDebouncedContent(fullContent)
+      }, 500)
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [fullContent, job?.status])
 
   const stripFrontmatter = (markdown: string): string => markdown.replace(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/, '')
 
@@ -152,14 +215,13 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
           : undefined
         const templateName = typeof tpl === 'string' ? tpl : undefined
         if (!templateName || !provider) return
-        const rootItems = await provider.listItemsById('root')
-        const templatesFolder = rootItems.find(it => it.type === 'folder' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'templates'))
-        if (!templatesFolder) return
-        const tplItems = await provider.listItemsById(templatesFolder.id)
-        const match = tplItems.find(it => it.type === 'file' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === templateName.toLowerCase()))
-        if (!match) return
-        const bin = await provider.getBinary(match.id)
-        const text = await bin.blob.text()
+        // Verwende zentrale Template-Service Library
+        const { loadTemplate } = await import('@/lib/templates/template-service')
+        const result = await loadTemplate({
+          provider,
+          preferredTemplateName: templateName
+        })
+        const text = result.templateContent
         // Extrahiere Frontmatter zwischen den ersten beiden --- und lese die Keys bis zu :
         const m = text.match(/^---[\s\S]*?---/)
         if (!m) return
@@ -190,7 +252,63 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
     // WICHTIG: Im Frontmatter-Modus NIEMALS auf fileId (PDF) zurückfallen,
     // sonst wird der PDF‑Blob als Text gelesen und die UI kippt.
     if (sourceMode === 'frontmatter') {
-      return (mdFileId && typeof mdFileId === 'string' && mdFileId.length > 0) ? mdFileId : null
+      // Debug-Logging zur Diagnose
+      UILogger.debug('JobReportTab', 'effectiveMdId Berechnung', {
+        mdFileId,
+        hasShadowTwinState: !!shadowTwinState,
+        transformedId: shadowTwinState?.transformed?.id,
+        hasTranscriptFiles: !!(shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0),
+        transcriptFilesCount: shadowTwinState?.transcriptFiles?.length || 0,
+        jobResultId: job?.result?.savedItemId
+      })
+      
+      // PRIORITÄT 1: Verwende mdFileId (aus shadowTwinState.transformed.id)
+      if (mdFileId && typeof mdFileId === 'string' && mdFileId.length > 0) {
+        // Prüfe, ob mdFileId auf die transformierte Datei (.de.md) zeigt, nicht auf das Transcript (.md)
+        const isTransformed = mdFileId.includes('.de.md') || shadowTwinState?.transformed?.id === mdFileId
+        if (isTransformed) {
+          return mdFileId
+        }
+        // Wenn mdFileId auf das Transcript zeigt, verwende stattdessen transformed.id direkt
+        if (shadowTwinState?.transformed?.id) {
+          UILogger.warn('JobReportTab', 'mdFileId zeigt auf Transcript, verwende transformed.id', {
+            mdFileId,
+            transformedId: shadowTwinState.transformed.id
+          })
+          return shadowTwinState.transformed.id
+        }
+      }
+      // PRIORITÄT 2: Fallback auf transformed.id direkt aus shadowTwinState
+      if (shadowTwinState?.transformed?.id) {
+        return shadowTwinState.transformed.id
+      }
+      // PRIORITÄT 3: Fallback auf Job-Resultat (nur wenn es auf .de.md endet)
+      const resultId = job?.result?.savedItemId as string | undefined
+      if (resultId && resultId.length > 0 && resultId.includes('.de.md')) {
+        return resultId
+      }
+      // PRIORITÄT 4: Fallback auf Transcript, wenn keine transformierte Datei vorhanden ist
+      // (wird später eine Warnung anzeigen, dass kein Frontmatter vorhanden ist)
+      if (shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0) {
+        const transcriptId = shadowTwinState.transcriptFiles[0].id
+        UILogger.warn('JobReportTab', 'Keine transformierte Datei gefunden, verwende Transcript als Fallback', {
+          transcriptId,
+          transcriptName: shadowTwinState.transcriptFiles[0].metadata?.name
+        })
+        return transcriptId
+      }
+      
+      // Debug-Logging wenn keine Datei gefunden wurde
+      UILogger.warn('JobReportTab', 'Keine Markdown-Datei-ID gefunden (effectiveMdId)', {
+        mdFileId,
+        hasShadowTwinState: !!shadowTwinState,
+        hasTransformed: !!shadowTwinState?.transformed,
+        transformedId: shadowTwinState?.transformed?.id,
+        hasTranscriptFiles: !!(shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0),
+        transcriptFilesCount: shadowTwinState?.transcriptFiles?.length || 0,
+        jobResultId: job?.result?.savedItemId
+      })
+      return null
     }
     // Außerhalb des Frontmatter-Modus weiterhin Job‑Ergebnis oder fileId (historisches Verhalten)
     return (mdFileId && typeof mdFileId === 'string' && mdFileId.length > 0)
@@ -206,6 +324,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
         if (sourceMode === 'frontmatter' && typeof rawContent === 'string' && rawContent.length > 0) {
           const text = rawContent
           setFullContent(text)
+          setDisplayedFileName('(Rohinhalt)')
           const { frontmatter, meta, errors } = parseSecretaryMarkdownStrict(text)
           UILogger.debug('JobReportTab', 'Frontmatter (raw): Block gefunden?', { found: !!frontmatter, length: frontmatter ? frontmatter.length : 0 })
           if (!frontmatter) { setFrontmatterMeta(null); return }
@@ -216,23 +335,90 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
 
         if (!provider) return
         const mdId = effectiveMdId
-        UILogger.info('JobReportTab', 'Frontmatter: Lade Datei', { mdId, sourceMode })
+        UILogger.info('JobReportTab', 'Frontmatter: Lade Datei', { 
+          mdId, 
+          sourceMode, 
+          mdFileId,
+          hasShadowTwinState: !!shadowTwinState,
+          transformedId: shadowTwinState?.transformed?.id,
+          transcriptFilesCount: shadowTwinState?.transcriptFiles?.length || 0,
+          jobResultId: job?.result?.savedItemId,
+          effectiveMdId: mdId
+        })
         // Wenn kein Shadow‑Twin vorhanden ist: nichts laden/anzeigen
-        if (!mdId) { setFullContent(''); setFrontmatterMeta(null); return }
+        if (!mdId) { 
+          UILogger.warn('JobReportTab', 'Keine Markdown-Datei-ID gefunden', {
+            mdFileId,
+            hasShadowTwinState: !!shadowTwinState,
+            transformedId: shadowTwinState?.transformed?.id,
+            jobResultId: job?.result?.savedItemId
+          })
+          setFullContent(''); 
+          setFrontmatterMeta(null); 
+          setDisplayedFileName(null); 
+          return 
+        }
+        if (!provider) return // Type guard für TypeScript
+        
+        // Ermittle den Dateinamen: zuerst aus shadowTwinState, dann aus dem Item
+        let fileName: string | null = null
+        if (shadowTwinState?.transformed?.metadata?.name) {
+          // Transformierte Datei vorhanden
+          fileName = shadowTwinState.transformed.metadata?.name || null
+        } else if (shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0) {
+          // Nur Transcript vorhanden (keine transformierte Datei)
+          fileName = shadowTwinState.transcriptFiles[0].metadata?.name || null
+        } else {
+          // Fallback: Lade Item-Name direkt
+          try {
+            const item = await provider.getItemById(mdId)
+            fileName = item?.metadata?.name || null
+          } catch (error) {
+            UILogger.warn('JobReportTab', 'Fehler beim Laden des Item-Namens', { mdId, error })
+            fileName = null
+          }
+        }
+        setDisplayedFileName(fileName)
+        
+        try {
         const bin = await provider.getBinary(mdId)
         const text = await bin.blob.text()
+          UILogger.info('JobReportTab', 'Datei erfolgreich geladen', { mdId, textLength: text.length, fileName })
         setFullContent(text)
         const { frontmatter, meta, errors } = parseSecretaryMarkdownStrict(text)
         UILogger.debug('JobReportTab', 'Frontmatter: Block gefunden?', { found: !!frontmatter, length: frontmatter ? frontmatter.length : 0 })
-        if (!frontmatter) { setFrontmatterMeta(null); return }
+          if (!frontmatter) { 
+            // Prüfe, ob dies ein Transcript ohne Frontmatter ist
+            const isTranscript = !shadowTwinState?.transformed && shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0
+            if (isTranscript) {
+              UILogger.warn('JobReportTab', 'Kein Frontmatter in Transcript gefunden - dies ist normal für OCR-Transkripte ohne Template-Transformation', { 
+                mdId, 
+                fileName,
+                hasTransformed: !!shadowTwinState?.transformed
+              })
+            } else {
+              UILogger.warn('JobReportTab', 'Kein Frontmatter in Datei gefunden', { mdId, fileName })
+            }
+            setFrontmatterMeta(null); 
+            return 
+          }
         setFrontmatterMeta(Object.keys(meta).length ? meta : null)
         setParseErrors(errors)
-      } catch {
+        } catch (error) {
+          UILogger.error('JobReportTab', 'Fehler beim Laden der Markdown-Datei', { mdId, fileName, error })
         setFrontmatterMeta(null)
+          setDisplayedFileName(null)
+          setError(`Fehler beim Laden der Datei: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      } catch (error) {
+        UILogger.error('JobReportTab', 'Unerwarteter Fehler beim Laden des Frontmatters', error)
+        setFrontmatterMeta(null)
+        setDisplayedFileName(null)
+        setError(`Unerwarteter Fehler: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
     void loadFrontmatter()
-  }, [provider, effectiveMdId, sourceMode, rawContent])
+  }, [provider, effectiveMdId, sourceMode, rawContent, shadowTwinState?.transformed?.metadata?.name])
 
   if (sourceMode !== 'frontmatter') {
     if (loading) return <div className="p-4 text-sm text-muted-foreground">Lade Job…</div>
@@ -264,9 +450,59 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
 
           <TabsContent value="markdown" className="mt-3">
             <div className="border rounded-md">
-              {fullContent && fullContent.trim().length > 0 ? (
-                <MarkdownPreview content={stripFrontmatter(fullContent)} />
-              ) : null}
+              {(() => {
+                // Zeige Fehler beim Laden der Datei an
+                if (error) {
+                  return (
+                    <div className="p-4 text-sm text-destructive">
+                      {error}
+                    </div>
+                  );
+                }
+                
+                // Prüfe Verarbeitungsstatus: Rendere nur wenn 'ready' oder wenn kein Status vorhanden (Rückwärtskompatibilität)
+                const processingStatus = shadowTwinState?.processingStatus;
+                const isReady = processingStatus === 'ready' || processingStatus === undefined;
+                const isProcessing = processingStatus === 'processing';
+                const isError = processingStatus === 'error';
+                
+                if (isError) {
+                  return (
+                    <div className="p-4 text-sm text-destructive">
+                      Fehler bei der Verarbeitung: {shadowTwinState?.analysisError || 'Unbekannter Fehler'}
+                    </div>
+                  );
+                }
+                
+                if (isProcessing) {
+                  return (
+                    <div className="p-4 text-sm text-muted-foreground">
+                      Verarbeitung läuft... Bitte warten Sie, bis der Job abgeschlossen ist.
+                    </div>
+                  );
+                }
+                
+                if (debouncedContent && debouncedContent.trim().length > 0 && isReady) {
+                  return (
+                <MarkdownPreview 
+                      content={stripFrontmatter(debouncedContent)} 
+                  currentFolderId={currentFolderId}
+                  provider={provider}
+                />
+                  );
+                }
+                
+                // Wenn keine Datei geladen wurde, zeige Hinweis
+                if (!effectiveMdId) {
+                  return (
+                    <div className="p-4 text-sm text-muted-foreground">
+                      Keine Markdown-Datei gefunden. Bitte stellen Sie sicher, dass die Datei verarbeitet wurde.
+                    </div>
+                  );
+                }
+                
+                return null;
+              })()}
             </div>
           </TabsContent>
 
@@ -275,6 +511,12 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
             {parseErrors.length > 0 && (
               <div className="text-xs text-destructive mb-2">
                 {parseErrors.map((e, i) => (<div key={i}>Parserfehler: {e}</div>))}
+              </div>
+            )}
+            {/* Dateiname-Anzeige */}
+            {displayedFileName && (
+              <div className="text-xs text-muted-foreground mb-2 pb-2 border-b">
+                Datei: <span className="font-mono font-medium">{displayedFileName}</span>
               </div>
             )}
             {(() => {
@@ -617,6 +859,12 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
         if (flatKeys.length === 0) return null
         return (
         <div>
+          {/* Dateiname-Anzeige */}
+          {displayedFileName && (
+            <div className="text-xs text-muted-foreground mb-2 pb-2 border-b">
+              Datei: <span className="font-mono font-medium">{displayedFileName}</span>
+            </div>
+          )}
           <div className="font-medium mb-1">Metadaten (Template vs. Ergebnis)</div>
           <div className="overflow-auto">
             <table className="w-full text-xs">

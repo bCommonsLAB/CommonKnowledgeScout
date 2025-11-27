@@ -52,7 +52,8 @@ export const chatConfigSchema = z.object({
   footerText: z.string().default(''),
   companyLink: z.string().url().optional(),
   vectorStore: z.object({
-    indexOverride: z.string().min(1).optional(),
+    collectionName: z.string().min(1).optional(),
+    indexName: z.string().min(1).optional(),
   }).default({}),
   // Zielsprache für Chat-Antworten
   targetLanguage: TARGET_LANGUAGE_ZOD_ENUM.default(TARGET_LANGUAGE_DEFAULT),
@@ -125,11 +126,20 @@ export function normalizeChatConfig(config: unknown): NormalizedChatConfig {
   }
   
   // Migration: gallery.facets als Array<string> → Array<{metaKey,...}>
+  // Migration: indexOverride → indexName
   if (cfg && typeof cfg === 'object') {
     const c = cfg as { 
       gallery?: { facets?: unknown }
       character?: unknown
       userPreferences?: { character?: unknown }
+      vectorStore?: { indexOverride?: string; indexName?: string; collectionName?: string }
+    }
+    
+    // Migration: indexOverride → indexName
+    if (c.vectorStore?.indexOverride && !c.vectorStore.indexName) {
+      if (!c.vectorStore) c.vectorStore = {}
+      c.vectorStore.indexName = c.vectorStore.indexOverride
+      delete c.vectorStore.indexOverride
     }
     
     // Gallery facets migration
@@ -190,12 +200,12 @@ export function slugifyIndexName(input: string): string {
 
 /**
  * Liefert den zu verwendenden Vektor-Indexnamen.
- * Priorität: config.vectorStore.indexOverride → slug(label) → lib-<shortId>
+ * Priorität: config.vectorStore.indexName → slug(label) → lib-<shortId>
+ * Keine Email-Präfix-Logik mehr, alles determiniert über Config.
  */
 export function getVectorIndexForLibrary(
   library: { id: string; label: string },
-  chatConfig?: LibraryChatConfig,
-  userEmail?: string
+  chatConfig?: LibraryChatConfig
 ): string {
   // Globale Override-Möglichkeit für schnelle Fehleranalyse/Dev
   const envOverride = (process.env.PINECONE_INDEX_OVERRIDE || '').trim()
@@ -204,29 +214,18 @@ export function getVectorIndexForLibrary(
     return envOverride
   }
 
-  const override = chatConfig?.vectorStore?.indexOverride
-  
-  // Wenn indexOverride gesetzt ist, verwende diesen direkt (kann bereits vollständigen Index-Namen enthalten)
-  if (override && override.trim().length > 0) {
-    return slugifyIndexName(override)
+  // Wenn indexName in Config vorhanden ist, verwende diesen direkt
+  const indexName = chatConfig?.vectorStore?.indexName
+  if (indexName && indexName.trim().length > 0) {
+    return slugifyIndexName(indexName)
   }
   
-  // Sonst: Basis aus Label berechnen
-  const base = (() => {
-    const byLabel = slugifyIndexName(library.label)
-    if (byLabel) return byLabel
-    const shortId = library.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)
-    return slugifyIndexName(`lib-${shortId || 'default'}`)
-  })()
-
-  // Wenn keine Email vorhanden ist, verwende nur die Basis
-  if (!userEmail) {
-    return base
-  }
+  // Sonst: Basis aus Label berechnen (deterministisch, keine Email-Präfix-Logik)
+  const byLabel = slugifyIndexName(library.label)
+  if (byLabel) return byLabel
   
-  // Mit Email: Präfix hinzufügen
-  const emailSlug = slugifyIndexName(userEmail)
-  return slugifyIndexName(`${emailSlug}-${base}`)
+  const shortId = library.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)
+  return slugifyIndexName(`lib-${shortId || 'default'}`)
 }
 
 

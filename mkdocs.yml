@@ -40,9 +40,10 @@ nav:
       - Intro: overview/intro.md
       - Features: overview/features.md
   - Architecture:
-      - Start: architecture/index.md
-      - Overview: architecture/architecture.md
-      - Core Components: architecture/core-components.md
+      - Module Hierarchy: architecture/module-hierarchy.md
+      - Dependency Graph: architecture/dependency-graph.md
+      - Shadow-Twin: architecture/shadow-twin.md
+      - PDF Transformation Phases: architecture/pdf-transformation-phases.md
   - Guide:
       - Start: guide/index.md
       - Setup: guide/setup.md
@@ -89,7 +90,11 @@ nav:
       - Transformation Service: concepts/features/transformation-service.md
       - Video Transformation: concepts/video-transformation.md
   - Reference:
-      - Start: reference/index.md
+      - File Index: reference/file-index.md
+      - Modules:
+          - Library: reference/modules/library.md
+          - Storage: reference/modules/storage.md
+          - Chat: reference/modules/chat.md
       - Glossary: reference/glossary.md
       - Secretary Services: reference/api/secretary-services.md
       - Track Processor: reference/api/track-processor.md

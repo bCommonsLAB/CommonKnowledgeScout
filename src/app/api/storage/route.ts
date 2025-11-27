@@ -48,6 +48,13 @@ export async function GET(request: NextRequest) {
     const storageFactory = StorageFactory.getInstance();
     storageFactory.setLibraries(clientLibraries);
     
+    // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
+    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    storageFactory.setApiBaseUrl(baseUrl);
+    storageFactory.setUserEmail(userEmail);
+    
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);
 
@@ -58,8 +65,23 @@ export async function GET(request: NextRequest) {
       }
 
       case 'get': {
-        const item = await provider.getItemById(fileId);
-        return NextResponse.json(item);
+        try {
+          const item = await provider.getItemById(fileId);
+          return NextResponse.json(item);
+        } catch (error) {
+          console.error('[Storage API] Fehler beim Laden des Items', {
+            fileId,
+            libraryId,
+            error: error instanceof Error ? error.message : String(error),
+            errorName: error instanceof Error ? error.name : undefined,
+            errorStack: error instanceof Error ? error.stack : undefined
+          });
+          return NextResponse.json({ 
+            error: error instanceof Error ? error.message : 'Fehler beim Laden des Items',
+            fileId,
+            libraryId
+          }, { status: 500 });
+        }
       }
 
       case 'binary': {
@@ -123,6 +145,13 @@ export async function POST(request: NextRequest) {
     // Storage Factory initialisieren
     const storageFactory = StorageFactory.getInstance();
     storageFactory.setLibraries(clientLibraries);
+    
+    // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
+    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    storageFactory.setApiBaseUrl(baseUrl);
+    storageFactory.setUserEmail(userEmail);
     
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);
@@ -189,8 +218,54 @@ export async function DELETE(request: NextRequest) {
     const storageFactory = StorageFactory.getInstance();
     storageFactory.setLibraries(clientLibraries);
     
+    // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
+    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    storageFactory.setApiBaseUrl(baseUrl);
+    storageFactory.setUserEmail(userEmail);
+    
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);
+
+    // Prüfe ob es sich um ein Buch handelt (PDF-Datei) und lösche Azure-Bilder
+    try {
+      const item = await provider.getItemById(fileId)
+      if (item && item.type === 'file' && item.metadata.mimeType === 'application/pdf') {
+        // Prüfe ob Azure Storage konfiguriert ist
+        const { getAzureStorageConfig } = await import('@/lib/config/azure-storage')
+        const azureConfig = getAzureStorageConfig()
+        if (azureConfig) {
+          const { AzureStorageService } = await import('@/lib/services/azure-storage-service')
+          const azureStorage = new AzureStorageService()
+          if (azureStorage.isConfigured()) {
+            try {
+              await azureStorage.deleteImagesForOwner(
+                azureConfig.containerName,
+                libraryId,
+                'books',
+                fileId
+              )
+              console.log('[Storage API] Azure-Bilder für Buch gelöscht', { fileId, libraryId })
+            } catch (azureError) {
+              // Fehler beim Löschen der Azure-Bilder: Loggen, aber nicht abbrechen
+              console.warn('[Storage API] Fehler beim Löschen der Azure-Bilder', {
+                fileId,
+                libraryId,
+                error: azureError instanceof Error ? azureError.message : String(azureError),
+              })
+            }
+          }
+        }
+      }
+    } catch (checkError) {
+      // Fehler beim Prüfen: Loggen, aber nicht abbrechen (Item könnte bereits gelöscht sein)
+      console.warn('[Storage API] Fehler beim Prüfen des Items für Azure-Bild-Löschung', {
+        fileId,
+        libraryId,
+        error: checkError instanceof Error ? checkError.message : String(checkError),
+      })
+    }
 
     await provider.deleteItem(fileId);
     return NextResponse.json({ success: true });
@@ -234,6 +309,13 @@ export async function PATCH(request: NextRequest) {
     // Storage Factory initialisieren
     const storageFactory = StorageFactory.getInstance();
     storageFactory.setLibraries(clientLibraries);
+    
+    // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
+    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    storageFactory.setApiBaseUrl(baseUrl);
+    storageFactory.setUserEmail(userEmail);
     
     // Provider für die Bibliothek abrufen
     const provider = await storageFactory.getProvider(libraryId);

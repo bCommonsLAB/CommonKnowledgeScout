@@ -104,7 +104,13 @@ class LocalStorageProvider implements StorageProvider {
       });
       */
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store'
+        });
         
         if (!response.ok) {
           console.error(`[LocalStorageProvider] API call failed:`, {
@@ -156,28 +162,32 @@ class LocalStorageProvider implements StorageProvider {
         const data = await response.json();
         //console.log(`[LocalStorageProvider] Successfully loaded ${data.length} items`);
         
-        AuthLogger.info('LocalStorageProvider', 'API call successful', {
-          itemCount: data.length,
-          folderId,
-          libraryId: this.library.id
-        });
+        // API call successful Log entfernt (zu viele Logs bei jedem erfolgreichen Call)
         
         return data as StorageItem[];
         
       } catch (error) {
+        const errorDetails = error instanceof Error ? {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.split('\n').slice(0, 3)
+        } : { error: String(error) };
+        
         console.error(`[LocalStorageProvider] Exception in listItemsById:`, {
-          error: error instanceof Error ? {
-            message: error.message,
-            name: error.name,
-            stack: error.stack?.split('\n').slice(0, 3)
-          } : error,
+          ...errorDetails,
           libraryId: this.library.id,
           folderId,
           userEmail: this.userEmail,
           libraryPath: this.library.path
         });
         
-        AuthLogger.error('LocalStorageProvider', 'Exception in listItemsById', error);
+        AuthLogger.error('LocalStorageProvider', 'Exception in listItemsById', {
+          ...errorDetails,
+          libraryId: this.library.id,
+          folderId,
+          hasUserEmail: !!this.userEmail,
+          libraryPath: this.library.path
+        });
         
         // Re-throw den Fehler mit zusätzlichem Kontext
         if (error instanceof Error) {
@@ -341,6 +351,24 @@ class LocalStorageProvider implements StorageProvider {
       pathItems.push(folder);
       parentId = folder.id;
     }
+    
+    // PERFORMANCE-OPTIMIERUNG: Füge Zielordner hinzu, wenn er ein Ordner ist
+    // (verhindert zusätzlichen getItemById-Call in useFolderNavigation)
+    if (itemId !== 'root' && pathItems.length > 0) {
+      const lastPathItem = pathItems[pathItems.length - 1];
+      // Wenn der letzte Pfad-Ordner nicht der Zielordner ist, lade ihn
+      if (lastPathItem.id !== itemId) {
+        try {
+          const targetItem = await this.getItemById(itemId);
+          if (targetItem.type === 'folder') {
+            pathItems.push(targetItem);
+          }
+        } catch {
+          // Ignore - Zielordner konnte nicht geladen werden
+        }
+      }
+    }
+    
     return [{
       id: 'root',
       parentId: '',
@@ -388,7 +416,6 @@ export class StorageFactory {
   // Setzt die Basis-URL für API-Anfragen, wichtig für serverseitige Aufrufe
   setApiBaseUrl(baseUrl: string) {
     this.apiBaseUrl = baseUrl;
-    console.log(`StorageFactory: API-Basis-URL gesetzt auf ${baseUrl}`);
   }
 
   /**
@@ -397,33 +424,20 @@ export class StorageFactory {
    */
   setUserEmail(email: string) {
     this.userEmail = email;
-    console.log(`[StorageFactory] User E-Mail gesetzt: ${email}`);
-    
     // Update existing providers
-    this.providers.forEach((provider, libraryId) => {
+    this.providers.forEach((provider) => {
       if ('setUserEmail' in provider && typeof provider.setUserEmail === 'function') {
         (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(email);
-        console.log(`[StorageFactory] E-Mail an Provider ${libraryId} übertragen`);
       }
     });
   }
 
   setLibraries(libraries: ClientLibrary[]) {
-    console.log(`StorageFactory: setLibraries aufgerufen mit ${libraries.length} Bibliotheken`);
-    
     if (libraries.length === 0) {
-      console.warn(`StorageFactory: Warnung - Leere Bibliotheksliste übergeben!`);
       // Bibliotheksliste nicht leeren, wenn eine neue leere Liste übergeben wird
       // Dies verhindert Probleme, wenn die Komponente mit einer leeren Liste initialisiert wird
       return;
     }
-    
-    // Bibliotheksdaten protokollieren
-    console.log(`StorageFactory: Bibliotheksdaten:`, libraries.map(lib => ({
-      id: lib.id,
-      label: lib.label,
-      path: lib.path || 'kein Pfad'
-    })));
     
     this.libraries = libraries;
     
@@ -436,10 +450,7 @@ export class StorageFactory {
                        newLibraryIds.some(id => !currentProviderIds.includes(id));
     
     if (hasChanges) {
-      console.log(`StorageFactory: Bibliotheksliste hat sich geändert, setze Provider zurück`);
       this.providers.clear();
-    } else {
-      console.log(`StorageFactory: Bibliotheksliste unverändert, behalte bestehende Provider`);
     }
   }
 
@@ -468,11 +479,8 @@ export class StorageFactory {
   }
 
   async getProvider(libraryId: string): Promise<StorageProvider> {
-    console.log(`StorageFactory: getProvider aufgerufen für Bibliothek ${libraryId}`);
-    
     // Check if provider already exists
     if (this.providers.has(libraryId)) {
-      console.log(`StorageFactory: Verwende existierenden Provider für Bibliothek ${libraryId}`);
       return this.providers.get(libraryId)!;
     }
 
@@ -497,13 +505,6 @@ export class StorageFactory {
       typedError.libraryId = libraryId;
       throw typedError;
     }
-
-    console.log(`StorageFactory: Erstelle neuen Provider für Bibliothek:`, {
-      id: library.id,
-      label: library.label,
-      path: library.path,
-      type: library.type
-    });
 
     // Create provider based on library type
     let provider: StorageProvider;

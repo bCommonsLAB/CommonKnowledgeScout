@@ -25,6 +25,7 @@ import {
 import { BatchTransformService, BatchTransformProgress, BatchTransformResult } from '@/lib/transform/batch-transform-service';
 import { useStorage } from '@/contexts/storage-context';
 import { useAtomValue } from 'jotai';
+import { useRootItems } from '@/hooks/use-root-items';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';
 import { SUPPORTED_LANGUAGES } from '@/lib/secretary/constants';
 import { StorageItem } from '@/lib/storage/types';
@@ -59,6 +60,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
   
   const { provider, refreshItems, listItems } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const getRootItems = useRootItems();
   const baseOptions = useAtomValue(baseTransformOptionsAtom);
   const setTemplateContext = useSetAtom(templateContextDocsAtom)
   const router = useRouter()
@@ -84,21 +86,9 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
       if (!isOpen || !provider || !activeLibraryId) return;
 
       try {
-        const rootItems = await listItems('root');
-        let templatesFolder = rootItems.find(item => 
-          item.type === 'folder' && item.metadata.name === 'templates'
-        );
-        
-        if (!templatesFolder) {
-          templatesFolder = await provider.createFolder('root', 'templates');
-        }
-
-        const templateItems = await listItems(templatesFolder.id);
-        const templateFiles = templateItems.filter(item => 
-          item.type === 'file' && item.metadata.name.endsWith('.md')
-        );
-
-        const templateNames = templateFiles.map(file => file.metadata.name.replace('.md', ''));
+        // Verwende zentrale Template-Service Library
+        const { listAvailableTemplates } = await import('@/lib/templates/template-service')
+        const templateNames = await listAvailableTemplates(provider)
         if (!cancelled) setCustomTemplateNames(templateNames);
       } catch (error) {
         if (!cancelled) setCustomTemplateNames([]);
@@ -108,7 +98,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
 
     loadTemplatesIfNeeded();
     return () => { cancelled = true; };
-  }, [isOpen, provider, activeLibraryId, listItems]);
+  }, [isOpen, provider, activeLibraryId, getRootItems]);
 
   // Erzeuge effektive Eingabeliste: nur Markdown; PDFs → Shadow‑Twin (Markdown) im gleichen Ordner
   const [effectiveItems, setEffectiveItems] = useState<typeof selectedItems>([]);

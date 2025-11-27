@@ -32,6 +32,8 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
   const programmaticScrollRef = React.useRef<boolean>(false);
   const rafPendingRef = React.useRef<number | null>(null);
   const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
+  // Ref um zu markieren, ob currentPage durch Scroll-Event geändert wurde (nicht extern)
+  const isInternalPageChangeRef = React.useRef<boolean>(false);
 
   // Setze Seite aus Scroll-Position (Mitte des Viewports bestimmt die aktive Seite)
   const updatePageFromScroll = React.useCallback(() => {
@@ -54,8 +56,12 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
       }
     }
     if (bestPage && bestPage !== currentPage) {
+      // Markiere als interne Änderung (durch Scroll), damit useEffect nicht reagiert
+      isInternalPageChangeRef.current = true;
       setCurrentPage(bestPage);
       setPageInput(bestPage);
+      // Reset nach kurzer Verzögerung
+      window.setTimeout(() => { isInternalPageChangeRef.current = false; }, 100);
     }
   }, [currentPage, setCurrentPage]);
 
@@ -131,12 +137,14 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
   }, [src, scale]);
 
   // Bei Scale-Änderung Seiten neu rendern und aktuelle Seite beibehalten
+  // WICHTIG: currentPage ist NICHT in den Dependencies, damit Scroll-Events kein Rerendering auslösen
   React.useEffect(() => {
     async function rerender() {
       const pdfDoc = pdfDocRef.current;
       const container = containerRef.current;
       if (!pdfDoc || !container) return;
 
+      // Verwende aktuellen currentPage-Wert, aber löse kein Rerendering aus wenn er sich ändert
       const targetPage = currentPage || 1;
       container.innerHTML = '';
       for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
@@ -166,14 +174,17 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
       window.setTimeout(() => { programmaticScrollRef.current = false; }, 150);
     }
     void rerender();
-  }, [scale, currentPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale]); // Nur scale als Dependency, NICHT currentPage!
 
   // Rerender beim Umschalten Vollbild (neues Container-Element)
+  // WICHTIG: currentPage ist NICHT in den Dependencies, damit Scroll-Events kein Rerendering auslösen
   React.useEffect(() => {
     async function rerenderFullscreen() {
       const pdfDoc = pdfDocRef.current;
       const container = containerRef.current;
       if (!pdfDoc || !container) return;
+      // Verwende aktuellen currentPage-Wert, aber löse kein Rerendering aus wenn er sich ändert
       const targetPage = currentPage || 1;
       container.innerHTML = '';
       for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
@@ -202,7 +213,8 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
     }
     // Wenn sich der Fullscreen-Container ändert, rendere neu
     if (pdfDocRef.current) void rerenderFullscreen();
-  }, [isFullscreen, currentPage, scale]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFullscreen, scale]); // Nur isFullscreen und scale als Dependencies, NICHT currentPage!
 
   function scrollToPage(page: number) {
     const container = containerRef.current;
@@ -211,12 +223,18 @@ export function PdfCanvasViewer({ src }: PdfCanvasViewerProps) {
     if (el) {
       programmaticScrollRef.current = true;
       container.scrollTo({ top: el.offsetTop - 16, behavior: 'smooth' });
-      window.setTimeout(() => { programmaticScrollRef.current = false; }, 250);
+      // Längere Timeout-Dauer, damit Scroll-Events während des programmatischen Scrollens ignoriert werden
+      window.setTimeout(() => { programmaticScrollRef.current = false; }, 500);
     }
   }
 
   // Reagiere auf globale Seitenänderungen (z. B. Eingabe im Header)
+  // WICHTIG: Nur reagieren, wenn die Änderung NICHT durch Scroll-Events verursacht wurde
   React.useEffect(() => {
+    // Überspringe, wenn die Änderung durch Scroll-Event verursacht wurde
+    if (isInternalPageChangeRef.current) return;
+    // Überspringe auch, wenn gerade programmatisch gescrollt wird
+    if (programmaticScrollRef.current) return;
     scrollToPage(currentPage || 1);
   }, [currentPage]);
 

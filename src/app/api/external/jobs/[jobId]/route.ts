@@ -37,25 +37,19 @@ import { LibraryService } from '@/lib/services/library-service';
 import { FileLogger } from '@/lib/debug/logger';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
-import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
-import { gateIngestRag } from '@/lib/processing/gates';
-import { getServerProvider } from '@/lib/storage/server-provider';
 // Modularisierte Orchestrator-Module
 import { readContext } from '@/lib/external-jobs/context'
 import { authorizeCallback } from '@/lib/external-jobs/auth'
 import { readPhasesAndPolicies } from '@/lib/external-jobs/policies'
-import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
-import { runTemplateTransform } from '@/lib/external-jobs/template-run'
-import { analyzeAndMergeChapters } from '@/lib/external-jobs/chapters'
-import { saveMarkdown } from '@/lib/external-jobs/storage'
-import { maybeProcessImages } from '@/lib/external-jobs/images'
-import { runIngestion } from '@/lib/external-jobs/ingest'
-import { setJobCompleted } from '@/lib/external-jobs/complete'
 import { handleProgressIfAny } from '@/lib/external-jobs/progress'
 import { buildProvider } from '@/lib/external-jobs/provider'
-import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
-import { preprocess } from '@/lib/external-jobs/preprocess'
+import { runExtractOnly } from '@/lib/external-jobs/extract-only'
+import { downloadMistralOcrRaw } from '@/lib/external-jobs/mistral-ocr-download'
+import { setJobCompleted } from '@/lib/external-jobs/complete'
+import { handleJobError, handleJobErrorWithDetails } from '@/lib/external-jobs/error-handler'
+import { runTemplatePhase } from '@/lib/external-jobs/phase-template'
+import { runIngestPhase } from '@/lib/external-jobs/phase-ingest'
 // parseSecretaryMarkdownStrict ungenutzt entfernt
 
 // OneDrive-Utilities entfernt: Provider übernimmt Token/Uploads.
@@ -154,16 +148,101 @@ export async function POST(
     // entfernt
     const phase = (typeof body?.phase === 'string' && body.phase) || (typeof (body?.data as { phase?: unknown })?.phase === 'string' && (body!.data as { phase: string }).phase) || undefined;
     const hasError = !!(body as { error?: unknown })?.error;
-    const hasFinalPayload = !!((body?.data as { extracted_text?: unknown })?.extracted_text || (body?.data as { images_archive_url?: unknown })?.images_archive_url || (body as { status?: unknown })?.status === 'completed' || body?.phase === 'template_completed');
-    // Diagnose: Eingang loggen (minimal, aber ausreichend zur Nachverfolgung)
+    // WICHTIG: Bei Mistral OCR wird pages_archive_url verwendet, nicht images_archive_url
+    // Beide URLs sollten als finales Payload erkannt werden
+    // NEU: Asynchroner Webhook sendet mistral_ocr_raw_url und mistral_ocr_raw_metadata (keine vollständigen Daten)
+    // Die vollständigen Daten müssen über Download-Endpoint abgerufen werden: GET /api/pdf/jobs/{job_id}/mistral-ocr-raw
+    const hasFinalPayload = !!(
+      (body?.data as { extracted_text?: unknown })?.extracted_text || 
+      (body?.data as { images_archive_url?: unknown })?.images_archive_url || 
+      (body?.data as { pages_archive_url?: unknown })?.pages_archive_url ||
+      (body?.data as { mistral_ocr_raw_url?: unknown })?.mistral_ocr_raw_url ||
+      (body?.data as { mistral_ocr_raw_metadata?: unknown })?.mistral_ocr_raw_metadata ||
+      (body?.data as { mistral_ocr_raw?: unknown })?.mistral_ocr_raw || // Rückwärtskompatibilität (Legacy)
+      (body as { status?: unknown })?.status === 'completed' || 
+      body?.phase === 'template_completed'
+    );
+    // Diagnose: Eingang loggen (erweitert für Debugging)
     try {
+      const bodyDataKeys = body?.data && typeof body.data === 'object' ? Object.keys(body.data as Record<string, unknown>) : []
+      const bodyDataSample: Record<string, unknown> = {}
+      if (body?.data && typeof body.data === 'object') {
+        const data = body.data as Record<string, unknown>
+        // Logge wichtige Felder für Debugging
+        bodyDataSample.hasExtractedText = !!data.extracted_text
+        bodyDataSample.hasMistralOcrRaw = !!data.mistral_ocr_raw // Legacy: nur für Rückwärtskompatibilität
+        bodyDataSample.hasMistralOcrRawUrl = !!data.mistral_ocr_raw_url // NEU: Asynchroner Webhook sendet nur URL (Indikator)
+        bodyDataSample.hasMistralOcrRawMetadata = !!data.mistral_ocr_raw_metadata // NEU: Metadaten (model, pages_count, usage_info) ohne große Daten
+        bodyDataSample.hasPagesArchiveUrl = !!data.pages_archive_url
+        bodyDataSample.hasPagesArchiveData = !!data.pages_archive_data
+        bodyDataSample.hasImagesArchiveUrl = !!data.images_archive_url
+        bodyDataSample.hasImagesArchiveData = !!data.images_archive_data
+        if (data.mistral_ocr_raw && typeof data.mistral_ocr_raw === 'object') {
+          const raw = data.mistral_ocr_raw as Record<string, unknown>
+          bodyDataSample.mistralOcrRawKeys = Object.keys(raw)
+          if (Array.isArray(raw.pages)) {
+            bodyDataSample.mistralOcrRawPagesCount = raw.pages.length
+            // Prüfe ob Bilder vorhanden sind
+            const pagesWithImages = raw.pages.filter((page: unknown) => {
+              if (page && typeof page === 'object' && 'images' in page) {
+                const p = page as { images?: unknown[] }
+                return Array.isArray(p.images) && p.images.length > 0
+              }
+              return false
+            })
+            bodyDataSample.mistralOcrRawPagesWithImages = pagesWithImages.length
+          }
+        }
+        // Logge pages_archive_url Wert (falls vorhanden)
+        if (data.pages_archive_url) {
+          bodyDataSample.pagesArchiveUrlValue = typeof data.pages_archive_url === 'string' ? data.pages_archive_url : 'not_string'
+        }
+      }
       await repo.appendLog(jobId, { phase: 'callback_received', details: {
         internalBypass,
         hasToken: !!ctx.callbackToken,
         phaseInBody: body?.phase || body?.data?.phase || null,
         hasFinalPayload,
         keys: typeof body === 'object' && body ? Object.keys(body as Record<string, unknown>) : [],
+        dataKeys: bodyDataKeys,
+        dataSample: bodyDataSample,
       } } as unknown as Record<string, unknown>);
+      
+      // Zusätzlich: Logge kompletten Body-Struktur in FileLogger für Debugging
+      FileLogger.info('callback-route', 'Callback Body Debug', {
+        jobId,
+        phase: body?.phase,
+        hasData: !!body?.data,
+        dataKeys: bodyDataKeys,
+        dataSample: bodyDataSample,
+        // Logge auch den kompletten Body (aber ohne große Base64-Strings)
+        bodyStructure: body && typeof body === 'object' ? {
+          phase: body.phase,
+          message: (body as { message?: unknown }).message,
+          process: body.process,
+          data: (() => {
+            if (!body.data || typeof body.data !== 'object') return null
+            const data = body.data as Record<string, unknown>
+            return {
+              hasExtractedText: !!data.extracted_text,
+              extractedTextLength: typeof data.extracted_text === 'string' 
+                ? data.extracted_text.length 
+                : 0,
+              hasMistralOcrRaw: !!data.mistral_ocr_raw, // Legacy: nur für Rückwärtskompatibilität
+              hasMistralOcrRawUrl: !!data.mistral_ocr_raw_url, // NEU: Asynchroner Webhook sendet nur URL (Indikator)
+              hasMistralOcrRawMetadata: !!data.mistral_ocr_raw_metadata, // NEU: Metadaten ohne große Daten
+              hasPagesArchiveUrl: !!data.pages_archive_url,
+              pagesArchiveUrl: data.pages_archive_url,
+              hasPagesArchiveData: !!data.pages_archive_data,
+              hasImagesArchiveUrl: !!data.images_archive_url,
+              hasImagesArchiveData: !!data.images_archive_data,
+              metadataKeys: data.metadata && typeof data.metadata === 'object'
+                ? Object.keys(data.metadata as Record<string, unknown>)
+                : [],
+            }
+          })(),
+        } : null,
+      });
     } catch {}
 
     // Terminal: "failed"-Phase immer sofort abbrechen
@@ -174,29 +253,156 @@ export async function POST(
       // gepufferte Logs persistieren
       // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
       void drainBufferedLogs(jobId);
-      await repo.setStatus(jobId, 'failed', { error: { code: 'worker_failed_phase', message: phase || 'Worker meldete failed' } });
-      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: phase || 'failed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+      await handleJobError(
+        new Error(phase || 'Worker meldete failed'),
+        {
+          jobId,
+          userEmail: job.userEmail,
+          jobType: job.job_type,
+          fileName: job.correlation?.source?.name,
+          sourceItemId: job.correlation?.source?.itemId,
+        },
+        repo,
+        'worker_failed_phase',
+        'extract'
+      );
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed_phase' });
     }
 
     if (short) return NextResponse.json(short.body, { status: short.status })
 
-    if (hasError) {
+    // NEU: Error-Webhook-Verarbeitung (Secretary Service sendet jetzt Error-Webhooks)
+    // Bei MongoDB-Fehlern wird ein Error-Webhook mit phase: "error" gesendet
+    // Der Error-Webhook kann auch extracted_text, mistral_ocr_raw_url und mistral_ocr_raw_metadata enthalten
+    // Hinweis: mistral_ocr_raw_url ist nur ein Indikator - Daten müssen über Download-Endpoint abgerufen werden
+    if (phase === 'error' || hasError) {
       clearWatchdog(jobId);
-      bufferLog(jobId, { phase: 'failed', details: (body as { error?: unknown })?.error });
+      const errorData = (body as { error?: unknown })?.error || (body?.data as { error?: unknown })?.error
+      const errorCode = errorData && typeof errorData === 'object' && 'code' in errorData 
+        ? String((errorData as { code?: unknown }).code)
+        : 'worker_error'
+      const errorMessage = errorData && typeof errorData === 'object' && 'message' in errorData
+        ? String((errorData as { message?: unknown }).message)
+        : 'Externer Worker-Fehler'
+      
+      // Bei Error-Webhooks können auch extracted_text, mistral_ocr_raw_url und mistral_ocr_raw_metadata vorhanden sein
+      // Diese sollten trotzdem verarbeitet werden, auch wenn der Job als failed markiert wird
+      // Hinweis: mistral_ocr_raw_url ist nur ein Indikator - vollständige Daten müssen über Download-Endpoint abgerufen werden
+      const errorExtractedText = (body?.data as { extracted_text?: unknown })?.extracted_text as string | undefined
+      const errorMistralOcrRawUrl = (body?.data as { mistral_ocr_raw_url?: unknown })?.mistral_ocr_raw_url as string | undefined
+      const errorMistralOcrRawMetadata = (body?.data as { mistral_ocr_raw_metadata?: unknown })?.mistral_ocr_raw_metadata
+      
+      bufferLog(jobId, { 
+        phase: 'failed', 
+        details: errorData,
+        hasExtractedText: !!errorExtractedText,
+        hasMistralOcrRawUrl: !!errorMistralOcrRawUrl,
+        hasMistralOcrRawMetadata: !!errorMistralOcrRawMetadata
+      });
+      
       // Bei Fehler: gepufferte Logs persistieren
       // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
       void drainBufferedLogs(jobId);
-      await repo.setStatus(jobId, 'failed', { error: { code: 'worker_error', message: 'Externer Worker-Fehler', details: ((body as { error?: unknown })?.error || {}) as Record<string, unknown> } });
-      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: (body as { error?: { message?: string } })?.error?.message, jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+      
+      // Speichere auch extracted_text im Payload, falls vorhanden (für spätere Verarbeitung)
+      if (errorExtractedText) {
+        try {
+          await repo.setResult(jobId, { extracted_text: errorExtractedText }, job.result || {})
+        } catch {}
+      }
+      
+      await handleJobErrorWithDetails(
+        new Error(errorMessage),
+        {
+          jobId,
+          userEmail: job.userEmail,
+          jobType: job.job_type,
+          fileName: job.correlation?.source?.name,
+          sourceItemId: job.correlation?.source?.itemId,
+        },
+        repo,
+        errorCode,
+        {
+          ...(errorData as Record<string, unknown> || {}),
+          ...(errorMistralOcrRawUrl ? { mistral_ocr_raw_url: errorMistralOcrRawUrl } : {}),
+          ...(errorMistralOcrRawMetadata ? { mistral_ocr_raw_metadata: errorMistralOcrRawMetadata } : {}),
+        },
+        'extract'
+      );
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed' });
     }
 
     // Finale Payload
     const extractedText: string | undefined = (body?.data as { extracted_text?: unknown })?.extracted_text as string | undefined;
     const imagesArchiveUrlFromWorker: string | undefined = (body?.data as { images_archive_url?: unknown })?.images_archive_url as string | undefined;
+    
+    // Mistral OCR: pages_archive_data kann direkt als Base64 vorhanden sein (Legacy)
+    const pagesArchiveData: string | undefined = (body?.data as { pages_archive_data?: unknown })?.pages_archive_data as string | undefined;
+    // Mistral OCR: pages_archive_url ist die neue Variante (ZIP-Download von URL)
+    const pagesArchiveUrl: string | undefined = (body?.data as { pages_archive_url?: unknown })?.pages_archive_url as string | undefined;
+    const imagesArchiveData: string | undefined = (body?.data as { images_archive_data?: unknown })?.images_archive_data as string | undefined;
+    
+    // Mistral OCR: Asynchroner Webhook sendet nur mistral_ocr_raw_url und mistral_ocr_raw_metadata
+    // Die vollständigen mistral_ocr_raw Daten müssen über den Download-Endpoint abgerufen werden
+    const mistralOcrRawUrl: string | undefined = (body?.data as { mistral_ocr_raw_url?: unknown })?.mistral_ocr_raw_url as string | undefined
+    const mistralOcrRawMetadata: unknown = (body?.data as { mistral_ocr_raw_metadata?: unknown })?.mistral_ocr_raw_metadata
+    let mistralOcrRaw: unknown = (body?.data as { mistral_ocr_raw?: unknown })?.mistral_ocr_raw // Legacy: nur für Rückwärtskompatibilität
+    
+    // Mistral OCR: mistral_ocr_images_url enthält eingebettete Bilder als ZIP-Archiv
+    // WICHTIG: Bilder sind NIEMALS in mistral_ocr_raw eingebettet, sondern werden separat bereitgestellt
+    const mistralOcrImagesUrl: string | undefined = (body?.data as { mistral_ocr_images_url?: unknown })?.mistral_ocr_images_url as string | undefined
+    
+    // Wenn mistral_ocr_raw_url oder mistral_ocr_raw_metadata vorhanden ist, lade die Daten über den Download-Endpoint
+    if ((mistralOcrRawUrl || mistralOcrRawMetadata) && !mistralOcrRaw) {
+      const downloadedRaw = await downloadMistralOcrRaw(body, jobId)
+      if (downloadedRaw) {
+        mistralOcrRaw = downloadedRaw
+      }
+    }
+    
+    // Debug: Logge kompletten Body-Struktur für Troubleshooting
+    FileLogger.info('callback-route', 'Callback Body Structure', {
+      jobId,
+      phase: body?.phase,
+      hasData: !!body?.data,
+      dataKeys: body?.data && typeof body.data === 'object' ? Object.keys(body.data as Record<string, unknown>) : [],
+      hasExtractedText: !!extractedText,
+      hasPagesArchiveUrl: !!pagesArchiveUrl,
+      hasPagesArchiveData: !!pagesArchiveData,
+      hasMistralOcrRaw: !!mistralOcrRaw,
+      hasMistralOcrRawUrl: !!mistralOcrRawUrl,
+      hasMistralOcrRawMetadata: !!mistralOcrRawMetadata,
+      hasMistralOcrImagesUrl: !!mistralOcrImagesUrl,
+      mistralOcrRawType: typeof mistralOcrRaw,
+      pagesArchiveUrlValue: pagesArchiveUrl,
+    });
+    const hasMistralOcrImages = mistralOcrRaw && typeof mistralOcrRaw === 'object' && 'pages' in mistralOcrRaw
+      ? Array.isArray((mistralOcrRaw as { pages?: unknown }).pages) && (mistralOcrRaw as { pages: Array<{ images?: Array<{ image_base64?: string | null }> }> }).pages.some(
+          (page) => page.images && page.images.length > 0 && page.images.some(img => img.image_base64 && img.image_base64 !== null)
+        )
+      : false;
+    
+    // Debug-Logging für Bilder-Verfügbarkeit
+    bufferLog(jobId, { 
+      phase: 'images_check', 
+      message: 'Bilder-Verfügbarkeit prüfen',
+      hasPagesArchiveData: !!pagesArchiveData,
+      hasPagesArchiveUrl: !!pagesArchiveUrl,
+      hasImagesArchiveData: !!imagesArchiveData,
+      hasImagesArchiveUrl: !!imagesArchiveUrlFromWorker,
+      hasMistralOcrImages,
+      hasMistralOcrImagesUrl: !!mistralOcrImagesUrl,
+      pagesArchiveDataLength: pagesArchiveData?.length || 0,
+      imagesArchiveDataLength: imagesArchiveData?.length || 0,
+      bodyPhase: body?.phase,
+      bodyDataKeys: body?.data && typeof body.data === 'object' ? Object.keys(body.data as Record<string, unknown>) : [],
+      mistralOcrRawType: typeof mistralOcrRaw,
+      mistralOcrRawKeys: mistralOcrRaw && typeof mistralOcrRaw === 'object' ? Object.keys(mistralOcrRaw as Record<string, unknown>) : [],
+    });
 
-    if (!extractedText && !imagesArchiveUrlFromWorker && body?.phase !== 'template_completed') {
+    // Prüfe auch auf pages_archive_data, pages_archive_url, mistral_ocr_images_url und mistral_ocr_raw für Mistral OCR
+    // WICHTIG: mistral_ocr_images_url ist ein separater Endpoint für eingebettete Bilder (nicht in mistral_ocr_raw)
+    if (!extractedText && !imagesArchiveUrlFromWorker && !pagesArchiveData && !pagesArchiveUrl && !imagesArchiveData && !mistralOcrImagesUrl && !hasMistralOcrImages && body?.phase !== 'template_completed') {
       bumpWatchdog(jobId);
       bufferLog(jobId, { phase: 'noop' });
       return NextResponse.json({ status: 'ok', jobId, kind: 'noop' });
@@ -207,48 +413,37 @@ export async function POST(
     const templatePhaseEnabled = phasesParam?.template !== false;
     const ingestPhaseEnabled = phasesParam?.ingest !== false;
     const imagesPhaseEnabled = (job.parameters && typeof job.parameters === 'object' && (job.parameters as { phases?: { images?: boolean } }).phases) ? ((job.parameters as { phases?: { images?: boolean } }).phases!.images !== false) : true
+    
+    bufferLog(jobId, { 
+      phase: 'phases_check', 
+      message: 'Phasen-Status prüfen',
+      templatePhaseEnabled,
+      ingestPhaseEnabled,
+      imagesPhaseEnabled,
+      hasExtractedText: !!extractedText,
+      hasPagesArchiveData: !!pagesArchiveData,
+      hasPagesArchiveUrl: !!pagesArchiveUrl,
+      hasMistralOcrImages,
+        hasMistralOcrImagesUrl: !!mistralOcrImagesUrl,
+      hasImagesArchiveUrl: !!imagesArchiveUrlFromWorker
+    });
 
     // Kurzschluss: Extract‑Only (Template und Ingest deaktiviert)
     if (!templatePhaseEnabled && !ingestPhaseEnabled) {
-      try { await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'phase_disabled' } }); } catch {}
-      try { await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'phase_disabled' } }); } catch {}
-
-      // Falls möglich: Shadow‑Twin direkt speichern, damit Datei im Zielordner erscheint
-      let savedItemId: string | undefined
-      try {
-        if (extractedText) {
-          const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
-          const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-          const uniqueName = `${baseName}.${lang}.md`
-          const parentId = job.correlation?.source?.parentId || 'root'
-          const { createMarkdownWithFrontmatter } = await import('@/lib/markdown/compose')
-          const ssotFlat: Record<string, unknown> = {
-            job_id: jobId,
-            source_file: job.correlation.source?.name || baseName,
-            extract_status: 'completed',
-            template_status: 'skipped',
-            summary_language: lang,
-          }
-          const markdown = createMarkdownWithFrontmatter(extractedText, ssotFlat)
-          const saved = await saveMarkdown({ ctx, parentId, fileName: uniqueName, markdown })
-          savedItemId = saved.savedItemId
-        }
-      } catch {}
-
-      // Extract-Phase sauber abschließen
-      try { await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date() }) } catch {}
-      try { await repo.traceEndSpan(jobId, 'extract', 'completed', {}) } catch {}
-
-      await repo.setStatus(jobId, 'completed');
-      clearWatchdog(jobId);
-      await repo.setResult(jobId, {
-        extracted_text: extractedText,
-        images_archive_url: imagesArchiveUrlFromWorker || undefined,
-        metadata: (body?.data as { metadata?: unknown })?.metadata as Record<string, unknown> | undefined,
-      }, { savedItemId, savedItems: savedItemId ? [savedItemId] : [] });
-      await repo.appendLog(jobId, { phase: 'completed', message: 'Job abgeschlossen (extract only: phases disabled)' } as unknown as Record<string, unknown>);
-      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
-      return NextResponse.json({ status: 'ok', jobId, kind: 'extract_only', savedItemId });
+      const result = await runExtractOnly(
+        ctx,
+        repo,
+        extractedText,
+        pagesArchiveData,
+        pagesArchiveUrl,
+        imagesArchiveData,
+        imagesArchiveUrlFromWorker,
+        mistralOcrRaw,
+        hasMistralOcrImages,
+        mistralOcrImagesUrl,
+        imagesPhaseEnabled
+      )
+      return NextResponse.json({ status: 'ok', jobId, kind: 'extract_only', savedItemId: result.savedItemId })
     }
 
     // Bibliothek laden (um Typ zu bestimmen)
@@ -274,427 +469,104 @@ export async function POST(
     }
 
     if (lib) {
-      // NEU: PreProcessAnalyzer – bestimmt vorhandene Artefakte und FM-Qualität
-      // PreProcess als eigener Span zur besseren Übersicht – nur wenn noch nicht gelaufen
-      let pre: Awaited<ReturnType<typeof preprocess>> | null = null
-      let hasPreSpan = false
-      try {
-        const latest = await repo.get(jobId)
-        const spans = (latest as unknown as { trace?: { spans?: Array<{ spanId?: string }> } })?.trace?.spans || []
-        hasPreSpan = Array.isArray(spans) && spans.some(s => (s?.spanId || '') === 'preprocess')
-      } catch {}
-      if (!hasPreSpan) {
-        try { await repo.traceStartSpan(jobId, { spanId: 'preprocess', parentSpanId: 'job', name: 'preprocess' }) } catch {}
-        pre = await preprocess(ctx)
-        try { await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: 'preprocess_summary', attributes: { hasMarkdown: pre.hasMarkdown, hasFrontmatter: pre.hasFrontmatter, frontmatterValid: pre.frontmatterValid } }) } catch {}
-        try { await repo.traceEndSpan(jobId, 'preprocess', 'completed', {}) } catch {}
-      }
       const policies = readPhasesAndPolicies(ctx);
       const autoSkip = true;
 
-      if (lib) {
         // Einheitliche Serverinitialisierung des Providers (DB-Config, Token enthalten)
+        // Provider wird einmal erstellt und an alle Module weitergegeben
         const provider = await buildProvider({ userEmail: job.userEmail, libraryId: job.libraryId, jobId, repo })
 
-        const targetParentId = job.correlation?.source?.parentId || 'root';
+        // DETERMINISTISCHE ARCHITEKTUR: Verwende Shadow-Twin-Verzeichnis aus Job-State
+        // Der Kontext wurde beim Job-Start bestimmt und im Job-State gespeichert
+        // Jeder Job hat seinen eigenen isolierten Kontext - keine gegenseitige Beeinflussung
+        const shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
+        const targetParentId = shadowTwinFolderId || job.correlation?.source?.parentId || 'root';
 
-        // Optionale Template-Verarbeitung (Phase 2)
-        let metadataFromTemplate: Record<string, unknown> | null = null;
-        let templateStatus: 'completed' | 'failed' | 'skipped' = 'completed';
-        let templateSkipped = false;
-        let templateCompletedMarked = false;
-        // Gate für Transform-Template (Phase 2)
-        let templateGateExists = false;
-        // NEU: Frontmatter-Vollständigkeit aus Callback/Body als primäres Gate verwenden
-        const fmFromBodyUnknown = (body?.data?.metadata as unknown) || null;
-        const fmFromBody = (fmFromBodyUnknown && typeof fmFromBodyUnknown === 'object' && !Array.isArray(fmFromBodyUnknown)) ? (fmFromBodyUnknown as Record<string, unknown>) : null;
-        const hasChaptersInBody = Array.isArray((fmFromBody as { chapters?: unknown })?.chapters) && ((fmFromBody as { chapters: unknown[] }).chapters as unknown[]).length > 0;
-        const pagesRawInBody = (fmFromBody as { pages?: unknown })?.pages as unknown;
-        const pagesNumInBody = typeof pagesRawInBody === 'number' ? pagesRawInBody : (typeof pagesRawInBody === 'string' ? Number(pagesRawInBody) : NaN);
-        const isFrontmatterCompleteFromBody = !!fmFromBody && hasChaptersInBody && Number.isFinite(pagesNumInBody) && (pagesNumInBody as number) > 0;
-        const bodyPhaseStr = typeof (body as { phase?: unknown })?.phase === 'string' ? String((body as { phase?: unknown }).phase) : ''
-        const isTemplateCompletedCallback = bodyPhaseStr === 'template_completed'
-        if (isFrontmatterCompleteFromBody && policies.metadata !== 'force' && !isTemplateCompletedCallback) {
-          templateGateExists = true;
-          bufferLog(jobId, { phase: 'transform_gate_skip', message: 'frontmatter_complete_body' });
-        }
+        // Optionale Template-Verarbeitung (Phase 2) - vereinfacht via runTemplatePhase
+        const fmFromBodyUnknown = (body?.data?.metadata as unknown) || null
+        const fmFromBody = (fmFromBodyUnknown && typeof fmFromBodyUnknown === 'object' && !Array.isArray(fmFromBodyUnknown)) ? (fmFromBodyUnknown as Record<string, unknown>) : null
 
-        // Reparatur-Erkennung erfolgt in decideTemplateRun; lokale Probe entfernt
-        // Entscheidung modular treffen (inkl. Gate/Repair-Probe/Logging)
-        const decision = await decideTemplateRun({
+        const templateResult = await runTemplatePhase({
           ctx,
-          policies,
-              isFrontmatterCompleteFromBody,
-          templateGateExists,
+          provider,
+          repo,
+          extractedText: extractedText || '',
+          bodyMetadata: fmFromBody || undefined,
+          policies: { metadata: policies.metadata as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
           autoSkip,
-          isTemplateCompletedCallback,
-          // Vereinfachung: Preprocess-Ergebnis als primärer Trigger
-          // @ts-expect-error - zusätzliche Info, interne Nutzung
-          preNeedTemplate: ((): boolean => {
-            if (policies.metadata === 'force') return true
-            if (policies.metadata === 'skip') return false
-            if (pre && typeof pre.frontmatterValid === 'boolean') return !pre.frontmatterValid
-            return !isFrontmatterCompleteFromBody
-          })(),
+          imagesPhaseEnabled,
+              pagesArchiveData,
+              pagesArchiveUrl,
+              pagesArchiveFilename: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename,
+              imagesArchiveData,
+              imagesArchiveFilename: (body?.data as { images_archive_filename?: string })?.images_archive_filename,
+              imagesArchiveUrl: imagesArchiveUrlFromWorker,
+              mistralOcrRaw,
+              hasMistralOcrImages,
+          mistralOcrImagesUrl,
+              targetParentId,
+          libraryConfig: undefined, // libraryConfig wird derzeit nicht verwendet
         })
-        const shouldRunTemplate = decision.shouldRun
-        if (!shouldRunTemplate) {
-          bufferLog(jobId, { phase: 'transform_meta_skipped', message: 'Template-Transformation übersprungen (Phase 1)' });
-          // Sichtbares Step-/Trace-Update für UI/Monitoring – nur wenn noch KEIN Template-Span existiert
-          let hasTemplateSpan = false;
-          try {
-            const latest = await repo.get(jobId)
-            const spans = (latest as unknown as { trace?: { spans?: Array<{ spanId?: string }> } })?.trace?.spans || []
-            hasTemplateSpan = Array.isArray(spans) && spans.some(s => (s?.spanId || '') === 'template')
-          } catch {}
-          if (!hasTemplateSpan) {
-            const callbackReceivedAt = new Date();
-            try { await repo.traceStartSpan(jobId, { spanId: 'template', parentSpanId: 'job', name: 'transform_template', startedAt: callbackReceivedAt }); } catch {}
-            try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'transform_gate_skip', attributes: { message: 'frontmatter_complete_body' } }); } catch {}
-            try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'transform_meta_skipped', attributes: { reason: 'frontmatter_complete_body' } }); } catch {}
-            try { await repo.traceEndSpan(jobId, 'template', 'skipped', { reason: 'frontmatter_complete_body' }); } catch {}
-            // Step-Markierung nur im reinen Skip-Fall
-            try { await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'frontmatter_complete_body' } }); } catch {}
-          }
-          // SSOT: bereits geliefertes Frontmatter direkt übernehmen
-          try {
-            if (fmFromBody) {
-              docMetaForIngestion = { ...fmFromBody } as Record<string, unknown>
-              await repo.appendMeta(jobId, docMetaForIngestion, 'template_transform')
-            }
-          } catch {}
-          templateSkipped = true;
-        } else {
-          // Idempotenz: Bereits abgeschlossenen Step nicht erneut ausführen (außer 'force')
-          let templateAlreadyCompleted = false;
-          try {
-            const latest = await repo.get(jobId);
-            const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === 'transform_template') : undefined;
-            templateAlreadyCompleted = !!st && st.status === 'completed';
-          } catch {}
-          if (templateAlreadyCompleted && policies.metadata !== 'force') {
-            // Kein Completed-Event mehr erzeugen; späterer Flow setzt completed nach Speichern
-            bufferLog(jobId, { phase: 'transform_gate_skip', message: 'already_completed' });
-            templateStatus = 'skipped';
-          } else {
-            try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_start' }) } catch {}
-            await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() });
-            try {
-            // Templates wählen via Modul
-            const { pickTemplate } = await import('@/lib/external-jobs/template-files')
-              const preferredTemplate = ((lib.config?.chat as unknown as { transformerTemplate?: string })?.transformerTemplate || '').trim();
-            const picked = await pickTemplate({ provider, repo, jobId, preferredTemplateName: preferredTemplate })
-            if (picked?.templateContent) {
-              const templateContent = picked.templateContent
-              await repo.appendMeta(jobId, { template_used: picked.templateName }, 'template_pick');
 
-              const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de';
-              const tr = await runTemplateTransform({ ctx, extractedText: extractedText || '', templateContent, targetLanguage: lang })
-              metadataFromTemplate = tr.meta as unknown as Record<string, unknown> | null
-              if (metadataFromTemplate) bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
-              else { bufferLog(jobId, { phase: 'transform_meta_failed', message: 'Transformer lieferte kein gültiges JSON' }); templateStatus = 'failed' }
-              try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_after_transform', attributes: { hasMeta: !!metadataFromTemplate } }) } catch {}
-            }
-          } catch(err) {
-            console.error(err);
-            bufferLog(jobId, { phase: 'transform_meta_error', message: 'Fehler bei Template-Transformation: ' + (err instanceof Error ? err.message : 'Unbekannter Fehler') });
-            templateStatus = 'failed';
-          }
-          }
-        }
-
-        // Frontmatter bestimmen (bestehendes FM als Basis, nur Kapitel-Seiten reparieren)
-        const baseMeta = (body?.data?.metadata as Record<string, unknown>) || {};
-        const finalMeta: Record<string, unknown> = metadataFromTemplate ? { ...metadataFromTemplate } : { ...baseMeta };
-        if (!templateSkipped) {
-          docMetaForIngestion = finalMeta;
-          await repo.appendMeta(jobId, finalMeta, 'template_transform');
-        }
-        // WICHTIG: Completion erst NACH dem Speichern (siehe unten)
-        if (templateStatus === 'failed') {
-          await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date() });
-        }
-
-        // Fatal: Wenn Template-Transformation gestartet wurde, aber fehlgeschlagen ist, abbrechen
-        if (templateStatus === 'failed') {
-          clearWatchdog(jobId);
-          bufferLog(jobId, { phase: 'failed', message: 'Template-Transformation fehlgeschlagen (fatal)' });
-          // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
-          void drainBufferedLogs(jobId);
-          await repo.setStatus(jobId, 'failed', { error: { code: 'template_failed', message: 'Template-Transformation fehlgeschlagen' } });
-          getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Template-Transformation fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
-          return NextResponse.json({ status: 'ok', jobId, kind: 'failed_template' });
-        }
-
-        const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '');
-        const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de';
-        const uniqueName = `${baseName}.${lang}.md`;
-
-        // SSOT: Flache, UI-taugliche Metafelder ergänzen (nur auf stabilem Meilenstein)
-        const ssotFlat: Record<string, unknown> = {
-          job_id: jobId,
-          source_file: job.correlation.source?.name || baseName,
-          extract_status: 'completed',
-          template_status: templateStatus,
-        };
-        // optionale Summary-Werte aus bereits vorhandenen Metadaten übernehmen, wenn vorhanden
-        if (typeof (finalMeta as Record<string, unknown>)['summary_pages'] === 'number') ssotFlat['summary_pages'] = (finalMeta as Record<string, unknown>)['summary_pages'];
-        if (typeof (finalMeta as Record<string, unknown>)['summary_chunks'] === 'number') ssotFlat['summary_chunks'] = (finalMeta as Record<string, unknown>)['summary_chunks'];
-        ssotFlat['summary_language'] = lang;
-
-        // Kapitel zentral normalisieren (Analyze-Endpoint), Ergebnis in Frontmatter mergen
-        // Bestehendes Frontmatter laden (falls Datei existiert) und als Basis verwenden
-        let existingMeta: Record<string, unknown> | null = null;
-        try {
-          const siblings = await provider.listItemsById(targetParentId);
-          const existing = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === uniqueName) as { id: string } | undefined;
-          if (existing) {
-            const bin = await provider.getBinary(existing.id);
-            const text = await bin.blob.text();
-            const parsed = parseSecretaryMarkdownStrict(text);
-            existingMeta = parsed?.meta && typeof parsed.meta === 'object' ? parsed.meta as Record<string, unknown> : null;
-          }
-        } catch {}
-        // Basis-Merge: bevorzugt Template-Felder, aber Kapitel stammen standardmäßig aus bestehendem Frontmatter
-        const existingChaptersPref: unknown = existingMeta && typeof existingMeta === 'object' ? (existingMeta as Record<string, unknown>)['chapters'] : undefined
-        const templateChaptersPref: unknown = finalMeta && typeof finalMeta === 'object' ? (finalMeta as Record<string, unknown>)['chapters'] : undefined
-        const initialChapters: Array<Record<string, unknown>> | undefined = Array.isArray(existingChaptersPref)
-          ? existingChaptersPref as Array<Record<string, unknown>>
-          : (Array.isArray(templateChaptersPref) ? templateChaptersPref as Array<Record<string, unknown>> : undefined)
-        let mergedMeta = { ...(existingMeta || {}), ...finalMeta, ...ssotFlat } as Record<string, unknown>
-        if (initialChapters) (mergedMeta as { chapters: Array<Record<string, unknown>> }).chapters = initialChapters
-        // Quelle für die Kapitelanalyse: bevorzugt frisch geliefertes extractedText, sonst Shadow‑Twin aus Storage
-        let textSource: string = extractedText || ''
-        if (!textSource) {
-          try {
-            const siblings = await provider.listItemsById(targetParentId)
-            const existing = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === uniqueName) as { id: string } | undefined
-            if (existing) {
-              const bin = await provider.getBinary(existing.id)
-              textSource = await bin.blob.text()
-            }
-          } catch { /* ignore */ }
-        }
-        if (!templateSkipped) {
-          // Helper: Frontmatter entfernen
-            const textForAnalysis = stripAllFrontmatter(textSource)
-            const existingChaptersUnknownForApi = (mergedMeta as { chapters?: unknown }).chapters
-            const chaptersInForApi: Array<Record<string, unknown>> | undefined = Array.isArray(existingChaptersUnknownForApi) ? existingChaptersUnknownForApi as Array<Record<string, unknown>> : undefined
-          const chaptersRes = await analyzeAndMergeChapters({ ctx, baseMeta: mergedMeta as unknown as import('@/types/external-jobs').Frontmatter, textForAnalysis, existingChapters: chaptersInForApi as unknown as import('@/types/external-jobs').ChapterMeta[] })
-          mergedMeta = chaptersRes.mergedMeta as unknown as Record<string, unknown>
-        }
-
-        // WICHTIG: Ingestion muss mit den final normalisierten Metadaten arbeiten
-        docMetaForIngestion = mergedMeta
-
-        // Zusätzliche Sicherung: interne Lücken im bestehenden Kapitel-Array auch dann schließen,
-        // wenn die Analyse keine Kapitel geliefert hat (chap.length === 0)
-        try {
-          const exUnknown = (mergedMeta as { chapters?: unknown }).chapters
-          const chs: Array<Record<string, unknown>> = Array.isArray(exUnknown) ? (exUnknown as Array<Record<string, unknown>>) : []
-          if (chs.length >= 2) {
-            // sortiere stabil nach order, fallback: ursprüngliche Reihenfolge
-            const withIdx = chs.map((c, i) => ({ c, i }))
-            withIdx.sort((a, b) => {
-              const ao = typeof (a.c as { order?: unknown }).order === 'number' ? (a.c as { order: number }).order : Number.MAX_SAFE_INTEGER
-              const bo = typeof (b.c as { order?: unknown }).order === 'number' ? (b.c as { order: number }).order : Number.MAX_SAFE_INTEGER
-              return ao === bo ? a.i - b.i : ao - bo
-            })
-            for (let i = 0; i < withIdx.length - 1; i++) {
-              const cur = withIdx[i].c as Record<string, unknown>
-              const nxt = withIdx[i + 1].c as Record<string, unknown>
-              const curEnd = typeof (cur as { endPage?: unknown }).endPage === 'number' ? (cur as { endPage: number }).endPage : undefined
-              const nxtStart = typeof (nxt as { startPage?: unknown }).startPage === 'number' ? (nxt as { startPage: number }).startPage : undefined
-              if (typeof curEnd === 'number' && typeof nxtStart === 'number' && curEnd < (nxtStart - 1)) {
-                (cur as { endPage: number }).endPage = nxtStart - 1
-              }
-              // pageCount ergänzen, wenn beide Seiten vorhanden
-              const curStart = typeof (cur as { startPage?: unknown }).startPage === 'number' ? (cur as { startPage: number }).startPage : undefined
-              const hasCount = typeof (cur as { pageCount?: unknown }).pageCount === 'number'
-              if (!hasCount && typeof curStart === 'number' && typeof (cur as { endPage?: unknown }).endPage === 'number') {
-                (cur as { pageCount: number }).pageCount = Math.max(1, ((cur as { endPage: number }).endPage) - curStart + 1)
-              }
-            }
-          }
-        } catch { /* ignore */ }
-
-        // Doppelte Frontmatter vermeiden: bestehenden Block am Anfang entfernen (auch mehrfach)
-        if (!templateSkipped) {
-          const bodyOnly = ((): string => {
-            return stripAllFrontmatter(textSource)
-          })()
-          const { createMarkdownWithFrontmatter } = await import('@/lib/markdown/compose')
-          const markdown = createMarkdownWithFrontmatter(bodyOnly, mergedMeta)
-          // Zielordner prüfen
-          try { await provider.getPathById(targetParentId) }
-          catch {
-            bufferLog(jobId, { phase: 'store_folder_missing', message: 'Zielordner nicht gefunden' })
-            await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: 'Zielordner nicht gefunden (store)' } })
-            await repo.setStatus(jobId, 'failed', { error: { code: 'STORE_FOLDER_NOT_FOUND', message: 'Zielordner nicht gefunden' } })
-            getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'store_folder_missing', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId })
-            return NextResponse.json({ status: 'error', jobId, kind: 'store_folder_missing' }, { status: 500 })
-          }
-          // Speichern via Modul
-          const saved = await saveMarkdown({ ctx, parentId: targetParentId, fileName: uniqueName, markdown })
-          savedItemId = saved.savedItemId
-        try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'postprocessing_saved', attributes: { savedItemId } }) } catch {}
-        }
-        // Final: Template zuverlässig abschließen (keine Hänger)
-        try {
-          if (!templateSkipped) {
-            await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { source: 'primary' } })
-            templateCompletedMarked = true
-          }
-        } finally {
-          // Falls der Step weder failed noch completed gesetzt wurde, hier abschließen
-          try {
-            const latest = await repo.get(jobId)
-            const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === 'transform_template') : undefined
-            if (!templateCompletedMarked && (!st || (st.status !== 'completed' && st.status !== 'failed'))) {
-              await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { source: 'fallback' } })
-            }
-          } catch {}
-          try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_completed' }) } catch {}
-        }
-
-        // Entfernt: frühes Doc‑Meta‑Upsert. Doc‑Meta wird erst am Ende der Ingestion final geschrieben.
-
-        // Bilder-ZIP optional verarbeiten (modular)
-        if (imagesArchiveUrlFromWorker && imagesPhaseEnabled) {
-          try {
-            const imageRes = await maybeProcessImages({ ctx, parentId: targetParentId, imagesZipUrl: imagesArchiveUrlFromWorker, extractedText, lang })
-            if (imageRes && Array.isArray(imageRes.savedItemIds)) savedItems.push(...imageRes.savedItemIds)
-            try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'images_processed', attributes: { savedItems: savedItems.length } }) } catch {}
-          } catch {
-            bufferLog(jobId, { phase: 'images_extract_failed', message: 'ZIP-Extraktion fehlgeschlagen' })
+        // Fatal: Wenn Template-Transformation fehlgeschlagen ist, abbrechen
+        if (templateResult.status === 'failed') {
             clearWatchdog(jobId)
+          const errorMessage = templateResult.errorMessage || 'Template-Transformation fehlgeschlagen'
+          bufferLog(jobId, { phase: 'failed', message: `${errorMessage} (fatal)` })
             void drainBufferedLogs(jobId)
-            await repo.setStatus(jobId, 'failed', { error: { code: 'images_extract_failed', message: 'ZIP-Archiv konnte nicht extrahiert werden' } })
-            getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'Bilder-Extraktion fehlgeschlagen', jobType: job.job_type, fileName: job.correlation?.source?.name })
-            return NextResponse.json({ status: 'ok', jobId, kind: 'failed_images_extract' })
-          }
+          await handleJobError(
+            new Error(errorMessage),
+            {
+              jobId,
+              userEmail: job.userEmail,
+              jobType: job.job_type,
+              fileName: job.correlation?.source?.name,
+              sourceItemId: job.correlation?.source?.itemId,
+            },
+            repo,
+            'template_failed',
+            'template'
+          )
+          return NextResponse.json({ status: 'ok', jobId, kind: 'failed_template' })
         }
+
+        // Metadaten für Ingestion setzen
+        docMetaForIngestion = templateResult.metadata
+        savedItemId = templateResult.savedItemId
+
+      // Bilder-Verarbeitung wurde bereits in runTemplatePhase durchgeführt
+      if (imagesPhaseEnabled && templateResult.savedItemId) {
+        savedItems.push(templateResult.savedItemId)
       }
 
-      // Schritt: ingest_rag (optional automatisiert)
+      // Schritt: ingest_rag (optional automatisiert) - vereinfacht via runIngestPhase
       try {
-        const phasesParam = (job.parameters && typeof job.parameters === 'object') ? (job.parameters as { phases?: { ingest?: boolean } }).phases : undefined;
-        const hardDisableIngest = phasesParam?.ingest === false;
-        if (!hardDisableIngest) {
-        // Gate für Ingestion (Phase 3)
-        const autoSkip = true;
-        let ingestGateExists = false;
-        if (autoSkip) {
-          const g = await gateIngestRag({
+        const phasesParam = (job.parameters && typeof job.parameters === 'object') ? (job.parameters as { phases?: { ingest?: boolean } }).phases : undefined
+        const hardDisableIngest = phasesParam?.ingest === false
+        if (!hardDisableIngest && savedItemId && docMetaForIngestion) {
+          // Step starten
+          await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() })
+          try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_start', attributes: { libraryId: job.libraryId } }) } catch {}
+          try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 10, updatedAt: new Date().toISOString(), message: 'ingest_start', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, libraryId: job.libraryId }) } catch {}
+
+          // Ingest-Phase ausführen
+          const ingestResult = await runIngestPhase({
+            ctx,
+            provider,
             repo,
-            jobId,
-            userEmail: job.userEmail,
-            library: lib,
-            source: job.correlation?.source,
-            options: job.correlation?.options as { targetLanguage?: string } | undefined,
-            ingestionCheck: async ({ userEmail, libraryId, fileId }: { userEmail: string; libraryId: string; fileId: string }) => {
-              // Prüfe Doc‑Vektor existiert (kind:'doc' + fileId)
-              try {
-                const ctx = await (await import('@/lib/chat/loader')).loadLibraryChatContext(userEmail, libraryId)
-                const apiKey = process.env.PINECONE_API_KEY
-                if (!ctx || !apiKey) return false
-                const idx = await (await import('@/lib/chat/pinecone')).describeIndex(ctx.vectorIndex, apiKey)
-                if (!idx?.host) return false
-                const list = await (await import('@/lib/chat/pinecone')).listVectors(idx.host, apiKey, { kind: 'doc', user: userEmail, libraryId, fileId })
-                return Array.isArray(list) && list.length > 0
-              } catch {
-                return false
-              }
-            }
+            markdown: extractedText || '',
+            meta: docMetaForIngestion,
+            savedItemId,
+            policies: { ingest: policies.ingest as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
+            extractedText,
           })
-          if (g.exists) {
-            ingestGateExists = true;
-            await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: g.reason } });
-                bufferLog(jobId, { phase: 'ingest_gate_skip', message: g.reason || 'artifact_exists' });
-            // Wenn geskippt, keinen weiteren Ingestion-Versuch starten
-            // dennoch Abschluss unten fortsetzen
-          } else {
-            await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
-                bufferLog(jobId, { phase: 'ingest_gate_plan', message: 'Ingestion wird ausgeführt' });
+
+          if (ingestResult.error) {
+            return NextResponse.json({ status: 'error', jobId, kind: 'failed_ingestion', reason: ingestResult.error }, { status: 500 })
           }
-        } else {
-          await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() });
+        } else if (hardDisableIngest) {
+          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } })
         }
-        // fileId ist weiter unten definiert; hier noch nicht verfügbar
-        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_start', attributes: { libraryId: job.libraryId } }); } catch {}
-        // Kompakte Progress-Events (SSE) für Ingestion
-        try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 10, updatedAt: new Date().toISOString(), message: 'ingest_start', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
-        const paramsObj = job.parameters && typeof job.parameters === 'object' ? job.parameters as Record<string, unknown> : undefined
-        // Neue, einfache Policy: 'do' | 'force' | 'skip'
-        const rawPolicy = (paramsObj?.['ingestPolicy'] as unknown)
-        const legacyPolicies = paramsObj && typeof paramsObj['policies'] === 'object' ? paramsObj['policies'] as { ingest?: unknown } : undefined
-        const legacyPhases = paramsObj && typeof paramsObj['phases'] === 'object' ? paramsObj['phases'] as { ingest?: unknown } : undefined
-        const legacyFlag = paramsObj ? (paramsObj['doIngestRAG'] as unknown) : undefined
-        const ingestPolicy: 'do' | 'force' | 'skip' = ((): 'do' | 'force' | 'skip' => {
-          if (rawPolicy === 'force' || rawPolicy === 'skip' || rawPolicy === 'do') return rawPolicy
-          if (legacyPhases?.ingest === false) return 'skip'
-          if (legacyPolicies?.ingest === false) return 'skip'
-          if (legacyPolicies?.ingest === true || legacyPhases?.ingest === true || (typeof legacyFlag === 'boolean' && legacyFlag)) return 'do'
-          return 'do'
-        })()
-        const useIngestion = ingestPolicy !== 'skip'
-        bufferLog(jobId, { phase: 'ingest_rag', message: `Ingestion decision: ${useIngestion ? 'do' : 'skip'}` })
-        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_decision', attributes: { useIngestion, doIngestRAG: typeof legacyFlag === 'boolean' ? legacyFlag : undefined, policiesIngest: legacyPolicies?.ingest, phasesIngest: legacyPhases?.ingest } }); } catch {}
-        if (useIngestion && !ingestGateExists) {
-          // Lade gespeicherten Markdown-Inhalt erneut (vereinfachend: extractedText)
-          // Stabiler Schlüssel: Original-Quell-Item (PDF) bevorzugen, sonst Shadow‑Twin, sonst Fallback
-          const fileId = (job.correlation.source?.itemId as string | undefined) || savedItemId || `${jobId}-md`;
-          const fileName = `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`;
-          // Fallback: Wenn kein extractedText, versuche Markdown aus Storage zu laden
-          let markdownForIngestion = extractedText || ''
-          if (!markdownForIngestion) {
-            try {
-              const provider = await getServerProvider(job.userEmail, job.libraryId)
-              // Suche Datei im Parent anhand erwarteten Namens
-              const parentId = job.correlation.source?.parentId || 'root'
-              const siblings = await provider.listItemsById(parentId)
-              const twin = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === fileName) as { id: string } | undefined
-              if (twin) {
-                const bin = await provider.getBinary(twin.id)
-                markdownForIngestion = await bin.blob.text()
-              }
-            } catch {}
-          }
-          let res
-          try {
-            res = await runIngestion({ ctx, savedItemId: fileId, fileName, markdown: markdownForIngestion, meta: docMetaForIngestion as unknown as Record<string, unknown> })
-          } catch (err) {
-            // Ingestion fehlgeschlagen → Step/Job als failed markieren
-            const reason = (() => {
-              if (err && typeof err === 'object') {
-                const e = err as { message?: unknown }
-                const msg = typeof e.message === 'string' ? e.message : undefined
-                return msg || String(err)
-              }
-              return String(err)
-            })()
-            bufferLog(jobId, { phase: 'ingest_rag_failed', message: reason })
-            FileLogger.error('external-jobs', 'Ingestion failed (fatal)', err)
-            await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'RAG Ingestion fehlgeschlagen', details: { reason } } });
-            await repo.setStatus(jobId, 'failed', { error: { code: 'ingestion_failed', message: reason } })
-            getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message: 'ingestion_failed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId })
-            return NextResponse.json({ status: 'error', jobId, kind: 'failed_ingestion', reason }, { status: 500 })
-          }
-          // Nach Chunking (50-70%)
-          try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 60, updatedAt: new Date().toISOString(), message: 'ingest_chunking_done', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
-          const total = res.chunksUpserted + (res.docUpserted ? 1 : 0)
-          await repo.setIngestion(jobId, { upsertAt: new Date(), vectorsUpserted: total, index: res.index });
-          // Zusammenfassung loggen
-          bufferLog(jobId, { phase: 'ingest_rag', message: `RAG-Ingestion: ${res.chunksUpserted} Chunks, ${res.docUpserted ? 1 : 0} Doc` });
-          try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_pinecone_upserted', attributes: { chunks: res.chunksUpserted, doc: res.docUpserted, total, vectorFileId: fileId } }); } catch {}
-          try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_doc_id', attributes: { vectorFileId: fileId, fileName } }); } catch {}
-          try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 90, updatedAt: new Date().toISOString(), message: 'ingest_pinecone_upserted', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
-          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date() });
-          try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 95, updatedAt: new Date().toISOString(), message: 'ingest_rag_finished', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId }); } catch {}
-        } else {
-          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } });
-        }
-        } // end !hardDisableIngest
       } catch (err) {
         const reason = (() => {
           if (err && typeof err === 'object') {
@@ -706,12 +578,44 @@ export async function POST(
         })()
         bufferLog(jobId, { phase: 'ingest_rag_failed', message: reason })
         FileLogger.error('external-jobs', 'Ingestion failed', err)
-        await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'RAG Ingestion fehlgeschlagen', details: { reason } } });
+        await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'RAG Ingestion fehlgeschlagen', details: { reason } } })
       }
 
       const completed = await setJobCompleted({ ctx, result: { savedItemId } })
-      // @ts-expect-error custom field for UI refresh
-      getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, refreshFolderId: (job.correlation?.source?.parentId || 'root') });
+      
+      // Aktualisiere Shadow-Twin-State: Setze processingStatus auf 'ready', da Job abgeschlossen ist
+      if (job.shadowTwinState) {
+        const updatedState = { ...job.shadowTwinState, processingStatus: 'ready' as const };
+        await repo.setShadowTwinState(jobId, updatedState);
+        FileLogger.info('callback-route', 'Shadow-Twin-State auf ready gesetzt', {
+          jobId,
+          shadowTwinFolderId: updatedState.shadowTwinFolderId
+        });
+      }
+      
+      // WICHTIG: Refresh sowohl Parent als auch Shadow-Twin-Verzeichnis (falls vorhanden)
+      // Dies stellt sicher, dass beide Ordner aktualisiert werden und die Shadow-Twin-Analyse neu läuft
+      const refreshShadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
+      const parentId = job.correlation?.source?.parentId || 'root'
+      const refreshFolderIds = refreshShadowTwinFolderId && refreshShadowTwinFolderId !== parentId
+        ? [parentId, refreshShadowTwinFolderId]
+        : [parentId]
+      
+      getJobEventBus().emitUpdate(job.userEmail, { 
+        type: 'job_update', 
+        jobId, 
+        status: 'completed', 
+        progress: 100, 
+        updatedAt: new Date().toISOString(), 
+        message: 'completed', 
+        jobType: job.job_type, 
+        fileName: job.correlation?.source?.name, 
+        sourceItemId: job.correlation?.source?.itemId,
+        libraryId: job.libraryId,
+        refreshFolderId: parentId, // Primary refresh folder (für Rückwärtskompatibilität)
+        refreshFolderIds, // Array mit allen zu refreshenden Ordnern (Parent + Shadow-Twin)
+        shadowTwinFolderId: refreshShadowTwinFolderId || null, // Shadow-Twin-Verzeichnis-ID für Client-Analyse
+      } as unknown as import('@/lib/events/job-event-bus').JobUpdateEvent);
       return NextResponse.json({ status: 'ok', jobId: completed.jobId, kind: 'final', savedItemId, savedItemsCount: savedItems.length });
     }
 
@@ -737,9 +641,20 @@ export async function POST(
       if (job) {
         bufferLog(jobId, { phase: 'failed', message });
         await repo.appendLog(jobId, { phase: 'failed', message, details: { code, status } } as unknown as Record<string, unknown>);
-        try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'callback_failed', attributes: { code, status, message } }) } catch {}
-        await repo.setStatus(jobId, 'failed', { error: { code, message } });
-        getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'failed', updatedAt: new Date().toISOString(), message, jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId });
+        await handleJobErrorWithDetails(
+          new Error(message),
+          {
+            jobId,
+            userEmail: job.userEmail,
+            jobType: job.job_type,
+            fileName: job.correlation?.source?.name,
+            sourceItemId: job.correlation?.source?.itemId,
+          },
+          repo,
+          code,
+          { status },
+          'template'
+        );
       }
     } catch {
       // ignore secondary failures
@@ -770,8 +685,30 @@ export async function DELETE(
     // Sicherheit: Laufende Jobs nicht löschen
     if (job.status === 'running') return NextResponse.json({ error: 'Job läuft noch' }, { status: 409 });
 
+    // WICHTIG: Watchdog stoppen, bevor der Job gelöscht wird
+    try {
+      clearWatchdog(jobId);
+    } catch (error) {
+      // Watchdog-Fehler nicht kritisch - Job wird trotzdem gelöscht
+      FileLogger.warn('delete-route', 'Fehler beim Stoppen des Watchdogs', {
+        jobId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
     const ok = await repo.delete(jobId);
     if (!ok) return NextResponse.json({ error: 'Löschen fehlgeschlagen' }, { status: 500 });
+    
+    // Event-Bus benachrichtigen, damit UI aktualisiert wird
+    getJobEventBus().emitUpdate(userEmail, {
+      type: 'job_update',
+      jobId,
+      status: 'deleted',
+      updatedAt: new Date().toISOString(),
+      jobType: job.job_type,
+      fileName: job.correlation?.source?.name,
+    });
+    
     return NextResponse.json({ status: 'deleted', jobId });
   } catch {
     return NextResponse.json({ error: 'Unerwarteter Fehler' }, { status: 500 });

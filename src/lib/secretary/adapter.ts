@@ -50,25 +50,66 @@ export interface TemplateTransformParams {
   text: string;
   targetLanguage: string;
   templateContent: string;
+  sourceLanguage?: string;
+  context?: Record<string, unknown>;
+  additionalFieldDescriptions?: Record<string, string>;
+  useCache?: boolean;
+  callbackUrl?: string | null;
+  callbackToken?: string | null;
+  jobId?: string;
+  waitMs?: number;
   apiKey?: string;
   timeoutMs?: number;
 }
 
+/**
+ * Ruft den Template-Transform-Endpoint des Secretary Services auf.
+ * 
+ * WICHTIG: Verwendet JSON statt FormData für große Payloads.
+ * 
+ * @param p Template-Transform-Parameter
+ * @returns Response vom Secretary Service
+ */
 export async function callTemplateTransform(p: TemplateTransformParams): Promise<Response> {
-  const fd = new FormData();
-  fd.append('text', p.text);
-  fd.append('target_language', p.targetLanguage);
-  fd.append('template_content', p.templateContent);
-  fd.append('use_cache', 'false');
-  const headers: Record<string, string> = { 'Accept': 'application/json' };
-  if (p.apiKey) { headers['Authorization'] = `Bearer ${p.apiKey}`; headers['X-Service-Token'] = p.apiKey; }
+  // JSON-Body erstellen (statt FormData für große Payloads)
+  const body = {
+    text: p.text,
+    template_content: p.templateContent,
+    source_language: p.sourceLanguage || p.targetLanguage, // Fallback auf targetLanguage wenn nicht gesetzt
+    target_language: p.targetLanguage,
+    context: p.context || {},
+    additional_field_descriptions: p.additionalFieldDescriptions || {},
+    use_cache: p.useCache ?? false,
+    callback_url: p.callbackUrl ?? null,
+    callback_token: p.callbackToken ?? null,
+    jobId: p.jobId || undefined,
+    wait_ms: p.waitMs ?? 0
+  }
+  
+  const headers: Record<string, string> = { 
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  }
+  if (p.apiKey) { 
+    headers['Authorization'] = `Bearer ${p.apiKey}`
+    headers['X-Service-Token'] = p.apiKey
+  }
+  
   try {
-    const res = await fetchWithTimeout(p.url, { method: 'POST', body: fd as unknown as BodyInit, headers, timeoutMs: p.timeoutMs });
-    if (!res.ok) throw new HttpError(res.status, res.statusText);
-    return res;
+    const res = await fetchWithTimeout(
+      p.url, 
+      { 
+        method: 'POST', 
+        body: JSON.stringify(body), 
+        headers, 
+        timeoutMs: p.timeoutMs 
+      }
+    )
+    if (!res.ok) throw new HttpError(res.status, res.statusText)
+    return res
   } catch (e) {
-    if (e instanceof HttpError || e instanceof TimeoutError || e instanceof NetworkError) throw e;
-    throw new NetworkError(e instanceof Error ? e.message : String(e));
+    if (e instanceof HttpError || e instanceof TimeoutError || e instanceof NetworkError) throw e
+    throw new NetworkError(e instanceof Error ? e.message : String(e))
   }
 }
 

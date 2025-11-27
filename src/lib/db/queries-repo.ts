@@ -34,29 +34,21 @@ import type { Collection, UpdateFilter } from 'mongodb'
 import type { QueryLog, QueryRetrievalStep } from '@/types/query-log'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
-import { computeDocMetaCollectionName, getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
-import { findLibraryOwnerEmail } from '@/lib/chat/loader'
+import { getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
+import type { Library } from '@/types/library'
+import { getCollectionNameForLibrary } from '@/lib/repositories/doc-meta-repo'
 
 const COLLECTION_NAME = 'queries'
 
 /**
  * Ermittelt die Anzahl der Dokumente in einer Library (GESAMT, ohne Filter)
  * 
- * @param libraryId - ID der Library
- * @param userEmail - E-Mail des Benutzers (optional, wird für Collection-Key benötigt)
+ * @param library - Die Library (mit Config)
  * @returns Anzahl aller Dokumente in der Library (ohne Filter)
  */
-export async function getDocumentCount(libraryId: string, userEmail?: string): Promise<number> {
+export async function getDocumentCount(library: Library): Promise<number> {
   try {
-    // Wenn keine userEmail vorhanden ist, versuche die Owner-Email zu finden
-    let effectiveUserEmail = userEmail
-    if (!effectiveUserEmail) {
-      effectiveUserEmail = await findLibraryOwnerEmail(libraryId) || undefined
-    }
-    
-    // Wenn immer noch keine Email vorhanden ist, verwende leeren String (für öffentliche Libraries)
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(effectiveUserEmail || '', libraryId, strategy)
+    const libraryKey = getCollectionNameForLibrary(library)
     const col = await getDocMetaCollection(libraryKey)
     
     // Zähle alle Dokumente in der Collection (ohne Filter)
@@ -75,26 +67,23 @@ export async function getDocumentCount(libraryId: string, userEmail?: string): P
  * Sie wird für den Cache-Hash verwendet, um sicherzustellen, dass der Cache invalidiert wird,
  * wenn neue Dokumente hinzugefügt werden, die zu den Filtern passen.
  * 
- * @param libraryId - ID der Library
+ * @param library - Die Library (mit Config)
  * @param filter - MongoDB-Filter für Dokumente (z.B. { track: { $in: ['Community track'] } })
- * @param userEmail - E-Mail des Benutzers (optional, wird für Collection-Key benötigt)
  * @returns Anzahl der gefilterten Dokumente
  */
 export async function getFilteredDocumentCount(
-  libraryId: string,
-  filter: Record<string, unknown>,
-  userEmail?: string
+  libraryOrId: Library | string,
+  filter: Record<string, unknown>
 ): Promise<number> {
   try {
-    // Wenn keine userEmail vorhanden ist, versuche die Owner-Email zu finden
-    let effectiveUserEmail = userEmail
-    if (!effectiveUserEmail) {
-      effectiveUserEmail = await findLibraryOwnerEmail(libraryId) || undefined
+    let libraryKey: string;
+    if (typeof libraryOrId === 'string') {
+      // Wenn libraryId übergeben wurde, verwende sie direkt als Collection-Name
+      // (getCollectionNameForLibrary verwendet nur library.id und library.config?.chat?.vectorStore?.collectionName)
+      libraryKey = libraryOrId;
+    } else {
+      libraryKey = getCollectionNameForLibrary(libraryOrId);
     }
-    
-    // Wenn immer noch keine Email vorhanden ist, verwende leeren String (für öffentliche Libraries)
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(effectiveUserEmail || '', libraryId, strategy)
     const col = await getDocMetaCollection(libraryKey)
     
     // Zähle gefilterte Dokumente
@@ -155,7 +144,7 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
   // die zu den Filtern passen
   // Konvertiere facetsSelected zu MongoDB-Filter-Format (mappt shortTitle zu docMetaJson.shortTitle)
   const mongoFilter = facetsSelectedToMongoFilter(doc.facetsSelected)
-  const documentCount = await getFilteredDocumentCount(doc.libraryId, mongoFilter, doc.userEmail)
+  const documentCount = await getFilteredDocumentCount(doc.libraryId, mongoFilter)
   
   // Normalisiere Retriever für Cache-Hash: chunkSummary → chunk (konsistent mit Suchen)
   // Beim Suchen wird chunkSummary zu 'chunk' konvertiert, daher müssen wir das auch beim Speichern tun
@@ -365,7 +354,7 @@ export async function findQueryByQuestionAndContext(args: {
   // die zu den Filtern passen
   // Konvertiere facetsSelected zu MongoDB-Filter-Format (mappt shortTitle zu docMetaJson.shortTitle)
   const mongoFilter = facetsSelectedToMongoFilter(args.facetsSelected)
-  const documentCount = await getFilteredDocumentCount(args.libraryId, mongoFilter, args.userEmail)
+  const documentCount = await getFilteredDocumentCount(args.libraryId, mongoFilter)
   
   // Berechne Hash aus allen Cache-relevanten Parametern
   // WICHTIG: queryType muss konsistent sein - wenn undefined, verwende 'question' als Default

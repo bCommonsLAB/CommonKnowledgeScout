@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
-import { findDocs, computeDocMetaCollectionName, ensureFacetIndexes, getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
+import { findDocs, getCollectionNameForLibrary, ensureFacetIndexes, getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -23,8 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
 
     const url = new URL(req.url)
     const defs = parseFacetDefs(ctx.library)
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(userEmail, libraryId, strategy)
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
     
     // PERFORMANCE: Stelle sicher, dass Indizes für Facettenfelder vorhanden sind
     // Dies wird beim ersten Aufruf die Indizes erstellen, danach werden sie aus dem Cache geladen

@@ -52,7 +52,9 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     fileExtension: "md",
     extractionMethod: "native",
     useCache: true, // Standardwert: Cache verwenden
-    includeImages: false, // Standardwert: Keine Bilder
+    includeOcrImages: undefined, // Wird basierend auf extractionMethod gesetzt
+    includePageImages: undefined, // Wird basierend auf extractionMethod gesetzt
+    includeImages: false, // Rückwärtskompatibilität
     useIngestionPipeline: false,
     template: undefined
   });
@@ -62,23 +64,14 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     if (!provider) return;
     try {
       setIsLoadingTemplates(true);
-      const rootItems = await provider.listItemsById('root');
-      const templatesFolder = rootItems.find(it => it.type === 'folder' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string' && ((it as { metadata: { name: string } }).metadata.name.toLowerCase() === 'templates'));
-      if (!templatesFolder) {
-        setTemplateOptions([]);
-        return;
-      }
-      const tplItems = await provider.listItemsById(templatesFolder.id);
-      const md = tplItems
-        .filter(it => it.type === 'file' && typeof (it as { metadata?: { name?: string } }).metadata?.name === 'string')
-        .map(it => ((it as { metadata: { name: string } }).metadata.name))
-        .filter(name => name.toLowerCase().endsWith('.md'))
-        .sort((a, b) => a.localeCompare(b));
-      setTemplateOptions(md);
+      // Verwende zentrale Template-Service Library
+      const { listAvailableTemplates } = await import('@/lib/templates/template-service')
+      const templates = await listAvailableTemplates(provider)
+      setTemplateOptions(templates);
 
       // Default bestimmen: pdfanalyse.md > erstes .md
-      const preferred = md.find(n => n.toLowerCase() === 'pdfanalyse.md');
-      const chosen = preferred || md[0] || undefined;
+      const preferred = templates.find(n => n.toLowerCase() === 'pdfanalyse.md');
+      const chosen = preferred || templates[0] || undefined;
       setSaveOptions(prev => ({ ...prev, template: chosen }));
     } catch (e) {
       FileLogger.warn('PdfTransform', 'Templates konnten nicht geladen werden', { error: e instanceof Error ? e.message : String(e) });
@@ -196,11 +189,19 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
   const handleSaveOptionsChange = (options: SaveOptionsType) => {
     FileLogger.debug('PdfTransform', 'handleSaveOptionsChange aufgerufen mit', options as unknown as Record<string, unknown>);
     // Konvertiere zu PdfTransformOptions mit sicherer extractionMethod und useCache
+    // Für Mistral OCR: Beide Parameter standardmäßig true
+    const isMistralOcr = options.extractionMethod === 'mistral_ocr';
     const pdfOptions: PdfTransformOptions = {
       ...options,
       extractionMethod: options.extractionMethod || "native",
       useCache: options.useCache ?? true, // Standardwert: Cache verwenden
-      includeImages: options.includeImages ?? false // Standardwert: Keine Bilder
+      includeOcrImages: options.includeOcrImages !== undefined 
+        ? options.includeOcrImages 
+        : (isMistralOcr ? true : undefined), // Standard: true für Mistral OCR
+      includePageImages: options.includePageImages !== undefined
+        ? options.includePageImages
+        : (isMistralOcr ? true : undefined), // Standard: true für Mistral OCR
+      includeImages: options.includeImages ?? false // Rückwärtskompatibilität
     };
     FileLogger.debug('PdfTransform', 'useCache Wert:', { useCache: pdfOptions.useCache });
     setSaveOptions(pdfOptions);
@@ -226,7 +227,11 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
                 defaultExtractionMethod="native"
                 showUseCache={true}
                 defaultUseCache={true}
-                showIncludeImages={true}
+                showIncludeOcrImages={true}
+                showIncludePageImages={true}
+                defaultIncludeOcrImages={saveOptions.extractionMethod === 'mistral_ocr' ? true : undefined}
+                defaultIncludePageImages={saveOptions.extractionMethod === 'mistral_ocr' ? true : undefined}
+                showIncludeImages={false} // Deprecated, verwende showIncludeOcrImages/showIncludePageImages
                 defaultIncludeImages={false}
                 showCreateShadowTwin={false}
               />

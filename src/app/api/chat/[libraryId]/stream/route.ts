@@ -186,9 +186,8 @@ export async function POST(
         // Mappe shortTitle zu fileIds über MongoDB (für Pinecone benötigt)
         // WICHTIG: facetsSelected wird für Pinecone modifiziert, aber facetsSelectedForCache behält shortTitle für Cache
         if (facetsSelected.shortTitle && Array.isArray(facetsSelected.shortTitle) && facetsSelected.shortTitle.length > 0) {
-          const { computeDocMetaCollectionName, getDocMetaCollection } = await import('@/lib/repositories/doc-meta-repo')
-          const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-          const libraryKey = computeDocMetaCollectionName(userEmail || '', libraryId, strategy)
+          const { getCollectionNameForLibrary, getDocMetaCollection } = await import('@/lib/repositories/doc-meta-repo')
+          const libraryKey = getCollectionNameForLibrary(ctx.library)
           const col = await getDocMetaCollection(libraryKey)
           
           const shortTitles = facetsSelected.shortTitle as string[]
@@ -325,7 +324,7 @@ export async function POST(
           // WICHTIG: Verwende gefilterte Dokumentenanzahl für Cache-Hash, da die Filter Teil des Cache-Kontexts sind
           // Die gefilterte Anzahl wird verwendet, um den Cache zu invalidierten, wenn neue Dokumente hinzugefügt werden,
           // die zu den Filtern passen
-          documentCount = await getFilteredDocumentCount(libraryId, built.mongo, userEmail || undefined)
+          documentCount = await getFilteredDocumentCount(ctx.library, built.mongo)
           cacheHashForLog = createCacheHash({
             libraryId,
             question: message.trim(),

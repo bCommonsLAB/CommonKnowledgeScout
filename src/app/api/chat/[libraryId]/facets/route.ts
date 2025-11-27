@@ -2,7 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
-import { aggregateFacets, computeDocMetaCollectionName, ensureFacetIndexes } from '@/lib/repositories/doc-meta-repo'
+import { aggregateFacets, getCollectionNameForLibrary, ensureFacetIndexes } from '@/lib/repositories/doc-meta-repo'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -21,8 +21,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
     }
 
     const defs = parseFacetDefs(ctx.library)
-    const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
-    const libraryKey = computeDocMetaCollectionName(userEmail, libraryId, strategy)
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
     
     // PERFORMANCE: Stelle sicher, dass Indizes für Facettenfelder vorhanden sind
     // Dies wird beim ersten Aufruf die Indizes erstellen, danach werden sie aus dem Cache geladen

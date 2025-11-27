@@ -19,7 +19,7 @@ import {
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
-import { libraryAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
+import { libraryAtom } from "@/atoms/library-atom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { LanguageSwitcher } from "@/components/shared/language-switcher"
 import { useTranslation } from "@/lib/i18n/hooks"
@@ -35,13 +35,21 @@ export function TopNav() {
   
   // Statt Events verwenden wir Jotai
   const [libraryContext] = useAtom(libraryAtom)
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom)
   const { libraries } = libraryContext
   
   // Prüfe ob Story-Modus aktiv ist
   const isStoryMode = searchParams?.get('mode') === 'story'
 
   const [open, setOpen] = React.useState(false)
+  
+  // Hilfsfunktion um zu prüfen, ob ein Nav-Item aktiv ist
+  const isActiveNavItem = (href: string) => {
+    if (href.includes('?mode=story')) {
+      // Für Story: Prüfe pathname UND query parameter
+      return pathname === '/library/gallery' && isStoryMode
+    }
+    return pathname === href
+  }
   
   // Auto-Hide beim Scrollen - verwendet gemeinsamen Hook
   const isVisible = useScrollVisibility()
@@ -66,6 +74,10 @@ export function TopNav() {
     {
       name: t('navigation.gallery'),
       href: "/library/gallery",
+    },
+    {
+      name: "Story",
+      href: "/library/gallery?mode=story",
     },
     {
       name: t('navigation.templates'),
@@ -126,38 +138,12 @@ export function TopNav() {
                       onClick={() => setOpen(false)}
                       className={cn(
                         "block rounded-md px-3 py-2 text-sm",
-                        pathname === item.href ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
+                        isActiveNavItem(item.href) ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
                       )}
                     >
                       {item.name}
                     </Link>
                   ))}
-                  {/* Dynamischer Chat-Link (abhängig von aktiver Bibliothek) */}
-                  <Link
-                    href={activeLibraryId ? `/library/${activeLibraryId}/chat` : "/library"}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      "block rounded-md px-3 py-2 text-sm",
-                      pathname?.includes('/library/') && pathname?.includes('/chat')
-                        ? "bg-muted text-primary"
-                        : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    Chat
-                  </Link>
-                  {/* Dynamischer Story-Link (abhängig von aktiver Bibliothek) */}
-                  <Link
-                    href="/library/gallery?mode=story"
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      "block rounded-md px-3 py-2 text-sm",
-                      pathname?.includes('/library/') && pathname?.includes('/gallery') && isStoryMode
-                        ? "bg-muted text-primary"
-                        : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    Story
-                  </Link>
                 </SignedIn>
                 
                 <div className="pt-3 border-t" />
@@ -212,7 +198,7 @@ export function TopNav() {
                     href={item.href}
                     className={cn(
                       "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
-                      pathname === item.href
+                      isActiveNavItem(item.href)
                         ? "bg-muted text-primary"
                         : "text-muted-foreground hover:text-primary"
                     )}
@@ -220,32 +206,6 @@ export function TopNav() {
                     {item.name}
                   </Link>
                 ))}
-                {/* Dynamischer Chat-Link */}
-                <Link
-                  key="/library/[id]/chat"
-                  href={activeLibraryId ? `/library/${activeLibraryId}/chat` : "/library"}
-                  className={cn(
-                    "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
-                    pathname?.includes('/library/') && pathname?.includes('/chat')
-                      ? "bg-muted text-primary"
-                      : "text-muted-foreground hover:text-primary"
-                  )}
-                >
-                  Chat
-                </Link>
-                {/* Dynamischer Story-Link */}
-                <Link
-                  key="/library/[id]/gallery?mode=story"
-                  href="/library/gallery?mode=story"
-                  className={cn(
-                    "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
-                    pathname?.includes('/library/') && pathname?.includes('/gallery') && isStoryMode
-                      ? "bg-muted text-primary"
-                      : "text-muted-foreground hover:text-primary"
-                  )}
-                >
-                  Story
-                </Link>
               </SignedIn>
             </div>
             <ScrollBar orientation="horizontal" className="invisible" />

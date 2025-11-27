@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useSetAtom } from 'jotai';
+import { useSetAtom, useAtomValue } from 'jotai';
 import { upsertJobStatusAtom } from '@/atoms/job-status';
+import { activeLibraryIdAtom } from "@/atoms/library-atom";
 import { cn } from "@/lib/utils";
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useFolderNavigation } from '@/hooks/use-folder-navigation';
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TraceViewer } from '@/components/shared/trace-viewer';
-import { FileText, FileAudio, FileVideo, Image as ImageIcon, File as FileIcon, FileType2, RefreshCw, Ban, Activity, Copy, Trash2 } from "lucide-react";
+import { FileText, FileAudio, FileVideo, Image as ImageIcon, File as FileIcon, FileType2, RefreshCw, Ban, Activity, Copy, Trash2, FolderOpen } from "lucide-react";
 
 interface JobListItem {
   jobId: string;
@@ -19,6 +22,10 @@ interface JobListItem {
   worker?: string;
   jobType?: string;
   fileName?: string;
+  sourceItemId?: string;
+  sourceParentId?: string;
+  shadowTwinFolderId?: string; // Shadow-Twin-Verzeichnis-ID (falls vorhanden)
+  libraryId?: string;
   updatedAt?: string;
   createdAt?: string;
   lastMessage?: string;
@@ -102,6 +109,7 @@ export function JobMonitorPanel() {
   const lastEventTsRef = useRef<number>(Date.now());
   const isFetchingRef = useRef(false);
   const upsertJobStatus = useSetAtom(upsertJobStatusAtom);
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
@@ -118,6 +126,129 @@ export function JobMonitorPanel() {
     });
   };
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const navigateToFolder = useFolderNavigation();
+
+  /**
+   * Öffnet die Datei eines fehlerhaften Jobs im Datei-Viewer.
+   * Navigiert zum Parent-Ordner und wählt die Datei dort aus.
+   * Aktualisiert die URL mit folderId Parameter.
+   */
+  const openJobFile = async (item: JobListItem) => {
+    console.log('[JobMonitorPanel] openJobFile aufgerufen', { 
+      jobId: item.jobId, 
+      sourceItemId: item.sourceItemId,
+      libraryId: item.libraryId,
+      sourceParentId: item.sourceParentId,
+      fileName: item.fileName
+    });
+
+    if (!item.sourceItemId) {
+      console.warn('[JobMonitorPanel] Keine sourceItemId verfügbar für Job', item.jobId);
+      return;
+    }
+
+    // Wenn libraryId nicht verfügbar ist, versuche sie über die Job-Liste-API zu laden
+    let libraryId = item.libraryId;
+    if (!libraryId && item.sourceItemId) {
+      try {
+        // Versuche die libraryId über die Job-Liste zu finden (mit sourceItemId Filter)
+        // Da wir die libraryId nicht kennen, müssen wir alle Bibliotheken durchsuchen
+        // Oder: Lade einfach den Job nochmal über die Liste-API mit dem jobId Filter
+        const listRes = await fetch(`/api/external/jobs?page=1&limit=1&status=failed`, { cache: 'no-store' });
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const foundJob = listData.items?.find((j: JobListItem) => j.jobId === item.jobId);
+          if (foundJob?.libraryId) {
+            libraryId = foundJob.libraryId;
+            console.log('[JobMonitorPanel] libraryId aus Job-Liste geladen', { libraryId, jobId: item.jobId });
+          }
+        }
+      } catch (err) {
+        console.warn('[JobMonitorPanel] Fehler beim Laden der libraryId', err);
+      }
+    }
+
+    if (!libraryId) {
+      console.error('[JobMonitorPanel] Keine libraryId verfügbar für Job', { 
+        jobId: item.jobId,
+        sourceItemId: item.sourceItemId,
+        item: item
+      });
+      alert('Fehler: Keine Bibliothek-ID für diesen Job gefunden. Bitte laden Sie die Seite neu.');
+      return;
+    }
+
+    // Bestimme das Ziel-Verzeichnis:
+    // Verwende sourceParentId (Parent-Verzeichnis der Quelldatei aus correlation.source.parentId)
+    // Dort liegt die ursprüngliche Datei, die wir öffnen wollen
+    const targetFolderId = item.sourceParentId;
+    
+    console.log('[JobMonitorPanel] Öffne Job-Datei', {
+      jobId: item.jobId,
+      fileName: item.fileName,
+      sourceItemId: item.sourceItemId,
+      sourceParentId: item.sourceParentId, // Kommt aus correlation.source.parentId
+      shadowTwinFolderId: item.shadowTwinFolderId,
+      targetFolderId,
+      libraryId: item.libraryId
+    });
+    
+    // Navigiere zum Ziel-Ordner und wähle die Datei dort aus.
+    // Das funktioniert auch, wenn die Datei verschoben wurde, da die Library-Komponente
+    // den Ordner öffnet und die Datei automatisch auswählt.
+    if (targetFolderId && item.sourceItemId) {
+      try {
+        // 1. Aktualisiere die URL mit folderId Parameter
+        const params = new URLSearchParams(searchParams ?? undefined);
+        params.set('folderId', targetFolderId);
+        const url = `${pathname}?${params.toString()}`;
+        console.log('[JobMonitorPanel] Aktualisiere URL', { url, folderId: targetFolderId });
+        router.replace(url);
+        
+        // 2. Navigiere zum Ordner (aktualisiert den State und lädt den Ordner)
+        console.log('[JobMonitorPanel] Navigiere zum Ordner...', { folderId: targetFolderId });
+        await navigateToFolder(targetFolderId);
+        
+        // 3. Warte kurz, damit der Ordner initialisiert wird
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // 4. Dispatch library_refresh Event mit selectFileId
+        // Die Library-Komponente wird die Datei automatisch auswählen
+        console.log('[JobMonitorPanel] Dispatch library_refresh Event', {
+          folderId: targetFolderId,
+          selectFileId: item.sourceItemId
+        });
+        window.dispatchEvent(new CustomEvent('library_refresh', {
+          detail: {
+            folderId: targetFolderId,
+            selectFileId: item.sourceItemId
+          }
+        }));
+        
+        console.log('[JobMonitorPanel] Navigation abgeschlossen');
+      } catch (error) {
+        console.error('[JobMonitorPanel] Fehler beim Öffnen der Datei', {
+          error: error instanceof Error ? error.message : String(error),
+          jobId: item.jobId,
+          targetFolderId,
+          sourceItemId: item.sourceItemId
+        });
+        alert(`Fehler beim Öffnen der Datei: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } else {
+      console.warn('[JobMonitorPanel] Keine folderId oder sourceItemId verfügbar', {
+        jobId: item.jobId,
+        shadowTwinFolderId: item.shadowTwinFolderId,
+        sourceParentId: item.sourceParentId,
+        sourceItemId: item.sourceItemId
+      });
+      alert('Fehler: Keine Ordner- oder Datei-ID verfügbar für diesen Job.');
+    }
+  };
+
   // Worker wird nicht mehr automatisch gestartet; nur noch über die Controls
 
   // Initiale Seite nur laden, wenn Panel geöffnet wird
@@ -130,10 +261,22 @@ export function JobMonitorPanel() {
         const params = new URLSearchParams({ page: String(pageNum), limit: '20' });
         if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
         if (batchFilter) params.set('batchName', batchFilter);
+        // Filter nach aktiver Library, wenn verfügbar
+        if (activeLibraryId) {
+          params.set('libraryId', activeLibraryId);
+        }
         const res = await fetch(`/api/external/jobs?${params.toString()}`, { cache: 'no-store' });
         if (!res.ok) return;
         const json = await res.json();
         if (cancelled) return;
+        // Debug: Prüfe ob libraryId in den Items vorhanden ist
+        if (json.items && json.items.length > 0) {
+          console.log('[JobMonitorPanel] Jobs geladen', { 
+            count: json.items.length, 
+            hasLibraryId: json.items.some((item: JobListItem) => item.libraryId),
+            sampleItem: json.items[0]
+          });
+        }
         setItems(prev => replace ? json.items : [...prev, ...json.items]);
         setHasMore(json.items.length === 20);
       } finally {
@@ -142,7 +285,7 @@ export function JobMonitorPanel() {
     }
     void load(1, true);
     return () => { cancelled = true; };
-  }, [isOpen, statusFilter, batchFilter]);
+  }, [isOpen, statusFilter, batchFilter, activeLibraryId]);
 
   // Batch-Namen laden, wenn Panel geöffnet wird
   useEffect(() => {
@@ -150,7 +293,13 @@ export function JobMonitorPanel() {
     let active = true;
     async function loadBatches() {
       try {
-        const res = await fetch('/api/external/jobs/batches', { cache: 'no-store' });
+        const params = new URLSearchParams();
+        // Filter nach aktiver Library, wenn verfügbar
+        if (activeLibraryId) {
+          params.set('libraryId', activeLibraryId);
+        }
+        const url = `/api/external/jobs/batches${params.toString() ? `?${params.toString()}` : ''}`;
+        const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) return;
         const json = await res.json();
         if (!active) return;
@@ -160,7 +309,7 @@ export function JobMonitorPanel() {
     }
     void loadBatches();
     return () => { active = false; };
-  }, [isOpen]);
+  }, [isOpen, activeLibraryId]);
 
   // Serverseitige Zähler laden (gesamt, optional gefiltert nach Batch)
   useEffect(() => {
@@ -170,6 +319,10 @@ export function JobMonitorPanel() {
       try {
         const params = new URLSearchParams();
         if (batchFilter) params.set('batchName', batchFilter);
+        // Filter nach aktiver Library, wenn verfügbar
+        if (activeLibraryId) {
+          params.set('libraryId', activeLibraryId);
+        }
         const res = await fetch(`/api/external/jobs/counters?${params.toString()}`, { cache: 'no-store' });
         if (!res.ok) return;
         const json = await res.json();
@@ -180,7 +333,7 @@ export function JobMonitorPanel() {
     void loadCounts();
     const t = setInterval(loadCounts, 5000);
     return () => { active = false; clearInterval(t); };
-  }, [isOpen, batchFilter, liveUpdates]);
+  }, [isOpen, batchFilter, liveUpdates, activeLibraryId]);
 
   // Worker-Status laden
   useEffect(() => {
@@ -207,6 +360,10 @@ export function JobMonitorPanel() {
       const params = new URLSearchParams({ page: '1', limit: '20' });
       if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
       if (batchFilter) params.set('batchName', batchFilter);
+      // Filter nach aktiver Library, wenn verfügbar
+      if (activeLibraryId) {
+        params.set('libraryId', activeLibraryId);
+      }
       const res = await fetch(`/api/external/jobs?${params.toString()}`, { cache: 'no-store' });
       if (!res.ok) return;
       const json = await res.json();
@@ -216,7 +373,7 @@ export function JobMonitorPanel() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [isRefreshing, statusFilter, batchFilter]);
+  }, [isRefreshing, statusFilter, batchFilter, activeLibraryId]);
 
   // SSE verbinden nur wenn Panel geöffnet ist und Live-Updates aktiv sind; bei Schließen sofort beenden
   useEffect(() => {
@@ -258,8 +415,21 @@ export function JobMonitorPanel() {
             upsertJobStatus({ itemId: evt.sourceItemId, status: evt.status });
           }
           // Refresh der Dateiliste triggern, falls serverseitig Ordner-ID mitgeliefert wird
+          // WICHTIG: Refresh sowohl Parent als auch Shadow-Twin-Verzeichnis (falls vorhanden)
           if (evt.refreshFolderId && (evt.status === 'completed' || evt.message === 'stored_local')) {
-            try { window.dispatchEvent(new CustomEvent('library_refresh', { detail: { folderId: evt.refreshFolderId } })); } catch {}
+            try {
+              // Refresh alle betroffenen Ordner (Parent + Shadow-Twin)
+              const refreshFolderIds = (evt as { refreshFolderIds?: string[] }).refreshFolderIds || [evt.refreshFolderId]
+              refreshFolderIds.forEach(folderId => {
+                window.dispatchEvent(new CustomEvent('library_refresh', { 
+                  detail: { 
+                    folderId,
+                    shadowTwinFolderId: (evt as { shadowTwinFolderId?: string | null }).shadowTwinFolderId || null,
+                    triggerShadowTwinAnalysis: true // Flag für Shadow-Twin-Analyse-Neuberechnung
+                  } 
+                }))
+              })
+            } catch {}
           }
           setItems(prev => {
             const idx = prev.findIndex(p => p.jobId === evt.jobId);
@@ -270,6 +440,8 @@ export function JobMonitorPanel() {
               updatedAt: evt.updatedAt,
               jobType: evt.jobType ?? prev[idx]?.jobType,
               fileName: evt.fileName ?? prev[idx]?.fileName,
+              sourceItemId: evt.sourceItemId ?? prev[idx]?.sourceItemId,
+              libraryId: (evt as { libraryId?: string }).libraryId ?? prev[idx]?.libraryId,
             };
             if (idx >= 0) {
               const updated = { ...prev[idx], ...patch };
@@ -295,6 +467,8 @@ export function JobMonitorPanel() {
               lastProgress: evt.progress,
               jobType: evt.jobType,
               fileName: evt.fileName,
+              sourceItemId: evt.sourceItemId,
+              libraryId: (evt as { libraryId?: string }).libraryId,
             };
             return [inserted, ...prev];
           });
@@ -323,6 +497,7 @@ export function JobMonitorPanel() {
           updatedAt: detail.updatedAt,
           jobType: detail.jobType ?? prev[idx]?.jobType,
           fileName: detail.fileName ?? prev[idx]?.fileName,
+          sourceItemId: detail.sourceItemId ?? prev[idx]?.sourceItemId,
         };
         if (idx >= 0) {
           const updated = { ...prev[idx], ...patch };
@@ -339,6 +514,7 @@ export function JobMonitorPanel() {
           lastProgress: detail.progress,
           jobType: detail.jobType,
           fileName: detail.fileName,
+          sourceItemId: detail.sourceItemId,
         };
         return [inserted, ...prev];
       });
@@ -371,6 +547,10 @@ export function JobMonitorPanel() {
     const params = new URLSearchParams({ page: String(next), limit: '20' });
     if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
     if (batchFilter) params.set('batchName', batchFilter);
+    // Filter nach aktiver Library, wenn verfügbar
+    if (activeLibraryId) {
+      params.set('libraryId', activeLibraryId);
+    }
     const res = await fetch(`/api/external/jobs?${params.toString()}`, { cache: 'no-store' });
     if (!res.ok) return;
     const json = await res.json();
@@ -421,11 +601,15 @@ export function JobMonitorPanel() {
         alert(`Löschen fehlgeschlagen: ${msg}`);
         return;
       }
+      // Job aus lokalem State entfernen
       setItems(prev => prev.filter(i => i.jobId !== jobId));
       setHiddenIds(prev => { const next = new Set(prev); next.delete(jobId); return next; });
       if (openTraces.has(jobId)) setOpenTraces(prev => { const next = new Set(prev); next.delete(jobId); return next; });
-    } catch {
-      alert(`Löschen fehlgeschlagen`);
+      // Liste aktualisieren, um sicherzustellen, dass der Job auch aus der Datenbank entfernt wurde
+      await refreshNow();
+    } catch (error) {
+      console.error('[JobMonitorPanel] Fehler beim Löschen des Jobs', { jobId, error });
+      alert(`Löschen fehlgeschlagen: ${error instanceof Error ? error.message : 'Unerwarteter Fehler'}`);
     }
   }
 
@@ -533,21 +717,25 @@ export function JobMonitorPanel() {
             <ul className="p-3 space-y-2">
               {items.filter(it => !hiddenIds.has(it.jobId)).map(item => (
                 <li key={item.jobId} className={cn(
-                  "border rounded-md p-3",
+                  "border rounded-md p-2",
                   item.status === 'queued' && 'bg-blue-100/60',
                   item.status === 'running' && 'bg-yellow-100/60',
                   item.status === 'completed' && 'bg-green-100/60',
                   item.status === 'failed' && 'bg-red-100/60'
                 )}>
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <div className="shrink-0" title={item.jobType || 'job'}>
                         <JobTypeIcon jobType={item.jobType} />
                       </div>
+                      {/* Dateiname mit HoverCard für Logs */}
                       <HoverCard openDelay={200} closeDelay={100}>
                         <HoverCardTrigger asChild>
-                          <div className="truncate text-sm font-medium cursor-default" title={item.fileName || item.jobId}>
-                            {item.fileName ? truncateMiddle(item.fileName, 40) : (item.operation || 'job')}
+                          <div 
+                            className="truncate text-xs font-medium cursor-default flex-1"
+                            title={item.fileName || item.jobId}
+                          >
+                            {item.fileName ? truncateMiddle(item.fileName, 30) : (item.operation || 'job')}
                           </div>
                         </HoverCardTrigger>
                         <HoverCardContent side="top" align="start" className="w-[36rem] p-0 max-h-[85vh]">
@@ -556,18 +744,39 @@ export function JobMonitorPanel() {
                           </ScrollArea>
                         </HoverCardContent>
                       </HoverCard>
+                      {/* Button zum Öffnen der Datei - wird bei allen Jobs mit sourceItemId angezeigt */}
+                      {item.sourceItemId && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void openJobFile(item);
+                                }}
+                                className="pointer-events-auto inline-flex items-center justify-center rounded p-0.5 hover:bg-muted text-primary shrink-0"
+                                aria-label="Datei öffnen"
+                                title="Datei öffnen"
+                              >
+                                <FolderOpen className="h-3.5 w-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Datei öffnen</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1 shrink-0 w-40 justify-end">
+                    <div className="flex items-center gap-0.5 shrink-0">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => toggleTrace(item.jobId)}
-                              className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
+                              className="pointer-events-auto inline-flex items-center justify-center rounded p-0.5 hover:bg-muted"
                               aria-label={openTraces.has(item.jobId) ? "Trace ausblenden" : "Trace anzeigen"}
                               title={openTraces.has(item.jobId) ? "Trace ausblenden" : "Trace anzeigen"}
                             >
-                              <Activity className={cn("h-4 w-4", openTraces.has(item.jobId) ? "text-primary" : "text-muted-foreground")} />
+                              <Activity className={cn("h-3.5 w-3.5", openTraces.has(item.jobId) ? "text-primary" : "text-muted-foreground")} />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">{openTraces.has(item.jobId) ? "Trace ausblenden" : "Trace anzeigen"}</TooltipContent>
@@ -578,11 +787,11 @@ export function JobMonitorPanel() {
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => deleteJob(item.jobId)}
-                              className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
+                              className="pointer-events-auto inline-flex items-center justify-center rounded p-0.5 hover:bg-muted"
                               aria-label="Job löschen"
                               title="Job löschen"
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">Job löschen</TooltipContent>
@@ -600,11 +809,11 @@ export function JobMonitorPanel() {
                                   await navigator.clipboard.writeText(text);
                                 } catch {}
                               }}
-                              className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
+                              className="pointer-events-auto inline-flex items-center justify-center rounded p-0.5 hover:bg-muted"
                               aria-label="Als Markdown kopieren"
                               title="Als Markdown kopieren"
                             >
-                              <Copy className="h-4 w-4 text-muted-foreground" />
+                              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">Als Markdown kopieren</TooltipContent>
@@ -612,41 +821,41 @@ export function JobMonitorPanel() {
                       </TooltipProvider>
                       <button
                         onClick={() => hideJob(item.jobId)}
-                        className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
+                        className="pointer-events-auto inline-flex items-center justify-center rounded p-0.5 hover:bg-muted"
                         aria-label="Ausblenden"
                         title="Ausblenden"
                       >
-                        <Ban className="h-4 w-4" />
+                        <Ban className="h-3.5 w-3.5" />
                       </button>
                       {item.status !== 'running' && (
                         <button
                           onClick={() => retryJob(item.jobId)}
-                          className="pointer-events-auto inline-flex items-center justify-center rounded p-1 hover:bg-muted"
+                          className="pointer-events-auto inline-flex items-center justify-center rounded p-0.5 hover:bg-muted"
                           aria-label="Neu starten"
                           title="Neu starten"
                         >
-                          <RefreshCw className="h-4 w-4" />
+                          <RefreshCw className="h-3.5 w-3.5" />
                         </button>
                       )}
                       <StatusBadge status={item.status} />
                     </div>
                   </div>
-                  <div className="mt-2 relative">
-                    <Progress value={typeof item.lastProgress === 'number' ? Math.max(0, Math.min(100, item.lastProgress)) : 0} />
+                  <div className="mt-1.5 relative">
+                    <Progress value={typeof item.lastProgress === 'number' ? Math.max(0, Math.min(100, item.lastProgress)) : 0} className="h-1" />
                     {item.status === 'running' && (
-                      <div className="absolute inset-0 flex items-center justify-center text-[11px] text-muted-foreground">
+                      <div className="absolute inset-0 flex items-center justify-center text-[10px] text-muted-foreground">
                         Läuft…
                       </div>
                     )}
                     {item.status === 'completed' && (
-                      <div className="absolute inset-0 flex items-center justify-center text-[11px] text-muted-foreground">
+                      <div className="absolute inset-0 flex items-center justify-center text-[10px] text-muted-foreground">
                         {formatDuration(item.createdAt, item.updatedAt)}
                       </div>
                     )}
                   </div>
-                  <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between gap-2">
+                  <div className="mt-1 text-[10px] text-muted-foreground flex items-center justify-between gap-2">
                     <div className="truncate" title={item.lastMessage}>{item.lastMessage || '—'}</div>
-                    <div>{formatRelative(item.updatedAt)}</div>
+                    <div className="shrink-0">{formatRelative(item.updatedAt)}</div>
                   </div>
                   {openTraces.has(item.jobId) ? (
                     <div className="mt-3 border-t pt-3">

@@ -97,14 +97,58 @@ class ExternalJobsWorkerSingleton {
         try {
           const claimed = await repo.claimNextQueuedJob();
           if (!claimed) return;
+          
+          FileLogger.info('jobs-worker', 'Job gefunden und wird gestartet', {
+            jobId: claimed.jobId,
+            jobType: claimed.job_type,
+            extractionMethod: (claimed.correlation?.options as { extractionMethod?: string } | undefined)?.extractionMethod,
+            workerId: this.workerId
+          });
+          
           // Trace: Worker-Dispatch als Event
           try { await repo.traceAddEvent(claimed.jobId, { name: 'worker_dispatch', attributes: { workerId: this.workerId } }); } catch {}
+          
           // Start-Route triggert die zentrale Ausführung
-          await fetch(`${baseUrl}/api/external/jobs/${claimed.jobId}/start`, { method: 'POST', headers });
+          const startUrl = `${baseUrl}/api/external/jobs/${claimed.jobId}/start`;
+          FileLogger.info('jobs-worker', 'Starte Job über Start-Route', {
+            jobId: claimed.jobId,
+            url: startUrl,
+            extractionMethod: (claimed.correlation?.options as { extractionMethod?: string } | undefined)?.extractionMethod
+          });
+          
+          const startResponse = await fetch(startUrl, { method: 'POST', headers });
+          
+          FileLogger.info('jobs-worker', 'Start-Route Antwort erhalten', {
+            jobId: claimed.jobId,
+            status: startResponse.status,
+            statusText: startResponse.statusText,
+            ok: startResponse.ok
+          });
+          
+          if (!startResponse.ok) {
+            const errorText = await startResponse.text().catch(() => 'Keine Fehlermeldung');
+            FileLogger.error('jobs-worker', 'Start-Route Fehler', {
+              jobId: claimed.jobId,
+              status: startResponse.status,
+              statusText: startResponse.statusText,
+              errorText
+            });
+            throw new Error(`Start-Route Fehler: ${startResponse.status} ${startResponse.statusText} - ${errorText}`);
+          }
+          
+          const startData = await startResponse.json().catch(() => ({}));
+          FileLogger.info('jobs-worker', 'Start-Route erfolgreich', {
+            jobId: claimed.jobId,
+            responseData: startData
+          });
+          
           this.stats.processed += 1;
         } catch (err) {
           this.stats.errors += 1;
-          FileLogger.error('jobs-worker', 'Tick-Fehler', { err: err instanceof Error ? err.message : String(err) });
+          FileLogger.error('jobs-worker', 'Tick-Fehler', { 
+            err: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined
+          });
         }
       });
 

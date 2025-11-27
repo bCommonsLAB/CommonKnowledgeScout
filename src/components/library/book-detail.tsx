@@ -4,8 +4,10 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Calendar, FileText, MapPin, BookOpen, Tag } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { ChapterAccordion } from "./chapter-accordion";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
+import { MarkdownPreview } from "./markdown-preview";
 
 export interface Chapter {
   order: number;
@@ -36,6 +38,8 @@ export interface BookDetailData {
   fileId?: string;
   fileName?: string;
   upsertedAt?: string;
+  markdown?: string;
+  coverImageUrl?: string;
 }
 
 interface BookDetailProps {
@@ -57,17 +61,47 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
         </Link>
       ) : null}
 
+      {/* Titel-/Kopfbereich: mit Cover klein links, sonst nur Titel + Badges */}
       <div className="mb-6">
-        <div className="flex gap-4 mb-4">
-          <div className="flex-shrink-0 w-24 h-36 bg-secondary rounded border border-border flex items-center justify-center">
-            <FileText className="w-12 h-12 text-muted-foreground" />
-          </div>
+        {data.coverImageUrl ? (
+          <div className="flex gap-4 items-start">
+            {/* Kleines Cover-Bild (Preview) links neben dem Titel */}
+            <div className="flex-shrink-0 w-[136px] h-[204px] bg-secondary rounded border border-border overflow-hidden flex items-center justify-center">
+              <Image
+                src={data.coverImageUrl}
+                alt={title}
+                width={136}
+                height={204}
+                className="w-full h-full object-cover"
+                unoptimized
+              />
+            </div>
 
-          <div className="flex-1">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-foreground mb-2 text-balance">{title}</h1>
+              {authors.length > 0 ? (
+                <p className="text-base text-muted-foreground mb-3">{authors.join(", ")}</p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                {data.year !== undefined && (
+                  <Badge variant="outline" className="text-xs"><Calendar className="w-3 h-3 mr-1" />{String(data.year)}</Badge>
+                )}
+                {data.pages !== undefined && (
+                  <Badge variant="outline" className="text-xs"><FileText className="w-3 h-3 mr-1" />{String(data.pages)} Seiten</Badge>
+                )}
+                {data.region && (
+                  <Badge variant="outline" className="text-xs"><MapPin className="w-3 h-3 mr-1" />{data.region}</Badge>
+                )}
+                {data.docType && (
+                  <Badge variant="outline" className="text-xs">{String(data.docType)}</Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div>
             <h1 className="text-2xl font-bold text-foreground mb-2 text-balance">{title}</h1>
-            {authors.length > 0 ? (
-              <p className="text-base text-muted-foreground mb-3">{authors.join(", ")}</p>
-            ) : null}
+            {/* Ohne Cover kein Autoren-Teaser, nur Badges */}
             <div className="flex flex-wrap gap-2">
               {data.year !== undefined && (
                 <Badge variant="outline" className="text-xs"><Calendar className="w-3 h-3 mr-1" />{String(data.year)}</Badge>
@@ -83,7 +117,7 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
               )}
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {data.summary && (
@@ -116,10 +150,27 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
         )}
       </div>
 
+      {/* Kapitelübersicht VOR Markdown-Body */}
       {Array.isArray(data.chapters) && data.chapters.length > 0 && (
-        <section className="bg-card border border-border rounded-lg p-5">
+        <section className="bg-card border border-border rounded-lg p-5 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide flex items-center gap-2"><BookOpen className="w-4 h-4" />Kapitelübersicht ({data.chapters.length})</h2>
           <ChapterAccordion chapters={data.chapters} />
+        </section>
+      )}
+
+      {/* Markdown-Body (Inhalt) */}
+      {data.markdown && (
+        <section className="bg-card border border-border rounded-lg p-5 mb-6">
+          <h2 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">Inhalt</h2>
+          <div className="prose prose-slate dark:prose-invert max-w-none">
+            <MarkdownPreview 
+              content={data.markdown} 
+              compact={true}
+              className="min-h-0 w-full"
+            />
+          </div>
+          {/* KI-Info-Hinweis für KI-generierte Inhalte */}
+          <AIGeneratedNotice compact />
         </section>
       )}
 

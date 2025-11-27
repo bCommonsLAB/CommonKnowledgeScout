@@ -198,7 +198,10 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         options: {
           targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT,
           extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native',
-          includeImages: defaults.includeImages ?? false,
+          // Für Mistral OCR: Beide Parameter standardmäßig true
+          includeOcrImages: defaults.extractionMethod === 'mistral_ocr' ? true : undefined,
+          includePageImages: defaults.extractionMethod === 'mistral_ocr' ? true : undefined,
+          includeImages: defaults.includeImages ?? false, // Rückwärtskompatibilität
           useCache: defaults.useCache ?? true,
           template: typeof defaults.template === 'string' ? defaults.template : undefined,
           // Neue Policies (explizit)

@@ -11,6 +11,10 @@
         <link rel="canonical" href="http://localhost:3000/docs/architecture/dependency-graph.html">
       
       
+        <link rel="prev" href="module-hierarchy.html">
+      
+      
+        <link rel="next" href="shadow-twin.html">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -355,18 +359,20 @@
       
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
@@ -382,7 +388,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             Architecture
@@ -396,12 +402,235 @@
   
   
     <li class="md-nav__item">
-      <a href="index.md" class="md-nav__link">
+      <a href="module-hierarchy.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Start
+    Module Hierarchy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Dependency Graph
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="dependency-graph.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Dependency Graph
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#mermaid-dependency-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mermaid Dependency Graph
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependency-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependency Layers
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dependency Layers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layer-1-core-infrastructure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Layer 1: Core Infrastructure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-2-storage-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Layer 2: Storage Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-3-library-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      Layer 3: Library System
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-4-chat-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      Layer 4: Chat System
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-5-api-routes-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Layer 5: API Routes &amp; Components
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Dependencies
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Dependencies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#most-imported-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Most Imported Modules
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#critical-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      Critical Paths
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#circular-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Circular Dependencies
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Circular Dependencies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#potential-issues-to-verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      Potential Issues (To Verify)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Notes
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="shadow-twin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
     
   </span>
   
@@ -419,35 +648,12 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture.md" class="md-nav__link">
+      <a href="pdf-transformation-phases.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Overview
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="core-components.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Core Components
+    PDF Transformation Phases
     
   </span>
   
@@ -1634,17 +1840,132 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/index.md" class="md-nav__link">
+      <a href="../reference/file-index.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Start
+    File Index
     
   </span>
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_2" id="__nav_7_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Modules
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/storage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/chat.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
