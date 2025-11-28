@@ -21,9 +21,14 @@ export function SpeakerOrAuthorIcons({ doc }: { doc: DocLike }) {
   const images = doc.speakers_image_url && doc.speakers_image_url.length > 0 
     ? doc.speakers_image_url 
     : undefined
+
+  // Icons nur anzeigen, wenn wir wirklich Bild-URLs haben.
+  // Wenn keine Bilder vorhanden sind, sollen die großen Kreise komplett entfallen.
+  const hasRealImages = Array.isArray(images) && images.some(url => typeof url === 'string' && url.trim().length > 0)
   
-  if (!names || names.length === 0) {
-    return <FileText className='h-8 w-8 text-primary mb-2' />
+  if (!names || names.length === 0 || !hasRealImages) {
+    // Kein Name oder keine echten Bilder → keine Kreise rendern
+    return null
   }
   
   return (

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Calendar, MapPin, User } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
+import { SpeakerOrAuthorIcons } from './speaker-icons'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 
@@ -61,6 +62,8 @@ export function DocumentCard({ doc, onClick, libraryId }: DocumentCardProps) {
               </div>
             ) : null}
             <div className='flex-1 min-w-0'>
+              {/* Kreisförmige Autoren-/Speaker-Icons nur anzeigen, wenn es echte Speaker-Bilder gibt (Logik in SpeakerOrAuthorIcons) */}
+              <SpeakerOrAuthorIcons doc={doc} />
               <CardTitle className='text-lg line-clamp-2'>{doc.shortTitle || doc.title || doc.fileName || 'Dokument'}</CardTitle>
               <CardDescription className='line-clamp-2'>{doc.title || doc.fileName}</CardDescription>
             </div>
