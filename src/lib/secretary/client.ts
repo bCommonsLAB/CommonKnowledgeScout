@@ -1142,6 +1142,42 @@ export async function embedTextRag(params: {
     if (error instanceof SecretaryServiceError) {
       throw error;
     }
-    throw new SecretaryServiceError(`Fehler beim RAG Embedding: ${error instanceof Error ? error.message : String(error)}`);
+    
+    // Spezifische Fehlerbehandlung für verschiedene Fehlertypen
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Prüfe auf Netzwerkfehler (Service nicht erreichbar)
+    if (errorMessage.includes('fetch failed') || 
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('NetworkError')) {
+      console.error('[secretary/client] embedTextRag - Secretary Service nicht erreichbar:', {
+        url,
+        baseUrl,
+        error: errorMessage,
+        hint: 'Bitte prüfen Sie, ob der Secretary Service läuft und erreichbar ist.'
+      });
+      throw new SecretaryServiceError(
+        `Secretary Service nicht erreichbar (${url}). ` +
+        `Bitte prüfen Sie, ob der Service läuft und die URL korrekt ist. ` +
+        `Fehler: ${errorMessage}`
+      );
+    }
+    
+    // Prüfe auf Timeout-Fehler
+    if (errorMessage.includes('Timeout') || errorMessage.includes('timeout')) {
+      console.error('[secretary/client] embedTextRag - Timeout:', {
+        url,
+        timeoutMs: 60000,
+        error: errorMessage
+      });
+      throw new SecretaryServiceError(
+        `Secretary Service Timeout nach 60 Sekunden. ` +
+        `Die Anfrage war zu groß oder der Service antwortet zu langsam. ` +
+        `Fehler: ${errorMessage}`
+      );
+    }
+    
+    // Generischer Fehler
+    throw new SecretaryServiceError(`Fehler beim RAG Embedding: ${errorMessage}`);
   }
 }

@@ -78,6 +78,13 @@ export class OneDriveProvider implements StorageProvider {
   private lastSavedTokenHash: string | null = null;
   // Performance: Debounce-Timer für DB-Schreibvorgänge (nur im Client-Kontext)
   private saveToDbTimer: ReturnType<typeof setTimeout> | null = null;
+  // Performance: Cache für Token-Validierung (verhindert wiederholte Prüfungen innerhalb kurzer Zeit)
+  private tokenValidationCache: { timestamp: number; token: string } | null = null;
+  private readonly TOKEN_VALIDATION_CACHE_MS = 1000; // 1 Sekunde Cache
+  // Performance: Request-Deduplizierung für parallele listItemsById-Aufrufe
+  private pendingListRequests: Map<string, Promise<StorageItem[]>> = new Map();
+  // Rate-Limit: Cache für letzte Rate-Limit-Fehler
+  private rateLimitInfo: { retryAfter: number; timestamp: number } | null = null;
 
   constructor(library: ClientLibrary, baseUrl?: string) {
     this.library = library;
@@ -133,7 +140,7 @@ export class OneDriveProvider implements StorageProvider {
     // Try to resolve the configured path to an item id
     const tryResolve = async (): Promise<string | null> => {
       const url = `https://graph.microsoft.com/v1.0/me/drive/root:${encodeURI(configured)}`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const res = await this.fetchWithRetry(url, { headers: { Authorization: `Bearer ${accessToken}` } });
       if (res.ok) {
         const data = await res.json() as { id?: string };
         return data.id ?? null;
@@ -159,7 +166,7 @@ export class OneDriveProvider implements StorageProvider {
       const listUrl = parentId === 'root'
         ? 'https://graph.microsoft.com/v1.0/me/drive/root/children'
         : `https://graph.microsoft.com/v1.0/me/drive/items/${parentId}/children`;
-      const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const listRes = await this.fetchWithRetry(listUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
       if (listRes.ok) {
         const data = await listRes.json() as { value?: Array<{ id: string; name: string; folder?: unknown }> };
         const match = (data.value || []).find(x => x.name === segment && x.folder);
@@ -169,7 +176,7 @@ export class OneDriveProvider implements StorageProvider {
         const createUrl = parentId === 'root'
           ? 'https://graph.microsoft.com/v1.0/me/drive/root/children'
           : `https://graph.microsoft.com/v1.0/me/drive/items/${parentId}/children`;
-        const createRes = await fetch(createUrl, {
+        const createRes = await this.fetchWithRetry(createUrl, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -651,19 +658,22 @@ export class OneDriveProvider implements StorageProvider {
   }
 
   private async ensureAccessToken(): Promise<string> {
-    console.log('[OneDriveProvider][ensureAccessToken] Starte Token-Validierung', {
-      libraryId: this.library.id,
-      hasAccessToken: !!this.accessToken,
-      hasRefreshToken: !!this.refreshToken,
-      authenticated: this.authenticated,
-      userEmail: this.userEmail,
-      isServerContext: typeof window === 'undefined'
-    });
+    // Performance: Cache-Validierung - wenn Token kürzlich validiert wurde, gib es zurück
+    const now = Date.now();
+    if (this.tokenValidationCache && 
+        this.tokenValidationCache.token === this.accessToken &&
+        (now - this.tokenValidationCache.timestamp) < this.TOKEN_VALIDATION_CACHE_MS) {
+      return this.accessToken!;
+    }
     
     // Wenn Tokens noch nicht geladen wurden, lade sie jetzt
     // Verwende userEmail aus dem Kontext, falls verfügbar
     if (!this.accessToken && !this.refreshToken) {
-      console.log('[OneDriveProvider][ensureAccessToken] Keine Tokens vorhanden, lade Tokens...');
+      console.log('[OneDriveProvider][ensureAccessToken] Keine Tokens vorhanden, lade Tokens...', {
+        libraryId: this.library.id,
+        userEmail: this.userEmail,
+        isServerContext: typeof window === 'undefined'
+      });
       await this.loadTokens(this.userEmail || undefined);
       console.log('[OneDriveProvider][ensureAccessToken] Nach loadTokens:', {
         hasAccessToken: !!this.accessToken,
@@ -684,20 +694,8 @@ export class OneDriveProvider implements StorageProvider {
 
     // Wenn Token in weniger als 5 Minuten abläuft, versuche Refresh
     const FIVE_MINUTES = 5 * 60 * 1000; // 5 Minuten in Millisekunden
-    const now = Date.now();
     const timeUntilExpiry = this.tokenExpiry - now;
     
-    // Log Token-Status
-    console.log('[OneDriveProvider] Token-Status:', {
-      libraryId: this.library.id,
-      tokenExpiry: new Date(this.tokenExpiry).toISOString(),
-      currentTime: new Date(now).toISOString(),
-      timeUntilExpiry: `${Math.floor(timeUntilExpiry / 1000)} Sekunden`,
-      hasRefreshToken: !!this.refreshToken,
-      isExpired: this.tokenExpiry <= now,
-      refreshBuffer: `${FIVE_MINUTES / 1000} Sekunden`
-    });
-
     // Nur refreshen wenn:
     // 1. Token abgelaufen ist ODER
     // 2. Token läuft in weniger als 5 Minuten ab UND
@@ -708,14 +706,103 @@ export class OneDriveProvider implements StorageProvider {
       this.refreshToken && 
       !this.refreshPromise
     ) {
+      // Log nur wenn Token wirklich refreshed wird
+      console.log('[OneDriveProvider] Token läuft ab, starte Refresh...', {
+        libraryId: this.library.id,
+        tokenExpiry: new Date(this.tokenExpiry).toISOString(),
+        currentTime: new Date(now).toISOString(),
+        timeUntilExpiry: `${Math.floor(timeUntilExpiry / 1000)} Sekunden`,
+        isExpired: this.tokenExpiry <= now
+      });
       await this.refreshAccessToken();
+      // Cache nach Refresh aktualisieren
+      this.tokenValidationCache = { timestamp: Date.now(), token: this.accessToken! };
     } else if (this.refreshPromise) {
       // Wenn bereits ein Refresh läuft, warte darauf
       console.log('[OneDriveProvider] Token-Refresh läuft bereits, warte auf Abschluss...');
       await this.refreshPromise;
+      // Cache nach Refresh aktualisieren
+      this.tokenValidationCache = { timestamp: Date.now(), token: this.accessToken! };
+    } else {
+      // Token ist gültig - Cache aktualisieren
+      this.tokenValidationCache = { timestamp: now, token: this.accessToken };
     }
 
     return this.accessToken;
+  }
+
+  /**
+   * Führt einen Fetch mit Retry-Logik und Rate-Limit-Behandlung durch.
+   * Erkennt Rate-Limit-Fehler und wartet entsprechend, bevor ein Retry durchgeführt wird.
+   */
+  private async fetchWithRetry(
+    url: string, 
+    options: RequestInit, 
+    maxRetries: number = 3,
+    retryDelay: number = 1000
+  ): Promise<Response> {
+    // Prüfe Rate-Limit-Info
+    if (this.rateLimitInfo) {
+      const waitTime = this.rateLimitInfo.retryAfter * 1000 - (Date.now() - this.rateLimitInfo.timestamp);
+      if (waitTime > 0) {
+        console.log(`[OneDriveProvider] Rate-Limit aktiv, warte ${Math.ceil(waitTime / 1000)} Sekunden...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        this.rateLimitInfo = null; // Reset nach Wartezeit
+      }
+    }
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, options);
+        
+        // Rate-Limit-Fehler erkennen (429 oder spezielle OneDrive-Fehler)
+        if (response.status === 429 || response.status === 503) {
+          const errorData = await response.json().catch(() => ({}));
+          const retryAfter = errorData.error?.retryAfterSeconds || 
+                            parseInt(response.headers.get('Retry-After') || '60', 10);
+          
+          // Speichere Rate-Limit-Info für zukünftige Requests
+          this.rateLimitInfo = {
+            retryAfter: retryAfter,
+            timestamp: Date.now()
+          };
+          
+          if (attempt < maxRetries) {
+            const waitTime = retryAfter * 1000;
+            console.warn(`[OneDriveProvider] Rate-Limit erreicht, warte ${retryAfter} Sekunden (Versuch ${attempt + 1}/${maxRetries + 1})...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue; // Retry
+          } else {
+            // Max Retries erreicht
+            const errorText = await response.text().catch(() => '');
+            throw new StorageError(
+              `Rate-Limit erreicht nach ${maxRetries + 1} Versuchen: ${errorText || response.statusText}`,
+              'RATE_LIMIT_ERROR',
+              this.id
+            );
+          }
+        }
+        
+        // Andere Fehler direkt zurückgeben
+        return response;
+      } catch (error) {
+        if (attempt < maxRetries && error instanceof StorageError && error.code === 'RATE_LIMIT_ERROR') {
+          throw error; // Rate-Limit-Fehler bereits behandelt
+        }
+        
+        if (attempt < maxRetries) {
+          // Exponential Backoff für andere Fehler
+          const delay = retryDelay * Math.pow(2, attempt);
+          console.warn(`[OneDriveProvider] Request fehlgeschlagen, retry in ${delay}ms (Versuch ${attempt + 1}/${maxRetries + 1})...`, error);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        } else {
+          throw error;
+        }
+      }
+    }
+    
+    throw new Error('Unerwarteter Fehler in fetchWithRetry');
   }
 
   private async refreshAccessToken(): Promise<void> {
@@ -837,7 +924,7 @@ export class OneDriveProvider implements StorageProvider {
       // Mit einem API-Aufruf testen, ob die Authentifizierung funktioniert
       try {
         await this.ensureAccessToken();
-        const response = await fetch('https://graph.microsoft.com/v1.0/me/drive/root', {
+        const response = await this.fetchWithRetry('https://graph.microsoft.com/v1.0/me/drive/root', {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`
           }
@@ -867,6 +954,26 @@ export class OneDriveProvider implements StorageProvider {
   }
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
+    // Request-Deduplizierung: Wenn bereits ein Request für diesen Ordner läuft, warte darauf
+    const requestKey = `${this.library.id}:${folderId}`;
+    const existingRequest = this.pendingListRequests.get(requestKey);
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    const requestPromise = this._listItemsByIdInternal(folderId);
+    this.pendingListRequests.set(requestKey, requestPromise);
+    
+    try {
+      const result = await requestPromise;
+      return result;
+    } finally {
+      // Request aus Cache entfernen nach Abschluss
+      this.pendingListRequests.delete(requestKey);
+    }
+  }
+
+  private async _listItemsByIdInternal(folderId: string): Promise<StorageItem[]> {
     try {
       const accessToken = await this.ensureAccessToken();
       await this.ensureBaseFolderResolved();
@@ -879,14 +986,14 @@ export class OneDriveProvider implements StorageProvider {
         url = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
       }
 
-      const response = await fetch(url, {
+      const response = await this.fetchWithRetry(url, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new StorageError(
           `Fehler beim Abrufen der Dateien: ${errorData.error?.message || response.statusText}`,
           "API_ERROR",
@@ -932,7 +1039,7 @@ export class OneDriveProvider implements StorageProvider {
 
       console.log('[OneDriveProvider] getItemById:', { itemId, url: url.replace(accessToken, '[TOKEN]') });
 
-      const response = await fetch(url, {
+      const response = await this.fetchWithRetry(url, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -1022,7 +1129,7 @@ export class OneDriveProvider implements StorageProvider {
         url = `https://graph.microsoft.com/v1.0/me/drive/items/${parentId}/children`;
       }
 
-      const response = await fetch(url, {
+      const response = await this.fetchWithRetry(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -1114,7 +1221,7 @@ export class OneDriveProvider implements StorageProvider {
       }
 
       // Zuerst die Informationen des Items abrufen, um den Namen zu erhalten
-      const itemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
+      const itemResponse = await this.fetchWithRetry(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -1135,7 +1242,7 @@ export class OneDriveProvider implements StorageProvider {
         ? { id: 'root' } 
         : { id: newParentId };
 
-      const response = await fetch(url, {
+      const response = await this.fetchWithRetry(url, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -1182,7 +1289,7 @@ export class OneDriveProvider implements StorageProvider {
       // Umbenennen des Items über die Microsoft Graph API
       const url = `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`;
       
-      const response = await fetch(url, {
+      const response = await this.fetchWithRetry(url, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -1236,7 +1343,7 @@ export class OneDriveProvider implements StorageProvider {
       // Datei als ArrayBuffer lesen
       const arrayBuffer = await file.arrayBuffer();
 
-      const response = await fetch(url, {
+      const response = await this.fetchWithRetry(url, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -1363,7 +1470,7 @@ export class OneDriveProvider implements StorageProvider {
             fullPath
           })
           
-          pathItemResponse = await fetch(pathUrl, {
+          pathItemResponse = await this.fetchWithRetry(pathUrl, {
           headers: {
             'Authorization': `Bearer ${accessToken}`
           }
@@ -1408,7 +1515,7 @@ export class OneDriveProvider implements StorageProvider {
       // Dateiinformationen abrufen, um den MIME-Typ zu erhalten
       let itemResponse: Response;
       try {
-        itemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
+        itemResponse = await this.fetchWithRetry(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -1444,7 +1551,7 @@ export class OneDriveProvider implements StorageProvider {
       // Dateiinhalt abrufen
       let contentResponse: Response;
       try {
-        contentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/content`, {
+        contentResponse = await this.fetchWithRetry(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/content`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -1503,7 +1610,7 @@ export class OneDriveProvider implements StorageProvider {
       }
 
       // Item-Informationen abrufen
-      const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
+      const response = await this.fetchWithRetry(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -1557,7 +1664,7 @@ export class OneDriveProvider implements StorageProvider {
     try {
       const accessToken = await this.ensureAccessToken();
       
-      const response = await fetch(
+      const response = await this.fetchWithRetry(
         `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}?select=@microsoft.graph.downloadUrl`,
         {
           headers: {
@@ -1587,7 +1694,7 @@ export class OneDriveProvider implements StorageProvider {
     try {
       const accessToken = await this.ensureAccessToken();
       
-      const response = await fetch(
+      const response = await this.fetchWithRetry(
         `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}?select=@microsoft.graph.downloadUrl`,
         {
           headers: {
