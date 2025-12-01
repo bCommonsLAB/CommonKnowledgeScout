@@ -824,14 +824,14 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
                 logStep("Token-Speicherung", "success", "Tokens in Datenbank verfügbar für Server-Test.");
               } else {
                 const errorData = await saveResponse.json().catch(() => ({ error: 'Unknown error' }));
-                logStep("Token-Speicherung", "warning", `Tokens möglicherweise nicht in DB: ${errorData.error || saveResponse.statusText}`);
+                logStep("Token-Speicherung", "info", `Tokens möglicherweise nicht in DB: ${errorData.error || saveResponse.statusText}`);
               }
             } else {
-              logStep("Token-Speicherung", "warning", "Keine Tokens im localStorage gefunden - Server-Test könnte fehlschlagen.");
+              logStep("Token-Speicherung", "info", "Keine Tokens im localStorage gefunden - Server-Test könnte fehlschlagen.");
             }
           } catch (tokenError) {
             console.error('[StorageForm] Fehler beim Speichern der Tokens:', tokenError);
-            logStep("Token-Speicherung", "warning", `Fehler beim Speichern der Tokens: ${tokenError instanceof Error ? tokenError.message : String(tokenError)}`);
+            logStep("Token-Speicherung", "error", `Fehler beim Speichern der Tokens: ${tokenError instanceof Error ? tokenError.message : String(tokenError)}`);
           }
         }
 
