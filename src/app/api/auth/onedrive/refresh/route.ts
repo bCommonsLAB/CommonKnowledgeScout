@@ -46,7 +46,32 @@ export async function POST(req: NextRequest) {
     const resp = await fetch(tokenEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() })
     if (!resp.ok) {
       const txt = await resp.text()
-      return NextResponse.json({ error: 'Token-Refresh fehlgeschlagen', details: txt.slice(0, 500) }, { status: 502 })
+      let errorDetails = txt.slice(0, 500)
+      
+      // Prüfe auf häufigen Fehler: Invalid client secret
+      try {
+        const errorJson = JSON.parse(txt)
+        if (errorJson.error === 'invalid_client' || errorJson.error_description?.includes('AADSTS7000215')) {
+          errorDetails = `Ungültiges Client Secret. Bitte verwenden Sie den Client Secret VALUE (nicht die ID). 
+          
+Der Client Secret VALUE ist der lange String, den Sie beim Erstellen des Secrets erhalten haben. 
+Die Client Secret ID beginnt oft mit einem GUID-Format.
+
+Original-Fehler: ${errorJson.error_description || txt.slice(0, 200)}`
+        }
+      } catch {
+        // Wenn JSON-Parsing fehlschlägt, verwende den ursprünglichen Text
+      }
+      
+      console.error('[OneDrive Refresh] Token-Refresh fehlgeschlagen:', {
+        libraryId,
+        errorDetails,
+        hasClientSecret: !!clientSecret,
+        clientSecretLength: clientSecret?.length || 0,
+        clientSecretPreview: clientSecret ? `${clientSecret.substring(0, 4)}...${clientSecret.substring(clientSecret.length - 4)}` : 'N/A'
+      })
+      
+      return NextResponse.json({ error: 'Token-Refresh fehlgeschlagen', details: errorDetails }, { status: 502 })
     }
     const data = await resp.json()
     return NextResponse.json({

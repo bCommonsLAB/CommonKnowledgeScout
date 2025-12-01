@@ -379,6 +379,24 @@ export async function GET(request: NextRequest) {
     return handleLibraryNotFound(libraryId, userEmail);
   }
 
+  // WICHTIG: Diese Route ist nur für lokale Filesystem-Libraries gedacht
+  // Für OneDrive-Libraries sollte /api/storage verwendet werden
+  if (library.type === 'onedrive') {
+    console.warn(`[API][filesystem] ❌ Diese Route unterstützt keine OneDrive-Libraries. Verwende /api/storage statt /api/storage/filesystem`, {
+      libraryId: library.id,
+      libraryType: library.type,
+      action,
+      fileId
+    });
+    return NextResponse.json({ 
+      error: 'OneDrive-Libraries werden über /api/storage unterstützt, nicht über /api/storage/filesystem',
+      errorCode: 'WRONG_ROUTE_FOR_PROVIDER',
+      libraryId: library.id,
+      libraryType: library.type,
+      requestId 
+    }, { status: 400 });
+  }
+
   vLog(`[API][filesystem] Bibliothek gefunden:`, {
     libraryId: library.id,
     libraryLabel: library.label,
