@@ -793,6 +793,48 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
         await provider.deleteItem(testFolder.id);
         logStep("Aufräumen", "success", "Testverzeichnis erfolgreich gelöscht.");
 
+        // Schritt 10: Tokens in DB speichern (für Server-Test)
+        // Nur für OneDrive-Provider: Speichere Tokens in DB, damit Server-Test funktioniert
+        // Performance: Nur speichern, wenn Tokens vorhanden sind (werden normalerweise bereits bei Refresh gespeichert)
+        if (activeLibrary && activeLibrary.type === 'onedrive' && 'accessToken' in provider) {
+          try {
+            const tokensKey = `onedrive_tokens_${activeLibrary.id}`;
+            const tokensJson = localStorage.getItem(tokensKey);
+            
+            if (tokensJson) {
+              const tokens = JSON.parse(tokensJson);
+              const tokenExpiry = tokens.expiry || Date.now() + 3600000; // Fallback: 1 Stunde
+              
+              // Prüfe, ob Tokens bereits in DB sind (optional - spart einen API-Call)
+              // Da saveTokens() bereits beim Refresh aufgerufen wird, sollten Tokens meist schon in DB sein
+              // Nur explizit speichern, wenn Client-Test erfolgreich war (für Server-Test)
+              logStep("Token-Speicherung", "info", "Stelle sicher, dass Tokens in Datenbank gespeichert sind...");
+              
+              const saveResponse = await fetch(`/api/libraries/${activeLibrary.id}/tokens`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  accessToken: tokens.accessToken,
+                  refreshToken: tokens.refreshToken,
+                  tokenExpiry: Math.floor(tokenExpiry / 1000) // Konvertiere zu Sekunden
+                })
+              });
+              
+              if (saveResponse.ok) {
+                logStep("Token-Speicherung", "success", "Tokens in Datenbank verfügbar für Server-Test.");
+              } else {
+                const errorData = await saveResponse.json().catch(() => ({ error: 'Unknown error' }));
+                logStep("Token-Speicherung", "warning", `Tokens möglicherweise nicht in DB: ${errorData.error || saveResponse.statusText}`);
+              }
+            } else {
+              logStep("Token-Speicherung", "warning", "Keine Tokens im localStorage gefunden - Server-Test könnte fehlschlagen.");
+            }
+          } catch (tokenError) {
+            console.error('[StorageForm] Fehler beim Speichern der Tokens:', tokenError);
+            logStep("Token-Speicherung", "warning", `Fehler beim Speichern der Tokens: ${tokenError instanceof Error ? tokenError.message : String(tokenError)}`);
+          }
+        }
+
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorDetails = error instanceof Error ? {
