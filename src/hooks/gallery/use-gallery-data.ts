@@ -27,6 +27,9 @@ export function useGalleryData(
   const [hasMore, setHasMore] = useState(true)
   const LIMIT = 50
   
+  // Memoize filters string für Dependency-Array
+  const filtersString = useMemo(() => JSON.stringify(filters), [filters])
+  
   // Reset bei Filter-Änderungen (nur wenn nicht skipApiCall)
   useEffect(() => {
     if (skipApiCall) return
@@ -35,7 +38,7 @@ export function useGalleryData(
     setDocs([])
     setTotalCount(0)
     setIsLoadingMore(false)
-  }, [libraryId, JSON.stringify(filters), mode, searchQuery, skipApiCall])
+  }, [libraryId, filtersString, mode, searchQuery, skipApiCall])
   
   useEffect(() => {
     // Überspringe API-Aufruf wenn skipApiCall true ist

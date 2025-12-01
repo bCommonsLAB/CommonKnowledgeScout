@@ -42,7 +42,18 @@ export async function loadShadowTwinMarkdown(
   const originalName = job.correlation.source?.name || 'output'
 
   // Shadow-Twin-Markdown-Datei suchen
+  const searchStartTime = Date.now()
+  FileLogger.info('phase-shadow-twin-loader', 'Starte Suche nach Shadow-Twin-Markdown', {
+    jobId,
+    parentId,
+    baseName,
+    lang,
+    twinName,
+    originalName,
+  })
+  
   const twin = await findShadowTwinMarkdownFile(parentId, baseName, lang, originalName, provider)
+  const searchDuration = Date.now() - searchStartTime
 
   if (!twin) {
     FileLogger.warn('phase-shadow-twin-loader', 'Shadow-Twin-Markdown nicht gefunden', {
@@ -51,14 +62,52 @@ export async function loadShadowTwinMarkdown(
       baseName,
       lang,
       twinName,
+      searchDurationMs: searchDuration,
     })
     return null
   }
 
+  FileLogger.info('phase-shadow-twin-loader', 'Shadow-Twin-Markdown-Datei gefunden', {
+    jobId,
+    fileId: twin.id,
+    fileName: twinName,
+    searchDurationMs: searchDuration,
+  })
+
   try {
-    // Markdown-Datei laden
+    // Markdown-Datei laden mit Timeout-Überwachung
+    const loadStartTime = Date.now()
+    FileLogger.info('phase-shadow-twin-loader', 'Starte Laden der Markdown-Datei von Azure/OneDrive', {
+      jobId,
+      fileId: twin.id,
+      fileName: twinName,
+      providerType: provider.constructor.name,
+    })
+    
     const bin = await provider.getBinary(twin.id)
+    const loadDuration = Date.now() - loadStartTime
+    
+    FileLogger.info('phase-shadow-twin-loader', 'Markdown-Datei erfolgreich geladen', {
+      jobId,
+      fileId: twin.id,
+      fileName: twinName,
+      loadDurationMs: loadDuration,
+      blobSize: bin.blob.size,
+      mimeType: bin.mimeType,
+    })
+    
+    const textStartTime = Date.now()
     const markdownText = await bin.blob.text()
+    const textDuration = Date.now() - textStartTime
+    
+    FileLogger.info('phase-shadow-twin-loader', 'Markdown-Text extrahiert', {
+      jobId,
+      fileId: twin.id,
+      fileName: twinName,
+      textDurationMs: textDuration,
+      textLength: markdownText.length,
+      totalDurationMs: loadDuration + textDuration,
+    })
 
     // Frontmatter parsen
     const parsed = parseSecretaryMarkdownStrict(markdownText)
@@ -66,12 +115,20 @@ export async function loadShadowTwinMarkdown(
       ? (parsed.meta as Record<string, unknown>)
       : {}
 
+    // Erweiterte Logging für Debugging
+    const hasFrontmatterBlock = markdownText.trim().startsWith('---')
+    const frontmatterPreview = markdownText.substring(0, Math.min(500, markdownText.length))
+    
     FileLogger.info('phase-shadow-twin-loader', 'Shadow-Twin-Markdown geladen', {
       jobId,
       fileId: twin.id,
       fileName: twinName,
       markdownLength: markdownText.length,
       hasMeta: Object.keys(meta).length > 0,
+      metaKeys: Object.keys(meta),
+      hasFrontmatterBlock,
+      frontmatterPreview: frontmatterPreview.substring(0, 200), // Erste 200 Zeichen für Debugging
+      parsedMetaKeys: parsed?.meta && typeof parsed.meta === 'object' ? Object.keys(parsed.meta as Record<string, unknown>) : [],
     })
 
     return {

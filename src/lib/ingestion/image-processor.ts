@@ -152,10 +152,10 @@ export class ImageProcessor {
       const parallelBatchResults = await Promise.allSettled(
         parallelBatches.map(async (batch, relativeIndex) => {
           const batchIndex = batchStartIndex + relativeIndex
-          
-          // Verarbeite alle Bilder im Batch parallel
-          const batchResults = await Promise.allSettled(
-            batch.map(async ({ match, pattern }) => {
+
+      // Verarbeite alle Bilder im Batch parallel
+      const batchResults = await Promise.allSettled(
+        batch.map(async ({ match, pattern }) => {
           const imagePath = pattern.extractPath(match)
           if (!imagePath) {
             return { success: false, match, pattern, imagePath, error: 'Kein Bildpfad gefunden' }
@@ -191,18 +191,18 @@ export class ImageProcessor {
             // Versuche zuerst, das Bild vom Storage Provider zu laden
             // (nur wenn wir es noch nicht haben)
             try {
-              const imageFile = await findShadowTwinImage(baseItem, normalizedPath.path, provider, shadowTwinFolderId)
-              if (!imageFile) {
-                const errorMsg = `Bild nicht gefunden: ${normalizedPath.path}`
-                FileLogger.warn('ingestion', errorMsg, {
-                  fileId,
-                  imagePath: normalizedPath.path,
-                  shadowTwinFolderId: shadowTwinFolderId || 'none',
-                })
-                return { success: false, match, pattern, imagePath, error: errorMsg }
-              }
+            const imageFile = await findShadowTwinImage(baseItem, normalizedPath.path, provider, shadowTwinFolderId)
+            if (!imageFile) {
+              const errorMsg = `Bild nicht gefunden: ${normalizedPath.path}`
+              FileLogger.warn('ingestion', errorMsg, {
+                fileId,
+                imagePath: normalizedPath.path,
+                shadowTwinFolderId: shadowTwinFolderId || 'none',
+              })
+              return { success: false, match, pattern, imagePath, error: errorMsg }
+            }
 
-              const bin = await provider.getBinary(imageFile.id)
+            const bin = await provider.getBinary(imageFile.id)
               buffer = Buffer.from(await bin.blob.arrayBuffer())
               hash = calculateImageHash(buffer)
               
@@ -246,17 +246,17 @@ export class ImageProcessor {
             )
 
             return { success: true, match, pattern, imagePath, azureUrl }
-            } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
-              FileLogger.warn('ingestion', 'Fehler beim Verarbeiten des Markdown-Bildes', {
-                fileId,
-                imagePath,
-                error: errorMessage,
-              })
-              return { success: false, match, pattern, imagePath, error: errorMessage }
-            }
-          })
-        )
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+            FileLogger.warn('ingestion', 'Fehler beim Verarbeiten des Markdown-Bildes', {
+              fileId,
+              imagePath,
+              error: errorMessage,
+            })
+            return { success: false, match, pattern, imagePath, error: errorMessage }
+          }
+        })
+      )
         
         return { batchIndex, batchResults }
         })
@@ -266,43 +266,43 @@ export class ImageProcessor {
       for (const parallelResult of parallelBatchResults) {
         if (parallelResult.status === 'fulfilled') {
           const { batchIndex, batchResults } = parallelResult.value
-          
-          // Verarbeite Batch-Ergebnisse
-          for (const result of batchResults) {
-            if (result.status === 'fulfilled') {
-              const { success, match, pattern, imagePath, azureUrl, error } = result.value
-              if (success && azureUrl) {
-                const altText = match[1] || imagePath
-                updatedMarkdown = updatedMarkdown.replace(match[0], pattern.replace(altText, azureUrl))
-              } else {
-                const userFriendlyError = this.formatImageError(error || 'Unbekannter Fehler', imagePath || '')
-                errors.push({ imagePath: imagePath || '', error: userFriendlyError })
-                if (jobId) {
-                  bufferLog(jobId, {
-                    phase: 'markdown_image_error',
-                    message: `Bild ${imagePath}: ${userFriendlyError}`,
-                  })
-                }
-              }
-            } else {
-              // Promise.allSettled garantiert, dass wir hier nie landen sollten, aber zur Sicherheit
-              const errorMessage = result.reason instanceof Error ? result.reason.message : 'Unbekannter Fehler'
-              FileLogger.error('ingestion', 'Unerwarteter Fehler beim Batch-Upload', {
-                fileId,
-                error: errorMessage,
+
+      // Verarbeite Batch-Ergebnisse
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          const { success, match, pattern, imagePath, azureUrl, error } = result.value
+          if (success && azureUrl) {
+            const altText = match[1] || imagePath
+            updatedMarkdown = updatedMarkdown.replace(match[0], pattern.replace(altText, azureUrl))
+          } else {
+            const userFriendlyError = this.formatImageError(error || 'Unbekannter Fehler', imagePath || '')
+            errors.push({ imagePath: imagePath || '', error: userFriendlyError })
+            if (jobId) {
+              bufferLog(jobId, {
+                phase: 'markdown_image_error',
+                message: `Bild ${imagePath}: ${userFriendlyError}`,
               })
-              errors.push({ imagePath: '', error: `Batch-Fehler: ${errorMessage}` })
             }
           }
+        } else {
+          // Promise.allSettled garantiert, dass wir hier nie landen sollten, aber zur Sicherheit
+          const errorMessage = result.reason instanceof Error ? result.reason.message : 'Unbekannter Fehler'
+          FileLogger.error('ingestion', 'Unerwarteter Fehler beim Batch-Upload', {
+            fileId,
+            error: errorMessage,
+          })
+          errors.push({ imagePath: '', error: `Batch-Fehler: ${errorMessage}` })
+        }
+      }
 
-          // Logge Batch-Fortschritt
-          if (jobId && batchIndex < batches.length - 1) {
-            const processed = (batchIndex + 1) * BATCH_SIZE
-            const remaining = imageReferences.length - processed
-            bufferLog(jobId, {
-              phase: 'markdown_images_batch_progress',
-              message: `Batch ${batchIndex + 1}/${batches.length} abgeschlossen (${processed}/${imageReferences.length} Bilder verarbeitet, ${remaining} verbleibend)`,
-            })
+      // Logge Batch-Fortschritt
+      if (jobId && batchIndex < batches.length - 1) {
+        const processed = (batchIndex + 1) * BATCH_SIZE
+        const remaining = imageReferences.length - processed
+        bufferLog(jobId, {
+          phase: 'markdown_images_batch_progress',
+          message: `Batch ${batchIndex + 1}/${batches.length} abgeschlossen (${processed}/${imageReferences.length} Bilder verarbeitet, ${remaining} verbleibend)`,
+        })
           }
         } else {
           // Fehler beim Verarbeiten eines parallelen Batches
@@ -478,55 +478,55 @@ export class ImageProcessor {
       const parallelBatchResults = await Promise.allSettled(
         parallelBatches.map(async (batch, relativeIndex) => {
           const batchIndex = batchStartIndex + relativeIndex
-          
-          // Verarbeite alle Slides im Batch parallel
-          const batchResults = await Promise.allSettled(
-            batch.map(async ({ index, slide, imageUrl }) => {
-              try {
-                const normalizedPath = this.normalizeImagePath(imageUrl)
+
+      // Verarbeite alle Slides im Batch parallel
+      const batchResults = await Promise.allSettled(
+        batch.map(async ({ index, slide, imageUrl }) => {
+          try {
+            const normalizedPath = this.normalizeImagePath(imageUrl)
                 if (!normalizedPath.success || !normalizedPath.path) {
                   return { success: false, index, slide, imageUrl, error: normalizedPath.error || 'Kein Bildpfad gefunden' }
-                }
+            }
 
-                const utf8Bytes = Buffer.from(normalizedPath.path, 'utf-8')
-                const fileIdForImage = utf8Bytes.toString('base64')
+            const utf8Bytes = Buffer.from(normalizedPath.path, 'utf-8')
+            const fileIdForImage = utf8Bytes.toString('base64')
 
-                const bin = await provider.getBinary(fileIdForImage)
-                const buffer = Buffer.from(await bin.blob.arrayBuffer())
-                const extension = normalizedPath.path.split('.').pop()?.toLowerCase() || 'jpg'
+            const bin = await provider.getBinary(fileIdForImage)
+            const buffer = Buffer.from(await bin.blob.arrayBuffer())
+            const extension = normalizedPath.path.split('.').pop()?.toLowerCase() || 'jpg'
 
                 if (!containerCheck.containerName) {
                   return { success: false, index, slide, imageUrl, error: 'Container-Name nicht verfügbar' }
                 }
 
-                const azureUrl = await this.uploadImageWithDeduplication(
-                  azureStorage,
-                  containerCheck.containerName,
-                  libraryId,
-                  'sessions',
-                  fileId,
-                  buffer,
-                  extension,
-                  imageUrl,
-                  jobId,
-                  'slide_image',
-                  index + 1
-                )
+            const azureUrl = await this.uploadImageWithDeduplication(
+              azureStorage,
+              containerCheck.containerName,
+              libraryId,
+              'sessions',
+              fileId,
+              buffer,
+              extension,
+              imageUrl,
+              jobId,
+              'slide_image',
+              index + 1
+            )
 
-                slide.image_url = azureUrl
-                return { success: true, index, slide, imageUrl, azureUrl }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
-                FileLogger.warn('ingestion', 'Fehler beim Verarbeiten des Slide-Bildes', {
-                  fileId,
-                  slideIndex: index,
-                  imageUrl,
-                  error: errorMessage,
-                })
-                return { success: false, index, slide, imageUrl, error: errorMessage }
-              }
+            slide.image_url = azureUrl
+            return { success: true, index, slide, imageUrl, azureUrl }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+            FileLogger.warn('ingestion', 'Fehler beim Verarbeiten des Slide-Bildes', {
+              fileId,
+              slideIndex: index,
+              imageUrl,
+              error: errorMessage,
             })
-          )
+            return { success: false, index, slide, imageUrl, error: errorMessage }
+          }
+        })
+      )
           
           return { batchIndex, batchResults }
         })
@@ -536,45 +536,45 @@ export class ImageProcessor {
       for (const parallelResult of parallelBatchResults) {
         if (parallelResult.status === 'fulfilled') {
           const { batchIndex, batchResults } = parallelResult.value
-          
-          // Verarbeite Batch-Ergebnisse
-          for (const result of batchResults) {
-            if (result.status === 'fulfilled') {
-              const { success, index, slide, imageUrl, error } = result.value
-              if (success) {
-                updatedSlides[index] = slide
-              } else {
-                const userFriendlyError = this.formatImageError(error || 'Unbekannter Fehler', imageUrl)
-                errors.push({ slideIndex: index, imageUrl, error: userFriendlyError })
-                updatedSlides[index] = slide
 
-                if (jobId) {
-                  bufferLog(jobId, {
-                    phase: 'slide_image_error',
-                    message: `Bild ${index + 1}: ${userFriendlyError}`,
-                  })
-                }
-              }
-            } else {
-              // Promise.allSettled garantiert, dass wir hier nie landen sollten, aber zur Sicherheit
-              const errorMessage = result.reason instanceof Error ? result.reason.message : 'Unbekannter Fehler'
-              FileLogger.error('ingestion', 'Unerwarteter Fehler beim Slide-Batch-Upload', {
-                fileId,
-                error: errorMessage,
+      // Verarbeite Batch-Ergebnisse
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          const { success, index, slide, imageUrl, error } = result.value
+          if (success) {
+            updatedSlides[index] = slide
+          } else {
+            const userFriendlyError = this.formatImageError(error || 'Unbekannter Fehler', imageUrl)
+            errors.push({ slideIndex: index, imageUrl, error: userFriendlyError })
+            updatedSlides[index] = slide
+
+            if (jobId) {
+              bufferLog(jobId, {
+                phase: 'slide_image_error',
+                message: `Bild ${index + 1}: ${userFriendlyError}`,
               })
-              // Index nicht verfügbar, daher können wir den Slide nicht zuordnen
-              errors.push({ slideIndex: -1, imageUrl: '', error: `Batch-Fehler: ${errorMessage}` })
             }
           }
+        } else {
+          // Promise.allSettled garantiert, dass wir hier nie landen sollten, aber zur Sicherheit
+          const errorMessage = result.reason instanceof Error ? result.reason.message : 'Unbekannter Fehler'
+          FileLogger.error('ingestion', 'Unerwarteter Fehler beim Slide-Batch-Upload', {
+            fileId,
+            error: errorMessage,
+          })
+          // Index nicht verfügbar, daher können wir den Slide nicht zuordnen
+          errors.push({ slideIndex: -1, imageUrl: '', error: `Batch-Fehler: ${errorMessage}` })
+        }
+      }
 
-          // Logge Batch-Fortschritt
-          if (jobId && batchIndex < batches.length - 1) {
-            const processed = (batchIndex + 1) * BATCH_SIZE
-            const remaining = slidesToProcess.length - processed
-            bufferLog(jobId, {
-              phase: 'slide_images_batch_progress',
-              message: `Slide-Batch ${batchIndex + 1}/${batches.length} abgeschlossen (${processed}/${slidesToProcess.length} Slides verarbeitet, ${remaining} verbleibend)`,
-            })
+      // Logge Batch-Fortschritt
+      if (jobId && batchIndex < batches.length - 1) {
+        const processed = (batchIndex + 1) * BATCH_SIZE
+        const remaining = slidesToProcess.length - processed
+        bufferLog(jobId, {
+          phase: 'slide_images_batch_progress',
+          message: `Slide-Batch ${batchIndex + 1}/${batches.length} abgeschlossen (${processed}/${slidesToProcess.length} Slides verarbeitet, ${remaining} verbleibend)`,
+        })
           }
         } else {
           // Fehler beim Verarbeiten eines parallelen Batches

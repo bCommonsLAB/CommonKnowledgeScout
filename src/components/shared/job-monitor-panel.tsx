@@ -132,7 +132,11 @@ export function JobMonitorPanel() {
   const navigateToFolder = useFolderNavigation();
 
   // Prüfe ob wir im Gallery-Modus sind (sollte ausgeblendet werden)
+  // Job Handle soll NICHT angezeigt werden im Gallery-Modus, aber auf anderen Seiten wie Integration Tests
   const isGalleryMode = pathname === '/library/gallery' || pathname?.startsWith('/explore/');
+  
+  // Prüfe ob wir auf der Integration Tests Seite sind (sollte Job Handle anzeigen)
+  const isIntegrationTestsPage = pathname === '/integration-tests';
 
   /**
    * Öffnet die Datei eines fehlerhaften Jobs im Datei-Viewer.
@@ -618,8 +622,8 @@ export function JobMonitorPanel() {
 
   return (
     <div className="pointer-events-none">
-      {/* Handle - nur im Archiv-Modus (library) anzeigen, nicht im Gallery-Modus */}
-      {!isGalleryMode && (
+      {/* Handle - im Archiv-Modus (library) und Integration Tests anzeigen, nicht im Gallery-Modus */}
+      {(!isGalleryMode || isIntegrationTestsPage) && (
         <div className={cn(
           "fixed top-16 right-0 z-40 transition-transform",
           isOpen ? "translate-x-[calc(0px)]" : "translate-x-0"

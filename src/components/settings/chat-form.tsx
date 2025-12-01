@@ -277,7 +277,7 @@ export function ChatForm() {
         allGalleryValues: form.getValues('gallery')
       })
     }
-  }, [activeLibrary, form, t])
+  }, [activeLibrary, form, t, defaultEmbeddings.chunkOverlap, defaultEmbeddings.chunkSize, defaultEmbeddings.dimensions, defaultEmbeddings.embeddingModel])
 
   async function onSubmit(data: ChatFormValues) {
     console.log('[ChatForm] ✅ onSubmit wurde aufgerufen!')

@@ -23,6 +23,7 @@
 
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata } from './types';
 import { ClientLibrary } from '@/types/library';
+import { FileLogger } from '@/lib/debug/logger';
 import * as process from 'process';
 
 interface OneDriveFile {
@@ -1393,37 +1394,59 @@ export class OneDriveProvider implements StorageProvider {
 
       // Prüfe, ob fileId ein Base64-kodierter Pfad ist (aus ingestion-service)
       // Versuche zu dekodieren - wenn erfolgreich, handelt es sich um einen Pfad
+      // WICHTIG: OneDrive Item-IDs sehen manchmal wie Base64 aus, müssen aber direkt verwendet werden
       let isPath = false
       let normalizedPath = ''
-      try {
-        const decoded = Buffer.from(fileId, 'base64').toString('utf-8')
-        // Wenn Dekodierung erfolgreich ist und das Ergebnis wie ein Pfad aussieht
-        if (decoded && decoded.includes('/') && !decoded.match(/^[A-Za-z0-9_-]+$/)) {
-          // Prüfe auf ungültige UTF-8 Zeichen (z.B. durch falsche Encoding)
-          // Einfache Prüfung: Wenn der String viele nicht-druckbare Zeichen enthält, ist er wahrscheinlich falsch dekodiert
-          const invalidChars = decoded.match(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]/g)
-          if (!invalidChars || invalidChars.length < decoded.length * 0.1) {
-            // Weniger als 10% ungültige Zeichen - wahrscheinlich gültig
-            isPath = true
-            normalizedPath = decoded
-          } else {
-            console.warn('[OneDriveProvider] getBinary: Pfad enthält viele ungültige Zeichen, behandeln als Item-ID', {
-              originalFileId: fileId.substring(0, 50), // Nur ersten 50 Zeichen loggen
-              decodedPath: decoded.substring(0, 100), // Nur ersten 100 Zeichen loggen
-              invalidCharsCount: invalidChars.length,
-              totalLength: decoded.length
-            })
-            // Behandle als Item-ID statt Pfad
-            isPath = false
-            normalizedPath = ''
+      
+      // Prüfe zuerst: Wenn fileId wie eine OneDrive Item-ID aussieht (32 Zeichen, alphanumerisch), behandle direkt als Item-ID
+      // OneDrive Item-IDs haben typischerweise das Format: 32 Zeichen alphanumerisch (z.B. "01XERETUL7BWNVHE3CV5CJ65TLD5WNPOTG")
+      const looksLikeOneDriveItemId = /^[A-Z0-9]{32,}$/.test(fileId)
+      
+      if (!looksLikeOneDriveItemId) {
+        // Nur wenn es nicht wie eine OneDrive Item-ID aussieht, versuche Base64-Decodierung
+        try {
+          const decoded = Buffer.from(fileId, 'base64').toString('utf-8')
+          // Wenn Dekodierung erfolgreich ist und das Ergebnis wie ein Pfad aussieht
+          if (decoded && decoded.includes('/') && !decoded.match(/^[A-Za-z0-9_-]+$/)) {
+            // Prüfe auf ungültige UTF-8 Zeichen (z.B. durch falsche Encoding)
+            // Einfache Prüfung: Wenn der String viele nicht-druckbare Zeichen enthält, ist er wahrscheinlich falsch dekodiert
+            const invalidChars = decoded.match(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]/g)
+            if (!invalidChars || invalidChars.length < decoded.length * 0.1) {
+              // Weniger als 10% ungültige Zeichen - wahrscheinlich gültig
+              isPath = true
+              normalizedPath = decoded
+            } else {
+              console.warn('[OneDriveProvider] getBinary: Pfad enthält viele ungültige Zeichen, behandeln als Item-ID', {
+                originalFileId: fileId.substring(0, 50), // Nur ersten 50 Zeichen loggen
+                decodedPath: decoded.substring(0, 100), // Nur ersten 100 Zeichen loggen
+                invalidCharsCount: invalidChars.length,
+                totalLength: decoded.length
+              })
+              // Behandle als Item-ID statt Pfad
+              isPath = false
+              normalizedPath = ''
+            }
           }
+        } catch {
+          // Nicht Base64-kodiert, behandele als Item-ID
         }
-      } catch {
-        // Nicht Base64-kodiert, behandele als Item-ID
+      } else {
+        // Sieht wie eine OneDrive Item-ID aus - behandle direkt als Item-ID
+        console.log('[OneDriveProvider] getBinary: Erkannt als OneDrive Item-ID', {
+          fileId: fileId.substring(0, 50)
+        })
       }
 
       let itemId = fileId
       let itemPath = ''
+      
+      const getBinaryStartTime = Date.now()
+      FileLogger.info('OneDriveProvider', 'getBinary: Starte Laden der Datei', {
+        fileId: fileId.substring(0, 50),
+        isOneDriveItemId: looksLikeOneDriveItemId,
+        isPath,
+        normalizedPath: normalizedPath ? normalizedPath.substring(0, 100) : undefined,
+      })
 
       // Wenn es ein Pfad ist, verwende Microsoft Graph's Pfad-Auflösung
       if (isPath && normalizedPath) {
@@ -1539,6 +1562,15 @@ export class OneDriveProvider implements StorageProvider {
       }
 
       const fileInfo = await itemResponse.json() as OneDriveFile;
+      const itemInfoDuration = Date.now() - getBinaryStartTime
+      
+      FileLogger.info('OneDriveProvider', 'getBinary: Dateiinformationen abgerufen', {
+        fileId: itemId.substring(0, 50),
+        fileName: fileInfo.name,
+        fileSize: fileInfo.size,
+        mimeType: fileInfo.file?.mimeType,
+        durationMs: itemInfoDuration,
+      })
       
       if (fileInfo.folder) {
         throw new StorageError(
@@ -1549,6 +1581,13 @@ export class OneDriveProvider implements StorageProvider {
       }
 
       // Dateiinhalt abrufen
+      const contentStartTime = Date.now()
+      FileLogger.info('OneDriveProvider', 'getBinary: Starte Laden des Dateiinhalts', {
+        fileId: itemId.substring(0, 50),
+        fileName: fileInfo.name,
+        fileSize: fileInfo.size,
+      })
+      
       let contentResponse: Response;
       try {
         contentResponse = await this.fetchWithRetry(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/content`, {
@@ -1557,6 +1596,13 @@ export class OneDriveProvider implements StorageProvider {
         }
       });
       } catch (fetchError) {
+        const contentDuration = Date.now() - contentStartTime
+        FileLogger.error('OneDriveProvider', 'getBinary: Netzwerkfehler beim Laden des Dateiinhalts', {
+          fileId: itemId.substring(0, 50),
+          fileName: fileInfo.name,
+          durationMs: contentDuration,
+          error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+        })
         // Netzwerkfehler abfangen
         throw new StorageError(
           `Netzwerkfehler beim Abrufen des Dateiinhalts: ${fetchError instanceof Error ? fetchError.message : 'Failed to fetch'}`,
@@ -1565,7 +1611,16 @@ export class OneDriveProvider implements StorageProvider {
         );
       }
 
+      const contentDuration = Date.now() - contentStartTime
+      
       if (!contentResponse.ok) {
+        FileLogger.error('OneDriveProvider', 'getBinary: Fehler beim Abrufen des Dateiinhalts', {
+          fileId: itemId.substring(0, 50),
+          fileName: fileInfo.name,
+          status: contentResponse.status,
+          statusText: contentResponse.statusText,
+          durationMs: contentDuration,
+        })
         throw new StorageError(
           `Fehler beim Abrufen des Dateiinhalts: ${contentResponse.statusText}`,
           "API_ERROR",
@@ -1573,8 +1628,23 @@ export class OneDriveProvider implements StorageProvider {
         );
       }
 
+      const blobStartTime = Date.now()
       const blob = await contentResponse.blob();
+      const blobDuration = Date.now() - blobStartTime
       const mimeType = fileInfo.file?.mimeType || contentResponse.headers.get('content-type') || 'application/octet-stream';
+      const totalDuration = Date.now() - getBinaryStartTime
+
+      FileLogger.info('OneDriveProvider', 'getBinary: Datei erfolgreich geladen', {
+        fileId: itemId.substring(0, 50),
+        fileName: fileInfo.name,
+        fileSize: fileInfo.size,
+        blobSize: blob.size,
+        mimeType,
+        itemInfoDurationMs: itemInfoDuration,
+        contentDurationMs: contentDuration,
+        blobDurationMs: blobDuration,
+        totalDurationMs: totalDuration,
+      })
 
       return { blob, mimeType };
     } catch (error) {
