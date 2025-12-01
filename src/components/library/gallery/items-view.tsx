@@ -2,9 +2,8 @@
 
 import React from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { ItemsGrid } from './items-grid'
-import { ItemsTable } from './items-table'
 import type { ViewMode } from './gallery-sticky-header'
+import { VirtualizedItemsView } from './virtualized-items-view'
 
 export interface ItemsViewProps {
   /** View-Mode: 'grid' für Galerie-Ansicht, 'table' für Tabellen-Ansicht */
@@ -15,16 +14,29 @@ export interface ItemsViewProps {
   onOpen?: (doc: DocCardMeta) => void
   /** Library ID (optional: Für URL-basierte Navigation) */
   libraryId?: string
+  /** Pagination: Mehr laden */
+  onLoadMore?: () => void
+  /** Pagination: Gibt es mehr zu laden? */
+  hasMore?: boolean
+  /** Pagination: Lade-Status */
+  isLoadingMore?: boolean
 }
 
 /**
- * Wrapper-Komponente für ItemsGrid und ItemsTable
- * Wählt automatisch die richtige Komponente basierend auf viewMode
+ * Wrapper-Komponente mit virtuellem Scrolling und Infinite Scroll
+ * Lädt automatisch weitere Dokumente beim Scrollen
  */
-export function ItemsView({ viewMode, docsByYear, onOpen, libraryId }: ItemsViewProps) {
-  if (viewMode === 'table') {
-    return <ItemsTable docsByYear={docsByYear} onOpen={onOpen} libraryId={libraryId} />
-  }
-  return <ItemsGrid docsByYear={docsByYear} onOpen={onOpen} libraryId={libraryId} />
+export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore, hasMore, isLoadingMore }: ItemsViewProps) {
+  return (
+    <VirtualizedItemsView
+      viewMode={viewMode}
+      docsByYear={docsByYear}
+      onOpen={onOpen}
+      libraryId={libraryId}
+      onLoadMore={onLoadMore}
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore}
+    />
+  )
 }
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { IngestionService } from '@/lib/chat/ingestion-service'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { describeIndex, deleteByFilter } from '@/lib/chat/pinecone'
+import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 
 export async function POST(
   request: NextRequest,
@@ -25,15 +25,13 @@ export async function POST(
       return NextResponse.json({ status: 'upserted', ...res })
     }
     if (mode === 'reset') {
-      const apiKey = process.env.PINECONE_API_KEY
-      if (!apiKey) return NextResponse.json({ error: 'PINECONE_API_KEY fehlt' }, { status: 500 })
       const ctx = await loadLibraryChatContext(userEmail, libraryId)
       if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
-      const idx = await describeIndex(ctx.vectorIndex, apiKey)
-      if (!idx?.host) return NextResponse.json({ error: 'Index nicht gefunden' }, { status: 404 })
+      const libraryKey = getCollectionNameForLibrary(ctx.library)
+      const col = await getCollectionOnly(libraryKey)
       // Alle Vektoren der Library löschen
-      await deleteByFilter(idx.host, apiKey, { libraryId: { $eq: libraryId } })
-      return NextResponse.json({ status: 'cleared', index: ctx.vectorIndex })
+      await col.deleteMany({ libraryId })
+      return NextResponse.json({ status: 'cleared', collection: libraryKey })
     }
 
     const { jobId } = await IngestionService.enqueueLibraryIngestion(userEmail, libraryId)

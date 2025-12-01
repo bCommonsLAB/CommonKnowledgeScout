@@ -90,7 +90,7 @@ export async function analyzeQuestionForRetriever(
   },
   apiKey?: string
 ): Promise<QuestionAnalysisResult> {
-  const model = process.env.QUESTION_ANALYZER_MODEL || process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
+  const model = process.env.QUESTION_ANALYZER_MODEL || process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
   const temperature = Number(process.env.QUESTION_ANALYZER_TEMPERATURE ?? 0.3)
   const effectiveApiKey = apiKey || process.env.OPENAI_API_KEY || ''
   

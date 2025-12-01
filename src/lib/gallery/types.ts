@@ -16,6 +16,7 @@ export interface DocCardMeta {
   upsertedAt?: string
   slug?: string
   coverImageUrl?: string
+  pages?: number
 }
 
 export interface ChapterInfo {

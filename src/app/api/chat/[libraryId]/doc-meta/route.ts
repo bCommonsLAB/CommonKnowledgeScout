@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/doc-meta-repo'
+import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/vector-repo'
 
 /**
  * GET /api/chat/[libraryId]/doc-meta
- * Lädt Dokument-Metadaten aus MongoDB (schnell, ohne Pinecone)
+ * Lädt Dokument-Metadaten aus MongoDB 
  * 
  * Query-Parameter:
  * - fileId: Die ID der Datei (erforderlich)

@@ -182,9 +182,15 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
         config: activeLibrary.config
       });
       
+      // Validierung: Sicherstellen, dass type ein gültiger Wert ist
+      const libraryType = activeLibrary.type as StorageProviderType;
+      const validType = (libraryType === 'local' || libraryType === 'onedrive' || libraryType === 'gdrive') 
+        ? libraryType 
+        : 'local'; // Fallback auf 'local' wenn ungültig
+      
       // Wenn Bibliothek gewechselt wird, Formular mit den Werten befüllen
       const formData = {
-        type: activeLibrary.type as StorageProviderType,
+        type: validType,
         path: activeLibrary.path || "",
         // Alle Werte direkt aus der Bibliothek oder aus den Defaults verwenden
         tenantId: activeLibrary.config?.tenantId as string || oauthDefaults.tenantId,
@@ -203,7 +209,13 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
       
       // Zusätzlich: Nach Reset den aktuellen Zustand prüfen
       setTimeout(() => {
-        console.log('[StorageForm] Form-Zustand nach Reset:', form.getValues());
+        const afterReset = form.getValues();
+        console.log('[StorageForm] Form-Zustand nach Reset:', afterReset);
+        // Sicherstellen, dass type gesetzt ist
+        if (!afterReset.type || (afterReset.type !== 'local' && afterReset.type !== 'onedrive' && afterReset.type !== 'gdrive')) {
+          console.warn('[StorageForm] Type ist nach Reset ungültig, setze auf:', validType);
+          form.setValue('type', validType);
+        }
       }, 0);
       
     } else {
@@ -449,12 +461,17 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
       
       // Nur die für den ausgewählten Typ relevanten Felder hinzufügen
       if (data.type === 'onedrive' || data.type === 'gdrive') {
-        if (data.tenantId) config.tenantId = data.tenantId;
-        if (data.clientId) config.clientId = data.clientId;
-        // clientSecret nur senden, wenn es kein maskierter Wert ist und nicht leer
-        if (data.clientSecret && data.clientSecret !== '' && data.clientSecret !== '********') {
-          console.log('[StorageForm] ClientSecret wird gesendet (nicht maskiert, nicht leer)');
-          config.clientSecret = data.clientSecret;
+        if (data.tenantId) config.tenantId = data.tenantId.trim();
+        if (data.clientId) config.clientId = data.clientId.trim();
+        // clientSecret nur senden, wenn es kein maskierter Wert ist und nicht leer (nach trim)
+        if (data.clientSecret && data.clientSecret !== '********') {
+          const trimmedSecret = data.clientSecret.trim();
+          if (trimmedSecret !== '') {
+            console.log('[StorageForm] ClientSecret wird gesendet (nicht maskiert, nicht leer, Länge:', trimmedSecret.length, ')');
+            config.clientSecret = trimmedSecret;
+          } else {
+            console.log('[StorageForm] ClientSecret wird NICHT gesendet: nur Whitespace');
+          }
         } else {
           console.log('[StorageForm] ClientSecret wird NICHT gesendet:', {
             reason: data.clientSecret === '********' ? 'maskiert' : 
@@ -1088,31 +1105,40 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
           <FormField
             control={form.control}
             name="type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Speichertyp</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value || (activeLibrary?.type as StorageProviderType) || undefined}
-                  defaultValue={activeLibrary?.type as StorageProviderType | undefined}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wählen Sie einen Speichertyp" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="local">Lokales Dateisystem</SelectItem>
-                    <SelectItem value="onedrive">Microsoft OneDrive</SelectItem>
-                    <SelectItem value="gdrive">Google Drive</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Wählen Sie den Typ des Speichers, den Sie verwenden möchten.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              // Sicherstellen, dass immer ein gültiger Wert vorhanden ist
+              const currentValue = field.value || (activeLibrary?.type as StorageProviderType) || 'local';
+              
+              return (
+                <FormItem>
+                  <FormLabel>Speichertyp</FormLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      // Sicherstellen, dass der Wert gültig ist
+                      if (value === 'local' || value === 'onedrive' || value === 'gdrive') {
+                        field.onChange(value);
+                      }
+                    }}
+                    value={currentValue}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Wählen Sie einen Speichertyp" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="local">Lokales Dateisystem</SelectItem>
+                      <SelectItem value="onedrive">Microsoft OneDrive</SelectItem>
+                      <SelectItem value="gdrive">Google Drive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Wählen Sie den Typ des Speichers, den Sie verwenden möchten.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
           
           <FormField

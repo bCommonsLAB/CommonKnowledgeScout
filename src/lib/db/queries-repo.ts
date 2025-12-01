@@ -33,10 +33,10 @@ import crypto from 'crypto'
 import type { Collection, UpdateFilter } from 'mongodb'
 import type { QueryLog, QueryRetrievalStep } from '@/types/query-log'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
-import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
-import { getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
+import { buildCacheHashParams } from '@/lib/chat/utils/cache-hash-builder'
 import type { Library } from '@/types/library'
-import { getCollectionNameForLibrary } from '@/lib/repositories/doc-meta-repo'
+import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
+import { loadLibraryChatContext } from '@/lib/chat/loader'
 
 const COLLECTION_NAME = 'queries'
 
@@ -49,10 +49,10 @@ const COLLECTION_NAME = 'queries'
 export async function getDocumentCount(library: Library): Promise<number> {
   try {
     const libraryKey = getCollectionNameForLibrary(library)
-    const col = await getDocMetaCollection(libraryKey)
+    const col = await getCollectionOnly(libraryKey)
     
-    // Zähle alle Dokumente in der Collection (ohne Filter)
-    return await col.countDocuments({})
+    // Zähle nur Meta-Dokumente (kind: 'meta') in der Collection
+    return await col.countDocuments({ kind: 'meta' })
   } catch (error) {
     // Bei Fehler: Logge und verwende 0 (Cache wird dann nicht invalidiert)
     console.error('[queries-repo] Fehler beim Ermitteln der Dokumentenanzahl:', error)
@@ -84,11 +84,14 @@ export async function getFilteredDocumentCount(
     } else {
       libraryKey = getCollectionNameForLibrary(libraryOrId);
     }
-    const col = await getDocMetaCollection(libraryKey)
+    const col = await getCollectionOnly(libraryKey)
     
-    // Zähle gefilterte Dokumente
-    // Wenn kein Filter vorhanden ist, zähle alle Dokumente
-    const filterQuery = Object.keys(filter).length > 0 ? filter : {}
+    // Zähle gefilterte Meta-Dokumente (kind: 'meta')
+    // Wenn kein Filter vorhanden ist, zähle alle Meta-Dokumente
+    const filterQuery: Record<string, unknown> = { kind: 'meta' }
+    if (Object.keys(filter).length > 0) {
+      Object.assign(filterQuery, filter)
+    }
     return await col.countDocuments(filterQuery)
   } catch (error) {
     // Bei Fehler: Logge und verwende 0 (Cache wird dann nicht invalidiert)
@@ -142,34 +145,62 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
   // WICHTIG: Verwende gefilterte Anzahl, da die Filter Teil des Cache-Kontexts sind
   // Die gefilterte Anzahl wird verwendet, um den Cache zu invalidierten, wenn neue Dokumente hinzugefügt werden,
   // die zu den Filtern passen
-  // Konvertiere facetsSelected zu MongoDB-Filter-Format (mappt shortTitle zu docMetaJson.shortTitle)
-  const mongoFilter = facetsSelectedToMongoFilter(doc.facetsSelected)
-  const documentCount = await getFilteredDocumentCount(doc.libraryId, mongoFilter)
+  // Ermittle Library für korrekte Collection-Name-Konvertierung (falls documentCount nicht vorhanden)
+  // Wenn documentCount bereits übergeben wurde (z.B. aus stream/route.ts), verwende diesen
+  // Ansonsten lade Library und berechne documentCount (für korrekte Collection-Name-Konvertierung)
+  let libraryForCache: Library | undefined = undefined
+  const providedDocumentCount = (doc as { documentCount?: number }).documentCount
   
-  // Normalisiere Retriever für Cache-Hash: chunkSummary → chunk (konsistent mit Suchen)
-  // Beim Suchen wird chunkSummary zu 'chunk' konvertiert, daher müssen wir das auch beim Speichern tun
-  const retrieverForCache = doc.retriever === 'chunkSummary' ? 'chunk' : doc.retriever
+  if (providedDocumentCount === undefined) {
+    // Lade Library für korrekte Collection-Name-Konvertierung
+    const userEmail = doc.userEmail || doc.sessionId || ''
+    const libraryContext = await loadLibraryChatContext(userEmail, doc.libraryId)
+    if (libraryContext) {
+      libraryForCache = libraryContext.library
+    }
+  }
   
-  // Erstelle cacheParams-Objekt für einfaches Debugging (kann einfach kopiert werden)
-  const cacheParams: import('@/types/query-log').CacheParams = {
+  // Verwende zentrale Funktion für Cache-Hash-Berechnung
+  const cacheHashParams = await buildCacheHashParams({
     libraryId: doc.libraryId,
     question: doc.question,
-    queryType: doc.queryType || 'question',
-    answerLength: doc.answerLength, // Antwortlänge-Parameter (Teil des Cache-Hashes)
+    queryType: doc.queryType,
+    answerLength: doc.answerLength,
     targetLanguage: doc.targetLanguage,
     character: doc.character,
     accessPerspective: doc.accessPerspective,
     socialContext: doc.socialContext,
     genderInclusive: doc.genderInclusive,
-    retriever: retrieverForCache,
+    retriever: doc.retriever,
     facetsSelected: doc.facetsSelected,
-    documentCount,
+    documentCount: providedDocumentCount,
+    library: libraryForCache, // Verwende Library-Objekt für DocumentCount-Berechnung (falls documentCount nicht vorhanden)
+  })
+  
+  // Erstelle cacheParams-Objekt für einfaches Debugging (kann einfach kopiert werden)
+  const cacheParams: import('@/types/query-log').CacheParams = {
+    libraryId: cacheHashParams.libraryId,
+    question: cacheHashParams.question,
+    queryType: cacheHashParams.queryType || 'question',
+    answerLength: cacheHashParams.answerLength as import('@/lib/chat/constants').AnswerLength | undefined,
+    targetLanguage: cacheHashParams.targetLanguage as import('@/lib/chat/constants').TargetLanguage | undefined,
+    character: cacheHashParams.character,
+    accessPerspective: cacheHashParams.accessPerspective,
+    socialContext: cacheHashParams.socialContext as import('@/lib/chat/constants').SocialContext | undefined,
+    genderInclusive: cacheHashParams.genderInclusive,
+    retriever: cacheHashParams.retriever as import('@/lib/chat/constants').Retriever | undefined,
+    facetsSelected: cacheHashParams.facetsSelected,
+    documentCount: cacheHashParams.documentCount,
   }
   
   // Berechne cacheHash für schnelle Cache-Lookups
-  const cacheHash = createCacheHash(cacheParams)
+  // Debug-Logging: Zeige Parameter für Hash-Berechnung beim Speichern
+  console.log('[insertQueryLog] Hash-Parameter (cacheParams):', JSON.stringify(cacheParams, null, 2))
+  
+  const cacheHash = createCacheHash(cacheHashParams)
   
   // Debug-Logging: Zeige berechneten Hash beim Speichern
+  console.log('[insertQueryLog] Berechneter cacheHash:', cacheHash)
  
   
   const payload: QueryLog = {
@@ -185,7 +216,6 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
     // Cache-relevante Felder werden NICHT mehr in Root gespeichert (nur in cacheParams):
     // queryType, answerLength, retriever, targetLanguage, character, accessPerspective, socialContext, genderInclusive, facetsSelected
     filtersNormalized: doc.filtersNormalized,
-    filtersPinecone: doc.filtersPinecone,
     retrieval: Array.isArray(doc.retrieval) ? doc.retrieval : [],
     prompt: doc.prompt,
     answer: doc.answer,
@@ -343,26 +373,27 @@ export async function findQueryByQuestionAndContext(args: {
 }): Promise<QueryLog | null> {
   const col = await getQueriesCollection()
   
-  // Validierung: Entweder userEmail ODER sessionId muss vorhanden sein
-  if (!args.userEmail && !args.sessionId) {
-    throw new Error('Entweder userEmail oder sessionId muss angegeben werden')
-  }
+  // NOTE: userEmail und sessionId werden nicht mehr für Cache-Suche verwendet
+  // Cache ist benutzerübergreifend und basiert nur auf cacheHash + libraryId
   
   // Ermittle gefilterte Dokumentenanzahl für Cache-Hash
   // WICHTIG: Verwende gefilterte Anzahl, da die Filter Teil des Cache-Kontexts sind
   // Die gefilterte Anzahl wird verwendet, um den Cache zu invalidierten, wenn neue Dokumente hinzugefügt werden,
   // die zu den Filtern passen
-  // Konvertiere facetsSelected zu MongoDB-Filter-Format (mappt shortTitle zu docMetaJson.shortTitle)
-  const mongoFilter = facetsSelectedToMongoFilter(args.facetsSelected)
-  const documentCount = await getFilteredDocumentCount(args.libraryId, mongoFilter)
+  // WICHTIG: Lade Library, um korrekten Collection-Namen zu verwenden (konsistent mit Speichern)
+  // Verwende userEmail oder sessionId für Library-Loading (falls vorhanden), sonst leere String
+  const libraryContext = await loadLibraryChatContext(args.userEmail || args.sessionId || '', args.libraryId)
+  if (!libraryContext) {
+    console.error('[findQueryByQuestionAndContext] Library nicht gefunden:', args.libraryId)
+    return null
+  }
   
-  // Berechne Hash aus allen Cache-relevanten Parametern
-  // WICHTIG: queryType muss konsistent sein - wenn undefined, verwende 'question' als Default
-  const cacheHash = createCacheHash({
+  // Verwende zentrale Funktion für Cache-Hash-Berechnung
+  const cacheHashParams = await buildCacheHashParams({
     libraryId: args.libraryId,
     question: args.question,
-    queryType: args.queryType || 'question', // Default: 'question', konsistent mit insertQueryLog
-    answerLength: args.answerLength, // Antwortlänge-Parameter (Teil des Cache-Hashes)
+    queryType: args.queryType,
+    answerLength: args.answerLength,
     targetLanguage: args.targetLanguage,
     character: args.character,
     accessPerspective: args.accessPerspective,
@@ -370,33 +401,76 @@ export async function findQueryByQuestionAndContext(args: {
     genderInclusive: args.genderInclusive,
     retriever: args.retriever,
     facetsSelected: args.facetsSelected,
-    documentCount,
+    library: libraryContext.library, // Verwende Library-Objekt für DocumentCount-Berechnung
   })
   
+  // Debug-Logging: Zeige Parameter für Hash-Berechnung
+  console.log('[findQueryByQuestionAndContext] Hash-Parameter:', JSON.stringify(cacheHashParams, null, 2))
   
-  // Suche direkt nach Hash + libraryId + userEmail/sessionId
-  // Prüfe, ob answer oder storyTopicsData vorhanden ist
+  const cacheHash = createCacheHash(cacheHashParams)
+  
+  
+  // Cache-Suche: Nur nach cacheHash + libraryId (benutzerübergreifend)
+  // userEmail und sessionId werden nicht mehr für Cache-Suche verwendet
+  // WICHTIG: Suche nur nach Einträgen mit answer oder storyTopicsData (unabhängig vom Status)
   const filter: Record<string, unknown> = {
     cacheHash,
     libraryId: args.libraryId,
-    status: { $in: ['ok', 'pending'] }, // Auch pending Queries, falls sie bereits eine Antwort haben
     $or: [
-      { answer: { $exists: true, $nin: ['', null] } },
-      { storyTopicsData: { $exists: true, $ne: null } }
+      { answer: { $exists: true, $nin: [''] } },
+      { storyTopicsData: { $exists: true, $ne: null as unknown as import('@/types/story-topics').StoryTopicsData } }
     ],
   }
   
-  if (args.userEmail) {
-    filter.userEmail = args.userEmail
-  } else {
-    filter.sessionId = args.sessionId
-  }
+  // Debug-Logging: Zeige Filter und Hash
+  console.log('[findQueryByQuestionAndContext] Cache-Suche:', {
+    cacheHash,
+    libraryId: args.libraryId,
+    filter: JSON.stringify(filter, null, 2),
+  })
   
   // Suche nach der neuesten passenden Query (sortiert nach createdAt)
   const cachedQuery = await col.findOne(filter, { sort: { createdAt: -1 } })
   
-  // Wenn kein Treffer gefunden wurde, könnte hier eine alternative Suche ohne Hash erfolgen
-  // Aktuell wird nur die Hash-basierte Suche verwendet
+  // Debug-Logging: Zeige Ergebnis
+  if (cachedQuery) {
+    console.log('[findQueryByQuestionAndContext] Cache gefunden:', {
+      queryId: cachedQuery.queryId,
+      status: cachedQuery.status,
+      hasAnswer: !!cachedQuery.answer,
+      hasStoryTopicsData: !!cachedQuery.storyTopicsData,
+      createdAt: cachedQuery.createdAt,
+    })
+  } else {
+    console.log('[findQueryByQuestionAndContext] Kein Cache gefunden')
+    
+    // Zusätzliche Debug-Suche: Prüfe, ob Einträge mit cacheHash existieren (ohne andere Filter)
+    const countByHash = await col.countDocuments({ cacheHash, libraryId: args.libraryId })
+    console.log('[findQueryByQuestionAndContext] Einträge mit cacheHash + libraryId:', countByHash)
+    
+    if (countByHash > 0) {
+      // Prüfe Status der gefundenen Einträge
+      const statusCheck = await col.aggregate([
+        { $match: { cacheHash, libraryId: args.libraryId } },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]).toArray()
+      console.log('[findQueryByQuestionAndContext] Status-Verteilung:', statusCheck)
+      
+      // Prüfe ob answer/storyTopicsData vorhanden sind
+      const hasAnswer = await col.countDocuments({ 
+        cacheHash, 
+        libraryId: args.libraryId,
+        answer: { $exists: true, $nin: [''] }
+      })
+      const hasStoryTopics = await col.countDocuments({ 
+        cacheHash, 
+        libraryId: args.libraryId,
+        storyTopicsData: { $exists: true, $ne: null as unknown as import('@/types/story-topics').StoryTopicsData }
+      })
+      console.log('[findQueryByQuestionAndContext] Einträge mit answer:', hasAnswer)
+      console.log('[findQueryByQuestionAndContext] Einträge mit storyTopicsData:', hasStoryTopics)
+    }
+  }
   
   return cachedQuery || null
 }

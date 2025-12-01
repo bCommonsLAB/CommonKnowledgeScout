@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { describeIndex } from '@/lib/chat/pinecone'
+import { getCollectionNameForLibrary, getVectorCollection, getVectorSearchIndexDefinition, VECTOR_SEARCH_INDEX_NAME } from '@/lib/repositories/vector-repo'
+import { getEmbeddingDimensionForModel } from '@/lib/chat/config'
 
 /**
  * GET /api/chat/[libraryId]/index-status
- * Prüft den Pinecone-Index-Status für eine spezifische Library
+ * Prüft den MongoDB Vector Search Index-Status für eine spezifische Library
  * 
  * Response:
  * {
@@ -14,8 +15,7 @@ import { describeIndex } from '@/lib/chat/pinecone'
  *   indexName?: string (falls existiert)
  *   vectorCount?: number
  *   dimension?: number
- *   status?: { ready: boolean, state: string }
- *   host?: string
+ *   collectionName?: string
  * }
  */
 export async function GET(
@@ -44,60 +44,86 @@ export async function GET(
       return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
     }
 
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
+    const dimension = getEmbeddingDimensionForModel(ctx.library.config?.chat)
+    const expectedIndexName = libraryKey
+
     console.log('[index-status] Library-Kontext geladen:', {
       libraryId: ctx.library.id,
       libraryLabel: ctx.library.label,
-      vectorIndex: ctx.vectorIndex
+      collectionName: libraryKey,
+      dimension
     })
 
-    const apiKey = process.env.PINECONE_API_KEY
-    if (!apiKey) {
-      return NextResponse.json({ error: 'PINECONE_API_KEY fehlt' }, { status: 500 })
-    }
-
-    const expectedIndexName = ctx.vectorIndex
-
-    // Prüfe, ob Index existiert
+    // Prüfe, ob Vector Search Index existiert
     try {
-      const idx = await describeIndex(expectedIndexName, apiKey)
+      // Verwende Library für Index-Setup
+      const col = await getVectorCollection(libraryKey, dimension, ctx.library)
       
-      if (idx && idx.host) {
+      // Hole Index-Definition für Details
+      const indexDefinition = await getVectorSearchIndexDefinition(libraryKey, dimension, ctx.library)
+      
+      if (indexDefinition) {
         // Index existiert - hole Stats
-        const statsRes = await fetch(`https://${idx.host}/describe_index_stats`, {
-          method: 'POST',
-          headers: {
-            'Api-Key': apiKey,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({}),
-          cache: 'no-store'
-        })
+        const vectorCount = await col.countDocuments({ kind: { $in: ['chunk', 'chapterSummary'] } })
+        const metaCount = await col.countDocuments({ kind: 'meta' })
         
-        const stats = await statsRes.json().catch(() => ({}))
-        const vectorCount = typeof stats?.totalVectorCount === 'number' 
-          ? stats.totalVectorCount 
-          : (stats?.namespaces?.['']?.vectorCount || 0)
+        // Analysiere Index-Definition für Filter-Felder
+        let filterFieldsInfo: { dynamic?: boolean; explicitFields?: string[]; hasKind?: boolean; hasLibraryId?: boolean; hasUser?: boolean } | undefined
+        if (indexDefinition?.definition) {
+          const def = indexDefinition.definition as { mappings?: { fields?: Record<string, unknown>; dynamic?: boolean } } | undefined
+          if (def?.mappings) {
+            const fields = def.mappings.fields || {}
+            const dynamic = def.mappings.dynamic !== false
+            filterFieldsInfo = {
+              dynamic,
+              explicitFields: Object.keys(fields),
+              hasKind: 'kind' in fields,
+              hasLibraryId: 'libraryId' in fields,
+              hasUser: 'user' in fields,
+            }
+          }
+        }
 
         return NextResponse.json({
           exists: true,
           expectedIndexName,
-          indexName: expectedIndexName,
+          indexName: VECTOR_SEARCH_INDEX_NAME,
           vectorCount,
-          dimension: idx.dimension,
-          host: idx.host
+          metaCount,
+          dimension,
+          collectionName: libraryKey,
+          indexDefinition: indexDefinition.definition,
+          indexStatus: indexDefinition.status,
+          filterFieldsInfo,
+        })
+      } else {
+        // Index existiert nicht
+        console.log('[index-status] Vector Search Index nicht gefunden')
+        
+        // Prüfe ob Collection existiert
+        const collectionExists = await col.countDocuments({}).then(count => count > 0).catch(() => false)
+        
+        return NextResponse.json({
+          exists: false,
+          expectedIndexName,
+          collectionName: libraryKey,
+          collectionExists,
+          dimension,
+          message: `Vector Search Index für Collection "${libraryKey}" existiert noch nicht. Der Index wird automatisch beim ersten Upsert erstellt.`
         })
       }
     } catch (e) {
-      // Index existiert nicht oder andere Fehler
-      console.log('[index-status] Index nicht gefunden oder Fehler:', e instanceof Error ? e.message : 'Unknown')
+      // Andere Fehler
+      console.log('[index-status] Fehler:', e instanceof Error ? e.message : 'Unknown')
+      return NextResponse.json({
+        exists: false,
+        expectedIndexName,
+        collectionName: libraryKey,
+        dimension,
+        error: e instanceof Error ? e.message : 'Unknown error'
+      })
     }
-
-    // Index existiert nicht
-    return NextResponse.json({
-      exists: false,
-      expectedIndexName,
-      message: `Index "${expectedIndexName}" existiert noch nicht. Bitte "Index anlegen" klicken.`
-    })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unbekannter Fehler'
     console.error('[index-status] ERROR', msg)

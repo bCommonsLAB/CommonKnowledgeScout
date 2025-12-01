@@ -47,7 +47,6 @@ export interface OrchestratorInput extends RetrieverInput {
   chatHistory?: Array<{ question: string; answer: string }>
   facetsSelected?: Record<string, unknown>  // Facetten-Filter für Prompt
   facetDefs?: Array<{ metaKey: string; label?: string; type: string }>  // Facetten-Definitionen für Prompt
-  onStatusUpdate?: (message: string) => void
   onProcessingStep?: (step: import('@/types/chat-processing').ChatProcessingStep) => void
   apiKey?: string  // Optional: API-Key für öffentliche Libraries
   isTOCQuery?: boolean  // Wenn true, verwende TOC-Prompt und parse StoryTopicsData
@@ -83,17 +82,27 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     : 'chunk' as const
   // Note: Summary flow logs the list-step already within the retriever with candidatesCount/usedInPrompt/decision.
   // For chunk flow, we keep the query logging here.
-  run.onStatusUpdate?.('Searching for relevant sources...')
+  run.onProcessingStep?.({ type: 'retrieval_progress', sourcesFound: 0, message: 'Searching for relevant sources...' })
   // Pass API key to retriever for embeddings (if available)
   const retrieverOutput = await retrieverImpl.retrieve({ ...run, apiKey: run.apiKey })
   const { sources, stats, warning } = retrieverOutput
-  run.onStatusUpdate?.(`${sources.length} sources found`)
+  
+  // User-Status-Update mit Mode-Information (für Summary-Retriever)
+  if (run.retriever === 'summary' && stats?.decision) {
+    const modeLabel = stats.decision === 'chapters' ? 'Kapitel-Summaries' 
+      : stats.decision === 'teaser' ? 'Teaser' 
+      : 'Dokument-Summaries'
+    run.onProcessingStep?.({ type: 'retrieval_progress', sourcesFound: sources.length, message: `${sources.length} Quellen gefunden (${modeLabel})` })
+  } else {
+    run.onProcessingStep?.({ type: 'retrieval_progress', sourcesFound: sources.length, message: `${sources.length} sources found` })
+  }
   // Note: Summary und chunkSummary flow loggen den list-step bereits innerhalb des Retrievers
   // Nur chunk (RAG) flow loggt hier zusätzlich
   if (run.retriever === 'chunk') {
-    let step = markStepStart({ indexName: run.context.vectorIndex, namespace: '', stage: 'query', level: stepLevel })
+    const { VECTOR_SEARCH_INDEX_NAME } = await import('@/lib/chat/vector-search-index')
+    let step = markStepStart({ indexName: VECTOR_SEARCH_INDEX_NAME, namespace: '', stage: 'query', level: stepLevel })
     step = markStepEnd(step)
-    await logAppend(run.queryId, { indexName: run.context.vectorIndex, namespace: '', stage: 'query', level: stepLevel, topKReturned: sources.length, timingMs: step.timingMs, startedAt: step.startedAt, endedAt: step.endedAt })
+    await logAppend(run.queryId, { indexName: VECTOR_SEARCH_INDEX_NAME, namespace: '', stage: 'query', level: stepLevel, topKReturned: sources.length, timingMs: step.timingMs, startedAt: step.startedAt, endedAt: step.endedAt })
   }
 
   const retrievalMs = Date.now() - tR0
@@ -111,15 +120,31 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   }
 
   // Sende retrieval_complete direkt nach dem Retrieval
+  // Füge summaryMode hinzu, wenn Retriever 'summary' ist
+  const summaryMode = run.retriever === 'summary' && retrieverOutput.stats?.decision 
+    ? retrieverOutput.stats.decision 
+    : undefined
+  
+  // Extrahiere zusätzliche Stats für Chunk-Retriever
+  const chunkStats = run.retriever === 'chunk' ? {
+    initialMatches: retrieverOutput.stats?.initialMatches,
+    neighborsAdded: retrieverOutput.stats?.neighborsAdded,
+    topKRequested: retrieverOutput.stats?.topKRequested,
+    budgetUsed: retrieverOutput.stats?.budgetUsed,
+    answerLength: retrieverOutput.stats?.answerLength,
+  } : {}
+  
   run.onProcessingStep?.({
     type: 'retrieval_complete',
     sourcesCount: sources.length,
     uniqueFileIdsCount: uniqueFileIds.size > 0 ? uniqueFileIds.size : undefined,
     timingMs: retrievalMs,
+    summaryMode,
+    ...chunkStats,
   })
 
-  const promptAnswerLength = (run.answerLength === 'unbegrenzt' ? 'ausführlich' : run.answerLength)
-  run.onStatusUpdate?.('Building prompt...')
+  // Verwende answerLength direkt (nicht mehr konvertieren, damit unbegrenzt auch wirklich unbegrenzt bleibt)
+  run.onProcessingStep?.({ type: 'prompt_building', message: 'Building prompt...' })
   
   // Für TOC-Queries: Verwende speziellen TOC-Prompt
   let prompt: string
@@ -134,7 +159,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       facetDefs: run.facetDefs,
     })
   } else {
-    prompt = buildPrompt(run.question, sources, promptAnswerLength, {
+    prompt = buildPrompt(run.question, sources, run.answerLength, {
       targetLanguage: run.chatConfig?.targetLanguage,
       character: run.chatConfig?.character,
       accessPerspective: run.chatConfig?.accessPerspective,
@@ -150,7 +175,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     const hint = `\n\nNote: Due to space constraints, only ${stats.usedInPrompt} of ${stats.candidatesCount} matching documents could be considered.`
     prompt = prompt + hint
   }
-  const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
+  const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
   const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.3)
   // Verwende publicApiKey wenn vorhanden, sonst globalen API-Key
   const apiKey = run.apiKey || process.env.OPENAI_API_KEY || ''
@@ -166,8 +191,15 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   })
 
   const tL0 = Date.now()
-  run.onStatusUpdate?.('Generating answer...')
-  let res = await callOpenAI({ model, temperature, prompt, apiKey })
+  run.onProcessingStep?.({ type: 'llm_progress', message: 'Generating answer...' })
+  
+  // Für unbegrenzt Modus: Setze max_tokens auf hohen Wert (gpt-4.1-mini: 32k max output tokens)
+  // Bei vielen Chunks sollte die Antwort entsprechend lang sein
+  const maxTokens = run.answerLength === 'unbegrenzt' 
+    ? Math.min(32000, Math.max(16000, Math.floor(sources.length * 20))) // Mindestens 16k, max 32k, skaliert mit Anzahl der Chunks
+    : undefined
+  
+  let res = await callOpenAI({ model, temperature, prompt, apiKey, maxTokens })
   let raw = ''
   let promptTokens: number | undefined = undefined
   let completionTokens: number | undefined = undefined
@@ -206,6 +238,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
               filters: run.facetsSelected,
               facetDefs: run.facetDefs,
             })
+        // Bei Retry mit reduzierten Quellen: Kein maxTokens (verwende Standard)
         res = await callOpenAI({ model, temperature, prompt: p2, apiKey })
         if (res.ok) { 
           retried = true
@@ -231,7 +264,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   
   // Parse structured response (answer, suggestedQuestions, usedReferences)
   // For TOC queries: Parse StoryTopicsData instead of normal answer
-  run.onStatusUpdate?.('Processing response...')
+  run.onProcessingStep?.({ type: 'parsing_response', message: 'Processing response...' })
   let answer = ''
   let suggestedQuestions: string[] = []
   let usedReferences: number[] = []
@@ -291,23 +324,28 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     promptTokens,
     completionTokens,
     totalTokens,
+    maxTokens, // Zeige maxTokens für unbegrenzt Modus
   })
 
   // Generate complete references list from sources (for mapping)
-  const allReferences: ChatResponse['references'] = sources.map((s, index) => {
-    const fileId = s.fileId || s.id.split('-')[0]
-    return {
-      number: index + 1,
-      fileId,
-      fileName: s.fileName,
-      description: getSourceDescription(s),
-    }
-  })
-  
-  // Filter only the actually used references from usedReferences
-  const references: ChatResponse['references'] = usedReferences.length > 0
-    ? allReferences.filter(ref => usedReferences.includes(ref.number))
-    : allReferences // Fallback: If none found, show all
+  // WICHTIG: Bei TOC-Queries keine References erfassen (zu voluminös)
+  let references: ChatResponse['references'] = []
+  if (!run.isTOCQuery) {
+    const allReferences: ChatResponse['references'] = sources.map((s, index) => {
+      const fileId = s.fileId || s.id.split('-')[0]
+      return {
+        number: index + 1,
+        fileId,
+        fileName: s.fileName,
+        description: getSourceDescription(s),
+      }
+    })
+    
+    // Filter only the actually used references from usedReferences
+    references = usedReferences.length > 0
+      ? allReferences.filter(ref => usedReferences.includes(ref.number))
+      : allReferences // Fallback: If none found, show all
+  }
 
   await finalizeQueryLog(run.queryId, {
     answer,

@@ -131,6 +131,9 @@ export function JobMonitorPanel() {
   const pathname = usePathname();
   const navigateToFolder = useFolderNavigation();
 
+  // Prüfe ob wir im Gallery-Modus sind (sollte ausgeblendet werden)
+  const isGalleryMode = pathname === '/library/gallery' || pathname?.startsWith('/explore/');
+
   /**
    * Öffnet die Datei eines fehlerhaften Jobs im Datei-Viewer.
    * Navigiert zum Parent-Ordner und wählt die Datei dort aus.
@@ -615,25 +618,27 @@ export function JobMonitorPanel() {
 
   return (
     <div className="pointer-events-none">
-      {/* Handle */}
-      <div className={cn(
-        "fixed top-16 right-0 z-40 transition-transform",
-        isOpen ? "translate-x-[calc(0px)]" : "translate-x-0"
-      )}>
-        <button
-          onClick={handleToggle}
-          className={cn(
-            "pointer-events-auto select-none",
-            "bg-primary text-primary-foreground",
-            "rounded-l-md shadow",
-            "px-2 py-1",
-            "hover:opacity-90"
-          )}
-          aria-label={isOpen ? 'Panel schließen' : 'Job-Monitor öffnen'}
-        >
-          {isOpen ? '×' : '≡'}
-        </button>
-      </div>
+      {/* Handle - nur im Archiv-Modus (library) anzeigen, nicht im Gallery-Modus */}
+      {!isGalleryMode && (
+        <div className={cn(
+          "fixed top-16 right-0 z-40 transition-transform",
+          isOpen ? "translate-x-[calc(0px)]" : "translate-x-0"
+        )}>
+          <button
+            onClick={handleToggle}
+            className={cn(
+              "pointer-events-auto select-none",
+              "bg-primary text-primary-foreground",
+              "rounded-l-md shadow",
+              "px-2 py-1",
+              "hover:opacity-90"
+            )}
+            aria-label={isOpen ? 'Panel schließen' : 'Job-Monitor öffnen'}
+          >
+            {isOpen ? '×' : '≡'}
+          </button>
+        </div>
+      )}
 
       {/* Panel */}
       <div className={cn(

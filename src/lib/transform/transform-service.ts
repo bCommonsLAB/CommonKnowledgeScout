@@ -734,7 +734,7 @@ export class TransformService {
         updatedItemsCount: result.updatedItems.length
       });
 
-      // Nach dem Speichern: Doc-Meta in Pinecone upserten (Statuscache)
+      // Nach dem Speichern: Doc-Meta in MongoDB upserten (Statuscache)
       try {
         const saved = result.savedItem
         if (saved && saved.type === 'file') {

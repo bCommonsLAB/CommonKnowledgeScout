@@ -30,7 +30,8 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { startQueryLog } from '@/lib/logging/query-logger'
-import { updateQueryLogPartial, findQueryByQuestionAndContext, getFilteredDocumentCount } from '@/lib/db/queries-repo'
+import { updateQueryLogPartial, findQueryByQuestionAndContext } from '@/lib/db/queries-repo'
+import { buildCacheHashParams } from '@/lib/chat/utils/cache-hash-builder'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
 import { appendRetrievalStep } from '@/lib/logging/query-logger'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
@@ -183,17 +184,17 @@ export async function POST(
         // Erstelle Kopie von facetsSelected für Cache (behält shortTitle)
         const facetsSelectedForCache = { ...facetsSelected }
         
-        // Mappe shortTitle zu fileIds über MongoDB (für Pinecone benötigt)
-        // WICHTIG: facetsSelected wird für Pinecone modifiziert, aber facetsSelectedForCache behält shortTitle für Cache
+        // Mappe shortTitle zu fileIds über MongoDB Vector Search (kind: 'meta')
+        // WICHTIG: facetsSelected wird für MongoDB modifiziert, aber facetsSelectedForCache behält shortTitle für Cache
         if (facetsSelected.shortTitle && Array.isArray(facetsSelected.shortTitle) && facetsSelected.shortTitle.length > 0) {
-          const { getCollectionNameForLibrary, getDocMetaCollection } = await import('@/lib/repositories/doc-meta-repo')
+          const { getCollectionNameForLibrary, getCollectionOnly } = await import('@/lib/repositories/vector-repo')
           const libraryKey = getCollectionNameForLibrary(ctx.library)
-          const col = await getDocMetaCollection(libraryKey)
+          const col = await getCollectionOnly(libraryKey)
           
           const shortTitles = facetsSelected.shortTitle as string[]
-          // Exakte Suche nach shortTitle
+          // Exakte Suche nach shortTitle in Meta-Dokumenten (kind: 'meta')
           const docs = await col.find(
-            { 'docMetaJson.shortTitle': { $in: shortTitles } },
+            { kind: 'meta', 'docMetaJson.shortTitle': { $in: shortTitles } },
             { projection: { fileId: 1, 'docMetaJson.shortTitle': 1, _id: 0 } }
           ).toArray()
           
@@ -202,7 +203,7 @@ export async function POST(
             .filter((id): id is string => !!id)
           
           if (fileIds.length > 0) {
-            // Ersetze shortTitle durch fileId für Pinecone (nur in facetsSelected, nicht in facetsSelectedForCache)
+            // Ersetze shortTitle durch fileId für MongoDB Vector Search (nur in facetsSelected, nicht in facetsSelectedForCache)
             delete facetsSelected.shortTitle
             facetsSelected.fileId = fileIds
             // Setze auch in URL-Parametern für buildFilters
@@ -320,14 +321,10 @@ export async function POST(
           // Verwende expliziten Retriever-Wert, falls vorhanden, sonst automatisch entschiedenen
           retrieverForCache = explicitRetrieverValue || effectiveRetrieverForCache
           
-          // Berechne Hash und Dokumentenanzahl für Debug-Logs
-          // WICHTIG: Verwende gefilterte Dokumentenanzahl für Cache-Hash, da die Filter Teil des Cache-Kontexts sind
-          // Die gefilterte Anzahl wird verwendet, um den Cache zu invalidierten, wenn neue Dokumente hinzugefügt werden,
-          // die zu den Filtern passen
-          documentCount = await getFilteredDocumentCount(ctx.library, built.mongo)
-          cacheHashForLog = createCacheHash({
+          // Verwende zentrale Funktion für Cache-Hash-Berechnung
+          const cacheHashParamsForLog = await buildCacheHashParams({
             libraryId,
-            question: message.trim(),
+            question: message,
             queryType: isTOCQuery ? 'toc' : 'question',
             answerLength,
             targetLanguage: effectiveChatConfig.targetLanguage,
@@ -336,9 +333,19 @@ export async function POST(
             socialContext: effectiveChatConfig.socialContext,
             genderInclusive: effectiveChatConfig.genderInclusive,
             retriever: retrieverForCache,
-            facetsSelected: Object.keys(facetsSelectedForCache).length > 0 ? facetsSelectedForCache : undefined,
-            documentCount,
+            facetsSelected: facetsSelectedForCache,
+            library: ctx.library, // Verwende Library-Objekt für DocumentCount-Berechnung
           })
+          
+          documentCount = cacheHashParamsForLog.documentCount
+          
+          // Debug-Logging: Zeige Parameter für Hash-Berechnung
+          console.log('[stream/route] Hash-Parameter:', JSON.stringify(cacheHashParamsForLog, null, 2))
+          
+          cacheHashForLog = createCacheHash(cacheHashParamsForLog)
+          
+          // Debug-Logging: Zeige berechneten Hash
+          console.log('[stream/route] Berechneter cacheHash:', cacheHashForLog)
           
           // Sende Cache-Check-Step (Start) mit Debug-Informationen
           send({
@@ -509,7 +516,7 @@ export async function POST(
         
         // Wenn Cache-Check bereits durchgeführt wurde, wurden Filter bereits aufgebaut
         // Ansonsten baue Filter jetzt auf
-        let built: { normalized: Record<string, unknown>; pinecone: Record<string, unknown>; mongo: Record<string, unknown> }
+        let built: { normalized: Record<string, unknown>; mongo: Record<string, unknown> }
         let retrieverDecision: { mode: 'chunk' | 'chunkSummary' | 'summary'; reason: string }
         let effectiveRetriever: 'chunk' | 'summary'
         let internalRetriever: 'chunk' | 'chunkSummary' | 'summary'
@@ -585,7 +592,7 @@ export async function POST(
           genderInclusive: effectiveChatConfig.genderInclusive,
           facetsSelected: facetsSelectedForCache, // Verwende facetsSelectedForCache für Cache (behält shortTitle)
           filtersNormalized: { ...built.normalized },
-          filtersPinecone: { ...built.pinecone },
+          documentCount, // Übergebe bereits berechnete documentCount (verhindert fehlerhafte Neuberechnung)
         })
         
         // Speichere Cache-Check-Step auch im retrieval Array (auch wenn kein Cache gefunden wurde)
@@ -608,7 +615,7 @@ export async function POST(
         // Schritt 5: Retriever ausführen (mit Status-Updates)
         send({ type: 'retrieval_start', retriever: effectiveRetriever })
         
-        const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
+        const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
         send({ type: 'llm_start', model })
 
         // Normalisiere chatConfig für Orchestrator (character und accessPerspective müssen Arrays sein)
@@ -622,46 +629,24 @@ export async function POST(
           retriever: internalRetriever, // Verwende internen Retriever (kann chunkSummary sein)
           libraryId,
           userEmail: userEmail,
+          context: {},
           question: message,
           answerLength,
           filters: built.mongo,
           queryId,
-          context: { vectorIndex: ctx.vectorIndex },
           chatConfig: normalizedChatConfig,
           chatHistory: chatHistory,
           facetsSelected: facetsSelected,
           facetDefs: facetDefs,
           isTOCQuery: isTOCQuery,
           apiKey: libraryApiKey,
-          onStatusUpdate: (msg) => {
-            // Prüfe, ob der Stream noch aktiv ist
-            if (!isStreamActive) {
-              return
-            }
-            
-            // Send progress updates - Timing will be set later
-            if (msg.includes('Searching for relevant sources')) {
-              send({ type: 'retrieval_progress', sourcesFound: 0, message: msg })
-            } else if (msg.includes('sources found')) {
-              const countMatch = msg.match(/(\d+)/)
-              const count = countMatch ? parseInt(countMatch[1], 10) : 0
-              // retrievalMs will be set later, use 0 as placeholder
-              send({ type: 'retrieval_progress', sourcesFound: count, message: msg })
-            } else if (msg.includes('Building prompt')) {
-              send({ type: 'prompt_building', message: msg })
-            } else if (msg.includes('Generating answer')) {
-              send({ type: 'llm_progress', message: msg })
-            } else if (msg.includes('Processing response')) {
-              send({ type: 'parsing_response', message: msg })
-            }
-          },
           onProcessingStep: (step) => {
             // Prüfe, ob der Stream noch aktiv ist
             if (!isStreamActive) {
               return
             }
             
-            // Sende complete-Steps direkt, wenn sie verfügbar sind
+            // Alle Processing-Steps werden gesammelt und direkt gesendet
             collectedSteps.push(step)
             send(step)
           },

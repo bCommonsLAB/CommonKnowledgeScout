@@ -3,7 +3,7 @@
  * 
  * @description
  * Utility functions for splitting arrays into batches and merging results.
- * Used for optimizing Pinecone Fetch API calls by splitting large ID lists
+ * Used for optimizing MongoDB queries by splitting large ID lists
  * into smaller batches that can be processed in parallel.
  * 
  * @module chat/retrievers/utils

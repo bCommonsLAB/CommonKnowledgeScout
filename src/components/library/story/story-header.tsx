@@ -3,14 +3,18 @@
 import { Button } from '@/components/ui/button'
 import { Settings2, ChevronLeft } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
+import { useAtomValue } from 'jotai'
+import { activeLibraryIdAtom } from '@/atoms/library-atom'
 
 interface StoryHeaderProps {
   /** Wenn true, werden Border und Padding entfernt (für sticky Header) */
   compact?: boolean
   /** Callback für Zurück-zur-Gallery Button */
   onBackToGallery?: () => void
+  /** Library-ID (optional, wird aus Atom verwendet falls nicht angegeben) */
+  libraryId?: string
 }
 
 /**
@@ -20,10 +24,13 @@ interface StoryHeaderProps {
  * - Button "Eigene Perspektive anpassen" mit Popover für drei Dropdowns
  * - Button "Zurück zur Gallery" (optional)
  */
-export function StoryHeader({ compact = false, onBackToGallery }: StoryHeaderProps) {
+export function StoryHeader({ compact = false, onBackToGallery, libraryId: libraryIdProp }: StoryHeaderProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
+  const libraryId = libraryIdProp || activeLibraryId
 
   /**
    * Handler für "Perspektive anpassen" Button
@@ -41,8 +48,15 @@ export function StoryHeader({ compact = false, onBackToGallery }: StoryHeaderPro
         return
       }
     }
-    // Für normale Library-Seiten können wir später eine Route hinzufügen
-    // Aktuell nur für explore-Seiten implementiert
+    
+    // Für normale Library-Seiten: Navigiere zur Perspective-Seite mit libraryId
+    if (libraryId) {
+      // Erstelle URL mit allen aktuellen Query-Parametern (z.B. mode=story)
+      const params = new URLSearchParams(searchParams?.toString() || '')
+      params.set('libraryId', libraryId)
+      params.set('from', 'story')
+      router.push(`/library/gallery/perspective?${params.toString()}`)
+    }
   }
 
   return (

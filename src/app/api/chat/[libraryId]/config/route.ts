@@ -59,7 +59,6 @@ export async function GET(
         story: ctx.library.config.publicPublishing.story,
         // API-Key nicht an Client senden
       } : undefined,
-      vectorIndex: ctx.vectorIndex,
     }
     // eslint-disable-next-line no-console
     console.log('[chat/config] OK', { ms: Date.now() - t0, facets: Array.isArray((ctx.chat as { gallery?: { facets?: unknown[] } } | undefined)?.gallery?.facets) ? (ctx.chat as { gallery?: { facets?: unknown[] } }).gallery!.facets!.length : 0 })

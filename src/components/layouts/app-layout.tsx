@@ -37,11 +37,13 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
   
   // Fixed-height Layout für App-Seiten
+  // Wrapper mit min-height etwas höher als Viewport, damit window.scrollY funktioniert
+  // Der äußere Container ist etwas höher als 100vh, damit window scrollbar wird
   return (
     <>
-      <div className="relative h-screen overflow-hidden flex flex-col">
+      <div className="relative flex flex-col" style={{ minHeight: 'calc(100vh + 2px)' }}>
         <TopNavWrapper />
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0">
           {children}
         </div>
         <JobMonitorPanel />

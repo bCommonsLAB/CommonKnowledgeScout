@@ -33,26 +33,46 @@ export class OneDriveServerProvider {
    */
   private getRequiredConfigValues() {
     // Die Konfigurationswerte direkt aus der Bibliothek extrahieren
-    const tenantId = this.library.config?.tenantId || '';
-    const clientId = this.library.config?.clientId || '';
-    const clientSecret = this.library.config?.clientSecret || '';
+    const tenantId = (this.library.config?.tenantId as string | undefined)?.trim() || '';
+    const clientId = (this.library.config?.clientId as string | undefined)?.trim() || '';
+    const clientSecretRaw = this.library.config?.clientSecret;
     const redirectUri = process.env.MS_REDIRECT_URI || '';
 
-    // Prüfen, ob clientSecret maskiert ist (mit Sternchen beginnt)
-    const isMaskedSecret = typeof clientSecret === 'string' && clientSecret.startsWith('*');
+    // Client Secret validieren: nicht maskiert, nicht leer, nicht nur Whitespace
+    // WICHTIG: Prüfe ob es sich um eine Client Secret ID handelt (beginnt mit einem GUID-ähnlichen Format)
+    let clientSecret = '';
+    if (clientSecretRaw && typeof clientSecretRaw === 'string') {
+      // Prüfen, ob clientSecret maskiert ist (mit Sternchen beginnt)
+      const isMaskedSecret = clientSecretRaw.startsWith('*');
+      if (!isMaskedSecret) {
+        const trimmedSecret = clientSecretRaw.trim();
+        if (trimmedSecret !== '') {
+          // Warnung: Client Secret IDs haben oft ein GUID-ähnliches Format (z.B. "54c7c443-c4f8-487b-9bd1-a753046be47d")
+          // Client Secret Values sind normalerweise längere Strings ohne Bindestriche
+          // Prüfe ob es möglicherweise eine ID ist (enthält Bindestriche und ist relativ kurz)
+          const looksLikeId = trimmedSecret.includes('-') && trimmedSecret.length < 50;
+          if (looksLikeId) {
+            console.warn('[OneDriveServerProvider] WARNUNG: Client Secret sieht aus wie eine ID statt einem Value!');
+            console.warn('[OneDriveServerProvider] Client Secret IDs beginnen oft mit einem GUID-Format.');
+            console.warn('[OneDriveServerProvider] Bitte verwenden Sie den Client Secret VALUE, nicht die ID.');
+          }
+          clientSecret = trimmedSecret;
+        }
+      }
+    }
 
     // Liste der fehlenden Werte zusammenstellen
     const missingValues = [
       !tenantId ? 'Tenant ID' : '',
       !clientId ? 'Client ID' : '',
-      !clientSecret || isMaskedSecret ? 'Client Secret' : '',
+      !clientSecret ? 'Client Secret' : '',
       !redirectUri ? 'Redirect URI' : ''
     ].filter(Boolean).join(', ');
 
     // Fehler werfen, wenn Werte fehlen
-    if (!tenantId || !clientId || !clientSecret || isMaskedSecret || !redirectUri) {
+    if (!tenantId || !clientId || !clientSecret || !redirectUri) {
       throw new StorageError(
-        `Fehlende Konfigurationsparameter für OneDrive-Authentifizierung: ${missingValues}`,
+        `Fehlende oder ungültige Konfigurationsparameter für OneDrive-Authentifizierung: ${missingValues}`,
         "CONFIG_ERROR",
         this.id
       );
@@ -106,8 +126,20 @@ export class OneDriveServerProvider {
       if (!response.ok) {
         const errorData = await response.json();
         console.error('[OneDriveServerProvider] Token-Fehler:', errorData);
+        
+        // Verbesserte Fehlermeldung für häufigen Fehler: Client Secret ID statt Value
+        let errorMessage = errorData.error_description || response.statusText;
+        if (errorMessage.includes('Invalid client secret') || errorMessage.includes('AADSTS7000215')) {
+          errorMessage = `Ungültiges Client Secret. Bitte verwenden Sie den Client Secret VALUE (nicht die ID). 
+          
+Der Client Secret VALUE ist der lange String, den Sie beim Erstellen des Secrets erhalten haben. 
+Die Client Secret ID beginnt oft mit einem GUID-Format (z.B. "54c7c443-c4f8-487b-9bd1-a753046be47d").
+
+Original-Fehler: ${errorData.error_description || response.statusText}`;
+        }
+        
         throw new StorageError(
-          `Token-Austausch fehlgeschlagen: ${errorData.error_description || response.statusText}`,
+          `Token-Austausch fehlgeschlagen: ${errorMessage}`,
           "AUTH_ERROR",
           this.id
         );

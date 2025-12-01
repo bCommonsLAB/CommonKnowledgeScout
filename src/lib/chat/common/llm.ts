@@ -27,6 +27,7 @@ export interface LlmCallArgs {
   temperature: number
   prompt: string
   apiKey: string
+  maxTokens?: number // Optional: Max tokens for completion (for unlimited mode)
 }
 
 export interface LlmCallResult {
@@ -36,18 +37,25 @@ export interface LlmCallResult {
   totalTokens?: number
 }
 
-export async function callOpenAI({ model, temperature, prompt, apiKey }: LlmCallArgs): Promise<Response> {
+export async function callOpenAI({ model, temperature, prompt, apiKey, maxTokens }: LlmCallArgs): Promise<Response> {
+  const body: Record<string, unknown> = {
+    model,
+    temperature,
+    messages: [
+      { role: 'system', content: 'Du bist ein hilfreicher, faktenbasierter Assistent.' },
+      { role: 'user', content: prompt }
+    ]
+  }
+  
+  // Für unbegrenzt Modus: Setze max_tokens auf hohen Wert (gpt-4.1-mini unterstützt bis 32k)
+  if (maxTokens !== undefined) {
+    body.max_tokens = maxTokens
+  }
+  
   return fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      temperature,
-      messages: [
-        { role: 'system', content: 'Du bist ein hilfreicher, faktenbasierter Assistent.' },
-        { role: 'user', content: prompt }
-      ]
-    })
+    body: JSON.stringify(body)
   })
 }
 

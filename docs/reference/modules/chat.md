@@ -106,7 +106,7 @@ const indexName = getVectorIndexForLibrary(
 - **Library System**: Uses `@/lib/services/library-service` for library access
 - **Database**: Uses `@/lib/mongodb-service` for chat and query persistence
 - **Storage**: Uses storage providers for file access
-- **External**: Uses OpenAI API for LLM calls, Pinecone for vector search
+- **External**: Uses OpenAI API for LLM calls, MongoDB Atlas Vector Search for vector search
 
 ## Chat Flow
 
@@ -119,8 +119,9 @@ const indexName = getVectorIndexForLibrary(
 
 ## Retriever Types
 
-- **`chunk`**: Semantic search in Pinecone for specific chunks
+- **`chunk`**: Semantic search in MongoDB Vector Search for specific chunks
 - **`summary`**: MongoDB search for document summaries
+- **`chunkSummary`**: Loads all chunks from MongoDB without vector search
 - **`auto`**: Automatic retriever selection based on question analysis
 
 ## Story Mode

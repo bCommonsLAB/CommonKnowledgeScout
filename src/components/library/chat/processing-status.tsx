@@ -140,23 +140,91 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
           const count = retrievalComplete.sourcesCount
           const fileCount = retrievalComplete.uniqueFileIdsCount
           const timingMs = retrievalComplete.timingMs
+          const summaryMode = retrievalComplete.summaryMode
           
-          // Wenn fileCount verfügbar ist, zeige erweiterte Information
+          // Präzisere Details für Chunk-Retriever
+          const initialMatches = retrievalComplete.initialMatches
+          const neighborsAdded = retrievalComplete.neighborsAdded
+          const topKRequested = retrievalComplete.topKRequested
+          const budgetUsed = retrievalComplete.budgetUsed
+          const answerLength = retrievalComplete.answerLength
+          
+          // Mode-Label für Summary-Retriever
+          const modeLabel = summaryMode === 'chapters' 
+            ? 'Kapitel-Summaries'
+            : summaryMode === 'teaser'
+            ? 'Teaser'
+            : summaryMode === 'summary'
+            ? 'Dokument-Summaries'
+            : undefined
+          
+          // Für Chunk-Retriever: Zeige detaillierte Informationen
+          if (initialMatches !== undefined && neighborsAdded !== undefined && topKRequested !== undefined) {
+            const parts: string[] = []
+            
+            // Basis: Chunks und Dokumente
+            if (fileCount !== undefined && fileCount > 0) {
+              const documentLabel = fileCount === 1 
+                ? t('processing.documentSingular')
+                : t('processing.documentPlural')
+              const chunkLabel = count === 1 ? 'Text-Chunk' : 'Text-Chunks'
+              parts.push(`${count} ${chunkLabel} aus ${fileCount} ${documentLabel}`)
+            } else {
+              const chunkLabel = count === 1 ? 'Text-Chunk' : 'Text-Chunks'
+              parts.push(`${count} ${chunkLabel}`)
+            }
+            
+            // Detaillierte Aufschlüsselung: Matches vs. Nachbarn
+            if (initialMatches > 0 || neighborsAdded > 0) {
+              const detailParts: string[] = []
+              if (initialMatches > 0) {
+                detailParts.push(`${initialMatches} ${initialMatches === 1 ? 'Match' : 'Matches'}`)
+              }
+              if (neighborsAdded > 0) {
+                detailParts.push(`${neighborsAdded} Nachbarn`)
+              }
+              if (detailParts.length > 0) {
+                parts.push(`(${detailParts.join(', ')})`)
+              }
+            }
+            
+            // Top-K Info
+            if (topKRequested !== undefined && topKRequested !== count) {
+              parts.push(`Top-K: ${topKRequested} → ${count}`)
+            }
+            
+            // Budget-Nutzung (nur bei unbegrenzt relevant)
+            if (budgetUsed !== undefined && answerLength === 'unbegrenzt') {
+              const budgetMB = (budgetUsed / 1024 / 1024).toFixed(1)
+              parts.push(`${budgetMB} MB`)
+            }
+            
+            // Timing
+            parts.push(`(${timingMs}ms)`)
+            
+            // Füge Mode-Information hinzu, falls vorhanden
+            const baseMessage = parts.join(' · ')
+            return modeLabel ? `${baseMessage} (${modeLabel})` : baseMessage
+          }
+          
+          // Fallback: Basis-Nachricht für Summary-Retriever oder wenn keine Details verfügbar
+          let baseMessage = ''
           if (fileCount !== undefined && fileCount > 0) {
-            // Verwende manuelle Pluralisierung für bessere Kompatibilität
             const documentLabel = fileCount === 1 
               ? t('processing.documentSingular')
               : t('processing.documentPlural')
             
-            return count === 1
+            baseMessage = count === 1
               ? t('processing.chunkFoundWithFiles', { count, fileCount, documentLabel, timingMs })
               : t('processing.chunksFoundWithFiles', { count, fileCount, documentLabel, timingMs })
+          } else {
+            baseMessage = count === 1
+              ? t('processing.chunkFound', { count, timingMs })
+              : t('processing.chunksFound', { count, timingMs })
           }
           
-          // Fallback: Standard-Format ohne fileCount
-          return count === 1
-            ? t('processing.chunkFound', { count, timingMs })
-            : t('processing.chunksFound', { count, timingMs })
+          // Füge Mode-Information hinzu, falls vorhanden
+          return modeLabel ? `${baseMessage} (${modeLabel})` : baseMessage
         })()
       : retrievalProgress?.message || t('processing.searchingRelevant')
     
@@ -175,9 +243,22 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
   const promptComplete = steps.find(s => s.type === 'prompt_complete')
   if (promptBuilding || promptComplete) {
     const details = promptComplete 
-      ? (promptComplete.documentsUsed === 1
-          ? t('processing.chunkUsed', { count: promptComplete.documentsUsed, tokenCount: promptComplete.tokenCount.toLocaleString('de-DE') })
-          : t('processing.chunksUsed', { count: promptComplete.documentsUsed, tokenCount: promptComplete.tokenCount.toLocaleString('de-DE') }))
+      ? (() => {
+          const parts: string[] = []
+          
+          // Chunks/Dokumente
+          if (promptComplete.documentsUsed === 1) {
+            parts.push(t('processing.chunkUsed', { count: promptComplete.documentsUsed, tokenCount: '' }).replace(/\s*$/, ''))
+          } else {
+            parts.push(t('processing.chunksUsed', { count: promptComplete.documentsUsed, tokenCount: '' }).replace(/\s*$/, ''))
+          }
+          
+          // Token-Info präziser: Zeige auch Prompt-Länge in MB
+          const promptMB = (promptComplete.promptLength / 1024 / 1024).toFixed(1)
+          parts.push(`${promptComplete.tokenCount.toLocaleString('de-DE')} Token (${promptMB} MB)`)
+          
+          return parts.join(', ')
+        })()
       : promptBuilding?.message || undefined
     displaySteps.push({
       label: t('processing.buildPrompt'),
@@ -197,16 +278,30 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
     const details = llmComplete 
       ? (() => {
           const parts: string[] = [t('processing.completeWithTiming', { timingMs: llmComplete.timingMs })]
+          
+          // Token-Info präziser: Zeige Input/Output Ratio und maxTokens falls vorhanden
           if (llmComplete.promptTokens !== undefined || llmComplete.completionTokens !== undefined) {
             const tokens: string[] = []
             if (llmComplete.promptTokens !== undefined) {
-              tokens.push(t('processing.inputTokens', { count: llmComplete.promptTokens.toLocaleString('de-DE') }))
+              tokens.push(`Input: ${llmComplete.promptTokens.toLocaleString('de-DE')}`)
             }
             if (llmComplete.completionTokens !== undefined) {
-              tokens.push(t('processing.outputTokens', { count: llmComplete.completionTokens.toLocaleString('de-DE') }))
+              const outputPart = `Output: ${llmComplete.completionTokens.toLocaleString('de-DE')}`
+              // Zeige maxTokens für unbegrenzt Modus
+              if (llmComplete.maxTokens !== undefined) {
+                tokens.push(`${outputPart} / ${llmComplete.maxTokens.toLocaleString('de-DE')} max`)
+              } else {
+                tokens.push(outputPart)
+              }
+              
+              // Zeige Ratio falls beide vorhanden
+              if (llmComplete.promptTokens !== undefined && llmComplete.completionTokens > 0) {
+                const ratio = (llmComplete.completionTokens / llmComplete.promptTokens * 100).toFixed(1)
+                tokens.push(`Ratio: ${ratio}%`)
+              }
             }
             if (tokens.length > 0) {
-              parts.push(`${tokens.join(', ')} ${t('processing.tokens')}`)
+              parts.push(tokens.join(', '))
             }
           }
           return parts.join(' - ')

@@ -12,7 +12,6 @@
  * - chatConfigSchema: Zod schema for chat configuration
  * - NormalizedChatConfig: Normalized chat configuration type
  * - normalizeChatConfig: Function to normalize chat configuration
- * - getVectorIndexForLibrary: Function to get vector index name for library
  * 
  * @usedIn
  * - src/lib/chat/loader.ts: Loader uses config normalization
@@ -42,6 +41,30 @@ import {
 } from './constants'
 
 /**
+ * Zentrale Default-Facetten-Definition
+ * Wird verwendet für neue Libraries oder wenn keine Facetten konfiguriert sind
+ */
+export function getDefaultFacets(): Array<{
+  metaKey: string
+  label: string
+  type: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
+  multi: boolean
+  visible: boolean
+}> {
+  return [
+    { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
+    { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
+    { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
+    { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
+    { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
+    { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
+    { metaKey: 'topics', label: 'Topics', type: 'string[]', multi: true, visible: false },
+    { metaKey: 'language', label: 'Language', type: 'string', multi: true, visible: false },
+    { metaKey: 'commercialStatus', label: 'Commercial', type: 'string', multi: true, visible: false },
+  ]
+}
+
+/**
  * Zod-Schema für Chat-Konfiguration mit Defaults.
  * Achtung: Keine Secrets hier speichern.
  */
@@ -53,8 +76,19 @@ export const chatConfigSchema = z.object({
   companyLink: z.string().url().optional(),
   vectorStore: z.object({
     collectionName: z.string().min(1).optional(),
-    indexName: z.string().min(1).optional(),
   }).default({}),
+  // Embedding-Konfiguration (Modell und Dimension)
+  embeddings: z.object({
+    embeddingModel: z.string().default('voyage-3-large'),
+    chunkSize: z.number().int().positive().default(1000),
+    chunkOverlap: z.number().int().nonnegative().default(200),
+    dimensions: z.number().int().positive().default(2048), // Explizit speichern, nicht mehr automatisch ableiten
+  }).default({
+    embeddingModel: 'voyage-3-large',
+    chunkSize: 1000,
+    chunkOverlap: 200,
+    dimensions: 2048,
+  }),
   // Zielsprache für Chat-Antworten
   targetLanguage: TARGET_LANGUAGE_ZOD_ENUM.default(TARGET_LANGUAGE_DEFAULT),
   // Charakter/Profil für die Antwort-Perspektive (Array mit max. 3 Werten)
@@ -76,6 +110,9 @@ export const chatConfigSchema = z.object({
     socialContext: SOCIAL_CONTEXT_ZOD_ENUM.optional(),
     genderInclusive: z.boolean().optional(),
   }).optional(),
+  // Feld für TOC-Queries: 'summary' (Standard) oder 'teaser' (kürzer, für Budget-Optimierung)
+  // Wenn nicht gesetzt, wird automatisch das kürzere Feld gewählt (falls beide vorhanden)
+  tocSummaryField: z.enum(['summary', 'teaser']).optional(),
   gallery: z.object({
     // Typ der Detailansicht: 'book' für klassische Dokumente, 'session' für Event-Sessions/Präsentationen
     detailViewType: z.enum(['book', 'session']).default('book'),
@@ -86,34 +123,29 @@ export const chatConfigSchema = z.object({
       multi: z.boolean().default(true),
       visible: z.boolean().default(true),
       buckets: z.array(z.object({ label: z.string(), min: z.number().int(), max: z.number().int() })).optional(),
-    })).default([
-      { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
-      { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
-      { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
-      { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
-      { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
-      { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
-      { metaKey: 'topics', label: 'Topics', type: 'string[]', multi: true, visible: false },
-      { metaKey: 'language', label: 'Language', type: 'string', multi: true, visible: false },
-      { metaKey: 'commercialStatus', label: 'Commercial', type: 'string', multi: true, visible: false },
-    ])
+    })).default(getDefaultFacets())
   }).default({
     detailViewType: 'book',
-    facets: [
-      { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
-      { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
-      { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
-      { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
-      { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
-      { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
-      { metaKey: 'topics', label: 'Topics', type: 'string[]', multi: true, visible: false },
-      { metaKey: 'language', label: 'Language', type: 'string', multi: true, visible: false },
-      { metaKey: 'commercialStatus', label: 'Commercial', type: 'string', multi: true, visible: false },
-    ]
+    facets: getDefaultFacets()
   }),
 })
 
 export type NormalizedChatConfig = z.infer<typeof chatConfigSchema>
+
+/**
+ * Gibt die Default-Embedding-Konfiguration zurück (aus zentralem Schema).
+ * Diese Funktion sollte verwendet werden, um konsistente Defaults zu erhalten.
+ */
+export function getDefaultEmbeddings(): {
+  embeddingModel: string
+  chunkSize: number
+  chunkOverlap: number
+  dimensions: number
+} {
+  // Verwende das zentrale Schema, um Defaults zu extrahieren
+  const defaultConfig = chatConfigSchema.parse({})
+  return defaultConfig.embeddings
+}
 
 /**
  * Validiert und setzt Defaults für die Chat-Konfiguration.
@@ -126,20 +158,25 @@ export function normalizeChatConfig(config: unknown): NormalizedChatConfig {
   }
   
   // Migration: gallery.facets als Array<string> → Array<{metaKey,...}>
-  // Migration: indexOverride → indexName
+  // Migration: embeddings-Dimension setzen wenn nicht vorhanden (basierend auf Model)
   if (cfg && typeof cfg === 'object') {
     const c = cfg as { 
       gallery?: { facets?: unknown }
       character?: unknown
       userPreferences?: { character?: unknown }
-      vectorStore?: { indexOverride?: string; indexName?: string; collectionName?: string }
+      vectorStore?: { indexOverride?: string; collectionName?: string }
+      embeddings?: { embeddingModel?: string; dimensions?: number }
     }
     
-    // Migration: indexOverride → indexName
-    if (c.vectorStore?.indexOverride && !c.vectorStore.indexName) {
-      if (!c.vectorStore) c.vectorStore = {}
-      c.vectorStore.indexName = c.vectorStore.indexOverride
-      delete c.vectorStore.indexOverride
+    // Migration: Setze dimensions wenn nicht vorhanden (basierend auf Model)
+    if (c.embeddings && !c.embeddings.dimensions) {
+      const defaults = getDefaultEmbeddings()
+      const model = c.embeddings.embeddingModel || defaults.embeddingModel
+      if (model.includes('text-embedding-3-large')) {
+        c.embeddings.dimensions = 3072
+      } else {
+        c.embeddings.dimensions = defaults.dimensions // Standard aus zentralem Schema
+      }
     }
     
     // Gallery facets migration
@@ -193,39 +230,30 @@ export function slugifyIndexName(input: string): string {
   if (!trimmed) trimmed = 'library'
   // Darf nicht mit Ziffer beginnen
   if (/^[0-9]/.test(trimmed)) trimmed = `lib-${trimmed}`
-  // Max-Länge beschränken (z. B. Pinecone Limit ~45)
+  // Max-Länge beschränken (MongoDB Collection Name Limit ~45)
   if (trimmed.length > 45) trimmed = trimmed.slice(0, 45).replace(/-+$/g, '')
   return trimmed
 }
 
 /**
- * Liefert den zu verwendenden Vektor-Indexnamen.
- * Priorität: config.vectorStore.indexName → slug(label) → lib-<shortId>
- * Keine Email-Präfix-Logik mehr, alles determiniert über Config.
+ * Ermittelt die Embedding-Dimension aus der Library Config.
+ * WICHTIG: Dimension muss explizit in der Config gespeichert sein (wird nicht mehr automatisch abgeleitet).
+ * 
+ * @param chatConfig Optional: Library Chat Config
+ * @returns Embedding-Dimension (Standard: 2048)
  */
-export function getVectorIndexForLibrary(
-  library: { id: string; label: string },
-  chatConfig?: LibraryChatConfig
-): string {
-  // Globale Override-Möglichkeit für schnelle Fehleranalyse/Dev
-  const envOverride = (process.env.PINECONE_INDEX_OVERRIDE || '').trim()
-  if (envOverride.length > 0) {
-    console.log('[getVectorIndexForLibrary] ⚠️ ENV Override aktiv:', envOverride)
-    return envOverride
-  }
-
-  // Wenn indexName in Config vorhanden ist, verwende diesen direkt
-  const indexName = chatConfig?.vectorStore?.indexName
-  if (indexName && indexName.trim().length > 0) {
-    return slugifyIndexName(indexName)
+export function getEmbeddingDimensionForModel(chatConfig?: LibraryChatConfig): number {
+  const embeddingsConfig = chatConfig?.embeddings
+  
+  // Explizit gesetzte Dimension verwenden (muss immer vorhanden sein)
+  if (embeddingsConfig?.dimensions && embeddingsConfig.dimensions > 0) {
+    return embeddingsConfig.dimensions
   }
   
-  // Sonst: Basis aus Label berechnen (deterministisch, keine Email-Präfix-Logik)
-  const byLabel = slugifyIndexName(library.label)
-  if (byLabel) return byLabel
-  
-  const shortId = library.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)
-  return slugifyIndexName(`lib-${shortId || 'default'}`)
+  // Fallback: 2048 (sollte nicht vorkommen, da dimensions immer gesetzt sein sollte)
+  console.warn('[getEmbeddingDimensionForModel] Keine Dimension in Config gefunden, verwende Fallback 2048')
+  return 2048
 }
+
 
 

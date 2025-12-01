@@ -47,7 +47,8 @@
     "docs:history:merge": "node --import tsx scripts/merge-history.ts",
     "docs:history": "pnpm run docs:history:merge",
     "docs:history:monthly": "node --import tsx scripts/merge-history-monthly.ts",
-    "docs:history:mon": "pnpm run docs:history:monthly"
+    "docs:history:mon": "pnpm run docs:history:monthly",
+    "test:vector-search": "node --import tsx scripts/test-mongodb-vector-search.ts"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.29.1",
@@ -95,7 +96,7 @@
     "lucide-react": "^0.312.0",
     "mermaid": "^11.12.0",
     "mime-types": "^2.1.35",
-    "mongodb": "^6.16.0",
+    "mongodb": "^7.0.0",
     "next": "15.3.2",
     "next-auth": "^4.24.11",
     "next-themes": "^0.4.4",

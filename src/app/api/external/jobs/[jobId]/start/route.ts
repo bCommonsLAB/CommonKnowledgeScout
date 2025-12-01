@@ -47,7 +47,7 @@ import { analyzeShadowTwin } from '@/lib/shadow-twin/analyze-shadow-twin'
 import { toMongoShadowTwinState } from '@/lib/shadow-twin/shared'
 import { gateExtractPdf } from '@/lib/processing/gates'
 import { getPolicies, shouldRunExtract } from '@/lib/processing/phase-policy'
-import type { Library } from '@/types/library'
+import type { Library, LibraryChatConfig } from '@/types/library'
 import { LibraryService } from '@/lib/services/library-service'
 import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-loader'
 import { runIngestPhase } from '@/lib/external-jobs/phase-ingest'
@@ -486,7 +486,33 @@ export async function POST(
     // WICHTIG: shouldRunExtractPhase ist bereits die finale Gate+Policy-Entscheidung
     const runExtract = extractEnabled && shouldRunExtractPhase
     const runTemplate = templateEnabled && needTemplate
-    const runIngestOnly = ingestEnabled && !runExtract && !runTemplate
+    
+    // Prüfe, ob Template übersprungen werden sollte (z.B. chapters_already_exist)
+    // Dies kann passieren, wenn eine transformierte Datei bereits im Shadow-Twin existiert
+    // oder wenn Template-Step bereits als skipped markiert wurde
+    let templateWillBeSkipped = false
+    if (templateEnabled && !runTemplate) {
+      // Template wird nicht ausgeführt (needTemplate = false)
+      templateWillBeSkipped = true
+    } else if (templateEnabled && runTemplate) {
+      // Prüfe, ob Template-Step bereits als skipped markiert wurde (z.B. durch Preprocessor)
+      try {
+        const currentStep = job.steps?.find(s => s?.name === 'transform_template')
+        if (currentStep?.status === 'completed' && currentStep?.details && typeof currentStep.details === 'object' && 'skipped' in currentStep.details) {
+          templateWillBeSkipped = true
+        }
+      } catch {}
+      
+      // Prüfe, ob bereits eine transformierte Datei im Shadow-Twin existiert
+      // Dies bedeutet, dass Template übersprungen werden sollte (chapters_already_exist)
+      if (!templateWillBeSkipped && shadowTwinState?.transformed) {
+        templateWillBeSkipped = true
+      }
+    }
+    
+    // Ingestion-only: Wenn Extract übersprungen UND (Template übersprungen ODER Template wird übersprungen)
+    // WICHTIG: Wenn eine transformierte Datei bereits existiert, bedeutet das, dass Template übersprungen wird
+    const runIngestOnly = ingestEnabled && !runExtract && (!runTemplate || templateWillBeSkipped)
     
     // Wenn Template nicht ausgeführt werden soll, aber Phase enabled ist, Step als skipped markieren
     // Dies passiert, wenn der Template-Preprozessor needTemplate === false liefert (Frontmatter valide)
@@ -575,6 +601,27 @@ export async function POST(
       }
 
       if (ingestResult.completed) {
+        // Shadow-Twin-State aktualisieren: processingStatus auf 'ready' setzen
+        // Ingest-Only: Nach erfolgreicher Ingestion ist der Shadow-Twin vollständig
+        try {
+          const updatedJob = await repo.get(jobId)
+          if (updatedJob?.shadowTwinState) {
+            const { toMongoShadowTwinState } = await import('@/lib/shadow-twin/shared')
+            const mongoState = toMongoShadowTwinState({
+              ...updatedJob.shadowTwinState,
+              processingStatus: 'ready' as const,
+            })
+            await repo.setShadowTwinState(jobId, mongoState)
+            FileLogger.info('start-route', 'Shadow-Twin-State nach Ingestion auf ready gesetzt', { jobId })
+          }
+        } catch (error) {
+          FileLogger.error('start-route', 'Fehler beim Aktualisieren des Shadow-Twin-States nach Ingestion', {
+            jobId,
+            error: error instanceof Error ? error.message : String(error)
+          })
+          // Fehler nicht kritisch - Job kann trotzdem abgeschlossen werden
+        }
+        
         const completed = await setJobCompleted({ ctx: ctx2, result: { savedItemId: shadowTwinData.fileId } })
         getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, libraryId: job.libraryId })
         return NextResponse.json({ ok: true, jobId: completed.jobId, kind: 'ingest_only' })
@@ -616,8 +663,21 @@ export async function POST(
       // Policies lesen
       const phasePolicies = readPhasesAndPolicies(job.parameters)
       
-      // Library-Config für Template-Auswahl
-      const libraryConfig = undefined // libraryConfig wird derzeit nicht verwendet
+      // Library-Config für Template-Auswahl laden
+      let libraryConfig: LibraryChatConfig | undefined = undefined
+      try {
+        const libraryService = LibraryService.getInstance()
+        const email = userEmail || job.userEmail
+        const library = await libraryService.getLibrary(email, job.libraryId)
+        libraryConfig = library?.config?.chat
+      } catch (error) {
+        FileLogger.warn('start-route', 'Fehler beim Laden der Library-Config', {
+          jobId,
+          libraryId: job.libraryId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        // Nicht kritisch - Template-Auswahl kann auch ohne Config funktionieren
+      }
 
       // Target-Parent-ID bestimmen (Shadow-Twin-Folder oder Parent)
       // WICHTIG: Job-Objekt neu laden, um aktuelles Shadow-Twin-State zu erhalten

@@ -119,7 +119,7 @@ This document provides a complete inventory of all source files in the `src/` di
 - `src/app/api/db-test/route.ts`
 - `src/app/api/debug-libraries/route.ts`
 - `src/app/api/env-test/route.ts`
-- `src/app/api/health/pinecone/route.ts`
+- `src/app/api/health/pinecone/route.ts` ⚠️ **VERALTET** - Pinecone Health-Check nicht mehr benötigt
 - `src/app/api/metadata/template/run/route.ts`
 - `src/app/api/settings/oauth-defaults/route.ts`
 - `src/app/api/settings/storage-test/route.ts`
@@ -380,7 +380,7 @@ This document provides a complete inventory of all source files in the `src/` di
 - `ingestion-service.ts`
 - `loader.ts`
 - `orchestrator.ts`
-- `pinecone.ts`
+- `pinecone.ts` ⚠️ **VERALTET** - Wird nicht mehr verwendet (Migration zu MongoDB Vector Search abgeschlossen)
 - `vector-stats.ts`
 - `common/budget.ts`
 - `common/filters.ts`

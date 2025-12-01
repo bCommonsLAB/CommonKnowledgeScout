@@ -60,7 +60,7 @@ export function groupResultsByFile(log: QueryLog): Array<{ fileKey: string; coun
 
 export function hasFilterDiff(log: QueryLog): { diff: boolean; keys: string[] } {
   const a = log.filtersNormalized || {}
-  const b = log.filtersPinecone || {}
+  const b = log.filtersMongo || {}
   const keys = Array.from(new Set([...Object.keys(a), ...Object.keys(b)]))
   const diffs: string[] = []
   for (const k of keys) {

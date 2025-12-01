@@ -116,11 +116,16 @@ export function buildContext(sources: RetrievedSource[], perSnippetLimit = 800):
 }
 
 export function styleInstruction(answerLength: AnswerLength): string {
-  return answerLength === 'ausführlich' || answerLength === 'unbegrenzt'
-    ? 'Write a structured, comprehensive answer (approx. 250–600 words) in Markdown format: Use headings (##), lists (-), **bold** for important terms, and paragraphs for better readability. Start with 1–2 sentences summary, then details in paragraphs or bullet points. Avoid filler words.'
-    : answerLength === 'mittel'
-    ? 'Write a medium-length answer (approx. 120–250 words) in Markdown format: Use lists (-), **bold** for important terms, and paragraphs. 3–6 sentences or a short list of the most important points. Direct and precise.'
-    : 'Write a concise answer (1–3 sentences, max. 120 words) in Markdown format: Use **bold** for important terms if necessary. No introduction, directly the core statement.'
+  if (answerLength === 'unbegrenzt') {
+    return 'Write a comprehensive, in-depth answer (approx. 2000–4000 words or more) in Markdown format. Since many sources are provided, create a thorough analysis with multiple sections, detailed explanations, and comprehensive coverage of the topic. Use headings (##, ###), lists (-), **bold** for important terms, and well-structured paragraphs. Include: 1) Executive summary (2–3 paragraphs), 2) Detailed analysis organized by themes/topics, 3) Examples and case studies from the sources, 4) Connections and relationships between different aspects, 5) Implications and broader context. Ensure all relevant information from the sources is synthesized and presented in depth. The answer should be extensive and detailed, reflecting the breadth of information available.'
+  }
+  if (answerLength === 'ausführlich') {
+    return 'Write a structured, comprehensive answer (approx. 250–600 words) in Markdown format: Use headings (##), lists (-), **bold** for important terms, and paragraphs for better readability. Start with 1–2 sentences summary, then details in paragraphs or bullet points. Avoid filler words.'
+  }
+  if (answerLength === 'mittel') {
+    return 'Write a medium-length answer (approx. 120–250 words) in Markdown format: Use lists (-), **bold** for important terms, and paragraphs. 3–6 sentences or a short list of the most important points. Direct and precise.'
+  }
+  return 'Write a concise answer (1–3 sentences, max. 120 words) in Markdown format: Use **bold** for important terms if necessary. No introduction, directly the core statement.'
 }
 
 /**

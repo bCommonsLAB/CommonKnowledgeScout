@@ -36,7 +36,7 @@ export function IngestionSessionDetail({ libraryId, fileId, onDataLoaded, transl
     try {
       setLoading(true);
       setError(null);
-      // Verwende den schnellen doc-meta Endpunkt (nur MongoDB, kein Pinecone)
+      // Verwende den schnellen doc-meta Endpunkt (MongoDB)
       const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`;
       const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json();

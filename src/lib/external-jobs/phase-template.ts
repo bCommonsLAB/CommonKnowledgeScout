@@ -414,35 +414,45 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     const { pickTemplate } = await import('@/lib/external-jobs/template-files')
     
     // Preferred Template aus Library-Config: secretaryService.pdfDefaults.template
-    // TODO: libraryConfig wird derzeit nicht verwendet, Template-Auswahl erfolgt über pickTemplate
-    const preferredTemplate = '' // libraryConfig?.secretaryService?.pdfDefaults?.template wird derzeit nicht unterstützt
-    
-    if (!preferredTemplate) {
-      const errorMessage = 'Kein Template in Library-Config definiert. Bitte Template in Secretary Service PDF Defaults konfigurieren.'
-      FileLogger.error('phase-template', 'Kein Template in Library-Config', {
-        jobId,
-        libraryId: job.libraryId
-      })
-      bufferLog(jobId, { 
-        phase: 'transform_meta_error', 
-        message: errorMessage
-      })
-      try {
-        await repo.traceAddEvent(jobId, {
-          spanId: 'template',
-          name: 'step_failed',
-          attributes: {
-            step: 'transform_template',
-            error: errorMessage,
-            reason: 'no_template_in_config'
-          }
+    // Versuche Template aus Library-Config zu lesen, falls verfügbar
+    // libraryConfig ist vom Typ LibraryChatConfig, aber das Template ist in storageConfig.secretaryService.pdfDefaults.template
+    // Daher müssen wir die Library direkt laden, um an storageConfig zu kommen
+    let preferredTemplate: string | undefined = undefined
+    try {
+      const { LibraryService } = await import('@/lib/services/library-service')
+      const libraryService = LibraryService.getInstance()
+      const library = await libraryService.getLibrary(job.userEmail, job.libraryId)
+      preferredTemplate = library?.config?.secretaryService?.pdfDefaults?.template
+      
+      if (preferredTemplate) {
+        FileLogger.info('phase-template', 'Template aus Library-Config gefunden', {
+          jobId,
+          libraryId: job.libraryId,
+          preferredTemplate,
         })
-      } catch {}
-      templateStatus = 'failed'
-      throw new Error(errorMessage)
+      } else {
+        FileLogger.info('phase-template', 'Kein Template in Library-Config, versuche Template aus Templates-Ordner zu finden', {
+          jobId,
+          libraryId: job.libraryId,
+        })
+      }
+    } catch (error) {
+      FileLogger.warn('phase-template', 'Fehler beim Laden der Library für Template-Auswahl', {
+        jobId,
+        libraryId: job.libraryId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      // Nicht kritisch - pickTemplate kann auch ohne Preferred Template ein Template aus dem Templates-Ordner verwenden
     }
     
-    picked = await pickTemplate({ provider, repo, jobId, preferredTemplateName: preferredTemplate })
+    // pickTemplate aufrufen - auch ohne Preferred Template wird versucht, ein Template aus dem Templates-Ordner zu finden
+    // Wenn kein Preferred Template angegeben ist, wird loadTemplate einen Fehler werfen, wenn kein Template im Templates-Ordner gefunden wird
+    picked = await pickTemplate({ 
+      provider, 
+      repo, 
+      jobId, 
+      preferredTemplateName: preferredTemplate 
+    })
     
     // Template wurde erfolgreich geladen
     const templateContent = picked.templateContent

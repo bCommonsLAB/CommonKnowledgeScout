@@ -21,6 +21,7 @@ interface FilterContextBarProps {
   tooltip?: string // Optional: Tooltip für CTA-Button
   viewMode?: ViewMode // Optional: View-Mode für Toggle
   onViewModeChange?: (mode: ViewMode) => void // Optional: Callback für View-Mode-Änderung
+  mode?: 'gallery' | 'story' // Optional: Gallery oder Story-Modus
 }
 
 /**
@@ -29,7 +30,7 @@ interface FilterContextBarProps {
  * 
  * Zeigt Facetten-Filter (Track, Jahr, etc.) und shortTitle-Filter an.
  */
-export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterButton = false, facetDefs = [], ctaLabel, onCta, tooltip, viewMode, onViewModeChange }: FilterContextBarProps) {
+export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterButton = false, facetDefs = [], ctaLabel, onCta, tooltip, viewMode, onViewModeChange, mode }: FilterContextBarProps) {
   const filters = useAtomValue(galleryFiltersAtom)
   const { t } = useTranslation()
   
@@ -57,12 +58,13 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterB
   const hasActiveFilters = activeFilters.length > 0
 
   return (
-    <div className="border-b py-2 flex flex-col gap-2">
+    <div className="border-b py-2 lg:py-1 flex flex-col gap-2 lg:gap-1">
       {/* Filter-Bar mit Icons, Badges und Buttons */}
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Titel mit Dokumentenanzahl */}
+        {/* Titel mit Dokumentenanzahl - nur im Story-Modus */}
         <h2 className="text-lg font-semibold">
-          {t('gallery.tocReferences')}: {docCount} {docCount === 1 ? t('gallery.source') : t('gallery.sources')}
+          {mode === 'story' ? t('gallery.tocReferences') + ": " : ''}
+          {docCount} {docCount === 1 ? t('gallery.source') : t('gallery.sources')}
         </h2>
         {!hideFilterButton && (
         <Button

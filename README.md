@@ -122,21 +122,12 @@ The application requires several environment variables to be configured. Create 
 | `MONGODB_DATABASE_NAME` | Yes | Database name |
 | `MONGODB_COLLECTION_NAME` | No | Collection name (default: `libraries`) |
 
-#### Pinecone / Vector Database (for RAG)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PINECONE_API_KEY` | Yes* | Pinecone API key (*required if RAG features are used) |
-| `OPENAI_EMBEDDINGS_DIMENSION` | No | Embedding dimension (default: 3072) |
-| `OPENAI_EMBEDDINGS_TIMEOUT_MS` | No | Embedding timeout (default: 60000 ms) |
-| `OPENAI_EMBEDDINGS_MAX_RETRIES` | No | Maximum retry attempts (default: 3) |
-
 #### OpenAI Chat (Optional)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `OPENAI_API_KEY` | No | OpenAI API key for chat features |
-| `OPENAI_CHAT_MODEL_NAME` | No | Chat model name (default: `gpt-4o-mini`) |
+| `OPENAI_CHAT_MODEL_NAME` | No | Chat model name (default: `gpt-4.1-mini`) |
 | `OPENAI_CHAT_TEMPERATURE` | No | Chat temperature (default: `0.2`) |
 
 #### Authentication (Clerk)
@@ -293,7 +284,7 @@ Technical reference for developers:
 - **State Management**: Jotai, React Hook Form
 - **Authentication**: Clerk
 - **Database**: MongoDB
-- **Vector Database**: Pinecone
+- **Vector Database**: MongoDB Atlas Vector Search
 - **AI/ML**: OpenAI (GPT models, embeddings)
 - **Build Tool**: pnpm
 
@@ -305,7 +296,6 @@ Technical reference for developers:
 - pnpm >= 9.15
 - Git
 - MongoDB (or MongoDB Atlas)
-- Pinecone account (for RAG features)
 - OpenAI API key (for chat and embeddings)
 
 ---

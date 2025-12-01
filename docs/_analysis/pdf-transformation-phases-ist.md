@@ -189,8 +189,8 @@ Die Kernfragen:
      - In der Start-Route (`runIngestOnly`) **ohne** neuen Secretary-Request, wenn bereits ein transformiertes Shadow-Twin-Markdown existiert.
 
 2. **Gate-Logik**  
-   - `gateIngestRag` (`src/lib/processing/gates.ts`) prüft über einen `ingestionCheck`-Callback, ob bereits Vektoren für diese Datei im Pinecone-Index existieren:
-     - Verwendung von `loadLibraryChatContext` und `listVectors` (kind `'doc'`, Filter nach `userEmail`, `libraryId`, `fileId`).
+   - `gateIngestRag` (`src/lib/processing/gates.ts`) prüft über einen `ingestionCheck`-Callback, ob bereits Vektoren für diese Datei in der MongoDB Vector Search Collection existieren:
+     - Verwendung von `loadLibraryChatContext` und MongoDB Query (Filter nach `kind: 'meta'`, `userEmail`, `libraryId`, `fileId`).
    - Ergebnis:
      - Wenn Vektoren schon existieren → Ingestion-Step als `completed` mit Details `{ skipped: true, reason: 'ingest_exists' }`.
 
@@ -226,7 +226,8 @@ Die Kernfragen:
   - `src/app/api/external/jobs/[jobId]/route.ts` – reguläre Ingestion nach Template-Phase.
 - Library-Module:
   - `src/lib/external-jobs/ingest.ts` – Wrapper für RAG-Ingestion.
-  - `src/lib/chat/ingestion-service.ts` – konkrete Upsert-Logik in Pinecone + MongoDB.
+  - `src/lib/chat/ingestion-service.ts` – konkrete Upsert-Logik in MongoDB Vector Search.
+  - `src/lib/repositories/vector-repo.ts` – MongoDB Vector Search Repository.
   - `src/lib/processing/gates.ts` – `gateIngestRag`.
   - `src/lib/external-jobs/complete.ts` – finaler Jobabschluss inkl. Events.
 

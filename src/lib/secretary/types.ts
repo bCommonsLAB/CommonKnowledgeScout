@@ -118,4 +118,59 @@ export interface TemplateExtractionResponse {
     structured_data: StructuredSessionData;
   };
   translation: unknown | null;
+}
+
+/**
+ * RAG Embedding Chunk aus Secretary Service Response
+ */
+export interface SecretaryRagChunk {
+  text: string;
+  chunk_index: number;
+  document_id: string;
+  embedding: number[];
+  heading_context: string | null;
+  start_char: number | null;
+  end_char: number | null;
+  metadata: Record<string, unknown>;
+}
+
+/**
+ * RAG Embedding Response vom Secretary Service
+ */
+export interface SecretaryRagResponse {
+  status: 'success' | 'error';
+  request?: {
+    endpoint: string;
+    document_id: string;
+    chunk_size: number;
+    chunk_overlap: number;
+    input_length: number;
+    embedding_model: string;
+    client_metadata_present: boolean;
+  };
+  process?: {
+    process_id: string;
+    processor_name: string;
+    status: string;
+    duration_ms: number;
+    llm_info: {
+      total_tokens: number;
+      total_cost_usd: number;
+      requests: unknown[];
+    };
+  };
+  data?: {
+    document_id: string;
+    chunks: SecretaryRagChunk[];
+    total_chunks: number;
+    embedding_dimensions: number;
+    embedding_model: string;
+    created_at: string;
+    metadata: Record<string, unknown>;
+  };
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
 } 

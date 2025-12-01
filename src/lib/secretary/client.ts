@@ -28,8 +28,11 @@
  */
 
 import { 
-  TemplateExtractionResponse 
+  TemplateExtractionResponse,
+  SecretaryRagResponse 
 } from './types';
+import { getSecretaryConfig } from '@/lib/env';
+import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout';
 
 export class SecretaryServiceError extends Error {
   constructor(message: string) {
@@ -1057,5 +1060,88 @@ export async function processSession(input: ProcessSessionInput): Promise<Proces
   } catch (error) {
     if (error instanceof SecretaryServiceError) throw error;
     throw new SecretaryServiceError('Fehler bei processSession');
+  }
+}
+
+/**
+ * Ruft den RAG Embedding-Endpoint des Secretary Services auf.
+ * Sendet Markdown-Text und erhält Chunks mit Embeddings zurück.
+ * 
+ * @param params RAG Embedding-Parameter
+ * @returns Response vom Secretary Service mit Chunks und Embeddings
+ */
+export async function embedTextRag(params: {
+  markdown: string;
+  documentId?: string;
+  chunkSize?: number;
+  chunkOverlap?: number;
+  embeddingModel?: string;
+  embedding_dimensions?: number;
+  metadata?: Record<string, unknown>;
+}): Promise<SecretaryRagResponse> {
+  const { baseUrl, apiKey } = getSecretaryConfig();
+  if (!baseUrl) {
+    throw new SecretaryServiceError('SECRETARY_SERVICE_URL nicht konfiguriert');
+  }
+  if (!apiKey) {
+    throw new SecretaryServiceError('SECRETARY_SERVICE_API_KEY nicht konfiguriert');
+  }
+
+  // baseUrl enthält bereits /api, daher nur /rag/embed-text anhängen
+  const url = `${baseUrl}/rag/embed-text`;
+  
+  // Debug-Logging für URL-Verifikation
+  console.log('[secretary/client] embedTextRag - URL:', url);
+  console.log('[secretary/client] embedTextRag - baseUrl:', baseUrl);
+  
+  // Request-Body gemäß RAG API Dokumentation
+  const body = {
+    markdown: params.markdown,
+    document_id: params.documentId,
+    chunk_size: params.chunkSize ?? 1000,
+    chunk_overlap: params.chunkOverlap ?? 200,
+    embedding_model: params.embeddingModel ?? 'voyage-3-large',
+    embedding_dimensions: params.embedding_dimensions,
+    metadata: params.metadata || {},
+  };
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
+    'X-Secretary-Api-Key': apiKey,
+  };
+
+  try {
+    const res = await fetchWithTimeout(url, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers,
+      timeoutMs: 60000, // 60 Sekunden Timeout
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('[secretary/client] embedTextRag - Fehler:', {
+        status: res.status,
+        statusText: res.statusText,
+        url,
+        errorText: errorText.substring(0, 500), // Erste 500 Zeichen
+      });
+      throw new SecretaryServiceError(`Secretary Service RAG Fehler: ${res.status} ${errorText.substring(0, 200)}`);
+    }
+
+    const data = await res.json() as SecretaryRagResponse;
+    
+    if (data.status === 'error') {
+      const errorMessage = data.error?.message || 'Unbekannter Fehler beim RAG Embedding';
+      throw new SecretaryServiceError(errorMessage);
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof SecretaryServiceError) {
+      throw error;
+    }
+    throw new SecretaryServiceError(`Fehler beim RAG Embedding: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

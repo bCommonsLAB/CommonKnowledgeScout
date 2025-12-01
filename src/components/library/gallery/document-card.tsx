@@ -4,7 +4,7 @@ import React from 'react'
 import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, MapPin, User } from 'lucide-react'
+import { Calendar, MapPin, User, FileText } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { SpeakerOrAuthorIcons } from './speaker-icons'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
@@ -84,6 +84,12 @@ export function DocumentCard({ doc, onClick, libraryId }: DocumentCardProps) {
             <div className='flex items-center text-sm text-muted-foreground'>
               <MapPin className='h-2.5 w-2.5 mr-2' />
               <span>{doc.region}</span>
+            </div>
+          ) : null}
+          {doc.pages ? (
+            <div className='flex items-center text-sm text-muted-foreground'>
+              <FileText className='h-2.5 w-2.5 mr-2' />
+              <span>{doc.pages} {doc.pages === 1 ? 'Seite' : 'Seiten'}</span>
             </div>
           ) : null}
           {doc.date ? (

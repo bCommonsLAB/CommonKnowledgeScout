@@ -73,28 +73,30 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
   // Dies ist die zentrale Logik, die auch Template-Phase verwendet
   const shadowTwinFolderId = freshJob.shadowTwinState?.shadowTwinFolderId
 
-  // Gate-Prüfung für RAG-Ingestion
+  // Gate-Prüfung für RAG-Ingestion (nur bei 'auto' Policy relevant)
   let ingestGateExists = false
-  try {
-    const lib = await (await import('@/lib/services/library-service')).LibraryService.getInstance()
-    const library = await lib.getLibrary(job.userEmail, job.libraryId)
-    const gate = await gateIngestRag({
-      repo,
-      jobId,
-      userEmail: job.userEmail,
-      library,
-      source: job.correlation?.source,
-      options: job.correlation?.options as { targetLanguage?: string } | undefined,
-    })
-    ingestGateExists = !!gate?.exists
-    if (ingestGateExists) {
-      bufferLog(jobId, { phase: 'ingest_gate_skip', message: gate.reason || 'artifact_exists' })
+  if (policies.ingest === 'auto') {
+    try {
+      const lib = await (await import('@/lib/services/library-service')).LibraryService.getInstance()
+      const library = await lib.getLibrary(job.userEmail, job.libraryId)
+      const gate = await gateIngestRag({
+        repo,
+        jobId,
+        userEmail: job.userEmail,
+        library,
+        source: job.correlation?.source,
+        options: job.correlation?.options as { targetLanguage?: string } | undefined,
+      })
+      ingestGateExists = !!gate?.exists
+      if (ingestGateExists) {
+        bufferLog(jobId, { phase: 'ingest_gate_skip', message: gate.reason || 'artifact_exists' })
+      }
+    } catch (err) {
+      FileLogger.error('phase-ingest', 'Fehler bei Gate-Prüfung', {
+        jobId,
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
-  } catch (err) {
-    FileLogger.error('phase-ingest', 'Fehler bei Gate-Prüfung', {
-      jobId,
-      error: err instanceof Error ? err.message : String(err),
-    })
   }
 
   // Policy-Prüfung
@@ -121,7 +123,7 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
     })
   } catch {}
 
-  if (!useIngestion || ingestGateExists) {
+  if (!useIngestion) {
     await repo.updateStep(jobId, 'ingest_rag', {
       status: 'completed',
       endedAt: new Date(),
@@ -250,7 +252,7 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
   try {
     await repo.traceAddEvent(jobId, {
       spanId: 'ingest',
-      name: 'ingest_pinecone_upserted',
+      name: 'ingest_mongodb_upserted',
       attributes: {
         chunks: res.chunksUpserted,
         doc: res.docUpserted,
@@ -276,7 +278,7 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
       status: 'running',
       progress: 90,
       updatedAt: new Date().toISOString(),
-      message: 'ingest_pinecone_upserted',
+      message: 'ingest_mongodb_upserted',
       jobType: job.job_type,
       fileName: job.correlation?.source?.name,
       sourceItemId: job.correlation?.source?.itemId,

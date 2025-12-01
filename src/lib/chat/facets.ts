@@ -1,4 +1,9 @@
-export type FacetKey = 'authors' | 'year' | 'region' | 'docType' | 'source' | 'tags' | 'topics' | 'language' | 'commercialStatus'
+import type { FacetDef } from './dynamic-facets'
+import { getTopLevelValue } from './dynamic-facets'
+
+// DEPRECATED: FacetKey Type wird nicht mehr verwendet
+// Verwende stattdessen FacetDef[] aus dynamic-facets.ts
+export type FacetKey = string // Erlaubt jetzt beliebige Facetten-Keys
 
 export interface FacetMappingConfig {
   keys: FacetKey[]
@@ -13,81 +18,71 @@ function toStringArray(input: unknown, limit = 50, maxLen = 128): string[] {
     .map((v) => (v.length > maxLen ? v.slice(0, maxLen) : v))
 }
 
+/**
+ * @deprecated Verwende stattdessen getTopLevelValue aus dynamic-facets.ts mit FacetDef[]
+ * Extrahiert Facetten-Werte aus Metadaten basierend auf Facetten-Definitionen
+ */
 export function extractTopLevelFacetsFromMeta(
   meta: Record<string, unknown> | undefined,
-  keys: FacetKey[]
+  defs: FacetDef[]
 ): Record<string, unknown> {
   if (!meta || typeof meta !== 'object') return {}
   const out: Record<string, unknown> = {}
 
-  for (const key of keys) {
-    switch (key) {
-      case 'authors': {
-        const val = toStringArray((meta as { authors?: unknown }).authors)
-        if (val.length > 0) out.authors = val
-        break
-      }
-      case 'tags': {
-        const val = toStringArray((meta as { tags?: unknown }).tags)
-        if (val.length > 0) out.tags = val
-        break
-      }
-      case 'topics': {
-        const val = toStringArray((meta as { topics?: unknown }).topics)
-        if (val.length > 0) out.topics = val
-        break
-      }
-      case 'language': {
-        const v = (meta as { language?: unknown }).language
-        if (typeof v === 'string' && v) out.language = v
-        break
-      }
-      case 'region': {
-        const v = (meta as { region?: unknown }).region
-        if (typeof v === 'string' && v) out.region = v
-        break
-      }
-      case 'docType': {
-        const v = (meta as { docType?: unknown }).docType
-        if (typeof v === 'string' && v) out.docType = v
-        break
-      }
-      case 'source': {
-        const v = (meta as { source?: unknown }).source
-        if (typeof v === 'string' && v) out.source = v
-        break
-      }
-      case 'commercialStatus': {
-        const v = (meta as { commercialStatus?: unknown }).commercialStatus
-        if (typeof v === 'string' && v) out.commercialStatus = v
-        break
-      }
-      case 'year': {
-        const v = (meta as { year?: unknown }).year
-        if (typeof v === 'number' || typeof v === 'string') out.year = v
-        break
-      }
-      default:
-        break
+  for (const def of defs) {
+    const value = getTopLevelValue(meta, def)
+    if (value !== undefined) {
+      out[def.metaKey] = value
     }
   }
   return out
 }
 
-export function composeDocSummaryText(meta: Record<string, unknown> | undefined): string | null {
+/**
+ * Erstellt Dokument-Zusammenfassungstext dynamisch basierend auf Facetten-Definitionen
+ * @param meta Metadaten-Objekt
+ * @param defs Facetten-Definitionen (optional, falls nicht vorhanden werden Standard-Felder verwendet)
+ */
+export function composeDocSummaryText(
+  meta: Record<string, unknown> | undefined,
+  defs?: FacetDef[]
+): string | null {
   if (!meta || typeof meta !== 'object') return null
   const title = typeof (meta as { title?: unknown }).title === 'string' ? (meta as { title: string }).title : undefined
   const shortTitle = typeof (meta as { shortTitle?: unknown }).shortTitle === 'string' ? (meta as { shortTitle: string }).shortTitle : undefined
   const summary = typeof (meta as { summary?: unknown }).summary === 'string' ? (meta as { summary: string }).summary : undefined
-  const authors = toStringArray((meta as { authors?: unknown }).authors).slice(0, 10)
-  const tags = toStringArray((meta as { tags?: unknown }).tags).slice(0, 10)
 
   const parts: string[] = []
   if (title) parts.push(`Titel: ${title}`)
   if (shortTitle) parts.push(`Kurz: ${shortTitle}`)
-  if (authors.length > 0) parts.push(`Autoren: ${authors.join(', ')}`)
+  
+  // Dynamisch alle String/String[] Facetten hinzufügen (falls defs vorhanden)
+  if (defs && defs.length > 0) {
+    for (const def of defs) {
+      if (def.type === 'string[]') {
+        const value = getTopLevelValue(meta, def)
+        if (Array.isArray(value) && value.length > 0) {
+          const label = def.label || def.metaKey
+          const displayValues = (value as string[]).slice(0, 10).join(', ')
+          parts.push(`${label}: ${displayValues}`)
+        }
+      } else if (def.type === 'string') {
+        const value = getTopLevelValue(meta, def)
+        if (typeof value === 'string' && value.length > 0) {
+          const label = def.label || def.metaKey
+          parts.push(`${label}: ${value}`)
+        }
+      }
+    }
+  } else {
+    // Fallback: Hardcodierte Felder für Rückwärtskompatibilität
+    const authors = toStringArray((meta as { authors?: unknown }).authors).slice(0, 10)
+    const tags = toStringArray((meta as { tags?: unknown }).tags).slice(0, 10)
+    if (authors.length > 0) parts.push(`Autoren: ${authors.join(', ')}`)
+    if (tags.length > 0) parts.push(`Tags: ${tags.join(', ')}`)
+  }
+  
   if (summary) parts.push(`Zusammenfassung: ${summary}`)
-  if (tags.length > 0) parts.push(`Tags: ${tags.join(', ')}`)
   const text = parts.join('\n')
   return text.length > 0 ? text : null
 }

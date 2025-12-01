@@ -195,22 +195,27 @@ If only the page count (`pages`) is missing, the template phase is skipped and `
 
 ### Purpose
 
-Ingest transformed Markdown into vector database (Pinecone) and MongoDB for RAG queries.
+Ingest transformed Markdown into MongoDB Atlas Vector Search for RAG queries.
 
 ### What Happens
 
 1. **Markdown Processing**:
    - Transformed Markdown (`document.de.md`) is parsed
-   - Chapters are detected and structured
-   - Text is chunked for vector storage
+   - Images are processed and uploaded to Azure Storage (Slides, Cover, Markdown images)
+   - Final Markdown (with Azure image URLs) is stored in MongoDB
 
 2. **Vector Storage**:
-   - Chunks are embedded and stored in Pinecone
-   - Metadata filters enable chapter-level retrieval
+   - **Complete document** is sent to Secretary Service RAG API (`/api/rag/embed-text`)
+   - Secretary Service performs Markdown-aware chunking and embedding generation
+   - Chunks with embeddings are received and stored in MongoDB Vector Search Collection
+   - Meta-documents (without embeddings) are stored alongside chunks for gallery display
+   - Facet metadata is duplicated into chunks for direct filtering during vector search
 
 3. **MongoDB Storage**:
-   - Document metadata stored in MongoDB
-   - Chapter summaries stored for fast retrieval
+   - All data stored in MongoDB: Meta-documents, chunks, and chapter summaries in same collection
+   - Collection structure: `vectors__${libraryId}` per library
+   - Document metadata stored as `kind: 'meta'` documents (no embeddings)
+   - Chapter summaries stored as `kind: 'chapterSummary'` documents (with embeddings)
 
 4. **Image Upload (Shadow-Twin → Azure Storage)**:
    - All image handling in Phase 3 is based on the **Shadow-Twin directory** and is centralized in the ingestion service.
@@ -232,8 +237,8 @@ Ingest transformed Markdown into vector database (Pinecone) and MongoDB for RAG 
 
 ### Output
 
-- **Vector embeddings**: Stored in Pinecone
-- **Document metadata**: Stored in MongoDB
+- **Vector embeddings**: Stored in MongoDB Vector Search Collection (`vectors__${libraryId}`)
+- **Document metadata**: Stored as meta-documents (`kind: 'meta'`) in same collection
 - **Image URLs**: Azure Storage URLs in metadata
 
 ### Code References (IST)
@@ -243,8 +248,11 @@ Ingest transformed Markdown into vector database (Pinecone) and MongoDB for RAG 
   - **`src/app/api/external/jobs/[jobId]/route.ts`**: Runs the regular ingestion after the template phase (including gates, policies, and error handling).
 - **Ingestion phase (core modules)**
   - **`src/lib/external-jobs/ingest.ts`**: RAG ingestion pipeline (wrapper around the ingestion service)
-  - **`src/lib/chat/ingestion-service.ts`**: Ingestion service (chunking, embeddings, Pinecone/MongoDB upsert, **image processing and Azure upload** via `processSlideImagesToAzure`, `processMarkdownImagesToAzure`, `processCoverImageToAzure`)
-  - **`src/lib/processing/gates.ts`** (`gateIngestRag`): Gate checking (skip if already ingested; uses Pinecone `listVectors`)
+  - **`src/lib/chat/ingestion-service.ts`**: Ingestion service (Secretary Service RAG API integration, MongoDB Vector Search upsert, **image processing and Azure upload** via `processSlideImagesToAzure`, `processMarkdownImagesToAzure`, `processCoverImageToAzure`)
+  - **`src/lib/chat/rag-embeddings.ts`**: RAG embedding abstraction (Secretary Service client wrapper)
+  - **`src/lib/secretary/client.ts`**: Secretary Service client (`embedTextRag()` for RAG API)
+  - **`src/lib/repositories/vector-repo.ts`**: MongoDB Vector Search repository (upsert, query, meta-documents)
+  - **`src/lib/processing/gates.ts`** (`gateIngestRag`): Gate checking (skip if already ingested; uses MongoDB query)
   - **`src/lib/external-jobs/complete.ts`**: Job completion handler (status, result, events)
 - **Storage & metadata**
   - **`src/lib/repositories/doc-meta-repo.ts`**: MongoDB document metadata repository (incl. `coverImageUrl`)
@@ -260,7 +268,7 @@ Ingest transformed Markdown into vector database (Pinecone) and MongoDB for RAG 
     - calls `runIngestion` directly and completes the job after successful ingestion.
 
 - **Callback route (regular path)**
-  - Uses `gateIngestRag` and optionally `ingestionCheck` to determine whether vectors for this document already exist in the Pinecone index.
+  - Uses `gateIngestRag` and optionally `ingestionCheck` to determine whether vectors for this document already exist in the MongoDB Vector Search collection.
   - Reads ingestion policies (`ingestPolicy: 'do' | 'force' | 'skip'` plus legacy flags from `job.parameters`).
   - Determines `useIngestion` and marks `ingest_rag` as `skipped` if appropriate (including reason).
   - When ingestion runs:

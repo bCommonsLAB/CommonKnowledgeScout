@@ -139,7 +139,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     initialDetailViewType
   )
   
-  const { docs, loading, error, filteredDocs, docsByYear } = useGalleryData(filters, mode, searchQuery, libraryId)
+  const { docs, loading, error, filteredDocs, docsByYear, loadMore, hasMore, isLoadingMore, totalCount } = useGalleryData(filters, mode, searchQuery, libraryId)
   
   // Finde aktuelles Dokument aus URL-Parameter (für DetailOverlay)
   // WICHTIG: Ignoriere selectedDoc, wenn wir gerade zum Story-Mode wechseln
@@ -475,14 +475,22 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     }
     
     // Sonst normale Jahrgangs-Gruppierung
-    return <ItemsView viewMode={viewMode} docsByYear={docsByYear} onOpen={handleOpenDocument} libraryId={libraryId} />
+    return <ItemsView 
+      viewMode={viewMode} 
+      docsByYear={docsByYear} 
+      onOpen={handleOpenDocument} 
+      libraryId={libraryId}
+      onLoadMore={loadMore}
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore} 
+    />
   }
 
   return (
     <div ref={containerRef} className="flex-1 min-h-0 overflow-hidden flex flex-col">
       {/* Tabs nur rendern, wenn sie nicht im Header sind */}
       {!hideTabs && (
-        <div className='mb-6 flex items-center flex-shrink-0'>
+        <div className='mb-3 flex items-center flex-shrink-0'>
           <Tabs value={mode} onValueChange={(value) => setMode(value as 'gallery' | 'story')} className="w-auto">
             <TabsList>
               <TabsTrigger value="gallery">{t('gallery.gallery')}</TabsTrigger>
@@ -493,7 +501,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       )}
       <Tabs value={mode} className="flex-1 min-h-0 flex flex-col">
         {/* Gallery Mode */}
-        <TabsContent value="gallery" className="flex-1 min-h-0 m-0 flex flex-col overflow-hidden data-[state=active]:flex">
+        <TabsContent value="gallery" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
           <GalleryStickyHeader
             headline={texts.headline}
             subtitle={texts.subtitle}
@@ -505,22 +513,23 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
             onViewModeChange={setViewMode}
           />
 
-          <div className='flex-1 min-h-0 overflow-hidden flex flex-col min-h-[80vh]'>
+          <div className='flex-1 min-h-0 overflow-hidden flex flex-col'>
             {/* Mobile Filter Bar */}
             <div className="lg:hidden">
               <FilterContextBar
-                docCount={filteredDocs.length}
+                docCount={totalCount || filteredDocs.length}
                 onOpenFilters={() => setShowFilters(true)}
                 onClear={handleClearFilters}
                 facetDefs={facetDefs}
                 ctaLabel={t('gallery.switchToStoryMode')}
                 onCta={() => setMode('story')}
                 tooltip={t('gallery.storyModeTooltip')}
+                mode="gallery"
               />
             </div>
 
             {/* Desktop: Grid-Layout */}
-            <div className="hidden lg:grid lg:grid-cols-[280px_1fr] lg:gap-6 flex-1 min-h-0 overflow-hidden min-h-[80vh]">
+            <div className="hidden lg:grid lg:grid-cols-[280px_1fr] lg:gap-3 flex-1 min-h-0 overflow-hidden">
               {/* Filters Panel (linke Spalte) */}
               <FiltersPanel
                 facetDefs={facetDefs}
@@ -535,7 +544,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                 {/* FilterContextBar immer anzeigen - wird nicht mehr durch ReferencesLegend ersetzt */}
                 <div className="flex-shrink-0">
                   <FilterContextBar
-                    docCount={filteredDocs.length}
+                    docCount={totalCount || filteredDocs.length}
                     onOpenFilters={() => setShowFilters(true)}
                     onClear={handleClearFilters}
                     hideFilterButton={true}
@@ -543,6 +552,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                     ctaLabel={t('gallery.switchToStoryMode')}
                     onCta={() => setMode('story')}
                     tooltip={t('gallery.storyModeTooltip')}
+                    mode="gallery"
                   />
                 </div>
 
@@ -578,13 +588,14 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
               {!(chatReferences && chatReferences.references && chatReferences.references.length > 0) && (
                 <div className="flex-shrink-0">
                   <FilterContextBar
-                    docCount={filteredDocs.length}
+                    docCount={totalCount || filteredDocs.length}
                     onOpenFilters={() => setShowFilters(true)}
                     onClear={handleClearFilters}
                     hideFilterButton={true}
                     facetDefs={facetDefs}
                     viewMode={viewMode}
                     onViewModeChange={setViewMode}
+                    mode="story"
                   />
                 </div>
               )}

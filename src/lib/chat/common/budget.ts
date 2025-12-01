@@ -6,7 +6,24 @@ export function getBaseBudget(answerLength: AnswerLength): number {
 }
 
 export function reduceBudgets(answerLength: AnswerLength): number[] {
-  if (answerLength === 'unbegrenzt') return [200000, 150000, 120000, 90000, 60000, 30000]
+  if (answerLength === 'unbegrenzt') {
+    // Für unbegrenzt: Verwende Token-Limit falls verfügbar, sonst große Fallback-Werte
+    const tokenBudget = getTokenBudget()
+    if (tokenBudget) {
+      // Konvertiere Token zu Zeichen (~4 Zeichen pro Token)
+      const charBudget = tokenBudget * 4
+      // Reduziere schrittweise: 80%, 60%, 50%, 40%, 30%, 20%
+      return [
+        Math.floor(charBudget * 0.8),
+        Math.floor(charBudget * 0.6),
+        Math.floor(charBudget * 0.5),
+        Math.floor(charBudget * 0.4),
+        Math.floor(charBudget * 0.3),
+        Math.floor(charBudget * 0.2),
+      ]
+    }
+    return [200000, 150000, 120000, 90000, 60000, 30000]
+  }
   return answerLength === 'ausführlich' ? [120000, 90000, 60000, 30000] : answerLength === 'mittel' ? [60000, 30000] : [20000]
 }
 

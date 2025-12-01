@@ -4,7 +4,7 @@ import { getTopLevelValue, type FacetDef } from '@/lib/chat/dynamic-facets'
  * Extrahiert Metadaten aus einem Metadaten-Objekt basierend auf Facetten-Definitionen.
  * Nutzt die gleiche Logik wie getTopLevelValue() für konsistente Typ-Konvertierung.
  * 
- * @param meta - Das Metadaten-Objekt (z.B. aus Pinecone oder MongoDB)
+ * @param meta - Das Metadaten-Objekt (z.B. aus MongoDB)
  * @param facetDefs - Array von Facetten-Definitionen aus der Library-Config
  * @returns Record mit extrahierten Metadaten (metaKey -> Wert), nur Felder mit vorhandenen Werten
  */

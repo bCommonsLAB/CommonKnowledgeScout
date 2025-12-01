@@ -32,9 +32,6 @@ services:
       - NEXT_PUBLIC_APP_URL=https://knowledgescout.your-domain.org
       - NEXT_PUBLIC_BASE_URL=https://knowledgescout.your-domain.org
       
-      # Pinecone Vector Database (for RAG)
-      - PINECONE_API_KEY=pcsk_your_pinecone_api_key_here
-      
       # Internal Security Token
       - INTERNAL_TEST_TOKEN=your_internal_security_token_here
       

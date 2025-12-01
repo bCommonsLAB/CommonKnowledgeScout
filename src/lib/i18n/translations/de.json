@@ -387,7 +387,6 @@
       "indexCreated": "Index angelegt",
       "indexRebuildStarted": "Index-Aufbau gestartet",
       "indexStatus": "Index Status",
-      "pineconeHealthCheck": "Pinecone Health Check",
       "index": "Index:",
       "vectors": "Vektoren:",
       "dimension": "Dimension:",
@@ -399,6 +398,24 @@
       "errorCreatingIndex": "Fehler beim Anlegen des Index",
       "errorRebuildingIndex": "Fehler beim Starten der Ingestion:",
       "jobId": "Job-ID:"
+    },
+    "indexDefinition": {
+      "title": "MongoDB Vector Search Index-Definition",
+      "description": "Die folgenden Index-Definitionen müssen manuell in MongoDB Atlas aktualisiert werden, damit Array-Facetten-Filter funktionieren.",
+      "collection": "Collection",
+      "indexName": "Index-Name",
+      "definition": "Index-Definition (JSON)",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "copiedDescription": "Index-Definition wurde in die Zwischenablage kopiert.",
+      "copyError": "Fehler beim Kopieren",
+      "unknownError": "Unbekannter Fehler",
+      "instructionsTitle": "Anleitung zur manuellen Aktualisierung:",
+      "instruction1": "Öffnen Sie MongoDB Atlas und navigieren Sie zu Ihrer Datenbank",
+      "instruction2": "Gehen Sie zu 'Search' → 'Indexes' für die Collection",
+      "instruction3": "Löschen Sie den bestehenden Index 'vector_search_idx' (falls vorhanden)",
+      "instruction4": "Erstellen Sie einen neuen Index mit der oben kopierten Definition",
+      "documentationLink": "MongoDB Atlas Search Dokumentation"
     }
   },
   "processing": {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { FileLogger } from '@/lib/debug/logger'
-import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/doc-meta-repo'
+import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/vector-repo'
 
 interface ChapterDto {
   chapterId: string
@@ -145,18 +145,21 @@ export async function GET(
       }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     } else {
       const chaptersIn = Array.isArray(docMeta.chapters) ? docMeta.chapters : []
-      chapters = chaptersIn.map((c, idx) => ({
-        chapterId: typeof c.id === 'string' ? c.id : `chap-${typeof c.index === 'number' ? c.index : (idx + 1)}`,
-        title: typeof c.title === 'string' ? c.title : undefined,
-        order: typeof c.index === 'number' ? c.index : (idx + 1),
-        level: typeof c.level === 'number' ? c.level : undefined,
-        startPage: typeof c.startPage === 'number' ? c.startPage : undefined,
-        endPage: typeof c.endPage === 'number' ? c.endPage : undefined,
-        pageCount: typeof c.pageCount === 'number' ? c.pageCount : undefined,
-        chunkCount: typeof c.chunkCount === 'number' ? c.chunkCount : undefined,
-        summary: typeof c.summary === 'string' ? c.summary : undefined,
-        keywords: Array.isArray(c.keywords) ? c.keywords : undefined,
-      })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      chapters = chaptersIn.map((c, idx) => {
+        const chapter = c as Record<string, unknown>
+        return {
+          chapterId: typeof chapter.id === 'string' ? chapter.id : `chap-${typeof chapter.index === 'number' ? chapter.index : (idx + 1)}`,
+          title: typeof chapter.title === 'string' ? chapter.title : undefined,
+          order: typeof chapter.index === 'number' ? chapter.index : (idx + 1),
+          level: typeof chapter.level === 'number' ? chapter.level : undefined,
+          startPage: typeof chapter.startPage === 'number' ? chapter.startPage : undefined,
+          endPage: typeof chapter.endPage === 'number' ? chapter.endPage : undefined,
+          pageCount: typeof chapter.pageCount === 'number' ? chapter.pageCount : undefined,
+          chunkCount: typeof chapter.chunkCount === 'number' ? chapter.chunkCount : undefined,
+          summary: typeof chapter.summary === 'string' ? chapter.summary : undefined,
+          keywords: Array.isArray(chapter.keywords) ? chapter.keywords : undefined,
+        }
+      }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     }
 
     const payload: IngestionStatusDto = {

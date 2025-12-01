@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Trash2 } from 'lucide-react'
 
 export interface FacetDefUi {
   metaKey: string
@@ -54,27 +55,27 @@ export function FacetDefsEditor({ value, onChange }: { value: FacetDefUi[]; onCh
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr className="text-left">
-              <th className="px-3 py-2 w-[28%]">metaKey</th>
-              <th className="px-3 py-2 w-[28%]">Label</th>
-              <th className="px-3 py-2 w-[18%]">Typ</th>
-              <th className="px-3 py-2 w-[10%]">Sort.</th>
-              <th className="px-3 py-2 w-[10%]">Max</th>
-              <th className="px-3 py-2 w-[10%]">Spalten</th>
-              <th className="px-3 py-2 w-[8%]">Multi</th>
-              <th className="px-3 py-2 w-[10%]">Sichtbar</th>
-              <th className="px-3 py-2 w-[150px]">Aktionen</th>
+              <th className="px-1 py-2 w-[28%]">metaKey</th>
+              <th className="px-1 py-2 w-[28%]">Label</th>
+              <th className="px-1 py-2 w-[18%]">Typ</th>
+              <th className="px-1 py-2 w-[10%]">Sort.</th>
+              <th className="px-1 py-2 w-[18%]">Max</th>
+              <th className="px-1 py-2 w-[10%]">Spalten</th>
+              <th className="px-1 py-2 w-[10%]">Multi</th>
+              <th className="px-1 py-2 w-[10%]">Sichtbar</th>
+              <th className="px-1 py-2 w-[100px]">Aktionen</th>
             </tr>
           </thead>
           <tbody>
             {defs.map((d, i) => (
               <tr key={i} className="border-t">
-                <td className="px-3 py-2 align-middle">
-                  <Input placeholder="metaKey" value={d.metaKey} onChange={e => update(i, { metaKey: e.target.value })} />
+                <td className="px-0 py-2 align-middle">
+                  <Input placeholder="metaKey" value={d.metaKey} onChange={e => update(i, { metaKey: e.target.value })} className="w-full" />
                 </td>
-                <td className="px-3 py-2 align-middle">
-                  <Input placeholder="Label" value={d.label || ''} onChange={e => update(i, { label: e.target.value })} />
+                <td className="px-0 py-2 align-middle">
+                  <Input placeholder="Label" value={d.label || ''} onChange={e => update(i, { label: e.target.value })} className="w-full" />
                 </td>
-                <td className="px-3 py-2 align-middle">
+                <td className="px-0 py-2 align-middle">
                   <Select 
                     value={d.type || 'string'} 
                     onValueChange={(v) => {
@@ -84,13 +85,13 @@ export function FacetDefsEditor({ value, onChange }: { value: FacetDefUi[]; onCh
                       }
                     }}
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </td>
-                <td className="px-3 py-2 align-middle">
+                <td className="px-0 py-2 align-middle">
                   <Select 
                     value={d.sort || 'alpha'} 
                     onValueChange={(v) => {
@@ -100,17 +101,17 @@ export function FacetDefsEditor({ value, onChange }: { value: FacetDefUi[]; onCh
                       }
                     }}
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="alpha">alpha</SelectItem>
                       <SelectItem value="count">count</SelectItem>
                     </SelectContent>
                   </Select>
                 </td>
-                <td className="px-3 py-2 align-middle">
-                  <Input type="number" min={1} placeholder="alle" value={typeof d.max === 'number' ? String(d.max) : ''} onChange={e => update(i, { max: e.target.value ? Number(e.target.value) : undefined })} />
+                <td className="px-0 py-2 align-middle">
+                  <Input type="number" min={1} placeholder="alle" value={typeof d.max === 'number' ? String(d.max) : ''} onChange={e => update(i, { max: e.target.value ? Number(e.target.value) : undefined })} className="w-full" />
                 </td>
-                <td className="px-3 py-2 align-middle">
+                <td className="px-0 py-2 align-middle">
                   <Select 
                     value={String(d.columns || 1)} 
                     onValueChange={(v) => {
@@ -121,24 +122,26 @@ export function FacetDefsEditor({ value, onChange }: { value: FacetDefUi[]; onCh
                       }
                     }}
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="1">1</SelectItem>
                       <SelectItem value="2">2</SelectItem>
                     </SelectContent>
                   </Select>
                 </td>
-                <td className="px-3 py-2 align-middle">
+                <td className="px-1 py-2 align-middle">
                   <Switch checked={!!d.multi} onCheckedChange={(v) => update(i, { multi: v })} />
                 </td>
-                <td className="px-3 py-2 align-middle">
+                <td className="px-1 py-2 align-middle">
                   <Switch checked={!!d.visible} onCheckedChange={(v) => update(i, { visible: v })} />
                 </td>
-                <td className="px-3 py-2 align-middle">
-                  <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => move(i, -1)} disabled={i === 0}>↑</Button>
-                    <Button type="button" variant="outline" size="sm" onClick={() => move(i, +1)} disabled={i === defs.length - 1}>↓</Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(i)}>Entfernen</Button>
+                <td className="px-0 py-2 align-middle">
+                  <div className="flex items-center gap-0">
+                    <Button type="button" variant="outline" size="sm" onClick={() => move(i, -1)} disabled={i === 0} className="h-8 w-8 p-0">↑</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => move(i, +1)} disabled={i === defs.length - 1} className="h-8 w-8 p-0">↓</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(i)} className="h-8 w-8 p-0" title="Entfernen">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </td>
               </tr>

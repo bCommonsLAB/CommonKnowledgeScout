@@ -66,12 +66,22 @@ export interface LibraryChatConfig {
     temperature?: number;
   };
 
+  /** Embedding-Provider-Konfiguration (Secretary Service RAG API) */
+  embeddings?: {
+    /** Embedding-Modell (z.B. 'voyage-3-large', 'text-embedding-3-large') */
+    embeddingModel?: string;
+    /** Chunk-Größe in Zeichen (Standard: 1000) */
+    chunkSize?: number;
+    /** Chunk-Overlap in Zeichen (Standard: 200) */
+    chunkOverlap?: number;
+    /** Embedding-Dimension (Standard: 2048 für voyage-3-large, 3072 für text-embedding-3-large) */
+    dimensions?: number;
+  };
+
   /** Vektor-Store-Overrides; Index = Libraryname, außer es wird überschrieben */
   vectorStore?: {
     /** MongoDB Collection-Name (wird automatisch gesetzt bei Migration) */
     collectionName?: string;
-    /** Pinecone Index-Name (ersetzt indexOverride) */
-    indexName?: string;
   };
 
   /** Zielsprache für Chat-Antworten */

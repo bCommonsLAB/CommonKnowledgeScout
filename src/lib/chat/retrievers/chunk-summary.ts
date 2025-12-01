@@ -2,7 +2,7 @@
  * @fileoverview Chunk Summary Retriever - Alle Chunks ohne Embedding-Suche
  * 
  * @description
- * Lädt alle Chunks der gefilterten Dokumente aus Pinecone OHNE Embedding-Suche.
+ * Lädt alle Chunks der gefilterten Dokumente aus MongoDB OHNE Embedding-Suche.
  * Verwendet direkte Metadaten-Filter basierend auf MongoDB-Ergebnissen.
  * Ideal für überschaubare Dokumentmengen, die in das Token-Budget passen.
  * 
@@ -16,19 +16,18 @@
  * - src/app/api/chat/[libraryId]/stream/route.ts: Chat-Endpoint verwendet Retriever
  * 
  * @dependencies
- * - @/lib/chat/pinecone: Pinecone Vector-Operationen
+ * - @/lib/repositories/vector-repo: MongoDB Vector Search Operations
  * - @/lib/chat/common/budget: Budget-Verwaltung
  * - @/lib/logging/query-logger: Query-Logging
  * - @/lib/chat/retrievers/metadata-extractor: Metadaten-Extraktion
- * - @/lib/repositories/doc-meta-repo: MongoDB Repository für Dokument-Metadaten
  */
 
 import type { ChatRetriever, RetrieverInput, RetrieverOutput, RetrievedSource } from '@/types/retriever'
-import { queryPineconeByFileIds, type QueryMatch } from '@/lib/chat/pinecone'
 import { getBaseBudget } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend } from '@/lib/logging/query-logger'
 import { extractFacetMetadata } from './metadata-extractor'
-import { getCollectionNameForLibrary, findDocs } from '@/lib/repositories/doc-meta-repo'
+import { findDocs, getCollectionOnly } from '@/lib/repositories/vector-repo'
+import { getRetrieverContext } from '@/lib/chat/retriever-context'
 
 const env = {
   maxDocs: Number(process.env.CHUNK_SUMMARY_MAX_DOCS ?? 100),
@@ -38,36 +37,27 @@ export const chunkSummaryRetriever: ChatRetriever = {
   async retrieve(input: RetrieverInput): Promise<RetrieverOutput> {
     const t0 = Date.now()
 
-    // Library-Context laden, um Facetten-Definitionen zu erhalten
-    const { loadLibraryChatContext } = await import('@/lib/chat/loader')
-    const ctx = await loadLibraryChatContext(input.userEmail || '', input.libraryId)
-    const { parseFacetDefs } = await import('@/lib/chat/dynamic-facets')
-    const facetDefs = ctx ? parseFacetDefs(ctx.library) : []
-
-    const apiKey = process.env.PINECONE_API_KEY
-    if (!apiKey) throw new Error('PINECONE_API_KEY fehlt')
+    // Retriever-Context laden (enthält alle benötigten Konfigurationswerte)
+    const retrieverCtx = await getRetrieverContext(input.userEmail || '', input.libraryId)
+    const { libraryKey, facetDefs } = retrieverCtx
 
     const budget = getBaseBudget(input.answerLength)
 
     // Schritt 1: Gefilterte Dokumente aus MongoDB abrufen (nur fileIds)
-    if (!ctx) {
-      throw new Error('Library context nicht gefunden')
-    }
-    const libraryKey = getCollectionNameForLibrary(ctx.library)
     
-    let stepList = markStepStart({ indexName: input.context.vectorIndex, namespace: '', stage: 'list', level: 'chunkSummary' })
+    let stepList = markStepStart({ indexName: libraryKey, namespace: '', stage: 'list', level: 'chunkSummary' })
     
     const docs = await findDocs(libraryKey, input.libraryId, input.filters || {}, {
       limit: env.maxDocs,
       sort: { upsertedAt: -1 },
     })
     
-    const fileIds = docs.map(d => d.fileId).filter((id): id is string => typeof id === 'string' && id.length > 0)
+    const fileIds = docs.items.map(d => d.fileId).filter((id): id is string => typeof id === 'string' && id.length > 0)
     
     if (fileIds.length === 0) {
       stepList = markStepEnd({ ...stepList, topKReturned: 0 })
       await logAppend(input.queryId, {
-        indexName: input.context.vectorIndex,
+        indexName: libraryKey,
         namespace: '',
         stage: 'list',
         level: 'chunkSummary',
@@ -78,7 +68,6 @@ export const chunkSummaryRetriever: ChatRetriever = {
         usedInPrompt: 0,
         filtersEffective: {
           normalized: input.filters || {},
-          pinecone: input.filters || {},
         },
       })
       return { sources: [], timing: { retrievalMs: Date.now() - t0 }, stats: { candidatesCount: 0, usedInPrompt: 0 } }
@@ -86,7 +75,7 @@ export const chunkSummaryRetriever: ChatRetriever = {
 
     stepList = markStepEnd({ ...stepList, topKReturned: fileIds.length })
     await logAppend(input.queryId, {
-      indexName: input.context.vectorIndex,
+      indexName: libraryKey,
       namespace: '',
       stage: 'list',
       level: 'chunkSummary',
@@ -97,45 +86,105 @@ export const chunkSummaryRetriever: ChatRetriever = {
       usedInPrompt: fileIds.length,
       filtersEffective: {
         normalized: input.filters || {},
-        pinecone: input.filters || {},
       },
     })
 
-    // Schritt 2: Alle Chunks dieser Dokumente aus Pinecone abrufen (OHNE Embedding-Suche)
-    // Verwende zentrale Funktion mit Null-Vektor
+    // Schritt 2: Alle Chunks dieser Dokumente aus MongoDB abrufen (OHNE Embedding-Suche)
     let stepQuery = markStepStart({ 
-      indexName: input.context.vectorIndex, 
+      indexName: libraryKey, 
       namespace: '', 
-      stage: 'query', 
+      stage: 'query',
       level: 'chunkSummary',
-      filtersEffective: { normalized: input.filters || {}, pinecone: { fileId: { $in: fileIds } } },
-      queryVectorInfo: { source: 'question' }, // Verwende 'question' als Source (auch wenn Null-Vektor)
+      filtersEffective: { normalized: input.filters || {} },
+      queryVectorInfo: { source: 'question' }, // Keine Embedding-Suche (verwendet 'question' als Fallback)
     })
     
-    // Zentrale Funktion mit Null-Vektor (undefined = Null-Vektor wird automatisch erstellt)
-    const matches = await queryPineconeByFileIds(
-      input.context.vectorIndex,
-      apiKey,
-      fileIds,
-      undefined, // Null-Vektor für alle Chunks ohne semantische Suche
-      10000, // Maximal 10000 Chunks
-      input.libraryId,
-      input.userEmail || '',
-      'chunk'
+    // Direkte MongoDB-Abfrage ohne Vector Search
+      const col = await getCollectionOnly(libraryKey)
+    const chunks = await col.find(
+      {
+        kind: 'chunk',
+        libraryId: input.libraryId,
+        user: input.userEmail || '',
+        fileId: { $in: fileIds },
+      },
+      {
+        projection: {
+          _id: 1,
+          fileId: 1,
+          fileName: 1,
+          chunkIndex: 1,
+          text: 1,
+          headingContext: 1,
+          startChar: 1,
+          endChar: 1,
+          year: 1,
+          authors: 1,
+          region: 1,
+          docType: 1,
+          source: 1,
+          tags: 1,
+          topics: 1,
+          track: 1,
+          speakers: 1,
+          date: 1,
+          shortTitle: 1,
+          sourceType: 1,
+          slidePageNum: 1,
+          slideTitle: 1,
+          chapterTitle: 1,
+          chapterOrder: 1,
+          chapterId: 1,
+        },
+      }
     )
+    .sort({ fileId: 1, chunkIndex: 1 })
+    .limit(10000)
+    .toArray()
     
-    // Konvertiere QueryMatch[] zu Array<{ id: string; metadata?: Record<string, unknown> }>
-    const allChunks = matches.map((m: QueryMatch) => ({ id: m.id, metadata: m.metadata }))
+    // Konvertiere zu Array<{ id: string; metadata: Record<string, unknown> }>
+    const allChunks = chunks.map(doc => ({
+      id: String(doc._id),
+      metadata: {
+        libraryId: doc.libraryId as string,
+        user: doc.user as string,
+        fileId: doc.fileId as string,
+        fileName: doc.fileName as string,
+        kind: doc.kind as string,
+        chunkIndex: doc.chunkIndex as number,
+        text: doc.text as string,
+        headingContext: doc.headingContext as string | undefined,
+        startChar: doc.startChar as number | undefined,
+        endChar: doc.endChar as number | undefined,
+        year: doc.year as number | undefined,
+        authors: doc.authors as string[] | undefined,
+        region: doc.region as string | undefined,
+        docType: doc.docType as string | undefined,
+        source: doc.source as string | undefined,
+        tags: doc.tags as string[] | undefined,
+        topics: doc.topics as string[] | undefined,
+        track: doc.track as string | undefined,
+        speakers: doc.speakers as string[] | undefined,
+        date: doc.date as string | undefined,
+        shortTitle: doc.shortTitle as string | undefined,
+        sourceType: doc.sourceType as string | undefined,
+        slidePageNum: doc.slidePageNum as number | undefined,
+        slideTitle: doc.slideTitle as string | undefined,
+        chapterTitle: doc.chapterTitle as string | undefined,
+        chapterOrder: doc.chapterOrder as number | undefined,
+        chapterId: doc.chapterId as string | undefined,
+      },
+    }))
     
     stepQuery = markStepEnd({ ...stepQuery, topKReturned: allChunks.length })
     await logAppend(input.queryId, {
-      indexName: input.context.vectorIndex,
+      indexName: libraryKey,
       namespace: '',
       stage: 'query',
       level: 'chunkSummary',
       topKRequested: allChunks.length,
       topKReturned: allChunks.length,
-      filtersEffective: { normalized: input.filters || {}, pinecone: { fileId: { $in: fileIds } } },
+      filtersEffective: { normalized: input.filters || {} },
       timingMs: stepQuery.timingMs,
       startedAt: stepQuery.startedAt,
       endedAt: stepQuery.endedAt,

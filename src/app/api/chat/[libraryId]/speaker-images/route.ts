@@ -1,7 +1,8 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { getCollectionNameForLibrary, getDocMetaCollection } from '@/lib/repositories/doc-meta-repo'
+import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
+import type { Document } from 'mongodb'
 
 /**
  * API-Route für lazy-loading von Speaker-Image-URLs
@@ -45,11 +46,11 @@ export async function GET(
     // Verwende Collection-Name aus Config (deterministisch, keine Owner-Email-Ermittlung mehr)
     const libraryKey = getCollectionNameForLibrary(ctx.library)
     console.log('[API][speaker-images] MongoDB Collection:', { libraryKey })
-    const col = await getDocMetaCollection(libraryKey)
+    const col = await getCollectionOnly(libraryKey)
 
-    // Lade nur speakers_image_url für das spezifische Dokument
+    // Lade nur speakers_image_url für das spezifische Meta-Dokument
     const doc = await col.findOne(
-      { fileId },
+      { _id: `${fileId}-meta`, kind: 'meta' } as Partial<Document>,
       {
         projection: {
           _id: 0,

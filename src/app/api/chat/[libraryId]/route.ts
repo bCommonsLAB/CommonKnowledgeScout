@@ -193,7 +193,6 @@ export async function POST(
         genderInclusive: effectiveChatConfig.genderInclusive,
         facetsSelected,
         filtersNormalized: { ...built.normalized },
-        filtersPinecone: { ...built.pinecone },
       })
       
       // Analyse-Ergebnisse speichern, falls vorhanden
@@ -214,7 +213,7 @@ export async function POST(
         answerLength,
         filters: built.mongo,
         queryId,
-        context: { vectorIndex: ctx.vectorIndex },
+        context: {},
         chatConfig: effectiveChatConfig,
         chatHistory: chatHistory,
         apiKey: publicApiKey,
@@ -222,7 +221,6 @@ export async function POST(
       return NextResponse.json({
         status: 'ok',
         libraryId,
-        vectorIndex: ctx.vectorIndex,
         answer,
         references,
         suggestedQuestions,
@@ -250,7 +248,6 @@ export async function POST(
       socialContext: effectiveChatConfig.socialContext,
       facetsSelected,
       filtersNormalized: { ...built.normalized },
-      filtersPinecone: { ...built.pinecone },
     })
     
     // Analyse-Ergebnisse speichern, falls vorhanden
@@ -269,11 +266,11 @@ export async function POST(
       retriever: 'chunk',
       libraryId,
       userEmail: userEmail || '',
+      context: {},
       question: message,
       answerLength,
       filters: built.mongo,
       queryId,
-      context: { vectorIndex: ctx.vectorIndex },
       chatConfig: effectiveChatConfig,
       chatHistory: chatHistory,
       apiKey: libraryApiKey,
@@ -282,7 +279,6 @@ export async function POST(
     return NextResponse.json({
       status: 'ok',
       libraryId,
-      vectorIndex: ctx.vectorIndex,
       answer,
       references,
       suggestedQuestions,

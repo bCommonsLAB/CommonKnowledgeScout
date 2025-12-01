@@ -412,6 +412,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     // WICHTIG: libraries NICHT in Dependencies, da sonst Endlosschleife:
     // libraries ändert sich → useEffect läuft → setLibraries → libraries ändert sich → ...
     // libraries wird innerhalb fetchLibraries über Closure verwendet, was ausreicht
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthLoaded, isUserLoaded, isSignedIn, user, setLibraries, setActiveLibraryId, hasRedirectedToSettings, setLibraryStatusAtom, pathname]);
 
   // Aktuelle Bibliothek aktualisieren

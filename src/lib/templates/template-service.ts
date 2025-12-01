@@ -108,36 +108,103 @@ export async function loadTemplate(args: LoadTemplateArgs): Promise<LoadTemplate
     : ''
   
   // 1. Versuche Preferred Template zu finden
-  const chosen = chosenName ? pickByName(chosenName) : undefined
+  let chosen = chosenName ? pickByName(chosenName) : undefined
   const isPreferred = !!chosen
   
-  // 2. KEIN FALLBACK - Wenn kein Template gefunden wurde, Fehler werfen
+  // 2. Wenn kein Preferred Template gefunden wurde:
+  //    - Wenn Preferred Template angegeben war: Fehler werfen
+  //    - Wenn kein Preferred Template angegeben: Versuche Default-Template (pdfanalyse) oder erstes verfügbares Template
   if (!chosen) {
     const availableTemplates = tplItems
       .filter(it => it.type === 'file' && (it as { metadata?: { name?: string } }).metadata?.name?.endsWith('.md'))
       .map(it => ((it as { metadata?: { name?: string } }).metadata?.name || '').replace(/\.md$/, ''))
       .filter(name => name.length > 0)
     
-    const errorMessage = preferredTemplate
-      ? `Template "${preferredTemplate}" nicht gefunden. Verfügbare Templates: ${availableTemplates.length > 0 ? availableTemplates.join(', ') : '(keine)'}`
-      : `Kein Template angegeben. Verfügbare Templates: ${availableTemplates.length > 0 ? availableTemplates.join(', ') : '(keine)'}`
-    
-    // Trace-Event für Fehler (falls repo verfügbar)
-    if (repo && jobId) {
-      try {
-        await repo.traceAddEvent(jobId, {
-          spanId: 'template',
-          name: 'template_not_found',
-          attributes: {
-            preferredTemplate: preferredTemplate || '(nicht gesetzt)',
-            availableTemplates,
-            error: errorMessage
-          }
-        })
-      } catch {}
+    // Wenn Preferred Template angegeben war, aber nicht gefunden wurde: Fehler werfen
+    if (preferredTemplate) {
+      const errorMessage = `Template "${preferredTemplate}" nicht gefunden. Verfügbare Templates: ${availableTemplates.length > 0 ? availableTemplates.join(', ') : '(keine)'}`
+      
+      // Trace-Event für Fehler (falls repo verfügbar)
+      if (repo && jobId) {
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'template',
+            name: 'template_not_found',
+            attributes: {
+              preferredTemplate,
+              availableTemplates,
+              error: errorMessage
+            }
+          })
+        } catch {}
+      }
+      
+      throw new TemplateNotFoundError(errorMessage, preferredTemplate, availableTemplates)
     }
     
-    throw new TemplateNotFoundError(errorMessage, preferredTemplate, availableTemplates)
+    // Wenn kein Preferred Template angegeben: Versuche Default-Template (pdfanalyse) oder erstes verfügbares Template
+    if (availableTemplates.length === 0) {
+      const errorMessage = `Kein Template angegeben und keine Templates im Templates-Ordner gefunden.`
+      
+      // Trace-Event für Fehler (falls repo verfügbar)
+      if (repo && jobId) {
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'template',
+            name: 'template_not_found',
+            attributes: {
+              preferredTemplate: '(nicht gesetzt)',
+              availableTemplates: [],
+              error: errorMessage
+            }
+          })
+        } catch {}
+      }
+      
+      throw new TemplateNotFoundError(errorMessage, undefined, [])
+    }
+    
+    // Versuche Default-Template "pdfanalyse" zu finden
+    const defaultTemplate = availableTemplates.find(name => name.toLowerCase() === 'pdfanalyse')
+    if (defaultTemplate) {
+      chosen = pickByName(`${defaultTemplate}.md`)
+      if (repo && jobId) {
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'template',
+            name: 'template_default_used',
+            attributes: {
+              preferredTemplate: '(nicht gesetzt)',
+              usedTemplate: defaultTemplate,
+              availableTemplates
+            }
+          })
+        } catch {}
+      }
+    } else {
+      // Verwende erstes verfügbares Template als Fallback
+      const firstTemplate = availableTemplates[0]
+      chosen = pickByName(`${firstTemplate}.md`)
+      if (repo && jobId) {
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'template',
+            name: 'template_fallback_used',
+            attributes: {
+              preferredTemplate: '(nicht gesetzt)',
+              usedTemplate: firstTemplate,
+              availableTemplates
+            }
+          })
+        } catch {}
+      }
+    }
+    
+    // Wenn immer noch kein Template gefunden wurde (sollte nicht passieren), Fehler werfen
+    if (!chosen) {
+      const errorMessage = `Kein Template angegeben und kein Template gefunden. Verfügbare Templates: ${availableTemplates.join(', ')}`
+      throw new TemplateNotFoundError(errorMessage, undefined, availableTemplates)
+    }
   }
   
   // Template-Inhalt laden

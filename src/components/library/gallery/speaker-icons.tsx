@@ -3,7 +3,6 @@
 import React, { useState } from 'react'
 import Image from 'next/image'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { FileText } from 'lucide-react'
 
 export interface DocLike {
   authors?: string[]

@@ -11,8 +11,8 @@ export interface VectorStatsBreakdown {
 }
 
 /**
- * Aggregiert Zählwerte für Ingestion-Statistiken aus Pinecone-Vektorlisten.
- * - doc: Anzahl Vektoren mit metadata.kind === 'doc' (Dokument-Metadaten)
+ * Aggregiert Zählwerte für Ingestion-Statistiken aus MongoDB Vector Search Vektorlisten.
+ * - doc: Anzahl Vektoren mit metadata.kind === 'doc' (Dokument-Metadaten) - deprecated, verwende 'meta'
  * - chapterSummary: Anzahl Vektoren mit metadata.kind === 'chapterSummary'
  * - chunk: Anzahl Vektoren mit metadata.kind === 'chunk'
  * - uniqueDocs: Distinkte fileId-Werte über alle Vektoren (robust gegen fehlende doc‑Meta)

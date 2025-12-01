@@ -20,10 +20,10 @@ export interface QueryRetrievalStep {
   // Erweiterte Observability
   candidatesCount?: number; // Anzahl gefilterter Kandidaten (z. B. Docs)
   usedInPrompt?: number;    // Anzahl tatsächlich in Prompt eingeflossener Elemente (z. B. Docs)
-  decision?: 'chapters' | 'docs';
+  decision?: 'chapters' | 'summary' | 'teaser';
   filtersEffective?: {
     normalized?: Record<string, unknown>;
-    pinecone?: Record<string, unknown>;
+    mongo?: Record<string, unknown>;
   };
   queryVectorInfo?: { source: 'question' | 'rerank' | 'hybrid'; note?: string };
   results?: QueryRetrievalResultItem[];
@@ -103,7 +103,7 @@ export interface QueryLog {
   genderInclusive?: boolean;
   facetsSelected?: Record<string, unknown>;
   filtersNormalized?: Record<string, unknown>;
-  filtersPinecone?: Record<string, unknown>;
+  filtersMongo?: Record<string, unknown>;
   retrieval?: QueryRetrievalStep[];
   prompt?: QueryPromptInfo;
   answer?: string;

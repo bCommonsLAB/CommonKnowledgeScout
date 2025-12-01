@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { getCollectionNameForLibrary } from '@/lib/repositories/doc-meta-repo'
-import { getCollection } from '@/lib/mongodb-service'
-import type { DocMeta } from '@/types/doc-meta'
+import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 
 /**
  * GET /api/chat/[libraryId]/doc-by-slug
@@ -59,19 +57,19 @@ export async function GET(
       libraryKey,
     })
     
-    const col = await getCollection<DocMeta>(libraryKey)
+    const col = await getCollectionOnly(libraryKey)
 
-    // Dokument anhand des Slugs finden
+    // Dokument anhand des Slugs finden (nur Meta-Dokumente)
     // MongoDB unterstützt dot-notation für verschachtelte Felder
     console.log('[doc-by-slug] Suche Dokument mit slug:', slug)
     
-    // Prüfe zuerst, wie viele Dokumente in der Collection sind
-    const totalDocs = await col.countDocuments({})
-    console.log('[doc-by-slug] Anzahl Dokumente in Collection:', totalDocs)
+    // Prüfe zuerst, wie viele Meta-Dokumente in der Collection sind
+    const totalDocs = await col.countDocuments({ kind: 'meta' })
+    console.log('[doc-by-slug] Anzahl Meta-Dokumente in Collection:', totalDocs)
     
     // Versuche zuerst mit dot-notation (wenn docMetaJson als Objekt gespeichert ist)
     let doc = await col.findOne(
-      { 'docMetaJson.slug': slug },
+      { kind: 'meta', 'docMetaJson.slug': slug },
       { projection: { _id: 0, fileId: 1, fileName: 1, docMetaJson: 1 } }
     )
     
@@ -83,9 +81,9 @@ export async function GET(
     // Falls nicht gefunden, versuche mit String-Suche (wenn docMetaJson als String gespeichert ist)
     if (!doc) {
       console.log('[doc-by-slug] Dokument nicht mit dot-notation gefunden, versuche String-Suche...')
-      // Lade alle Dokumente und suche manuell
+      // Lade alle Meta-Dokumente und suche manuell
       const allDocs = await col.find(
-        {},
+        { kind: 'meta' },
         { projection: { _id: 0, fileId: 1, fileName: 1, docMetaJson: 1 } }
       ).limit(1000).toArray()
       

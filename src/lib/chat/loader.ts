@@ -26,12 +26,11 @@
 
 import { Library } from '@/types/library'
 import { LibraryService, type UserLibraries } from '@/lib/services/library-service'
-import { normalizeChatConfig, getVectorIndexForLibrary } from '@/lib/chat/config'
+import { normalizeChatConfig } from '@/lib/chat/config'
 import { computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
 
 export interface LibraryChatContext {
   library: Library
-  vectorIndex: string
   chat: ReturnType<typeof normalizeChatConfig>
 }
 
@@ -129,8 +128,18 @@ async function findLibraryOwnerEmailForMigration(libraryId: string): Promise<str
 }
 
 /**
- * Migriert eine Library-Config: Berechnet und speichert collectionName und indexName.
- * Migriert auch indexOverride → indexName.
+ * Prüft ob eine Library Migration benötigt.
+ * @param library Die zu prüfende Library
+ * @returns true wenn Migration benötigt wird
+ */
+function needsLibraryMigration(library: Library): boolean {
+  return !library.config?.chat?.vectorStore?.collectionName || 
+         !library.config?.chat?.embeddings?.dimensions ||
+         !!(library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride
+}
+
+/**
+ * Migriert eine Library-Config: Berechnet und speichert collectionName und embeddings.dimensions.
  * @param library Die zu migrierende Library
  * @param userEmail Die User-Email (falls vorhanden, sonst wird Owner-Email ermittelt)
  * @returns Die migrierte Library
@@ -138,10 +147,9 @@ async function findLibraryOwnerEmailForMigration(libraryId: string): Promise<str
 async function migrateLibraryConfig(library: Library, userEmail?: string): Promise<Library> {
   // Prüfe ob Migration bereits durchgeführt wurde
   const hasCollectionName = !!library.config?.chat?.vectorStore?.collectionName
-  const hasIndexName = !!library.config?.chat?.vectorStore?.indexName
-  const hasIndexOverride = !!(library.config?.chat?.vectorStore as { indexOverride?: boolean })?.indexOverride
+  const hasEmbeddingsDimensions = !!library.config?.chat?.embeddings?.dimensions
   
-  if (hasCollectionName && hasIndexName && !hasIndexOverride) {
+  if (hasCollectionName && hasEmbeddingsDimensions) {
     // Migration bereits durchgeführt
     return library
   }
@@ -158,27 +166,18 @@ async function migrateLibraryConfig(library: Library, userEmail?: string): Promi
   const strategy = (process.env.DOCMETA_COLLECTION_STRATEGY === 'per_tenant' ? 'per_tenant' : 'per_library') as 'per_library' | 'per_tenant'
   const collectionName = computeDocMetaCollectionName(effectiveEmail || '', library.id, strategy)
   
-  // Berechne Index-Name nach alter Logik (mit Email-Präfix) für Migration
-  // Diese Funktion bildet die alte Logik nach, die Email-Präfix verwendet hat
-  const { slugifyIndexName } = await import('@/lib/chat/config')
-  
-  // Alte Logik: indexOverride hat Priorität
-  const oldIndexOverride = (library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride
-  let indexName: string
-  
-  if (oldIndexOverride && oldIndexOverride.trim().length > 0) {
-    // indexOverride wurde verwendet (ohne Email-Präfix)
-    indexName = slugifyIndexName(oldIndexOverride)
-  } else {
-    // Basis aus Label berechnen
-    const base = slugifyIndexName(library.label) || slugifyIndexName(`lib-${library.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12) || 'default'}`)
-    
-    // Alte Logik: Mit Email-Präfix (wenn Email vorhanden)
-    if (effectiveEmail && effectiveEmail.trim().length > 0) {
-      const emailSlug = slugifyIndexName(effectiveEmail)
-      indexName = slugifyIndexName(`${emailSlug}-${base}`)
+  // Setze embeddings.dimensions wenn nicht vorhanden (basierend auf Model)
+  const embeddingsConfig = library.config?.chat?.embeddings
+  let dimensions = embeddingsConfig?.dimensions
+  if (!dimensions) {
+    // Verwende Defaults aus zentralem Schema
+    const { getDefaultEmbeddings } = await import('@/lib/chat/config')
+    const defaults = getDefaultEmbeddings()
+    const model = embeddingsConfig?.embeddingModel || defaults.embeddingModel
+    if (model.includes('text-embedding-3-large')) {
+      dimensions = 3072
     } else {
-      indexName = base
+      dimensions = defaults.dimensions // Standard aus zentralem Schema
     }
   }
   
@@ -188,18 +187,27 @@ async function migrateLibraryConfig(library: Library, userEmail?: string): Promi
     chat: {
       ...library.config?.chat,
       vectorStore: {
-        ...library.config?.chat?.vectorStore,
+        ...(library.config?.chat?.vectorStore || {}),
         collectionName,
-        // Migration: indexOverride → indexName
-        indexName: (library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride || indexName,
+      },
+      embeddings: {
+        embeddingModel: embeddingsConfig?.embeddingModel || 'voyage-3-large',
+        chunkSize: embeddingsConfig?.chunkSize || 1000,
+        chunkOverlap: embeddingsConfig?.chunkOverlap || 200,
+        dimensions, // Explizit setzen
       },
     },
   }
   
-  // Entferne indexOverride aus vectorStore (falls vorhanden)
-  const vectorStore = updatedConfig.chat?.vectorStore as { indexOverride?: string; collectionName?: string; indexName?: string } | undefined;
-  if (vectorStore && 'indexOverride' in vectorStore) {
-    delete vectorStore.indexOverride;
+  // Entferne indexOverride und indexName aus vectorStore (falls vorhanden)
+  const vectorStore = updatedConfig.chat?.vectorStore as { indexOverride?: string; indexName?: string; collectionName?: string } | undefined;
+  if (vectorStore) {
+    if ('indexOverride' in vectorStore) {
+      delete vectorStore.indexOverride;
+    }
+    if ('indexName' in vectorStore) {
+      delete vectorStore.indexName;
+    }
   }
   
   const migratedLibrary: Library = {
@@ -213,13 +221,34 @@ async function migrateLibraryConfig(library: Library, userEmail?: string): Promi
     await libService.updateLibrary(effectiveEmail, migratedLibrary)
     console.log('[migrateLibraryConfig] Migration abgeschlossen für Library:', library.id, {
       collectionName,
-      indexName: migratedLibrary.config?.chat?.vectorStore?.indexName,
+      dimensions,
     })
   } else {
     console.warn('[migrateLibraryConfig] Konnte Library nicht speichern, keine Owner-Email gefunden:', library.id)
   }
   
   return migratedLibrary
+}
+
+/**
+ * Erstellt einen LibraryChatContext aus einer Library.
+ * Behandelt Migration und Config-Normalisierung.
+ * @param library Die Library
+ * @param userEmail Optional: User-Email für Migration
+ * @returns LibraryChatContext
+ */
+async function createLibraryChatContext(
+  library: Library,
+  userEmail?: string
+): Promise<LibraryChatContext> {
+  // Migration: Prüfe ob collectionName und embeddings.dimensions vorhanden sind
+  if (needsLibraryMigration(library)) {
+    library = await migrateLibraryConfig(library, userEmail)
+  }
+
+  const chat = normalizeChatConfig(library.config?.chat)
+  
+  return { library, chat }
 }
 
 /**
@@ -257,7 +286,7 @@ export async function loadLibraryChatContext(
   }
   
   const libraries = await libService.getUserLibraries(userEmail)
-  let library = libraries.find(l => l.id === libraryId)
+  const library = libraries.find(l => l.id === libraryId)
   
   if (!library) {
     // Versuche auch öffentliche Library zu laden (zuerst über ID, dann über Slug)
@@ -274,20 +303,7 @@ export async function loadLibraryChatContext(
     return null
   }
 
-  // Migration: Prüfe ob collectionName und indexName vorhanden sind
-  const needsMigration = !library.config?.chat?.vectorStore?.collectionName || 
-                         !library.config?.chat?.vectorStore?.indexName ||
-                         !!(library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride
-  
-  if (needsMigration) {
-    library = await migrateLibraryConfig(library, userEmail)
-  }
-
-  const chat = normalizeChatConfig(library.config?.chat)
-  // Verwende indexName aus Config (deterministisch, getVectorIndexForLibrary prüft Config automatisch)
-  const vectorIndex = getVectorIndexForLibrary({ id: library.id, label: library.label }, library.config?.chat)
-  
-  const context = { library, vectorIndex, chat }
+  const context = await createLibraryChatContext(library, userEmail)
   setCachedContext(userEmail, libraryId, context)
   return context
 }
@@ -300,7 +316,7 @@ export async function loadPublicLibraryById(
   libraryId: string
 ): Promise<LibraryChatContext | null> {
   const libService = LibraryService.getInstance()
-  let library = await libService.getPublicLibraryById(libraryId)
+  const library = await libService.getPublicLibraryById(libraryId)
   
   if (!library) {
     return null
@@ -311,21 +327,7 @@ export async function loadPublicLibraryById(
     return null
   }
 
-  // Migration: Prüfe ob collectionName und indexName vorhanden sind
-  const needsMigration = !library.config?.chat?.vectorStore?.collectionName || 
-                         !library.config?.chat?.vectorStore?.indexName ||
-                         !!(library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride
-  
-  if (needsMigration) {
-    library = await migrateLibraryConfig(library)
-  }
-
-  const chat = normalizeChatConfig(library.config?.chat)
-  
-  // Verwende indexName aus Config (deterministisch, keine Owner-Email mehr, getVectorIndexForLibrary prüft Config automatisch)
-  const vectorIndex = getVectorIndexForLibrary({ id: library.id, label: library.label }, library.config?.chat)
-  
-  return { library, vectorIndex, chat }
+  return await createLibraryChatContext(library)
 }
 
 /**
@@ -336,7 +338,7 @@ export async function loadPublicLibraryBySlug(
   slugName: string
 ): Promise<LibraryChatContext | null> {
   const libService = LibraryService.getInstance()
-  let library = await libService.getPublicLibraryBySlug(slugName)
+  const library = await libService.getPublicLibraryBySlug(slugName)
   
   if (!library) {
     return null
@@ -347,21 +349,7 @@ export async function loadPublicLibraryBySlug(
     return null
   }
 
-  // Migration: Prüfe ob collectionName und indexName vorhanden sind
-  const needsMigration = !library.config?.chat?.vectorStore?.collectionName || 
-                         !library.config?.chat?.vectorStore?.indexName ||
-                         !!(library.config?.chat?.vectorStore as { indexOverride?: string })?.indexOverride
-  
-  if (needsMigration) {
-    library = await migrateLibraryConfig(library)
-  }
-
-  const chat = normalizeChatConfig(library.config?.chat)
-  
-  // Verwende indexName aus Config (deterministisch, keine Owner-Email mehr, getVectorIndexForLibrary prüft Config automatisch)
-  const vectorIndex = getVectorIndexForLibrary({ id: library.id, label: library.label }, library.config?.chat)
-  
-  return { library, vectorIndex, chat }
+  return await createLibraryChatContext(library)
 }
 
 

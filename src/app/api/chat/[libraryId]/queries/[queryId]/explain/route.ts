@@ -20,7 +20,7 @@ export async function GET(
 
     const chatApiKey = process.env.OPENAI_API_KEY
     if (!chatApiKey) return NextResponse.json({ error: 'OPENAI_API_KEY fehlt' }, { status: 500 })
-    const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
+    const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
     const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.2)
 
     // Sanitisierte, kompakte Ansicht für das LLM
@@ -35,7 +35,7 @@ export async function GET(
         reasoning: log.questionAnalysis.reasoning,
       } : undefined,
       facetsSelected: log.facetsSelected,
-      filters: { normalized: log.filtersNormalized, pinecone: log.filtersPinecone },
+      filters: { normalized: log.filtersNormalized },
       retrieval: (log.retrieval || []).map(s => ({
         stage: s.stage,
         level: s.level,

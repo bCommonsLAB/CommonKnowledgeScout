@@ -133,8 +133,8 @@ export function DebugPanel({ log }: { log: QueryLog }) {
           <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(step.filtersEffective?.normalized || {}, null, 2)}</pre>
         </div>
         <div className={"rounded border p-2 " + (filterDiff.diff ? 'ring-0' : '')}>
-          <div className="text-sm font-medium mb-2">Filters (pinecone)</div>
-          <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(step.filtersEffective?.pinecone || {}, null, 2)}</pre>
+          <div className="text-sm font-medium mb-2">Filters (mongo)</div>
+          <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(step.filtersEffective?.mongo || {}, null, 2)}</pre>
         </div>
       </div>
       <div className="mt-3">

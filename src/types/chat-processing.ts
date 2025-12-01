@@ -9,12 +9,12 @@ export type ChatProcessingStep =
   | { type: 'retriever_selected'; retriever: 'chunk' | 'summary'; reason?: string }
   | { type: 'retrieval_start'; retriever: 'chunk' | 'summary' }
   | { type: 'retrieval_progress'; sourcesFound: number; message?: string }
-  | { type: 'retrieval_complete'; sourcesCount: number; uniqueFileIdsCount?: number; timingMs: number }
+  | { type: 'retrieval_complete'; sourcesCount: number; uniqueFileIdsCount?: number; timingMs: number; summaryMode?: 'chapters' | 'summary' | 'teaser'; initialMatches?: number; neighborsAdded?: number; topKRequested?: number; budgetUsed?: number; answerLength?: string }
   | { type: 'prompt_building'; message?: string }
   | { type: 'prompt_complete'; promptLength: number; documentsUsed: number; tokenCount: number }
   | { type: 'llm_start'; model: string }
   | { type: 'llm_progress'; message?: string }
-  | { type: 'llm_complete'; timingMs: number; promptTokens?: number; completionTokens?: number; totalTokens?: number }
+  | { type: 'llm_complete'; timingMs: number; promptTokens?: number; completionTokens?: number; totalTokens?: number; maxTokens?: number }
   | { type: 'parsing_response'; message?: string }
   | { type: 'complete'; answer: string; references: unknown[]; suggestedQuestions: string[]; queryId: string; chatId: string; storyTopicsData?: import('@/types/story-topics').StoryTopicsData }
   | { type: 'error'; error: string }

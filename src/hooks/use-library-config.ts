@@ -45,7 +45,6 @@ interface ChatConfigResponse {
       genderInclusive?: boolean
     }
   }
-  vectorIndex: string
 }
 
 interface UseLibraryConfigResult {
@@ -103,7 +102,6 @@ export function useLibraryConfig(libraryId: string): UseLibraryConfigResult {
                 }
               : undefined,
           },
-          vectorIndex: '', // Wird nicht benötigt für Client
         }
         if (!cancelled) {
           setCfg(configFromState)

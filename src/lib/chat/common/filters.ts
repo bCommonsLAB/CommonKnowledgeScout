@@ -3,7 +3,6 @@ import type { Library } from '@/types/library'
 
 export interface BuiltFilters {
   normalized: Record<string, unknown>
-  pinecone: Record<string, unknown>
   mongo: Record<string, unknown>
 }
 
@@ -48,39 +47,6 @@ export function buildFilters(url: URL, library: Library, userEmail: string, libr
   const defs = parseFacetDefs(library)
   const builtin = buildFilterFromQuery(url, defs)
 
-  // Pinecone-Filter: Für Summary-Mode libraryId optional lassen (Summaries können ohne libraryId indiziert sein)
-  // chunkSummary verwendet die gleichen Filter wie summary (beide filtern auf Dokumentebene)
-  const pinecone: Record<string, unknown> = mode === 'summary' || mode === 'chunkSummary'
-    ? { user: { $eq: userEmail || '' } }
-    : { user: { $eq: userEmail || '' }, libraryId: { $eq: libraryId } }
-
-  // Dynamisch alle Facetten-Filter hinzufügen (nicht nur hardcodierte Liste)
-  for (const def of defs) {
-    const filterValue = builtin[def.metaKey]
-    if (filterValue !== undefined && filterValue !== null) {
-      pinecone[def.metaKey] = filterValue
-    }
-  }
-  
-  // shortTitle-Filter: Wird später zu fileIds gemappt über MongoDB (in API-Endpunkten)
-  // fileId-Filter hinzufügen (wenn vorhanden) - für Rückwärtskompatibilität
-  const fileIdFilter = builtin.fileId
-  if (fileIdFilter !== undefined && fileIdFilter !== null) {
-    // Für Pinecone: fileId kann bereits als { $in: [...] } von buildFilterFromQuery kommen
-    // Oder als Array, wenn direkt übergeben
-    if (Array.isArray(fileIdFilter)) {
-      pinecone.fileId = { $in: fileIdFilter }
-    } else if (typeof fileIdFilter === 'object' && '$in' in fileIdFilter) {
-      // Bereits im richtigen Format von buildFilterFromQuery
-      pinecone.fileId = fileIdFilter
-    } else {
-      pinecone.fileId = { $eq: fileIdFilter }
-    }
-  }
-  
-  // shortTitle-Filter wird NICHT direkt an Pinecone gesendet
-  // Muss zuerst über MongoDB zu fileIds gemappt werden
-
   const normalized: Record<string, unknown> = {
     user: { $eq: userEmail || '' },
     libraryId: { $eq: libraryId },
@@ -99,6 +65,7 @@ export function buildFilters(url: URL, library: Library, userEmail: string, libr
   }
   
   // fileId-Filter für MongoDB hinzufügen (wenn vorhanden) - für Rückwärtskompatibilität
+  const fileIdFilter = builtin.fileId
   if (fileIdFilter !== undefined && fileIdFilter !== null) {
     // Für MongoDB: fileId kann bereits als { $in: [...] } von buildFilterFromQuery kommen
     if (Array.isArray(fileIdFilter)) {
@@ -120,7 +87,55 @@ export function buildFilters(url: URL, library: Library, userEmail: string, libr
     Object.assign(mongo, shortTitleMongo)
   }
 
-  return { normalized, pinecone, mongo }
+  return { normalized, mongo }
+}
+
+/**
+ * Baut einen Vector Search Filter für MongoDB Atlas Vector Search.
+ * Kombiniert Basis-Filter (libraryId, user, kind) mit Facetten-Filtern.
+ * Unterstützt shortTitle-Ausschluss (wird separat zu fileIds konvertiert).
+ * 
+ * @param libraryId Library-ID
+ * @param userEmail User-Email
+ * @param kind Dokument-Typ ('chunk' oder 'chapterSummary')
+ * @param filters Facetten-Filter (optional)
+ * @param fileIds File-IDs für Filterung (optional, wird aus shortTitle konvertiert)
+ * @returns Vector Search Filter für MongoDB
+ */
+export function buildVectorSearchFilter(
+  libraryId: string,
+  userEmail: string,
+  kind: 'chunk' | 'chapterSummary',
+  filters?: Record<string, unknown>,
+  fileIds?: string[]
+): Record<string, unknown> {
+  // Basis-Filter: libraryId, user, kind
+  const baseFilter: Record<string, unknown> = {
+    libraryId, // Direkter Vergleich statt $eq
+    user: userEmail || '', // Direkter Vergleich statt $eq
+    kind, // Explizit nur Chunks oder Chapter-Summaries suchen
+  }
+  
+  // Facetten-Filter hinzufügen (alle außer shortTitle, das bereits zu fileIds gemappt wurde)
+  if (filters) {
+    for (const [key, value] of Object.entries(filters)) {
+      if (key === 'shortTitle') continue // Bereits zu fileIds gemappt
+      if (value !== undefined && value !== null) {
+        if (Array.isArray(value)) {
+          baseFilter[key] = { $in: value }
+        } else {
+          baseFilter[key] = value
+        }
+      }
+    }
+  }
+  
+  // fileId-Filter hinzufügen (falls vorhanden)
+  if (fileIds && fileIds.length > 0) {
+    baseFilter.fileId = { $in: fileIds }
+  }
+  
+  return baseFilter
 }
 
 

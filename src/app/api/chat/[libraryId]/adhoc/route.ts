@@ -37,7 +37,7 @@ export async function POST(
 
     const chatApiKey = process.env.OPENAI_API_KEY
     if (!chatApiKey) return NextResponse.json({ error: 'OPENAI_API_KEY fehlt' }, { status: 500 })
-    const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
+    const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
     const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.2)
 
     const styleInstruction = answerLength === 'ausführlich'

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
-import { describeIndex, fetchVectors, upsertVectorsChunked } from '@/lib/chat/pinecone'
 import { FileLogger } from '@/lib/debug/logger'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
+import { getCollectionNameForLibrary, upsertVectorMeta, getMetaByFileId } from '@/lib/repositories/vector-repo'
+import { getEmbeddingDimensionForModel } from '@/lib/chat/config'
 
 const bodySchema = z.object({
   fileId: z.string().min(1),
@@ -53,8 +54,7 @@ export async function POST(
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 
-    const apiKey = process.env.PINECONE_API_KEY
-    if (!apiKey) return NextResponse.json({ error: 'PINECONE_API_KEY fehlt' }, { status: 500 })
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
 
     const json = await request.json().catch(() => ({}))
     const parsed = bodySchema.safeParse(json)
@@ -86,16 +86,13 @@ export async function POST(
       tags,
     } = parsed.data
 
-    const idx = await describeIndex(ctx.vectorIndex, apiKey)
-    if (!idx?.host) return NextResponse.json({ error: 'Index nicht gefunden' }, { status: 404 })
-    const dim = typeof idx.dimension === 'number' ? idx.dimension : Number(process.env.OPENAI_EMBEDDINGS_DIMENSION || 3072)
-    const id = `${fileId}-meta`
-
     // Bestehende Metadaten holen (für Merge)
     let existingMeta: Record<string, unknown> | undefined
     try {
-      const fetched = await fetchVectors(idx.host, apiKey, [id], '')
-      existingMeta = fetched[id]?.metadata as Record<string, unknown> | undefined
+      const existing = await getMetaByFileId(libraryKey, fileId)
+      if (existing) {
+        existingMeta = existing as unknown as Record<string, unknown>
+      }
     } catch {
       existingMeta = undefined
     }
@@ -121,14 +118,13 @@ export async function POST(
     if (Array.isArray(tags)) flat.tags = tags.filter(t => typeof t === 'string')
 
     const metadata: Record<string, unknown> = {
-      kind: 'doc',
-      user: userEmail,
       libraryId,
+      user: userEmail,
       fileId,
       fileName,
       upsertedAt: new Date().toISOString(),
       ...(docModifiedAt ? { docModifiedAt } : {}),
-      ...(docMeta ? { docMetaJson: JSON.stringify(docMeta) } : {}),
+      ...(docMeta ? { docMetaJson: docMeta } : {}),
       ...flat,
     }
 
@@ -143,8 +139,14 @@ export async function POST(
       }
     } catch {}
 
-    // Merge: existing → new (neue Felder überschreiben alte), aber upsertedAt/ docMetaJson immer aus neuem
-    const merged = { ...(existingMeta || {}), ...metadata }
+    // Merge: existing → new (neue Felder überschreiben alte), aber upsertedAt/docMetaJson immer aus neuem
+    const merged = { 
+      ...(existingMeta || {}), 
+      ...metadata,
+      // upsertedAt und docMetaJson immer aus neuem Request
+      upsertedAt: metadata.upsertedAt,
+      ...(docMeta ? { docMetaJson: docMeta } : {}),
+    }
 
     FileLogger.info('upsert-doc-meta', 'Upsert vorbereitet', {
       libraryId,
@@ -153,12 +155,13 @@ export async function POST(
       keys: Object.keys(merged).length
     })
 
-    // Pinecone verlangt mindestens einen Nicht‑Null‑Wert im Vektor
-    const unitVector = new Array<number>(dim).fill(0)
-    unitVector[0] = 1
-    await upsertVectorsChunked(idx.host, apiKey, [{ id, values: unitVector, metadata: merged }])
-    FileLogger.info('upsert-doc-meta', 'Upsert erfolgreich', { id, index: ctx.vectorIndex })
-    return NextResponse.json({ status: 'ok', id, index: ctx.vectorIndex })
+    // Dimension aus Config holen
+    const dimension = getEmbeddingDimensionForModel(ctx.library.config?.chat)
+    
+    // Upsert Meta-Dokument in MongoDB
+    await upsertVectorMeta(libraryKey, merged as typeof merged & { fileId: string }, dimension, ctx.library)
+    FileLogger.info('upsert-doc-meta', 'Upsert erfolgreich', { fileId, collection: libraryKey })
+    return NextResponse.json({ status: 'ok', fileId, collection: libraryKey })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unbekannter Fehler'
     FileLogger.error('upsert-doc-meta', 'Fehler beim Upsert', { error: msg })

@@ -99,7 +99,7 @@ export function ChatFiltersDisplay({ libraryId, queryId }: ChatFiltersDisplayPro
       return filtered.map(v => String(v).trim()).join(', ')
     }
     if (value && typeof value === 'object' && '$in' in value && Array.isArray(value.$in)) {
-      // Pinecone $in Format
+      // MongoDB $in Format
       const filtered = (value.$in as unknown[]).filter(v => v !== null && v !== undefined && String(v).trim() !== '')
       return filtered.map(v => String(v).trim()).join(', ')
     }

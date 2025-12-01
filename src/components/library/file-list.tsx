@@ -784,7 +784,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // Verwende fileGroups direkt (Shadow-Twin-Analyse erfolgt bereits über Hook)
   // Wenn eine folderId in der URL steht und currentFolderId noch 'root' ist,
   // zeige keine Items an (verhindert, dass Root-Items kurz angezeigt werden)
-  const fileGroupsWithShadowTwinFolders = shouldShowItems ? fileGroups : new Map<string, FileGroup>();
+  const fileGroupsWithShadowTwinFolders = React.useMemo(() => {
+    return shouldShowItems ? fileGroups : new Map<string, FileGroup>();
+  }, [shouldShowItems, fileGroups]);
 
   // Navigationsliste: nur Hauptdateien in der aktuell sichtbaren Reihenfolge
   const mainFileItems = React.useMemo(() => {

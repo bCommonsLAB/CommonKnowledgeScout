@@ -767,13 +767,26 @@ export class OneDriveProvider implements StorageProvider {
 
   async getItemById(itemId: string): Promise<StorageItem> {
     try {
+      // Validierung der itemId
+      if (!itemId || itemId.trim() === '') {
+        throw new StorageError(
+          "Item-ID darf nicht leer sein",
+          "INVALID_INPUT",
+          this.id
+        );
+      }
+
       const accessToken = await this.ensureAccessToken();
       
       // URL für den API-Aufruf
       let url = 'https://graph.microsoft.com/v1.0/me/drive/root';
       if (itemId && itemId !== 'root') {
-        url = `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`;
+        // URL-Encoding für itemId (falls es Sonderzeichen enthält)
+        const encodedItemId = encodeURIComponent(itemId);
+        url = `https://graph.microsoft.com/v1.0/me/drive/items/${encodedItemId}`;
       }
+
+      console.log('[OneDriveProvider] getItemById:', { itemId, url: url.replace(accessToken, '[TOKEN]') });
 
       const response = await fetch(url, {
         headers: {
@@ -782,9 +795,53 @@ export class OneDriveProvider implements StorageProvider {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorMessage = response.statusText;
+        let errorCode = response.status.toString();
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error?.message || errorData.error_description || errorData.message || errorMessage;
+          errorCode = errorData.error?.code || errorCode;
+          
+          console.error('[OneDriveProvider] getItemById API-Fehler:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData,
+            itemId,
+            url: url.replace(accessToken, '[TOKEN]')
+          });
+        } catch {
+          // Wenn JSON-Parsing fehlschlägt, verwende Status-Text
+          const text = await response.text().catch(() => '');
+          errorMessage = text || errorMessage;
+          console.error('[OneDriveProvider] getItemById API-Fehler (kein JSON):', {
+            status: response.status,
+            statusText: response.statusText,
+            text,
+            itemId,
+            url: url.replace(accessToken, '[TOKEN]')
+          });
+        }
+
+        // Spezielle Behandlung für häufige Fehler
+        if (response.status === 404) {
+          throw new StorageError(
+            `Datei nicht gefunden (Item-ID: ${itemId})`,
+            "NOT_FOUND",
+            this.id
+          );
+        }
+        
+        if (response.status === 401 || response.status === 403) {
+          throw new StorageError(
+            `Zugriff verweigert: ${errorMessage}`,
+            "AUTH_ERROR",
+            this.id
+          );
+        }
+
         throw new StorageError(
-          `Fehler beim Abrufen der Datei: ${errorData.error?.message || response.statusText}`,
+          `Fehler beim Abrufen der Datei (${errorCode}): ${errorMessage}`,
           "API_ERROR",
           this.id
         );
@@ -1091,8 +1148,24 @@ export class OneDriveProvider implements StorageProvider {
         const decoded = Buffer.from(fileId, 'base64').toString('utf-8')
         // Wenn Dekodierung erfolgreich ist und das Ergebnis wie ein Pfad aussieht
         if (decoded && decoded.includes('/') && !decoded.match(/^[A-Za-z0-9_-]+$/)) {
-          isPath = true
-          normalizedPath = decoded
+          // Prüfe auf ungültige UTF-8 Zeichen (z.B. durch falsche Encoding)
+          // Einfache Prüfung: Wenn der String viele nicht-druckbare Zeichen enthält, ist er wahrscheinlich falsch dekodiert
+          const invalidChars = decoded.match(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]/g)
+          if (!invalidChars || invalidChars.length < decoded.length * 0.1) {
+            // Weniger als 10% ungültige Zeichen - wahrscheinlich gültig
+            isPath = true
+            normalizedPath = decoded
+          } else {
+            console.warn('[OneDriveProvider] getBinary: Pfad enthält viele ungültige Zeichen, behandeln als Item-ID', {
+              originalFileId: fileId.substring(0, 50), // Nur ersten 50 Zeichen loggen
+              decodedPath: decoded.substring(0, 100), // Nur ersten 100 Zeichen loggen
+              invalidCharsCount: invalidChars.length,
+              totalLength: decoded.length
+            })
+            // Behandle als Item-ID statt Pfad
+            isPath = false
+            normalizedPath = ''
+          }
         }
       } catch {
         // Nicht Base64-kodiert, behandele als Item-ID
@@ -1102,33 +1175,61 @@ export class OneDriveProvider implements StorageProvider {
       let itemPath = ''
 
       // Wenn es ein Pfad ist, verwende Microsoft Graph's Pfad-Auflösung
-      if (isPath) {
+      if (isPath && normalizedPath) {
+        // Normalisiere den Pfad (ersetze Backslashes durch Forward-Slashes, entferne führende/trailing Slashes)
+        const normalized = normalizedPath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+        
+        // Prüfe nochmal auf ungültige Zeichen nach Normalisierung
+        const hasInvalidChars = /[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]/.test(normalized)
+        if (hasInvalidChars) {
+          console.error('[OneDriveProvider] getBinary: Pfad enthält ungültige Zeichen nach Normalisierung', {
+            originalFileId: fileId.substring(0, 50),
+            normalizedPath: normalized.substring(0, 200), // Nur ersten 200 Zeichen loggen
+          })
+          throw new StorageError(
+            `Ungültiger Pfad: Enthält ungültige Zeichen. Bitte verwenden Sie die Item-ID statt des Pfads.`,
+            "INVALID_INPUT",
+            this.id
+          );
+        }
+        
         // Pfad relativ zum baseFolder auflösen
         const fullPath = this.basePath 
-          ? `${this.basePath.replace(/^\/+|\/+$/g, '')}/${normalizedPath}`.replace(/^\/+|\/+$/g, '')
-          : normalizedPath
+          ? `${this.basePath.replace(/^\/+|\/+$/g, '')}/${normalized}`.replace(/^\/+|\/+$/g, '')
+          : normalized
         
         console.log('[OneDriveProvider] getBinary: Pfad erkannt', {
-          originalFileId: fileId,
-          decodedPath: normalizedPath,
+          originalFileId: fileId.substring(0, 50),
+          decodedPath: normalized,
           basePath: this.basePath,
           fullPath,
         })
         
         // URL-encode den Pfad für Microsoft Graph
+        // WICHTIG: encodeURIComponent kodiert alle Sonderzeichen korrekt
         const encodedPath = encodeURIComponent(fullPath)
         itemPath = `root:/${encodedPath}`
         
         // Versuche Item-ID über Pfad zu erhalten
         let pathItemResponse: Response;
         try {
-          pathItemResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/${itemPath}`, {
+          const pathUrl = `https://graph.microsoft.com/v1.0/me/drive/${itemPath}`
+          console.log('[OneDriveProvider] getBinary: Versuche Pfad aufzulösen', {
+            pathUrl: pathUrl.replace(accessToken, '[TOKEN]'),
+            fullPath
+          })
+          
+          pathItemResponse = await fetch(pathUrl, {
           headers: {
             'Authorization': `Bearer ${accessToken}`
           }
           });
         } catch (fetchError) {
           // Netzwerkfehler abfangen
+          console.error('[OneDriveProvider] getBinary: Netzwerkfehler beim Abrufen des Pfads', {
+            fullPath,
+            error: fetchError instanceof Error ? fetchError.message : 'Unknown error'
+          })
           throw new StorageError(
             `Netzwerkfehler beim Abrufen des Pfads "${fullPath}": ${fetchError instanceof Error ? fetchError.message : 'Failed to fetch'}`,
             "NETWORK_ERROR",

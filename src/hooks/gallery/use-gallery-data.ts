@@ -1,70 +1,150 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useSetAtom, useAtomValue } from 'jotai'
+import { galleryDataAtom } from '@/atoms/gallery-data'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
 
-export function useGalleryData(filters: Record<string, string[] | undefined>, mode: 'gallery' | 'story', searchQuery: string, libraryId?: string) {
+export function useGalleryData(
+  filters: Record<string, string[] | undefined>, 
+  mode: 'gallery' | 'story', 
+  searchQuery: string, 
+  libraryId?: string,
+  options?: { skipApiCall?: boolean }
+) {
+  const setGalleryData = useSetAtom(galleryDataAtom)
+  const galleryDataFromAtom = useAtomValue(galleryDataAtom)
+  const skipApiCall = options?.skipApiCall ?? false
+  
   const [docs, setDocs] = useState<DocCardMeta[]>([])
+  const [totalCount, setTotalCount] = useState<number>(0)
   const [loading, setLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const LIMIT = 50
+  
+  // Reset bei Filter-Änderungen (nur wenn nicht skipApiCall)
   useEffect(() => {
+    if (skipApiCall) return
+    setPage(1)
+    setHasMore(true)
+    setDocs([])
+    setTotalCount(0)
+    setIsLoadingMore(false)
+  }, [libraryId, JSON.stringify(filters), mode, searchQuery, skipApiCall])
+  
+  useEffect(() => {
+    // Überspringe API-Aufruf wenn skipApiCall true ist
+    if (skipApiCall) return
+    
     let cancelled = false
+    const isFirstPage = page === 1
+    
     async function load() {
       if (!libraryId) return
-      setLoading(true)
+      
+      // Beim ersten Laden: loading, beim Nachladen: isLoadingMore
+      if (isFirstPage) {
+        setLoading(true)
+        setGalleryData(prev => ({ ...prev, loading: true, error: null }))
+      } else {
+        setIsLoadingMore(true)
+        setGalleryData(prev => ({ ...prev, isLoadingMore: true }))
+      }
       setError(null)
       try {
         const params = new URLSearchParams()
         Object.entries(filters).forEach(([k, arr]) => {
-          if (k === 'shortTitle') return // shortTitle wird lokal gefiltert, nicht an API gesendet
           if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
         })
+        
+        // Pagination & Search
+        params.append('limit', String(LIMIT))
+        params.append('skip', String((page - 1) * LIMIT))
+        if (searchQuery.trim()) {
+          params.append('search', searchQuery.trim())
+        }
+
         const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
         const res = await fetch(url, { cache: 'no-store' })
         const ct = res.headers.get('content-type') || ''
         if (!ct.includes('application/json')) throw new Error(`Ungültige Antwort: ${res.status}`)
         const data = await res.json()
         if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Laden der Dokumente')
-        if (!cancelled && Array.isArray(data?.items)) setDocs(data.items as DocCardMeta[])
+        
+        if (!cancelled && Array.isArray(data?.items)) {
+          const newItems = data.items as DocCardMeta[]
+          const total = typeof data.total === 'number' ? data.total : newItems.length
+          const hasMoreData = newItems.length === LIMIT
+          const updatedDocs = isFirstPage ? newItems : [...docs, ...newItems]
+          
+          setHasMore(hasMoreData)
+          setDocs(updatedDocs)
+          setTotalCount(total)
+          
+          // Aktualisiere Atom für andere Komponenten
+          setGalleryData({
+            docs: updatedDocs,
+            totalCount: total,
+            loading: false,
+            isLoadingMore: false,
+            error: null,
+            hasMore: hasMoreData,
+          })
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Unbekannter Fehler'
-        if (!cancelled) setError(msg)
+        if (!cancelled) {
+          setError(msg)
+          setGalleryData(prev => ({
+            ...prev,
+            loading: false,
+            isLoadingMore: false,
+            error: msg,
+          }))
+        }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          if (isFirstPage) {
+            setLoading(false)
+            setGalleryData(prev => ({ ...prev, loading: false }))
+          } else {
+            setIsLoadingMore(false)
+            setGalleryData(prev => ({ ...prev, isLoadingMore: false }))
+          }
+        }
       }
     }
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, JSON.stringify(filters)])
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall]) // Abhängigkeit von page
 
-  const filteredDocs = useMemo(() => {
-    const shortTitleFilter = filters.shortTitle
-    let result = docs
-    if (shortTitleFilter && Array.isArray(shortTitleFilter) && shortTitleFilter.length > 0) {
-      result = docs.filter(d => {
-        const docShortTitle = d.shortTitle || d.title
-        return docShortTitle && shortTitleFilter.includes(docShortTitle)
-      })
-    }
-    if (mode === 'gallery' && searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim()
-      result = result.filter(doc => {
-        const titleMatch = doc.title?.toLowerCase().includes(query) || doc.shortTitle?.toLowerCase().includes(query)
-        const speakerMatch = doc.speakers?.some(s => s.toLowerCase().includes(query))
-        const authorMatch = doc.authors?.some(a => a.toLowerCase().includes(query))
-        return titleMatch || speakerMatch || authorMatch
-      })
-    }
-    return result
-  }, [docs, filters.shortTitle, mode, searchQuery])
 
-  const docsByYear = useMemo(() => {
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      setPage(p => p + 1)
+    }
+  }
+
+  // Wenn skipApiCall true ist, verwende Atom-Daten für Rückgabe
+  const shouldUseAtomData = skipApiCall
+  const finalDocs = shouldUseAtomData ? galleryDataFromAtom.docs : docs
+  const finalTotalCount = shouldUseAtomData ? galleryDataFromAtom.totalCount : totalCount
+  const finalLoading = shouldUseAtomData ? galleryDataFromAtom.loading : loading
+  const finalError = shouldUseAtomData ? galleryDataFromAtom.error : error
+  const finalHasMore = shouldUseAtomData ? galleryDataFromAtom.hasMore : hasMore
+  const finalIsLoadingMore = shouldUseAtomData ? galleryDataFromAtom.isLoadingMore : isLoadingMore
+  
+  const finalFilteredDocs = finalDocs
+  
+  const finalDocsByYear = useMemo(() => {
     const grouped = new Map<number | string, DocCardMeta[]>()
-    for (const doc of filteredDocs) {
+    for (const doc of finalFilteredDocs) {
       const year = doc.year || 'Ohne Jahrgang'
       if (!grouped.has(year)) grouped.set(year, [])
       grouped.get(year)!.push(doc)
@@ -75,9 +155,20 @@ export function useGalleryData(filters: Record<string, string[] | undefined>, mo
       return yearB - yearA
     })
     return sorted
-  }, [filteredDocs])
-
-  return { docs, setDocs, loading, error, filteredDocs, docsByYear }
+  }, [finalFilteredDocs])
+  
+  return { 
+    docs: finalDocs, 
+    setDocs, 
+    loading: finalLoading, 
+    error: finalError, 
+    filteredDocs: finalFilteredDocs, 
+    docsByYear: finalDocsByYear, 
+    loadMore, 
+    hasMore: finalHasMore, 
+    isLoadingMore: finalIsLoadingMore, 
+    totalCount: finalTotalCount 
+  }
 }
 
 /**

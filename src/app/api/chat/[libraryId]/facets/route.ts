@@ -2,7 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
-import { aggregateFacets, getCollectionNameForLibrary, ensureFacetIndexes } from '@/lib/repositories/doc-meta-repo'
+import { aggregateFacets, getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -23,28 +23,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
     const defs = parseFacetDefs(ctx.library)
     const libraryKey = getCollectionNameForLibrary(ctx.library)
     
-    // PERFORMANCE: Stelle sicher, dass Indizes für Facettenfelder vorhanden sind
-    // Dies wird beim ersten Aufruf die Indizes erstellen, danach werden sie aus dem Cache geladen
-    try {
-      await ensureFacetIndexes(libraryKey, defs)
-    } catch {
-      // Fehler bei Index-Erstellung ignorieren (z.B. wenn bereits vorhanden)
-    }
+    // PERFORMANCE: Index-Erstellung zur Laufzeit entfernen
+    // await ensureFacetIndexes(libraryKey, defs)
     
     // Filter aus Query-Parametern extrahieren (konsistent mit /docs Route)
     const url = new URL(_req.url)
     const builtin = buildFilterFromQuery(url, defs)
-    // buildFilterFromQuery liefert Pinecone-Filter-Form; auf Mongo-Form abbilden
+    // buildFilterFromQuery liefert normalisierte Filter-Form; auf MongoDB-Form abbilden
+    // Dynamisch alle Facetten-Filter hinzufügen (nicht nur hardcodierte Liste)
     const filter: Record<string, unknown> = {}
-    if (builtin['authors']) filter['authors'] = builtin['authors']
-    if (builtin['region']) filter['region'] = builtin['region']
-    if (builtin['year']) filter['year'] = builtin['year']
-    if (builtin['docType']) filter['docType'] = builtin['docType']
-    if (builtin['source']) filter['source'] = builtin['source']
-    if (builtin['tags']) filter['tags'] = builtin['tags']
-    // Unterstütze auch dynamische Facettenfelder (z.B. event, track, speakers aus Session-Daten)
     for (const def of defs) {
-      if (builtin[def.metaKey] && !filter[def.metaKey]) {
+      if (builtin[def.metaKey]) {
         filter[def.metaKey] = builtin[def.metaKey]
       }
     }

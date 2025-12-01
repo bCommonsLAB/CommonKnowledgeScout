@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { describeIndex, upsertVectorsChunked, deleteByFilter } from '@/lib/chat/pinecone'
-import type { UpsertVector } from '@/lib/chat/pinecone'
-import { embedTexts } from '@/lib/chat/embeddings'
-import { chunkText } from '@/lib/text/chunk'
+import { getCollectionNameForLibrary, upsertVectors, upsertVectorMeta, deleteVectorsByFileId } from '@/lib/repositories/vector-repo'
+import { embedDocumentWithSecretary, embedQuestionWithSecretary } from '@/lib/chat/rag-embeddings'
+import { getEmbeddingDimensionForModel } from '@/lib/chat/config'
 
 const bodySchema = z.object({
   fileId: z.string().min(1),
@@ -33,8 +32,6 @@ const bodySchema = z.object({
   })).optional()
 })
 
-// ersetzt durch Shared-Utility chunkText()
-
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ libraryId: string }> }
@@ -54,120 +51,112 @@ export async function POST(
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
     if (!ctx) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 
-    // Verwende Library-spezifischen API-Key für Embeddings, falls vorhanden
-    const libraryApiKey = ctx.library.config?.publicPublishing?.apiKey
-
-    const apiKey = process.env.PINECONE_API_KEY
-    if (!apiKey) return NextResponse.json({ error: 'PINECONE_API_KEY fehlt' }, { status: 500 })
-    const idx = await describeIndex(ctx.vectorIndex, apiKey)
-    if (!idx?.host) return NextResponse.json({ error: 'Index nicht gefunden' }, { status: 404 })
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
 
     // Idempotenz: vor Upsert alle Vektoren dieses Dokuments entfernen
-    await deleteByFilter(idx.host, apiKey, { user: { $eq: userEmail }, libraryId: { $eq: libraryId }, fileId: { $eq: fileId } })
+    await deleteVectorsByFileId(libraryKey, fileId)
 
-    const chunks = chunkText(content, 1500)
-    // Verwende Library-spezifischen API-Key für Embeddings, falls vorhanden
-    const embeddings = await embedTexts(chunks, undefined, libraryApiKey)
-    const vectors: UpsertVector[] = embeddings.map((values, i) => ({
-      id: `${fileId}-${i}`,
-      values,
-      metadata: {
-        user: userEmail,
-        libraryId,
-        fileId,
+    // Secretary Service RAG Embedding für komplettes Dokument
+    const ragResult = await embedDocumentWithSecretary(content, ctx, {
+      documentId: fileId,
+      meta: {
         fileName,
+        libraryId,
+        userEmail,
         mode,
-        chunkIndex: i,
-        // Beschränke Text im Metadata-Feld
-        text: chunks[i].slice(0, 1000),
-        upsertedAt: new Date().toISOString(),
-        docModifiedAt
-      }
+        docModifiedAt,
+      },
+    })
+
+    const vectors = ragResult.chunks.map((chunk) => ({
+      _id: `${fileId}-${chunk.index}`,
+      kind: 'chunk' as const,
+      libraryId,
+      user: userEmail,
+      fileId,
+      fileName,
+      chunkIndex: chunk.index,
+      text: chunk.text.slice(0, 1000),
+      embedding: chunk.embedding,
+      upsertedAt: new Date().toISOString(),
+      ...(docModifiedAt ? { docModifiedAt } : {}),
+      ...(chunk.headingContext ? { headingContext: chunk.headingContext } : {}),
+      ...(chunk.startChar !== undefined ? { startChar: chunk.startChar } : {}),
+      ...(chunk.endChar !== undefined ? { endChar: chunk.endChar } : {}),
+      ...(chunk.metadata || {}),
     }))
-    // Zusätzlich: Meta-Vektor für Dokument-Status (nutzt Summary-Embedding, falls verfügbar)
-    if (embeddings.length > 0) {
-      let docVectorValues = embeddings[0]
-      try {
-        const { composeDocSummaryText } = await import('@/lib/chat/facets')
-        const { parseFacetDefs, getTopLevelValue } = await import('@/lib/chat/dynamic-facets')
-        const summaryText = composeDocSummaryText(docMeta as Record<string, unknown>)
-        if (summaryText && summaryText.length > 0) {
-          // Verwende Library-spezifischen API-Key für Embeddings, falls vorhanden
-          const [docEmbed] = await embedTexts([summaryText], undefined, libraryApiKey)
-          docVectorValues = docEmbed
-        }
-        // Facetten-Promotion auf Top-Level durch defs bei metadata unten
-        const defs = parseFacetDefs(ctx.library)
-        const src = (docMeta || {}) as Record<string, unknown>
-        const promoted: Record<string, unknown> = {}
-        for (const d of defs) {
-          const val = getTopLevelValue(src, d)
-          if (val !== undefined) promoted[d.metaKey] = val
-        }
-        // Wir hängen promoted im Metadata-Objekt unten an (bereits durch docMetaJson serialisiert)
-      } catch {}
-      vectors.push({
-        id: `${fileId}-meta`,
-        values: docVectorValues,
-        metadata: {
-          user: userEmail,
-          libraryId,
-          fileId,
-          fileName,
-          kind: 'doc',
-          chunkCount: embeddings.length,
-          upsertedAt: new Date().toISOString(),
-          docModifiedAt,
-          // Hinweis: Pinecone-Serverless erlaubt nur primitive Metadaten oder List<string>.
-          // Deshalb serialisieren wir strukturierte Felder als JSON-String.
-          docMetaJson: docMeta ? JSON.stringify(docMeta) : undefined,
-          tocJson: (Array.isArray(toc) && toc.length > 0)
-            ? JSON.stringify(toc.map(t => ({ title: t.title, level: t.level, page: t.page })))
-            : (chapters && chapters.length > 0
-              ? JSON.stringify(chapters.map(c => ({
-                  chapterId: c.chapterId,
-                  title: c.title,
-                  order: c.order,
-                  startChunk: c.startChunk,
-                  endChunk: c.endChunk,
-                })))
-              : undefined)
-        } as Record<string, unknown>
-      })
+
+    // Dimension aus Embedding-Result oder Config holen
+    const dimension = ragResult.dimensions || getEmbeddingDimensionForModel(ctx.library.config?.chat)
+    
+    // Upsert Chunk-Vektoren
+    if (vectors.length > 0) {
+      await upsertVectors(libraryKey, vectors, dimension, ctx.library)
     }
+
+    // Meta-Dokument erstellen (ohne Embedding)
+    const metaDoc = {
+      libraryId,
+      user: userEmail,
+      fileId,
+      fileName,
+      chunkCount: ragResult.chunks.length,
+      chaptersCount: chapters?.length || 0,
+      upsertedAt: new Date().toISOString(),
+      ...(docModifiedAt ? { docModifiedAt } : {}),
+      ...(docMeta ? { docMetaJson: docMeta } : {}),
+      ...(Array.isArray(toc) && toc.length > 0
+        ? { tocJson: toc.map(t => ({ title: t.title, level: t.level, page: t.page })) }
+        : {}),
+      ...(chapters && chapters.length > 0
+        ? {
+            chapters: chapters.map(c => ({
+              chapterId: c.chapterId,
+              title: c.title,
+              order: c.order,
+              startChunk: c.startChunk,
+              endChunk: c.endChunk,
+            })),
+          }
+        : {}),
+    }
+    await upsertVectorMeta(libraryKey, metaDoc, dimension, ctx.library)
 
     // Kapitel-Summaries als eigene Vektoren (Retriever-Ziel)
+    const chapterVectors = []
     if (chapters && chapters.length > 0) {
-      const chapterSummaries = chapters.map(c => c.summary)
-      // Verwende Library-spezifischen API-Key für Embeddings, falls vorhanden
-      const chapterEmbeds = await embedTexts(chapterSummaries, undefined, libraryApiKey)
-      chapterEmbeds.forEach((values, i) => {
-        const c = chapters[i]
-        vectors.push({
-          id: `${fileId}-chap-${c.chapterId}`,
-          values,
-          metadata: {
-            user: userEmail,
+      for (const chapter of chapters) {
+        try {
+          const chapterEmbedding = await embedQuestionWithSecretary(chapter.summary, ctx)
+          chapterVectors.push({
+            _id: `${fileId}-chap-${chapter.chapterId}`,
+            kind: 'chapterSummary' as const,
             libraryId,
+            user: userEmail,
             fileId,
             fileName,
-            kind: 'chapterSummary',
-            chapterId: c.chapterId,
-            chapterTitle: c.title,
-            order: c.order,
-            startChunk: c.startChunk,
-            endChunk: c.endChunk,
-            text: c.summary.slice(0, 1200),
-            keywords: c.keywords,
+            chapterId: chapter.chapterId,
+            chapterTitle: chapter.title,
+            chapterOrder: chapter.order,
+            startChunk: chapter.startChunk,
+            endChunk: chapter.endChunk,
+            text: chapter.summary.slice(0, 1200),
+            embedding: chapterEmbedding,
+            keywords: chapter.keywords,
             upsertedAt: new Date().toISOString(),
-            docModifiedAt,
-          } as Record<string, unknown>
-        })
-      })
+            ...(docModifiedAt ? { docModifiedAt } : {}),
+          })
+        } catch (error) {
+          console.warn(`[upsert-file] Fehler beim Embedden von Kapitel-Summary ${chapter.chapterId}:`, error)
+        }
+      }
     }
-    await upsertVectorsChunked(idx.host, apiKey, vectors, 8)
+    
+    if (chapterVectors.length > 0) {
+      await upsertVectors(libraryKey, chapterVectors, dimension, ctx.library)
+    }
 
-    return NextResponse.json({ status: 'ok', chunks: chunks.length, index: ctx.vectorIndex })
+    return NextResponse.json({ status: 'ok', chunks: ragResult.chunks.length, collection: libraryKey })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Interner Fehler'
     return NextResponse.json({ error: message }, { status: 500 })

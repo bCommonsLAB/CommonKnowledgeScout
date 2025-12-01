@@ -49,14 +49,24 @@ export interface ExpectedOutcome {
   expectTemplateRepair?: boolean;
   /** Ingestion soll laufen */
   expectIngestionRun?: boolean;
-  /** MongoDB-Dokument soll upserted sein (unabhängig von Pinecone) */
-  expectMongoUpsert?: boolean;
-  /** Pinecone-Vektoren sollen upserted sein (unabhängig von MongoDB) */
-  expectPineconeUpsert?: boolean;
+  /** MongoDB Vector Search: Meta-Dokument soll existieren */
+  expectMetaDocument?: boolean;
+  /** MongoDB Vector Search: Chunk-Vektoren sollen existieren */
+  expectChunkVectors?: boolean;
+  /** MongoDB Vector Search: Chapter-Summaries sollen existieren */
+  expectChapterSummaries?: boolean;
+  /** MongoDB Vector Search: Vector Search Index soll existieren */
+  expectVectorSearchIndex?: boolean;
+  /** MongoDB Vector Search: Vector Search Query soll funktionieren */
+  expectVectorSearchQuery?: boolean;
+  /** MongoDB Vector Search: Facetten-Metadaten sollen in Chunks vorhanden sein */
+  expectFacetMetadataInChunks?: boolean;
   /** Nach dem Testlauf existiert ein Shadow-Twin-Verzeichnis */
   expectShadowTwinExists?: boolean;
   /** Legacy-Markdown im PDF-Ordner soll nach dem Lauf gelöscht sein */
   expectLegacyMarkdownRemovedFromParent?: boolean;
+  /** @deprecated Verwende expectMetaDocument statt expectMongoUpsert */
+  expectMongoUpsert?: boolean;
 }
 
 export interface IntegrationTestCase {
@@ -287,7 +297,7 @@ export const integrationTestCases: IntegrationTestCase[] = [
     label: 'Ingest-only (Extract/Template übersprungen)',
     description:
       'Bereits transformiertes Markdown existiert, Extract und Template werden übersprungen. ' +
-      'Ingestion-Phase soll vorhandenes Markdown in Pinecone/MongoDB ingestieren.',
+      'Ingestion-Phase soll vorhandenes Markdown in MongoDB Vector Search ingestieren.',
     category: 'phase3',
     phases: { extract: false, template: false, ingest: true },
     policies: {
@@ -298,7 +308,11 @@ export const integrationTestCases: IntegrationTestCase[] = [
     expected: {
       shouldComplete: true,
       expectIngestionRun: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
       expectShadowTwinExists: true,
+      // Rückwärtskompatibilität
+      expectMongoUpsert: true,
     },
   },
   {
@@ -306,7 +320,7 @@ export const integrationTestCases: IntegrationTestCase[] = [
     label: 'Ingest mit force-Policy',
     description:
       'Ingestion wird auch dann ausgeführt, wenn bereits Vektoren existieren. ' +
-      'Dient zur Überprüfung der Ingest-Policies.',
+      'Dient zur Überprüfung der Ingest-Policies und MongoDB Vector Search.',
     category: 'phase3',
     phases: { extract: true, template: true, ingest: true },
     policies: {
@@ -317,7 +331,11 @@ export const integrationTestCases: IntegrationTestCase[] = [
     expected: {
       shouldComplete: true,
       expectIngestionRun: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
       expectShadowTwinExists: true,
+      // Rückwärtskompatibilität
+      expectMongoUpsert: true,
     },
   },
   {
@@ -340,9 +358,9 @@ export const integrationTestCases: IntegrationTestCase[] = [
   },
   {
     id: 'TC-3.4',
-    label: 'MongoDB-only Ingestion mit force-Policy',
+    label: 'MongoDB Vector Search Ingestion mit force-Policy',
     description:
-      'Nur MongoDB-Dokument soll upserted werden. Prüft, ob docMeta in MongoDB existiert. ' +
+      'Prüft, ob Meta-Dokument und Chunk-Vektoren in MongoDB Vector Search Collection existieren. ' +
       'Ingestion wird mit force-Policy ausgeführt, auch wenn bereits Daten existieren.',
     category: 'phase3',
     phases: { extract: false, template: false, ingest: true },
@@ -354,16 +372,19 @@ export const integrationTestCases: IntegrationTestCase[] = [
     expected: {
       shouldComplete: true,
       expectIngestionRun: true,
-      expectMongoUpsert: true,
-      expectPineconeUpsert: true, // Ingestion macht beide, aber wir prüfen MongoDB separat
+      expectMetaDocument: true,
+      expectChunkVectors: true,
+      expectVectorSearchIndex: true,
       expectShadowTwinExists: true,
+      // Rückwärtskompatibilität
+      expectMongoUpsert: true,
     },
   },
   {
     id: 'TC-3.5',
-    label: 'MongoDB-only Ingestion mit auto-Policy',
+    label: 'MongoDB Vector Search Ingestion mit auto-Policy',
     description:
-      'Nur MongoDB-Dokument soll upserted werden. Prüft, ob docMeta in MongoDB existiert. ' +
+      'Prüft, ob Meta-Dokument und Chunk-Vektoren in MongoDB Vector Search Collection existieren. ' +
       'Ingestion wird mit auto-Policy ausgeführt (Gate-basiert).',
     category: 'phase3',
     phases: { extract: false, template: false, ingest: true },
@@ -375,17 +396,20 @@ export const integrationTestCases: IntegrationTestCase[] = [
     expected: {
       shouldComplete: true,
       expectIngestionRun: true,
-      expectMongoUpsert: true,
-      expectPineconeUpsert: true, // Ingestion macht beide, aber wir prüfen MongoDB separat
+      expectMetaDocument: true,
+      expectChunkVectors: true,
+      expectVectorSearchIndex: true,
       expectShadowTwinExists: true,
+      // Rückwärtskompatibilität
+      expectMongoUpsert: true,
     },
   },
   {
     id: 'TC-3.6',
-    label: 'Pinecone-only Ingestion mit force-Policy',
+    label: 'Vector Search Funktionalität',
     description:
-      'Nur Pinecone-Vektoren sollen upserted werden. Prüft, ob Vektoren in Pinecone existieren. ' +
-      'Ingestion wird mit force-Policy ausgeführt, auch wenn bereits Vektoren existieren.',
+      'Prüft, ob Vector Search Queries funktionieren und Filter korrekt angewendet werden. ' +
+      'Testet auch Facetten-Metadaten in Chunk-Vektoren.',
     category: 'phase3',
     phases: { extract: false, template: false, ingest: true },
     policies: {
@@ -396,30 +420,38 @@ export const integrationTestCases: IntegrationTestCase[] = [
     expected: {
       shouldComplete: true,
       expectIngestionRun: true,
-      expectMongoUpsert: true, // Ingestion macht beide, aber wir prüfen Pinecone separat
-      expectPineconeUpsert: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
+      expectVectorSearchIndex: true,
+      expectVectorSearchQuery: true,
+      expectFacetMetadataInChunks: true,
       expectShadowTwinExists: true,
+      // Rückwärtskompatibilität
+      expectMongoUpsert: true,
     },
   },
   {
     id: 'TC-3.7',
-    label: 'Pinecone-only Ingestion mit auto-Policy',
+    label: 'Chapter-Summaries Validierung',
     description:
-      'Nur Pinecone-Vektoren sollen upserted werden. Prüft, ob Vektoren in Pinecone existieren. ' +
-      'Ingestion wird mit auto-Policy ausgeführt (Gate-basiert).',
+      'Prüft, ob Chapter-Summaries korrekt in MongoDB Vector Search gespeichert werden. ' +
+      'Nur relevant für Dokumente mit Chapters.',
     category: 'phase3',
     phases: { extract: false, template: false, ingest: true },
     policies: {
       extract: 'ignore',
       metadata: 'ignore',
-      ingest: 'auto',
+      ingest: 'force',
     },
     expected: {
       shouldComplete: true,
       expectIngestionRun: true,
-      expectMongoUpsert: true, // Ingestion macht beide, aber wir prüfen Pinecone separat
-      expectPineconeUpsert: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
+      expectChapterSummaries: true,
       expectShadowTwinExists: true,
+      // Rückwärtskompatibilität
+      expectMongoUpsert: true,
     },
   },
 
@@ -428,7 +460,7 @@ export const integrationTestCases: IntegrationTestCase[] = [
     id: 'TC-4.1',
     label: 'Alle Phasen (Extract → Template → Ingest)',
     description:
-      'Voller Pipeline-Lauf von Mistral-OCR-Extract über Template-Transformation bis zur RAG-Ingestion.',
+      'Voller Pipeline-Lauf von Mistral-OCR-Extract über Template-Transformation bis zur RAG-Ingestion in MongoDB Vector Search.',
     category: 'combined',
     phases: { extract: true, template: true, ingest: true },
     policies: {
@@ -446,7 +478,12 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectExtractRun: true,
       expectTemplateRun: true,
       expectIngestionRun: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
+      expectVectorSearchIndex: true,
       expectShadowTwinExists: true,
+      // Rückwärtskompatibilität
+      expectMongoUpsert: true,
     },
   },
   {
@@ -474,7 +511,7 @@ export const integrationTestCases: IntegrationTestCase[] = [
     id: 'TC-4.3',
     label: 'Template + Ingest (ohne Extract)',
     description:
-      'Transcript-Markdown liegt bereits vor, Extract wird übersprungen; nur Template und Ingestion laufen.',
+      'Transcript-Markdown liegt bereits vor, Extract wird übersprungen; nur Template und Ingestion in MongoDB Vector Search laufen.',
     category: 'combined',
     phases: { extract: false, template: true, ingest: true },
     policies: {
@@ -488,7 +525,11 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectExtractRun: false,
       expectTemplateRun: true,
       expectIngestionRun: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
       expectShadowTwinExists: true,
+      // Rückwärtskompatibilität
+      expectMongoUpsert: true,
     },
   },
 
@@ -510,7 +551,11 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectExtractRun: true,
       expectTemplateRun: true,
       expectIngestionRun: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
       expectShadowTwinExists: true,
+      // Rückwärtskompatibilität
+      expectMongoUpsert: true,
     },
   },
   {
@@ -530,7 +575,11 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectExtractRun: true,
       expectTemplateRun: true,
       expectIngestionRun: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
       expectShadowTwinExists: true,
+      // Rückwärtskompatibilität
+      expectMongoUpsert: true,
     },
   },
   {

@@ -33,7 +33,6 @@ import type { Collection, Document } from 'mongodb'
 import { getCollection } from '@/lib/mongodb-service'
 import type { DocMeta } from '@/types/doc-meta'
 import type { FacetDef } from '@/lib/chat/dynamic-facets'
-import type { Library } from '@/types/library'
 import crypto from 'crypto'
 const colCache = new Map<string, Collection<DocMeta>>()
 const ensuredIndexKeys = new Set<string>()
@@ -51,23 +50,6 @@ export function computeDocMetaCollectionName(userEmail: string, libraryId: strin
   return `doc_meta__${safe(libraryId)}`
 }
 
-/**
- * Ermittelt den MongoDB Collection-Namen für eine Library.
- * Verwendet den Wert aus der Config (deterministisch).
- * @param library Die Library mit Config
- * @returns Der Collection-Name
- * @throws Error wenn collectionName nicht in Config vorhanden ist (sollte nach Migration nicht vorkommen)
- */
-export function getCollectionNameForLibrary(library: Library): string {
-  const collectionName = library.config?.chat?.vectorStore?.collectionName
-  if (!collectionName || collectionName.trim().length === 0) {
-    throw new Error(
-      `Collection-Name nicht in Config gefunden für Library ${library.id}. ` +
-      `Die Library muss migriert werden. Bitte Library einmal laden, um automatische Migration auszulösen.`
-    )
-  }
-  return collectionName
-}
 
 export async function getDocMetaCollection(libraryKey: string): Promise<Collection<DocMeta>> {
   if (colCache.has(libraryKey)) return colCache.get(libraryKey) as Collection<DocMeta>

@@ -549,11 +549,11 @@ export default function DebugFooter() {
                           </div>
                         </div>
 
-                        {/* Ingestion (Pinecone) – nur für Galerie-Modul sichtbar */}
+                        {/* Ingestion – nur für Galerie-Modul sichtbar */}
                         {moduleKey === 'gallery' ? (
                           <div className="mt-6">
                             <div className="flex items-center justify-between">
-                              <h3 className="text-sm font-medium">Ingestion (Pinecone)</h3>
+                              <h3 className="text-sm font-medium">Ingestion</h3>
                               <Button variant="ghost" size="sm" className="h-6" onClick={() => void loadIngestionStats()} disabled={statsLoading}>
                                 Aktualisieren
                               </Button>

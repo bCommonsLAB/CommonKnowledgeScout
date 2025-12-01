@@ -300,7 +300,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
         });
       }
     }
-  }, [provider, setLoadedChildren, isReady, setFileTreeReady, currentFolderId, folderItems]);
+  }, [provider, listItems, setLoadedChildren, isReady, setFileTreeReady, currentFolderId, folderItems, loadedChildren.root]);
 
   // Ref-Methoden
   useImperativeHandle(forwardedRef, () => ({
@@ -427,7 +427,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
     }, 1000);
     
     return () => clearTimeout(timeoutId);
-  }, [provider, loadRootItems, isReady, currentFolderId, folderItems, setLoadedChildren, setFileTreeReady]);
+  }, [provider, loadRootItems, isReady, currentFolderId, folderItems, setLoadedChildren, setFileTreeReady, loadedChildren.root]);
 
   // Nach externem Refresh betroffene Ordner neu laden
   useEffect(() => {

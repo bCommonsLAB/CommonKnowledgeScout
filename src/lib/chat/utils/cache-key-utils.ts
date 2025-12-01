@@ -190,13 +190,16 @@ export function createCacheHash(params: CacheHashParams): string {
   }
   
   // Normalisiere Arrays (sortiert, lowercase)
-  if (params.character && params.character.length > 0) {
-    normalized.character = params.character.map(c => c.toLowerCase().trim()).sort().join(',')
+  // WICHTIG: Leere Arrays werden nicht hinzugefügt (konsistent mit undefined)
+  if (params.character && Array.isArray(params.character) && params.character.length > 0) {
+    normalized.character = params.character.map(c => String(c).toLowerCase().trim()).filter(c => c.length > 0).sort().join(',')
   }
-  if (params.accessPerspective && params.accessPerspective.length > 0) {
-    normalized.accessPerspective = params.accessPerspective.map(ap => ap.toLowerCase().trim()).sort().join(',')
+  if (params.accessPerspective && Array.isArray(params.accessPerspective) && params.accessPerspective.length > 0) {
+    normalized.accessPerspective = params.accessPerspective.map(ap => String(ap).toLowerCase().trim()).filter(ap => ap.length > 0).sort().join(',')
   }
-  if (params.facetsSelected && Object.keys(params.facetsSelected).length > 0) {
+  // WICHTIG: Leere Objekte, null und undefined werden nicht hinzugefügt (konsistent behandelt)
+  // Prüfe explizit auf leere Objekte, nicht nur auf undefined/null
+  if (params.facetsSelected && typeof params.facetsSelected === 'object' && params.facetsSelected !== null && Object.keys(params.facetsSelected).length > 0) {
     normalized.facetsSelected = normalizeFacetsForHash(params.facetsSelected)
   }
   

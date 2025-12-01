@@ -29,7 +29,7 @@ export async function startQueryLog(context: {
   genderInclusive?: QueryLog['genderInclusive']
   facetsSelected?: Record<string, unknown>
   filtersNormalized?: Record<string, unknown>
-  filtersPinecone?: Record<string, unknown>
+  documentCount?: number // Optional: Bereits berechnete Dokumentenanzahl (wird sonst in insertQueryLog berechnet)
 }): Promise<string> {
   // Validierung: Entweder userEmail ODER sessionId muss vorhanden sein
   if (!context.userEmail && !context.sessionId) {

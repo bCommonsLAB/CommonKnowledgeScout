@@ -129,8 +129,18 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const galleryFilters = useAtomValue(galleryFiltersAtom)
   
   // Gallery Data für gefilterte Dokumente-Anzahl
-  const { filteredDocs, loading: galleryDataLoading } = useGalleryData(galleryFilters || {}, 'story', '', libraryId)
-  const filteredDocsCount = filteredDocs.length
+  // Im eingebetteten Modus: Verwende Atom-Daten (wird von GalleryRoot aktualisiert), überspringe API-Aufruf
+  // Im Standalone-Modus: Lade Daten selbst
+  const galleryData = useGalleryData(
+    galleryFilters || {}, 
+    'story', 
+    '', 
+    libraryId,
+    { skipApiCall: isEmbedded } // Im eingebetteten Modus keine API-Aufrufe
+  )
+  
+  const filteredDocsCount = galleryData.totalCount || 0
+  const galleryDataLoading = galleryData.loading
   
   // Dokumente-Lade-Status wird nur intern für Render-Entscheidungen verwendet.
   
@@ -967,6 +977,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                 messageRefs={messageRefs}
                 isEmbedded={isEmbedded}
                 isCheckingTOC={isCheckingTOC}
+                isGeneratingTOC={isGeneratingTOC}
                 cachedTOC={cachedTOC}
               />
             </div>
@@ -1090,6 +1101,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               messageRefs={messageRefs}
               isEmbedded={isEmbedded}
               isCheckingTOC={isCheckingTOC}
+              isGeneratingTOC={isGeneratingTOC}
               cachedTOC={cachedTOC}
               cachedStoryTopicsData={cachedStoryTopicsData}
             />

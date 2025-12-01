@@ -129,7 +129,7 @@ export async function translateBookData(
   sourceLanguage: string | undefined,
   apiKey: string
 ): Promise<BookDetailData> {
-  const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
+  const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
   const temperature = 0.3
 
   // System-Prompt für präzise Übersetzung ohne Interpretation
@@ -241,7 +241,7 @@ export async function translateSessionData(
   sourceLanguage: string | undefined,
   apiKey: string
 ): Promise<SessionDetailData> {
-  const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4o-mini'
+  const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
   const temperature = 0.3
 
   console.log('[DocumentTranslation] translateSessionData gestartet:', {

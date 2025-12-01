@@ -252,149 +252,212 @@ async function validateIngestion(
 }
 
 /**
- * Validiert, ob MongoDB-Dokument für fileId existiert
+ * Validiert MongoDB Vector Search: Meta-Dokument, Chunk-Vektoren, Vector Search Index und Queries
+ * Ersetzt die alte validateMongoUpsert() Funktion nach MongoDB-Migration
  */
-async function validateMongoUpsert(
+async function validateMongoVectorUpsert(
   job: import('@/types/external-job').ExternalJob,
   expected: ExpectedOutcome,
   messages: ValidationMessage[]
 ): Promise<void> {
-  if (!expected.expectMongoUpsert) return
+  // Prüfe ob Validierung erwartet wird (neue oder alte Felder)
+  if (!expected.expectMongoUpsert && !expected.expectMetaDocument && !expected.expectChunkVectors) return
 
   const fileId = job.correlation?.source?.itemId
   if (!fileId) {
-    pushMessage(messages, 'warn', 'Keine fileId im Job gefunden, kann MongoDB nicht prüfen')
+    pushMessage(messages, 'warn', 'Keine fileId im Job gefunden, kann MongoDB Vector Search nicht prüfen')
     return
   }
 
   try {
     const { loadLibraryChatContext } = await import('@/lib/chat/loader')
-    const { getCollectionNameForLibrary } = await import('@/lib/repositories/doc-meta-repo')
-    const { getByFileIds } = await import('@/lib/repositories/doc-meta-repo')
+    const { getCollectionNameForLibrary, getMetaByFileId, getVectorCollection, VECTOR_SEARCH_INDEX_NAME } = await import('@/lib/repositories/vector-repo')
+    const { getEmbeddingDimensionForModel } = await import('@/lib/chat/config')
 
     const ctx = await loadLibraryChatContext(job.userEmail, job.libraryId)
     if (!ctx) {
-      pushMessage(messages, 'error', 'Bibliothek nicht gefunden, kann MongoDB nicht prüfen')
+      pushMessage(messages, 'error', 'Bibliothek nicht gefunden, kann MongoDB Vector Search nicht prüfen')
       return
     }
 
     const libraryKey = getCollectionNameForLibrary(ctx.library)
-    const docMap = await getByFileIds(libraryKey, job.libraryId, [fileId])
-    const docMeta = docMap.get(fileId)
+    const dimension = getEmbeddingDimensionForModel(ctx.library.config?.chat)
 
-    if (!docMeta) {
-      pushMessage(
-        messages,
-        'error',
-        `MongoDB-Dokument wird erwartet, aber docMeta für fileId "${fileId}" nicht gefunden`
-      )
-    } else {
-      const chunkCount = typeof docMeta.chunkCount === 'number' ? docMeta.chunkCount : 0
-      const chaptersCount = typeof docMeta.chaptersCount === 'number' ? docMeta.chaptersCount : 0
-      pushMessage(
-        messages,
-        'info',
-        `MongoDB-Dokument gefunden: fileId="${fileId}", chunkCount=${chunkCount}, chaptersCount=${chaptersCount}`
-      )
-    }
-  } catch (error) {
-    pushMessage(
-      messages,
-      'error',
-      `Fehler beim Prüfen von MongoDB: ${error instanceof Error ? error.message : String(error)}`
-    )
-  }
-}
-
-/**
- * Validiert, ob Pinecone-Vektoren für fileId existieren
- */
-async function validatePineconeUpsert(
-  job: import('@/types/external-job').ExternalJob,
-  expected: ExpectedOutcome,
-  messages: ValidationMessage[]
-): Promise<void> {
-  if (!expected.expectPineconeUpsert) return
-
-  const fileId = job.correlation?.source?.itemId
-  if (!fileId) {
-    pushMessage(messages, 'warn', 'Keine fileId im Job gefunden, kann Pinecone nicht prüfen')
-    return
-  }
-
-  const apiKey = process.env.PINECONE_API_KEY
-  if (!apiKey) {
-    pushMessage(messages, 'warn', 'PINECONE_API_KEY nicht gesetzt, kann Pinecone nicht prüfen')
-    return
-  }
-
-  try {
-    const { loadLibraryChatContext } = await import('@/lib/chat/loader')
-    const { describeIndex, fetchVectors, queryVectors } = await import('@/lib/chat/pinecone')
-
-    const ctx = await loadLibraryChatContext(job.userEmail, job.libraryId)
-    if (!ctx) {
-      pushMessage(messages, 'error', 'Bibliothek nicht gefunden, kann Pinecone nicht prüfen')
-      return
-    }
-
-    const idx = await describeIndex(ctx.vectorIndex, apiKey)
-    if (!idx?.host) {
-      pushMessage(messages, 'error', `Pinecone-Index "${ctx.vectorIndex}" nicht gefunden oder ohne Host`)
-      return
-    }
-
-    // Versuche Meta-Vektor zu finden
-    const metaId = `${fileId}-meta`
-    const fetched = await fetchVectors(idx.host, apiKey, [metaId], '')
-    const metaVector = fetched[metaId]
-
-    if (metaVector) {
-      const chunkCount = typeof metaVector.metadata?.chunkCount === 'number' ? metaVector.metadata.chunkCount : 0
-      pushMessage(
-        messages,
-        'info',
-        `Pinecone Meta-Vektor gefunden: id="${metaId}", chunkCount=${chunkCount}`
-      )
-    } else {
-      // Fallback: Query nach fileId
-      const zeroVector = new Array<number>(idx.dimension || 3072).fill(0)
-      const queryResult = await queryVectors(idx.host, apiKey, zeroVector, 1, {
-        user: { $eq: job.userEmail },
-        libraryId: { $eq: job.libraryId },
-        fileId: { $eq: fileId },
-        kind: { $eq: 'doc' },
-      })
-
-      if (queryResult.length > 0) {
-        const foundVector = queryResult[0]
-        const chunkCount = typeof foundVector.metadata?.chunkCount === 'number' ? foundVector.metadata.chunkCount : 0
+    // 1. Prüfe Meta-Dokument (kind: 'meta')
+    if (expected.expectMetaDocument || expected.expectMongoUpsert) {
+      const metaDoc = await getMetaByFileId(libraryKey, fileId)
+      if (!metaDoc) {
+        pushMessage(
+          messages,
+          'error',
+          `Meta-Dokument wird erwartet, aber nicht gefunden für fileId "${fileId}"`
+        )
+      } else {
+        const chunkCount = typeof metaDoc.chunkCount === 'number' ? metaDoc.chunkCount : 0
+        const chaptersCount = typeof metaDoc.chaptersCount === 'number' ? metaDoc.chaptersCount : 0
         pushMessage(
           messages,
           'info',
-          `Pinecone Meta-Vektor gefunden (via Query): id="${foundVector.id}", chunkCount=${chunkCount}`
+          `Meta-Dokument gefunden: fileId="${fileId}", chunkCount=${chunkCount}, chaptersCount=${chaptersCount}`
+        )
+      }
+    }
+
+    // 2. Prüfe Chunk-Vektoren (kind: 'chunk')
+    if (expected.expectChunkVectors || expected.expectMongoUpsert) {
+      // Verwende direkte MongoDB-Query statt Vector Search für Validierung
+      const { findVectorsByFilter } = await import('@/lib/repositories/vector-repo')
+      const chunkVectors = await findVectorsByFilter(
+        libraryKey,
+        {
+          libraryId: job.libraryId,
+          user: job.userEmail,
+          fileId,
+          kind: 'chunk',
+        },
+        100
+      )
+
+      if (chunkVectors.length === 0) {
+        pushMessage(
+          messages,
+          'error',
+          `Keine Chunk-Vektoren gefunden für fileId "${fileId}"`
         )
       } else {
-        // Prüfe auch Chunk-Vektoren
-        const chunkQueryResult = await queryVectors(idx.host, apiKey, zeroVector, 5, {
-          user: { $eq: job.userEmail },
-          libraryId: { $eq: job.libraryId },
-          fileId: { $eq: fileId },
-          kind: { $eq: 'chunk' },
-        })
+        pushMessage(
+          messages,
+          'info',
+          `${chunkVectors.length} Chunk-Vektoren gefunden`
+        )
 
-        if (chunkQueryResult.length > 0) {
-          pushMessage(
-            messages,
-            'info',
-            `Pinecone Chunk-Vektoren gefunden: ${chunkQueryResult.length} Chunks für fileId="${fileId}"`
-          )
+        // Prüfe Facetten-Metadaten in Chunks
+        if (expected.expectFacetMetadataInChunks && chunkVectors.length > 0) {
+          const firstChunk = chunkVectors[0]
+          const hasFacets = firstChunk.year !== undefined || 
+                            firstChunk.authors !== undefined || 
+                            firstChunk.region !== undefined ||
+                            firstChunk.docType !== undefined ||
+                            firstChunk.source !== undefined ||
+                            firstChunk.tags !== undefined
+          if (hasFacets) {
+            pushMessage(messages, 'info', 'Chunk-Vektoren enthalten Facetten-Metadaten (für Filterung)')
+          } else {
+            pushMessage(messages, 'warn', 'Chunk-Vektoren enthalten keine Facetten-Metadaten')
+          }
+        }
+
+        // Prüfe Vector Search Query (falls erwartet)
+        if (expected.expectVectorSearchQuery && chunkVectors[0].embedding) {
+          try {
+            const collection = await getVectorCollection(libraryKey, dimension, ctx.library)
+            const queryVector = chunkVectors[0].embedding
+            
+            // Direkte Vector Search Aggregation für bessere Kontrolle
+            const testResults = await collection.aggregate([
+              {
+                $vectorSearch: {
+                  index: VECTOR_SEARCH_INDEX_NAME,
+                  path: 'embedding',
+                  queryVector: queryVector,
+                  numCandidates: Math.max(10 * 10, 100), // Mindestens 100 Kandidaten
+                  limit: 10,
+                  filter: {
+                    kind: 'chunk',
+                    libraryId: job.libraryId,
+                    // user und fileId weglassen, um mehr Ergebnisse zu bekommen
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  score: { $meta: 'vectorSearchScore' },
+                  fileId: 1,
+                  kind: 1,
+                },
+              },
+            ]).toArray()
+            
+            if (testResults.length > 0) {
+              pushMessage(messages, 'info', `Vector Search Query erfolgreich: ${testResults.length} Ergebnisse`)
+              
+              // Prüfe ob die Ergebnisse zum erwarteten fileId gehören
+              const matchingResults = testResults.filter((r: { fileId?: unknown }) => r.fileId === fileId)
+              if (matchingResults.length > 0) {
+                pushMessage(messages, 'info', `${matchingResults.length} Ergebnisse gehören zum erwarteten fileId`)
+              } else {
+                pushMessage(messages, 'warn', `Vector Search Query lieferte ${testResults.length} Ergebnisse, aber keine für das erwartete fileId "${fileId}"`)
+              }
+            } else {
+              pushMessage(messages, 'warn', 'Vector Search Query lieferte keine Ergebnisse (möglicherweise Index noch nicht bereit oder keine passenden Dokumente)')
+            }
+          } catch (queryError) {
+            const errorMsg = queryError instanceof Error ? queryError.message : String(queryError)
+            pushMessage(
+              messages,
+              'warn',
+              `Vector Search Query fehlgeschlagen: ${errorMsg}`
+            )
+          }
+        }
+      }
+    }
+
+    // 3. Prüfe Chapter-Summaries (falls erwartet)
+    if (expected.expectChapterSummaries) {
+      // Chapter-Summaries werden nicht als separate Vektoren gespeichert,
+      // sondern nur im Meta-Dokument im chapters-Array
+      const metaDoc = await getMetaByFileId(libraryKey, fileId)
+      
+      if (!metaDoc) {
+        pushMessage(messages, 'error', 'Meta-Dokument nicht gefunden, kann Chapter-Summaries nicht prüfen')
+      } else {
+        const chapters = Array.isArray(metaDoc.chapters) ? metaDoc.chapters : []
+        const chaptersWithSummary = chapters.filter(ch => 
+          ch && typeof ch === 'object' && 
+          'summary' in ch && 
+          typeof (ch as { summary?: unknown }).summary === 'string' &&
+          (ch as { summary: string }).summary.trim().length > 0
+        )
+        
+        if (chapters.length === 0) {
+          pushMessage(messages, 'warn', 'Keine Chapters im Meta-Dokument gefunden')
+        } else if (chaptersWithSummary.length === 0) {
+          pushMessage(messages, 'warn', `${chapters.length} Chapters gefunden, aber keine mit Summary`)
         } else {
-          pushMessage(
-            messages,
-            'error',
-            `Pinecone-Vektoren werden erwartet, aber keine Vektoren für fileId "${fileId}" gefunden`
-          )
+          pushMessage(messages, 'info', `${chaptersWithSummary.length} Chapter-Summaries im Meta-Dokument gefunden (von ${chapters.length} Chapters)`)
+        }
+      }
+    }
+
+    // 4. Prüfe Vector Search Index (falls erwartet)
+    if (expected.expectVectorSearchIndex) {
+      const collection = await getVectorCollection(libraryKey, dimension, ctx.library)
+      
+      // Prüfe ob Index existiert durch Versuch einer minimalen Vector Search Aggregation
+      // (robuster als listSearchIndexes, das nicht immer verfügbar ist)
+      try {
+        const zeroVector = new Array<number>(dimension).fill(0)
+        await collection.aggregate([
+          {
+            $vectorSearch: {
+              index: VECTOR_SEARCH_INDEX_NAME,
+              path: 'embedding',
+              queryVector: zeroVector,
+              numCandidates: 1,
+              limit: 1,
+            },
+          },
+        ]).toArray()
+        
+        pushMessage(messages, 'info', 'Vector Search Index existiert und ist funktionsfähig')
+      } catch (indexError) {
+        const errorMsg = indexError instanceof Error ? indexError.message : String(indexError)
+        if (errorMsg.includes('index') || errorMsg.includes('Index')) {
+          pushMessage(messages, 'error', `Vector Search Index nicht gefunden oder nicht bereit: ${errorMsg}`)
+        } else {
+          pushMessage(messages, 'warn', `Vector Search Index-Prüfung fehlgeschlagen: ${errorMsg}`)
         }
       }
     }
@@ -402,10 +465,24 @@ async function validatePineconeUpsert(
     pushMessage(
       messages,
       'error',
-      `Fehler beim Prüfen von Pinecone: ${error instanceof Error ? error.message : String(error)}`
+      `Fehler beim Prüfen von MongoDB Vector Search: ${error instanceof Error ? error.message : String(error)}`
     )
   }
 }
+
+/**
+ * @deprecated Verwende validateMongoVectorUpsert() statt validateMongoUpsert()
+ * Alte Funktion für Rückwärtskompatibilität
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function validateMongoUpsert(
+  job: import('@/types/external-job').ExternalJob,
+  expected: ExpectedOutcome,
+  messages: ValidationMessage[]
+): Promise<void> {
+  await validateMongoVectorUpsert(job, expected, messages)
+}
+
 
 /**
  * Validiert einen einzelnen External-Job gegen die erwarteten Ergebnisse eines Testfalls.
@@ -770,8 +847,7 @@ export async function validateExternalJobForTestCase(
   summarizeShadowTwinState(job, testCase.expected, messages)
   await validateShadowTwin(job, testCase.expected, messages)
   await validateIngestion(job, testCase.expected, messages)
-  await validateMongoUpsert(job, testCase.expected, messages)
-  await validatePineconeUpsert(job, testCase.expected, messages)
+  await validateMongoVectorUpsert(job, testCase.expected, messages)
 
   const hasError = messages.some(m => m.type === 'error')
   return {

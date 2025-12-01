@@ -7,9 +7,7 @@ export interface RetrieverInput {
   answerLength: AnswerLength
   filters: Record<string, unknown>
   queryId: string
-  context: {
-    vectorIndex: string
-  }
+  context: Record<string, never>
   apiKey?: string  // Optional: Library-spezifischer OpenAI API-Key für Embeddings
 }
 
@@ -33,7 +31,17 @@ export interface RetrievedSource {
 export interface RetrieverOutput {
   sources: RetrievedSource[]
   timing: { retrievalMs: number }
-  stats?: { candidatesCount?: number; usedInPrompt?: number; decision?: 'chapters' | 'docs' }
+  stats?: { 
+    candidatesCount?: number
+    usedInPrompt?: number
+    decision?: 'chapters' | 'summary' | 'teaser'
+    // Zusätzliche Stats für Chunk-Retriever
+    initialMatches?: number
+    neighborsAdded?: number
+    topKRequested?: number
+    budgetUsed?: number
+    answerLength?: string
+  }
   warning?: string // Warnung bei zu wenig relevanten Dokumenten
 }
 

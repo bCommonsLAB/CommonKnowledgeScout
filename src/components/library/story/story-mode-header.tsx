@@ -75,7 +75,7 @@ export function StoryModeHeader({ libraryId, onBackToGallery }: StoryModeHeaderP
 
       {/* Buttons: StoryHeader nutzt jetzt die ganze Breite */}
       <div className="py-2 w-full">
-        <StoryHeader compact onBackToGallery={onBackToGallery} />
+        <StoryHeader compact onBackToGallery={onBackToGallery} libraryId={libraryId} />
       </div>
     </div>
   )

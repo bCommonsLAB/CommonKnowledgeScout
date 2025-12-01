@@ -351,7 +351,6 @@
       "indexCreated": "Indice creato",
       "indexRebuildStarted": "Ricostruzione indice avviata",
       "indexStatus": "Stato Indice",
-      "pineconeHealthCheck": "Controllo Salute Pinecone",
       "index": "Indice:",
       "vectors": "Vettori:",
       "dimension": "Dimensione:",

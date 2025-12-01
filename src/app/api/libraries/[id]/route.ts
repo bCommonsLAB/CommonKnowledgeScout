@@ -300,14 +300,32 @@ export async function PATCH(
             // Behalte den existierenden Wert (falls vorhanden)
             continue;
           }
-          // Nur aktualisieren, wenn ein neuer Wert (nicht leer) gesendet wurde
-          if (value && value !== '') {
-            console.log(`[API] Aktualisiere clientSecret mit neuem Wert (Länge: ${(value as string).length})`);
-            updatedConfig[key] = value;
+          // Nur aktualisieren, wenn ein neuer Wert (nicht leer, nach trim) gesendet wurde
+          if (value && typeof value === 'string') {
+            const trimmedValue = value.trim();
+            if (trimmedValue !== '') {
+              console.log(`[API] Aktualisiere clientSecret mit neuem Wert (Länge: ${trimmedValue.length})`);
+              updatedConfig[key] = trimmedValue;
+            } else {
+              // Nur Whitespace gesendet: Wenn kein existierendes Secret vorhanden ist, entferne das Feld
+              const existingSecret = existingLibrary.config?.clientSecret;
+              if (!existingSecret || existingSecret === '' || existingSecret === '********') {
+                console.log(`[API] Entferne clientSecret aus Config (nur Whitespace gesendet, kein existierendes Secret)`);
+                delete updatedConfig[key];
+              } else {
+                console.log(`[API] Behalte existierendes clientSecret (nur Whitespace gesendet)`);
+              }
+            }
           } else {
-            console.log(`[API] Behalte existierendes clientSecret (leerer Wert gesendet)`);
+            // Leerer/ungültiger Wert: Wenn kein existierendes Secret vorhanden ist, entferne das Feld
+            const existingSecret = existingLibrary.config?.clientSecret;
+            if (!existingSecret || existingSecret === '' || existingSecret === '********') {
+              console.log(`[API] Entferne clientSecret aus Config (leerer Wert gesendet, kein existierendes Secret)`);
+              delete updatedConfig[key];
+            } else {
+              console.log(`[API] Behalte existierendes clientSecret (leerer/ungültiger Wert gesendet)`);
+            }
           }
-          // Wenn leer, behalten wir den existierenden Wert
         } else if (key === 'chat' && value && typeof value === 'object' && !Array.isArray(value)) {
           // Spezielle Behandlung für chat-Config: Merge statt Überschreiben
           const existingChat = updatedConfig[key] as Record<string, unknown> | undefined

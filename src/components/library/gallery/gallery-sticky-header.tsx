@@ -65,7 +65,7 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
         </div>
       </div>
 
-      <div className="py-2 flex items-center gap-2 sm:gap-4">
+      <div className="py-2 lg:py-1 flex items-center gap-2 sm:gap-4">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

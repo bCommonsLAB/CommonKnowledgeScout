@@ -36,6 +36,7 @@ interface ChatMessagesListProps {
   messageRefs: React.MutableRefObject<Map<string, HTMLDivElement>>
   isEmbedded?: boolean
   isCheckingTOC?: boolean
+  isGeneratingTOC?: boolean
   cachedTOC?: unknown
   cachedStoryTopicsData?: unknown
 }
@@ -69,6 +70,7 @@ export function ChatMessagesList({
   messageRefs,
   isEmbedded = false,
   isCheckingTOC = false,
+  isGeneratingTOC = false,
   cachedTOC = null,
   cachedStoryTopicsData = null,
 }: ChatMessagesListProps) {
@@ -155,14 +157,14 @@ export function ChatMessagesList({
         )
       })}
 
-      {/* Verarbeitungsstatus während des Sendens ODER Cache-Check */}
+      {/* Verarbeitungsstatus während des Sendens ODER Cache-Check ODER TOC-Generierung */}
       {/* WICHTIG: Verstecke Verarbeitungsinfo, wenn Cache gefunden wurde und keine aktive Generierung läuft */}
       {/* Processing-Status nur anzeigen wenn:
           1. Normale Frage gesendet wird (isSending) ODER
-          2. TOC wird geprüft/generiert UND wir sind NICHT im embedded Modus (dort wird StoryTopics mit eigenem Icon angezeigt) ODER
-          3. Cache-Check läuft UND wir sind NICHT im embedded Modus UND keine TOC-Daten vorhanden
+          2. TOC wird geprüft (isCheckingTOC) ODER generiert (isGeneratingTOC) UND keine TOC-Daten vorhanden ODER
+          3. Cache-Check läuft UND keine TOC-Daten vorhanden
       */}
-      {(isSending || (!isEmbedded && ((isCheckingTOC && !cachedStoryTopicsData && !cachedTOC) || (processingSteps.some(s => s.type === 'cache_check' || s.type === 'cache_check_complete') && !cachedStoryTopicsData && !cachedTOC)))) && (
+      {(isSending || ((isCheckingTOC || isGeneratingTOC) && !cachedStoryTopicsData && !cachedTOC) || (processingSteps.some(s => s.type === 'cache_check' || s.type === 'cache_check_complete') && !cachedStoryTopicsData && !cachedTOC)) && (
         <div className="flex gap-3 mb-4">
           <div className="flex-1 min-w-0">
             <div className="bg-muted/30 border rounded-lg p-3">
@@ -183,7 +185,7 @@ export function ChatMessagesList({
               {/* Processing Steps - dezent innerhalb des Blocks */}
               {processingSteps.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-border/50">
-                  <ProcessingStatus steps={processingSteps} isActive={isSending || isCheckingTOC} />
+                  <ProcessingStatus steps={processingSteps} isActive={isSending || isCheckingTOC || isGeneratingTOC} />
                 </div>
               )}
             </div>

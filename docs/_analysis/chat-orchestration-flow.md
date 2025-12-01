@@ -161,9 +161,9 @@ if (estimatedTokens < CHAT_MAX_INPUT_TOKENS) {
    - Berechnet: `sumChunkCounts()` aus MongoDB
 2. ✅ **Retrieval**: `chunkSummaryRetriever`
    - Schritt 1: Lädt gefilterte Dokumente aus MongoDB (nur `fileIds`)
-   - Schritt 2: Lädt **alle** Chunks dieser Dokumente aus Pinecone
+   - Schritt 2: Lädt **alle** Chunks dieser Dokumente aus MongoDB
    - **OHNE Embedding-Suche** (direkter Filter: `fileId: { $in: [...] }`)
-   - Filter-Struktur: `{ $and: [libraryId, user, fileId: { $in: [...] }, kind: { $ne: 'chapterSummary' }] }`
+   - Filter-Struktur: `{ kind: 'chunk', libraryId, user, fileId: { $in: [...] } }`
 3. ✅ **Prompt**: `buildTOCPrompt()` - TOC-Prompt mit allen Chunks
 4. ✅ **LLM**: Generiert strukturierte Themenübersicht
 5. ✅ **Parsing**: `parseStoryTopicsData()` - Extrahiert strukturierte Daten
@@ -187,7 +187,7 @@ if (estimatedTokens < CHAT_MAX_INPUT_TOKENS) {
 1. ✅ **Retriever-Entscheidung**: `chunk` (RAG) - Immer für normale Fragen
 2. ✅ **Retrieval**: `chunksRetriever`
    - Schritt 1: Embedding der Frage generieren
-   - Schritt 2: Semantische Suche in Pinecone (Vector-Similarity)
+   - Schritt 2: Semantische Suche in MongoDB Vector Search (Vector-Similarity)
    - Schritt 3: Top-K relevante Chunks zurückgeben
    - Optional: Chapter-Summaries zusätzlich abrufen
    - **Warnung**: Wenn alle Scores < 0.7 → Warnung generieren
@@ -380,33 +380,31 @@ Checkbox "Als Themenübersicht":
 #### 2. Vector-Suche (`query`)
 - **Timing**: ~1187ms
 - **Was passiert**: 
-  - Semantische Suche in Pinecone
+  - Semantische Suche in MongoDB Vector Search
   - Top-K relevante Chunks finden (Standard: 20)
   - Parallel: Chapter-Summaries suchen (Top-10)
-- **API-Call**: Pinecone Query API (2 parallel)
+- **API-Call**: MongoDB `$vectorSearch` Aggregation (2 parallel)
 - **Bewertung**: ⚠️ Langsam (könnte optimiert werden)
 - **Optimierungspotenzial**: 
   - Parallelisierung bereits implementiert ✅
   - Top-K könnte reduziert werden (wenn nicht alle benötigt)
-  - Pinecone-Index-Performance prüfen
+  - MongoDB Vector Search Index-Performance prüfen
 
-#### 3. Fetch Neighbors (`fetchNeighbors`) ⚠️ **KRITISCH**
-- **Timing**: ~2902ms (64% der Retrieval-Zeit!)
+#### 3. Fetch Neighbors (`fetchNeighbors`)
+- **Timing**: Variabel (abhängig von Anzahl der Nachbarn)
 - **Was passiert**:
   - Window-basierte Nachbar-Chunks abrufen
   - Beispiel: Top-20 Chunks → Window ±1-3 → ~60-74 IDs
-  - Alle IDs in einem Request abrufen
-- **API-Call**: Pinecone Fetch API (1 Request mit vielen IDs)
-- **Bewertung**: ❌ **Sehr langsam** - größter Performance-Flaschenhals
-- **Problem**: 
-  - Ein einzelner Request mit vielen IDs (74+ IDs)
-  - Pinecone Fetch API kann bei vielen IDs langsam sein
+  - Direkte MongoDB-Abfrage mit `_id: { $in: [...] }`
+- **API-Call**: MongoDB `find()` Query (1 Request mit vielen IDs)
+- **Bewertung**: ✅ Schneller als Pinecone Fetch API
+- **Vorteile**: 
+  - Direkte MongoDB-Abfrage ist effizienter
+  - Alle Metadaten bereits verfügbar (keine separate Fetch nötig)
   - Window-Größe (`windowByLength`) bestimmt Anzahl der IDs
 - **Optimierungspotenzial**: 
-  - **Hoch**: Batch-Größe reduzieren oder parallelisieren
-  - **Hoch**: Window-Größe dynamisch anpassen
-  - **Mittel**: Optional machen (nur wenn wirklich nötig)
-  - **Niedrig**: Fallback auf Original-Matches wenn zu langsam
+  - **Mittel**: Window-Größe dynamisch anpassen
+  - **Niedrig**: Optional machen (nur wenn wirklich nötig)
 
 #### 4. Prompt-Building
 - **Timing**: ~50-100ms (geschätzt)
@@ -419,7 +417,7 @@ Checkbox "Als Themenübersicht":
 - **Was passiert**: OpenAI API-Call für Antwort-Generierung
 - **Bewertung**: ⚠️ Variabel (abhängig von Antwortlänge, Modell, Last)
 - **Optimierungspotenzial**: 
-  - Modell-Auswahl (gpt-4o-mini ist schneller als gpt-4o)
+  - Modell-Auswahl (gpt-4.1-mini ist schneller als gpt-4o)
   - Streaming bereits implementiert ✅
   - Token-Budget-Management bereits implementiert ✅
 
@@ -436,10 +434,10 @@ Checkbox "Als Themenübersicht":
 
 #### 🟡 Problem 2: Vector-Suche könnte schneller sein
 - **Impact**: Mittel (26% der Retrieval-Zeit)
-- **Ursache**: Pinecone Query-Performance
+- **Ursache**: MongoDB Vector Search Query-Performance
 - **Lösung**: 
   1. Top-K reduzieren (wenn nicht alle benötigt)
-  2. Index-Performance prüfen
+  2. Vector Search Index-Performance prüfen
   3. Caching für ähnliche Queries
 
 #### 🟢 Problem 3: Embedding-Generierung ist akzeptabel
@@ -721,7 +719,7 @@ const baseTopK = budget > 50000 ? 30 : budget > 30000 ? 20 : 15
 **Neue Umgebungsvariable**:
 - `CHAT_FETCH_BATCH_SIZE`: Batch-Größe für Fetch Neighbors (Standard: 20)
   - Kann in `.env` gesetzt werden
-  - Empfohlener Wert: 20-30 (abhängig von Pinecone-Performance)
+  - Empfohlener Wert: 20-30 (abhängig von MongoDB-Performance)
 
 ---
 

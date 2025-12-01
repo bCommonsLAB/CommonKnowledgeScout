@@ -543,7 +543,9 @@ export async function POST(
       try {
         const phasesParam = (job.parameters && typeof job.parameters === 'object') ? (job.parameters as { phases?: { ingest?: boolean } }).phases : undefined
         const hardDisableIngest = phasesParam?.ingest === false
-        if (!hardDisableIngest && savedItemId && docMetaForIngestion) {
+        // Ingestion kann auch ohne savedItemId ausgeführt werden, wenn docMetaForIngestion vorhanden ist
+        // (runIngestPhase lädt dann das Markdown aus dem Shadow-Twin)
+        if (!hardDisableIngest && docMetaForIngestion) {
           // Step starten
           await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() })
           try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_start', attributes: { libraryId: job.libraryId } }) } catch {}
@@ -556,7 +558,7 @@ export async function POST(
             repo,
             markdown: extractedText || '',
             meta: docMetaForIngestion,
-            savedItemId,
+            savedItemId: savedItemId || '',
             policies: { ingest: policies.ingest as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
             extractedText,
           })

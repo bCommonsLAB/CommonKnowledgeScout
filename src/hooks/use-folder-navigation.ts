@@ -8,8 +8,8 @@
  * @returns navigateToFolder(folderId: string): Promise<void>
  */
 import { useCallback } from 'react';
-import { useAtom, useSetAtom } from 'jotai';
-import { libraryAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { useAtom } from 'jotai';
+import { libraryAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 import { StateLogger } from '@/lib/debug/logger';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -18,7 +18,6 @@ import { StorageItem } from '@/lib/storage/types';
 export function useFolderNavigation() {
   const { provider, listItems } = useStorage();
   const [libraryState, setLibraryState] = useAtom(libraryAtom);
-  const setCurrentFolderId = useSetAtom(currentFolderIdAtom);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -147,7 +146,7 @@ export function useFolderNavigation() {
       const url = `${pathname}?${params.toString()}`;
       router.replace(url);
     } catch {}
-  }, [provider, setLibraryState, setCurrentFolderId, libraryState.folderCache, router, pathname, searchParams]);
+  }, [provider, listItems, setLibraryState, libraryState.folderCache, router, pathname, searchParams]);
 
   return navigateToFolder;
 } 

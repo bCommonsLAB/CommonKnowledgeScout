@@ -1,7 +1,15 @@
 import { normalizeChatConfig } from '@/lib/chat/config'
 import { Library } from '@/types/library'
+import { bufferLog } from '@/lib/external-jobs-log-buffer'
 
 export type FacetType = 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
+
+/**
+ * Cache für parseFacetDefs Ergebnisse
+ * Verhindert wiederholtes Parsen der gleichen Library-Konfiguration
+ */
+const facetDefsCache = new Map<string, { defs: FacetDef[]; timestamp: number }>()
+const FACET_DEFS_CACHE_TTL_MS = 5 * 60 * 1000 // 5 Minuten (entspricht Library Context Cache)
 
 export interface FacetDef {
   metaKey: string
@@ -17,6 +25,15 @@ export interface FacetDef {
 }
 
 export function parseFacetDefs(library: Library): FacetDef[] {
+  // Cache-Key basierend auf Library-ID und Config-Hash
+  const cacheKey = `${library.id}:${JSON.stringify(library.config?.chat?.gallery?.facets || [])}`
+  const cached = facetDefsCache.get(cacheKey)
+  const now = Date.now()
+  
+  if (cached && (now - cached.timestamp) < FACET_DEFS_CACHE_TTL_MS) {
+    return cached.defs
+  }
+  
   const cfg = normalizeChatConfig(library.config?.chat)
   const defs = Array.isArray(cfg.gallery?.facets) ? (cfg.gallery.facets as unknown as FacetDef[]) : []
   const seen = new Set<string>()
@@ -38,6 +55,19 @@ export function parseFacetDefs(library: Library): FacetDef[] {
       buckets: Array.isArray(d.buckets) ? d.buckets.filter(b => b && typeof b.min === 'number' && typeof b.max === 'number') : undefined,
     })
   }
+  
+  // Cache speichern
+  facetDefsCache.set(cacheKey, { defs: out, timestamp: now })
+  
+  // Alte Cache-Einträge aufräumen (alle 10 Minuten)
+  if (facetDefsCache.size > 100) {
+    for (const [key, entry] of facetDefsCache.entries()) {
+      if (now - entry.timestamp > FACET_DEFS_CACHE_TTL_MS) {
+        facetDefsCache.delete(key)
+      }
+    }
+  }
+  
   return out
 }
 
@@ -137,6 +167,153 @@ export function aggregateFacetCounts(
       .sort((a, b) => String(a.value).localeCompare(String(b.value)))
   }
   return result
+}
+
+/**
+ * Entfernt Anführungszeichen am Anfang und Ende eines Strings.
+ */
+export function stripWrappingQuotes(s: string): string {
+  const t = s.trim()
+  if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+    return t.slice(1, -1).trim()
+  }
+  return t
+}
+
+/**
+ * Konvertiert verschiedene Formate zu einem String-Array.
+ * Unterstützt: Arrays, JSON-Array-Strings, Komma-separierte Strings.
+ */
+export function toStringArrayFromUnknown(val: unknown): string[] | undefined {
+  if (Array.isArray(val)) {
+    return val.map(v => stripWrappingQuotes(typeof v === 'string' ? v : String(v))).filter(Boolean)
+  }
+  if (typeof val === 'string') {
+    const t = val.trim()
+    try {
+      if (t.startsWith('[') && t.endsWith(']')) {
+        const arr = JSON.parse(t)
+        if (Array.isArray(arr)) {
+          return arr.map(v => stripWrappingQuotes(typeof v === 'string' ? v : String(v))).filter(Boolean)
+        }
+      }
+    } catch {
+      // Fallback: Komma-separiert
+    }
+    return t.split(',').map(s => stripWrappingQuotes(s)).filter(Boolean)
+  }
+  return undefined
+}
+
+/**
+ * Rekursive Bereinigung von Metadaten-Werten.
+ * Entfernt null/undefined, bereinigt Strings, parst JSON-Arrays.
+ */
+export function deepCleanMeta(val: unknown): unknown {
+  if (val === null || val === undefined) return undefined
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const arr = JSON.parse(trimmed)
+        if (Array.isArray(arr)) {
+          return arr.map(x => deepCleanMeta(x)).filter(v => v !== undefined)
+        }
+      } catch {
+        // Fallback: String bereinigen
+      }
+    }
+    return stripWrappingQuotes(trimmed)
+  }
+  if (Array.isArray(val)) {
+    return val.map(x => deepCleanMeta(x)).filter(v => v !== undefined)
+  }
+  if (typeof val === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+      const cleaned = deepCleanMeta(v)
+      if (cleaned !== undefined) out[k] = cleaned
+    }
+    return out
+  }
+  return val
+}
+
+export interface SanitizedMeta {
+  sanitized: Record<string, unknown>
+  jsonClean: Record<string, unknown>
+  metaEffective: Record<string, unknown>
+}
+
+/**
+ * Validiert und sanitized Frontmatter-Metadaten basierend auf Facetten-Definitionen.
+ * Erstellt `sanitized` (nur Facetten-Felder) und `jsonClean` (vollständige bereinigte Kopie).
+ */
+export function validateAndSanitizeFrontmatter(
+  metaEffective: Record<string, unknown>,
+  facetDefs: FacetDef[],
+  jobId?: string
+): SanitizedMeta {
+  const sanitized: Record<string, unknown> = { ...metaEffective }
+
+  for (const def of facetDefs) {
+    const raw = (metaEffective as Record<string, unknown>)[def.metaKey]
+    let parsed = getTopLevelValue(metaEffective, def)
+
+    if ((def.type === 'number' || def.type === 'integer-range') && typeof parsed === 'number') {
+      if (!Number.isFinite(parsed)) parsed = undefined
+    }
+    if (def.type === 'string' && typeof parsed === 'string') {
+      parsed = stripWrappingQuotes(parsed)
+    }
+    if (def.type === 'string[]') {
+      const arr = toStringArrayFromUnknown(parsed === undefined ? raw : parsed)
+      parsed = Array.isArray(arr) ? arr : undefined
+    }
+
+    if (parsed === undefined) {
+      if (raw === undefined) {
+        if (jobId) {
+          bufferLog(jobId, { phase: 'facet_missing', message: `Meta fehlt: ${def.metaKey}` })
+        }
+      } else {
+        if (jobId) {
+          bufferLog(jobId, {
+            phase: 'facet_type_mismatch',
+            message: `Typfehler: ${def.metaKey}`,
+            details: { expected: def.type, actual: typeof raw } as unknown as Record<string, unknown>,
+          })
+        }
+      }
+    } else {
+      sanitized[def.metaKey] = parsed
+    }
+  }
+
+  // null/undefined entfernen für docMetaJson
+  for (const k of Object.keys(sanitized)) {
+    if (sanitized[k] === null || sanitized[k] === undefined) {
+      delete sanitized[k]
+    }
+  }
+
+  // Intern: __sanitized für spätere Verwendung
+  ;(metaEffective as Record<string, unknown>)['__sanitized'] = sanitized
+
+  // Vollständige, bereinigte Kopie für docMetaJson (auch Keys außerhalb der Facetten)
+  const mergedForJson: Record<string, unknown> = { ...(metaEffective as Record<string, unknown>) }
+  delete mergedForJson['__sanitized']
+  for (const [k, v] of Object.entries(sanitized)) {
+    mergedForJson[k] = v
+  }
+
+  ;(metaEffective as Record<string, unknown>)['__jsonClean'] = deepCleanMeta(mergedForJson)
+
+  return {
+    sanitized,
+    jsonClean: (metaEffective as Record<string, unknown>)['__jsonClean'] as Record<string, unknown>,
+    metaEffective,
+  }
 }
 
 

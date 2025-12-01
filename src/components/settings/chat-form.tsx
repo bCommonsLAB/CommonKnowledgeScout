@@ -19,6 +19,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/ui/use-toast"
 import { FacetDefsEditor } from '@/components/settings/FacetDefsEditor'
+import { IndexDefinitionDialog } from '@/components/settings/index-definition-dialog'
+import { SearchIndexDialog } from '@/components/settings/search-index-dialog'
+import { buildVectorSearchIndexDefinitionForLibrary, getCollectionNameForLibrary } from '@/lib/chat/vector-search-index'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   TARGET_LANGUAGE_ZOD_ENUM,
@@ -38,6 +41,8 @@ import {
 } from '@/lib/chat/constants'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useStoryContext } from '@/hooks/use-story-context'
+import type { Library } from '@/types/library'
+import { getDefaultFacets, getDefaultEmbeddings } from '@/lib/chat/config'
 
 // Zod-Schema für Chat-Konfiguration
 const chatFormSchema = z.object({
@@ -46,8 +51,11 @@ const chatFormSchema = z.object({
   maxCharsWarningMessage: z.string().optional(),
   footerText: z.string().optional(),
   companyLink: z.string().url().optional().or(z.literal("")).transform(v => v || undefined),
-  vectorStore: z.object({
-    indexName: z.string().optional(),
+  embeddings: z.object({
+    embeddingModel: z.string().optional(),
+    chunkSize: z.coerce.number().int().positive().optional(),
+    chunkOverlap: z.coerce.number().int().nonnegative().optional(),
+    dimensions: z.coerce.number().int().positive().optional(),
   }).optional(),
   targetLanguage: z.preprocess(
     (val) => {
@@ -88,14 +96,7 @@ const chatFormSchema = z.object({
       sort: z.enum(['alpha','count']).optional(),
       max: z.coerce.number().int().positive().optional(),
       columns: z.coerce.number().int().min(1).max(2).optional(),
-    })).default([
-      { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
-      { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
-      { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
-      { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
-      { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
-      { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
-    ])
+    })).default(getDefaultFacets().slice(0, 6)) // Nur die ersten 6 sichtbaren Facetten als Default
   }).optional(),
 })
 
@@ -107,8 +108,7 @@ export function ChatForm() {
   const [libraries, setLibraries] = useAtom(librariesAtom)
   const [activeLibraryId] = useAtom(activeLibraryIdAtom)
   const [isLoading, setIsLoading] = useState(false)
-  const [isChecking, setIsChecking] = useState(false)
-  const [healthResult, setHealthResult] = useState<{
+  const [healthResult] = useState<{
     ok?: boolean;
     indexes?: Array<{ name: string }>;
     expectedIndex?: string;
@@ -119,9 +119,17 @@ export function ChatForm() {
     vectorCount?: number;
     dimension?: number;
   } | null>(null)
-  const [healthError, setHealthError] = useState<string | null>(null)
+  const [healthError] = useState<string | null>(null)
+  const [showIndexDialog, setShowIndexDialog] = useState(false)
+  const [showSearchIndexDialog, setShowSearchIndexDialog] = useState(false)
+  const [indexDefinition, setIndexDefinition] = useState<string>('')
+  const [collectionName, setCollectionName] = useState<string>('')
+  const [initialFacets, setInitialFacets] = useState<Array<{ metaKey: string; type?: string }>>([])
 
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId)
+
+  // Hole Default-Embeddings aus zentralem Schema
+  const defaultEmbeddings = getDefaultEmbeddings()
 
   const form = useForm<ChatFormValues>({
     resolver: zodResolver(chatFormSchema),
@@ -131,21 +139,14 @@ export function ChatForm() {
       maxChars: 500,
       maxCharsWarningMessage: t('settings.chatForm.maxCharsWarningDefault'),
       footerText: "",
-      companyLink: undefined,
-      vectorStore: { indexName: undefined },
+      companyLink: "",
+      embeddings: defaultEmbeddings, // Verwende Defaults aus zentralem Schema
       targetLanguage: TARGET_LANGUAGE_DEFAULT,
       character: CHARACTER_DEFAULT,
       socialContext: SOCIAL_CONTEXT_DEFAULT,
       gallery: { 
         detailViewType: 'book',
-        facets: [
-          { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
-          { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
-          { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
-          { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
-          { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
-          { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
-        ] 
+        facets: getDefaultFacets().slice(0, 6) // Nur die ersten 6 sichtbaren Facetten als Default
       },
     },
   })
@@ -224,11 +225,20 @@ export function ChatForm() {
         maxChars: typeof c.maxChars === 'number' ? c.maxChars : 500,
         maxCharsWarningMessage: typeof c.maxCharsWarningMessage === 'string' ? c.maxCharsWarningMessage : t('settings.chatForm.maxCharsWarningDefault'),
         footerText: typeof c.footerText === 'string' ? c.footerText : "",
-        companyLink: typeof c.companyLink === 'string' ? c.companyLink : undefined,
-        vectorStore: {
-          indexName: typeof (c.vectorStore as { indexName?: string })?.indexName === 'string'
-            ? (c.vectorStore as { indexName?: string })!.indexName
-            : undefined,
+        companyLink: typeof c.companyLink === 'string' ? c.companyLink : "",
+        embeddings: {
+          embeddingModel: typeof (c.embeddings as { embeddingModel?: string })?.embeddingModel === 'string'
+            ? (c.embeddings as { embeddingModel?: string })!.embeddingModel
+            : defaultEmbeddings.embeddingModel,
+          chunkSize: typeof (c.embeddings as { chunkSize?: number })?.chunkSize === 'number'
+            ? (c.embeddings as { chunkSize?: number })!.chunkSize
+            : defaultEmbeddings.chunkSize,
+          chunkOverlap: typeof (c.embeddings as { chunkOverlap?: number })?.chunkOverlap === 'number'
+            ? (c.embeddings as { chunkOverlap?: number })!.chunkOverlap
+            : defaultEmbeddings.chunkOverlap,
+          dimensions: typeof (c.embeddings as { dimensions?: number })?.dimensions === 'number'
+            ? (c.embeddings as { dimensions?: number })!.dimensions
+            : defaultEmbeddings.dimensions,
         },
         targetLanguage: finalTargetLanguage,
         character: finalCharacter,
@@ -239,23 +249,25 @@ export function ChatForm() {
             const raw = galleryConfig?.facets
             if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'object') return raw as Array<Record<string, unknown>>
             if (Array.isArray(raw)) {
-              return (raw as Array<unknown>).map(v => String(v)).filter(Boolean).map((k) => (
-                k === 'authors' ? { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true }
-                : k === 'year' ? { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true }
-                : { metaKey: k, label: k, type: 'string', multi: true, visible: true }
-              ))
+              // Legacy-Format: Array von Strings -> konvertiere zu Facetten-Objekten
+              const defaultFacetsMap = new Map(getDefaultFacets().map(f => [f.metaKey, f]))
+              return (raw as Array<unknown>).map(v => String(v)).filter(Boolean).map((k) => {
+                const defaultFacet = defaultFacetsMap.get(k)
+                return defaultFacet || { metaKey: k, label: k, type: 'string', multi: true, visible: true }
+              })
             }
-            return [
-              { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
-              { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
-              { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
-              { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
-              { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
-              { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
-            ]
+            // Fallback: Verwende zentrale Default-Facetten
+            return getDefaultFacets().slice(0, 6) // Nur die ersten 6 sichtbaren Facetten
           })(),
         },
       })
+      
+      // Speichere initiale Facetten für Vergleich
+      const facets = form.getValues('gallery.facets') || []
+      setInitialFacets(facets.map((f: { metaKey?: string; type?: string }) => ({
+        metaKey: f.metaKey || '',
+        type: f.type,
+      })))
       
       // Nach dem Reset nochmal prüfen
       const afterResetValue = form.getValues('gallery.detailViewType')
@@ -302,6 +314,39 @@ export function ChatForm() {
       setLibraries(updatedLibraries)
 
       toast({ title: t('settings.chatForm.saved'), description: `Library: ${activeLibrary.label}` })
+
+      // Prüfe ob Array-Facetten vorhanden sind oder geändert wurden
+      const newFacets = data.gallery?.facets || []
+      const hasArrayFacets = newFacets.some((f: { type?: string }) => f.type === 'string[]')
+      
+      // Vergleiche mit initialen Facetten
+      const arrayFacetsChanged = hasArrayFacets && (
+        initialFacets.length !== newFacets.length ||
+        newFacets.some((f: { metaKey?: string; type?: string }, idx: number) => {
+          const oldFacet = initialFacets[idx]
+          return !oldFacet || oldFacet.metaKey !== f.metaKey || oldFacet.type !== f.type
+        })
+      )
+
+      if (hasArrayFacets || arrayFacetsChanged) {
+        // Generiere Index-Definition
+        try {
+          // Konvertiere ClientLibrary zu Library für buildVectorSearchIndexDefinition
+          // (buildVectorSearchIndexDefinition benötigt Library, nicht ClientLibrary)
+          const libraryForIndex = {
+            ...activeLibrary,
+            transcription: (activeLibrary as unknown as Library).transcription || { provider: 'local' as const, enabled: false },
+          } as Library
+          const indexDef = buildVectorSearchIndexDefinitionForLibrary(libraryForIndex)
+          const collection = getCollectionNameForLibrary(libraryForIndex)
+          
+          setCollectionName(collection)
+          setIndexDefinition(JSON.stringify(indexDef, null, 2))
+          setShowIndexDialog(true)
+        } catch (error) {
+          console.error('Fehler beim Generieren der Index-Definition:', error)
+        }
+      }
     } catch (error) {
       console.error('Fehler beim Speichern der Chat-Einstellungen:', error)
       toast({
@@ -388,7 +433,7 @@ export function ChatForm() {
                 <FormItem>
                   <FormLabel>{t('settings.chatForm.footerLink')}</FormLabel>
                   <FormControl>
-                    <Input placeholder={t('settings.chatForm.footerLinkPlaceholder')} {...field} />
+                    <Input placeholder={t('settings.chatForm.footerLinkPlaceholder')} {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -396,22 +441,99 @@ export function ChatForm() {
             />
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="embeddings.embeddingModel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Embedding Modell</FormLabel>
+                  <FormControl>
+                    <Input placeholder="voyage-3-large" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormDescription>
+                    Embedding-Modell (z.B. voyage-3-large, text-embedding-3-large)
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="embeddings.dimensions"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Dimension</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder={String(defaultEmbeddings.dimensions)} 
+                      {...field} 
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        field.onChange(val ? parseInt(val, 10) : undefined)
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Embedding-Dimension ({defaultEmbeddings.dimensions} für voyage-3-large, 3072 für text-embedding-3-large)
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="embeddings.chunkSize"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Chunk Größe</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="1000" 
+                      {...field} 
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        field.onChange(val ? parseInt(val, 10) : undefined)
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Chunk-Größe in Zeichen (Standard: 1000)
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           <FormField
             control={form.control}
-            name="vectorStore.indexName"
+              name="embeddings.chunkOverlap"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('settings.chatForm.indexOverride')}</FormLabel>
+                  <FormLabel>Chunk Overlap</FormLabel>
                 <FormControl>
-                  <Input placeholder={t('settings.chatForm.indexOverridePlaceholder')} {...field} />
+                    <Input 
+                      type="number" 
+                      placeholder="200" 
+                      {...field} 
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        field.onChange(val ? parseInt(val, 10) : undefined)
+                      }}
+                    />
                 </FormControl>
                 <FormDescription>
-                  {t('settings.chatForm.indexOverrideDescription')}
+                    Chunk-Overlap in Zeichen (Standard: 200)
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+          </div>
         </div>
 
         <div className="grid gap-6">
@@ -570,93 +692,22 @@ export function ChatForm() {
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <Button type="button" variant="outline" onClick={async () => {
-            setIsChecking(true)
-            setHealthError(null)
-            setHealthResult(null)
-            try {
-              if (!activeLibrary) throw new Error(t('settings.chatForm.noLibrarySelected'))
-              
-              console.log('[ChatForm] Index-Status-Prüfung für:', {
-                libraryId: activeLibrary.id,
-                libraryLabel: activeLibrary.label
-              })
-              
-              // Prüfe Index-Status für diese spezifische Library
-              const url = `/api/chat/${encodeURIComponent(activeLibrary.id)}/index-status`
-              console.log('[ChatForm] Request URL:', url)
-              
-              const res = await fetch(url, { 
-                method: 'GET', 
-                cache: 'no-store' 
-              })
-              const data = await res.json()
-              
-              console.log('[ChatForm] Index-Status Response:', data)
-              
-              if (!res.ok) {
-                const message = typeof data?.error === 'string' ? data.error : `Fehlerstatus ${res.status}`
-                throw new Error(message)
-              }
-              
-              setHealthResult(data)
-              
-              // Benutzerfreundliche Toast-Nachricht
-              if (data.exists) {
-                toast({ 
-                  title: t('settings.chatForm.indexExists'), 
-                  description: t('settings.chatForm.indexExistsDescription', { indexName: data.indexName, vectorCount: data.vectorCount || 0 })
-                })
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => {
+              if (activeLibrary) {
+                setShowSearchIndexDialog(true)
               } else {
                 toast({ 
-                  title: t('settings.chatForm.indexMissing'), 
-                  description: t('settings.chatForm.indexMissingToast', { indexName: data.expectedIndexName }),
+                  title: t('settings.chatForm.error'),
+                  description: t('settings.chatForm.noLibrarySelected'),
                   variant: 'destructive'
                 })
               }
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : t('settings.chatForm.unknownError')
-              setHealthError(msg)
-              toast({ title: t('settings.chatForm.error'), description: msg, variant: 'destructive' })
-            } finally {
-              setIsChecking(false)
-            }
-          }}>
-            {isChecking ? t('settings.chatForm.checking') : t('settings.chatForm.checkIndexStatus')}
-          </Button>
-          <Button type="button" variant="outline" onClick={async () => {
-            try {
-              if (!activeLibrary) throw new Error(t('settings.chatForm.noLibrarySelected'))
-              const res = await fetch(`/api/chat/${encodeURIComponent(activeLibrary.id)}/index`, { method: 'POST' })
-              const data = await res.json()
-              if (!res.ok) {
-                // Detaillierte Fehlerinformationen anzeigen
-                const errorMsg = data?.message || data?.error || t('settings.chatForm.errorCreatingIndex')
-                const errorDetails = data?.details ? `\nDetails: ${JSON.stringify(data.details, null, 2)}` : ''
-                const errorCode = data?.code ? `\nCode: ${data.code}` : ''
-                throw new Error(`${errorMsg}${errorCode}${errorDetails}`)
-              }
-              toast({ title: data.status === 'exists' ? t('settings.chatForm.indexExists') : t('settings.chatForm.indexCreated'), description: typeof data?.index === 'object' ? JSON.stringify(data.index) : undefined })
-            } catch (e) {
-              const errorMessage = e instanceof Error ? e.message : t('settings.chatForm.unknownError')
-              console.error('[ChatForm] Fehler beim Anlegen des Index:', e)
-              toast({ title: t('settings.chatForm.error'), description: errorMessage, variant: 'destructive' })
-            }
-          }}>
-            {t('settings.chatForm.createIndex')}
-          </Button>
-          <Button type="button" variant="secondary" onClick={async () => {
-            try {
-              if (!activeLibrary) throw new Error(t('settings.chatForm.noLibrarySelected'))
-              const res = await fetch(`/api/chat/${encodeURIComponent(activeLibrary.id)}/ingest`, { method: 'POST' })
-              if (!res.ok) throw new Error(`${t('settings.chatForm.errorRebuildingIndex')} ${res.statusText}`)
-              const data = await res.json()
-              toast({ title: t('settings.chatForm.indexRebuildStarted'), description: `${t('settings.chatForm.jobId')} ${data.jobId}` })
-            } catch (e) {
-              toast({ title: t('settings.chatForm.error'), description: e instanceof Error ? e.message : t('settings.chatForm.unknownError'), variant: 'destructive' })
-            }
-          }}>
-            {t('settings.chatForm.rebuildIndex')}
+            }}
+          >
+            SearchIndex
           </Button>
           <Button 
             type="submit" 
@@ -678,7 +729,7 @@ export function ChatForm() {
         {(healthResult || healthError) && (
           <div className="rounded-md border bg-muted/30 p-3">
             <div className="text-xs text-muted-foreground mb-2">
-              {healthResult?.exists !== undefined ? t('settings.chatForm.indexStatus') : t('settings.chatForm.pineconeHealthCheck')}
+              {t('settings.chatForm.indexStatus')}
             </div>
             {healthError ? (
               <div className="text-sm text-destructive">{healthError}</div>
@@ -706,6 +757,23 @@ export function ChatForm() {
           </div>
         )}
       </form>
+
+      {/* Index Definition Dialog */}
+      <IndexDefinitionDialog
+        open={showIndexDialog}
+        onOpenChange={setShowIndexDialog}
+        collectionName={collectionName}
+        indexDefinition={indexDefinition}
+      />
+      
+      {/* SearchIndex Dialog */}
+      {activeLibrary && (
+        <SearchIndexDialog
+          open={showSearchIndexDialog}
+          onOpenChange={setShowSearchIndexDialog}
+          libraryId={activeLibrary.id}
+        />
+      )}
     </Form>
   )
 }

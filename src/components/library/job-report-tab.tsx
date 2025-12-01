@@ -418,7 +418,7 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
       }
     }
     void loadFrontmatter()
-  }, [provider, effectiveMdId, sourceMode, rawContent, shadowTwinState?.transformed?.metadata?.name])
+  }, [provider, effectiveMdId, sourceMode, rawContent, shadowTwinState?.transformed?.metadata?.name, job?.result?.savedItemId, mdFileId, shadowTwinState])
 
   if (sourceMode !== 'frontmatter') {
     if (loading) return <div className="p-4 text-sm text-muted-foreground">Lade Job…</div>
