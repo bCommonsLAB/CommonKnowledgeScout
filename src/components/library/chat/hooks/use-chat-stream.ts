@@ -111,6 +111,11 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
 
       setIsSending(true)
       setProcessingSteps([])
+      
+      // Dispatch Event: Neue Frage wurde gesendet (für Auto-Close des Quellenverzeichnisses)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('chat-question-sent'))
+      }
 
       // Für TOC-Queries: Nicht als normale Message hinzufügen
       const isTOC = isTOCQuery || questionText.trim() === TOC_QUESTION.trim()

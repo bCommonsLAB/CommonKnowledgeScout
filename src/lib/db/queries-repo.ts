@@ -194,14 +194,7 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
   }
   
   // Berechne cacheHash für schnelle Cache-Lookups
-  // Debug-Logging: Zeige Parameter für Hash-Berechnung beim Speichern
-  console.log('[insertQueryLog] Hash-Parameter (cacheParams):', JSON.stringify(cacheParams, null, 2))
-  
   const cacheHash = createCacheHash(cacheHashParams)
-  
-  // Debug-Logging: Zeige berechneten Hash beim Speichern
-  console.log('[insertQueryLog] Berechneter cacheHash:', cacheHash)
- 
   
   const payload: QueryLog = {
     queryId,
@@ -404,11 +397,7 @@ export async function findQueryByQuestionAndContext(args: {
     library: libraryContext.library, // Verwende Library-Objekt für DocumentCount-Berechnung
   })
   
-  // Debug-Logging: Zeige Parameter für Hash-Berechnung
-  console.log('[findQueryByQuestionAndContext] Hash-Parameter:', JSON.stringify(cacheHashParams, null, 2))
-  
   const cacheHash = createCacheHash(cacheHashParams)
-  
   
   // Cache-Suche: Nur nach cacheHash + libraryId (benutzerübergreifend)
   // userEmail und sessionId werden nicht mehr für Cache-Suche verwendet
@@ -422,55 +411,8 @@ export async function findQueryByQuestionAndContext(args: {
     ],
   }
   
-  // Debug-Logging: Zeige Filter und Hash
-  console.log('[findQueryByQuestionAndContext] Cache-Suche:', {
-    cacheHash,
-    libraryId: args.libraryId,
-    filter: JSON.stringify(filter, null, 2),
-  })
-  
   // Suche nach der neuesten passenden Query (sortiert nach createdAt)
   const cachedQuery = await col.findOne(filter, { sort: { createdAt: -1 } })
-  
-  // Debug-Logging: Zeige Ergebnis
-  if (cachedQuery) {
-    console.log('[findQueryByQuestionAndContext] Cache gefunden:', {
-      queryId: cachedQuery.queryId,
-      status: cachedQuery.status,
-      hasAnswer: !!cachedQuery.answer,
-      hasStoryTopicsData: !!cachedQuery.storyTopicsData,
-      createdAt: cachedQuery.createdAt,
-    })
-  } else {
-    console.log('[findQueryByQuestionAndContext] Kein Cache gefunden')
-    
-    // Zusätzliche Debug-Suche: Prüfe, ob Einträge mit cacheHash existieren (ohne andere Filter)
-    const countByHash = await col.countDocuments({ cacheHash, libraryId: args.libraryId })
-    console.log('[findQueryByQuestionAndContext] Einträge mit cacheHash + libraryId:', countByHash)
-    
-    if (countByHash > 0) {
-      // Prüfe Status der gefundenen Einträge
-      const statusCheck = await col.aggregate([
-        { $match: { cacheHash, libraryId: args.libraryId } },
-        { $group: { _id: '$status', count: { $sum: 1 } } }
-      ]).toArray()
-      console.log('[findQueryByQuestionAndContext] Status-Verteilung:', statusCheck)
-      
-      // Prüfe ob answer/storyTopicsData vorhanden sind
-      const hasAnswer = await col.countDocuments({ 
-        cacheHash, 
-        libraryId: args.libraryId,
-        answer: { $exists: true, $nin: [''] }
-      })
-      const hasStoryTopics = await col.countDocuments({ 
-        cacheHash, 
-        libraryId: args.libraryId,
-        storyTopicsData: { $exists: true, $ne: null as unknown as import('@/types/story-topics').StoryTopicsData }
-      })
-      console.log('[findQueryByQuestionAndContext] Einträge mit answer:', hasAnswer)
-      console.log('[findQueryByQuestionAndContext] Einträge mit storyTopicsData:', hasStoryTopics)
-    }
-  }
   
   return cachedQuery || null
 }

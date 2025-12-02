@@ -47,19 +47,7 @@ export function DetailOverlay({
   const { t, locale } = useTranslation()
   const { translateDocument, loading: translationLoading } = useDocumentTranslation()
   
-  // Debug: Logge viewType beim Rendern
-  React.useEffect(() => {
-    if (open) {
-      console.log('[DetailOverlay] 🔍 viewType beim Öffnen:', {
-        viewType,
-        fileId,
-        libraryId,
-        expected: 'session',
-        actual: viewType,
-        isCorrect: viewType === 'session',
-      })
-    }
-  }, [open, viewType, fileId, libraryId])
+  // viewType wird automatisch über Props verwaltet
   
   // State für Tab und Übersetzung
   const [activeTab, setActiveTab] = React.useState<'original' | 'translated'>('original')
@@ -94,20 +82,8 @@ export function DetailOverlay({
     const dataFileId = (data as { fileId?: string }).fileId || fileId
     const translationKey = `${dataFileId}-${targetLanguageCode}`
     
-    console.log('[DetailOverlay] 📥 handleDataLoaded aufgerufen:', {
-      viewType,
-      fileId,
-      dataFileId,
-      hasData: !!data,
-      targetLanguageCode,
-      dataLanguage: (data as { language?: string }).language,
-      translationKey,
-      alreadyStarted: translationStartedRef.current === translationKey,
-    })
-    
     // Verhindere mehrfache Aufrufe für dieselbe Übersetzung
     if (translationStartedRef.current === translationKey) {
-      console.log('[DetailOverlay] ⏭️ Übersetzung bereits gestartet, überspringe')
       return
     }
     
@@ -121,21 +97,9 @@ export function DetailOverlay({
       : 'EN'
     const langCode = lang.toUpperCase().slice(0, 2)
     
-    console.log('[DetailOverlay] 🔍 Originalsprache aus handleDataLoaded:', {
-      dataLanguage,
-      dataLanguageType: typeof dataLanguage,
-      lang,
-      langCode,
-    })
-    
     // Setze Originalsprache mit funktionalem Update, um Race Conditions zu vermeiden
     setOriginalLanguage((prevLang) => {
       if (prevLang !== langCode) {
-        console.log('[DetailOverlay] 🔄 Setze Originalsprache aus Daten:', {
-          old: prevLang,
-          new: langCode,
-          source: dataLanguage ? 'data.language' : 'Fallback',
-        })
         return langCode
       }
       return prevLang
@@ -145,12 +109,7 @@ export function DetailOverlay({
     // Übersetzung wird nur gestartet, wenn:
     // 1. Benutzer manuell auf "translated" Tab klickt, ODER
     // 2. Präferenz existiert und Dokument geöffnet wird (siehe useEffect)
-    console.log('[DetailOverlay] ✅ Original-Daten geladen, keine automatische Übersetzung:', {
-      originalLanguage: langCode,
-      targetLanguage: targetLanguageCode,
-      needsTranslation: langCode !== targetLanguageCode,
-    })
-  }, [fileId, viewType, targetLanguageCode])
+  }, [fileId, targetLanguageCode])
   
   // Aktualisiere Ref, damit IngestionSessionDetail immer die neueste Version hat
   React.useEffect(() => {
@@ -159,30 +118,14 @@ export function DetailOverlay({
   
   // Tab-Wechsel Handler
   const handleTabChange = React.useCallback((value: string) => {
-    console.log('[DetailOverlay] Tab-Wechsel:', {
-      to: value,
-      hasTranslatedData: !!translatedData,
-      hasOriginalData: !!originalData,
-      originalLanguage,
-      targetLanguageCode,
-    })
-    
     if (value === 'translated') {
       // Benutzer wechselt zu Übersetzung: Speichere Präferenz global
       if (typeof window !== 'undefined') {
         localStorage.setItem(PREFER_TRANSLATION_KEY, 'true')
-        console.log('[DetailOverlay] ✅ Präferenz gespeichert: Übersetzung bevorzugt (global)')
       }
       
       // Übersetzung laden, wenn noch nicht vorhanden
       if (!translatedData && originalData) {
-        console.log('[DetailOverlay] Lade Übersetzung beim Tab-Wechsel:', {
-          fileId,
-          viewType,
-          from: originalLanguage,
-          to: targetLanguageCode,
-        })
-        
         const translationKey = `${fileId}-${targetLanguageCode}`
         translationStartedRef.current = translationKey
         
@@ -191,10 +134,6 @@ export function DetailOverlay({
           fileId,
           viewType,
         }).then((result) => {
-          console.log('[DetailOverlay] Übersetzung beim Tab-Wechsel abgeschlossen:', {
-            success: !!result?.translatedData,
-            cached: result?.cached,
-          })
           if (result?.translatedData) {
             setTranslatedData(result.translatedData)
             setActiveTab('translated')
@@ -211,11 +150,10 @@ export function DetailOverlay({
       // Benutzer wechselt zu Original: Lösche Präferenz (Benutzer bevorzugt Original)
       if (typeof window !== 'undefined') {
         localStorage.removeItem(PREFER_TRANSLATION_KEY)
-        console.log('[DetailOverlay] ✅ Präferenz gelöscht: Original bevorzugt (global)')
       }
       setActiveTab('original')
     }
-  }, [translatedData, originalData, libraryId, fileId, viewType, translateDocument, originalLanguage, targetLanguageCode])
+  }, [translatedData, originalData, libraryId, fileId, viewType, translateDocument, targetLanguageCode])
   
   // Lade Originalsprache beim Öffnen der Overlay
   // Prüfe auch localStorage-Präferenz und setze entsprechenden Tab
@@ -234,108 +172,37 @@ export function DetailOverlay({
     const preferTranslation = typeof window !== 'undefined' 
       ? localStorage.getItem(PREFER_TRANSLATION_KEY) === 'true'
       : false
-    
-    console.log('[DetailOverlay] 🔍 Präferenz beim Öffnen:', {
-      preferTranslation,
-      willShowTranslation: preferTranslation,
-    })
 
     // Lade doc-meta, um Originalsprache zu ermitteln
     const loadLanguage = async () => {
       try {
-        console.log('[DetailOverlay] 🔍 Lade Originalsprache:', { libraryId, fileId, viewType })
         const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`
         const res = await fetch(url, { cache: 'no-store' })
         const json = await res.json()
         
-        console.log('[DetailOverlay] 📥 doc-meta Response:', {
-          ok: res.ok,
-          hasDocMetaJson: !!json.docMetaJson,
-          docMetaJsonType: typeof json.docMetaJson,
-          languageField: json.docMetaJson?.language,
-          languageType: typeof json.docMetaJson?.language,
-          docMetaJsonKeys: json.docMetaJson && typeof json.docMetaJson === 'object' 
-            ? Object.keys(json.docMetaJson).slice(0, 20) 
-            : [],
-        })
-        
         if (res.ok && json.docMetaJson) {
           const docMetaJson = json.docMetaJson as Record<string, unknown>
           
-          // Detaillierte Analyse der Sprache
+          // Bestimme Originalsprache
           const languageField = docMetaJson.language
-          console.log('[DetailOverlay] 🔎 Sprache-Analyse:', {
-            languageField,
-            languageFieldType: typeof languageField,
-            languageFieldValue: languageField,
-            isString: typeof languageField === 'string',
-            isEmpty: typeof languageField === 'string' && languageField.trim().length === 0,
-            isNull: languageField === null,
-            isUndefined: languageField === undefined,
-          })
-          
-          // Bestimme Originalsprache mit detailliertem Logging
-          let lang: string
-          let langSource: string
-          
-          if (typeof languageField === 'string' && languageField.trim().length > 0) {
-            lang = languageField.trim()
-            langSource = 'docMetaJson.language (explizit gesetzt)'
-          } else {
-            lang = 'EN'
-            langSource = 'Fallback (docMetaJson.language fehlt oder leer)'
-          }
-          
+          const lang = typeof languageField === 'string' && languageField.trim().length > 0
+            ? languageField.trim()
+            : 'EN'
           const langCode = lang.toUpperCase().slice(0, 2)
-          
-          console.log('[DetailOverlay] ✅ Originalsprache ermittelt:', {
-            raw: lang,
-            code: langCode,
-            source: langSource,
-            targetLanguageCode,
-            needsTranslation: langCode !== targetLanguageCode,
-            reason: langCode !== targetLanguageCode 
-              ? `Übersetzung nötig: ${langCode} → ${targetLanguageCode}`
-              : `Keine Übersetzung nötig: Originalsprache (${langCode}) = Zielsprache (${targetLanguageCode})`,
-          })
           
           setOriginalLanguage(langCode)
           
           // URL für Sessions speichern
           if (viewType === 'session' && typeof docMetaJson.url === 'string') {
-            console.log('[DetailOverlay] Session URL gefunden:', docMetaJson.url)
             setSessionUrl(docMetaJson.url)
           }
           
           // Wenn Präferenz existiert UND Übersetzung nötig ist: automatisch auf "translated" Tab wechseln
           if (preferTranslation && langCode !== targetLanguageCode) {
-            console.log('[DetailOverlay] 🌐 Präferenz aktiv: Automatische Übersetzung beim Öffnen:', {
-              preferTranslation,
-              originalLanguage: langCode,
-              targetLanguage: targetLanguageCode,
-            })
-            
-            // Setze Tab auf "translated" (Übersetzung wird in separatem useEffect gestartet, wenn originalData vorhanden ist)
             setActiveTab('translated')
-          } else {
-            console.log('[DetailOverlay] ⏭️ Keine automatische Übersetzung beim Öffnen:', {
-              preferTranslation,
-              originalLanguage: langCode,
-              targetLanguage: targetLanguageCode,
-              reason: !preferTranslation 
-                ? 'Keine Präferenz gesetzt'
-                : langCode === targetLanguageCode 
-                  ? 'Originalsprache = Zielsprache'
-                  : 'Unbekannt',
-            })
           }
         } else {
           // Fallback: "EN" wenn doc-meta nicht verfügbar ist
-          console.log('[DetailOverlay] ⚠️ doc-meta nicht verfügbar, verwende Fallback "EN":', {
-            ok: res.ok,
-            hasDocMetaJson: !!json.docMetaJson,
-            reason: !res.ok ? 'API-Fehler' : 'docMetaJson fehlt',
-          })
           setOriginalLanguage('EN')
         }
       } catch (err) {
@@ -377,17 +244,8 @@ export function DetailOverlay({
       
       // Verhindere mehrfache Aufrufe
       if (translationStartedRef.current === translationKey) {
-        console.log('[DetailOverlay] ⏭️ Übersetzung bereits gestartet (Präferenz), überspringe')
         return
       }
-      
-      console.log('[DetailOverlay] 🌐 Starte automatische Übersetzung (Präferenz):', {
-        fileId,
-        viewType,
-        from: originalLanguage,
-        to: targetLanguageCode,
-        preferTranslation,
-      })
       
       translationStartedRef.current = translationKey
       
@@ -396,10 +254,6 @@ export function DetailOverlay({
         fileId,
         viewType,
       }).then((result) => {
-        console.log('[DetailOverlay] ✅ Übersetzung abgeschlossen (Präferenz):', {
-          success: !!result?.translatedData,
-          cached: result?.cached,
-        })
         if (result?.translatedData) {
           setTranslatedData(result.translatedData)
         }
@@ -410,12 +264,7 @@ export function DetailOverlay({
     }
   }, [open, originalData, originalLanguage, targetLanguageCode, activeTab, translatedData, fileId, viewType, libraryId, translateDocument])
   
-  // Debug: Logge viewType
-  React.useEffect(() => {
-    if (open) {
-      console.log('[DetailOverlay] Rendering with viewType:', viewType, 'fileId:', fileId)
-    }
-  }, [open, viewType, fileId])
+  // viewType wird automatisch über Props verwaltet
   
   // Prüfe, ob Tabs angezeigt werden sollen (nur wenn Originalsprache != Zielsprache)
   const shouldShowTabs = originalLanguage !== targetLanguageCode

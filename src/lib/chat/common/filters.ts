@@ -109,10 +109,10 @@ export function buildVectorSearchFilter(
   filters?: Record<string, unknown>,
   fileIds?: string[]
 ): Record<string, unknown> {
-  // Basis-Filter: libraryId, user, kind
+  // Basis-Filter: libraryId, kind
+  // user-Filter entfernt: libraryId ist ausreichend für Filterung
   const baseFilter: Record<string, unknown> = {
     libraryId, // Direkter Vergleich statt $eq
-    user: userEmail || '', // Direkter Vergleich statt $eq
     kind, // Explizit nur Chunks oder Chapter-Summaries suchen
   }
   

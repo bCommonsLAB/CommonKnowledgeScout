@@ -339,13 +339,7 @@ export async function POST(
           
           documentCount = cacheHashParamsForLog.documentCount
           
-          // Debug-Logging: Zeige Parameter für Hash-Berechnung
-          console.log('[stream/route] Hash-Parameter:', JSON.stringify(cacheHashParamsForLog, null, 2))
-          
           cacheHashForLog = createCacheHash(cacheHashParamsForLog)
-          
-          // Debug-Logging: Zeige berechneten Hash
-          console.log('[stream/route] Berechneter cacheHash:', cacheHashForLog)
           
           // Sende Cache-Check-Step (Start) mit Debug-Informationen
           send({
@@ -386,14 +380,6 @@ export async function POST(
             
             // Wenn queryId noch nicht gesetzt wurde, setze sie für später
             queryId = finalQueryId
-            
-            // Debug-Logging: Prüfe, ob storyTopicsData vorhanden ist
-            console.log('[stream/route] Cache gefunden:', {
-              queryId: finalQueryId,
-              hasAnswer: !!cachedQuery.answer,
-              hasStoryTopicsData: !!cachedQuery.storyTopicsData,
-              storyTopicsDataKeys: cachedQuery.storyTopicsData ? Object.keys(cachedQuery.storyTopicsData) : [],
-            })
             
             // Sende Cache-Check-Complete-Step (gefunden) mit Debug-Informationen
             send({

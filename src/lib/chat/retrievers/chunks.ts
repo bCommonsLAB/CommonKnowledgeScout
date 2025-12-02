@@ -24,7 +24,7 @@
  */
 
 import type { ChatRetriever, RetrieverInput, RetrieverOutput, RetrievedSource } from '@/types/retriever'
-import { queryVectors, getVectorCollection, VECTOR_SEARCH_INDEX_NAME, convertShortTitleToFileIds } from '@/lib/repositories/vector-repo'
+import { queryVectors, convertShortTitleToFileIds } from '@/lib/repositories/vector-repo'
 import { getBaseBudget, getTokenBudget } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend } from '@/lib/logging/query-logger'
 import { extractFacetMetadata } from './metadata-extractor'
@@ -122,81 +122,25 @@ export const chunksRetriever: ChatRetriever = {
       fileIds
     )
 
+    // Collection bereits parallel zur Query vorbereiten (Performance-Optimierung)
+    // Wird für Nachbarn-Lookup benötigt, kann parallel zur Query vorbereitet werden
+    const collectionTask = (async () => {
+      const { getCollectionOnly } = await import('@/lib/repositories/vector-repo')
+      return await getCollectionOnly(libraryKey)
+    })()
+
     const chunkTask = (async () => {
       let s = markStepStart({ indexName: libraryKey, namespace: '', stage: 'query', level: 'chunk', filtersEffective: { normalized: filters }, queryVectorInfo: { source: 'question' } })
       
-      // Detailliertes Logging vor der Query
+      // Reduziertes Logging (Performance-Optimierung)
       FileLogger.info('chunks-retriever', 'Starte Chunk-Query', {
         libraryKey,
         libraryId: input.libraryId,
         topK: baseTopK,
         dimension,
-        filterKeys: Object.keys(baseFilter),
-        filter: JSON.stringify(baseFilter),
-        queryVectorLength: qVec.length,
-        question: input.question.substring(0, 100),
       })
       
-      // Prüfe Collection-Statistiken
       try {
-        const col = await getVectorCollection(libraryKey, dimension, ctx.library)
-        const totalDocs = await col.countDocuments({})
-        const chunkDocs = await col.countDocuments({ kind: 'chunk' })
-        const metaDocs = await col.countDocuments({ kind: 'meta' })
-        const chunkDocsWithFilter = await col.countDocuments({ 
-          kind: 'chunk',
-          libraryId: input.libraryId,
-          user: input.userEmail || '',
-        })
-        
-        const stats = {
-          libraryKey,
-          totalDocs,
-          chunkDocs,
-          metaDocs,
-          chunkDocsWithFilter,
-        }
-        
-        FileLogger.info('chunks-retriever', 'Collection-Statistiken', stats)
-        sendDebugStep(input.onProcessingStep, `Collection: ${totalDocs} total, ${chunkDocs} chunks, ${chunkDocsWithFilter} chunks mit Filter`, stats)
-      } catch (statsError) {
-        const errorMsg = statsError instanceof Error ? statsError.message : String(statsError)
-        FileLogger.warn('chunks-retriever', 'Fehler beim Abrufen der Collection-Statistiken', {
-          libraryKey,
-          error: errorMsg,
-        })
-        sendDebugStep(input.onProcessingStep, `Fehler bei Collection-Statistiken: ${errorMsg}`)
-      }
-      
-      try {
-        // Test: Prüfe ob Vector Search Index existiert durch Test-Query ohne Filter
-        let indexTestResult: { success: boolean; error?: string; results?: number } | undefined
-        try {
-          const col = await getVectorCollection(libraryKey, dimension, ctx.library)
-          // Test-Query mit minimalem Filter (nur kind) um Index zu testen
-          const testPipeline = [
-            {
-              $vectorSearch: {
-                index: VECTOR_SEARCH_INDEX_NAME,
-                path: 'embedding',
-                queryVector: qVec,
-                numCandidates: 10,
-                limit: 1,
-                filter: { kind: 'chunk' },
-              },
-            },
-          ]
-          const testResults = await col.aggregate(testPipeline).toArray()
-          indexTestResult = { success: true, results: testResults.length }
-          FileLogger.info('chunks-retriever', 'Vector Search Index Test erfolgreich', { results: testResults.length })
-          sendDebugStep(input.onProcessingStep, `✓ Vector Search Index Test: ${testResults.length} Ergebnis(e) ohne Filter`)
-        } catch (indexTestError) {
-          const errorMsg = indexTestError instanceof Error ? indexTestError.message : String(indexTestError)
-          indexTestResult = { success: false, error: errorMsg }
-          FileLogger.error('chunks-retriever', 'Vector Search Index Test fehlgeschlagen', { error: errorMsg })
-          sendDebugStep(input.onProcessingStep, `✗ Vector Search Index Test fehlgeschlagen: ${errorMsg}`)
-        }
-        
         const res = await queryVectors(
           libraryKey,
           qVec,
@@ -206,22 +150,16 @@ export const chunksRetriever: ChatRetriever = {
           ctx.library
         )
         
-        // Detailliertes Logging nach der Query
-        const queryResult = {
+        // Reduziertes Logging nach der Query (Performance-Optimierung)
+        FileLogger.info('chunks-retriever', 'Chunk-Query abgeschlossen', {
           libraryKey,
           topKRequested: baseTopK,
           topKReturned: res.length,
-          indexTest: indexTestResult,
-          results: res.length > 0 ? res.slice(0, 3).map(r => ({
-            id: r.id,
-            score: r.score,
-            kind: r.metadata.kind,
-            fileId: r.metadata.fileId,
-          })) : [],
-        }
-        
-        FileLogger.info('chunks-retriever', 'Chunk-Query abgeschlossen', queryResult)
-        sendDebugStep(input.onProcessingStep, `Query: ${res.length}/${baseTopK} Chunks gefunden (Budget: ${budget.toLocaleString()} Zeichen, answerLength: ${input.answerLength})`, queryResult)
+        })
+        sendDebugStep(input.onProcessingStep, `Query: ${res.length}/${baseTopK} Chunks gefunden`, {
+          topKRequested: baseTopK,
+          topKReturned: res.length,
+        })
         
         if (res.length === 0) {
           const noResultsInfo = {
@@ -231,7 +169,6 @@ export const chunksRetriever: ChatRetriever = {
             filter: JSON.stringify(baseFilter),
             dimension,
             queryVectorLength: qVec.length,
-            indexTest: indexTestResult,
             // Prüfe ob Query-Vektor gültig ist
             queryVectorSample: qVec.slice(0, 5),
             queryVectorHasNaN: qVec.some(v => Number.isNaN(v)),
@@ -262,10 +199,10 @@ export const chunksRetriever: ChatRetriever = {
         const summaryFilter = { ...baseFilter }
         let s = markStepStart({ indexName: libraryKey, namespace: '', stage: 'query', level: 'summary', filtersEffective: { normalized: filters }, queryVectorInfo: { source: 'question' } })
         
+        // Reduziertes Logging (Performance-Optimierung)
         FileLogger.info('chunks-retriever', 'Starte Chapter-Summary-Query', {
           libraryKey,
           topK: 10,
-          filter: JSON.stringify(summaryFilter),
         })
         
         const res = await queryVectors(
@@ -378,19 +315,19 @@ export const chunksRetriever: ChatRetriever = {
     }
     
     // Hole Nachbar-Vektoren aus MongoDB (falls benötigt)
+    // Collection wurde bereits parallel zur Query vorbereitet (Performance-Optimierung)
     const neighborIds = Array.from(idSet).filter(id => !idToMatch.has(id))
     let neighbors: typeof matches = []
     
     if (neighborIds.length > 0) {
-      // Reine Lese-Operation - kein Index-Setup benötigt
-      const { getCollectionOnly } = await import('@/lib/repositories/vector-repo')
-      const col = await getCollectionOnly(libraryKey)
+      // Collection wurde bereits parallel zur Query vorbereitet
+      const col = await collectionTask
       const neighborDocs = await col.find(
         {
           _id: { $in: neighborIds },
           kind: 'chunk',
           libraryId: input.libraryId,
-          user: input.userEmail || '',
+          // user-Filter entfernt: libraryId ist ausreichend für Filterung
         } as Partial<Document>,
         {
           projection: {

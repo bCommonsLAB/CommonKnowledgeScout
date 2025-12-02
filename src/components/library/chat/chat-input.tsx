@@ -124,7 +124,6 @@ export function ChatInput({
                     <Select 
                       value={answerLength} 
                       onValueChange={(v) => setAnswerLength(v as AnswerLength)}
-                      disabled={isSending}
                     >
                       <SelectTrigger className="h-8 w-[110px] text-xs border-border/50">
                         <SelectValue />
@@ -153,7 +152,6 @@ export function ChatInput({
                       }
                       if (e.key === 'Escape') setIsOpen(false)
                     }}
-                    disabled={isSending}
                     rows={3}
                     className="w-full min-h-[80px] rounded-md border border-input bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
                   />
@@ -163,7 +161,6 @@ export function ChatInput({
                         id="asTOC"
                         checked={asTOC}
                         onCheckedChange={(checked) => setAsTOC(checked === true)}
-                        disabled={isSending}
                       />
                       <label
                         htmlFor="asTOC"
@@ -205,7 +202,6 @@ export function ChatInput({
         <Select 
           value={answerLength} 
           onValueChange={(v) => setAnswerLength(v as AnswerLength)}
-          disabled={isSending}
         >
           <SelectTrigger className="h-8 w-[110px] text-xs border-border/50">
             <SelectValue />
@@ -233,7 +229,6 @@ export function ChatInput({
               onSend(asTOC)
             }
           }}
-          disabled={isSending}
           rows={3}
         />
         <div className="flex items-center justify-between">
@@ -242,7 +237,6 @@ export function ChatInput({
               id="asTOC-default"
               checked={asTOC}
               onCheckedChange={(checked) => setAsTOC(checked === true)}
-              disabled={isSending}
             />
             <label
               htmlFor="asTOC-default"

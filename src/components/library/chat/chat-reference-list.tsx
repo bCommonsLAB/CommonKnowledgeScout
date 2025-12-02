@@ -77,15 +77,6 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
         const loadedSources = queryLog.sources || []
         setSources(loadedSources)
         
-        // Debug: Prüfe ob Scores vorhanden sind
-        const sourcesWithScores = loadedSources.filter(s => typeof s.score === 'number')
-        if (loadedSources.length > 0) {
-          console.log('[ChatReferenceList] Sources geladen:', {
-            totalSources: loadedSources.length,
-            sourcesWithScores: sourcesWithScores.length,
-            sampleSource: loadedSources[0],
-          })
-        }
         
         setIsLoadingSources(false)
       } catch (error) {

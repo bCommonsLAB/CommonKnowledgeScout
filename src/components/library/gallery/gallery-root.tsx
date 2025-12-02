@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { useAtom, useAtomValue } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
@@ -59,6 +59,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     references?: ChatResponse['references']
     queryId?: string
   } | null>(null)
+  const prevQueryIdRef = React.useRef<string | undefined>(undefined)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -88,17 +89,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode()
   
-  // Debug: Logge mode und searchParams Änderungen
-  React.useEffect(() => {
-    console.log('[GalleryRoot] 🔄 Mode oder searchParams geändert:', {
-      mode,
-      docParam: searchParams?.get('doc'),
-      modeParam: searchParams?.get('mode'),
-      allSearchParams: searchParams?.toString(),
-      pathname,
-      timestamp: new Date().toISOString(),
-    })
-  }, [mode, searchParams, pathname])
+  // Mode und searchParams werden automatisch über React State verwaltet
   
   // Prüfe beim Wechsel zum Story-Modus, ob Perspektive gesetzt ist
   useEffect(() => {
@@ -145,53 +136,17 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   // WICHTIG: Ignoriere selectedDoc, wenn wir gerade zum Story-Mode wechseln
   const docSlug = searchParams?.get('doc')
   const selectedDoc = React.useMemo(() => {
-    console.log('[GalleryRoot] 🔍 selectedDoc Berechnung:', {
-      docSlug,
-      isSwitchingToStoryMode: isSwitchingToStoryModeRef.current,
-      libraryId,
-      loading,
-      docsLength: docs.length,
-      allSearchParams: searchParams?.toString(),
-      timestamp: new Date().toISOString(),
-    })
-    
     // Wenn wir gerade zum Story-Mode wechseln, ignoriere selectedDoc
     if (isSwitchingToStoryModeRef.current) {
-      console.log('[GalleryRoot] ⏭️ Ignoriere selectedDoc (Story-Mode-Wechsel aktiv)')
       return null
     }
     if (!docSlug || !libraryId || loading || docs.length === 0) {
-      console.log('[GalleryRoot] ⏭️ Kein selectedDoc (Bedingungen nicht erfüllt):', {
-        hasDocSlug: !!docSlug,
-        hasLibraryId: !!libraryId,
-        isLoading: loading,
-        hasDocs: docs.length > 0,
-      })
       return null
     }
-    const found = docs.find(doc => doc.slug === docSlug) || null
-    console.log('[GalleryRoot] ✅ selectedDoc gefunden:', {
-      found: !!found,
-      fileId: found?.fileId || found?.id,
-      slug: found?.slug,
-    })
-    return found
-  }, [docSlug, libraryId, loading, docs, searchParams])
+    return docs.find(doc => doc.slug === docSlug) || null
+  }, [docSlug, libraryId, loading, docs])
 
-  // Debug: Logge detailViewType wenn sich selectedDoc ändert
-  useEffect(() => {
-    if (selectedDoc) {
-      console.log('[GalleryRoot] DetailOverlay wird geöffnet:', {
-        fileId: selectedDoc.fileId || selectedDoc.id,
-        slug: docSlug,
-        detailViewType,
-        initialDetailViewType,
-        activeLibraryId: activeLibrary?.id,
-        galleryConfig: activeLibrary?.config?.chat?.gallery,
-        fullLibraryConfig: JSON.stringify(activeLibrary?.config?.chat, null, 2),
-      })
-    }
-  }, [selectedDoc, docSlug, detailViewType, initialDetailViewType, activeLibrary])
+  // selectedDoc wird automatisch über React State verwaltet
   const { facetDefs } = useGalleryFacets(libraryId, filters)
 
   // Lade sources aus QueryLog, falls queryId vorhanden ist
@@ -236,12 +191,23 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   }, [chatReferences?.queryId, libraryId, sessionHeaders])
 
   // Gruppiere Dokumente nach Referenzen, wenn chatReferences gesetzt ist
+  // WICHTIG: Verwende `docs` statt `filteredDocs`, damit alle Dokumente aus references angezeigt werden,
+  // auch wenn sie nicht den aktuellen Filtern entsprechen
+  // WICHTIG: Führe Gruppierung nur aus, wenn Dokumente geladen sind (nicht während loading)
   const { usedDocs, unusedDocs } = React.useMemo(() => {
     if (!chatReferences || !chatReferences.references || chatReferences.references.length === 0) {
       return { usedDocs: [], unusedDocs: [] }
     }
-    return groupDocsByReferences(filteredDocs, chatReferences.references, sources)
-  }, [filteredDocs, chatReferences, sources])
+    
+    // Wenn noch geladen wird oder keine Dokumente vorhanden sind, gib leere Arrays zurück
+    // Die Gruppierung wird automatisch neu ausgeführt, sobald Dokumente geladen sind
+    if (loading || docs.length === 0) {
+      return { usedDocs: [], unusedDocs: [] }
+    }
+    
+    const result = groupDocsByReferences(docs, chatReferences.references, sources)
+    return result
+  }, [docs, chatReferences, sources, loading])
   
   // Event handlers
   // Vereinfachte handleOpenDocument: Nutzt zentrale Utility-Funktion
@@ -261,29 +227,18 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   }
   
   const handleCloseDocument = () => {
-    console.log('[GalleryRoot] 🚪 handleCloseDocument aufgerufen:', {
-      currentDocSlug: searchParams?.get('doc'),
-      pathname,
-      allSearchParams: searchParams?.toString(),
-      isClosingAlready: isClosingRef.current,
-      timestamp: new Date().toISOString(),
-    })
-    
     // Verhindere doppelte Aufrufe
     if (isClosingRef.current) {
-      console.log('[GalleryRoot] ⏭️ handleCloseDocument übersprungen (bereits am Schließen)')
       return
     }
     isClosingRef.current = true
     
     // Verwende zentrale Utility-Funktion zum Entfernen des doc-Parameters
-    console.log('[GalleryRoot] 📞 Rufe closeDocument() auf')
     closeDocument(router, pathname, searchParams)
     
     // Reset closing flag nach kurzer Verzögerung
     setTimeout(() => {
       isClosingRef.current = false
-      console.log('[GalleryRoot] ✅ Closing flag zurückgesetzt')
     }, 100)
   }
   
@@ -371,6 +326,48 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       }
     }
   }, [mode, chatReferences, showReferencesSheet, referencesSheetMode])
+
+  // Auto-Close bei neuer Frage: Schließe Quellenverzeichnis wenn sich queryId ändert (neue Frage wurde beantwortet)
+  React.useEffect(() => {
+    const currentQueryId = chatReferences?.queryId
+    const prevQueryId = prevQueryIdRef.current
+    
+    // Wenn sich die queryId ändert (und nicht undefined wird), bedeutet das eine neue Frage wurde beantwortet
+    if (currentQueryId && prevQueryId && currentQueryId !== prevQueryId) {
+      // Schließe Sheet falls geöffnet
+      if (showReferencesSheet && referencesSheetMode === 'answer') {
+        setShowReferencesSheet(false)
+        setReferencesSheetMode(null)
+        setReferencesSheetData(null)
+      }
+    }
+    
+    // Aktualisiere prevQueryIdRef
+    prevQueryIdRef.current = currentQueryId
+  }, [chatReferences?.queryId, showReferencesSheet, referencesSheetMode])
+
+  // Auto-Close bei neuer Frage: Schließe Quellenverzeichnis wenn eine neue Frage gesendet wird (Event-basiert)
+  const setChatReferences = useSetAtom(chatReferencesAtom)
+  
+  React.useEffect(() => {
+    const handleNewQuestion = () => {
+      // Schließe Sheet falls geöffnet (Mobile)
+      if (showReferencesSheet && referencesSheetMode === 'answer') {
+        setShowReferencesSheet(false)
+        setReferencesSheetMode(null)
+        setReferencesSheetData(null)
+      }
+      
+      // Setze chatReferences zurück (Desktop)
+      // Dies schließt das Quellenverzeichnis auf Desktop, da es über chatReferences gerendert wird
+      setChatReferences({ references: [] })
+    }
+    
+    window.addEventListener('chat-question-sent', handleNewQuestion)
+    return () => {
+      window.removeEventListener('chat-question-sent', handleNewQuestion)
+    }
+  }, [showReferencesSheet, referencesSheetMode, setChatReferences])
 
   // Filter handlers
   const handleClearFilters = () => {
@@ -623,20 +620,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       />
 
       {/* Detail Overlay - reagiert nur auf URL-Parameter */}
-      {(() => {
-        const shouldRender = !!selectedDoc
-        console.log('[GalleryRoot] 🎨 DetailOverlay Render-Entscheidung:', {
-          shouldRender,
-          selectedDoc: selectedDoc ? {
-            fileId: selectedDoc.fileId || selectedDoc.id,
-            slug: selectedDoc.slug,
-          } : null,
-          docSlug,
-          isSwitchingToStoryMode: isSwitchingToStoryModeRef.current,
-          timestamp: new Date().toISOString(),
-        })
-        return shouldRender
-      })() && selectedDoc && (
+      {selectedDoc && (
         <DetailOverlay
           open={!!selectedDoc}
           onClose={handleCloseDocument}

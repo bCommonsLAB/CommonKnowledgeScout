@@ -700,24 +700,10 @@ export async function queryVectors(
     console.warn(`[vector-repo] ⚠️ Array-Felder in Filter verwendet, die Token-Indexe benötigen: ${arrayFieldsInFilter.join(', ')}. Stelle sicher, dass der Vector Search Index diese Felder als Token-Indexe definiert hat.`)
   }
   
-  // Debug-Logging für Filter
-  console.log(`[vector-repo] Vector Search Filter für ${libraryKey}:`, JSON.stringify(vectorSearchFilter, null, 2))
+  // Debug-Logging für Filter entfernt (Performance-Optimierung)
+  // Filter wird nur noch bei Fehlern geloggt
   
-  // Prüfe ob Index bereit ist (nicht im INITIAL_SYNC Status)
-  const indexStatus = await isVectorSearchIndexReady(libraryKey, dimension, library)
-  if (!indexStatus.ready) {
-    const errorMessage = indexStatus.status === 'INITIAL_SYNC'
-      ? `Vector Search Index ist noch nicht bereit (Status: ${indexStatus.status}). Der Index wird gerade indiziert. Bitte warten Sie einige Minuten und versuchen Sie es erneut.`
-      : `Vector Search Index ist nicht bereit (Status: ${indexStatus.status || 'unbekannt'}): ${indexStatus.message || 'Unbekannter Fehler'}`
-    
-    FileLogger.error('vector-repo', 'Vector Search Index nicht bereit', {
-      libraryKey,
-      status: indexStatus.status,
-      message: indexStatus.message,
-    })
-    
-    throw new Error(errorMessage)
-  }
+  // Index-Status-Check entfernt: Wird bereits in config.chat geprüft, daher nicht zur Laufzeit nötig
   
   // Vector Search Aggregation Pipeline
   const pipeline: Document[] = [
@@ -727,8 +713,8 @@ export async function queryVectors(
         path: 'embedding',
         queryVector: queryVector,
         numCandidates: topK > 100 
-          ? Math.min(topK * 20, 2000) // Für große Top-K: bis zu 2000 Kandidaten für bessere Recall
-          : Math.max(topK * 15, 100), // Für kleinere Top-K: mindestens 15x für bessere Recall
+          ? Math.min(topK * 10, 1000) // Optimiert: 10x Multiplikator, max 1000 Kandidaten
+          : Math.max(topK * 10, 100), // Konsistent 10x für alle Top-K Werte
         limit: topK,
         filter: vectorSearchFilter,
       },

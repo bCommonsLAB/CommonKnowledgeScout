@@ -44,15 +44,12 @@ export function ProcessingLogsDialog({
     setLoading(true)
     setError(null)
 
-    console.log('[ProcessingLogsDialog] Starte Laden der Logs', { queryId, libraryId })
 
     try {
       // Lade Query-Dokument aus dem API-Endpoint
       const url = `/api/chat/${encodeURIComponent(libraryId)}/queries/${encodeURIComponent(queryId)}`
-      console.log('[ProcessingLogsDialog] Fetch URL:', url)
       
       const res = await fetch(url, { cache: 'no-store' })
-      console.log('[ProcessingLogsDialog] Response Status:', res.status, res.statusText)
       
       if (!res.ok) {
         const errorText = await res.text()
@@ -61,14 +58,8 @@ export function ProcessingLogsDialog({
       }
       
       const queryData = await res.json()
-      console.log('[ProcessingLogsDialog] Query Data:', queryData)
-      console.log('[ProcessingLogsDialog] processingLogs vorhanden?', 'processingLogs' in queryData)
-      console.log('[ProcessingLogsDialog] processingLogs Typ:', typeof queryData.processingLogs)
-      console.log('[ProcessingLogsDialog] processingLogs ist Array?', Array.isArray(queryData.processingLogs))
-      console.log('[ProcessingLogsDialog] processingLogs Länge:', Array.isArray(queryData.processingLogs) ? queryData.processingLogs.length : 'N/A')
       
       if (Array.isArray(queryData.processingLogs) && queryData.processingLogs.length > 0) {
-        console.log('[ProcessingLogsDialog] Setze Steps:', queryData.processingLogs)
         setSteps(queryData.processingLogs)
       } else {
         console.warn('[ProcessingLogsDialog] Keine Logs gefunden oder leer:', queryData.processingLogs)
@@ -86,27 +77,15 @@ export function ProcessingLogsDialog({
 
   // Lade Logs automatisch, wenn Dialog geöffnet wird
   useEffect(() => {
-    console.log('[ProcessingLogsDialog] useEffect triggered', { open, queryId, libraryId })
     if (open && queryId && libraryId) {
-      console.log('[ProcessingLogsDialog] Öffne Dialog, lade Logs...')
       loadLogs()
     } else if (!open) {
       // Reset beim Schließen
-      console.log('[ProcessingLogsDialog] Dialog geschlossen, reset Steps')
       setSteps([])
       setError(null)
     }
   }, [open, queryId, libraryId, loadLogs])
 
-  // Debug: Logge Steps-State wenn er sich ändert
-  useEffect(() => {
-    console.log('[ProcessingLogsDialog] Steps-State geändert:', { 
-      stepsLength: steps.length, 
-      steps: steps,
-      loading,
-      error 
-    })
-  }, [steps, loading, error])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

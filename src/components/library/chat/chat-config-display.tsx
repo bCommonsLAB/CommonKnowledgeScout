@@ -83,11 +83,6 @@ export function ChatConfigDisplay({
     // Wenn filtersProp übergeben wird, verwende diese IMMER (auch wenn queryId vorhanden ist)
     // Dies ist wichtig für laufende Queries, bei denen die Filter noch nicht in QueryLog gespeichert sind
     if (filtersProp && Object.keys(filtersProp).length > 0) {
-      console.log('[ChatConfigDisplay] ✅ Verwende filtersProp (wird übergeben):', {
-        filtersProp,
-        queryId,
-        hasQueryId: !!queryId,
-      })
       setFilters(filtersProp)
       // Setze auch andere Props, falls vorhanden
       if (answerLength) setQueryAnswerLength(answerLength)
@@ -176,16 +171,6 @@ export function ChatConfigDisplay({
         if (!filtersProp || Object.keys(filtersProp).length === 0) {
           const facetsSelected = queryLog.cacheParams?.facetsSelected ?? queryLog.facetsSelected
           
-          console.log('[ChatConfigDisplay] 🔍 Filter aus QueryLog geladen:', {
-            queryId,
-            hasCacheParams: !!queryLog.cacheParams,
-            facetsSelectedFromCache: queryLog.cacheParams?.facetsSelected,
-            facetsSelectedFromRoot: queryLog.facetsSelected,
-            finalFacetsSelected: facetsSelected,
-            hasShortTitle: !!(facetsSelected?.shortTitle),
-            shortTitleValue: facetsSelected?.shortTitle,
-            filtersPropWasEmpty: !filtersProp || Object.keys(filtersProp).length === 0,
-          })
           
           if (!facetsSelected || Object.keys(facetsSelected).length === 0) {
             setFilters(null)
@@ -193,10 +178,6 @@ export function ChatConfigDisplay({
             setFilters(facetsSelected)
           }
         } else {
-          console.log('[ChatConfigDisplay] ⏭️ Überspringe Filter-Ladung aus QueryLog (filtersProp vorhanden):', {
-            queryId,
-            filtersProp,
-          })
           // filtersProp wurde bereits oben gesetzt, nichts zu tun
         }
         setIsLoadingParams(false)
@@ -286,15 +267,6 @@ export function ChatConfigDisplay({
   const hasAnswerLengthOrRetriever = !!(effectiveAnswerLength || effectiveRetriever)
   const hasFilters = !!(filters && Object.keys(filters).length > 0)
   
-  console.log('[ChatConfigDisplay] 🔍 Render-Prüfung:', {
-    hasPerspectiveParams,
-    hasAnswerLengthOrRetriever,
-    hasFilters,
-    filters,
-    filterKeys: filters ? Object.keys(filters) : [],
-    shouldRender: !!(hasPerspectiveParams || hasAnswerLengthOrRetriever || hasFilters),
-  })
-  
   if (!hasPerspectiveParams && !hasAnswerLengthOrRetriever && !hasFilters) {
     return null
   }
@@ -360,14 +332,6 @@ export function ChatConfigDisplay({
                 ? t('gallery.document')
                 : (def?.label || metaKey)
               const formattedValue = formatFilterValue(value)
-              
-              console.log('[ChatConfigDisplay] 🔍 Filter-Anzeige:', {
-                metaKey,
-                value,
-                formattedValue,
-                label,
-                isEmpty: !formattedValue || formattedValue.trim() === '',
-              })
               
               if (!formattedValue || formattedValue.trim() === '') {
                 return null

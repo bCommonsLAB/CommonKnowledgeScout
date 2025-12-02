@@ -189,6 +189,8 @@ export function groupDocsByReferences(
   // Extrahiere fileIds aus references
   const usedFileIds = new Set(references.map(ref => ref.fileId))
   
+  // Gruppiere Dokumente nach Referenzen
+  
   // Filtere Dokumente, die in references sind
   const usedDocs = docs.filter(doc => {
     const fileId = doc.fileId || doc.id
