@@ -234,7 +234,6 @@ export class IngestionService {
       // nicht nur __jsonClean (enthält nur Facetten-Felder).
       // Merge __jsonClean für Facetten-Validierung, aber behalte alle anderen Felder aus metaEffective.
       const jsonClean = ((metaEffective as Record<string, unknown>)['__jsonClean'] as Record<string, unknown>) || {}
-      const sanitized = ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || {}
       // Basis: metaEffective mit allen Frontmatter-Feldern
       // Merge: Facetten-validierte Werte aus __jsonClean haben Priorität
       const docMetaJsonObj = { ...metaEffective, ...jsonClean } as Record<string, unknown>
