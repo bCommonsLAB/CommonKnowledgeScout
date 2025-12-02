@@ -270,7 +270,7 @@ export default function ExplorePage() {
         libraryLoadedRef.current = null
       }
     }
-  }, [slug, t, userLoaded]) // Reduzierte Dependencies - checkAccess und loadLibraryIntoState sind stabil durch useCallback
+  }, [slug, t, userLoaded, checkAccess, loadLibraryIntoState]) // checkAccess und loadLibraryIntoState sind durch useCallback stabil
 
   async function requestAccess() {
     if (!library) return

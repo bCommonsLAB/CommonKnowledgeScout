@@ -178,6 +178,23 @@ export async function hasUserAccess(
 }
 
 /**
+ * Ruft alle ausstehenden Einladungen für eine E-Mail-Adresse ab
+ * 
+ * @param userEmail Benutzer-E-Mail
+ * @returns Array von ausstehenden Access Requests mit inviteToken
+ */
+export async function getPendingInvitesByEmail(
+  userEmail: string
+): Promise<LibraryAccessRequest[]> {
+  const col = await getAccessRequestsCollection();
+  return await col.find({
+    userEmail,
+    status: 'pending',
+    inviteToken: { $exists: true, $ne: null as unknown as string },
+  }).toArray();
+}
+
+/**
  * Aktualisiert den Invite-Token einer Zugriffsanfrage
  * 
  * @param id Request-ID

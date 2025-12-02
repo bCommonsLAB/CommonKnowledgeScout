@@ -36,6 +36,7 @@ import { LocaleGate } from '@/components/providers/locale-gate'
 import { AppLayout } from "@/components/layouts/app-layout"
 import { HomeLayout } from "@/components/layouts/home-layout"
 import { ConditionalFooter } from "@/components/home/conditional-footer"
+import { AutoAcceptInvites } from "@/components/auth/auto-accept-invites"
 import { headers, cookies } from 'next/headers'
 import { getLocale, type Locale } from '@/lib/i18n'
 
@@ -120,6 +121,7 @@ export default async function RootLayout({
             <JotaiLocaleProvider serverLocale={serverLocale}>
               <LocaleGate>
                 <StorageContextProvider>
+                  <AutoAcceptInvites />
                   <TooltipProvider>
                     <div className="relative min-h-screen flex flex-col">
                       <AppLayout>
