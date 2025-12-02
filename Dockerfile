@@ -76,7 +76,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_RUNTIME=runtime
 
 # pnpm installieren
-RUN corepack enable && corepack prepare pnpm@8.15.5 --activate
+RUN corepack enable && corepack prepare pnpm@9.15.3 --activate
 
 # Nur die notwendigen Dateien kopieren
 COPY --from=builder /app/package.json ./

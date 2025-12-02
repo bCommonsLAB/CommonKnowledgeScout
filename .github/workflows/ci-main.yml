@@ -1,4 +1,4 @@
-name: ci-master
+name: ci-main
 
 on:
   workflow_dispatch:
@@ -25,6 +25,14 @@ jobs:
           token: ${{ secrets.CI_PAT }}
 
       - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
 
       - name: read version file
         id: read_version
@@ -62,9 +70,6 @@ jobs:
             NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
             NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
             NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
-          secrets: |
-            "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}"
-            "CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}"
             
       - name: Push version and tag
         run: |
