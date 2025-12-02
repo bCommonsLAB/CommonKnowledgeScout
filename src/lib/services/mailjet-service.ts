@@ -18,11 +18,26 @@
 
 import Mailjet from 'node-mailjet';
 
-// Mailjet-Client initialisieren
-const mailjet = new Mailjet({
-  apiKey: process.env.MAILJET_API_KEY || '',
-  apiSecret: process.env.MAILJET_API_SECRET || '',
-});
+// Mailjet-Client lazy initialisieren (nur wenn benötigt)
+let mailjetInstance: Mailjet | null = null;
+
+function getMailjetClient(): Mailjet {
+  if (!mailjetInstance) {
+    const apiKey = process.env.MAILJET_API_KEY || '';
+    const apiSecret = process.env.MAILJET_API_SECRET || '';
+    
+    // Prüfe ob API-Keys vorhanden sind
+    if (!apiKey || !apiSecret) {
+      throw new Error('Mailjet API_KEY and API_SECRET are required');
+    }
+    
+    mailjetInstance = new Mailjet({
+      apiKey,
+      apiSecret,
+    });
+  }
+  return mailjetInstance;
+}
 
 /**
  * E-Mail-Service für Library Access Requests
@@ -39,6 +54,7 @@ export class MailjetService {
     try {
       const subject = `Ihre Zugriffsanfrage für "${libraryName}" wurde erhalten`;
       
+      const mailjet = getMailjetClient();
       await mailjet.post('send', { version: 'v3.1' }).request({
         Messages: [{
           From: {
@@ -79,6 +95,7 @@ export class MailjetService {
       
       const subject = `Neue Zugriffsanfrage für "${libraryName}"`;
       
+      const mailjet = getMailjetClient();
       await mailjet.post('send', { version: 'v3.1' }).request({
         Messages: [{
           From: {
@@ -129,6 +146,7 @@ export class MailjetService {
     try {
       const subject = `Sie wurden zu "${libraryName}" eingeladen`;
       
+      const mailjet = getMailjetClient();
       await mailjet.post('send', { version: 'v3.1' }).request({
         Messages: [{
           From: {
@@ -168,6 +186,7 @@ export class MailjetService {
       
       const subject = `Ihr Zugriff auf "${libraryName}" wurde genehmigt`;
       
+      const mailjet = getMailjetClient();
       await mailjet.post('send', { version: 'v3.1' }).request({
         Messages: [{
           From: {
@@ -203,6 +222,7 @@ export class MailjetService {
     try {
       const subject = `Ihre Zugriffsanfrage für "${libraryName}" wurde abgelehnt`;
       
+      const mailjet = getMailjetClient();
       await mailjet.post('send', { version: 'v3.1' }).request({
         Messages: [{
           From: {
