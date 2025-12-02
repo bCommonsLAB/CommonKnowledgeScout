@@ -32,7 +32,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
+          # Cache wird nicht benötigt, da der Build komplett im Docker-Container läuft
+          # Dependencies werden im Container installiert, nicht auf dem Runner
 
       - name: read version file
         id: read_version
