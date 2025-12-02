@@ -21,3 +21,6 @@ export const galleryDataAtom = atom<GalleryData>({
 
 
 
+
+
+

@@ -138,11 +138,35 @@ export async function analyzeShadowTwin(
       // 3a. Shadow-Twin-Verzeichnis gefunden - lade Inhalt
       const folderItems = await provider.listItemsById(shadowTwinFolder.id);
       
+      // Debug: Logge alle gefundenen Dateien im Shadow-Twin-Verzeichnis
+      FileLogger.debug('analyzeShadowTwin', 'Shadow-Twin-Verzeichnis-Inhalt geladen', {
+        fileId,
+        fileName: baseItem.metadata.name,
+        shadowTwinFolderId: shadowTwinFolder.id,
+        folderItemsCount: folderItems.length,
+        folderItems: folderItems.map(item => ({
+          type: item.type,
+          name: item.metadata.name,
+          id: item.id
+        }))
+      });
+      
       // Suche nach beiden Markdown-Varianten:
       // 1. Transformiertes File (mit Language-Suffix): document.de.md
       // 2. Transcript-File (ohne Language-Suffix): document.md
       const transformedName = generateShadowTwinName(baseName, targetLanguage, false);
       const transcriptName = generateShadowTwinName(baseName, targetLanguage, true);
+      
+      // Debug: Logge gesuchte Dateinamen
+      FileLogger.debug('analyzeShadowTwin', 'Suche Shadow-Twin-Dateien', {
+        fileId,
+        fileName: baseItem.metadata.name,
+        baseName,
+        targetLanguage,
+        transformedName,
+        transcriptName,
+        shadowTwinFolderId: shadowTwinFolder.id
+      });
       
       const transformedFile = folderItems.find(
         item => item.type === 'file' && 
@@ -153,6 +177,19 @@ export async function analyzeShadowTwin(
         item => item.type === 'file' && 
         item.metadata.name === transcriptName
       );
+      
+      // Debug: Logge gefundene Dateien und alle Markdown-Dateien im Verzeichnis
+      const allMarkdownFiles = folderItems.filter(item => isMarkdownFile(item));
+      FileLogger.debug('analyzeShadowTwin', 'Shadow-Twin-Dateien-Suche abgeschlossen', {
+        fileId,
+        fileName: baseItem.metadata.name,
+        transformedFileFound: !!transformedFile,
+        transcriptFileFound: !!transcriptFile,
+        transformedFileName: transformedFile?.metadata.name,
+        transcriptFileName: transcriptFile?.metadata.name,
+        allMarkdownFilesCount: allMarkdownFiles.length,
+        allMarkdownFileNames: allMarkdownFiles.map(f => f.metadata.name)
+      });
       
       // Prüfe transformiertes File (mit Language-Suffix)
       if (transformedFile) {
@@ -177,6 +214,40 @@ export async function analyzeShadowTwin(
           // Falls doch Frontmatter vorhanden: Als transformed behandeln (ungewöhnlich, aber möglich)
           if (!transformed) {
             transformed = transcriptFile;
+          }
+        }
+      }
+      
+      // FALLBACK: Wenn keine Dateien mit exaktem Namen gefunden wurden, aber Markdown-Dateien vorhanden sind,
+      // versuche alle Markdown-Dateien zu prüfen (kann passieren, wenn Sprache nicht übereinstimmt)
+      if (!transformed && !transcriptFiles && allMarkdownFiles.length > 0) {
+        FileLogger.debug('analyzeShadowTwin', 'Keine Dateien mit exaktem Namen gefunden, prüfe alle Markdown-Dateien', {
+          fileId,
+          fileName: baseItem.metadata.name,
+          expectedTransformedName: transformedName,
+          expectedTranscriptName: transcriptName,
+          foundMarkdownFiles: allMarkdownFiles.map(f => f.metadata.name)
+        });
+        
+        // Prüfe alle Markdown-Dateien: Suche nach Dateien mit Frontmatter (transformed) oder ohne (transcript)
+        for (const markdownFile of allMarkdownFiles) {
+          const hasFm = await hasFrontmatter(markdownFile, provider);
+          if (hasFm && !transformed) {
+            // Erste Datei mit Frontmatter = transformed
+            transformed = markdownFile;
+            FileLogger.debug('analyzeShadowTwin', 'Markdown-Datei mit Frontmatter gefunden (als transformed)', {
+              fileId,
+              fileName: baseItem.metadata.name,
+              foundFileName: markdownFile.metadata.name
+            });
+          } else if (!hasFm && !transformed) {
+            // Datei ohne Frontmatter = transcript (nur wenn noch kein transformed gefunden)
+            transcriptFiles = transcriptFiles ? [...transcriptFiles, markdownFile] : [markdownFile];
+            FileLogger.debug('analyzeShadowTwin', 'Markdown-Datei ohne Frontmatter gefunden (als transcript)', {
+              fileId,
+              fileName: baseItem.metadata.name,
+              foundFileName: markdownFile.metadata.name
+            });
           }
         }
       }

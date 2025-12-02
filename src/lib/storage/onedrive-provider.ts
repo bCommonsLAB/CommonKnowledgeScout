@@ -41,6 +41,7 @@ interface OneDriveFile {
 
 interface OneDriveItemResponse {
   value: OneDriveFile[];
+  '@odata.nextLink'?: string;
 }
 
 interface TokenResponse {
@@ -987,23 +988,51 @@ export class OneDriveProvider implements StorageProvider {
         url = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
       }
 
-      const response = await this.fetchWithRetry(url, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
+      // Sammle alle Items über alle Seiten hinweg
+      const allItems: StorageItem[] = [];
+      let nextLink: string | undefined = url;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new StorageError(
-          `Fehler beim Abrufen der Dateien: ${errorData.error?.message || response.statusText}`,
-          "API_ERROR",
-          this.id
-        );
+      while (nextLink) {
+        const response = await this.fetchWithRetry(nextLink, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new StorageError(
+            `Fehler beim Abrufen der Dateien: ${errorData.error?.message || response.statusText}`,
+            "API_ERROR",
+            this.id
+          );
+        }
+
+        const data = await response.json() as OneDriveItemResponse;
+        const items = data.value.map(file => this.mapOneDriveFileToStorageItem(file));
+        allItems.push(...items);
+
+        // Prüfe auf nächste Seite
+        nextLink = data['@odata.nextLink'];
+        
+        // Debug: Logge Pagination-Info
+        if (nextLink) {
+          FileLogger.debug('OneDriveProvider', 'Pagination: Lade nächste Seite', {
+            folderId,
+            currentPageItems: items.length,
+            totalItemsSoFar: allItems.length,
+            hasNextPage: true
+          });
+        }
       }
 
-      const data = await response.json() as OneDriveItemResponse;
-      return data.value.map(file => this.mapOneDriveFileToStorageItem(file));
+      FileLogger.debug('OneDriveProvider', 'listItemsById: Alle Seiten geladen', {
+        folderId,
+        totalItems: allItems.length,
+        pagesLoaded: nextLink === undefined ? 1 : 'multiple'
+      });
+
+      return allItems;
     } catch (error) {
       console.error('[OneDriveProvider] listItemsById Fehler:', error);
       if (error instanceof StorageError) {
