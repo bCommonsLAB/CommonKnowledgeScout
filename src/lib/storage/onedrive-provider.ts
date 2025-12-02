@@ -87,6 +87,28 @@ export class OneDriveProvider implements StorageProvider {
   private pendingListRequests: Map<string, Promise<StorageItem[]>> = new Map();
   // Rate-Limit: Cache für letzte Rate-Limit-Fehler
   private rateLimitInfo: { retryAfter: number; timestamp: number } | null = null;
+  // Rate-Limit: Globale Request-Queue für Microsoft Graph API (max 4 gleichzeitige Requests)
+  private requestQueue: Array<{ 
+    resolve: (value: Response) => void; 
+    reject: (error: unknown) => void; 
+    url: string; 
+    options: RequestInit;
+    maxRetries: number;
+    retryDelay: number;
+  }> = [];
+  private activeRequests = 0;
+  private queueProcessing = false; // Flag, um zu verhindern, dass processRequestQueue mehrfach parallel läuft
+  // Microsoft Graph API Limits:
+  // - 4 gleichzeitige Verbindungen pro Benutzerkonto (strikt)
+  // - 10.000 Requests pro 10 Minuten pro App-ID
+  // Wir verwenden ein globales Limit pro Provider-Instanz, das niedriger ist als das App-Limit
+  private readonly MAX_CONCURRENT_REQUESTS = 4; // Per User Limit (Microsoft Graph API)
+  private readonly MAX_CONCURRENT_REQUESTS_GLOBAL = 20; // Globales Limit pro Provider-Instanz (kann erhöht werden)
+  private readonly MIN_REQUEST_DELAY_MS = 100; // Mindestabstand zwischen Requests (100ms = max 10 Requests/Sekunde)
+  private lastRequestTime = 0;
+  // Telemetrie: Tracking für Rate-Limit-Events
+  private rateLimitEvents: Array<{ timestamp: number; endpoint: string; retryAfter: number; statusCode: number }> = [];
+  private readonly MAX_TELEMETRY_EVENTS = 100; // Max Anzahl gespeicherter Events
 
   constructor(library: ClientLibrary, baseUrl?: string) {
     this.library = library;
@@ -734,8 +756,268 @@ export class OneDriveProvider implements StorageProvider {
   }
 
   /**
+   * Verarbeitet die Request-Queue und führt Requests nacheinander aus.
+   * Respektiert Microsoft Graph API Limits: max 4 gleichzeitige Requests pro User.
+   * Verwendet globales Limit für bessere Lastverteilung.
+   */
+  private async processRequestQueue(): Promise<void> {
+    // Verhindere mehrfache parallele Ausführung
+    if (this.queueProcessing) {
+      return;
+    }
+
+    // Wenn bereits maximale Anzahl von Requests aktiv ist, warte
+    // Verwende das niedrigere Limit (per User Limit ist strikter)
+    const effectiveLimit = Math.min(this.MAX_CONCURRENT_REQUESTS, this.MAX_CONCURRENT_REQUESTS_GLOBAL);
+    if (this.activeRequests >= effectiveLimit) {
+      return;
+    }
+
+    // Wenn keine Requests in der Queue sind, beende
+    if (this.requestQueue.length === 0) {
+      return;
+    }
+
+    this.queueProcessing = true;
+
+    try {
+      // Wenn Rate-Limit aktiv ist, warte
+      if (this.rateLimitInfo) {
+        const waitTime = this.rateLimitInfo.retryAfter * 1000 - (Date.now() - this.rateLimitInfo.timestamp);
+        if (waitTime > 0) {
+          console.log(`[OneDriveProvider] Rate-Limit aktiv, warte ${Math.ceil(waitTime / 1000)} Sekunden...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          this.rateLimitInfo = null; // Reset nach Wartezeit
+        }
+      }
+
+      // Verarbeite so viele Requests wie möglich (bis MAX_CONCURRENT_REQUESTS erreicht ist)
+      while (this.requestQueue.length > 0 && this.activeRequests < this.MAX_CONCURRENT_REQUESTS) {
+        const request = this.requestQueue.shift();
+        if (!request) break;
+
+        this.activeRequests++;
+
+        // Führe Request asynchron aus (nicht await, damit mehrere parallel laufen können)
+        this.executeRequest(request.url, request.options, request.maxRetries, request.retryDelay)
+          .then(response => {
+            request.resolve(response);
+          })
+          .catch(error => {
+            request.reject(error);
+          })
+          .finally(() => {
+            this.activeRequests--;
+            // Verarbeite nächsten Request in der Queue
+            this.processRequestQueue().catch(err => {
+              console.error('[OneDriveProvider] Fehler beim Verarbeiten der Request-Queue:', err);
+            });
+          });
+
+        // Mindestabstand zwischen Requests einhalten (Rate-Limiting)
+        const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+        if (timeSinceLastRequest < this.MIN_REQUEST_DELAY_MS) {
+          await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_DELAY_MS - timeSinceLastRequest));
+        }
+        this.lastRequestTime = Date.now();
+      }
+    } finally {
+      this.queueProcessing = false;
+    }
+  }
+
+  /**
+   * Führt einen einzelnen Request aus mit Retry-Logik.
+   * Verbesserte 429/503 Behandlung mit detailliertem Logging und Telemetrie.
+   */
+  private async executeRequest(
+    url: string,
+    options: RequestInit,
+    maxRetries: number = 5, // Erhöht von 3 auf 5 für bessere Resilienz
+    retryDelay: number = 1000
+  ): Promise<Response> {
+    const endpoint = this.extractEndpoint(url);
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, options);
+        
+        // Rate-Limit-Fehler sauber erkennen (429 = Too Many Requests, 503 = Service Unavailable)
+        if (response.status === 429 || response.status === 503) {
+          // Versuche Retry-After aus Header zu lesen
+          const retryAfterHeader = response.headers.get('Retry-After');
+          let retryAfter = 60; // Default: 60 Sekunden
+          
+          // Prüfe Retry-After Header (kann Sekunden oder HTTP-Date sein)
+          if (retryAfterHeader) {
+            const parsed = parseInt(retryAfterHeader, 10);
+            if (!isNaN(parsed)) {
+              retryAfter = parsed;
+            } else {
+              // HTTP-Date Format - konvertiere zu Sekunden
+              const date = new Date(retryAfterHeader);
+              if (!isNaN(date.getTime())) {
+                retryAfter = Math.max(1, Math.ceil((date.getTime() - Date.now()) / 1000));
+              }
+            }
+          }
+          
+          // Versuche auch aus Error-Body zu lesen (Graph API gibt manchmal retryAfterSeconds)
+          try {
+            const errorData = await response.json().catch(() => ({}));
+            if (errorData.error?.retryAfterSeconds) {
+              retryAfter = errorData.error.retryAfterSeconds;
+            }
+          } catch {
+            // Ignore JSON parsing errors
+          }
+          
+          // Telemetrie: Speichere Rate-Limit-Event
+          this.recordRateLimitEvent(endpoint, retryAfter, response.status);
+          
+          // Speichere Rate-Limit-Info für zukünftige Requests
+          this.rateLimitInfo = {
+            retryAfter: retryAfter,
+            timestamp: Date.now()
+          };
+          
+          if (attempt < maxRetries) {
+            // Exponential Backoff zusätzlich zum Retry-After
+            // Warte Retry-After + exponentielles Backoff
+            const exponentialBackoff = retryDelay * Math.pow(2, attempt);
+            const totalWaitTime = (retryAfter * 1000) + exponentialBackoff;
+            
+            FileLogger.warn('OneDriveProvider', 'Rate-Limit erreicht - warte vor Retry', {
+              endpoint,
+              statusCode: response.status,
+              retryAfterSeconds: retryAfter,
+              exponentialBackoffMs: exponentialBackoff,
+              totalWaitTimeMs: totalWaitTime,
+              attempt: attempt + 1,
+              maxRetries: maxRetries + 1,
+              activeRequests: this.activeRequests,
+              queueLength: this.requestQueue.length
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, totalWaitTime));
+            continue; // Retry
+          } else {
+            // Max Retries erreicht
+            const errorText = await response.text().catch(() => '');
+            FileLogger.error('OneDriveProvider', 'Rate-Limit: Max Retries erreicht', {
+              endpoint,
+              statusCode: response.status,
+              retryAfterSeconds: retryAfter,
+              attempts: maxRetries + 1,
+              errorText: errorText.substring(0, 200) // Nur ersten 200 Zeichen loggen
+            });
+            
+            throw new StorageError(
+              `Rate-Limit erreicht nach ${maxRetries + 1} Versuchen (${response.status}): ${errorText.substring(0, 100) || response.statusText}`,
+              'RATE_LIMIT_ERROR',
+              this.id
+            );
+          }
+        }
+        
+        // Erfolgreiche Response - logge bei Bedarf
+        if (attempt > 0) {
+          FileLogger.info('OneDriveProvider', 'Request erfolgreich nach Retry', {
+            endpoint,
+            attempts: attempt + 1,
+            statusCode: response.status
+          });
+        }
+        
+        // Andere Fehler direkt zurückgeben
+        return response;
+      } catch (error) {
+        // Rate-Limit-Fehler bereits behandelt - weiterwerfen
+        if (error instanceof StorageError && error.code === 'RATE_LIMIT_ERROR') {
+          throw error;
+        }
+        
+        // Netzwerkfehler oder andere Fehler
+        if (attempt < maxRetries) {
+          // Exponential Backoff für andere Fehler
+          const delay = retryDelay * Math.pow(2, attempt);
+          FileLogger.warn('OneDriveProvider', 'Request fehlgeschlagen - Retry mit Exponential Backoff', {
+            endpoint,
+            attempt: attempt + 1,
+            maxRetries: maxRetries + 1,
+            delayMs: delay,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        } else {
+          // Max Retries erreicht
+          FileLogger.error('OneDriveProvider', 'Request fehlgeschlagen - Max Retries erreicht', {
+            endpoint,
+            attempts: maxRetries + 1,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          throw error;
+        }
+      }
+    }
+    
+    throw new Error('Unerwarteter Fehler in executeRequest');
+  }
+
+  /**
+   * Extrahiert den Endpoint aus einer Graph API URL für Telemetrie.
+   */
+  private extractEndpoint(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      // Extrahiere Pfad nach /v1.0/ oder /beta/
+      const match = urlObj.pathname.match(/\/(v1\.0|beta)\/(.+)$/);
+      return match ? match[2] : urlObj.pathname;
+    } catch {
+      return url.substring(0, 100); // Fallback: erste 100 Zeichen
+    }
+  }
+
+  /**
+   * Speichert Rate-Limit-Events für Telemetrie.
+   */
+  private recordRateLimitEvent(endpoint: string, retryAfter: number, statusCode: number): void {
+    this.rateLimitEvents.push({
+      timestamp: Date.now(),
+      endpoint,
+      retryAfter,
+      statusCode
+    });
+    
+    // Begrenze Anzahl gespeicherter Events
+    if (this.rateLimitEvents.length > this.MAX_TELEMETRY_EVENTS) {
+      this.rateLimitEvents.shift();
+    }
+  }
+
+  /**
+   * Gibt Telemetrie-Daten für Rate-Limit-Events zurück (für Monitoring).
+   */
+  public getRateLimitTelemetry(): {
+    events: Array<{ timestamp: number; endpoint: string; retryAfter: number; statusCode: number }>;
+    activeRequests: number;
+    queueLength: number;
+    rateLimitActive: boolean;
+  } {
+    return {
+      events: [...this.rateLimitEvents],
+      activeRequests: this.activeRequests,
+      queueLength: this.requestQueue.length,
+      rateLimitActive: this.rateLimitInfo !== null && 
+        (this.rateLimitInfo.retryAfter * 1000 - (Date.now() - this.rateLimitInfo.timestamp)) > 0
+    };
+  }
+
+  /**
    * Führt einen Fetch mit Retry-Logik und Rate-Limit-Behandlung durch.
-   * Erkennt Rate-Limit-Fehler und wartet entsprechend, bevor ein Retry durchgeführt wird.
+   * Alle Requests werden über eine Queue geleitet, um Microsoft Graph API Limits zu respektieren.
    */
   private async fetchWithRetry(
     url: string, 
@@ -753,58 +1035,15 @@ export class OneDriveProvider implements StorageProvider {
       }
     }
 
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const response = await fetch(url, options);
-        
-        // Rate-Limit-Fehler erkennen (429 oder spezielle OneDrive-Fehler)
-        if (response.status === 429 || response.status === 503) {
-          const errorData = await response.json().catch(() => ({}));
-          const retryAfter = errorData.error?.retryAfterSeconds || 
-                            parseInt(response.headers.get('Retry-After') || '60', 10);
-          
-          // Speichere Rate-Limit-Info für zukünftige Requests
-          this.rateLimitInfo = {
-            retryAfter: retryAfter,
-            timestamp: Date.now()
-          };
-          
-          if (attempt < maxRetries) {
-            const waitTime = retryAfter * 1000;
-            console.warn(`[OneDriveProvider] Rate-Limit erreicht, warte ${retryAfter} Sekunden (Versuch ${attempt + 1}/${maxRetries + 1})...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-            continue; // Retry
-          } else {
-            // Max Retries erreicht
-            const errorText = await response.text().catch(() => '');
-            throw new StorageError(
-              `Rate-Limit erreicht nach ${maxRetries + 1} Versuchen: ${errorText || response.statusText}`,
-              'RATE_LIMIT_ERROR',
-              this.id
-            );
-          }
-        }
-        
-        // Andere Fehler direkt zurückgeben
-        return response;
-      } catch (error) {
-        if (attempt < maxRetries && error instanceof StorageError && error.code === 'RATE_LIMIT_ERROR') {
-          throw error; // Rate-Limit-Fehler bereits behandelt
-        }
-        
-        if (attempt < maxRetries) {
-          // Exponential Backoff für andere Fehler
-          const delay = retryDelay * Math.pow(2, attempt);
-          console.warn(`[OneDriveProvider] Request fehlgeschlagen, retry in ${delay}ms (Versuch ${attempt + 1}/${maxRetries + 1})...`, error);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        } else {
-          throw error;
-        }
-      }
-    }
-    
-    throw new Error('Unerwarteter Fehler in fetchWithRetry');
+    // Füge Request zur Queue hinzu
+    return new Promise<Response>((resolve, reject) => {
+      this.requestQueue.push({ resolve, reject, url, options, maxRetries, retryDelay });
+      // Starte Queue-Verarbeitung, falls nicht bereits aktiv
+      this.processRequestQueue().catch(err => {
+        console.error('[OneDriveProvider] Fehler beim Verarbeiten der Request-Queue:', err);
+        reject(err);
+      });
+    });
   }
 
   private async refreshAccessToken(): Promise<void> {
@@ -980,12 +1219,14 @@ export class OneDriveProvider implements StorageProvider {
       const accessToken = await this.ensureAccessToken();
       await this.ensureBaseFolderResolved();
       
-      // URL für den API-Aufruf
-      let url = 'https://graph.microsoft.com/v1.0/me/drive/root/children';
+      // URL für den API-Aufruf mit $select für optimierte Payload-Größe
+      // Nur benötigte Felder abrufen: id, name, size, lastModifiedDateTime, file, folder, parentReference
+      const selectFields = 'id,name,size,lastModifiedDateTime,file,folder,parentReference';
+      let url = `https://graph.microsoft.com/v1.0/me/drive/root/children?$select=${selectFields}`;
       if (folderId === 'root' && this.baseFolderId && this.baseFolderId !== 'root') {
-        url = `https://graph.microsoft.com/v1.0/me/drive/items/${this.baseFolderId}/children`;
+        url = `https://graph.microsoft.com/v1.0/me/drive/items/${this.baseFolderId}/children?$select=${selectFields}`;
       } else if (folderId && folderId !== 'root') {
-        url = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
+        url = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children?$select=${selectFields}`;
       }
 
       // Sammle alle Items über alle Seiten hinweg
@@ -1059,12 +1300,13 @@ export class OneDriveProvider implements StorageProvider {
 
       const accessToken = await this.ensureAccessToken();
       
-      // URL für den API-Aufruf
-      let url = 'https://graph.microsoft.com/v1.0/me/drive/root';
+      // URL für den API-Aufruf mit $select für optimierte Payload-Größe
+      const selectFields = 'id,name,size,lastModifiedDateTime,file,folder,parentReference';
+      let url = `https://graph.microsoft.com/v1.0/me/drive/root?$select=${selectFields}`;
       if (itemId && itemId !== 'root') {
         // URL-Encoding für itemId (falls es Sonderzeichen enthält)
         const encodedItemId = encodeURIComponent(itemId);
-        url = `https://graph.microsoft.com/v1.0/me/drive/items/${encodedItemId}`;
+        url = `https://graph.microsoft.com/v1.0/me/drive/items/${encodedItemId}?$select=${selectFields}`;
       }
 
       console.log('[OneDriveProvider] getItemById:', { itemId, url: url.replace(accessToken, '[TOKEN]') });
@@ -1708,8 +1950,10 @@ export class OneDriveProvider implements StorageProvider {
         return '/';
       }
 
-      // Item-Informationen abrufen
-      const response = await this.fetchWithRetry(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}`, {
+      // Item-Informationen abrufen mit $select für optimierte Payload-Größe
+      // Nur benötigte Felder: name und parentReference für Pfad-Aufbau
+      const selectFields = 'name,parentReference';
+      const response = await this.fetchWithRetry(`https://graph.microsoft.com/v1.0/me/drive/items/${itemId}?$select=${selectFields}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
