@@ -2,8 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { LibraryService } from '@/lib/services/library-service';
 
 /**
+ * Next.js Route Segment Config für Caching
+ * Cache die Antwort für 60 Sekunden (revalidate)
+ * Dies reduziert die Datenbanklast erheblich für öffentliche Libraries
+ */
+export const revalidate = 60; // Cache für 60 Sekunden
+
+/**
  * GET /api/public/libraries/[slug]
  * Liefert Library-Details nach Slug (ohne Authentifizierung)
+ * 
+ * PERFORMANCE: Diese Route wird gecacht (60 Sekunden), um häufige Requests zu vermeiden
  */
 export async function GET(
   request: NextRequest,

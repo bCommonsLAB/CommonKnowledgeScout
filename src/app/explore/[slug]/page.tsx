@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { useSetAtom } from 'jotai'
 import { useUser, SignInButton } from "@clerk/nextjs"
@@ -77,6 +77,7 @@ export default function ExplorePage() {
     status?: 'pending' | 'approved' | 'rejected'
     requiresAuth?: boolean
     message?: string
+    rateLimited?: boolean
   } | null>(null)
   const [requestingAccess, setRequestingAccess] = useState(false)
   
@@ -138,13 +139,41 @@ export default function ExplorePage() {
     setActiveLibraryId(loadedLibrary.id)
   }, [setLibraries, setActiveLibraryId])
 
-  const checkAccess = useCallback(async (libraryId: string) => {
+  // Rate Limiting auf Client-Seite: Verhindere zu häufige Aufrufe
+  const lastAccessCheckRef = React.useRef<{ libraryId: string; timestamp: number } | null>(null)
+  const ACCESS_CHECK_COOLDOWN_MS = 5000 // 5 Sekunden Cooldown zwischen Aufrufen
+
+  const checkAccess = useCallback(async (libraryId: string, libraryToLoad?: PublicLibrary) => {
+    // Prüfe Cooldown
+    const now = Date.now()
+    const lastCheck = lastAccessCheckRef.current
+    if (lastCheck && lastCheck.libraryId === libraryId && (now - lastCheck.timestamp) < ACCESS_CHECK_COOLDOWN_MS) {
+      console.log('[ExplorePage] Access-Check übersprungen (Cooldown)')
+      return
+    }
+
     try {
-      console.log('[ExplorePage] Prüfe Zugriff für Library:', libraryId)
-      const response = await fetch(`/api/libraries/${libraryId}/access-check`)
+      lastAccessCheckRef.current = { libraryId, timestamp: now }
+      
+      const response = await fetch(`/api/libraries/${libraryId}/access-check`, {
+        cache: 'no-store', // Kein Browser-Cache, da wir Server-Cache haben
+      })
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+        
+        // Rate Limit Error behandeln
+        if (response.status === 429) {
+          console.warn('[ExplorePage] Rate Limit erreicht, warte...')
+          setAccessStatus({
+            hasAccess: false,
+            requiresAuth: true,
+            message: errorData.message || 'Zu viele Anfragen. Bitte warten Sie einen Moment.',
+            rateLimited: true,
+          })
+          return
+        }
+        
         console.error('[ExplorePage] Access-Check Fehler:', response.status, errorData)
         setAccessStatus({
           hasAccess: false,
@@ -155,14 +184,11 @@ export default function ExplorePage() {
       }
 
       const data = await response.json()
-      console.log('[ExplorePage] Access-Check Ergebnis:', data)
       setAccessStatus(data)
 
-      if (data.hasAccess) {
+      if (data.hasAccess && libraryToLoad) {
         // Zugriff vorhanden - Library laden
-        if (library) {
-          loadLibraryIntoState(library)
-        }
+        loadLibraryIntoState(libraryToLoad)
       }
     } catch (err) {
       console.error('[ExplorePage] Fehler beim Prüfen des Zugriffs:', err)
@@ -172,7 +198,10 @@ export default function ExplorePage() {
         message: 'Fehler beim Prüfen des Zugriffs',
       })
     }
-  }, [library, loadLibraryIntoState])
+  }, [loadLibraryIntoState])
+
+  // Ref um zu verhindern, dass die Library mehrfach geladen wird
+  const libraryLoadedRef = React.useRef<string | null>(null)
 
   useEffect(() => {
     async function loadLibrary() {
@@ -182,9 +211,21 @@ export default function ExplorePage() {
         return
       }
 
+      // Verhindere mehrfaches Laden derselben Library
+      if (libraryLoadedRef.current === slug) {
+        return
+      }
+
+      libraryLoadedRef.current = slug
+      setLoading(true)
+      setError(null)
+
       try {
-        const response = await fetch(`/api/public/libraries/${slug}`)
+        const response = await fetch(`/api/public/libraries/${slug}`, {
+          cache: 'force-cache', // Cache für 5 Minuten (Browser-Cache)
+        })
         if (!response.ok) {
+          libraryLoadedRef.current = null // Reset bei Fehler
           if (response.status === 404) {
             setError(t('explore.libraryNotFound'))
           } else if (response.status === 403) {
@@ -203,12 +244,13 @@ export default function ExplorePage() {
         
         // Prüfe Zugriff wenn requiresAuth aktiv ist
         if (loadedLibrary.requiresAuth) {
-          await checkAccess(loadedLibrary.id)
+          await checkAccess(loadedLibrary.id, loadedLibrary)
         } else {
           // Keine Zugriffsprüfung nötig - Library direkt laden
           loadLibraryIntoState(loadedLibrary)
         }
       } catch (err) {
+        libraryLoadedRef.current = null // Reset bei Fehler
         console.error("Fehler beim Laden der Library:", err)
         setError(t('explore.errorLoadingLibrary'))
       } finally {
@@ -216,8 +258,19 @@ export default function ExplorePage() {
       }
     }
 
-    loadLibrary()
-  }, [slug, t, setLibraries, setActiveLibraryId, userLoaded, checkAccess, loadLibraryIntoState])
+    // Nur laden wenn userLoaded true ist (oder wenn kein Auth benötigt wird)
+    // Warte nicht auf userLoaded, wenn die Library keine Auth benötigt
+    if (userLoaded !== false) {
+      loadLibrary()
+    }
+
+    // Reset Ref wenn slug sich ändert
+    return () => {
+      if (libraryLoadedRef.current !== slug) {
+        libraryLoadedRef.current = null
+      }
+    }
+  }, [slug, t, userLoaded]) // Reduzierte Dependencies - checkAccess und loadLibraryIntoState sind stabil durch useCallback
 
   async function requestAccess() {
     if (!library) return
