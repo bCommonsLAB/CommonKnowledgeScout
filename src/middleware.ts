@@ -39,7 +39,10 @@ const isPublicRoute = createRouteMatcher([
   '/explore(.*)',
   '/api/public(.*)',
   '/api/markdown(.*)',
-  '/info(.*)'
+  '/info(.*)',
+  '/sign-in(.*)', // Clerk Sign-In Route
+  '/sign-up(.*)', // Clerk Sign-Up Route
+  '/invite(.*)' // Invite-Accept Route
 ]);
 
 // Public routes Log (nur in Development)
@@ -128,6 +131,16 @@ export default clerkMiddleware(async (auth, req) => {
       (req.method === 'GET' && isChatApiPath) || 
       (req.method === 'POST' && (isChatStreamPath || isTranslateDocumentPath))
     ) {
+      isPublic = true;
+    }
+  }
+
+  // Dynamische Ausnahme: GET-Requests zu /api/libraries/[id]/access-check für anonyme Benutzer erlauben
+  // Die API-Route prüft selbst, ob der Benutzer Zugriff hat
+  if (!isPublic) {
+    const path = req.nextUrl.pathname;
+    const isAccessCheckPath = /^\/api\/libraries\/[^/]+\/access-check$/.test(path);
+    if (req.method === 'GET' && isAccessCheckPath) {
       isPublic = true;
     }
   }

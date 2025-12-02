@@ -65,6 +65,7 @@ const publicFormSchema = z.object({
   icon: z.string().optional(),
   apiKey: z.string().optional(),
   isPublic: z.boolean().default(false),
+  requiresAuth: z.boolean().default(false),
   // Hintergrundbild-URL für die Homepage
   backgroundImageUrl: z.union([
     z.string().url("Bitte geben Sie eine gültige URL ein."),
@@ -120,6 +121,7 @@ export function PublicForm() {
         icon: "",
         apiKey: "",
         isPublic: false,
+        requiresAuth: false,
         backgroundImageUrl: "",
         galleryHeadline: "Entdecke, was Menschen auf der SFSCon gesagt haben",
         gallerySubtitle: "Befrage das kollektive Wissen",
@@ -138,6 +140,7 @@ export function PublicForm() {
       icon: activeLibrary.config?.publicPublishing?.icon || "",
       apiKey: isMasked ? apiKeyValue : "",
       isPublic: activeLibrary.config?.publicPublishing?.isPublic === true || false,
+      requiresAuth: activeLibrary.config?.publicPublishing?.requiresAuth === true || false,
       backgroundImageUrl: activeLibrary.config?.publicPublishing?.backgroundImageUrl || "",
       // Gallery-Texte: Verwende gespeicherte Werte oder Defaults
       galleryHeadline: activeLibrary.config?.publicPublishing?.gallery?.headline || "Entdecke, was Menschen auf der SFSCon gesagt haben",
@@ -227,6 +230,7 @@ export function PublicForm() {
         icon: data.icon || undefined,
         apiKey: apiKeyToSave,
         isPublic: data.isPublic,
+        requiresAuth: data.requiresAuth,
         backgroundImageUrl: data.backgroundImageUrl || undefined,
         // Gallery-Texte werden nicht mehr gespeichert, da sie jetzt aus den Übersetzungen kommen
       };
@@ -319,6 +323,27 @@ export function PublicForm() {
 
         {form.watch("isPublic") && (
           <>
+            <FormField
+              control={form.control}
+              name="requiresAuth"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Zugriff nur für freigegebene Benutzer</FormLabel>
+                    <FormDescription>
+                      Benutzer müssen angemeldet sein und eine Freigabe erhalten (oder per Einladung eingeladen werden).
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="slugName"

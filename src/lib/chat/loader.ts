@@ -28,6 +28,8 @@ import { Library } from '@/types/library'
 import { LibraryService, type UserLibraries } from '@/lib/services/library-service'
 import { normalizeChatConfig } from '@/lib/chat/config'
 import { computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
+import { hasUserAccess } from '@/lib/repositories/library-access-repo'
+import { isModeratorOrOwner } from '@/lib/repositories/library-members-repo'
 
 export interface LibraryChatContext {
   library: Library
@@ -290,17 +292,31 @@ export async function loadLibraryChatContext(
   
   if (!library) {
     // Versuche auch öffentliche Library zu laden (zuerst über ID, dann über Slug)
-    const byId = await loadPublicLibraryById(libraryId)
+    const byId = await loadPublicLibraryById(libraryId, userEmail)
     if (byId) {
       setCachedContext(userEmail, libraryId, byId)
       return byId
     }
-    const bySlug = await loadPublicLibraryBySlug(libraryId)
+    const bySlug = await loadPublicLibraryBySlug(libraryId, userEmail)
     if (bySlug) {
       setCachedContext(userEmail, libraryId, bySlug)
       return bySlug
     }
     return null
+  }
+
+  // Prüfe Zugriff für requiresAuth Libraries
+  if (library.config?.publicPublishing?.requiresAuth === true) {
+    // Prüfe ob Benutzer Owner ist (bereits geprüft durch getUserLibraries)
+    // oder Moderator/Owner über Members-Collection
+    const isOwnerOrModerator = await isModeratorOrOwner(libraryId, userEmail)
+    if (!isOwnerOrModerator) {
+      // Prüfe ob Benutzer approved Access Request hat
+      const hasAccess = await hasUserAccess(libraryId, userEmail)
+      if (!hasAccess) {
+        return null // Kein Zugriff
+      }
+    }
   }
 
   const context = await createLibraryChatContext(library, userEmail)
@@ -311,9 +327,11 @@ export async function loadLibraryChatContext(
 /**
  * Lädt eine öffentliche Bibliothek direkt über ihre ID
  * Führt automatische Migration durch, wenn collectionName oder indexName fehlen.
+ * Prüft Zugriff für requiresAuth Libraries.
  */
 export async function loadPublicLibraryById(
-  libraryId: string
+  libraryId: string,
+  userEmail?: string
 ): Promise<LibraryChatContext | null> {
   const libService = LibraryService.getInstance()
   const library = await libService.getPublicLibraryById(libraryId)
@@ -327,15 +345,33 @@ export async function loadPublicLibraryById(
     return null
   }
 
-  return await createLibraryChatContext(library)
+  // Prüfe ob requiresAuth aktiv ist - wenn ja, Zugriff prüfen
+  if (library.config?.publicPublishing?.requiresAuth === true) {
+    if (!userEmail) {
+      return null // Kein Zugriff ohne Authentifizierung
+    }
+    
+    // Prüfe ob Benutzer Owner/Moderator ist oder approved Access Request hat
+    const isOwnerOrModerator = await isModeratorOrOwner(library.id, userEmail)
+    if (!isOwnerOrModerator) {
+      const hasAccess = await hasUserAccess(library.id, userEmail)
+      if (!hasAccess) {
+        return null // Kein Zugriff
+      }
+    }
+  }
+
+  return await createLibraryChatContext(library, userEmail)
 }
 
 /**
  * Lädt eine öffentliche Bibliothek nach Slug-Name
  * Führt automatische Migration durch, wenn collectionName oder indexName fehlen.
+ * Prüft Zugriff für requiresAuth Libraries.
  */
 export async function loadPublicLibraryBySlug(
-  slugName: string
+  slugName: string,
+  userEmail?: string
 ): Promise<LibraryChatContext | null> {
   const libService = LibraryService.getInstance()
   const library = await libService.getPublicLibraryBySlug(slugName)
@@ -349,7 +385,23 @@ export async function loadPublicLibraryBySlug(
     return null
   }
 
-  return await createLibraryChatContext(library)
+  // Prüfe ob requiresAuth aktiv ist - wenn ja, Zugriff prüfen
+  if (library.config?.publicPublishing?.requiresAuth === true) {
+    if (!userEmail) {
+      return null // Kein Zugriff ohne Authentifizierung
+    }
+    
+    // Prüfe ob Benutzer Owner/Moderator ist oder approved Access Request hat
+    const isOwnerOrModerator = await isModeratorOrOwner(library.id, userEmail)
+    if (!isOwnerOrModerator) {
+      const hasAccess = await hasUserAccess(library.id, userEmail)
+      if (!hasAccess) {
+        return null // Kein Zugriff
+      }
+    }
+  }
+
+  return await createLibraryChatContext(library, userEmail)
 }
 
 

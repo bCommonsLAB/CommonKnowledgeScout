@@ -34,7 +34,7 @@ export async function PUT(
 
     // Request Body parsen
     const body = await request.json().catch(() => ({}));
-    const { slugName, publicName, description, icon, apiKey, isPublic, backgroundImageUrl, gallery } = body;
+    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, backgroundImageUrl, gallery } = body;
 
     // Validierung
     if (isPublic === true) {
@@ -65,6 +65,14 @@ export async function PUT(
           { status: 400 }
         );
       }
+    }
+
+    // Validierung: requiresAuth kann nur aktiviert werden wenn isPublic true ist
+    if (requiresAuth === true && isPublic !== true) {
+      return NextResponse.json(
+        { error: 'requiresAuth kann nur aktiviert werden, wenn die Library öffentlich ist' },
+        { status: 400 }
+      );
     }
 
     const libraryService = LibraryService.getInstance();
@@ -113,6 +121,7 @@ export async function PUT(
             ? apiKey 
             : library.config?.publicPublishing?.apiKey,
           isPublic: isPublic !== undefined ? isPublic : false,
+          requiresAuth: requiresAuth !== undefined ? requiresAuth : (library.config?.publicPublishing?.requiresAuth || false),
           // Hintergrundbild-URL: Wenn gesetzt, verwende neuen Wert, sonst behalte alten oder undefined
           backgroundImageUrl: backgroundImageUrl !== undefined 
             ? (backgroundImageUrl === '' ? undefined : backgroundImageUrl)
@@ -133,7 +142,9 @@ export async function PUT(
       hasConfig: !!updatedLibrary.config,
       configKeys: updatedLibrary.config ? Object.keys(updatedLibrary.config) : [],
       hasPublicPublishing: !!updatedLibrary.config?.publicPublishing,
-      publicPublishing: updatedLibrary.config?.publicPublishing
+      publicPublishing: updatedLibrary.config?.publicPublishing,
+      requiresAuth: updatedLibrary.config?.publicPublishing?.requiresAuth,
+      requiresAuthFromBody: requiresAuth,
     });
 
     // Library speichern

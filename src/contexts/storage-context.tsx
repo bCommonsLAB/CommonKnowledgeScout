@@ -37,6 +37,7 @@ import { StorageFactory } from '@/lib/storage/storage-factory';
 import { ClientLibrary } from "@/types/library";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
 import { useAuth, useUser } from '@clerk/nextjs';
+import { useUserRole } from '@/hooks/use-user-role';
 import { StorageProvider, StorageItem, StorageError } from '@/lib/storage/types';
 import { AuthLogger } from '@/lib/debug/logger';
 import { isSupportedLibraryType } from '@/lib/storage/supported-types';
@@ -120,6 +121,7 @@ function useSafeUser() {
 export const StorageContextProvider = ({ children }: { children: React.ReactNode }) => {
   const { isLoaded: isAuthLoaded, isSignedIn } = useSafeAuth();
   const { user, isLoaded: isUserLoaded } = useSafeUser();
+  const { isCreator } = useUserRole();
   const pathname = usePathname();
 
   // Auth-Debug-Logging entfernt (zu viele Logs bei jedem Auth-Status-Update)
@@ -322,18 +324,26 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
           factory.setUserEmail(userEmail);
           
           // Prüfe, ob der Benutzer keine unterstützten Bibliotheken hat und noch nicht zur Settings-Seite weitergeleitet wurde
+          // WICHTIG: Nur Creators (MiSpace) werden zu /settings weitergeleitet
+          // Gäste (WeSpace) bleiben auf der aktuellen Seite oder werden zur Homepage weitergeleitet
           if (supportedLibraries.length === 0 && !hasRedirectedToSettings && typeof window !== 'undefined') {
             const currentPath = window.location.pathname;
             // Nur weiterleiten, wenn wir nicht bereits auf der Settings-Seite sind
             if (!currentPath.startsWith('/settings')) {
-              AuthLogger.info('StorageContext', 'New user without libraries - redirecting to settings');
               setHasRedirectedToSettings(true);
               
-              // Sanfte Weiterleitung mit kurzer Verzögerung
-              setTimeout(() => {
-                window.location.href = '/settings?newUser=true';
-              }, 500);
-              return;
+              // Nur Creators zu /settings weiterleiten
+              if (isCreator) {
+                AuthLogger.info('StorageContext', 'Creator without libraries - redirecting to settings');
+                setTimeout(() => {
+                  window.location.href = '/settings?newUser=true';
+                }, 500);
+                return;
+              } else {
+                // Gäste bleiben auf der aktuellen Seite (z.B. Homepage oder eingeladene Library)
+                AuthLogger.info('StorageContext', 'Guest user without libraries - staying on current page');
+                // Keine Weiterleitung für Gäste
+              }
             }
           }
           

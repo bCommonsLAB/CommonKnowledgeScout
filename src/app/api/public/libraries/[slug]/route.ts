@@ -44,6 +44,7 @@ export async function GET(
       slugName: library.config?.publicPublishing?.slugName,
       description: library.config?.publicPublishing?.description,
       icon: library.config?.publicPublishing?.icon,
+      requiresAuth: library.config?.publicPublishing?.requiresAuth === true,
       // Chat-Config ist bereits öffentlich sicher (keine Secrets)
       chat: library.config?.chat,
     };

@@ -284,6 +284,7 @@ export class LibraryService {
           description: lib.config.publicPublishing.description,
           icon: lib.config.publicPublishing.icon,
           isPublic: lib.config.publicPublishing.isPublic,
+          requiresAuth: lib.config.publicPublishing.requiresAuth,
           backgroundImageUrl: lib.config.publicPublishing.backgroundImageUrl,
           // Gallery-Texte übertragen
           gallery: lib.config.publicPublishing.gallery,
@@ -432,6 +433,7 @@ export class LibraryService {
    */
   async getPublicLibraryById(libraryId: string): Promise<Library | null> {
     try {
+      console.log('[LibraryService] getPublicLibraryById aufgerufen mit ID:', libraryId);
       const collection = await getCollection<UserLibraries>(this.collectionName);
       
       // Stelle sicher, dass Indizes vorhanden sind
@@ -456,11 +458,13 @@ export class LibraryService {
         }
       ];
       
+      console.log('[LibraryService] Führe MongoDB-Aggregation aus...');
       const results = await collection.aggregate<Library>(pipeline).toArray();
+      console.log('[LibraryService] Aggregation-Ergebnis:', results.length, 'Library(s) gefunden');
       
       return results.length > 0 ? results[0] : null;
     } catch (error) {
-      console.error('Fehler beim Abrufen der öffentlichen Bibliothek nach ID:', error);
+      console.error('[LibraryService] Fehler beim Abrufen der öffentlichen Bibliothek nach ID:', error);
       throw error;
     }
   }

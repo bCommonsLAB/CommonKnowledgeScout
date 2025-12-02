@@ -5,8 +5,13 @@ import { LibraryService } from '@/lib/services/library-service';
  * Next.js Route Segment Config für Caching
  * Cache die Antwort für 60 Sekunden (revalidate)
  * Dies reduziert die Datenbanklast erheblich für öffentliche Libraries
+ * 
+ * HINWEIS: Bei Änderungen an requiresAuth kann der Cache verhindern, dass
+ * Änderungen sofort sichtbar werden. In diesem Fall Seite neu laden oder
+ * Cache manuell invalidieren.
  */
-export const revalidate = 60; // Cache für 60 Sekunden
+// Temporär auf 0 gesetzt für Debugging - später wieder auf 60 setzen
+export const revalidate = 0; // Cache für 0 Sekunden (temporär für Debugging)
 
 /**
  * GET /api/public/libraries
@@ -30,6 +35,7 @@ export async function GET() {
       description: lib.config?.publicPublishing?.description,
       icon: lib.config?.publicPublishing?.icon,
       backgroundImageUrl: lib.config?.publicPublishing?.backgroundImageUrl,
+      requiresAuth: lib.config?.publicPublishing?.requiresAuth === true,
       // Vollständige Chat-Config zurückgeben (inkl. detailViewType und alle anderen Settings)
       chat: lib.config?.chat,
     }));

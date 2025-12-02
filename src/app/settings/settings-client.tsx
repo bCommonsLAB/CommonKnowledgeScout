@@ -8,11 +8,15 @@ import { LibraryForm } from "@/components/settings/library-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, BookOpen, Cloud, FolderOpen } from "lucide-react"
+import { useUserRole } from "@/hooks/use-user-role"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Info } from "lucide-react"
 
 export function SettingsClient() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const libraries = useAtomValue(librariesAtom)
+  const { isCreator } = useUserRole()
   const [isNewUser, setIsNewUser] = useState(false)
   const [createNewLibrary, setCreateNewLibrary] = useState(false)
   
@@ -23,6 +27,14 @@ export function SettingsClient() {
     
     setIsNewUser(hasNewUserParam || hasNoLibraries)
   }, [searchParams, libraries.length])
+  
+  // Wenn Gast (WeSpace), leite zur Homepage weiter
+  useEffect(() => {
+    if (!isCreator && typeof window !== 'undefined') {
+      // Gäste sollten nicht auf /settings sein - leite zur Homepage weiter
+      router.replace('/')
+    }
+  }, [isCreator, router])
 
   // URL bereinigen, wenn Bibliotheken vorhanden sind und newUser-Parameter gesetzt ist
   useEffect(() => {
@@ -34,6 +46,21 @@ export function SettingsClient() {
     }
   }, [libraries.length, searchParams, router])
 
+  // Wenn Gast (WeSpace), zeige Hinweis, dass keine Libraries erstellt werden können
+  if (!isCreator) {
+    return (
+      <div className="space-y-6">
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Gast-Modus</AlertTitle>
+          <AlertDescription>
+            Als Gast (WeSpace) können Sie keine eigenen Bibliotheken erstellen. Sie haben Zugriff auf Bibliotheken, zu denen Sie eingeladen wurden.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+  
   // Wenn es ein neuer Benutzer ist, zeige eine spezielle Willkommensansicht
   if (isNewUser && !createNewLibrary) {
     return (

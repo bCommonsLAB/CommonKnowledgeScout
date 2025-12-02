@@ -180,6 +180,8 @@ export interface StorageConfig {
     apiKey?: string;
     /** Flag für öffentliche Verfügbarkeit */
     isPublic: boolean;
+    /** Zugriff nur nach Freigabe/Einladung erforderlich */
+    requiresAuth?: boolean;
     /** URL für Hintergrundbild auf der Homepage */
     backgroundImageUrl?: string;
     /** Gallery-spezifische Texte für die öffentliche Ansicht */
@@ -287,6 +289,8 @@ export interface ClientLibrary {
       description: string;
       icon?: string;
       isPublic: boolean;
+      /** Zugriff nur nach Freigabe/Einladung erforderlich */
+      requiresAuth?: boolean;
       /** URL für Hintergrundbild auf der Homepage */
       backgroundImageUrl?: string;
       /** Maskierter API-Key (erste 6 und letzte 4 Zeichen sichtbar, z.B. "sk-proj....................abcd") */

@@ -23,6 +23,14 @@ const librarySidebarItems = [
     title: "Veröffentlichen",
     href: "/settings/public",
   },
+  {
+    title: "Zugriffsanfragen",
+    href: "/settings/public/access-requests",
+  },
+  {
+    title: "Moderatoren",
+    href: "/settings/public/members",
+  },
   // Weitere bibliotheksbezogene Einstellungen können hier hinzugefügt werden
 ]
 
@@ -64,7 +72,7 @@ export default function Layout({ children }: LayoutProps) {
               <aside className="-mx-4 lg:w-1/5">
                 <SidebarNav items={librarySidebarItems} />
               </aside>
-              <div className="flex-1 lg:max-w-2xl">{children}</div>
+              <div className="flex-1 min-w-0">{children}</div>
             </div>
           </div>
         </div>

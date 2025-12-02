@@ -18,6 +18,7 @@ interface PublicLibrary {
   description: string
   icon?: string
   backgroundImageUrl?: string
+  requiresAuth?: boolean
   detailViewType?: 'book' | 'session'
   // Vollständige Chat-Config (optional, für zukünftige Nutzung)
   chat?: {
@@ -210,13 +211,26 @@ export function LibraryGrid() {
                     )}
                     
                     <CardHeader className={`relative z-10 ${library.backgroundImageUrl ? 'text-white' : ''}`}>
-                      <div
-                        className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg ${colorConfig.bgColor}`}
-                      >
-                        <Icon className={`h-6 w-6 ${colorConfig.color}`} />
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div
+                            className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg ${colorConfig.bgColor}`}
+                          >
+                            <Icon className={`h-6 w-6 ${colorConfig.color}`} />
+                          </div>
+                          <CardTitle className={`text-xl ${library.backgroundImageUrl ? 'text-white' : ''}`}>{library.label}</CardTitle>
+                          <CardDescription className={`text-base leading-relaxed ${library.backgroundImageUrl ? 'text-white/90' : ''}`}>{library.description}</CardDescription>
+                        </div>
+                        {library.requiresAuth && (
+                          <div className={`rounded-full px-2 py-1 text-xs font-medium ${
+                            library.backgroundImageUrl 
+                              ? 'bg-white/20 text-white' 
+                              : 'bg-muted text-muted-foreground'
+                          }`}>
+                            Anmeldung erforderlich
+                          </div>
+                        )}
                       </div>
-                      <CardTitle className={`text-xl ${library.backgroundImageUrl ? 'text-white' : ''}`}>{library.label}</CardTitle>
-                      <CardDescription className={`text-base leading-relaxed ${library.backgroundImageUrl ? 'text-white/90' : ''}`}>{library.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="relative z-10">
                       <Button 

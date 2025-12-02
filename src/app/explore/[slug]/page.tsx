@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { useSetAtom } from 'jotai'
+import { useUser, SignInButton } from "@clerk/nextjs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Loader2, ArrowLeft } from "lucide-react"
+import { AlertCircle, Loader2, ArrowLeft, Lock } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useTranslation } from "@/lib/i18n/hooks"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -30,6 +31,7 @@ interface PublicLibrary {
   slugName: string
   description?: string
   icon?: string
+  requiresAuth?: boolean
   chat?: {
     gallery?: {
       detailViewType?: 'book' | 'session'
@@ -65,10 +67,18 @@ export default function ExplorePage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { t } = useTranslation()
+  const { user, isLoaded: userLoaded } = useUser()
   const slug = params?.slug as string
   const [library, setLibrary] = useState<PublicLibrary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [accessStatus, setAccessStatus] = useState<{
+    hasAccess: boolean
+    status?: 'pending' | 'approved' | 'rejected'
+    requiresAuth?: boolean
+    message?: string
+  } | null>(null)
+  const [requestingAccess, setRequestingAccess] = useState(false)
   
   // Jotai State setzen
   const setLibraries = useSetAtom(librariesAtom)
@@ -100,6 +110,70 @@ export default function ExplorePage() {
     router.replace(`/explore/${slug}${params.toString() ? `?${params.toString()}` : ''}`)
   }
 
+  const loadLibraryIntoState = useCallback((loadedLibrary: PublicLibrary) => {
+    // WICHTIG: Library direkt in Jotai-State setzen
+    // Erstelle ClientLibrary-Format aus der API-Response
+    const clientLibrary: ClientLibrary = {
+      id: loadedLibrary.id,
+      label: loadedLibrary.label,
+      type: 'local',
+      path: '',
+      isEnabled: true,
+      config: {
+        chat: loadedLibrary.chat, // Vollständige Chat-Config
+        publicPublishing: {
+          slugName: loadedLibrary.slugName,
+          publicName: loadedLibrary.label,
+          description: loadedLibrary.description || '',
+          icon: loadedLibrary.icon,
+          isPublic: true,
+          requiresAuth: loadedLibrary.requiresAuth,
+        }
+      }
+    }
+    
+    // Setze Library in State (als Array mit einem Element)
+    setLibraries([clientLibrary])
+    // Setze als aktive Library
+    setActiveLibraryId(loadedLibrary.id)
+  }, [setLibraries, setActiveLibraryId])
+
+  const checkAccess = useCallback(async (libraryId: string) => {
+    try {
+      console.log('[ExplorePage] Prüfe Zugriff für Library:', libraryId)
+      const response = await fetch(`/api/libraries/${libraryId}/access-check`)
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('[ExplorePage] Access-Check Fehler:', response.status, errorData)
+        setAccessStatus({
+          hasAccess: false,
+          requiresAuth: true,
+          message: errorData.error || 'Fehler beim Prüfen des Zugriffs',
+        })
+        return
+      }
+
+      const data = await response.json()
+      console.log('[ExplorePage] Access-Check Ergebnis:', data)
+      setAccessStatus(data)
+
+      if (data.hasAccess) {
+        // Zugriff vorhanden - Library laden
+        if (library) {
+          loadLibraryIntoState(library)
+        }
+      }
+    } catch (err) {
+      console.error('[ExplorePage] Fehler beim Prüfen des Zugriffs:', err)
+      setAccessStatus({
+        hasAccess: false,
+        requiresAuth: true,
+        message: 'Fehler beim Prüfen des Zugriffs',
+      })
+    }
+  }, [library, loadLibraryIntoState])
+
   useEffect(() => {
     async function loadLibrary() {
       if (!slug) {
@@ -125,32 +199,15 @@ export default function ExplorePage() {
         const data = await response.json()
         const loadedLibrary = data.library
         
-        // WICHTIG: Library direkt in Jotai-State setzen
-        // Erstelle ClientLibrary-Format aus der API-Response
-        const clientLibrary: ClientLibrary = {
-          id: loadedLibrary.id,
-          label: loadedLibrary.label,
-          type: 'local',
-          path: '',
-          isEnabled: true,
-          config: {
-            chat: loadedLibrary.chat, // Vollständige Chat-Config
-            publicPublishing: {
-              slugName: loadedLibrary.slugName,
-              publicName: loadedLibrary.label,
-              description: loadedLibrary.description,
-              icon: loadedLibrary.icon,
-              isPublic: true,
-            }
-          }
-        }
-        
-        // Setze Library in State (als Array mit einem Element)
-        setLibraries([clientLibrary])
-        // Setze als aktive Library
-        setActiveLibraryId(loadedLibrary.id)
-        
         setLibrary(loadedLibrary)
+        
+        // Prüfe Zugriff wenn requiresAuth aktiv ist
+        if (loadedLibrary.requiresAuth) {
+          await checkAccess(loadedLibrary.id)
+        } else {
+          // Keine Zugriffsprüfung nötig - Library direkt laden
+          loadLibraryIntoState(loadedLibrary)
+        }
       } catch (err) {
         console.error("Fehler beim Laden der Library:", err)
         setError(t('explore.errorLoadingLibrary'))
@@ -160,9 +217,39 @@ export default function ExplorePage() {
     }
 
     loadLibrary()
-  }, [slug, t, setLibraries, setActiveLibraryId])
+  }, [slug, t, setLibraries, setActiveLibraryId, userLoaded, checkAccess, loadLibraryIntoState])
 
-  if (loading) {
+  async function requestAccess() {
+    if (!library) return
+
+    setRequestingAccess(true)
+    try {
+      const response = await fetch(`/api/libraries/${library.id}/access-request`, {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Fehler beim Erstellen der Zugriffsanfrage')
+      }
+
+      // Zugriffsstatus aktualisieren
+      setAccessStatus({
+        hasAccess: false,
+        status: 'pending',
+        requiresAuth: true,
+        message: 'Ihre Anfrage wurde erfolgreich erstellt und wird bearbeitet',
+      })
+    } catch (err) {
+      console.error('Fehler beim Erstellen der Zugriffsanfrage:', err)
+      setError(err instanceof Error ? err.message : 'Fehler beim Erstellen der Zugriffsanfrage')
+    } finally {
+      setRequestingAccess(false)
+    }
+  }
+
+  if (loading || !userLoaded) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -180,6 +267,79 @@ export default function ExplorePage() {
         </Alert>
       </div>
     )
+  }
+
+  // Zugriffsprüfung für requiresAuth Libraries
+  if (library.requiresAuth && accessStatus) {
+    if (!accessStatus.hasAccess) {
+      // Nicht angemeldet
+      if (!user) {
+        return (
+          <div className="container mx-auto px-4 py-8">
+            <Alert>
+              <Lock className="h-4 w-4" />
+              <AlertTitle>Anmeldung erforderlich</AlertTitle>
+              <AlertDescription>
+                Diese Library erfordert eine Anmeldung und Freigabe. Bitte melden Sie sich an, um fortzufahren.
+              </AlertDescription>
+            </Alert>
+            <div className="mt-4">
+              <SignInButton 
+                mode="modal"
+                fallbackRedirectUrl={`/explore/${slug}`}
+              >
+                <Button>
+                  Zur Anmeldung
+                </Button>
+              </SignInButton>
+            </div>
+          </div>
+        )
+      }
+
+      // Anfrage pending
+      if (accessStatus.status === 'pending') {
+        return (
+          <div className="container mx-auto px-4 py-8">
+            <Alert>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <AlertTitle>Ihre Anfrage wird bearbeitet</AlertTitle>
+              <AlertDescription>
+                Ihre Zugriffsanfrage wurde erhalten und wird von den Administratoren geprüft. Sie erhalten eine E-Mail, sobald über Ihre Anfrage entschieden wurde.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )
+      }
+
+      // Kein Zugriff - Zeige Anfrage-Button
+      return (
+        <div className="container mx-auto px-4 py-8">
+          <Alert>
+            <Lock className="h-4 w-4" />
+            <AlertTitle>Zugriff erforderlich</AlertTitle>
+            <AlertDescription>
+              Diese Library erfordert eine Freigabe. Bitte stellen Sie eine Zugriffsanfrage.
+            </AlertDescription>
+          </Alert>
+          <div className="mt-4">
+            <Button 
+              onClick={requestAccess} 
+              disabled={requestingAccess}
+            >
+              {requestingAccess ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Wird gesendet...
+                </>
+              ) : (
+                'Zugriff anfragen'
+              )}
+            </Button>
+          </div>
+        </div>
+      )
+    }
   }
 
   return (

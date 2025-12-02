@@ -24,6 +24,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { LanguageSwitcher } from "@/components/shared/language-switcher"
 import { useTranslation } from "@/lib/i18n/hooks"
 import { useScrollVisibility } from "@/hooks/use-scroll-visibility"
+import { useUserRole } from "@/hooks/use-user-role"
 
 
 export function TopNav() {
@@ -32,6 +33,7 @@ export function TopNav() {
   const searchParams = useSearchParams()
   const { theme, setTheme } = useTheme()
   const { t } = useTranslation()
+  const { isCreator } = useUserRole()
   
   // Statt Events verwenden wir Jotai
   const [libraryContext] = useAtom(libraryAtom)
@@ -66,7 +68,9 @@ export function TopNav() {
     },
   ];
   
-  const protectedNavItems = [
+  // Admin-Features nur für Creators (MiSpace)
+  // Gäste (WeSpace) sehen diese nicht
+  const protectedNavItems = isCreator ? [
     {
       name: t('navigation.library'),
       href: "/library",
@@ -91,7 +95,7 @@ export function TopNav() {
       name: t('navigation.sessionManager'),
       href: "/session-manager",
     },
-  ];
+  ] : [];
 
   return (
     <>
@@ -147,16 +151,18 @@ export function TopNav() {
                 </SignedIn>
                 
                 <div className="pt-3 border-t" />
-                {/* Settings + Dark Mode im Menü */}
+                {/* Settings + Dark Mode im Menü - nur für Creators */}
                 <SignedIn>
                   <div className="space-y-2">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() => { setOpen(false); router.push('/settings') }}
-                    >
-                      <Settings className="h-4 w-4 mr-2" /> Einstellungen
-                    </Button>
+                    {isCreator && (
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => { setOpen(false); router.push('/settings') }}
+                      >
+                        <Settings className="h-4 w-4 mr-2" /> Einstellungen
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       className="w-full justify-start"
@@ -220,72 +226,76 @@ export function TopNav() {
                     <LibrarySwitcher />
                   </div>
                   
-                  {/* Zahnrad-Symbol für Einstellungen */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => router.push('/settings')}
-                          className={cn(
-                            "rounded-full",
-                            pathname?.startsWith('/settings') && "bg-muted"
-                          )}
-                        >
-                          <Settings className="h-[1.2rem] w-[1.2rem]" />
-                          <span className="sr-only">Bibliothekseinstellungen</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Bibliothekseinstellungen</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  {/* Zahnrad-Symbol für Einstellungen - nur für Creators */}
+                  {isCreator && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => router.push('/settings')}
+                            className={cn(
+                              "rounded-full",
+                              pathname?.startsWith('/settings') && "bg-muted"
+                            )}
+                          >
+                            <Settings className="h-[1.2rem] w-[1.2rem]" />
+                            <span className="sr-only">Bibliothekseinstellungen</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Bibliothekseinstellungen</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               ) : (
-                /* Neue Bibliothek Button für Benutzer ohne Bibliotheken */
-                <div className="flex items-center gap-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          onClick={() => router.push('/settings?newUser=true')}
-                          className="gap-2"
-                        >
-                          <Plus className="h-4 w-4" />
-                          Neue Bibliothek
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Erste Bibliothek erstellen</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  
-                  {/* Zahnrad-Symbol für Einstellungen */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => router.push('/settings')}
-                          className={cn(
-                            "rounded-full",
-                            pathname?.startsWith('/settings') && "bg-muted"
-                          )}
-                        >
-                          <Settings className="h-[1.2rem] w-[1.2rem]" />
-                          <span className="sr-only">Bibliothekseinstellungen</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Bibliothekseinstellungen</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+                /* Neue Bibliothek Button für Creators ohne Bibliotheken */
+                isCreator && (
+                  <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            onClick={() => router.push('/settings?newUser=true')}
+                            className="gap-2"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Neue Bibliothek
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Erste Bibliothek erstellen</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    
+                    {/* Zahnrad-Symbol für Einstellungen - nur für Creators */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => router.push('/settings')}
+                            className={cn(
+                              "rounded-full",
+                              pathname?.startsWith('/settings') && "bg-muted"
+                            )}
+                          >
+                            <Settings className="h-[1.2rem] w-[1.2rem]" />
+                            <span className="sr-only">Bibliothekseinstellungen</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Bibliothekseinstellungen</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                )
               )}
             </SignedIn>
             
