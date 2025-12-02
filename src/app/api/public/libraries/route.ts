@@ -24,6 +24,11 @@ export const revalidate = 0; // Cache für 0 Sekunden (temporär für Debugging)
  */
 export async function GET() {
   try {
+    // Während des Builds leere Liste zurückgeben (MongoDB ist nicht verfügbar)
+    if (process.env.NEXT_RUNTIME === 'build') {
+      return NextResponse.json({ libraries: [] });
+    }
+
     const libraryService = LibraryService.getInstance();
     const publicLibraries = await libraryService.getAllPublicLibraries();
 
@@ -43,6 +48,10 @@ export async function GET() {
     return NextResponse.json({ libraries: safeLibraries });
   } catch (error) {
     console.error('[API] Fehler beim Abrufen der öffentlichen Libraries:', error);
+    // Während des Builds keine Fehler werfen, sondern leere Liste zurückgeben
+    if (process.env.NEXT_RUNTIME === 'build') {
+      return NextResponse.json({ libraries: [] });
+    }
     return NextResponse.json(
       { error: 'Fehler beim Abrufen der öffentlichen Libraries' },
       { status: 500 }

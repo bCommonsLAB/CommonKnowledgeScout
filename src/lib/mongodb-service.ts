@@ -41,6 +41,12 @@ let client: MongoClient | null = null;
  */
 export async function connectToDatabase(): Promise<Db> {
   try {
+    // Während des Builds keine MongoDB-Verbindung herstellen
+    // Next.js evaluiert Routen während des Builds, aber MongoDB sollte nur zur Laufzeit verwendet werden
+    if (process.env.NEXT_RUNTIME === 'build') {
+      throw new Error('MongoDB-Verbindung während des Builds nicht verfügbar');
+    }
+
     // Prüfen, ob Client existiert und verbunden ist
     if (client?.connect && client.db(process.env.MONGODB_DATABASE_NAME)) {
       return client.db(process.env.MONGODB_DATABASE_NAME);
@@ -48,9 +54,10 @@ export async function connectToDatabase(): Promise<Db> {
 
     // Wenn keine Verbindung besteht, neue aufbauen
     const uri = process.env.MONGODB_URI;
-    if (!uri) {
+    if (!uri || uri === 'mongodb://localhost:27017/dummy') {
       console.error('Umgebungsvariablen Status:', {
         NODE_ENV: process.env.NODE_ENV,
+        NEXT_RUNTIME: process.env.NEXT_RUNTIME,
         MONGODB_URI: process.env.MONGODB_URI ? 'Vorhanden' : 'Fehlt',
         MONGODB_DATABASE_NAME: process.env.MONGODB_DATABASE_NAME ? 'Vorhanden' : 'Fehlt',
         MONGODB_COLLECTION_NAME: process.env.MONGODB_COLLECTION_NAME ? 'Vorhanden' : 'Fehlt'
