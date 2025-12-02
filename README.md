@@ -14,7 +14,7 @@ The Common Knowledge Stack follows a file-sharing approach to knowledge distribu
 
 - **Knowledge Scout** – Next.js web application that currently runs server-side but is **prepared for local execution** with a planned Electron implementation. It provides the main interface for organizing, publishing, and exploring knowledge. It features an **abstracted storage layer** with three drivers:
   - **Local File System** – Direct access to files on your computer
-  - **OneDrive** – Integration with Microsoft OneDrive for cloud storage
+  - **OneDrive** – Integration with Microsoft OneDrive for cloud storage.
   - **Nextcloud** – Integration with Nextcloud for self-hosted cloud storage (in development)
   
   This storage abstraction allows you to organize files locally and share knowledge through file sharing, independent of where the files are physically stored. The abstraction layer enables seamless transition between server-side and local desktop deployment. **The goal is to achieve absolute sovereignty over your own data** and migrate from locked-in scenarios to self-organized scenarios where you can share knowledge with others while maintaining full control over your information.

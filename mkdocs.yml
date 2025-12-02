@@ -35,25 +35,25 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Overview:
-      - Start: overview/index.md
-      - Intro: overview/intro.md
-      - Features: overview/features.md
+  # Overview: - Dateien existieren nicht
+  #   - Start: overview/index.md
+  #   - Intro: overview/intro.md
+  #   - Features: overview/features.md
   - Architecture:
       - Module Hierarchy: architecture/module-hierarchy.md
       - Dependency Graph: architecture/dependency-graph.md
       - Shadow-Twin: architecture/shadow-twin.md
       - PDF Transformation Phases: architecture/pdf-transformation-phases.md
-  - Guide:
-      - Start: guide/index.md
-      - Setup: guide/setup.md
-      - Getting Started: guide/getting-started.md
-      - Settings: guide/settings.md
-      - Using the Library: guide/library.md
-      - Event Monitor: guide/event-monitor.md
-      - Batch Session Import: guide/batch-session-import.md
-      - Troubleshooting: guide/troubleshooting.md
-      - FAQ: guide/faq.md
+  # Guide: - Dateien existieren nicht
+  #   - Start: guide/index.md
+  #   - Setup: guide/setup.md
+  #   - Getting Started: guide/getting-started.md
+  #   - Settings: guide/settings.md
+  #   - Using the Library: guide/library.md
+  #   - Event Monitor: guide/event-monitor.md
+  #   - Batch Session Import: guide/batch-session-import.md
+  #   - Troubleshooting: guide/troubleshooting.md
+  #   - FAQ: guide/faq.md
   - Use Cases:
       - Overview: use-cases/index.md
       - Library Setup: use-cases/library-setup.md
@@ -63,45 +63,45 @@ nav:
       - Publishing: use-cases/publishing.md
       - Chat & Story Mode: use-cases/chat-exploration.md
       - Batch Operations: use-cases/batch-operations.md
-  - Concepts:
-      - Start: concepts/index.md
-      - Storage Provider: concepts/storage-provider.md
-      - FileSystem (Local): concepts/localstorage.md
-      - Image Transformation: concepts/image-transformation.md
-      - PDF Extraction: concepts/pdf/extraction-methods.md
-      - Metadata: concepts/metadata.md
-      - Library:
-          - Overview: concepts/library/overview.md
-          - Global State: concepts/library/global-state.md
-          - Header: concepts/library/header.md
-          - Breadcrumb: concepts/library/breadcrumb.md
-          - FileTree: concepts/library/file-tree.md
-          - FileList: concepts/library/file-list.md
-          - Upload: concepts/library/upload.md
-          - FilePreview: concepts/library/file-preview.md
-          - Transcription: concepts/library/transcription.md
-          - Transform: concepts/library/transform.md
-          - Batch Transcription: concepts/library/batch-transcription.md
-          - Error Handling & Tests: concepts/library/error-handling-logging-testing.md
-          - Initialization: concepts/library/initialization-sequence.md
-      - Library Components: concepts/library/components.md
-      - Shadow-Twin: concepts/features/shadowtwins.md
-      - Extended Shadow-Twin: concepts/features/extended-shadowtwin.md
-      - Transformation Service: concepts/features/transformation-service.md
-      - Video Transformation: concepts/video-transformation.md
+  # Concepts: - Die meisten Dateien existieren nicht
+  #   - Start: concepts/index.md
+  #   - Storage Provider: concepts/storage-provider.md
+  #   - FileSystem (Local): concepts/localstorage.md
+  #   - Image Transformation: concepts/image-transformation.md
+  #   - PDF Extraction: concepts/pdf/extraction-methods.md
+  #   - Metadata: concepts/metadata.md
+  #   - Library:
+  #       - Overview: concepts/library/overview.md
+  #       - Global State: concepts/library/global-state.md
+  #       - Header: concepts/library/header.md
+  #       - Breadcrumb: concepts/library/breadcrumb.md
+  #       - FileTree: concepts/library/file-tree.md
+  #       - FileList: concepts/library/file-list.md
+  #       - Upload: concepts/library/upload.md
+  #       - FilePreview: concepts/library/file-preview.md
+  #       - Transcription: concepts/library/transcription.md
+  #       - Transform: concepts/library/transform.md
+  #       - Batch Transcription: concepts/library/batch-transcription.md
+  #       - Error Handling & Tests: concepts/library/error-handling-logging-testing.md
+  #       - Initialization: concepts/library/initialization-sequence.md
+  #   - Library Components: concepts/library/components.md
+  #   - Shadow-Twin: concepts/features/shadowtwins.md
+  #   - Extended Shadow-Twin: concepts/features/extended-shadowtwin.md
+  #   - Transformation Service: concepts/features/transformation-service.md
+  #   - Video Transformation: concepts/video-transformation.md
   - Reference:
       - File Index: reference/file-index.md
       - Modules:
           - Library: reference/modules/library.md
           - Storage: reference/modules/storage.md
           - Chat: reference/modules/chat.md
-      - Glossary: reference/glossary.md
-      - Secretary Services: reference/api/secretary-services.md
-      - Track Processor: reference/api/track-processor.md
-      - Chat & Story Mode: chat-response-generation-process.md
-  - Operations:
-      - Start: ops/index.md
-      - Docker Deployment: ops/deployment/docker.md
-      - Electron Quick Setup: ops/desktop/quick-setup.md
-      - Electron Package Strategy: ops/desktop/package-strategy.md
+      # Glossary: reference/glossary.md - Datei existiert nicht
+      # Secretary Services: reference/api/secretary-services.md - Datei existiert nicht
+      # Track Processor: reference/api/track-processor.md - Datei existiert nicht
+      # Chat & Story Mode: chat-response-generation-process.md - Datei existiert nicht
+  # Operations: - Dateien existieren nicht
+  #   - Start: ops/index.md
+  #   - Docker Deployment: ops/deployment/docker.md
+  #   - Electron Quick Setup: ops/desktop/quick-setup.md
+  #   - Electron Package Strategy: ops/desktop/package-strategy.md
   # Analyse und Archiv absichtlich nicht verlinkt/gebaut

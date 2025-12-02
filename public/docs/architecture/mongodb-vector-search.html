@@ -8,7 +8,7 @@
       
       
       
-        <link rel="canonical" href="http://localhost:3000/docs/_analysis/dependencies.html">
+        <link rel="canonical" href="http://localhost:3000/docs/architecture/mongodb-vector-search.html">
       
       
       
@@ -18,7 +18,7 @@
     
     
       
-        <title>Dependency Analysis - Common Knowledge Scout</title>
+        <title>MongoDB Vector Search Architektur - Common Knowledge Scout</title>
       
     
     
@@ -66,7 +66,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#dependency-analysis" class="md-skip">
+        <a href="#mongodb-vector-search-architektur" class="md-skip">
           Skip to content
         </a>
       
@@ -102,7 +102,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Dependency Analysis
+              MongoDB Vector Search Architektur
             
           </span>
         </div>
@@ -282,7 +282,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../architecture/module-hierarchy.html" class="md-nav__link">
+      <a href="module-hierarchy.html" class="md-nav__link">
         
   
   
@@ -305,7 +305,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../architecture/dependency-graph.html" class="md-nav__link">
+      <a href="dependency-graph.html" class="md-nav__link">
         
   
   
@@ -328,7 +328,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../architecture/shadow-twin.html" class="md-nav__link">
+      <a href="shadow-twin.html" class="md-nav__link">
         
   
   
@@ -351,7 +351,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../architecture/pdf-transformation-phases.html" class="md-nav__link">
+      <a href="pdf-transformation-phases.html" class="md-nav__link">
         
   
   
@@ -813,55 +813,37 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#most-imported-modules" class="md-nav__link">
+  <a href="#ubersicht" class="md-nav__link">
     <span class="md-ellipsis">
-      Most Imported Modules
+      Übersicht
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Most Imported Modules">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architektur-prinzipien" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architektur-Prinzipien
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architektur-Prinzipien">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#core-infrastructure-most-imported" class="md-nav__link">
+  <a href="#collection-struktur" class="md-nav__link">
     <span class="md-ellipsis">
-      Core Infrastructure (Most Imported)
+      Collection-Struktur
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#storage-layer" class="md-nav__link">
+  <a href="#hybrid-ansatz" class="md-nav__link">
     <span class="md-ellipsis">
-      Storage Layer
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#chat-system" class="md-nav__link">
-    <span class="md-ellipsis">
-      Chat System
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#components" class="md-nav__link">
-    <span class="md-ellipsis">
-      Components
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#types" class="md-nav__link">
-    <span class="md-ellipsis">
-      Types
+      Hybrid-Ansatz
     </span>
   </a>
   
@@ -873,55 +855,37 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#dependency-graph-structure" class="md-nav__link">
+  <a href="#vector-search-index" class="md-nav__link">
     <span class="md-ellipsis">
-      Dependency Graph Structure
+      Vector Search Index
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Dependency Graph Structure">
+    <nav class="md-nav" aria-label="Vector Search Index">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#layer-1-core-infrastructure-no-internal-dependencies" class="md-nav__link">
+  <a href="#automatisches-setup" class="md-nav__link">
     <span class="md-ellipsis">
-      Layer 1: Core Infrastructure (No internal dependencies)
+      Automatisches Setup
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#layer-2-storage-layer-depends-on-layer-1" class="md-nav__link">
+  <a href="#index-definition" class="md-nav__link">
     <span class="md-ellipsis">
-      Layer 2: Storage Layer (Depends on Layer 1)
+      Index-Definition
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#layer-3-library-system-depends-on-layer-2" class="md-nav__link">
+  <a href="#zusatzliche-indizes" class="md-nav__link">
     <span class="md-ellipsis">
-      Layer 3: Library System (Depends on Layer 2)
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#layer-4-chat-system-depends-on-layer-3" class="md-nav__link">
-    <span class="md-ellipsis">
-      Layer 4: Chat System (Depends on Layer 3)
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#layer-5-api-routes-components-depends-on-layers-1-4" class="md-nav__link">
-    <span class="md-ellipsis">
-      Layer 5: API Routes &amp; Components (Depends on Layers 1-4)
+      Zusätzliche Indizes
     </span>
   </a>
   
@@ -933,19 +897,28 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#circular-dependencies" class="md-nav__link">
+  <a href="#query-patterns" class="md-nav__link">
     <span class="md-ellipsis">
-      Circular Dependencies
+      Query-Patterns
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Circular Dependencies">
+    <nav class="md-nav" aria-label="Query-Patterns">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#potential-circular-dependencies-to-check" class="md-nav__link">
+  <a href="#vector-search-query" class="md-nav__link">
     <span class="md-ellipsis">
-      Potential Circular Dependencies to Check:
+      Vector Search Query
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#direkte-mongodb-abfrage-ohne-vector-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      Direkte MongoDB-Abfrage (ohne Vector Search)
     </span>
   </a>
   
@@ -957,37 +930,28 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#unused-imports-to-verify" class="md-nav__link">
+  <a href="#facetten-metadaten-duplikation" class="md-nav__link">
     <span class="md-ellipsis">
-      Unused Imports (To Verify)
+      Facetten-Metadaten-Duplikation
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#import-patterns" class="md-nav__link">
-    <span class="md-ellipsis">
-      Import Patterns
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Import Patterns">
+    <nav class="md-nav" aria-label="Facetten-Metadaten-Duplikation">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#most-common-import-patterns" class="md-nav__link">
+  <a href="#strategie" class="md-nav__link">
     <span class="md-ellipsis">
-      Most Common Import Patterns:
+      Strategie
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#import-categories" class="md-nav__link">
+  <a href="#beispiel" class="md-nav__link">
     <span class="md-ellipsis">
-      Import Categories:
+      Beispiel
     </span>
   </a>
   
@@ -999,18 +963,84 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#recommendations" class="md-nav__link">
+  <a href="#performance-optimierungen" class="md-nav__link">
     <span class="md-ellipsis">
-      Recommendations
+      Performance-Optimierungen
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#migration-von-pinecone" class="md-nav__link">
     <span class="md-ellipsis">
-      Next Steps
+      Migration von Pinecone
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Migration von Pinecone">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vorteile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vorteile
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unterschiede" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unterschiede
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#repository-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      Repository-Pattern
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Repository-Pattern">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#srclibrepositoriesvector-repots" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/lib/repositories/vector-repo.ts
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-referenzen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Code-Referenzen
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#weitere-informationen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Weitere Informationen
     </span>
   </a>
   
@@ -1035,154 +1065,172 @@
   
 
 
-<h1 id="dependency-analysis">Dependency Analysis<a class="headerlink" href="#dependency-analysis" title="Permanent link">&para;</a></h1>
-<p>This document analyzes import patterns and dependencies across the codebase.</p>
-<h2 id="most-imported-modules">Most Imported Modules<a class="headerlink" href="#most-imported-modules" title="Permanent link">&para;</a></h2>
-<p>Based on import analysis (1079 imports from <code>@/</code> across 328 files), the most frequently imported modules are:</p>
-<h3 id="core-infrastructure-most-imported">Core Infrastructure (Most Imported)<a class="headerlink" href="#core-infrastructure-most-imported" title="Permanent link">&para;</a></h3>
+<h1 id="mongodb-vector-search-architektur">MongoDB Vector Search Architektur<a class="headerlink" href="#mongodb-vector-search-architektur" title="Permanent link">&para;</a></h1>
+<h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
+<p>Die Anwendung verwendet MongoDB Atlas Vector Search für semantische Suche und RAG (Retrieval-Augmented Generation). Alle Vektoren werden in MongoDB gespeichert, keine externe Vector-Datenbank ist mehr erforderlich.</p>
+<h2 id="architektur-prinzipien">Architektur-Prinzipien<a class="headerlink" href="#architektur-prinzipien" title="Permanent link">&para;</a></h2>
+<h3 id="collection-struktur">Collection-Struktur<a class="headerlink" href="#collection-struktur" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Pro Library eine Collection</strong>: <code>vectors__${libraryId}</code></li>
+<li><strong>Alle Dokument-Typen in derselben Collection</strong>: Meta-Dokumente, Chunks und Chapter-Summaries</li>
+<li><strong>Unterscheidung durch <code>kind</code>-Feld</strong>: <code>'meta'</code>, <code>'chunk'</code>, <code>'chapterSummary'</code></li>
+</ul>
+<h3 id="hybrid-ansatz">Hybrid-Ansatz<a class="headerlink" href="#hybrid-ansatz" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Meta-Dokumente</strong> (<code>kind: 'meta'</code>): Enthalten vollständige Metadaten, <strong>keine Embeddings</strong></li>
+<li>Verwendet für Gallery-Anzeige, Facetten-Aggregation</li>
+<li>Enthält <code>docMetaJson</code>, <code>chapters</code>, Facetten-Metadaten</li>
+<li><strong>Chunk-Dokumente</strong> (<code>kind: 'chunk'</code>): Enthalten Text-Chunks <strong>mit Embeddings</strong></li>
+<li>Verwendet für semantische Suche</li>
+<li>Facetten-Metadaten werden kopiert für direkte Filterung</li>
+<li><strong>ChapterSummary-Dokumente</strong> (<code>kind: 'chapterSummary'</code>): Enthalten Kapitel-Summaries <strong>mit Embeddings</strong></li>
+<li>Verwendet für Kapitel-basierte Suche</li>
+</ul>
+<h2 id="vector-search-index">Vector Search Index<a class="headerlink" href="#vector-search-index" title="Permanent link">&para;</a></h2>
+<h3 id="automatisches-setup">Automatisches Setup<a class="headerlink" href="#automatisches-setup" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Index wird automatisch beim ersten Zugriff erstellt</li>
+<li>Verwendet MongoDB Admin API: <code>db.admin().command({ createSearchIndexes: ... })</code></li>
+<li>Index-Name: <code>vector_search_idx</code> (pro Collection)</li>
+</ul>
+<h3 id="index-definition">Index-Definition<a class="headerlink" href="#index-definition" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;vector_search_idx&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;definition&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;mappings&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;dynamic&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;fields&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;embedding&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;knnVector&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;dimensions&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1024</span><span class="p">,</span><span class="w">  </span><span class="c1">// Aus Library-Config</span>
+<span class="w">          </span><span class="nt">&quot;similarity&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cosine&quot;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="zusatzliche-indizes">Zusätzliche Indizes<a class="headerlink" href="#zusatzliche-indizes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>libraryId</code>: Index für Library-Filterung</li>
+<li><code>fileId</code>: Index für File-Filterung</li>
+<li><code>kind</code>: Index für Dokument-Typ-Filterung</li>
+<li><code>user</code>: Index für User-Filterung</li>
+<li>Facetten-Indizes: Automatisch erstellt via <code>ensureFacetIndexes()</code></li>
+</ul>
+<h2 id="query-patterns">Query-Patterns<a class="headerlink" href="#query-patterns" title="Permanent link">&para;</a></h2>
+<h3 id="vector-search-query">Vector Search Query<a class="headerlink" href="#vector-search-query" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">pipeline</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">$vectorSearch</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">index</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;vector_search_idx&#39;</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;embedding&#39;</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">queryVector</span><span class="o">:</span><span class="w"> </span><span class="kt">queryVector</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">numCandidates</span><span class="o">:</span><span class="w"> </span><span class="kt">Math.max</span><span class="p">(</span><span class="nx">topK</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">10</span><span class="p">,</span><span class="w"> </span><span class="mf">100</span><span class="p">),</span>
+<span class="w">      </span><span class="nx">limit</span><span class="o">:</span><span class="w"> </span><span class="kt">topK</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">filter</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">$in</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s1">&#39;chunk&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;chapterSummary&#39;</span><span class="p">]</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="nx">libraryId</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">$eq</span><span class="o">:</span><span class="w"> </span><span class="kt">libraryId</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="nx">user</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">$eq</span><span class="o">:</span><span class="w"> </span><span class="kt">userEmail</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="c1">// Direkte Facetten-Filterung</span>
+<span class="w">        </span><span class="nx">year</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">$in</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="mf">2023</span><span class="p">,</span><span class="w"> </span><span class="mf">2024</span><span class="p">]</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="nx">authors</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">$in</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s1">&#39;Author1&#39;</span><span class="p">]</span><span class="w"> </span><span class="p">},</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">$project</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">_id</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">score</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">$meta</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;vectorSearchScore&#39;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">      </span><span class="c1">// ... Metadaten</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">]</span>
+</code></pre></div>
+<h3 id="direkte-mongodb-abfrage-ohne-vector-search">Direkte MongoDB-Abfrage (ohne Vector Search)<a class="headerlink" href="#direkte-mongodb-abfrage-ohne-vector-search" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">// Für chunkSummary-Retriever oder Nachbar-Chunks</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">chunks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">collection</span><span class="p">.</span><span class="nx">find</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;chunk&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">libraryId</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">user</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">fileId</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">$in</span><span class="o">:</span><span class="w"> </span><span class="kt">fileIds</span><span class="w"> </span><span class="p">},</span>
+<span class="p">}).</span><span class="nx">sort</span><span class="p">({</span><span class="w"> </span><span class="nx">fileId</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span><span class="w"> </span><span class="nx">chunkIndex</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="w"> </span><span class="p">}).</span><span class="nx">toArray</span><span class="p">()</span>
+</code></pre></div>
+<h2 id="facetten-metadaten-duplikation">Facetten-Metadaten-Duplikation<a class="headerlink" href="#facetten-metadaten-duplikation" title="Permanent link">&para;</a></h2>
+<h3 id="strategie">Strategie<a class="headerlink" href="#strategie" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Facetten-Metadaten werden in jeden Chunk und ChapterSummary kopiert</li>
+<li>Ermöglicht direkte Filterung während Vector Search</li>
+<li>Keine separate MongoDB-Query für FileIDs nötig</li>
+</ul>
+<h3 id="beispiel">Beispiel<a class="headerlink" href="#beispiel" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">// Meta-Dokument</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="nx">_id</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;file123-meta&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;meta&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">year</span><span class="o">:</span><span class="w"> </span><span class="kt">2024</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">authors</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s1">&#39;Author1&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Author2&#39;</span><span class="p">],</span>
+<span class="w">  </span><span class="c1">// ... keine embedding</span>
+<span class="p">}</span>
+
+<span class="c1">// Chunk-Dokument (mit kopierten Facetten)</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="nx">_id</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;file123-0&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;chunk&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">embedding</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.123</span><span class="p">,</span><span class="w"> </span><span class="p">...],</span>
+<span class="w">  </span><span class="nx">year</span><span class="o">:</span><span class="w"> </span><span class="kt">2024</span><span class="p">,</span><span class="w">  </span><span class="c1">// Kopiert aus Meta</span>
+<span class="w">  </span><span class="nx">authors</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s1">&#39;Author1&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Author2&#39;</span><span class="p">],</span><span class="w">  </span><span class="c1">// Kopiert aus Meta</span>
+<span class="w">  </span><span class="c1">// ...</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="performance-optimierungen">Performance-Optimierungen<a class="headerlink" href="#performance-optimierungen" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong><code>@/lib/storage/storage-factory.ts</code></strong> - Storage provider factory</li>
-<li><strong><code>@/lib/storage/types.ts</code></strong> - Storage type definitions</li>
-<li><strong><code>@/lib/services/library-service.ts</code></strong> - Library service</li>
-<li><strong><code>@/types/library.ts</code></strong> - Library type definitions</li>
-<li><strong><code>@/lib/env.ts</code></strong> - Environment variables</li>
-<li><strong><code>@/lib/auth.ts</code></strong> - Authentication utilities</li>
-<li><strong><code>@/lib/mongodb-service.ts</code></strong> - Database service</li>
+<li><strong>Direkte Filterung</strong>: Facetten-Filter werden direkt in <code>$vectorSearch</code> angewendet</li>
+<li><strong>Batch-Upsert</strong>: Vektoren werden in Batches von 1000 upsertet</li>
+<li><strong>Meta-Dokumente</strong>: Keine Embeddings sparen Speicher</li>
+<li><strong>Index-Caching</strong>: Collection- und Index-Cache für bessere Performance</li>
+<li><strong>Nachbar-Chunks</strong>: Direkte MongoDB-Abfrage statt separater Fetch-API</li>
 </ol>
-<h3 id="storage-layer">Storage Layer<a class="headerlink" href="#storage-layer" title="Permanent link">&para;</a></h3>
+<h2 id="migration-von-pinecone">Migration von Pinecone<a class="headerlink" href="#migration-von-pinecone" title="Permanent link">&para;</a></h2>
+<h3 id="vorteile">Vorteile<a class="headerlink" href="#vorteile" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>@/lib/storage/filesystem-provider.ts</code></li>
-<li><code>@/lib/storage/onedrive-provider.ts</code></li>
-<li><code>@/lib/storage/server-provider.ts</code></li>
-<li><code>@/contexts/storage-context.tsx</code></li>
-<li><code>@/hooks/use-storage-provider.tsx</code></li>
+<li>✅ Keine externe Vector-Datenbank erforderlich</li>
+<li>✅ Alle Daten in einer Datenbank (MongoDB)</li>
+<li>✅ Direkte Filterung in Vector Search</li>
+<li>✅ Konsistente Datenstruktur</li>
+<li>✅ Einfacheres Deployment (eine Datenbank)</li>
 </ul>
-<h3 id="chat-system">Chat System<a class="headerlink" href="#chat-system" title="Permanent link">&para;</a></h3>
+<h3 id="unterschiede">Unterschiede<a class="headerlink" href="#unterschiede" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>@/lib/chat/orchestrator.ts</code></li>
-<li><code>@/lib/chat/loader.ts</code></li>
-<li><code>@/lib/chat/config.ts</code></li>
-<li><code>@/lib/chat/constants.ts</code></li>
-<li><code>@/lib/chat/retrievers/chunks.ts</code></li>
-<li><code>@/lib/chat/retrievers/summaries-mongo.ts</code></li>
-<li><code>@/lib/chat/common/prompt.ts</code></li>
-<li><code>@/lib/chat/common/filters.ts</code></li>
-<li><code>@/lib/chat/common/llm.ts</code></li>
+<li><strong>Collection statt Index</strong>: Pro Library eine Collection statt Index</li>
+<li><strong>Meta-Dokumente</strong>: Separate Dokumente ohne Embeddings</li>
+<li><strong>Facetten-Duplikation</strong>: Metadaten werden in Chunks kopiert</li>
+<li><strong>Query-Pattern</strong>: <code>$vectorSearch</code> Aggregation statt REST API</li>
 </ul>
-<h3 id="components">Components<a class="headerlink" href="#components" title="Permanent link">&para;</a></h3>
+<h2 id="repository-pattern">Repository-Pattern<a class="headerlink" href="#repository-pattern" title="Permanent link">&para;</a></h2>
+<h3 id="srclibrepositoriesvector-repots"><code>src/lib/repositories/vector-repo.ts</code><a class="headerlink" href="#srclibrepositoriesvector-repots" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>@/components/library/library.tsx</code></li>
-<li><code>@/components/ui/*</code> (UI components)</li>
-<li><code>@/components/shared/*</code> (Shared components)</li>
+<li>Zentrale Abstraktion für alle Vector Search Operationen</li>
+<li>Funktionen:</li>
+<li><code>getVectorCollection()</code>: Collection-Zugriff mit automatischem Index-Setup</li>
+<li><code>upsertVectors()</code>: Batch-Upsert von Vektoren</li>
+<li><code>upsertVectorMeta()</code>: Upsert von Meta-Dokumenten</li>
+<li><code>queryVectors()</code>: Vector Search Query mit Filterung</li>
+<li><code>findDocs()</code>: Findet Meta-Dokumente für Gallery</li>
+<li><code>aggregateFacets()</code>: Aggregiert Facetten aus Meta-Dokumenten</li>
 </ul>
-<h3 id="types">Types<a class="headerlink" href="#types" title="Permanent link">&para;</a></h3>
+<h2 id="code-referenzen">Code-Referenzen<a class="headerlink" href="#code-referenzen" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>@/types/chat.ts</code></li>
-<li><code>@/types/chat-response.ts</code></li>
-<li><code>@/types/query-log.ts</code></li>
-<li><code>@/types/session.ts</code></li>
-<li><code>@/types/external-job.ts</code></li>
+<li><strong>Repository</strong>: <code>src/lib/repositories/vector-repo.ts</code></li>
+<li><strong>Ingestion</strong>: <code>src/lib/chat/ingestion-service.ts</code></li>
+<li><strong>Retriever</strong>: <code>src/lib/chat/retrievers/chunks.ts</code></li>
+<li><strong>ChunkSummary-Retriever</strong>: <code>src/lib/chat/retrievers/chunk-summary.ts</code></li>
 </ul>
-<h2 id="dependency-graph-structure">Dependency Graph Structure<a class="headerlink" href="#dependency-graph-structure" title="Permanent link">&para;</a></h2>
-<h3 id="layer-1-core-infrastructure-no-internal-dependencies">Layer 1: Core Infrastructure (No internal dependencies)<a class="headerlink" href="#layer-1-core-infrastructure-no-internal-dependencies" title="Permanent link">&para;</a></h3>
+<h2 id="weitere-informationen">Weitere Informationen<a class="headerlink" href="#weitere-informationen" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>src/middleware.ts</code></li>
-<li><code>src/app/layout.tsx</code></li>
-<li><code>src/instrumentation.ts</code></li>
-<li><code>src/lib/env.ts</code></li>
-<li><code>src/lib/auth.ts</code></li>
-<li><code>src/lib/mongodb-service.ts</code></li>
+<li>Siehe <code>docs/_analysis/mongodb-vector-search-ingestion-analysis.md</code> für detaillierte Ingestion-Analyse</li>
+<li>Siehe <code>docs/_analysis/chat-orchestration-flow.md</code> für Retrieval-Flow</li>
 </ul>
-<h3 id="layer-2-storage-layer-depends-on-layer-1">Layer 2: Storage Layer (Depends on Layer 1)<a class="headerlink" href="#layer-2-storage-layer-depends-on-layer-1" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>src/lib/storage/types.ts</code> → <code>src/types/library.ts</code></li>
-<li><code>src/lib/storage/storage-factory.ts</code> → <code>src/lib/storage/types.ts</code>, <code>src/lib/storage/filesystem-provider.ts</code>, <code>src/lib/storage/onedrive-provider.ts</code></li>
-<li><code>src/lib/storage/filesystem-provider.ts</code> → <code>src/lib/storage/types.ts</code>, <code>src/types/library.ts</code></li>
-<li><code>src/lib/storage/onedrive-provider.ts</code> → <code>src/lib/storage/types.ts</code>, <code>src/types/library.ts</code></li>
-<li><code>src/contexts/storage-context.tsx</code> → <code>src/lib/storage/storage-factory.ts</code></li>
-<li><code>src/hooks/use-storage-provider.tsx</code> → <code>src/contexts/storage-context.tsx</code></li>
-</ul>
-<h3 id="layer-3-library-system-depends-on-layer-2">Layer 3: Library System (Depends on Layer 2)<a class="headerlink" href="#layer-3-library-system-depends-on-layer-2" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>src/types/library.ts</code> → (no internal deps)</li>
-<li><code>src/atoms/library-atom.ts</code> → <code>src/types/library.ts</code></li>
-<li><code>src/lib/services/library-service.ts</code> → <code>src/lib/mongodb-service.ts</code>, <code>src/types/library.ts</code></li>
-<li><code>src/components/library/library.tsx</code> → <code>src/lib/storage/storage-factory.ts</code>, <code>src/atoms/library-atom.ts</code>, <code>src/lib/services/library-service.ts</code></li>
-</ul>
-<h3 id="layer-4-chat-system-depends-on-layer-3">Layer 4: Chat System (Depends on Layer 3)<a class="headerlink" href="#layer-4-chat-system-depends-on-layer-3" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>src/types/chat.ts</code> → <code>src/types/library.ts</code></li>
-<li><code>src/lib/chat/constants.ts</code> → (no internal deps)</li>
-<li><code>src/lib/chat/orchestrator.ts</code> → <code>src/lib/chat/loader.ts</code>, <code>src/lib/chat/common/prompt.ts</code>, <code>src/lib/chat/common/llm.ts</code></li>
-<li><code>src/lib/chat/loader.ts</code> → <code>src/lib/services/library-service.ts</code>, <code>src/lib/mongodb-service.ts</code></li>
-<li><code>src/app/api/chat/[libraryId]/stream/route.ts</code> → <code>src/lib/chat/orchestrator.ts</code>, <code>src/lib/services/library-service.ts</code></li>
-</ul>
-<h3 id="layer-5-api-routes-components-depends-on-layers-1-4">Layer 5: API Routes &amp; Components (Depends on Layers 1-4)<a class="headerlink" href="#layer-5-api-routes-components-depends-on-layers-1-4" title="Permanent link">&para;</a></h3>
-<ul>
-<li>All API routes depend on services and libraries</li>
-<li>Components depend on hooks, contexts, and library code</li>
-</ul>
-<h2 id="circular-dependencies">Circular Dependencies<a class="headerlink" href="#circular-dependencies" title="Permanent link">&para;</a></h2>
-<h3 id="potential-circular-dependencies-to-check">Potential Circular Dependencies to Check:<a class="headerlink" href="#potential-circular-dependencies-to-check" title="Permanent link">&para;</a></h3>
-<ol>
-<li><strong>Storage Factory ↔ Storage Providers</strong></li>
-<li><code>storage-factory.ts</code> imports providers</li>
-<li>
-<p>Providers may import factory (needs verification)</p>
-</li>
-<li>
-<p><strong>Library Service ↔ Storage Factory</strong></p>
-</li>
-<li><code>library-service.ts</code> may use storage</li>
-<li>
-<p>Storage may reference library types</p>
-</li>
-<li>
-<p><strong>Chat Orchestrator ↔ Chat Loader</strong></p>
-</li>
-<li><code>orchestrator.ts</code> imports <code>loader.ts</code></li>
-<li><code>loader.ts</code> may import orchestrator utilities</li>
-</ol>
-<h2 id="unused-imports-to-verify">Unused Imports (To Verify)<a class="headerlink" href="#unused-imports-to-verify" title="Permanent link">&para;</a></h2>
-<p>Based on commented-out imports found:
-- <code>src/app/api/external/jobs/[jobId]/route.ts</code> has commented imports:
-  - <code>FileSystemProvider</code> (commented)
-  - <code>ImageExtractionService</code> (commented)
-  - <code>TransformService</code> (commented)
-  - <code>parseSecretaryMarkdownStrict</code> (marked as unused)</p>
-<h2 id="import-patterns">Import Patterns<a class="headerlink" href="#import-patterns" title="Permanent link">&para;</a></h2>
-<h3 id="most-common-import-patterns">Most Common Import Patterns:<a class="headerlink" href="#most-common-import-patterns" title="Permanent link">&para;</a></h3>
-<ol>
-<li><strong>Type Imports</strong>: <code>import type { ... } from '@/types/...'</code></li>
-<li><strong>Component Imports</strong>: <code>import { Component } from '@/components/...'</code></li>
-<li><strong>Service Imports</strong>: <code>import { Service } from '@/lib/services/...'</code></li>
-<li><strong>Utility Imports</strong>: <code>import { util } from '@/lib/utils'</code></li>
-</ol>
-<h3 id="import-categories">Import Categories:<a class="headerlink" href="#import-categories" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Types</strong>: ~15% of imports</li>
-<li><strong>Components</strong>: ~35% of imports</li>
-<li><strong>Library/Utils</strong>: ~30% of imports</li>
-<li><strong>Hooks/Contexts</strong>: ~10% of imports</li>
-<li><strong>Atoms</strong>: ~5% of imports</li>
-<li><strong>Other</strong>: ~5% of imports</li>
-</ul>
-<h2 id="recommendations">Recommendations<a class="headerlink" href="#recommendations" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Document Core Modules First</strong>: Start with Layer 1 (Core Infrastructure)</li>
-<li><strong>Follow Dependency Order</strong>: Document layers in order (1 → 2 → 3 → 4 → 5)</li>
-<li><strong>Check Circular Dependencies</strong>: Verify and document any circular dependencies found</li>
-<li><strong>Clean Up Unused Imports</strong>: Remove commented imports and verify unused code</li>
-<li><strong>Standardize Import Patterns</strong>: Ensure consistent import style across codebase</li>
-</ol>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Complete dependency analysis for specific modules</li>
-<li>Create visual dependency graph</li>
-<li>Identify and document circular dependencies</li>
-<li>Create import/export audit report</li>
-<li>Document module boundaries and interfaces</li>
-</ol>
 
 
 
