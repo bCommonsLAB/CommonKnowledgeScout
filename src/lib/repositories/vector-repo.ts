@@ -1074,11 +1074,64 @@ export async function findDocs(
     col.countDocuments(query)
   ])
   
+  // Hilfsfunktion zum Konvertieren von speakers_image_url (kann Array oder String sein)
+  const toStrArr = (v: unknown): string[] | undefined => {
+    // Direktes Array
+    if (Array.isArray(v)) {
+      const arr = (v as Array<unknown>).map(x => {
+        if (typeof x === 'string' && x.trim().length > 0) return x.trim()
+        return ''
+      }).filter(Boolean)
+      return arr.length > 0 ? arr : undefined
+    }
+    
+    // String der wie ein Array aussieht: "['url1', 'url2']" oder '["url1", "url2"]'
+    if (typeof v === 'string' && v.trim().length > 0) {
+      const trimmed = v.trim()
+      
+      // Versuche JSON-Array zu parsen
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || 
+          (trimmed.startsWith("['") && trimmed.endsWith("']"))) {
+        try {
+          // Ersetze einfache Anführungszeichen durch doppelte für JSON.parse
+          const jsonStr = trimmed.replace(/'/g, '"')
+          const parsed = JSON.parse(jsonStr)
+          if (Array.isArray(parsed)) {
+            const arr = parsed.map(x => {
+              if (typeof x === 'string' && x.trim().length > 0) return x.trim()
+              return ''
+            }).filter(Boolean)
+            return arr.length > 0 ? arr : undefined
+          }
+        } catch {
+          // Fehler beim Parsen, versuche manuell zu extrahieren
+          const matches = trimmed.match(/(['"])((?:(?!\1).)*)\1/g)
+          if (matches && matches.length > 0) {
+            const arr = matches.map(m => m.slice(1, -1).trim()).filter(Boolean)
+            return arr.length > 0 ? arr : undefined
+          }
+        }
+      }
+      
+      // Einzelner String → als Array mit einem Element
+      const singleStr = trimmed.length > 0 ? trimmed : undefined
+      return singleStr ? [singleStr] : undefined
+    }
+    
+    return undefined
+  }
+
   return {
     items: rows.map(r => {
       const docMeta = r.docMetaJson && typeof r.docMetaJson === 'object' 
         ? r.docMetaJson as Record<string, unknown> 
         : undefined
+      
+      // speakers_image_url: Priorität: Top-Level > docMetaJson.speakers_image_url
+      // Kann sowohl Array als auch String sein: "['url1', 'url2']" → ['url1', 'url2']
+      const speakersImageUrlTopLevel = toStrArr(r.speakers_image_url)
+      const speakersImageUrlDocMeta = docMeta ? toStrArr(docMeta.speakers_image_url) : undefined
+      const speakersImageUrl = speakersImageUrlTopLevel || speakersImageUrlDocMeta
       
       return {
         id: `${r.fileId}-meta`,
@@ -1090,9 +1143,7 @@ export async function findDocs(
         speakers: Array.isArray(r.speakers) 
           ? r.speakers 
           : (Array.isArray(docMeta?.speakers) ? docMeta.speakers as string[] : undefined),
-        speakers_image_url: Array.isArray(r.speakers_image_url) 
-          ? r.speakers_image_url 
-          : (Array.isArray(docMeta?.speakers_image_url) ? docMeta.speakers_image_url as string[] : undefined),
+        speakers_image_url: speakersImageUrl || undefined,
         year: (typeof r.year === 'number' || typeof r.year === 'string') ? r.year : undefined,
         track: r.track || (docMeta?.track as string | undefined),
         date: r.date || (docMeta?.date as string | undefined),

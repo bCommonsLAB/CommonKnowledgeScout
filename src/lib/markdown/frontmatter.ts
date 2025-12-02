@@ -48,9 +48,39 @@ export function extractFrontmatterBlock(markdown: string): string | null {
   // Unterstützt sowohl \n (Unix) als auch \r\n (Windows) Zeilenumbrüche.
   //
   // Pattern: Anfang → optionales BOM → optionale Leerzeilen → `---` + Zeilenumbruch
-  //          → Inhalt (non-greedy) → Zeilenumbruch + `---` → optionaler Zeilenumbruch oder Ende
-  const m = markdown.match(/^\uFEFF?(?:\s*[\r\n])*---[\r\n]+([\s\S]*?)[\r\n]+---(?:\s*[\r\n]|$)/);
-  return m ? m[0] : null;
+  //          → Inhalt (non-greedy) → Zeilenumbruch ODER direkt + `---` → optionaler Zeilenumbruch oder Ende
+  // FIX: Unterstützt jetzt auch Fälle, wo nach dem letzten `---` direkt Text kommt (ohne Zeilenumbruch davor)
+  // Geändert: Suche nach dem zweiten `---` - kann mit oder ohne Zeilenumbruch davor kommen
+  // Suche nach dem ersten `---` am Anfang, dann nach dem nächsten `---` (mit oder ohne Zeilenumbruch davor)
+  const startMatch = markdown.match(/^\uFEFF?(?:\s*[\r\n])*---[\r\n]+/);
+  if (!startMatch) return null;
+  
+  const afterStart = markdown.slice(startMatch[0].length);
+  // Suche nach dem nächsten `---` - kann am Anfang einer Zeile stehen (nach Zeilenumbruch) oder direkt nach Text
+  // Non-greedy Match: stoppt beim ersten gefundenen `---`
+  // Unterstützt beide Fälle: `\n---` (mit Zeilenumbruch) oder `---` direkt nach Text
+  // Einfacher Ansatz: Suche nach dem ersten `---` nach dem Start
+  // Pattern: Inhalt (non-greedy) bis zum ersten `---` gefolgt von:
+  //   - Zeilenumbruch + optionaler Whitespace
+  //   - ODER Ende des Strings
+  //   - ODER einem Zeichen, das kein Zeilenumbruch und kein `-` ist (um `----` zu vermeiden)
+  const endMatch = afterStart.match(/([\s\S]*?)---(?:\s*[\r\n]|$|[^\r\n-])/);
+  if (!endMatch) {
+    // Fallback: Wenn kein Match gefunden wurde, könnte das `---` am Ende des Strings sein
+    // Suche einfach nach dem letzten `---` im String (als letzter Versuch)
+    const lastDashIndex = afterStart.lastIndexOf('---');
+    if (lastDashIndex === -1) return null;
+    // Prüfe ob nach dem `---` ein Zeilenumbruch oder Ende kommt
+    const afterDash = afterStart.slice(lastDashIndex + 3);
+    if (afterDash.length === 0 || /^[\r\n]/.test(afterDash)) {
+      return markdown.substring(0, startMatch[0].length + lastDashIndex + 3);
+    }
+    return null;
+  }
+  
+  // Gib den kompletten Block zurück (inkl. beide Delimiter)
+  // endMatch[0] enthält den Inhalt + das `---` + optionalen Whitespace/Zeilenumbruch
+  return markdown.substring(0, startMatch[0].length + endMatch[0].length);
 }
 
 export function parseFrontmatterKeyValues(frontmatter: string): FrontmatterEntry[] {

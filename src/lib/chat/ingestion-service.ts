@@ -230,7 +230,17 @@ export class IngestionService {
       }
       
       // Mongo-Dokument vorbereiten (vollständige Metadaten)
-      const docMetaJsonObj = (((metaEffective as Record<string, unknown>)['__jsonClean'] as Record<string, unknown>) || ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || metaEffective || {}) as Record<string, unknown>
+      // WICHTIG: Verwende metaEffective als Basis (enthält ALLE Frontmatter-Felder),
+      // nicht nur __jsonClean (enthält nur Facetten-Felder).
+      // Merge __jsonClean für Facetten-Validierung, aber behalte alle anderen Felder aus metaEffective.
+      const jsonClean = ((metaEffective as Record<string, unknown>)['__jsonClean'] as Record<string, unknown>) || {}
+      const sanitized = ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || {}
+      // Basis: metaEffective mit allen Frontmatter-Feldern
+      // Merge: Facetten-validierte Werte aus __jsonClean haben Priorität
+      const docMetaJsonObj = { ...metaEffective, ...jsonClean } as Record<string, unknown>
+      // Entferne interne Felder
+      delete (docMetaJsonObj as Record<string, unknown>)['__jsonClean']
+      delete (docMetaJsonObj as Record<string, unknown>)['__sanitized']
       
       // Verarbeite Markdown-Bilder und Cover-Bild für Bücher (nur wenn kein Session-Modus)
       // WICHTIG: Verwende shadowTwinFolderId aus Parameter (kommt von job.shadowTwinState)
@@ -342,6 +352,13 @@ export class IngestionService {
         docType: typeof (docMetaJsonObj as { docType?: unknown }).docType === 'string' ? (docMetaJsonObj as { docType: string }).docType : undefined,
         source: typeof (docMetaJsonObj as { source?: unknown }).source === 'string' ? (docMetaJsonObj as { source: string }).source : undefined,
         tags: Array.isArray((docMetaJsonObj as { tags?: unknown }).tags) ? ((docMetaJsonObj as { tags?: unknown[] }).tags as string[]) : undefined,
+        // Zusätzliche Metadaten-Felder aus Frontmatter extrahieren
+        title: typeof (docMetaJsonObj as { title?: unknown }).title === 'string' ? (docMetaJsonObj as { title: string }).title : undefined,
+        shortTitle: typeof (docMetaJsonObj as { shortTitle?: unknown }).shortTitle === 'string' ? (docMetaJsonObj as { shortTitle: string }).shortTitle : undefined,
+        slug: typeof (docMetaJsonObj as { slug?: unknown }).slug === 'string' ? (docMetaJsonObj as { slug: string }).slug : undefined,
+        summary: typeof (docMetaJsonObj as { summary?: unknown }).summary === 'string' ? (docMetaJsonObj as { summary: string }).summary : undefined,
+        teaser: typeof (docMetaJsonObj as { teaser?: unknown }).teaser === 'string' ? (docMetaJsonObj as { teaser: string }).teaser : undefined,
+        topics: Array.isArray((docMetaJsonObj as { topics?: unknown }).topics) ? ((docMetaJsonObj as { topics?: unknown[] }).topics as string[]) : undefined,
         chunkCount: chunksUpserted, // Wird später aktualisiert
         chaptersCount,
         upsertedAt: new Date().toISOString(),

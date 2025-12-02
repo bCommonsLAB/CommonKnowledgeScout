@@ -33,12 +33,58 @@ export async function POST(
 
     const { fileId, fileName, docMeta } = parsed.data
 
-    FileLogger.info('ingest-markdown', 'Request', { libraryId, fileId })
+    FileLogger.info('ingest-markdown', 'Request', { libraryId, fileId, hasDocMeta: !!docMeta })
 
     const provider = await getServerProvider(userEmail, libraryId)
     const item = await provider.getItemById(fileId)
     const bin = await provider.getBinary(fileId)
     const markdown = await bin.blob.text()
+
+    // DEBUG: Prüfe ob Frontmatter vorhanden ist
+    const hasFrontmatter = markdown.trim().startsWith('---')
+    FileLogger.info('ingest-markdown', 'Markdown geladen', { 
+      fileId, 
+      markdownLength: markdown.length,
+      hasFrontmatter,
+      firstChars: markdown.substring(0, 200)
+    })
+
+    // DEBUG: Parse Frontmatter manuell um zu sehen was rauskommt
+    try {
+      const fm = await import('@/lib/markdown/frontmatter')
+      const secretaryParser = await import('@/lib/secretary/response-parser')
+      
+      // Teste extractFrontmatterBlock direkt
+      const fmBlock = fm.extractFrontmatterBlock(markdown)
+      FileLogger.info('ingest-markdown', 'Frontmatter-Block extrahiert', {
+        fileId,
+        hasBlock: !!fmBlock,
+        blockLength: fmBlock?.length || 0,
+        blockPreview: fmBlock?.substring(0, 200) || null
+      })
+      
+      // Teste parseSecretaryMarkdownStrict direkt
+      const secretaryParsed = secretaryParser.parseSecretaryMarkdownStrict(markdown)
+      FileLogger.info('ingest-markdown', 'Secretary Parser Ergebnis', {
+        fileId,
+        hasFrontmatter: !!secretaryParsed.frontmatter,
+        metaKeys: Object.keys(secretaryParsed.meta),
+        metaCount: Object.keys(secretaryParsed.meta).length,
+        errors: secretaryParsed.errors
+      })
+      
+      // Teste parseFrontmatter
+      const parsedFrontmatter = fm.parseFrontmatter(markdown)
+      FileLogger.info('ingest-markdown', 'parseFrontmatter Ergebnis', {
+        fileId,
+        metaKeys: Object.keys(parsedFrontmatter.meta),
+        metaCount: Object.keys(parsedFrontmatter.meta).length,
+        bodyLength: parsedFrontmatter.body.length,
+        hasDocMetaOverride: !!docMeta
+      })
+    } catch (err) {
+      FileLogger.error('ingest-markdown', 'Fehler beim Parsen des Frontmatters', { fileId, error: err instanceof Error ? err.message : String(err) })
+    }
 
     const res = await IngestionService.upsertMarkdown(
       userEmail,
