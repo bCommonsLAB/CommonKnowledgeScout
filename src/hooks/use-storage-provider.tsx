@@ -63,20 +63,42 @@ export function useStorageProvider() {
     }
 
     // OPTIMIERUNG: Prüfe ob es eine öffentliche Library ist
-    // Öffentliche Libraries brauchen keinen Storage Provider (werden nur für Gallery/Chat verwendet)
+    // Öffentliche Libraries brauchen normalerweise keinen Storage Provider (werden nur für Gallery/Chat verwendet)
+    // ABER: Für die normale Library-Ansicht (Archiv) brauchen sie trotzdem einen Provider
     const currentLibrary = libraries.find(lib => lib.id === activeLibraryId)
     const isPublicLibrary = currentLibrary?.config?.publicPublishing?.isPublic === true
     
-    if (isPublicLibrary) {
-      console.log('[useStorageProvider] ⏸️ Öffentliche Library - kein Provider benötigt');
+    // Prüfe ob wir auf der Library-Seite sind (Archiv-Ansicht)
+    // In diesem Fall brauchen wir auch für öffentliche Libraries einen Provider
+    const isLibraryPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/library')
+    
+    if (isPublicLibrary && !isLibraryPage) {
+      console.log('[useStorageProvider] ⏸️ Öffentliche Library - kein Provider benötigt (nicht auf Library-Seite)', {
+        libraryId: activeLibraryId.substring(0, 8) + '...',
+        currentPath: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
+        isPublicLibrary: true,
+        isLibraryPage: false
+      });
       setProvider(null)
       return
+    }
+    
+    if (isPublicLibrary && isLibraryPage) {
+      console.log('[useStorageProvider] ℹ️ Öffentliche Library auf Library-Seite - Provider wird trotzdem geladen', {
+        libraryId: activeLibraryId.substring(0, 8) + '...',
+        currentPath: window.location.pathname,
+        isPublicLibrary: true,
+        isLibraryPage: true
+      });
     }
 
     console.log('[useStorageProvider] 🚀 Lade Provider für Library:', {
       libraryId: activeLibraryId.substring(0, 8) + '...',
       libraryType: currentLibrary?.type,
       libraryLabel: currentLibrary?.label,
+      isPublicLibrary: isPublicLibrary,
+      isLibraryPage: isLibraryPage,
+      currentPath: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
       timestamp: new Date().toISOString()
     });
 
