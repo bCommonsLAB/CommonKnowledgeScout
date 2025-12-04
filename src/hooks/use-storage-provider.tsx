@@ -37,19 +37,27 @@ export function useStorageProvider() {
   const [provider, setProvider] = useState<StorageProvider | null>(null)
 
   useEffect(() => {
+    console.log('[useStorageProvider] 🔄 Provider-Loading gestartet:', {
+      activeLibraryId: activeLibraryId ? activeLibraryId.substring(0, 8) + '...' : null,
+      librariesCount: libraries.length,
+      timestamp: new Date().toISOString()
+    });
+    
     if (!activeLibraryId) {
+      console.log('[useStorageProvider] ⏸️ Keine activeLibraryId - setze Provider auf null');
       setProvider(null)
       return
     }
 
     if (libraries.length === 0) {
+      console.log('[useStorageProvider] ⏸️ Keine Libraries vorhanden - setze Provider auf null');
       setProvider(null)
       return
     }
 
     const libraryExists = libraries.some(lib => lib.id === activeLibraryId)
     if (!libraryExists) {
-      console.warn(`[useStorageProvider] Bibliothek mit ID ${activeLibraryId} existiert nicht in der Liste der verfügbaren Bibliotheken`)
+      console.warn(`[useStorageProvider] ⚠️ Bibliothek mit ID ${activeLibraryId.substring(0, 8)}... existiert nicht in der Liste`)
       setProvider(null)
       return
     }
@@ -60,20 +68,40 @@ export function useStorageProvider() {
     const isPublicLibrary = currentLibrary?.config?.publicPublishing?.isPublic === true
     
     if (isPublicLibrary) {
+      console.log('[useStorageProvider] ⏸️ Öffentliche Library - kein Provider benötigt');
       setProvider(null)
       return
     }
+
+    console.log('[useStorageProvider] 🚀 Lade Provider für Library:', {
+      libraryId: activeLibraryId.substring(0, 8) + '...',
+      libraryType: currentLibrary?.type,
+      libraryLabel: currentLibrary?.label,
+      timestamp: new Date().toISOString()
+    });
 
     const factory = StorageFactory.getInstance()
     
     factory.getProvider(activeLibraryId)
       .then(provider => {
+        console.log('[useStorageProvider] ✅ Provider geladen:', {
+          providerId: provider.id.substring(0, 8) + '...',
+          providerName: provider.name,
+          timestamp: new Date().toISOString()
+        });
         setProvider(provider)
       })
       .catch(error => {
+        console.error('[useStorageProvider] ❌ Fehler beim Laden des Providers:', {
+          libraryId: activeLibraryId.substring(0, 8) + '...',
+          errorName: error.name,
+          errorMessage: error.message,
+          timestamp: new Date().toISOString()
+        });
+        
         // Graceful handling für verschiedene Fehlertypen
         if (error.name === 'LibraryNotFoundError') {
-          console.warn(`[useStorageProvider] Library nicht im StorageFactory gefunden: ${activeLibraryId}`, {
+          console.warn(`[useStorageProvider] ⚠️ Library nicht im StorageFactory gefunden: ${activeLibraryId.substring(0, 8)}...`, {
             libraryId: activeLibraryId,
             libraryLabel: currentLibrary?.label,
             isPublicLibrary
@@ -84,7 +112,7 @@ export function useStorageProvider() {
         
         if (error.name === 'UnsupportedLibraryTypeError') {
           const currentLibrary = libraries.find(lib => lib.id === activeLibraryId)
-          console.warn(`[useStorageProvider] Nicht unterstützter Bibliothekstyp "${error.libraryType}" für Bibliothek "${currentLibrary?.label}" - Bibliothek wird übersprungen`, {
+          console.warn(`[useStorageProvider] ⚠️ Nicht unterstützter Bibliothekstyp "${error.libraryType}" für Bibliothek "${currentLibrary?.label}"`, {
             libraryId: activeLibraryId,
             libraryType: error.libraryType,
             libraryLabel: currentLibrary?.label
@@ -103,7 +131,7 @@ export function useStorageProvider() {
           
           setProvider(null)
         } else {
-          console.error(`[useStorageProvider] Fehler beim Laden des Storage Providers für ${activeLibraryId}:`, error)
+          console.error(`[useStorageProvider] ❌ Fehler beim Laden des Storage Providers für ${activeLibraryId.substring(0, 8)}...:`, error)
           setProvider(null)
         }
       })

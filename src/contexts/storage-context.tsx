@@ -215,12 +215,23 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     // wenn der Benutzer angemeldet ist (für LibrarySwitcher im Top-Menü)
     // Öffentliche Libraries werden separat geladen (z.B. in LibraryGrid)
     
+    console.log('[StorageContext] 🔄 Library Loading Check:', {
+      isAuthLoaded,
+      isUserLoaded,
+      isSignedIn,
+      hasUser: !!user,
+      userEmail: user?.primaryEmailAddress?.emailAddress ? `${user.primaryEmailAddress.emailAddress.split('@')[0]}@...` : null,
+      timestamp: new Date().toISOString()
+    });
+    
     if (!isAuthLoaded || !isUserLoaded) {
+      console.log('[StorageContext] ⏸️ Warte auf Auth/User Loading...');
       return;
     }
     
     // Wenn nicht angemeldet: Keine Libraries laden (nur öffentliche Libraries werden separat geladen)
     if (!isSignedIn) {
+      console.log('[StorageContext] ⚠️ Benutzer nicht angemeldet - keine Libraries laden');
       setIsLoading(false);
       setLibraryStatus('ready');
       setLibraryStatusAtom('ready');
@@ -229,6 +240,10 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
 
     const userEmail = user?.primaryEmailAddress?.emailAddress;
     if (!userEmail) {
+      console.error('[StorageContext] ❌ Keine Benutzer-Email verfügbar', { 
+        hasUser: !!user,
+        emailAddressesCount: user?.emailAddresses?.length || 0 
+      });
       AuthLogger.error('StorageContext', 'No user email available', { 
         hasUser: !!user,
         emailAddressesCount: user?.emailAddresses?.length || 0 
@@ -239,6 +254,11 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
     }
 
     setIsLoading(true);
+    
+    console.log('[StorageContext] 🚀 Starte Library-Loading für:', {
+      userEmail: `${userEmail.split('@')[0]}@...`,
+      timestamp: new Date().toISOString()
+    });
     
     let retryCount = 0;
     const maxRetries = 3;
@@ -251,7 +271,20 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       try {
         const apiEndpoint = `/api/libraries?email=${encodeURIComponent(userEmail)}`;
         
+        console.log('[StorageContext] 📡 API-Call gestartet:', {
+          endpoint: apiEndpoint,
+          attempt: retryCount + 1,
+          timestamp: new Date().toISOString()
+        });
+        
         const res = await fetch(apiEndpoint);
+        
+        console.log('[StorageContext] 📡 API-Call Response:', {
+          status: res.status,
+          statusText: res.statusText,
+          ok: res.ok,
+          timestamp: new Date().toISOString()
+        });
         
         if (!res.ok) {
           AuthLogger.apiCall('StorageContext', apiEndpoint, 'error', { 
@@ -289,6 +322,12 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         const data = await res.json();
         if (isCancelled) return; // Nochmal prüfen nach async Operation
         
+        console.log('[StorageContext] ✅ API-Call erfolgreich:', {
+          librariesReceived: Array.isArray(data) ? data.length : 0,
+          attempt: retryCount + 1,
+          timestamp: new Date().toISOString()
+        });
+        
         AuthLogger.apiCall('StorageContext', apiEndpoint, 'success', { 
           librariesCount: Array.isArray(data) ? data.length : 0,
           attempt: retryCount + 1 
@@ -303,6 +342,13 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
               // Unsupported library types are silently filtered out (normal case)
               return isSupported;
             });
+          
+          console.log('[StorageContext] 📚 Libraries gefiltert:', {
+            totalReceived: data.length,
+            supportedCount: supportedLibraries.length,
+            supportedTypes: supportedLibraries.map(lib => ({ id: lib.id.substring(0, 8) + '...', type: lib.type, label: lib.label })),
+            timestamp: new Date().toISOString()
+          });
           
           // WICHTIG: Intelligentes State-Merge statt Überschreiben
           // Prüfe ob Libraries bereits im State sind (z.B. von Explore-Seite)
@@ -706,9 +752,18 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
 
   React.useEffect(() => {
     if (currentLibrary) {
+      console.log('[StorageContext] 🔍 Prüfe Library-Status:', {
+        libraryId: currentLibrary.id.substring(0, 8) + '...',
+        libraryType: currentLibrary.type,
+        libraryLabel: currentLibrary.label,
+        hasProvider: !!provider,
+        timestamp: new Date().toISOString()
+      });
+      
       // Status-Logik: Nur OAuth-basierte Provider benötigen Authentifizierung
       // Lokale Dateisystem-Bibliotheken sind immer "ready"
       if (currentLibrary.type === 'local') {
+        console.log('[StorageContext] ✅ Local Library - Status: ready');
         setLibraryStatus('ready');
         setLibraryStatusAtom('ready');
       } else if (currentLibrary.type === 'onedrive' || currentLibrary.type === 'gdrive') {
@@ -720,20 +775,34 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             const localStorageKey = `onedrive_tokens_${currentLibrary.id}`;
             const tokensJson = localStorage.getItem(localStorageKey);
             hasToken = !!tokensJson;
+            
+            console.log('[StorageContext] 🔐 OneDrive Token-Check:', {
+              libraryId: currentLibrary.id.substring(0, 8) + '...',
+              localStorageKey,
+              hasToken,
+              tokenLength: tokensJson?.length || 0,
+              timestamp: new Date().toISOString()
+            });
           } catch (error) {
+            console.error('[StorageContext] ❌ Fehler beim Token-Check:', error);
             AuthLogger.debug('StorageContext', 'Error checking tokens in localStorage', { error });
           }
+        } else {
+          console.log('[StorageContext] ⚠️ Window nicht verfügbar (SSR) - kann Token nicht prüfen');
         }
         
         if (hasToken) {
+          console.log('[StorageContext] ✅ Token gefunden - Status: ready');
           setLibraryStatus('ready');
           setLibraryStatusAtom('ready');
         } else {
+          console.warn('[StorageContext] ⚠️ Kein Token gefunden - Status: waitingForAuth');
           setLibraryStatus('waitingForAuth');
           setLibraryStatusAtom('waitingForAuth');
         }
       } else {
         // Unbekannter Provider-Typ - sicherheitshalber auf ready setzen
+        console.log('[StorageContext] ⚠️ Unbekannter Provider-Typ - Status: ready (Fallback)');
         setLibraryStatus('ready');
         setLibraryStatusAtom('ready');
       }

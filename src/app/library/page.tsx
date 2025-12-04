@@ -53,14 +53,31 @@ export default function LibraryPage() {
   const libraries = useAtomValue(librariesAtom);
   const router = useRouter();
 
+  // Logging für Debugging: Auth-Status und Loading-State
+  React.useEffect(() => {
+    console.log('[LibraryPage] 🔍 Status-Check:', {
+      isAuthLoaded,
+      isSignedIn,
+      isLoading,
+      hasError: !!error,
+      librariesCount: libraries.length,
+      timestamp: new Date().toISOString()
+    });
+  }, [isAuthLoaded, isSignedIn, isLoading, error, libraries.length]);
+
   // Nutze den StorageContext statt eigenes Loading
   if (!isAuthLoaded || isLoading) {
+    console.log('[LibraryPage] ⏳ Warte auf Auth oder Storage Loading...', {
+      isAuthLoaded,
+      isLoading
+    });
     return <div className="p-8">
       <Skeleton className="h-[500px] w-full" />
     </div>;
   }
 
   if (!isSignedIn) {
+    console.warn('[LibraryPage] ❌ Benutzer nicht angemeldet - Zugriff verweigert');
     return <div className="p-8">
       <Alert variant="destructive">
         <ExclamationTriangleIcon className="h-4 w-4" />

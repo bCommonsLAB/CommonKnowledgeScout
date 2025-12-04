@@ -145,15 +145,34 @@ export function Library() {
 
   // Optimierter loadItems mit Cache-Check
   const loadItems = useCallback(async () => {
+    console.log('[Library] 🔄 loadItems aufgerufen:', {
+      hasProvider: !!providerInstance,
+      libraryStatus,
+      currentFolderId,
+      activeLibraryId,
+      currentLibraryId: currentLibrary?.id?.substring(0, 8) + '...',
+      loadInFlight: loadInFlightRef.current,
+      timestamp: new Date().toISOString()
+    });
+    
     if (loadInFlightRef.current) {
+      console.log('[Library] ⏸️ Load bereits in Flight - überspringe');
       return;
     }
     if (!providerInstance || libraryStatus !== 'ready') {
+      console.log('[Library] ⏸️ Provider nicht bereit:', {
+        hasProvider: !!providerInstance,
+        libraryStatus
+      });
       return;
     }
 
     // Schutz: Wenn Provider/Context noch auf alte Library zeigt, keine Items übernehmen
     if (currentLibrary?.id && currentLibrary.id !== activeLibraryId) {
+      console.warn('[Library] ⚠️ Library-Mismatch - überspringe:', {
+        currentLibraryId: currentLibrary.id.substring(0, 8) + '...',
+        activeLibraryId: activeLibraryId.substring(0, 8) + '...'
+      });
       return;
     }
 
@@ -162,6 +181,12 @@ export function Library() {
     loadInFlightRef.current = true;
     setLastLoadedFolder(currentFolderId); // Optimistisch setzen
     setLoadingState({ isLoading: true, loadingFolderId: currentFolderId });
+    
+    console.log('[Library] 🚀 Starte Item-Loading:', {
+      folderId: currentFolderId,
+      libraryId: activeLibraryId.substring(0, 8) + '...',
+      timestamp: new Date().toISOString()
+    });
 
     try {
       // Snapshot zur Vermeidung von Race-Conditions
@@ -188,9 +213,21 @@ export function Library() {
       }
 
       const items = await listItems(currentFolderId);
+      
+      console.log('[Library] ✅ Items geladen:', {
+        itemCount: items.length,
+        folderId: currentFolderId,
+        timestamp: new Date().toISOString()
+      });
 
       // Falls während des Ladens die Library oder der Ordner wechselte: Ergebnis verwerfen
       if (expectedLibraryId !== activeLibraryId || expectedFolderId !== currentFolderId) {
+        console.warn('[Library] ⚠️ Context geändert während Loading - verwerfe Ergebnis:', {
+          expectedLibraryId: expectedLibraryId.substring(0, 8) + '...',
+          activeLibraryId: activeLibraryId.substring(0, 8) + '...',
+          expectedFolderId,
+          currentFolderId
+        });
         // Context hat sich geändert, setze lastLoadedFolder zurück
         setLastLoadedFolder(null);
         return;
