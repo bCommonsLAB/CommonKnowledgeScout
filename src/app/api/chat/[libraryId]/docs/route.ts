@@ -8,10 +8,31 @@ import type { Document } from 'mongodb'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
-    const { userId } = await auth()
     const { libraryId } = await params
-    const user = await currentUser()
-    const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
+    
+    // Rate-Limiting-Schutz: Versuche auth() und currentUser() mit Fehlerbehandlung
+    let userId: string | null = null
+    let userEmail = ''
+    
+    try {
+      const authResult = await auth()
+      userId = authResult.userId || null
+      
+      if (userId) {
+        const user = await currentUser()
+        userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
+      }
+    } catch (authError) {
+      // Rate Limit Error: Loggen aber nicht abbrechen (für öffentliche Libraries)
+      const isRateLimit = authError && typeof authError === 'object' && 'status' in authError && authError.status === 429
+      if (isRateLimit) {
+        console.warn('[API] Clerk Rate Limit beim Laden der Dokumente, versuche ohne Auth fortzufahren')
+        // Für öffentliche Libraries können wir ohne Auth fortfahren
+      } else {
+        // Andere Auth-Fehler: Weiterwerfen
+        throw authError
+      }
+    }
 
     // Chat-Kontext laden (nutzt userEmail für nicht-öffentliche Bibliotheken)
     const ctx = await loadLibraryChatContext(userEmail, libraryId)
