@@ -12,7 +12,7 @@ export function useGalleryData(
   mode: 'gallery' | 'story', 
   searchQuery: string, 
   libraryId?: string,
-  options?: { skipApiCall?: boolean }
+  options?: { skipApiCall?: boolean; refreshKey?: number }
 ) {
   const setGalleryData = useSetAtom(galleryDataAtom)
   const galleryDataFromAtom = useAtomValue(galleryDataAtom)
@@ -30,7 +30,7 @@ export function useGalleryData(
   // Memoize filters string für Dependency-Array
   const filtersString = useMemo(() => JSON.stringify(filters), [filters])
   
-  // Reset bei Filter-Änderungen (nur wenn nicht skipApiCall)
+  // Reset bei Filter-Änderungen oder Refresh-Key-Änderung (nur wenn nicht skipApiCall)
   useEffect(() => {
     if (skipApiCall) return
     setPage(1)
@@ -38,7 +38,7 @@ export function useGalleryData(
     setDocs([])
     setTotalCount(0)
     setIsLoadingMore(false)
-  }, [libraryId, filtersString, mode, searchQuery, skipApiCall])
+  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey])
   
   useEffect(() => {
     // Überspringe API-Aufruf wenn skipApiCall true ist
@@ -125,7 +125,7 @@ export function useGalleryData(
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall]) // Abhängigkeit von page
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey]) // Abhängigkeit von page und refreshKey
 
 
   const loadMore = () => {

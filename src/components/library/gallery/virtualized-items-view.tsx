@@ -16,6 +16,8 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 import type { ViewMode } from './gallery-sticky-header'
 import { ItemsGrid } from './items-grid'
+import { DeleteDocumentButton } from './delete-document-button'
+import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 
 export interface VirtualizedItemsViewProps {
   viewMode: ViewMode
@@ -25,6 +27,8 @@ export interface VirtualizedItemsViewProps {
   onLoadMore?: () => void
   hasMore?: boolean
   isLoadingMore?: boolean
+  /** Callback nach erfolgreichem Löschen eines Dokuments */
+  onDocumentDeleted?: () => void
 }
 
 export function VirtualizedItemsView({
@@ -35,11 +39,13 @@ export function VirtualizedItemsView({
   onLoadMore,
   hasMore,
   isLoadingMore,
+  onDocumentDeleted,
 }: VirtualizedItemsViewProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { isOwner } = useIsLibraryOwner(libraryId)
   const parentRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const scrollOffsetFromBottomRef = useRef<number | null>(null)
@@ -164,6 +170,7 @@ export function VirtualizedItemsView({
                   <TableHead className="w-[60%]">{t('gallery.table.title')}</TableHead>
                   <TableHead className="w-[20%]">{t('gallery.table.year')}</TableHead>
                   <TableHead className="w-[20%]">{t('gallery.table.track')}</TableHead>
+                  {isOwner && <TableHead className="w-[60px]"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -201,6 +208,15 @@ export function VirtualizedItemsView({
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
+                    {isOwner && libraryId && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DeleteDocumentButton
+                          doc={doc}
+                          libraryId={libraryId}
+                          onDeleted={onDocumentDeleted}
+                        />
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

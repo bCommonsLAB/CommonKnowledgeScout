@@ -9,6 +9,8 @@ import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { ViewModeToggle } from '@/components/library/gallery/view-mode-toggle'
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
+import { BulkDeleteButton } from '@/components/library/gallery/bulk-delete-button'
+import type { DocCardMeta } from '@/lib/gallery/types'
 
 interface FilterContextBarProps {
   docCount: number
@@ -22,6 +24,13 @@ interface FilterContextBarProps {
   viewMode?: ViewMode // Optional: View-Mode für Toggle
   onViewModeChange?: (mode: ViewMode) => void // Optional: Callback für View-Mode-Änderung
   mode?: 'gallery' | 'story' // Optional: Gallery oder Story-Modus
+  // Bulk-Delete Props
+  filteredDocuments?: Array<{ fileId?: string; id: string }> // Gefilterte Dokumente für Bulk-Delete
+  libraryId?: string // Library-ID für Bulk-Delete
+  onBulkDelete?: () => void // Callback nach Bulk-Delete
+  showBulkDelete?: boolean // Ob Bulk-Delete-Button angezeigt werden soll
+  totalCount?: number // Gesamtanzahl gefilterter Dokumente (für Bulk-Delete)
+  searchQuery?: string // Aktuelle Suchanfrage (für Bulk-Delete API-Aufruf)
 }
 
 /**
@@ -30,7 +39,26 @@ interface FilterContextBarProps {
  * 
  * Zeigt Facetten-Filter (Track, Jahr, etc.) und shortTitle-Filter an.
  */
-export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterButton = false, facetDefs = [], ctaLabel, onCta, tooltip, viewMode, onViewModeChange, mode }: FilterContextBarProps) {
+export function FilterContextBar({ 
+  docCount, 
+  onOpenFilters, 
+  onClear, 
+  hideFilterButton = false, 
+  facetDefs = [], 
+  ctaLabel, 
+  onCta, 
+  tooltip, 
+  viewMode, 
+  onViewModeChange, 
+  mode,
+  filteredDocuments = [],
+  libraryId,
+  onBulkDelete,
+  showBulkDelete = false,
+  totalCount,
+  searchQuery,
+}: FilterContextBarProps) {
+  // Hole Filter aus Atom (zentrale Verwaltung)
   const filters = useAtomValue(galleryFiltersAtom)
   const { t } = useTranslation()
   
@@ -116,6 +144,22 @@ export function FilterContextBar({ docCount, onOpenFilters, onClear, hideFilterB
       {viewMode !== undefined && onViewModeChange && (
         <div className="flex items-center shrink-0 ml-auto">
           <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} compact />
+        </div>
+      )}
+
+      {/* Bulk-Delete-Button - nur wenn Owner, Tabellenansicht und Dokumente gefiltert sind */}
+      {showBulkDelete && libraryId && viewMode === 'table' && totalCount !== undefined && totalCount > 0 && (
+        <div className="flex items-center shrink-0">
+          <BulkDeleteButton
+            documents={filteredDocuments as DocCardMeta[]}
+            libraryId={libraryId}
+            onDeleted={onBulkDelete}
+            variant="destructive"
+            size="sm"
+            totalCount={totalCount}
+            filters={filters}
+            searchQuery={searchQuery || ''}
+          />
         </div>
       )}
 

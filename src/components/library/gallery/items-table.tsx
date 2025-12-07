@@ -14,22 +14,27 @@ import { Badge } from '@/components/ui/badge'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
+import { DeleteDocumentButton } from './delete-document-button'
+import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 
 export interface ItemsTableProps {
   docsByYear: Array<[number | string, DocCardMeta[]]>
   onOpen?: (doc: DocCardMeta) => void
   libraryId?: string
+  /** Callback nach erfolgreichem Löschen eines Dokuments */
+  onDocumentDeleted?: () => void
 }
 
 /**
  * Tabellenansicht der Gallery-Dokumente
  * Zeigt Dokumente kompakt in einer Tabelle mit den wichtigsten Feldern
  */
-export function ItemsTable({ docsByYear, onOpen, libraryId }: ItemsTableProps) {
+export function ItemsTable({ docsByYear, onOpen, libraryId, onDocumentDeleted }: ItemsTableProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { isOwner } = useIsLibraryOwner(libraryId)
 
   const handleRowClick = (doc: DocCardMeta) => {
     // Verwende zentrale Utility-Funktion wenn slug vorhanden ist
@@ -71,6 +76,7 @@ export function ItemsTable({ docsByYear, onOpen, libraryId }: ItemsTableProps) {
                   <TableHead className="w-[60%]">{t('gallery.table.title')}</TableHead>
                   <TableHead className="w-[20%]">{t('gallery.table.year')}</TableHead>
                   <TableHead className="w-[20%]">{t('gallery.table.track')}</TableHead>
+                  {isOwner && <TableHead className="w-[60px]"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -108,6 +114,15 @@ export function ItemsTable({ docsByYear, onOpen, libraryId }: ItemsTableProps) {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
+                    {isOwner && libraryId && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DeleteDocumentButton
+                          doc={doc}
+                          libraryId={libraryId}
+                          onDeleted={onDocumentDeleted}
+                        />
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

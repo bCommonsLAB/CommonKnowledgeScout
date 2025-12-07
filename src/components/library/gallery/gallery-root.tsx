@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ReferencesSheet } from './references-sheet'
 import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
+import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -130,7 +131,13 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     initialDetailViewType
   )
   
-  const { docs, loading, error, filteredDocs, docsByYear, loadMore, hasMore, isLoadingMore, totalCount } = useGalleryData(filters, mode, searchQuery, libraryId)
+  // State für Refresh-Trigger nach Löschung
+  const [refreshKey, setRefreshKey] = React.useState(0)
+  
+  // Verwende refreshKey als Dependency, aber nicht als Teil des searchQuery
+  // useGalleryData wird automatisch neu laden, wenn sich refreshKey ändert (über useEffect)
+  const { docs, loading, error, filteredDocs, docsByYear, loadMore, hasMore, isLoadingMore, totalCount } = useGalleryData(filters, mode, searchQuery, libraryId, { refreshKey })
+  const { isOwner } = useIsLibraryOwner(libraryId)
   
   // Finde aktuelles Dokument aus URL-Parameter (für DetailOverlay)
   // WICHTIG: Ignoriere selectedDoc, wenn wir gerade zum Story-Mode wechseln
@@ -432,6 +439,13 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     })
   }
 
+  // Handler für Dokument-Löschung: Trigger Refresh
+  const handleDocumentDeleted = React.useCallback(() => {
+    // Trigger Refresh durch Änderung des refreshKey
+    // Dies führt dazu, dass useGalleryData die Daten neu lädt
+    setRefreshKey(prev => prev + 1)
+  }, [])
+
   // Render helpers
   const renderItemsView = () => {
     if (!libraryId) return <div className='text-sm text-muted-foreground'>Keine aktive Bibliothek.</div>
@@ -479,7 +493,8 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       libraryId={libraryId}
       onLoadMore={loadMore}
       hasMore={hasMore}
-      isLoadingMore={isLoadingMore} 
+      isLoadingMore={isLoadingMore}
+      onDocumentDeleted={handleDocumentDeleted}
     />
   }
 
@@ -504,7 +519,10 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
             subtitle={texts.subtitle}
             description={texts.description}
             searchPlaceholder={t('gallery.searchPlaceholder')}
-            onChangeQuery={setSearchQuery}
+            onChangeQuery={(value) => {
+              // Entferne Refresh-Suffix beim Setzen des Query-Werts
+              setSearchQuery(value.replace(/_refresh_\d+$/, ''))
+            }}
             queryValue={searchQuery}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
@@ -522,6 +540,13 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                 onCta={() => setMode('story')}
                 tooltip={t('gallery.storyModeTooltip')}
                 mode="gallery"
+                viewMode={viewMode}
+                filteredDocuments={filteredDocs}
+                libraryId={libraryId}
+                onBulkDelete={handleDocumentDeleted}
+                showBulkDelete={isOwner && filteredDocs.length > 0}
+                totalCount={totalCount}
+                searchQuery={searchQuery}
               />
             </div>
 
@@ -550,6 +575,13 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
                     onCta={() => setMode('story')}
                     tooltip={t('gallery.storyModeTooltip')}
                     mode="gallery"
+                    viewMode={viewMode}
+                    filteredDocuments={filteredDocs}
+                    libraryId={libraryId}
+                    onBulkDelete={handleDocumentDeleted}
+                    showBulkDelete={isOwner && filteredDocs.length > 0}
+                    totalCount={totalCount}
+                    searchQuery={searchQuery}
                   />
                 </div>
 

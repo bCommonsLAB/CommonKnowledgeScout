@@ -20,13 +20,15 @@ export interface ItemsViewProps {
   hasMore?: boolean
   /** Pagination: Lade-Status */
   isLoadingMore?: boolean
+  /** Callback nach erfolgreichem Löschen eines Dokuments */
+  onDocumentDeleted?: () => void
 }
 
 /**
  * Wrapper-Komponente mit virtuellem Scrolling und Infinite Scroll
  * Lädt automatisch weitere Dokumente beim Scrollen
  */
-export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore, hasMore, isLoadingMore }: ItemsViewProps) {
+export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore, hasMore, isLoadingMore, onDocumentDeleted }: ItemsViewProps) {
   return (
     <VirtualizedItemsView
       viewMode={viewMode}
@@ -36,6 +38,7 @@ export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore,
       onLoadMore={onLoadMore}
       hasMore={hasMore}
       isLoadingMore={isLoadingMore}
+      onDocumentDeleted={onDocumentDeleted}
     />
   )
 }
