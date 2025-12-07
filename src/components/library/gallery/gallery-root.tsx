@@ -117,12 +117,18 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           if (slugMatch && slugMatch[1]) {
             router.push(`/explore/${slugMatch[1]}/perspective`)
           }
+        } else if (pathname.startsWith('/library/gallery')) {
+          // Für normale Library-Seiten: Navigiere zur Perspective-Seite mit libraryId
+          if (libraryId) {
+            const params = new URLSearchParams(searchParams?.toString() || '')
+            params.set('libraryId', libraryId)
+            params.set('from', 'story')
+            router.push(`/library/gallery/perspective?${params.toString()}`)
+          }
         }
-        // Für normale Library-Seiten können wir später eine Route hinzufügen
-        // Aktuell nur für explore-Seiten implementiert
       }
     }
-  }, [mode, character, pathname, router])
+  }, [mode, character, pathname, router, libraryId, searchParams])
   // useGalleryConfig verwendet jetzt direkt die Übersetzungen basierend auf detailViewType
   // initialDetailViewType verhindert das Flackern beim ersten Render
   const { texts, detailViewType } = useGalleryConfig(

@@ -262,13 +262,56 @@
       "children": "Lenguaje muy simple con ejemplos vívidos.",
       "easy_language": "Frases cortas, palabras simples, explicado claramente y sin barreras."
     },
+    "languageWarning": {
+      "wellSupported": {
+        "title": "🌐 Bien soportado",
+        "description": "Este idioma funciona bien, pero con una precisión ligeramente menor. Las respuestas pueden ocasionalmente tener limitaciones.",
+        "languages": "Croata, Serbio, Bosnio, Esloveno, Eslovaco, Lituano, Letón, Estonio, Indonesio, Malayo, Hindi"
+      },
+      "basicSupport": {
+        "title": "🌱 Conocimientos básicos",
+        "description": "Este idioma admite textos simples, pero la gramática compleja puede ser difícil. Las respuestas pueden simplificarse.",
+        "languages": "Swahili, Yoruba, Zulu"
+      }
+    },
     "languageLabels": {
       "de": "Alemán",
       "en": "Inglés",
       "it": "Italiano",
       "fr": "Francés",
       "es": "Español",
-      "ar": "Árabe"
+      "pt": "Portugués",
+      "nl": "Neerlandés",
+      "no": "Noruego",
+      "da": "Danés",
+      "sv": "Sueco",
+      "fi": "Finlandés",
+      "pl": "Polaco",
+      "cs": "Checo",
+      "hu": "Húngaro",
+      "ro": "Rumano",
+      "bg": "Búlgaro",
+      "el": "Griego",
+      "tr": "Turco",
+      "ru": "Ruso",
+      "uk": "Ucraniano",
+      "zh": "Chino",
+      "ko": "Coreano",
+      "ja": "Japonés",
+      "hr": "Croata",
+      "sr": "Serbio",
+      "bs": "Bosnio",
+      "sl": "Esloveno",
+      "sk": "Eslovaco",
+      "lt": "Lituano",
+      "lv": "Letón",
+      "et": "Estonio",
+      "id": "Indonesio",
+      "ms": "Malayo",
+      "hi": "Hindi",
+      "sw": "Suajili",
+      "yo": "Yoruba",
+      "zu": "Zulú"
     },
     "perspectivePage": {
       "title": "¿Cómo deben formularse las respuestas para ti?",

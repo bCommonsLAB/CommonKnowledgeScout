@@ -91,22 +91,162 @@ export const RETRIEVER_ZOD_ENUM = z.enum(['chunk', 'doc', 'summary'])
 // ZIELSPRACHE (TargetLanguage)
 // ============================================================================
 
-export type TargetLanguage = 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'
+/**
+ * Verfügbare Zielsprachen für Chat-Antworten
+ * 
+ * Kategorien:
+ * ✅ Vollständig unterstützt: Alle europäischen Hauptsprachen + große asiatische Sprachen
+ * 🌐 Gut unterstützt: Funktionieren gut, aber mit etwas geringerer Präzision
+ * 🌱 Grundkenntnisse: Einfache Texte möglich, komplexere Grammatik kann schwierig sein
+ */
 
-export const TARGET_LANGUAGE_VALUES: readonly TargetLanguage[] = ['en', 'de', 'it', 'fr', 'es', 'ar'] as const
+export type TargetLanguage = 
+  // ✅ Vollständig unterstützt
+  | 'de' // Deutsch
+  | 'en' // Englisch
+  | 'it' // Italienisch
+  | 'fr' // Französisch
+  | 'es' // Spanisch
+  | 'pt' // Portugiesisch
+  | 'nl' // Niederländisch
+  | 'no' // Norwegisch
+  | 'da' // Dänisch
+  | 'sv' // Schwedisch
+  | 'fi' // Finnisch
+  | 'pl' // Polnisch
+  | 'cs' // Tschechisch
+  | 'hu' // Ungarisch
+  | 'ro' // Rumänisch
+  | 'bg' // Bulgarisch
+  | 'el' // Griechisch
+  | 'tr' // Türkisch
+  | 'ru' // Russisch
+  | 'uk' // Ukrainisch
+  | 'zh' // Chinesisch (Mandarin, traditionell & vereinfacht)
+  | 'ko' // Koreanisch
+  | 'ja' // Japanisch
+  // 🌐 Gut unterstützt (Alltagsniveau, gelegentlich Einschränkungen)
+  | 'hr' // Kroatisch
+  | 'sr' // Serbisch
+  | 'bs' // Bosnisch
+  | 'sl' // Slowenisch
+  | 'sk' // Slowakisch
+  | 'lt' // Litauisch
+  | 'lv' // Lettisch
+  | 'et' // Estnisch
+  | 'id' // Indonesisch
+  | 'ms' // Malaysisch
+  | 'hi' // Hindi
+  // 🌱 Grundkenntnisse / einfache Texte
+  | 'sw' // Swahili
+  | 'yo' // Yoruba
+  | 'zu' // Zulu
+
+/**
+ * Sprachkategorien für Warnhinweise
+ * 
+ * Definiert, welche Sprachen zu welcher Unterstützungskategorie gehören
+ */
+export const LANGUAGE_CATEGORIES = {
+  /** ✅ Vollständig unterstützt: Alle europäischen Hauptsprachen + große asiatische Sprachen */
+  FULLY_SUPPORTED: ['en', 'de', 'it', 'fr', 'es', 'pt', 'nl', 'no', 'da', 'sv', 'fi', 'pl', 'cs', 'hu', 'ro', 'bg', 'el', 'tr', 'ru', 'uk', 'zh', 'ko', 'ja'] as const,
+  /** 🌐 Gut unterstützt: Funktionieren gut, aber mit etwas geringerer Präzision */
+  WELL_SUPPORTED: ['hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi'] as const,
+  /** 🌱 Grundkenntnisse: Einfache Texte möglich, komplexere Grammatik kann schwierig sein */
+  BASIC_SUPPORT: ['sw', 'yo', 'zu'] as const,
+} as const
+
+/**
+ * Prüft, zu welcher Kategorie eine Sprache gehört
+ */
+export function getLanguageCategory(language: TargetLanguage): 'full' | 'well' | 'basic' | null {
+  // Type Guard: Prüfe ob language in FULLY_SUPPORTED enthalten ist
+  // Verwende explizite Typkonvertierung zu readonly TargetLanguage[] für Type-Safety
+  const fullySupported = LANGUAGE_CATEGORIES.FULLY_SUPPORTED as readonly TargetLanguage[]
+  if (fullySupported.includes(language)) {
+    return 'full'
+  }
+  // Type Guard: Prüfe ob language in WELL_SUPPORTED enthalten ist
+  const wellSupported = LANGUAGE_CATEGORIES.WELL_SUPPORTED as readonly TargetLanguage[]
+  if (wellSupported.includes(language)) {
+    return 'well'
+  }
+  // Type Guard: Prüfe ob language in BASIC_SUPPORT enthalten ist
+  const basicSupport = LANGUAGE_CATEGORIES.BASIC_SUPPORT as readonly TargetLanguage[]
+  if (basicSupport.includes(language)) {
+    return 'basic'
+  }
+  return null
+}
+
+/**
+ * Liste aller verfügbaren Zielsprachen
+ * 
+ * Reihenfolge: Vollständig unterstützt → Gut unterstützt → Grundkenntnisse
+ */
+export const TARGET_LANGUAGE_VALUES: readonly TargetLanguage[] = [
+  // ✅ Vollständig unterstützt
+  ...LANGUAGE_CATEGORIES.FULLY_SUPPORTED,
+  // 🌐 Gut unterstützt (Alltagsniveau, gelegentlich Einschränkungen)
+  ...LANGUAGE_CATEGORIES.WELL_SUPPORTED,
+  // 🌱 Grundkenntnisse / einfache Texte
+  ...LANGUAGE_CATEGORIES.BASIC_SUPPORT,
+] as const
 
 export const TARGET_LANGUAGE_DEFAULT: TargetLanguage = 'en'
 
+/**
+ * Fallback-Labels für Sprachen (falls Übersetzungen fehlen)
+ * Die tatsächlichen Labels werden aus den i18n-Übersetzungsdateien geladen.
+ */
 export const TARGET_LANGUAGE_LABELS: Record<TargetLanguage, string> = {
+  // ✅ Vollständig unterstützt
   de: 'Deutsch',
   en: 'Englisch',
   it: 'Italienisch',
   fr: 'Französisch',
   es: 'Spanisch',
-  ar: 'Arabisch',
+  pt: 'Portugiesisch',
+  nl: 'Niederländisch',
+  no: 'Norwegisch',
+  da: 'Dänisch',
+  sv: 'Schwedisch',
+  fi: 'Finnisch',
+  pl: 'Polnisch',
+  cs: 'Tschechisch',
+  hu: 'Ungarisch',
+  ro: 'Rumänisch',
+  bg: 'Bulgarisch',
+  el: 'Griechisch',
+  tr: 'Türkisch',
+  ru: 'Russisch',
+  uk: 'Ukrainisch',
+  zh: 'Chinesisch',
+  ko: 'Koreanisch',
+  ja: 'Japanisch',
+  // 🌐 Gut unterstützt
+  hr: 'Kroatisch',
+  sr: 'Serbisch',
+  bs: 'Bosnisch',
+  sl: 'Slowenisch',
+  sk: 'Slowakisch',
+  lt: 'Litauisch',
+  lv: 'Lettisch',
+  et: 'Estnisch',
+  id: 'Indonesisch',
+  ms: 'Malaysisch',
+  hi: 'Hindi',
+  // 🌱 Grundkenntnisse
+  sw: 'Swahili',
+  yo: 'Yoruba',
+  zu: 'Zulu',
 }
 
-export const TARGET_LANGUAGE_ZOD_ENUM = z.enum(['en', 'de', 'it', 'fr', 'es', 'ar'])
+export const TARGET_LANGUAGE_ZOD_ENUM = z.enum([
+  'en', 'de', 'it', 'fr', 'es', 'pt', 'nl', 'no', 'da', 'sv', 'fi', 'pl', 'cs', 'hu', 'ro', 'bg', 'el', 'tr', 'ru', 'uk', 'zh', 'ko', 'ja',
+  'hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi',
+  'sw', 'yo', 'zu',
+])
 
 // ============================================================================
 // CHARAKTER/PERSPEKTIVE (Character)

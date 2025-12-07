@@ -10,6 +10,7 @@ import type { ChatMessage } from '../utils/chat-utils'
 import { createMessagesFromQueryLog } from '../utils/chat-utils'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import type { ChatResponse } from '@/types/chat-response'
+import type { TargetLanguage } from '@/lib/chat/constants'
 
 interface UseChatHistoryParams {
   libraryId: string
@@ -135,7 +136,7 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                   queryType?: string
                   answerLength?: 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt'
                   retriever?: 'chunk' | 'doc' | 'summary' | 'auto'
-                  targetLanguage?: 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar'
+                  targetLanguage?: TargetLanguage
                   character?: import('@/lib/chat/constants').Character[]
                   accessPerspective?: import('@/lib/chat/constants').AccessPerspective[]
                   socialContext?: 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language'
@@ -178,7 +179,7 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                   createdAt: item.createdAt,
                   answerLength: (queryData.cacheParams?.answerLength ?? queryData.answerLength) as 'kurz' | 'mittel' | 'ausführlich' | 'unbegrenzt' | undefined,
                   retriever: (queryData.cacheParams?.retriever ?? queryData.retriever) as 'chunk' | 'doc' | 'summary' | 'auto' | undefined,
-                  targetLanguage: (queryData.cacheParams?.targetLanguage ?? queryData.targetLanguage) as 'de' | 'en' | 'it' | 'fr' | 'es' | 'ar' | undefined,
+                  targetLanguage: (queryData.cacheParams?.targetLanguage ?? queryData.targetLanguage) as TargetLanguage | undefined,
                   character: queryData.cacheParams?.character ?? queryData.character,
                   accessPerspective: queryData.cacheParams?.accessPerspective ?? queryData.accessPerspective,
                   socialContext: (queryData.cacheParams?.socialContext ?? queryData.socialContext) as 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language' | undefined,

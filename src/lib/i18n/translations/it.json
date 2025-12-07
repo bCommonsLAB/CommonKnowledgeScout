@@ -262,13 +262,56 @@
       "children": "Linguaggio molto semplice con esempi vividi.",
       "easy_language": "Frasi brevi, parole semplici, spiegato chiaramente e senza barriere."
     },
+    "languageWarning": {
+      "wellSupported": {
+        "title": "🌐 Ben supportata",
+        "description": "Questa lingua funziona bene, ma con una precisione leggermente inferiore. Le risposte possono occasionalmente avere limitazioni.",
+        "languages": "Croato, Serbo, Bosniaco, Sloveno, Slovacco, Lituano, Lettone, Estone, Indonesiano, Malese, Hindi"
+      },
+      "basicSupport": {
+        "title": "🌱 Conoscenze di base",
+        "description": "Questa lingua supporta testi semplici, ma la grammatica complessa può essere difficile. Le risposte possono essere semplificate.",
+        "languages": "Swahili, Yoruba, Zulu"
+      }
+    },
     "languageLabels": {
       "de": "Tedesco",
       "en": "Inglese",
       "it": "Italiano",
       "fr": "Francese",
       "es": "Spagnolo",
-      "ar": "Arabo"
+      "pt": "Portoghese",
+      "nl": "Olandese",
+      "no": "Norvegese",
+      "da": "Danese",
+      "sv": "Svedese",
+      "fi": "Finlandese",
+      "pl": "Polacco",
+      "cs": "Ceco",
+      "hu": "Ungherese",
+      "ro": "Rumeno",
+      "bg": "Bulgaro",
+      "el": "Greco",
+      "tr": "Turco",
+      "ru": "Russo",
+      "uk": "Ucraino",
+      "zh": "Cinese",
+      "ko": "Coreano",
+      "ja": "Giapponese",
+      "hr": "Croato",
+      "sr": "Serbo",
+      "bs": "Bosniaco",
+      "sl": "Sloveno",
+      "sk": "Slovacco",
+      "lt": "Lituano",
+      "lv": "Lettone",
+      "et": "Estone",
+      "id": "Indonesiano",
+      "ms": "Malese",
+      "hi": "Hindi",
+      "sw": "Swahili",
+      "yo": "Yoruba",
+      "zu": "Zulu"
     },
     "perspectivePage": {
       "title": "Come dovrebbero essere formulate le risposte per te?",

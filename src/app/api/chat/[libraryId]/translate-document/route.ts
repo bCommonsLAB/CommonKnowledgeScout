@@ -86,7 +86,7 @@ export async function POST(
     })
 
     // Zielsprache bestimmen: Request-Parameter > UI-Sprache aus Request > Default
-    // Mapping von Locale zu TargetLanguage
+    // Mapping von Locale zu TargetLanguage (erweitert für alle unterstützten Sprachen)
     const acceptLanguage = request.headers.get('accept-language') || ''
     const locale = acceptLanguage.split(',')[0]?.split('-')[0] || 'de'
     const localeToTargetMap: Record<string, TargetLanguage> = {
@@ -95,7 +95,38 @@ export async function POST(
       it: 'it',
       fr: 'fr',
       es: 'es',
-      ar: 'ar',
+      pt: 'pt',
+      nl: 'nl',
+      no: 'no',
+      da: 'da',
+      sv: 'sv',
+      fi: 'fi',
+      pl: 'pl',
+      cs: 'cs',
+      hu: 'hu',
+      ro: 'ro',
+      bg: 'bg',
+      el: 'el',
+      tr: 'tr',
+      ru: 'ru',
+      uk: 'uk',
+      zh: 'zh',
+      ko: 'ko',
+      ja: 'ja',
+      hr: 'hr',
+      sr: 'sr',
+      bs: 'bs',
+      sl: 'sl',
+      sk: 'sk',
+      lt: 'lt',
+      lv: 'lv',
+      et: 'et',
+      id: 'id',
+      ms: 'ms',
+      hi: 'hi',
+      sw: 'sw',
+      yo: 'yo',
+      zu: 'zu',
     }
     const defaultTargetLanguage = localeToTargetMap[locale] || TARGET_LANGUAGE_DEFAULT
     const targetLanguage = requestedTargetLanguage || defaultTargetLanguage

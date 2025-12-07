@@ -55,13 +55,45 @@ export function useDocumentTranslation() {
 
       try {
         // Bestimme Zielsprache: Parameter > UI-Sprache > Default
+        // Mapping von Locale zu TargetLanguage (erweitert für alle unterstützten Sprachen)
         const localeToTargetMap: Record<string, TargetLanguage> = {
           de: 'de',
           en: 'en',
           it: 'it',
           fr: 'fr',
           es: 'es',
-          ar: 'ar',
+          pt: 'pt',
+          nl: 'nl',
+          no: 'no',
+          da: 'da',
+          sv: 'sv',
+          fi: 'fi',
+          pl: 'pl',
+          cs: 'cs',
+          hu: 'hu',
+          ro: 'ro',
+          bg: 'bg',
+          el: 'el',
+          tr: 'tr',
+          ru: 'ru',
+          uk: 'uk',
+          zh: 'zh',
+          ko: 'ko',
+          ja: 'ja',
+          hr: 'hr',
+          sr: 'sr',
+          bs: 'bs',
+          sl: 'sl',
+          sk: 'sk',
+          lt: 'lt',
+          lv: 'lv',
+          et: 'et',
+          id: 'id',
+          ms: 'ms',
+          hi: 'hi',
+          sw: 'sw',
+          yo: 'yo',
+          zu: 'zu',
         }
         const effectiveTargetLanguage = targetLanguage || localeToTargetMap[locale] || 'de'
         

@@ -178,21 +178,50 @@ export interface UseStoryContextReturn {
 /**
  * Konvertiert eine Locale (aus i18n) zu einer TargetLanguage (für Chat)
  * 
- * Mapping:
- * - 'de' -> 'de'
- * - 'en' -> 'en'
- * - 'it' -> 'it'
- * - 'fr' -> 'fr'
- * - 'es' -> 'es'
- * - Fallback -> TARGET_LANGUAGE_DEFAULT ('de')
+ * Mapping von UI-Locale zu Chat-Zielsprache
+ * Unterstützt alle verfügbaren Zielsprachen
  */
 function localeToTargetLanguage(locale: string): TargetLanguage {
   const mapping: Record<string, TargetLanguage> = {
+    // UI-Locales zu Chat-Zielsprachen
     de: 'de',
     en: 'en',
     it: 'it',
     fr: 'fr',
     es: 'es',
+    // Weitere Mappings für Browser-Locales
+    pt: 'pt',
+    nl: 'nl',
+    no: 'no',
+    da: 'da',
+    sv: 'sv',
+    fi: 'fi',
+    pl: 'pl',
+    cs: 'cs',
+    hu: 'hu',
+    ro: 'ro',
+    bg: 'bg',
+    el: 'el',
+    tr: 'tr',
+    ru: 'ru',
+    uk: 'uk',
+    zh: 'zh',
+    ko: 'ko',
+    ja: 'ja',
+    hr: 'hr',
+    sr: 'sr',
+    bs: 'bs',
+    sl: 'sl',
+    sk: 'sk',
+    lt: 'lt',
+    lv: 'lv',
+    et: 'et',
+    id: 'id',
+    ms: 'ms',
+    hi: 'hi',
+    sw: 'sw',
+    yo: 'yo',
+    zu: 'zu',
   }
   return mapping[locale] || TARGET_LANGUAGE_DEFAULT
 }

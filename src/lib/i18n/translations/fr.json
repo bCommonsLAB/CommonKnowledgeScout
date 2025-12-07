@@ -262,13 +262,56 @@
       "children": "Langage très simple avec des exemples vivants.",
       "easy_language": "Phrases courtes, mots simples, expliqué clairement et sans barrières."
     },
+    "languageWarning": {
+      "wellSupported": {
+        "title": "🌐 Bien pris en charge",
+        "description": "Cette langue fonctionne bien, mais avec une précision légèrement inférieure. Les réponses peuvent occasionnellement avoir des limitations.",
+        "languages": "Croate, Serbe, Bosniaque, Slovène, Slovaque, Lituanien, Letton, Estonien, Indonésien, Malais, Hindi"
+      },
+      "basicSupport": {
+        "title": "🌱 Connaissances de base",
+        "description": "Cette langue prend en charge les textes simples, mais la grammaire complexe peut être difficile. Les réponses peuvent être simplifiées.",
+        "languages": "Swahili, Yoruba, Zulu"
+      }
+    },
     "languageLabels": {
       "de": "Allemand",
       "en": "Anglais",
       "it": "Italien",
       "fr": "Français",
       "es": "Espagnol",
-      "ar": "Arabe"
+      "pt": "Portugais",
+      "nl": "Néerlandais",
+      "no": "Norvégien",
+      "da": "Danois",
+      "sv": "Suédois",
+      "fi": "Finnois",
+      "pl": "Polonais",
+      "cs": "Tchèque",
+      "hu": "Hongrois",
+      "ro": "Roumain",
+      "bg": "Bulgare",
+      "el": "Grec",
+      "tr": "Turc",
+      "ru": "Russe",
+      "uk": "Ukrainien",
+      "zh": "Chinois",
+      "ko": "Coréen",
+      "ja": "Japonais",
+      "hr": "Croate",
+      "sr": "Serbe",
+      "bs": "Bosniaque",
+      "sl": "Slovène",
+      "sk": "Slovaque",
+      "lt": "Lituanien",
+      "lv": "Letton",
+      "et": "Estonien",
+      "id": "Indonésien",
+      "ms": "Malais",
+      "hi": "Hindi",
+      "sw": "Swahili",
+      "yo": "Yoruba",
+      "zu": "Zulu"
     },
     "perspectivePage": {
       "title": "Comment les réponses doivent-elles être formulées pour vous ?",

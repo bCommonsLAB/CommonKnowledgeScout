@@ -240,7 +240,7 @@ function ContentLoader({
     } finally {
       loadingIdRef.current = null;
     }
-  }, [item?.id, item?.metadata?.name, provider, fileType, onContentLoaded, isTemplateFile, contentCache]);
+  }, [item?.id, item?.type, item?.metadata?.name, provider, fileType, onContentLoaded, isTemplateFile, contentCache]);
 
   // Cleanup bei Unmount
   React.useEffect(() => {

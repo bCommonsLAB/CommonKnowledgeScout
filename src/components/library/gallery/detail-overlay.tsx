@@ -59,14 +59,46 @@ export function DetailOverlay({
   // Bestimme Titel basierend auf viewType, falls nicht explizit angegeben
   const displayTitle = title || (viewType === 'session' ? t('gallery.talkSummary') : t('gallery.documentView'))
   
-  // Mapping von Locale zu Sprachcode (Großbuchstaben)
+  // Mapping von Locale zu Sprachcode (Großbuchstaben) für Übersetzungs-API
+  // Unterstützt alle verfügbaren Zielsprachen
   const localeToLanguageCode: Record<string, string> = {
     de: 'DE',
     en: 'EN',
     it: 'IT',
     fr: 'FR',
     es: 'ES',
-    ar: 'AR',
+    pt: 'PT',
+    nl: 'NL',
+    no: 'NO',
+    da: 'DA',
+    sv: 'SV',
+    fi: 'FI',
+    pl: 'PL',
+    cs: 'CS',
+    hu: 'HU',
+    ro: 'RO',
+    bg: 'BG',
+    el: 'EL',
+    tr: 'TR',
+    ru: 'RU',
+    uk: 'UK',
+    zh: 'ZH',
+    ko: 'KO',
+    ja: 'JA',
+    hr: 'HR',
+    sr: 'SR',
+    bs: 'BS',
+    sl: 'SL',
+    sk: 'SK',
+    lt: 'LT',
+    lv: 'LV',
+    et: 'ET',
+    id: 'ID',
+    ms: 'MS',
+    hi: 'HI',
+    sw: 'SW',
+    yo: 'YO',
+    zu: 'ZU',
   }
   const targetLanguageCode = localeToLanguageCode[locale] || 'DE'
   

@@ -58,9 +58,9 @@ export async function DELETE(
     } else {
       // Bulk-Löschung: fileIds aus Request-Body
       try {
-        const body = await request.json()
+        const body = await request.json() as { fileIds?: unknown[]; fileId?: unknown }
         if (Array.isArray(body.fileIds)) {
-          fileIds = body.fileIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+          fileIds = body.fileIds.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
         } else if (typeof body.fileId === 'string') {
           fileIds = [body.fileId]
         } else {

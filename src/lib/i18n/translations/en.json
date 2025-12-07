@@ -262,13 +262,56 @@
       "children": "Very simple language with vivid examples.",
       "easy_language": "Short sentences, simple words, clearly and barrier-free explained."
     },
+    "languageWarning": {
+      "wellSupported": {
+        "title": "🌐 Well Supported",
+        "description": "This language works well, but with slightly lower precision. Answers may occasionally have limitations.",
+        "languages": "Croatian, Serbian, Bosnian, Slovenian, Slovak, Lithuanian, Latvian, Estonian, Indonesian, Malay, Hindi"
+      },
+      "basicSupport": {
+        "title": "🌱 Basic Knowledge",
+        "description": "This language supports simple texts, but complex grammar can be difficult. Answers may be simplified.",
+        "languages": "Swahili, Yoruba, Zulu"
+      }
+    },
     "languageLabels": {
       "de": "German",
       "en": "English",
       "it": "Italian",
       "fr": "French",
       "es": "Spanish",
-      "ar": "Arabic"
+      "pt": "Portuguese",
+      "nl": "Dutch",
+      "no": "Norwegian",
+      "da": "Danish",
+      "sv": "Swedish",
+      "fi": "Finnish",
+      "pl": "Polish",
+      "cs": "Czech",
+      "hu": "Hungarian",
+      "ro": "Romanian",
+      "bg": "Bulgarian",
+      "el": "Greek",
+      "tr": "Turkish",
+      "ru": "Russian",
+      "uk": "Ukrainian",
+      "zh": "Chinese",
+      "ko": "Korean",
+      "ja": "Japanese",
+      "hr": "Croatian",
+      "sr": "Serbian",
+      "bs": "Bosnian",
+      "sl": "Slovenian",
+      "sk": "Slovak",
+      "lt": "Lithuanian",
+      "lv": "Latvian",
+      "et": "Estonian",
+      "id": "Indonesian",
+      "ms": "Malay",
+      "hi": "Hindi",
+      "sw": "Swahili",
+      "yo": "Yoruba",
+      "zu": "Zulu"
     },
     "perspectivePage": {
       "title": "How should answers be formulated for you?",

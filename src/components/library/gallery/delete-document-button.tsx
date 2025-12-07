@@ -68,7 +68,7 @@ export function DeleteDocumentButton({
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
-      const result = await response.json()
+      await response.json()
 
       toast({
         title: 'Dokument gelöscht',
@@ -111,7 +111,7 @@ export function DeleteDocumentButton({
         <AlertDialogHeader>
           <AlertDialogTitle>Dokument löschen?</AlertDialogTitle>
           <AlertDialogDescription>
-            Möchten Sie das Dokument <strong>"{documentTitle}"</strong> wirklich löschen?
+            Möchten Sie das Dokument <strong>&quot;{documentTitle}&quot;</strong> wirklich löschen?
             <br />
             <br />
             <span className="text-xs text-muted-foreground">
