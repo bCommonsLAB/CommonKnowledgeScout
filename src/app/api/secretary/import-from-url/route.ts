@@ -1,14 +1,18 @@
 import { getSecretaryConfig } from '@/lib/env'
 import { NextRequest, NextResponse } from 'next/server';
+import { callTemplateExtractFromUrl } from '@/lib/secretary/adapter';
+import { HttpError, NetworkError, TimeoutError } from '@/lib/utils/fetch-with-timeout';
 
 /**
  * POST /api/secretary/import-from-url
  * Proxy-Endpunkt zum Secretary Service für Session-Import aus URLs
+ * 
+ * Verwendet die zentrale callTemplateExtractFromUrl-Funktion aus dem Adapter.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { url, source_language, target_language, template, use_cache } = body;
+    const { url, source_language, target_language, template, use_cache, container_selector } = body;
     
     // Validierung der Eingabedaten
     if (!url) {
@@ -24,69 +28,29 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // URL-Format validieren
-    try {
-      new URL(url);
-    } catch {
-      return NextResponse.json(
-        { 
-          status: 'error', 
-          error: { 
-            code: 'INVALID_URL', 
-            message: 'Ungültiges URL-Format' 
-          } 
-        },
-        { status: 400 }
-      );
-    }
-    
     // Secretary Service URL strikt aus Env
-    const { baseUrl } = getSecretaryConfig();
+    const { baseUrl, apiKey } = getSecretaryConfig();
     const apiUrl = `${baseUrl}/transformer/template`;
     
     console.log('[api/secretary/import-from-url] Weiterleitung an Secretary Service:', apiUrl);
-    console.log('[api/secretary/import-from-url] Parameter:', { url, source_language, target_language, template, use_cache });
+    console.log('[api/secretary/import-from-url] Parameter:', { url, source_language, target_language, template, use_cache, container_selector });
     
-    // Form-Data für den Secretary Service erstellen
-    const formData = new URLSearchParams();
-    formData.append('url', url);
-    formData.append('source_language', source_language || 'en');
-    formData.append('target_language', target_language || 'en');
-    formData.append('template', template || 'ExtractSessionDataFromWebsite');
-    formData.append('use_cache', String(use_cache || false));
-    
-    // Anfrage an Secretary Service weiterleiten
-    const secretaryResponse = await fetch(apiUrl, {
-      method: 'POST',
-      headers: (() => {
-        const h: Record<string, string> = {
-          'Accept': 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        };
-        const { apiKey } = getSecretaryConfig();
-        if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
-        return h;
-      })(),
-      body: formData.toString()
+    // Zentrale Adapter-Funktion verwenden (enthält URL-Validierung, FormData-Erstellung, Auth-Header)
+    const secretaryResponse = await callTemplateExtractFromUrl({
+      url,
+      templateUrl: apiUrl,
+      template: template || 'ExtractSessionDataFromWebsite',
+      sourceLanguage: source_language || 'en',
+      targetLanguage: target_language || 'en',
+      useCache: use_cache ?? false,
+      containerSelector: container_selector,
+      apiKey,
+      timeoutMs: 300000 // 5 Minuten Timeout
     });
     
     console.log('[api/secretary/import-from-url] Secretary Service Antwort:', secretaryResponse.status);
     
     const secretaryData = await secretaryResponse.json();
-    
-    if (!secretaryResponse.ok) {
-      console.error('[api/secretary/import-from-url] Secretary Service Fehler:', secretaryData);
-      return NextResponse.json(
-        { 
-          status: 'error', 
-          error: { 
-            code: 'SECRETARY_SERVICE_ERROR', 
-            message: secretaryData.error || 'Fehler beim Secretary Service' 
-          } 
-        },
-        { status: secretaryResponse.status }
-      );
-    }
     
     // Erfolgreiche Antwort vom Secretary Service
     console.log('[api/secretary/import-from-url] Session-Daten erfolgreich extrahiert');
@@ -104,15 +68,42 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(responseData);
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[api/secretary/import-from-url] Fehler:', error);
+    
+    // Spezifische Fehlerbehandlung für Adapter-Fehler
+    if (error instanceof HttpError) {
+      return NextResponse.json(
+        { 
+          status: 'error', 
+          error: { 
+            code: error.status === 400 ? 'INVALID_URL' : 'SECRETARY_SERVICE_ERROR', 
+            message: error.message || 'Fehler beim Secretary Service' 
+          } 
+        },
+        { status: error.status }
+      );
+    }
+    
+    if (error instanceof NetworkError || error instanceof TimeoutError) {
+      return NextResponse.json(
+        { 
+          status: 'error', 
+          error: { 
+            code: 'NETWORK_ERROR', 
+            message: error.message || 'Netzwerkfehler beim Session-Import' 
+          } 
+        },
+        { status: 500 }
+      );
+    }
     
     return NextResponse.json(
       { 
         status: 'error', 
         error: { 
           code: 'INTERNAL_ERROR', 
-          message: 'Interner Server-Fehler beim Session-Import' 
+          message: error instanceof Error ? error.message : 'Interner Server-Fehler beim Session-Import' 
         } 
       },
       { status: 500 }
@@ -135,7 +126,8 @@ export async function GET() {
       source_language: 'string (optional) - Quellsprache (Standard: en)',
       target_language: 'string (optional) - Zielsprache (Standard: en)',
       template: 'string (optional) - Template-Name (Standard: ExtractSessionDataFromWebsite)',
-      use_cache: 'boolean (optional) - Cache verwenden (Standard: false)'
+      use_cache: 'boolean (optional) - Cache verwenden (Standard: false)',
+      container_selector: 'string (optional) - XPath-Ausdruck für Container-Selektor'
     }
   });
 } 

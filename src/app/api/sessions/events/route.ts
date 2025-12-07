@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { SessionRepository } from '@/lib/session-repository';
 
+// Next.js Route Segment Config: Kein Caching für Events
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     // Authentifizierung prüfen
@@ -27,6 +31,12 @@ export async function GET() {
       data: {
         events,
         count: events.length
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     });
   } catch (error) {

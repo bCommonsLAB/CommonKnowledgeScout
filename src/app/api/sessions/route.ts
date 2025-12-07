@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SessionRepository } from '@/lib/session-repository';
 import { SessionCreateRequest } from '@/types/session';
 
+// Next.js Route Segment Config: Kein Caching für Sessions
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const repository = new SessionRepository();
 
 /**
@@ -42,6 +46,12 @@ export async function GET(request: NextRequest) {
         total,
         limit: limit ?? sessions.length, // Falls kein Limit gesetzt, verwende die Anzahl der geladenen Sessions
         skip
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     });
   } catch (error) {

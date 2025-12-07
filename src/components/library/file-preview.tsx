@@ -153,6 +153,18 @@ function ContentLoader({
       return;
     }
     
+    // Prüfe, ob es sich um einen Ordner handelt (root ist ein Ordner)
+    if (item.type === 'folder' || item.id === 'root') {
+      FileLogger.debug('ContentLoader', 'Überspringe Content-Laden für Ordner', {
+        itemId: item.id,
+        itemName: item.metadata.name,
+        itemType: item.type
+      });
+      contentCache.current.set(item.id, { content: '', hasMetadata: false });
+      onContentLoaded('', false);
+      return;
+    }
+    
     FileLogger.info('ContentLoader', 'Lade Content für Datei', {
       itemId: item.id,
       itemName: item.metadata.name,

@@ -129,6 +129,31 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
           markdownDir = idx > 0 ? mf.substring(0, idx) : null;
         }
         console.info('[BatchProcess] Markdown-Verzeichnis ermittelt', { markdownDir, responsePath: outFinal?.markdown_file });
+        
+        // Job-Status und Ergebnisse in der Datenbank speichern
+        // WICHTIG: archive_data wird NICHT gespeichert (zu groß), nur Metadaten
+        try {
+          const jobResults = {
+            archive_filename: outFinal.archive_filename,
+            markdown_file: outFinal.markdown_file,
+            // archive_data wird nicht gespeichert (bereits in Library hochgeladen)
+            // markdown_content wird nicht gespeichert (bereits in Library hochgeladen)
+          };
+          
+          await fetch(`/api/event-job/jobs/${job.job_id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'completed',
+              results: jobResults
+            })
+          });
+          console.info('[BatchProcess] Job-Status auf completed gesetzt', { jobId: job.job_id });
+        } catch (statusError) {
+          console.warn('[BatchProcess] Fehler beim Aktualisieren des Job-Status:', statusError);
+          // Status-Update-Fehler nicht kritisch - Dateien wurden bereits hochgeladen
+        }
+        
         setSuccesses(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id }]);
       } else if (outFinal?.markdown_content && outFinal?.markdown_file) {
         console.info('[BatchProcess] Nur Markdown vorhanden, lade hoch', { markdown_file: outFinal.markdown_file });
@@ -136,6 +161,29 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
         const folderId = await ensureDirectoryPath(outFinal.markdown_file);
         console.debug('[BatchProcess] Upload Markdown', { targetFolderId: folderId, fileName: outFinal.markdown_file });
         await provider.uploadFile(folderId, file);
+        
+        // Job-Status und Ergebnisse in der Datenbank speichern
+        // WICHTIG: markdown_content wird NICHT gespeichert (bereits in Library hochgeladen)
+        try {
+          const jobResults = {
+            markdown_file: outFinal.markdown_file,
+            // markdown_content wird nicht gespeichert (bereits in Library hochgeladen)
+          };
+          
+          await fetch(`/api/event-job/jobs/${job.job_id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'completed',
+              results: jobResults
+            })
+          });
+          console.info('[BatchProcess] Job-Status auf completed gesetzt', { jobId: job.job_id });
+        } catch (statusError) {
+          console.warn('[BatchProcess] Fehler beim Aktualisieren des Job-Status:', statusError);
+          // Status-Update-Fehler nicht kritisch - Dateien wurden bereits hochgeladen
+        }
+        
         setSuccesses(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id }]);
       } else {
         throw new Error('Secretary-Antwort ohne archive_data/markdown_content');
@@ -160,6 +208,25 @@ export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[BatchProcess] Fehler bei processSession', { jobId: job.job_id, message, stack: err instanceof Error ? err.stack : undefined });
+      
+      // Job-Status auf failed setzen
+      try {
+        await fetch(`/api/event-job/jobs/${job.job_id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'failed',
+            error: {
+              code: 'PROCESSING_ERROR',
+              message: message
+            }
+          })
+        });
+        console.info('[BatchProcess] Job-Status auf failed gesetzt', { jobId: job.job_id });
+      } catch (statusError) {
+        console.warn('[BatchProcess] Fehler beim Setzen des Job-Status auf failed:', statusError);
+      }
+      
       setErrors(prev => [...prev, { jobId: job.job_id, jobName: job.job_name || job.parameters?.session || job.job_id, message }]);
     } finally {
       console.groupEnd();

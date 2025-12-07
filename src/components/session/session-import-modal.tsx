@@ -52,6 +52,7 @@ export default function SessionImportModal({
   
   // Batch Import State
   const [batchUrl, setBatchUrl] = useState('');
+  const [batchContainerSelector, setBatchContainerSelector] = useState(''); // XPath-Ausdruck für Container-Selektor
   const [batchSourceLanguage, setBatchSourceLanguage] = useState('en');
   const [batchTargetLanguage, setBatchTargetLanguage] = useState('en');
   const [batchImporting, setBatchImporting] = useState(false);
@@ -78,6 +79,7 @@ export default function SessionImportModal({
     
     // Batch Import
     setBatchUrl('');
+    setBatchContainerSelector('');
     setBatchSourceLanguage('en');
     setBatchTargetLanguage('en');
     setBatchImporting(false);
@@ -127,10 +129,10 @@ export default function SessionImportModal({
 
       console.log('[SessionImportModal] Starte Import für URL:', url);
       
+      // Template wird automatisch auf 'ExtractSessionDataFromWebsite' gesetzt (Default in importSessionFromUrl)
       const response = await importSessionFromUrl(url, {
         sourceLanguage,
         targetLanguage,
-        template: 'ExtractSessionDataFromWebsite',
         useCache: false
       });
 
@@ -263,13 +265,18 @@ export default function SessionImportModal({
         sourceLanguage: batchSourceLanguage,
         targetLanguage: batchTargetLanguage,
         template: 'ExtractSessionListFromWebsite', // Neues Template für Listen
-        useCache: false
+        useCache: false,
+        containerSelector: batchContainerSelector || undefined // XPath-Ausdruck für Container-Selektor
       });
 
       console.log('[SessionImportModal] Session-Liste extrahiert:', response);
 
       if (response.status === 'success' && response.data && response.data.structured_data) {
-        // Erwarte ein Array von Sessions oder ein Objekt mit sessions-Array
+        // Erwarte ein Array von Sessions oder ein Objekt mit items/sessions-Array
+        // Unterstützte Formate:
+        // - Direktes Array: [...]
+        // - data.items: { items: [...] }
+        // - data.sessions: { sessions: [...] }
         const data = response.data.structured_data as unknown; // Flexiblere Typisierung für Batch-Import
         let sessions: SessionLink[] = [];
         
@@ -280,53 +287,42 @@ export default function SessionImportModal({
         const isSessionItem = (item: unknown): item is Record<string, unknown> => 
           typeof item === 'object' && item !== null;
         
+        // Hilfsfunktion zur Konvertierung eines Items in SessionLink
+        const mapItemToSessionLink = (item: unknown): SessionLink => {
+          if (!isSessionItem(item)) {
+            return {
+              name: 'Unbenannte Session',
+              url: '',
+              status: 'pending' as const,
+              track: ''
+            };
+          }
+          return {
+            name: (typeof item.name === 'string' ? item.name : 
+                   typeof item.session === 'string' ? item.session : 
+                   typeof item.title === 'string' ? item.title : 
+                   'Unbenannte Session'),
+            url: (typeof item.url === 'string' ? item.url : 
+                  typeof item.link === 'string' ? item.link : ''),
+            status: 'pending' as const,
+            // Track aus dem Item speichern
+            track: typeof item.track === 'string' ? item.track : ''
+          };
+        };
+        
         // Event und andere globale Daten speichern
         const globalEvent = isDataObject(data) && typeof data.event === 'string' ? data.event : '';
         
+        // Prüfe verschiedene Datenstrukturen
         if (Array.isArray(data)) {
-          sessions = data.map((item: unknown) => {
-            if (!isSessionItem(item)) {
-              return {
-                name: 'Unbenannte Session',
-                url: '',
-                status: 'pending' as const,
-                track: ''
-              };
-            }
-            return {
-              name: (typeof item.name === 'string' ? item.name : 
-                     typeof item.session === 'string' ? item.session : 
-                     typeof item.title === 'string' ? item.title : 
-                     'Unbenannte Session'),
-              url: (typeof item.url === 'string' ? item.url : 
-                    typeof item.link === 'string' ? item.link : ''),
-              status: 'pending' as const,
-              // Track aus dem Item speichern
-              track: typeof item.track === 'string' ? item.track : ''
-            };
-          });
+          // Direktes Array
+          sessions = data.map(mapItemToSessionLink);
+        } else if (isDataObject(data) && Array.isArray(data.items)) {
+          // Array in data.items
+          sessions = data.items.map(mapItemToSessionLink);
         } else if (isDataObject(data) && Array.isArray(data.sessions)) {
-          sessions = data.sessions.map((item: unknown) => {
-            if (!isSessionItem(item)) {
-              return {
-                name: 'Unbenannte Session',
-                url: '',
-                status: 'pending' as const,
-                track: ''
-              };
-            }
-            return {
-              name: (typeof item.name === 'string' ? item.name : 
-                     typeof item.session === 'string' ? item.session : 
-                     typeof item.title === 'string' ? item.title : 
-                     'Unbenannte Session'),
-              url: (typeof item.url === 'string' ? item.url : 
-                    typeof item.link === 'string' ? item.link : ''),
-              status: 'pending' as const,
-              // Track aus dem Item speichern
-              track: typeof item.track === 'string' ? item.track : ''
-            };
-          });
+          // Array in data.sessions (für Rückwärtskompatibilität)
+          sessions = data.sessions.map(mapItemToSessionLink);
         }
         
         if (sessions.length > 0) {
@@ -382,10 +378,10 @@ export default function SessionImportModal({
 
       try {
         // Session-Daten extrahieren
+        // Template wird automatisch auf 'ExtractSessionDataFromWebsite' gesetzt (Default in importSessionFromUrl)
         const response = await importSessionFromUrl(sessionLink.url, {
           sourceLanguage: batchSourceLanguage,
           targetLanguage: batchTargetLanguage,
-          template: 'ExtractSessionDataFromWebsite',
           useCache: false
         });
 
@@ -653,6 +649,23 @@ export default function SessionImportModal({
                 </p>
               </div>
 
+              {/* Container-Selector Eingabe */}
+              <div className="space-y-2">
+                <Label htmlFor="batchContainerSelector">Container-Selector (XPath)</Label>
+                <Input
+                  id="batchContainerSelector"
+                  type="text"
+                  placeholder="z.B. li.single-element"
+                  value={batchContainerSelector}
+                  onChange={(e) => setBatchContainerSelector(e.target.value)}
+                  disabled={batchImporting || isImportingBatch}
+                  className="w-full font-mono text-sm"
+                />
+                <p className="text-sm text-gray-600">
+                  Optional: XPath-Ausdruck zur gezielten Selektion des Containers mit den Session-Links
+                </p>
+              </div>
+
               {/* Batch Fehler-Anzeige */}
               {batchError && (
                 <Alert variant={batchError.includes('abgeschlossen') ? 'default' : 'destructive'}>
@@ -739,18 +752,21 @@ export default function SessionImportModal({
               )}
             </div>
 
-            {/* Batch Import Actions - Fixed am unteren Rand (außerhalb Scroll-Bereich) */}
-            {sessionLinks.length > 0 && (
-              <div className="flex justify-end gap-2 pt-4 border-t mt-4 bg-white">
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter className="mt-6 flex items-center justify-between">
+          <div className="flex gap-2">
+            {/* Batch Import Actions - Immer sichtbar im Footer wenn Sessions gefunden */}
+            {activeTab === 'batch' && sessionLinks.length > 0 && (
+              <>
                 {isImportingBatch ? (
-                  <>
-                    <Button
-                      variant="destructive"
-                      onClick={() => setShouldCancelBatch(true)}
-                    >
-                      Import abbrechen
-                    </Button>
-                  </>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShouldCancelBatch(true)}
+                  >
+                    Import abbrechen
+                  </Button>
                 ) : (
                   <>
                     <Button
@@ -769,12 +785,9 @@ export default function SessionImportModal({
                     </Button>
                   </>
                 )}
-              </div>
+              </>
             )}
-          </TabsContent>
-        </Tabs>
-
-        <DialogFooter className="mt-6">
+          </div>
           <Button variant="outline" onClick={handleClose} disabled={importing || batchImporting || isImportingBatch}>
             {isImportingBatch ? 'Schließen nach Abschluss' : 'Abbrechen'}
           </Button>

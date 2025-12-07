@@ -948,6 +948,7 @@ export async function transformImage(
  * 
  * @param url Die zu analysierende Website-URL
  * @param options Optionen für die Session-Extraktion
+ * @param options.containerSelector Optional: XPath-Ausdruck für Container-Selektor zur gezielten Extraktion
  * @returns Die extrahierten Session-Daten
  */
 export async function importSessionFromUrl(
@@ -957,23 +958,31 @@ export async function importSessionFromUrl(
     targetLanguage?: string;
     template?: string;
     useCache?: boolean;
+    containerSelector?: string;
   } = {}
 ): Promise<TemplateExtractionResponse> {
   try {
     console.log('[secretary/client] importSessionFromUrl aufgerufen mit URL:', url);
+    
+    const requestBody: Record<string, unknown> = {
+      url,
+      source_language: options.sourceLanguage || 'en',
+      target_language: options.targetLanguage || 'en',
+      template: options.template || 'ExtractSessionDataFromWebsite',
+      use_cache: options.useCache ?? false
+    };
+    
+    // Container-Selector optional hinzufügen, falls vorhanden
+    if (options.containerSelector && options.containerSelector.trim().length > 0) {
+      requestBody.container_selector = options.containerSelector.trim();
+    }
     
     const response = await fetch('/api/secretary/import-from-url', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        url,
-        source_language: options.sourceLanguage || 'en',
-        target_language: options.targetLanguage || 'en',
-        template: options.template || 'ExtractSessionDataFromWebsite',
-        use_cache: options.useCache ?? false
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {

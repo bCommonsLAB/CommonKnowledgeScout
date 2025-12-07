@@ -11,9 +11,11 @@
  * 
  * @exports
  * - callPdfProcess: Calls PDF processing endpoint
- * - callTemplateTransform: Calls template transformation endpoint
+ * - callTemplateTransform: Calls template transformation endpoint (text-based)
+ * - callTemplateExtractFromUrl: Calls template transformation endpoint (URL-based extraction)
  * - PdfProcessParams: Parameters interface for PDF processing
  * - TemplateTransformParams: Parameters interface for template transformation
+ * - TemplateExtractFromUrlParams: Parameters interface for URL-based template extraction
  * 
  * @usedIn
  * - src/lib/secretary/client.ts: Client uses adapter functions
@@ -110,6 +112,75 @@ export async function callTemplateTransform(p: TemplateTransformParams): Promise
   } catch (e) {
     if (e instanceof HttpError || e instanceof TimeoutError || e instanceof NetworkError) throw e
     throw new NetworkError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+export interface TemplateExtractFromUrlParams {
+  url: string;
+  templateUrl: string; // URL des Template-Endpoints (z.B. `${baseUrl}/transformer/template`)
+  template?: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
+  useCache?: boolean;
+  containerSelector?: string;
+  apiKey?: string;
+  timeoutMs?: number;
+}
+
+/**
+ * Ruft den Template-Transform-Endpoint des Secretary Services auf, um Daten von einer URL zu extrahieren.
+ * 
+ * Verwendet FormData (URLSearchParams) für URL-basierte Extraktion.
+ * 
+ * @param p Template-Extract-Parameter
+ * @returns Response vom Secretary Service
+ */
+export async function callTemplateExtractFromUrl(p: TemplateExtractFromUrlParams): Promise<Response> {
+  // URL-Validierung
+  try {
+    new URL(p.url);
+  } catch {
+    throw new HttpError(400, 'Ungültiges URL-Format')
+  }
+  
+  // Form-Data für den Secretary Service erstellen
+  const formData = new URLSearchParams();
+  formData.append('url', p.url);
+  formData.append('source_language', p.sourceLanguage || 'en');
+  formData.append('target_language', p.targetLanguage || 'en');
+  formData.append('template', p.template || 'ExtractSessionDataFromWebsite');
+  formData.append('use_cache', String(p.useCache ?? false));
+  
+  // Container-Selector optional hinzufügen
+  if (p.containerSelector && p.containerSelector.trim().length > 0) {
+    formData.append('container_selector', p.containerSelector.trim());
+  }
+  
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/x-www-form-urlencoded',
+  };
+  
+  if (p.apiKey) {
+    headers['Authorization'] = `Bearer ${p.apiKey}`;
+    headers['X-Service-Token'] = p.apiKey;
+  }
+  
+  try {
+    const res = await fetchWithTimeout(
+      p.templateUrl,
+      {
+        method: 'POST',
+        body: formData.toString(),
+        headers,
+        timeoutMs: p.timeoutMs
+      }
+    );
+    if (!res.ok) throw new HttpError(res.status, res.statusText);
+    return res;
+  } catch (e) {
+    if (e instanceof HttpError || e instanceof TimeoutError || e instanceof NetworkError) throw e;
+    throw new NetworkError(e instanceof Error ? e.message : String(e));
   }
 }
 
