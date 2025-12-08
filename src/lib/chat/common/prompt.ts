@@ -324,6 +324,10 @@ export function buildPrompt(
   
   // Build system prompt
   const systemParts: string[] = ['You are a precise assistant. Answer the question exclusively based on the provided sources.']
+  // WICHTIG: languageInstruction muss im System-Prompt sein, damit die Sprache korrekt berücksichtigt wird
+  if (languageInstruction) {
+    systemParts.push(`\nLanguage Instructions:\n${languageInstruction}`)
+  }
   if (characterInstruction) {
     systemParts.push(`\nUser Character Instructions:\n${characterInstruction}`)
   }
@@ -380,9 +384,7 @@ Example:
 
 IMPORTANT: 
 - References are added server-side, do not generate them in JSON.
-- The "usedReferences" field must contain all numbers you cite as [n] in your answer.
-
-${languageInstruction}`
+- The "usedReferences" field must contain all numbers you cite as [n] in your answer.`
 }
 
 /**
@@ -451,11 +453,23 @@ export function buildTOCPrompt(
     : ''
   
   // Build system prompt
-  const systemParts = buildSystemPromptParts(
-    'You create a structured topic overview based on the provided sources. Analyze the content and identify the central topic areas.',
-    { characterInstruction, accessPerspectiveInstruction, socialContextInstruction, genderInclusiveInstruction },
-    '\n'
-  )
+  const systemParts: string[] = ['You create a structured topic overview based on the provided sources. Analyze the content and identify the central topic areas.']
+  // WICHTIG: languageInstruction muss im System-Prompt sein, damit die Sprache korrekt berücksichtigt wird
+  if (languageInstruction) {
+    systemParts.push(`\nLanguage Instructions:\n${languageInstruction}`)
+  }
+  if (characterInstruction) {
+    systemParts.push(`\n${characterInstruction}`)
+  }
+  if (accessPerspectiveInstruction) {
+    systemParts.push(`\n${accessPerspectiveInstruction}`)
+  }
+  if (socialContextInstruction) {
+    systemParts.push(`\n${socialContextInstruction}`)
+  }
+  if (genderInclusiveInstruction) {
+    systemParts.push(`\n${genderInclusiveInstruction}`)
+  }
   
   return `${systemParts.join('')}
 
@@ -532,9 +546,7 @@ IMPORTANT:
 - Respond ONLY as a JSON object, no Markdown, no code fences
 - All strings must be valid JSON (correct escapes for quotation marks)
 - The structure must be exactly followed
-- IDs must be unique and follow the pattern
-
-${languageInstruction}`
+- IDs must be unique and follow the pattern`
 }
 
 

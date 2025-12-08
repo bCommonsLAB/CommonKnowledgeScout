@@ -206,7 +206,10 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
           params.set('retriever', effectiveRetriever)
         }
 
-        params.set('targetLanguage', targetLanguage)
+        // WICHTIG: Stelle sicher, dass targetLanguage immer gesetzt ist
+        // targetLanguage sollte immer einen Wert haben (aus Story-Context oder Default)
+        // Falls sie doch undefined ist, verwenden wir einen Fallback (sollte nicht vorkommen)
+        params.set('targetLanguage', targetLanguage || 'en')
         params.set('character', characterArrayToString(character) || '')
         params.set('accessPerspective', accessPerspectiveArrayToString(accessPerspective) || '')
         params.set('socialContext', socialContext)
