@@ -220,17 +220,16 @@ export function PerspectivePageContent({
     setAccessPerspective(validAccessPerspective.length > 0 ? validAccessPerspective : localAccessPerspective)
     setSocialContext(localLanguageStyle) // Kann auch 'undefined' sein
 
-    // Speichere im localStorage (nur im anonymen Modus)
+    // Speichere im localStorage (für alle Benutzer, nicht nur anonyme)
     // Speichere die gefilterten Werte (ohne 'undefined'), außer wenn nur 'undefined' vorhanden ist
-    if (isAnonymous) {
-      saveStoryContextToLocalStorage(
-        localLanguage,
-        validInterests.length > 0 ? validInterests : localInterests,
-        localLanguageStyle,
-        validAccessPerspective.length > 0 ? validAccessPerspective : localAccessPerspective,
-        isAnonymous
-      )
-    }
+    // WICHTIG: Speichere immer, damit die Perspektivwahl beim nächsten Besuch erhalten bleibt
+    saveStoryContextToLocalStorage(
+      localLanguage,
+      validInterests.length > 0 ? validInterests : localInterests,
+      localLanguageStyle,
+      validAccessPerspective.length > 0 ? validAccessPerspective : localAccessPerspective,
+      isAnonymous
+    )
 
     // Setze Flag, dass Perspektive einmal gesetzt wurde
     if (typeof window !== 'undefined') {

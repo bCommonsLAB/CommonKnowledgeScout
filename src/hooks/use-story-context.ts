@@ -107,7 +107,12 @@ function useLocalStorageSync<T extends TargetLanguage | Character[] | SocialCont
 }
 
 /**
- * Speichere alle StoryContext-Werte im localStorage (nur im anonymen Modus)
+ * Speichere alle StoryContext-Werte im localStorage
+ * 
+ * WICHTIG: Speichert für alle Benutzer (anonym und eingeloggt), damit die Perspektivwahl
+ * beim nächsten Besuch erhalten bleibt. Für eingeloggte Benutzer könnten die Werte
+ * später auch in der Datenbank gespeichert werden, aber localStorage ist schneller
+ * und funktioniert sofort.
  */
 export function saveStoryContextToLocalStorage(
   targetLanguage: TargetLanguage,
@@ -116,7 +121,9 @@ export function saveStoryContextToLocalStorage(
   accessPerspective: AccessPerspective[],
   isAnonymous: boolean
 ): void {
-  if (!isAnonymous || typeof window === 'undefined') return
+  // WICHTIG: Speichere für alle Benutzer, nicht nur anonyme
+  // Die isAnonymous-Parameter wird behalten für zukünftige Erweiterungen (z.B. DB-Speicherung)
+  if (typeof window === 'undefined') return
   
   try {
     localStorage.setItem(`${STORAGE_KEY_PREFIX}targetLanguage`, JSON.stringify(targetLanguage))
@@ -128,6 +135,7 @@ export function saveStoryContextToLocalStorage(
       character,
       socialContext,
       accessPerspective,
+      isAnonymous,
     })
   } catch (error) {
     console.error('[StoryContext] Fehler beim Speichern in localStorage:', error)
