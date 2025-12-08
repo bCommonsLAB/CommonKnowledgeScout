@@ -12,6 +12,7 @@ import { createCacheHash, type CacheHashParams } from './cache-key-utils'
 import { facetsSelectedToMongoFilter } from '../common/filters'
 import { getFilteredDocumentCount } from '@/lib/db/queries-repo'
 import type { Library } from '@/types/library'
+import { TARGET_LANGUAGE_DEFAULT } from '../constants'
 
 /**
  * Parameter für die Cache-Hash-Berechnung (vor Normalisierung)
@@ -109,7 +110,9 @@ export async function buildCacheHashParams(
     question: normalizedQuestion,
     queryType: normalizedQueryType as 'toc' | 'question',
     answerLength: params.answerLength,
-    targetLanguage: params.targetLanguage,
+    // WICHTIG: Stelle sicher, dass targetLanguage immer gesetzt ist (auch wenn undefined)
+    // Verwende Default-Wert, damit sie immer zum Cache-Hash hinzugefügt wird
+    targetLanguage: params.targetLanguage || TARGET_LANGUAGE_DEFAULT,
     character: params.character as import('@/lib/chat/constants').Character[] | undefined,
     accessPerspective: params.accessPerspective as import('@/lib/chat/constants').AccessPerspective[] | undefined,
     socialContext: params.socialContext,
