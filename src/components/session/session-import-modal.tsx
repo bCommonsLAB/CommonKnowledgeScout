@@ -60,7 +60,8 @@ export default function SessionImportModal({
   const [sessionLinks, setSessionLinks] = useState<SessionLink[]>([]);
   const [importProgress, setImportProgress] = useState(0);
   const [isImportingBatch, setIsImportingBatch] = useState(false);
-  const [batchEvent, setBatchEvent] = useState<string>(''); // Globales Event aus der Batch-Liste
+  const [batchEvent, setBatchEvent] = useState<string>(''); // Globales Event aus der Batch-Liste (automatisch erkannt)
+  const [manualEventName, setManualEventName] = useState<string>(''); // Manuell eingegebener Eventname
   const [shouldCancelBatch, setShouldCancelBatch] = useState(false); // Flag für Abbruch
   
   // Tab State
@@ -88,6 +89,7 @@ export default function SessionImportModal({
     setImportProgress(0);
     setIsImportingBatch(false);
     setBatchEvent('');
+    setManualEventName('');
     setShouldCancelBatch(false);
     
     // Tab
@@ -327,8 +329,12 @@ export default function SessionImportModal({
         
         if (sessions.length > 0) {
           setSessionLinks(sessions);
-          // Globales Event speichern für späteren Gebrauch
+          // Globales Event speichern für späteren Gebrauch (als Vorschlag)
           setBatchEvent(globalEvent);
+          // Wenn noch kein manueller Eventname eingegeben wurde, automatisch erkannten als Vorschlag setzen
+          if (!manualEventName && globalEvent) {
+            setManualEventName(globalEvent);
+          }
         } else {
           throw new Error('Keine Session-Links gefunden');
         }
@@ -401,9 +407,10 @@ export default function SessionImportModal({
           };
           
           // Session erstellen
-          // Event und Track aus der Batch-Liste haben Vorrang
+          // Manuell eingegebener Eventname hat höchste Priorität, dann automatisch erkanntes Event, dann aus Session-Daten
+          const eventName = manualEventName || batchEvent || structuredData.event || '';
           const sessionData = {
-            event: batchEvent || structuredData.event || '',
+            event: eventName,
             session: structuredData.session || sessionLink.name,
             subtitle: structuredData.subtitle || '',
             description: structuredData.description || '',
@@ -649,6 +656,23 @@ export default function SessionImportModal({
                 </p>
               </div>
 
+              {/* Eventname Eingabe */}
+              <div className="space-y-2">
+                <Label htmlFor="manualEventName">Eventname *</Label>
+                <Input
+                  id="manualEventName"
+                  type="text"
+                  placeholder={batchEvent || "z.B. FOSDEM 2025"}
+                  value={manualEventName}
+                  onChange={(e) => setManualEventName(e.target.value)}
+                  disabled={batchImporting || isImportingBatch}
+                  className="w-full"
+                />
+                <p className="text-sm text-gray-600">
+                  Name des Events für alle Sessions. {batchEvent && `Automatisch erkannt: "${batchEvent}"`}
+                </p>
+              </div>
+
               {/* Container-Selector Eingabe */}
               <div className="space-y-2">
                 <Label htmlFor="batchContainerSelector">Container-Selector (XPath)</Label>
@@ -679,7 +703,7 @@ export default function SessionImportModal({
                 <div className="flex justify-end">
                   <Button 
                     onClick={handleExtractSessionList} 
-                    disabled={batchImporting || !batchUrl.trim() || !isValidUrl(batchUrl)}
+                    disabled={batchImporting || !batchUrl.trim() || !isValidUrl(batchUrl) || !manualEventName.trim()}
                   >
                     {batchImporting ? (
                       <>
@@ -700,8 +724,11 @@ export default function SessionImportModal({
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="font-medium text-gray-900">Gefundene Sessions ({sessionLinks.length})</h4>
-                      {batchEvent && (
-                        <p className="text-sm text-gray-600">Event: {batchEvent}</p>
+                      {manualEventName && (
+                        <p className="text-sm text-gray-600">Event: {manualEventName}</p>
+                      )}
+                      {batchEvent && !manualEventName && (
+                        <p className="text-sm text-gray-500">Automatisch erkannt: {batchEvent}</p>
                       )}
                     </div>
                     {isImportingBatch && (
@@ -774,12 +801,14 @@ export default function SessionImportModal({
                       onClick={() => {
                         setSessionLinks([]);
                         setBatchEvent('');
+                        setManualEventName('');
                       }}
                     >
                       Zurücksetzen
                     </Button>
                     <Button 
                       onClick={handleBatchImport}
+                      disabled={!manualEventName.trim()}
                     >
                       {`${sessionLinks.length} Sessions importieren`}
                     </Button>
