@@ -126,16 +126,28 @@ export function saveStoryContextToLocalStorage(
   if (typeof window === 'undefined') return
   
   try {
+    const previousTargetLanguage = localStorage.getItem(`${STORAGE_KEY_PREFIX}targetLanguage`)
+    const previousPerspectiveSet = localStorage.getItem('story-perspective-set') === 'true'
+    
     localStorage.setItem(`${STORAGE_KEY_PREFIX}targetLanguage`, JSON.stringify(targetLanguage))
     localStorage.setItem(`${STORAGE_KEY_PREFIX}character`, JSON.stringify(character))
     localStorage.setItem(`${STORAGE_KEY_PREFIX}socialContext`, JSON.stringify(socialContext))
     localStorage.setItem(`${STORAGE_KEY_PREFIX}accessPerspective`, JSON.stringify(accessPerspective))
+    
+    // Setze Flag, dass Perspektive gesetzt wurde (falls noch nicht gesetzt)
+    if (!previousPerspectiveSet) {
+      localStorage.setItem('story-perspective-set', 'true')
+      console.log('[StoryContext] Flag "story-perspective-set" gesetzt')
+    }
+    
     console.log('[StoryContext] Speichere Werte in localStorage:', {
       targetLanguage,
+      previousTargetLanguage: previousTargetLanguage ? JSON.parse(previousTargetLanguage) : null,
       character,
       socialContext,
       accessPerspective,
       isAnonymous,
+      perspectiveSet: true,
     })
   } catch (error) {
     console.error('[StoryContext] Fehler beim Speichern in localStorage:', error)
@@ -254,33 +266,57 @@ export function useStoryContext(): UseStoryContextReturn {
   )
   
   // Synchronisiere targetLanguage mit UI-Sprache beim ersten Laden
-  // Wenn noch kein Wert im localStorage gespeichert ist, verwende die UI-Sprache
+  // WICHTIG: Überschreibe NICHT die gespeicherte Sprache, wenn die Perspektive bereits gesetzt wurde
   const isInitialMount = useRef(true)
   useEffect(() => {
     if (typeof window === 'undefined') return
     
     try {
       const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}targetLanguage`)
+      const perspectiveSet = localStorage.getItem('story-perspective-set') === 'true'
       const uiLanguage = localeToTargetLanguage(locale)
+      
+      console.log('[StoryContext] useEffect targetLanguage Sync Check:', {
+        stored: stored ? JSON.parse(stored) : null,
+        perspectiveSet,
+        uiLanguage,
+        currentTargetLanguage: targetLanguage,
+        locale,
+        isInitialMount: isInitialMount.current,
+      })
       
       if (!stored) {
         // Kein gespeicherter Wert: Setze auf aktuelle UI-Sprache
         if (targetLanguage !== uiLanguage) {
+          console.log('[StoryContext] Kein gespeicherter Wert - setze auf UI-Sprache:', uiLanguage)
           setTargetLanguage(uiLanguage)
         }
       } else if (isInitialMount.current) {
-        // Beim ersten Mount: Prüfe ob der gespeicherte Wert mit der UI-Sprache übereinstimmt
-        // Wenn nicht, aktualisiere auf UI-Sprache (UI-Sprache hat sich geändert seit dem letzten Besuch)
+        // Beim ersten Mount: Prüfe ob die Perspektive bereits gesetzt wurde
         const storedValue = JSON.parse(stored) as TargetLanguage
-        if (storedValue !== uiLanguage && targetLanguage === storedValue) {
-          // Gespeicherter Wert entspricht nicht der aktuellen UI-Sprache
-          // Aktualisiere auf UI-Sprache
-          setTargetLanguage(uiLanguage)
+        
+        if (perspectiveSet) {
+          // Perspektive wurde bereits gesetzt - verwende gespeicherten Wert, überschreibe NICHT
+          console.log('[StoryContext] Perspektive bereits gesetzt - verwende gespeicherte Sprache:', storedValue, '(UI-Sprache würde sein:', uiLanguage, ')')
+          if (targetLanguage !== storedValue) {
+            console.log('[StoryContext] Synchronisiere targetLanguage mit gespeichertem Wert:', storedValue)
+            setTargetLanguage(storedValue)
+          }
+        } else {
+          // Perspektive noch nicht gesetzt - prüfe ob gespeicherter Wert mit UI-Sprache übereinstimmt
+          if (storedValue !== uiLanguage && targetLanguage === storedValue) {
+            // Gespeicherter Wert entspricht nicht der aktuellen UI-Sprache
+            // Aktualisiere auf UI-Sprache (nur wenn Perspektive noch nicht gesetzt wurde)
+            console.log('[StoryContext] Perspektive noch nicht gesetzt - aktualisiere auf UI-Sprache:', uiLanguage, '(gespeichert war:', storedValue, ')')
+            setTargetLanguage(uiLanguage)
+          } else {
+            console.log('[StoryContext] Gespeicherter Wert wird beibehalten:', storedValue, '(UI-Sprache:', uiLanguage, ')')
+          }
         }
         isInitialMount.current = false
       }
-    } catch {
-      // Ignoriere Fehler
+    } catch (error) {
+      console.error('[StoryContext] Fehler beim Synchronisieren der targetLanguage:', error)
     }
   }, [locale, targetLanguage, setTargetLanguage])
   

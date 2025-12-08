@@ -209,11 +209,22 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
         // WICHTIG: Stelle sicher, dass targetLanguage immer gesetzt ist
         // targetLanguage sollte immer einen Wert haben (aus Story-Context oder Default)
         // Falls sie doch undefined ist, verwenden wir einen Fallback (sollte nicht vorkommen)
-        params.set('targetLanguage', targetLanguage || 'en')
+        const effectiveTargetLanguage = targetLanguage || 'en'
+        params.set('targetLanguage', effectiveTargetLanguage)
         params.set('character', characterArrayToString(character) || '')
         params.set('accessPerspective', accessPerspectiveArrayToString(accessPerspective) || '')
         params.set('socialContext', socialContext)
         params.set('genderInclusive', String(genderInclusive))
+        
+        console.log('[useChatStream] Sende Chat-Request mit Parametern:', {
+          targetLanguage: effectiveTargetLanguage,
+          originalTargetLanguage: targetLanguage,
+          character: characterArrayToString(character),
+          accessPerspective: accessPerspectiveArrayToString(accessPerspective),
+          socialContext,
+          genderInclusive,
+          retriever: effectiveRetriever,
+        })
 
         // Bereite Chatverlauf vor: Nur vollständige Frage-Antwort-Paare
         const chatHistory: Array<{ question: string; answer: string }> = []

@@ -215,6 +215,11 @@ export function PerspectivePageContent({
     // Übernehme Werte in globalen State
     // Wenn andere Werte vorhanden sind, verwende nur diese (ohne 'undefined')
     // Wenn nur 'undefined' vorhanden ist, verwende die originalen Arrays (mit 'undefined')
+    console.log('[PerspectivePage] handleStart - Setze targetLanguage:', {
+      localLanguage,
+      currentTargetLanguage: targetLanguage,
+      willSetTo: localLanguage,
+    })
     setTargetLanguage(localLanguage)
     setCharacter(validInterests.length > 0 ? validInterests : localInterests)
     setAccessPerspective(validAccessPerspective.length > 0 ? validAccessPerspective : localAccessPerspective)
@@ -223,6 +228,13 @@ export function PerspectivePageContent({
     // Speichere im localStorage (für alle Benutzer, nicht nur anonyme)
     // Speichere die gefilterten Werte (ohne 'undefined'), außer wenn nur 'undefined' vorhanden ist
     // WICHTIG: Speichere immer, damit die Perspektivwahl beim nächsten Besuch erhalten bleibt
+    console.log('[PerspectivePage] handleStart - Speichere in localStorage:', {
+      targetLanguage: localLanguage,
+      character: validInterests.length > 0 ? validInterests : localInterests,
+      socialContext: localLanguageStyle,
+      accessPerspective: validAccessPerspective.length > 0 ? validAccessPerspective : localAccessPerspective,
+      isAnonymous,
+    })
     saveStoryContextToLocalStorage(
       localLanguage,
       validInterests.length > 0 ? validInterests : localInterests,
@@ -234,6 +246,7 @@ export function PerspectivePageContent({
     // Setze Flag, dass Perspektive einmal gesetzt wurde
     if (typeof window !== 'undefined') {
       localStorage.setItem('story-perspective-set', 'true')
+      console.log('[PerspectivePage] Flag "story-perspective-set" gesetzt')
     }
 
     // Rufe onSave Callback auf (für Navigation)

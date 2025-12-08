@@ -266,11 +266,13 @@ export async function POST(
         // Parse accessPerspective Parameter aus URL (komma-separierter String → AccessPerspective[] Array)
         const effectiveAccessPerspective = parseAccessPerspectiveFromUrlParam(accessPerspectiveParam)
         
+        const effectiveTargetLanguage = isValidTargetLanguage(targetLanguageParam)
+          ? targetLanguageParam
+          : ctx.chat.targetLanguage
+        
         const effectiveChatConfig = {
           ...ctx.chat,
-          targetLanguage: isValidTargetLanguage(targetLanguageParam)
-            ? targetLanguageParam
-            : ctx.chat.targetLanguage,
+          targetLanguage: effectiveTargetLanguage,
           character: effectiveCharacter ?? normalizeCharacterToArray(ctx.chat.character),
           accessPerspective: effectiveAccessPerspective ?? normalizeAccessPerspectiveToArray(ctx.chat.accessPerspective),
           socialContext: isValidSocialContext(socialContextParam)
@@ -282,6 +284,14 @@ export async function POST(
             ? false 
             : ctx.chat.genderInclusive ?? false,
         }
+        
+        console.log('[Chat API] effectiveChatConfig bestimmt:', {
+          targetLanguageParam,
+          effectiveTargetLanguage,
+          ctxChatTargetLanguage: ctx.chat.targetLanguage,
+          isValidTargetLanguage: isValidTargetLanguage(targetLanguageParam),
+          effectiveChatConfigTargetLanguage: effectiveChatConfig.targetLanguage,
+        })
 
         // Schritt 1.5: Cache-Check für bestehende Query
         // Prüfe, ob bereits eine identische Query mit Antwort existiert

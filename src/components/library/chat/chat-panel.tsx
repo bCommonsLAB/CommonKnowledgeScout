@@ -91,6 +91,17 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const accessPerspective = isEmbedded ? storyContext.accessPerspective : accessPerspectiveState
   const socialContext = isEmbedded ? storyContext.socialContext : socialContextState
   const setTargetLanguage = isEmbedded ? storyContext.setTargetLanguage : setTargetLanguageState
+  
+  // Log targetLanguage-Quelle für Debugging
+  useEffect(() => {
+    console.log('[ChatPanel] targetLanguage bestimmt:', {
+      isEmbedded,
+      targetLanguage,
+      storyContextTargetLanguage: storyContext.targetLanguage,
+      targetLanguageState,
+      source: isEmbedded ? 'storyContext' : 'localState',
+    })
+  }, [isEmbedded, targetLanguage, storyContext.targetLanguage, targetLanguageState])
   // Wrapper für setCharacter: storyContext verwendet bereits Character[]
   const setCharacter = isEmbedded 
     ? storyContext.setCharacter
