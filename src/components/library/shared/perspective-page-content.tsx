@@ -113,14 +113,15 @@ export function PerspectivePageContent({
     return mapping[locale] || TARGET_LANGUAGE_DEFAULT
   }
 
-  // Sortiere Sprachen: Aktuelle UI-Sprache zuerst, dann alphabetisch
+  // Sortiere Sprachen: 'global' zuerst, dann aktuelle UI-Sprache, dann alphabetisch
   const sortedLanguages = useMemo(() => {
     const currentUILanguage = localeToTargetLanguage(locale)
     const allLanguages = [...TARGET_LANGUAGE_VALUES]
     
-    // Trenne aktuelle Sprache und restliche Sprachen
-    const currentLanguage = allLanguages.find(lang => lang === currentUILanguage)
-    const otherLanguages = allLanguages.filter(lang => lang !== currentUILanguage)
+    // Trenne 'global', aktuelle Sprache und restliche Sprachen
+    const globalLanguage = allLanguages.find(lang => lang === 'global')
+    const currentLanguage = allLanguages.find(lang => lang === currentUILanguage && lang !== 'global')
+    const otherLanguages = allLanguages.filter(lang => lang !== 'global' && lang !== currentUILanguage)
     
     // Sortiere restliche Sprachen alphabetisch nach Label
     const sortedOtherLanguages = otherLanguages.sort((a, b) => {
@@ -129,10 +130,13 @@ export function PerspectivePageContent({
       return labelA.localeCompare(labelB, locale, { sensitivity: 'base' })
     })
     
-    // Füge aktuelle Sprache am Anfang hinzu, falls vorhanden
-    return currentLanguage 
-      ? [currentLanguage, ...sortedOtherLanguages]
-      : sortedOtherLanguages
+    // Füge 'global' zuerst hinzu, dann aktuelle Sprache, dann restliche
+    const result: TargetLanguage[] = []
+    if (globalLanguage) result.push(globalLanguage)
+    if (currentLanguage) result.push(currentLanguage)
+    result.push(...sortedOtherLanguages)
+    
+    return result
   }, [locale, targetLanguageLabels])
 
   // Lokaler State für die Formularwerte (werden erst beim Speichern übernommen)
@@ -383,6 +387,10 @@ export function PerspectivePageContent({
                     
                     {/* Warnhinweise für exotische Sprachen */}
                     {(() => {
+                      // Keine Warnung für 'global', da es die UI-Sprache verwendet
+                      if (localLanguage === 'global') {
+                        return null
+                      }
                       const category = getLanguageCategory(localLanguage)
                       if (category === 'well') {
                         return (

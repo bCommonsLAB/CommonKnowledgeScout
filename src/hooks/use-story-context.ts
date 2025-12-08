@@ -26,6 +26,7 @@ import {
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_DEFAULT,
   ACCESS_PERSPECTIVE_DEFAULT,
+  TARGET_LANGUAGE_LABELS,
   normalizeCharacterToArray,
   normalizeAccessPerspectiveToArray,
 } from '@/lib/chat/constants'
@@ -372,7 +373,12 @@ export function useStoryContext(): UseStoryContextReturn {
   const targetLanguageLabels = useMemo(() => {
     const labels: Record<TargetLanguage, string> = {} as Record<TargetLanguage, string>
     for (const lang of TARGET_LANGUAGE_VALUES) {
-      labels[lang] = t(`chat.languageLabels.${lang}`)
+      // Versuche Übersetzung, falls nicht vorhanden verwende Fallback-Label
+      const translated = t(`chat.languageLabels.${lang}`)
+      // Wenn Übersetzung fehlt (zurückgegebener Wert ist der Key), verwende Fallback
+      labels[lang] = translated === `chat.languageLabels.${lang}` 
+        ? (TARGET_LANGUAGE_LABELS[lang] || lang)
+        : translated
     }
     return labels
   }, [t])

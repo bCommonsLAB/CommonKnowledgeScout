@@ -50,6 +50,7 @@ export interface OrchestratorInput extends RetrieverInput {
   onProcessingStep?: (step: import('@/types/chat-processing').ChatProcessingStep) => void
   apiKey?: string  // Optional: API-Key für öffentliche Libraries
   isTOCQuery?: boolean  // Wenn true, verwende TOC-Prompt und parse StoryTopicsData
+  uiLocale?: string  // UI-Locale für 'global' targetLanguage (z.B. 'de', 'fr', 'en')
   // libraryId ist bereits in RetrieverInput enthalten (required)
 }
 
@@ -157,6 +158,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       genderInclusive: run.chatConfig?.genderInclusive,
       filters: run.facetsSelected,
       facetDefs: run.facetDefs,
+      uiLocale: run.uiLocale,
     })
   } else {
     prompt = buildPrompt(run.question, sources, run.answerLength, {
@@ -168,6 +170,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       chatHistory: run.chatHistory,
       filters: run.facetsSelected,
       facetDefs: run.facetDefs,
+      uiLocale: run.uiLocale,
     })
   }
   // Note only for chunk mode: In summary and chunkSummary mode, all documents/chunks are included

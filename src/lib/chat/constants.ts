@@ -101,6 +101,8 @@ export const RETRIEVER_ZOD_ENUM = z.enum(['chunk', 'doc', 'summary'])
  */
 
 export type TargetLanguage = 
+  // Globale Sprache (verwendet UI-Sprache)
+  | 'global'
   // ✅ Vollständig unterstützt
   | 'de' // Deutsch
   | 'en' // Englisch
@@ -160,6 +162,10 @@ export const LANGUAGE_CATEGORIES = {
  * Prüft, zu welcher Kategorie eine Sprache gehört
  */
 export function getLanguageCategory(language: TargetLanguage): 'full' | 'well' | 'basic' | null {
+  // 'global' verwendet die UI-Sprache, daher keine spezifische Kategorie
+  if (language === 'global') {
+    return null
+  }
   // Type Guard: Prüfe ob language in FULLY_SUPPORTED enthalten ist
   // Verwende explizite Typkonvertierung zu readonly TargetLanguage[] für Type-Safety
   const fullySupported = LANGUAGE_CATEGORIES.FULLY_SUPPORTED as readonly TargetLanguage[]
@@ -182,9 +188,11 @@ export function getLanguageCategory(language: TargetLanguage): 'full' | 'well' |
 /**
  * Liste aller verfügbaren Zielsprachen
  * 
- * Reihenfolge: Vollständig unterstützt → Gut unterstützt → Grundkenntnisse
+ * Reihenfolge: Globale Sprache → Vollständig unterstützt → Gut unterstützt → Grundkenntnisse
  */
 export const TARGET_LANGUAGE_VALUES: readonly TargetLanguage[] = [
+  // Globale Sprache (verwendet UI-Sprache)
+  'global',
   // ✅ Vollständig unterstützt
   ...LANGUAGE_CATEGORIES.FULLY_SUPPORTED,
   // 🌐 Gut unterstützt (Alltagsniveau, gelegentlich Einschränkungen)
@@ -200,6 +208,8 @@ export const TARGET_LANGUAGE_DEFAULT: TargetLanguage = 'en'
  * Die tatsächlichen Labels werden aus den i18n-Übersetzungsdateien geladen.
  */
 export const TARGET_LANGUAGE_LABELS: Record<TargetLanguage, string> = {
+  // Globale Sprache (verwendet UI-Sprache)
+  global: 'Globale Sprache',
   // ✅ Vollständig unterstützt
   de: 'Deutsch',
   en: 'Englisch',
@@ -243,6 +253,7 @@ export const TARGET_LANGUAGE_LABELS: Record<TargetLanguage, string> = {
 }
 
 export const TARGET_LANGUAGE_ZOD_ENUM = z.enum([
+  'global',
   'en', 'de', 'it', 'fr', 'es', 'pt', 'nl', 'no', 'da', 'sv', 'fi', 'pl', 'cs', 'hu', 'ro', 'bg', 'el', 'tr', 'ru', 'uk', 'zh', 'ko', 'ja',
   'hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi',
   'sw', 'yo', 'zu',
@@ -667,6 +678,61 @@ export function characterArrayToString(character: Character[] | Character | stri
   
   // String oder Single-Value: Gib direkt zurück
   return character
+}
+
+/**
+ * Konvertiert 'global' zu einer tatsächlichen Sprache basierend auf UI-Locale
+ * Wenn targetLanguage nicht 'global' ist, wird es unverändert zurückgegeben
+ * 
+ * @param targetLanguage Die Zielsprache (kann 'global' sein)
+ * @param uiLocale Die UI-Locale (z.B. 'de', 'en')
+ * @returns Die tatsächliche Zielsprache
+ */
+export function resolveTargetLanguage(targetLanguage: TargetLanguage | undefined, uiLocale: string): Exclude<TargetLanguage, 'global'> {
+  if (targetLanguage === 'global' || !targetLanguage) {
+    // Konvertiere UI-Locale zu TargetLanguage
+    const localeToTargetMap: Record<string, Exclude<TargetLanguage, 'global'>> = {
+      de: 'de',
+      en: 'en',
+      it: 'it',
+      fr: 'fr',
+      es: 'es',
+      pt: 'pt',
+      nl: 'nl',
+      no: 'no',
+      da: 'da',
+      sv: 'sv',
+      fi: 'fi',
+      pl: 'pl',
+      cs: 'cs',
+      hu: 'hu',
+      ro: 'ro',
+      bg: 'bg',
+      el: 'el',
+      tr: 'tr',
+      ru: 'ru',
+      uk: 'uk',
+      zh: 'zh',
+      ko: 'ko',
+      ja: 'ja',
+      hr: 'hr',
+      sr: 'sr',
+      bs: 'bs',
+      sl: 'sl',
+      sk: 'sk',
+      lt: 'lt',
+      lv: 'lv',
+      et: 'et',
+      id: 'id',
+      ms: 'ms',
+      hi: 'hi',
+      sw: 'sw',
+      yo: 'yo',
+      zu: 'zu',
+    }
+    return localeToTargetMap[uiLocale] || TARGET_LANGUAGE_DEFAULT
+  }
+  return targetLanguage
 }
 
 /**

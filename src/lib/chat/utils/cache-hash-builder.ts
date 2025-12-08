@@ -12,7 +12,7 @@ import { createCacheHash, type CacheHashParams } from './cache-key-utils'
 import { facetsSelectedToMongoFilter } from '../common/filters'
 import { getFilteredDocumentCount } from '@/lib/db/queries-repo'
 import type { Library } from '@/types/library'
-import { TARGET_LANGUAGE_DEFAULT } from '../constants'
+import { TARGET_LANGUAGE_DEFAULT, resolveTargetLanguage, type TargetLanguage } from '../constants'
 
 /**
  * Parameter für die Cache-Hash-Berechnung (vor Normalisierung)
@@ -31,6 +31,7 @@ export interface CacheHashInputParams {
   facetsSelected?: Record<string, unknown>
   documentCount?: number // Optional: Bereits berechnete DocumentCount
   library?: Library // Optional: Library-Objekt für DocumentCount-Berechnung
+  uiLocale?: string // UI-Locale für 'global' targetLanguage Konvertierung
 }
 
 /**
@@ -99,6 +100,18 @@ export async function buildCacheHashParams(
   // Normalisiere queryType (Default: 'question')
   const normalizedQueryType = params.queryType || 'question'
   
+  // Konvertiere 'global' targetLanguage zur tatsächlichen Sprache für Cache
+  // WICHTIG: Cache muss die tatsächliche Sprache enthalten, nicht 'global'
+  let effectiveTargetLanguage: string
+  if (params.targetLanguage === 'global' && params.uiLocale) {
+    // Konvertiere 'global' zur UI-Sprache
+    effectiveTargetLanguage = resolveTargetLanguage('global' as TargetLanguage, params.uiLocale)
+  } else if (params.targetLanguage) {
+    effectiveTargetLanguage = params.targetLanguage
+  } else {
+    effectiveTargetLanguage = TARGET_LANGUAGE_DEFAULT
+  }
+  
   // Berechne DocumentCount, falls nicht vorhanden und Library vorhanden
   let documentCount = params.documentCount
   if (documentCount === undefined && params.library) {
@@ -110,9 +123,8 @@ export async function buildCacheHashParams(
     question: normalizedQuestion,
     queryType: normalizedQueryType as 'toc' | 'question',
     answerLength: params.answerLength,
-    // WICHTIG: Stelle sicher, dass targetLanguage immer gesetzt ist (auch wenn undefined)
-    // Verwende Default-Wert, damit sie immer zum Cache-Hash hinzugefügt wird
-    targetLanguage: params.targetLanguage || TARGET_LANGUAGE_DEFAULT,
+    // WICHTIG: Verwende die konvertierte Sprache (nicht 'global')
+    targetLanguage: effectiveTargetLanguage,
     character: params.character as import('@/lib/chat/constants').Character[] | undefined,
     accessPerspective: params.accessPerspective as import('@/lib/chat/constants').AccessPerspective[] | undefined,
     socialContext: params.socialContext,

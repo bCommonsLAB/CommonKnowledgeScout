@@ -275,6 +275,7 @@
       }
     },
     "languageLabels": {
+      "global": "Langue globale",
       "de": "Allemand",
       "en": "Anglais",
       "it": "Italien",

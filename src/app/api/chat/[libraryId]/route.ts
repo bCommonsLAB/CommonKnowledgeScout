@@ -7,6 +7,7 @@ import { runChatOrchestrated } from '@/lib/chat/orchestrator'
 import { buildFilters } from '@/lib/chat/common/filters'
 import { analyzeQuestionForRetriever } from '@/lib/chat/common/question-analyzer'
 import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
+import { getLocale } from '@/lib/i18n'
 import {
   ANSWER_LENGTH_ZOD_ENUM,
   isValidTargetLanguage,
@@ -205,6 +206,10 @@ export async function POST(
       }
       // Verwende publicApiKey wenn vorhanden (für öffentliche Libraries)
       const publicApiKey = ctx.library.config?.publicPublishing?.apiKey
+      // Ermittle UI-Locale für 'global' targetLanguage
+      const acceptLanguage = request.headers.get('accept-language') || undefined
+      const cookieLocale = request.cookies.get('locale')?.value
+      const uiLocale = getLocale(undefined, cookieLocale, acceptLanguage)
       const { answer, sources, references, suggestedQuestions } = await runChatOrchestrated({
         retriever: 'summary',
         libraryId,
@@ -217,6 +222,7 @@ export async function POST(
         chatConfig: effectiveChatConfig,
         chatHistory: chatHistory,
         apiKey: publicApiKey,
+        uiLocale: uiLocale, // UI-Locale für 'global' targetLanguage
       })
       return NextResponse.json({
         status: 'ok',
@@ -261,6 +267,10 @@ export async function POST(
 
     // Verwende Library-spezifischen API-Key, falls vorhanden
     const libraryApiKey = ctx.library.config?.publicPublishing?.apiKey
+    // Ermittle UI-Locale für 'global' targetLanguage
+    const acceptLanguage = request.headers.get('accept-language') || undefined
+    const cookieLocale = request.cookies.get('locale')?.value
+    const uiLocale = getLocale(undefined, cookieLocale, acceptLanguage)
     // Verwende Orchestrator für einheitliche Verarbeitung (wie Summary-Flow)
     const { answer, sources, references, suggestedQuestions } = await runChatOrchestrated({
       retriever: 'chunk',
@@ -272,6 +282,7 @@ export async function POST(
       filters: built.mongo,
       queryId,
       chatConfig: effectiveChatConfig,
+      uiLocale: uiLocale, // UI-Locale für 'global' targetLanguage
       chatHistory: chatHistory,
       apiKey: libraryApiKey,
     })

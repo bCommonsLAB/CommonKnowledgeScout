@@ -310,6 +310,7 @@
       }
     },
     "languageLabels": {
+      "global": "Globale Sprache",
       "de": "Deutsch",
       "en": "Englisch",
       "it": "Italienisch",

@@ -168,8 +168,58 @@ function getAccessPerspectiveInstruction(accessPerspective: AccessPerspective | 
 /**
  * Creates language instruction based on configuration
  * Uses the central TargetLanguage labels from lib/chat/constants.ts.
+ * 
+ * @param targetLanguage Die Zielsprache (kann 'global' sein)
+ * @param uiLocale Die UI-Locale für 'global' Fallback (optional)
  */
-function getLanguageInstruction(targetLanguage: TargetLanguage): string {
+function getLanguageInstruction(targetLanguage: TargetLanguage, uiLocale?: string): string {
+  // Wenn 'global', verwende UI-Locale oder Fallback
+  if (targetLanguage === 'global') {
+    if (uiLocale) {
+      const localeToTargetMap: Record<string, string> = {
+        de: 'Deutsch',
+        en: 'Englisch',
+        it: 'Italienisch',
+        fr: 'Französisch',
+        es: 'Spanisch',
+        pt: 'Portugiesisch',
+        nl: 'Niederländisch',
+        no: 'Norwegisch',
+        da: 'Dänisch',
+        sv: 'Schwedisch',
+        fi: 'Finnisch',
+        pl: 'Polnisch',
+        cs: 'Tschechisch',
+        hu: 'Ungarisch',
+        ro: 'Rumänisch',
+        bg: 'Bulgarisch',
+        el: 'Griechisch',
+        tr: 'Türkisch',
+        ru: 'Russisch',
+        uk: 'Ukrainisch',
+        zh: 'Chinesisch',
+        ko: 'Koreanisch',
+        ja: 'Japanisch',
+        hr: 'Kroatisch',
+        sr: 'Serbisch',
+        bs: 'Bosnisch',
+        sl: 'Slowenisch',
+        sk: 'Slowakisch',
+        lt: 'Litauisch',
+        lv: 'Lettisch',
+        et: 'Estnisch',
+        id: 'Indonesisch',
+        ms: 'Malaysisch',
+        hi: 'Hindi',
+        sw: 'Swahili',
+        yo: 'Yoruba',
+        zu: 'Zulu',
+      }
+      const languageName = localeToTargetMap[uiLocale] || 'German'
+      return `Respond in ${languageName}.`
+    }
+    return 'Respond in German.' // Fallback
+  }
   const languageName = TARGET_LANGUAGE_LABELS[targetLanguage] || 'German'
   return `Respond in ${languageName}.`
 }
@@ -199,6 +249,7 @@ function buildSystemPromptComponents(options?: {
   accessPerspective?: AccessPerspective | AccessPerspective[]
   socialContext?: SocialContext
   genderInclusive?: boolean
+  uiLocale?: string
 }): {
   characterInstruction: string
   accessPerspectiveInstruction: string
@@ -211,7 +262,7 @@ function buildSystemPromptComponents(options?: {
     accessPerspectiveInstruction: options?.accessPerspective ? getAccessPerspectiveInstruction(options.accessPerspective) : '',
     socialContextInstruction: options?.socialContext ? getSocialContextInstruction(options.socialContext) : '',
     genderInclusiveInstruction: options?.genderInclusive !== undefined ? getGenderInclusiveInstruction(options.genderInclusive) : '',
-    languageInstruction: options?.targetLanguage ? getLanguageInstruction(options.targetLanguage) : 'Respond in German.',
+    languageInstruction: options?.targetLanguage ? getLanguageInstruction(options.targetLanguage, options.uiLocale) : 'Respond in German.',
   }
 }
 
@@ -262,6 +313,7 @@ export function buildPrompt(
     chatHistory?: Array<{ question: string; answer: string }>
     filters?: Record<string, unknown>
     facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    uiLocale?: string
   }
 ): string {
   const context = buildContext(sources)
@@ -373,6 +425,7 @@ export function buildTOCPrompt(
     genderInclusive?: boolean
     filters?: Record<string, unknown>
     facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    uiLocale?: string
   }
 ): string {
   const context = buildContext(sources)

@@ -29,6 +29,7 @@ import { NextRequest } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
+import { getLocale } from '@/lib/i18n'
 import { startQueryLog } from '@/lib/logging/query-logger'
 import { updateQueryLogPartial, findQueryByQuestionAndContext } from '@/lib/db/queries-repo'
 import { buildCacheHashParams } from '@/lib/chat/utils/cache-hash-builder'
@@ -49,6 +50,7 @@ import {
   parseAccessPerspectiveFromUrlParam,
   characterArrayToString,
   accessPerspectiveArrayToString,
+  resolveTargetLanguage,
 } from '@/lib/chat/constants'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 import { formatSSE } from '@/types/chat-processing'
@@ -254,6 +256,11 @@ export async function POST(
           await touchChat(chatId)
         }
 
+        // Ermittle UI-Locale für 'global' targetLanguage Konvertierung (früh, damit es überall verfügbar ist)
+        const acceptLanguage = request.headers.get('accept-language') || undefined
+        const cookieLocale = request.cookies.get('locale')?.value
+        const uiLocale = getLocale(undefined, cookieLocale, acceptLanguage)
+        
         // Chat-Config bestimmen
         const targetLanguageParam = parsedUrl.searchParams.get('targetLanguage')
         const characterParam = parsedUrl.searchParams.get('character')
@@ -291,6 +298,7 @@ export async function POST(
           ctxChatTargetLanguage: ctx.chat.targetLanguage,
           isValidTargetLanguage: isValidTargetLanguage(targetLanguageParam),
           effectiveChatConfigTargetLanguage: effectiveChatConfig.targetLanguage,
+          uiLocale,
         })
 
         // Schritt 1.5: Cache-Check für bestehende Query
@@ -332,6 +340,7 @@ export async function POST(
           retrieverForCache = explicitRetrieverValue || effectiveRetrieverForCache
           
           // Verwende zentrale Funktion für Cache-Hash-Berechnung
+          // uiLocale wurde bereits oben definiert
           const cacheHashParamsForLog = await buildCacheHashParams({
             libraryId,
             question: message,
@@ -345,6 +354,7 @@ export async function POST(
             retriever: retrieverForCache,
             facetsSelected: facetsSelectedForCache,
             library: ctx.library, // Verwende Library-Objekt für DocumentCount-Berechnung
+            uiLocale: uiLocale, // UI-Locale für 'global' targetLanguage Konvertierung
           })
           
           documentCount = cacheHashParamsForLog.documentCount
@@ -571,6 +581,12 @@ export async function POST(
         // Schritt 3: Query-Log starten
         // Prüfe, ob es eine TOC-Frage ist (bereits oben definiert)
         
+        // Konvertiere 'global' targetLanguage zur tatsächlichen Sprache für Query-Log
+        // WICHTIG: Query-Log muss die tatsächliche Sprache enthalten, nicht 'global'
+        const effectiveTargetLanguageForLog = effectiveChatConfig.targetLanguage === 'global' && uiLocale
+          ? resolveTargetLanguage('global', uiLocale)
+          : effectiveChatConfig.targetLanguage
+        
         queryId = await startQueryLog({
           libraryId,
           chatId: activeChatId,
@@ -581,7 +597,7 @@ export async function POST(
           queryType: isTOCQuery ? 'toc' : 'question', // Setze queryType basierend auf der Frage
           answerLength,
           retriever: internalRetriever, // Verwende internen Retriever (kann chunkSummary sein)
-          targetLanguage: effectiveChatConfig.targetLanguage,
+          targetLanguage: effectiveTargetLanguageForLog, // Verwende konvertierte Sprache (nicht 'global')
           character: effectiveChatConfig.character, // Array (kann leer sein)
           accessPerspective: effectiveChatConfig.accessPerspective, // Array (kann leer sein)
           socialContext: effectiveChatConfig.socialContext,
@@ -621,6 +637,7 @@ export async function POST(
           accessPerspective: normalizeAccessPerspectiveToArray(effectiveChatConfig.accessPerspective),
         }
 
+        // uiLocale wurde bereits oben definiert, verwende es hier
         const { answer, references, suggestedQuestions, storyTopicsData } = await runChatOrchestrated({
           retriever: internalRetriever, // Verwende internen Retriever (kann chunkSummary sein)
           libraryId,
@@ -636,6 +653,7 @@ export async function POST(
           facetDefs: facetDefs,
           isTOCQuery: isTOCQuery,
           apiKey: libraryApiKey,
+          uiLocale: uiLocale, // UI-Locale für 'global' targetLanguage
           onProcessingStep: (step) => {
             // Prüfe, ob der Stream noch aktiv ist
             if (!isStreamActive) {
