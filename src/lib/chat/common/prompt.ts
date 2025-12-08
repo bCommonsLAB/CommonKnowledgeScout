@@ -249,40 +249,6 @@ function buildFacetFilterText(
   return filterParts
 }
 
-/**
- * Baut System-Prompt-Teile mit Instructions zusammen.
- * Wiederverwendbar für buildPrompt und buildTOCPrompt.
- * 
- * @param baseMessage Basis-Nachricht für den System-Prompt
- * @param instructions Objekt mit allen Instructions
- * @param instructionPrefix Prefix für alle Instructions (z.B. '\n' oder '\nUser Character Instructions:\n')
- */
-function buildSystemPromptParts(
-  baseMessage: string,
-  instructions: {
-    characterInstruction: string
-    accessPerspectiveInstruction: string
-    socialContextInstruction: string
-    genderInclusiveInstruction: string
-  },
-  instructionPrefix: string = '\n'
-): string[] {
-  const systemParts: string[] = [baseMessage]
-  if (instructions.characterInstruction) {
-    systemParts.push(`${instructionPrefix}${instructions.characterInstruction}`)
-  }
-  if (instructions.accessPerspectiveInstruction) {
-    systemParts.push(`${instructionPrefix}${instructions.accessPerspectiveInstruction}`)
-  }
-  if (instructions.socialContextInstruction) {
-    systemParts.push(`${instructionPrefix}${instructions.socialContextInstruction}`)
-  }
-  if (instructions.genderInclusiveInstruction) {
-    systemParts.push(`${instructionPrefix}${instructions.genderInclusiveInstruction}`)
-  }
-  return systemParts
-}
-
 export function buildPrompt(
   question: string, 
   sources: RetrievedSource[], 
