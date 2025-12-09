@@ -52,10 +52,7 @@ if (process.env.NODE_ENV === 'development') {
     '/docs(.*)',
     '/explore(.*)',
     '/api/public(.*)',
-    '/datenschutz',
-    '/impressum',
-    '/rechtliche-hinweise',
-    '/ueber',
+    '/info(.*)',
   ]);
 }
 

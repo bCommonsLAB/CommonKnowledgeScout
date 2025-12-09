@@ -115,11 +115,21 @@ export async function POST(
     try {
       // Index wird automatisch erstellt durch getVectorCollection()
       // (ruft ensureVectorSearchIndex() auf, das jetzt den Index prüft und erstellt)
+      console.log(`[index/route] Rufe getVectorCollection() auf für Collection "${libraryKey}" mit Dimension ${dimension}`)
       await getVectorCollection(libraryKey, dimension, ctx.library)
       console.log(`[index/route] getVectorCollection() erfolgreich aufgerufen für Collection "${libraryKey}"`)
+      
+      // Warte etwas, damit MongoDB den Index registrieren kann
+      await new Promise(resolve => setTimeout(resolve, 2000))
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
-      console.error(`[index/route] Fehler beim Erstellen des Index über getVectorCollection():`, errorMsg)
+      const errorStack = error instanceof Error ? error.stack : undefined
+      console.error(`[index/route] Fehler beim Erstellen des Index über getVectorCollection():`, {
+        error: errorMsg,
+        stack: errorStack,
+        libraryKey,
+        dimension,
+      })
       throw new Error(`Fehler beim Erstellen des Vector Search Index: ${errorMsg}`)
     }
 

@@ -80,7 +80,7 @@ Wenn Sie einen bestehenden Vector Search Index haben, müssen Sie ihn manuell ak
         "type": "token"
       },
       "track": {
-        "type": "string"
+        "type": "token"
       },
       "year": {
         "type": "number"
@@ -104,7 +104,8 @@ Wenn Sie einen bestehenden Vector Search Index haben, müssen Sie ihn manuell ak
 
 **WICHTIG:** 
 - `libraryId` und `user` müssen als **Token-Indexe** definiert sein (nicht `string`), da sie in Filtern mit `$eq`-Operatoren verwendet werden
-- Alle Felder, die in Vector Search Filtern verwendet werden, benötigen Token-Indexe
+- **Alle String-Facetten** (wie `track`, `region`, `docType`, `source`, `date`) müssen als **Token-Indexe** definiert sein, da `buildFilterFromQuery` IMMER `$in` verwendet (auch bei einem Wert)
+- MongoDB Vector Search benötigt Token-Indexe für **alle** Felder, die mit `$in` verwendet werden, unabhängig davon, ob das Feld selbst ein Array ist oder nicht
 
 ## Welche Felder benötigen Token-Indexe?
 
@@ -123,7 +124,21 @@ Wenn Sie einen bestehenden Vector Search Index haben, müssen Sie ihn manuell ak
 - `speakers_image_url` - Array von Bild-URLs
 - Weitere Array-Facetten aus der Library-Config
 
-**Hinweis:** MongoDB Atlas Vector Search benötigt Token-Indexe für **alle** Felder, die in Filtern verwendet werden, nicht nur für Array-Felder. String-Felder wie `libraryId` und `user` müssen ebenfalls als Token-Indexe definiert sein, wenn sie mit `$eq`-Operatoren verwendet werden.
+**Hinweis:** MongoDB Atlas Vector Search benötigt Token-Indexe für **alle** Felder, die in Filtern verwendet werden, nicht nur für Array-Felder. 
+
+**Warum String-Facetten Token-Indexe benötigen:**
+- `buildFilterFromQuery` verwendet IMMER `$in` für String-Facetten (auch wenn nur ein Wert vorhanden ist)
+- MongoDB Vector Search benötigt Token-Indexe für alle Felder, die mit `$in` verwendet werden
+- Daher müssen alle String-Facetten (wie `track`, `region`, `docType`, `source`, `date`) als Token-Indexe definiert werden
+
+**Beispiel:**
+```typescript
+// buildFilterFromQuery erstellt immer:
+{ track: { $in: ["Developers"] } }  // Auch bei einem Wert!
+
+// MongoDB benötigt daher:
+{ track: { type: "token" } }  // Nicht "string"!
+```
 
 ## Weitere Facetten-Felder
 

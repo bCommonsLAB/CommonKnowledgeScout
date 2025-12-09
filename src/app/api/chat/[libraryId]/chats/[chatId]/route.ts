@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { getChatById, updateChatTitle, deleteChat } from '@/lib/db/chats-repo'
+import { getChatById, updateChatTitle, deleteChat, createChat } from '@/lib/db/chats-repo'
 
 /**
  * GET /api/chat/[libraryId]/chats/[chatId]
@@ -16,13 +16,41 @@ export async function GET(
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress
     
-    if (!userId || !userEmail) {
+    // Session-ID aus Header lesen (für anonyme Nutzer)
+    const sessionIdHeader = request.headers.get('x-session-id') || request.headers.get('X-Session-ID')
+    const sessionId = sessionIdHeader || undefined
+    
+    // Für anonyme Nutzer: Session-ID muss vorhanden sein
+    const userEmailOrSessionId = userEmail || sessionId
+    if (!userEmailOrSessionId) {
+      console.error('[api/chat/chats] Chat-ID vorhanden, aber weder userEmail noch sessionId:', {
+        chatId,
+        hasUserEmail: !!userEmail,
+        hasSessionId: !!sessionId,
+        userId: userId || null,
+      })
+      return NextResponse.json({ error: 'Nicht authentifiziert oder Session-ID erforderlich' }, { status: 401 })
+    }
+    
+    // Wenn nicht authentifiziert und keine Session-ID: Fehler
+    if (!userId && !sessionId) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
     
-    const chat = await getChatById(chatId, userEmail)
+    const chat = await getChatById(chatId, userEmailOrSessionId)
     if (!chat) {
-      return NextResponse.json({ error: 'Chat nicht gefunden' }, { status: 404 })
+      console.warn('[api/chat/chats] Chat nicht gefunden - erstelle neuen Chat:', {
+        chatId,
+        userEmail: userEmail || null,
+        sessionId: sessionId || null,
+        userEmailOrSessionId,
+        isEmail: userEmailOrSessionId.includes('@'),
+      })
+      // Erstelle neuen Chat statt Fehler
+      const { libraryId } = await params
+      const newChatId = await createChat(libraryId, userEmailOrSessionId, 'Neuer Chat')
+      const newChat = await getChatById(newChatId, userEmailOrSessionId)
+      return NextResponse.json(newChat)
     }
     
     return NextResponse.json(chat)
@@ -54,25 +82,55 @@ export async function PATCH(
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress
     
-    if (!userId || !userEmail) {
+    // Session-ID aus Header lesen (für anonyme Nutzer)
+    const sessionIdHeader = request.headers.get('x-session-id') || request.headers.get('X-Session-ID')
+    const sessionId = sessionIdHeader || undefined
+    
+    // Für anonyme Nutzer: Session-ID muss vorhanden sein
+    const userEmailOrSessionId = userEmail || sessionId
+    if (!userEmailOrSessionId) {
+      console.error('[api/chat/chats] PATCH: Chat-ID vorhanden, aber weder userEmail noch sessionId:', {
+        chatId,
+        hasUserEmail: !!userEmail,
+        hasSessionId: !!sessionId,
+        userId: userId || null,
+      })
+      return NextResponse.json({ error: 'Nicht authentifiziert oder Session-ID erforderlich' }, { status: 401 })
+    }
+    
+    // Wenn nicht authentifiziert und keine Session-ID: Fehler
+    if (!userId && !sessionId) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
     
     const body = await request.json().catch(() => ({}))
     
     // Prüfe, ob Chat existiert und Benutzer Zugriff hat
-    const chat = await getChatById(chatId, userEmail)
+    let activeChatId = chatId
+    const chat = await getChatById(chatId, userEmailOrSessionId)
     if (!chat) {
-      return NextResponse.json({ error: 'Chat nicht gefunden' }, { status: 404 })
-    }
-    
-    // Aktualisiere Titel, falls vorhanden
-    if (typeof body.title === 'string' && body.title.trim().length > 0) {
-      await updateChatTitle(chatId, body.title.trim())
+      console.warn('[api/chat/chats] PATCH: Chat nicht gefunden - erstelle neuen Chat:', {
+        chatId,
+        userEmail: userEmail || null,
+        sessionId: sessionId || null,
+        userEmailOrSessionId,
+        isEmail: userEmailOrSessionId.includes('@'),
+      })
+      // Erstelle neuen Chat statt Fehler
+      const { libraryId } = await params
+      const title = typeof body.title === 'string' && body.title.trim().length > 0
+        ? body.title.trim()
+        : 'Neuer Chat'
+      activeChatId = await createChat(libraryId, userEmailOrSessionId, title)
+    } else {
+      // Aktualisiere Titel, falls vorhanden
+      if (typeof body.title === 'string' && body.title.trim().length > 0) {
+        await updateChatTitle(chatId, body.title.trim())
+      }
     }
     
     // Lade aktualisierten Chat
-    const updatedChat = await getChatById(chatId, userEmail)
+    const updatedChat = await getChatById(activeChatId, userEmailOrSessionId)
     return NextResponse.json(updatedChat)
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -102,13 +160,39 @@ export async function DELETE(
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress
     
-    if (!userId || !userEmail) {
+    // Session-ID aus Header lesen (für anonyme Nutzer)
+    const sessionIdHeader = request.headers.get('x-session-id') || request.headers.get('X-Session-ID')
+    const sessionId = sessionIdHeader || undefined
+    
+    // Für anonyme Nutzer: Session-ID muss vorhanden sein
+    const userEmailOrSessionId = userEmail || sessionId
+    if (!userEmailOrSessionId) {
+      console.error('[api/chat/chats] DELETE: Chat-ID vorhanden, aber weder userEmail noch sessionId:', {
+        chatId,
+        hasUserEmail: !!userEmail,
+        hasSessionId: !!sessionId,
+        userId: userId || null,
+      })
+      return NextResponse.json({ error: 'Nicht authentifiziert oder Session-ID erforderlich' }, { status: 401 })
+    }
+    
+    // Wenn nicht authentifiziert und keine Session-ID: Fehler
+    if (!userId && !sessionId) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
     
-    const deleted = await deleteChat(chatId, userEmail)
+    const deleted = await deleteChat(chatId, userEmailOrSessionId)
     if (!deleted) {
-      return NextResponse.json({ error: 'Chat nicht gefunden' }, { status: 404 })
+      // Chat nicht gefunden - das ist OK bei DELETE (idempotent)
+      console.warn('[api/chat/chats] DELETE: Chat nicht gefunden (idempotent):', {
+        chatId,
+        userEmail: userEmail || null,
+        sessionId: sessionId || null,
+        userEmailOrSessionId,
+        isEmail: userEmailOrSessionId.includes('@'),
+      })
+      // Gebe success zurück, auch wenn Chat nicht existiert (idempotent)
+      return NextResponse.json({ success: true })
     }
     
     return NextResponse.json({ success: true })

@@ -245,15 +245,37 @@ export async function POST(
           // Verwende userEmail oder sessionId für Chat-Erstellung
           activeChatId = await createChat(libraryId, userEmail || sessionId || '', chatTitle)
         } else {
-          activeChatId = chatId
-          const existingChat = await getChatById(chatId, userEmail || sessionId || '')
-          if (!existingChat) {
-            send({ type: 'error', error: 'Chat nicht gefunden' })
-            controller.close()
-            isStreamActive = false
-            return
+          // WICHTIG: Für anonyme Nutzer muss sessionId vorhanden sein, sonst kann Chat nicht gefunden werden
+          const userEmailOrSessionId = userEmail || sessionId
+          if (!userEmailOrSessionId) {
+            console.warn('[stream] Chat-ID vorhanden, aber weder userEmail noch sessionId - erstelle neuen Chat:', {
+              chatId,
+              hasUserEmail: !!userEmail,
+              hasSessionId: !!sessionId,
+              userId: userId || null,
+            })
+            // Erstelle neuen Chat statt Fehler
+            const chatTitle = message.slice(0, 60)
+            activeChatId = await createChat(libraryId, userEmail || sessionId || '', chatTitle)
+          } else {
+            const existingChat = await getChatById(chatId, userEmailOrSessionId)
+            if (!existingChat) {
+              console.warn('[stream] Chat nicht gefunden - erstelle neuen Chat:', {
+                chatId,
+                userEmail: userEmail || null,
+                sessionId: sessionId || null,
+                userEmailOrSessionId,
+                isEmail: userEmailOrSessionId.includes('@'),
+              })
+              // Erstelle neuen Chat statt Fehler
+              const chatTitle = message.slice(0, 60)
+              activeChatId = await createChat(libraryId, userEmailOrSessionId, chatTitle)
+            } else {
+              // Chat gefunden, verwende ihn
+              activeChatId = chatId
+              await touchChat(chatId)
+            }
           }
-          await touchChat(chatId)
         }
 
         // Ermittle UI-Locale für 'global' targetLanguage Konvertierung (früh, damit es überall verfügbar ist)

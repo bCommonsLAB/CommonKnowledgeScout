@@ -43,17 +43,23 @@ RUN pnpm install --frozen-lockfile
 # Restlichen Code kopieren
 COPY . .
 
+# Footer-Dateien vor Docs-Build sichern (MkDocs überschreibt public/docs komplett)
+RUN mkdir -p /tmp/footer-backup && \
+    if [ -d "/app/public/docs/footer" ]; then \
+      cp -r /app/public/docs/footer /tmp/footer-backup/; \
+    fi
+
 # Dokumentation bauen (muss vor Next.js Build passieren, damit public/docs vorhanden ist)
 RUN pnpm docs:build || echo "Warnung: Docs-Build fehlgeschlagen, fahre fort..."
 
-# Footer-Verzeichnis ist optional - keine Prüfung nötig
-# RUN ls -la /app/public/docs/footer/ || echo "Warnung: Footer-Verzeichnis nicht gefunden"
+# Footer-Dateien nach Docs-Build wiederherstellen
+RUN if [ -d "/tmp/footer-backup/footer" ]; then \
+      mkdir -p /app/public/docs/footer && \
+      cp -r /tmp/footer-backup/footer/* /app/public/docs/footer/; \
+    fi
 
 # Next.js Build
 RUN pnpm build
-
-# Footer-Verzeichnis ist optional - keine Prüfung nötig
-# RUN ls -la /app/public/docs/footer/ || echo "Warnung: Footer-Verzeichnis nach Build nicht gefunden"
 
 # --- Runtime Stage ---
 FROM node:20-alpine AS runner
@@ -95,11 +101,9 @@ COPY --from=builder /app/next.config.js ./next.config.js
 COPY --from=builder /app/.next ./.next
 # Public-Ordner kopieren (inkl. Markdown-Dateien für Footer)
 # Verwende --chown für korrekte Berechtigungen
+# Footer-Dateien wurden bereits im Builder-Stage nach dem Docs-Build wiederhergestellt
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
-
-# Footer-Verzeichnis ist optional - keine Prüfung nötig
-# RUN ls -la /app/public/docs/footer/ || echo "Warnung: Footer-Verzeichnis nicht gefunden"
 
 # Optional: falls du eine .env.production hast
 # COPY .env.production .env

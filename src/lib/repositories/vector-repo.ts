@@ -489,28 +489,42 @@ async function ensureVectorSearchIndex(
       
       console.log(`[vector-repo] Erstelle Vector Search Index für Library "${library.id}" mit ${parseFacetDefs(library).length} Facetten (Dimension: ${dimension})`)
       console.log(`[vector-repo] Index-Definition:`, JSON.stringify(indexDefinition, null, 2))
+      console.log(`[vector-repo] Collection-Name: "${col.collectionName}", DB-Name: "${db.databaseName}"`)
       
       try {
-        await db.command({
+        const createCommand = {
           createSearchIndexes: col.collectionName,
           indexes: [indexDefinition],
-        })
+        }
+        console.log(`[vector-repo] Führe MongoDB-Befehl aus:`, JSON.stringify(createCommand, null, 2))
         
+        const result = await db.command(createCommand)
+        console.log(`[vector-repo] MongoDB-Befehl erfolgreich ausgeführt:`, result)
         console.log(`[vector-repo] ✅ Vector Search Index "${indexName}" erfolgreich erstellt für Collection "${libraryKey}"`)
         
-        // Warte kurz, damit MongoDB den Index registrieren kann
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Warte länger, damit MongoDB den Index registrieren kann
+        console.log(`[vector-repo] Warte 3 Sekunden, damit MongoDB den Index registrieren kann...`)
+        await new Promise(resolve => setTimeout(resolve, 3000))
         
         // Prüfe nochmal, ob Index jetzt existiert
+        console.log(`[vector-repo] Verifiziere Index-Existenz...`)
         const verifyExists = await checkIndexExists(col, dimension)
         if (verifyExists) {
           console.log(`[vector-repo] ✅ Index-Verifizierung erfolgreich: Index existiert jetzt für Collection "${libraryKey}"`)
         } else {
-          console.warn(`[vector-repo] ⚠️ Index-Verifizierung: Index wurde erstellt, aber noch nicht gefunden für Collection "${libraryKey}" (kann einige Sekunden dauern)`)
+          console.warn(`[vector-repo] ⚠️ Index-Verifizierung: Index wurde erstellt, aber noch nicht gefunden für Collection "${libraryKey}" (kann einige Minuten dauern, Status: INITIAL_SYNC)`)
         }
       } catch (createError) {
         const createErrorMsg = createError instanceof Error ? createError.message : String(createError)
-        console.error(`[vector-repo] ❌ Fehler beim Erstellen des Index:`, createErrorMsg)
+        const createErrorStack = createError instanceof Error ? createError.stack : undefined
+        console.error(`[vector-repo] ❌ Fehler beim Erstellen des Index:`, {
+          error: createErrorMsg,
+          stack: createErrorStack,
+          libraryKey,
+          dimension,
+          collectionName: col.collectionName,
+          dbName: db.databaseName,
+        })
         throw createError
       }
     } else {

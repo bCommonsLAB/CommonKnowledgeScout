@@ -130,15 +130,42 @@ export async function POST(
       const chatTitle = questionAnalysis?.chatTitle || message.slice(0, 60)
       activeChatId = await createChat(libraryId, userEmail || '', chatTitle)
     } else {
-      // Bestehenden Chat verwenden und updatedAt aktualisieren
-      activeChatId = chatId
-      // Prüfe, ob Chat existiert und Benutzer Zugriff hat
-      const existingChat = await getChatById(chatId, userEmail || '')
-      if (!existingChat) {
-        return NextResponse.json({ error: 'Chat nicht gefunden' }, { status: 404 })
+      // Session-ID aus Header lesen (für anonyme Nutzer)
+      const sessionIdHeader = request.headers.get('x-session-id') || request.headers.get('X-Session-ID')
+      const sessionId = sessionIdHeader || undefined
+      // WICHTIG: Für anonyme Nutzer muss sessionId vorhanden sein, sonst kann Chat nicht gefunden werden
+      const userEmailOrSessionId = userEmail || sessionId
+      if (!userEmailOrSessionId) {
+        console.warn('[api/chat] Chat-ID vorhanden, aber weder userEmail noch sessionId - erstelle neuen Chat:', {
+          chatId,
+          hasUserEmail: !!userEmail,
+          hasSessionId: !!sessionId,
+          userId: userId || null,
+        })
+        // Erstelle neuen Chat statt Fehler
+        const chatTitle = questionAnalysis?.chatTitle || message.slice(0, 60)
+        activeChatId = await createChat(libraryId, userEmail || '', chatTitle)
+      } else {
+        // Prüfe, ob Chat existiert und Benutzer Zugriff hat
+        const existingChat = await getChatById(chatId, userEmailOrSessionId)
+        if (!existingChat) {
+          console.warn('[api/chat] Chat nicht gefunden - erstelle neuen Chat:', {
+            chatId,
+            userEmail: userEmail || null,
+            sessionId: sessionId || null,
+            userEmailOrSessionId,
+            isEmail: userEmailOrSessionId.includes('@'),
+          })
+          // Erstelle neuen Chat statt Fehler
+          const chatTitle = questionAnalysis?.chatTitle || message.slice(0, 60)
+          activeChatId = await createChat(libraryId, userEmailOrSessionId, chatTitle)
+        } else {
+          // Chat gefunden, verwende ihn
+          activeChatId = chatId
+          // Aktualisiere updatedAt
+          await touchChat(chatId)
+        }
       }
-      // Aktualisiere updatedAt
-      await touchChat(chatId)
     }
     
     // Retriever bestimmen: Explizit gesetzt > Analyse > Standard (chunk)

@@ -24,7 +24,12 @@ export const VECTOR_SEARCH_INDEX_NAME = 'vector_search_idx'
  * - string[] → token (für Array-Filterung)
  * - number → number
  * - date → date
- * - string/boolean → string
+ * - string/boolean → token (da buildFilterFromQuery immer $in verwendet)
+ * 
+ * WICHTIG: MongoDB Vector Search benötigt Token-Indexe für alle Felder, die mit $in verwendet werden.
+ * Da buildFilterFromQuery für String-Facetten IMMER $in verwendet (auch bei einem Wert),
+ * müssen alle String-Facetten als Token-Indexe definiert werden.
+ * 
  * @param library Library-Objekt mit Config
  * @param dimension Embedding-Dimension
  * @returns Index-Definition als JSON-Objekt
@@ -91,10 +96,11 @@ export function buildVectorSearchIndexDefinition(
         type: 'date',
       }
     } else {
-      // String-Facetten (string, boolean): String-Index
-      // Token wird nur für Array-Facetten verwendet, normale Strings verwenden 'string'
+      // String-Facetten (string, boolean): Token-Index
+      // WICHTIG: buildFilterFromQuery verwendet IMMER $in für String-Facetten (auch bei einem Wert)
+      // MongoDB Vector Search benötigt Token-Indexe für alle Felder, die mit $in verwendet werden
       fields[def.metaKey] = {
-        type: 'string',
+        type: 'token',
       }
     }
   }
