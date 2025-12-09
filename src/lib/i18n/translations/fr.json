@@ -448,7 +448,7 @@
     "welcomeDescription": "Sélectionnez la langue et la perspective ci-dessus, puis commencez votre conversation avec la connaissance.",
     "welcomeTip": "Astuce : Posez une question ou cliquez sur une conférence à droite pour voir l'histoire de votre perspective.",
     "processing": "Traitement...",
-    "topicsOverviewIntro": "Sur la base de votre perspective et des {count} {type} sélectionnés, la vue d'ensemble des sujets et les réponses suivantes émergent:"
+    "topicsOverviewIntro": "Sur la base de votre perspective et des {count} {type} sélectionnés, la vue d'ensemble des sujets et les réponses suivantes émergent."
   },
   "suggestedQuestions": {
     "label": "Questions supplémentaires possibles sur le sujet qui émergent des sources :"

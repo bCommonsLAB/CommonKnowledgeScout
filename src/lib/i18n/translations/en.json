@@ -448,7 +448,7 @@
     "welcomeDescription": "Select language and perspective above, then start your conversation with the knowledge.",
     "welcomeTip": "Tip: Ask a question or click on a talk on the right to see the story from your perspective.",
     "processing": "Processing...",
-    "topicsOverviewIntro": "Based on your perspective and the selected {count} {type}, the following topic overview and answers emerge:"
+    "topicsOverviewIntro": "Based on your perspective and the selected {count} {type}, the following topic overview and answers emerge."
   },
   "suggestedQuestions": {
     "label": "Possible further questions on the topic that emerge from the sources:"

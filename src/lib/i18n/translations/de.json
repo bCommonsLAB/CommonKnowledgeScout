@@ -502,7 +502,7 @@
     "welcomeDescription": "Wähle oben Sprache und Perspektive, dann beginne dein Gespräch mit dem Wissen.",
     "welcomeTip": "Tipp: Stelle eine Frage oder klicke rechts auf einen Talk, um die Story aus deiner Sicht zu sehen.",
     "processing": "Wird verarbeitet...",
-    "topicsOverviewIntro": "Aufgrund deiner Perspektive und der ausgewählten {count} {type} ergeben sich folgende Themenübersicht und Antworten:"
+    "topicsOverviewIntro": "Aufgrund deiner Perspektive und der ausgewählten {count} {type} ergeben sich folgende Themenübersicht und Antworten."
   },
   "suggestedQuestions": {
     "label": "Mögliche weitere Fragen zum Thema, die sich aus den Quellen ergeben:"

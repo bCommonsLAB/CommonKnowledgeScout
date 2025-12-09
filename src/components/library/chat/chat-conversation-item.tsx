@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { User, Trash2, RotateCcw } from 'lucide-react'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
@@ -92,39 +92,11 @@ export function ChatConversationItem({
   const bgColor = getCharacterColor(characterValue)
   const iconColor = getCharacterIconColor(characterValue)
 
-  // Auto-Scroll zu diesem Accordion, wenn es geöffnet wird
-  useEffect(() => {
-    if (isOpen && accordionRef.current) {
-      // Kurze Verzögerung, damit die Animation abgeschlossen ist
-      const timer = setTimeout(() => {
-        accordionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      }, 300)
-      return () => clearTimeout(timer)
-    }
-  }, [isOpen])
+  // Auto-Scroll wurde deaktiviert - Benutzer möchte nicht automatisch scrollen
   
-  // Beobachte Änderungen des Accordion-Status über MutationObserver
-  useEffect(() => {
-    const accordionElement = accordionRef.current
-    if (!accordionElement) return
-    
-    const observer = new MutationObserver(() => {
-      const accordionItem = accordionElement.querySelector('[data-state]')
-      const currentState = accordionItem?.getAttribute('data-state')
-      const isCurrentlyOpen = currentState === 'open'
-      if (isCurrentlyOpen !== isOpen) {
-        onOpenChange(isCurrentlyOpen)
-      }
-    })
-    
-    observer.observe(accordionElement, {
-      attributes: true,
-      attributeFilter: ['data-state'],
-      subtree: true,
-    })
-    
-    return () => observer.disconnect()
-  }, [isOpen, onOpenChange])
+  // Handler für Accordion-Änderungen direkt über onClick im AccordionTrigger
+  // Der MutationObserver wurde entfernt, da er mit dem kontrollierten Accordion-State kollidierte
+  // und die Klicks blockierte. Stattdessen verwenden wir einen direkten Handler.
 
   const hasAnswer = !!pair.answer
   const queryId = pair.question.queryId || pair.answer?.queryId
@@ -171,12 +143,30 @@ export function ChatConversationItem({
     }
   }
 
+  // Handler für Accordion-Value-Änderungen
+  // Da das Accordion kontrolliert ist, müssen wir auf interne Änderungen reagieren
+  const handleAccordionValueChange = (value: string | undefined) => {
+    // Wenn value undefined ist, bedeutet das, dass das Accordion geschlossen werden soll
+    // Wenn value === conversationId ist, bedeutet das, dass dieses Accordion geöffnet werden soll
+    const shouldBeOpen = value === conversationId
+    // Rufe immer onOpenChange auf, damit der State synchronisiert wird
+    // Dies ermöglicht es auch, den letzten Accordion zu schließen
+    onOpenChange(shouldBeOpen)
+  }
+
   return (
     <div ref={accordionRef} data-conversation-id={conversationId}>
-      <Accordion type="single" collapsible value={isOpen ? conversationId : undefined}>
+      <Accordion 
+        type="single" 
+        collapsible 
+        value={isOpen ? conversationId : undefined}
+        onValueChange={handleAccordionValueChange}
+      >
         <AccordionItem value={conversationId} className="border-b">
-          <div className="flex items-center gap-2">
-            <AccordionTrigger className="px-0 py-3 hover:no-underline flex-1 min-w-0">
+          <div className="flex items-center gap-2 relative">
+            {/* VARIANTE 3 BEHOBEN: AccordionTrigger muss den gesamten Bereich abdecken */}
+            {/* Die Buttons sind absolut positioniert, damit sie nicht den Trigger blockieren */}
+            <AccordionTrigger className="px-0 py-3 hover:no-underline flex-1 min-w-0 pr-20">
             <div className="flex gap-3 items-center flex-1 min-w-0">
               {/* User-Icon */}
               <div className="flex-shrink-0">
@@ -192,8 +182,9 @@ export function ChatConversationItem({
               </div>
             </AccordionTrigger>
               
-            {/* Action-Buttons: Reload und Delete - außerhalb des AccordionTrigger */}
-            <div className="flex items-center gap-1 flex-shrink-0 pr-2">
+            {/* VARIANTE 3 BEHOBEN: Action-Buttons absolut positioniert, damit sie nicht den Trigger blockieren */}
+            {/* Mehr Platz rechts (pr-20 statt pr-12) damit die Frage nicht mit den Buttons überlappt */}
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 flex-shrink-0 z-10">
                 {onReload && (
                   <Button
                     variant="ghost"

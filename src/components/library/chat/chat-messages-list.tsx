@@ -38,7 +38,6 @@ interface ChatMessagesListProps {
   isCheckingTOC?: boolean
   isGeneratingTOC?: boolean
   cachedTOC?: unknown
-  cachedStoryTopicsData?: unknown
 }
 
 /**
@@ -72,7 +71,6 @@ export function ChatMessagesList({
   isCheckingTOC = false,
   isGeneratingTOC = false,
   cachedTOC = null,
-  cachedStoryTopicsData = null,
 }: ChatMessagesListProps) {
   const { t } = useTranslation()
   const conversations = groupMessagesToConversations(messages)
@@ -157,14 +155,11 @@ export function ChatMessagesList({
         )
       })}
 
-      {/* Verarbeitungsstatus während des Sendens ODER Cache-Check ODER TOC-Generierung */}
-      {/* WICHTIG: Verstecke Verarbeitungsinfo, wenn Cache gefunden wurde und keine aktive Generierung läuft */}
-      {/* Processing-Status nur anzeigen wenn:
-          1. Normale Frage gesendet wird (isSending) ODER
-          2. TOC wird geprüft (isCheckingTOC) ODER generiert (isGeneratingTOC) UND keine TOC-Daten vorhanden ODER
-          3. Cache-Check läuft UND keine TOC-Daten vorhanden
-      */}
-      {(isSending || ((isCheckingTOC || isGeneratingTOC) && !cachedStoryTopicsData && !cachedTOC) || (processingSteps.some(s => s.type === 'cache_check' || s.type === 'cache_check_complete') && !cachedStoryTopicsData && !cachedTOC)) && (
+      {/* Verarbeitungsstatus während des Sendens */}
+      {/* WICHTIG: TOC-Berechnungsinfos werden jetzt im StoryTopics-Accordion angezeigt, nicht mehr hier */}
+      {/* Processing-Status nur anzeigen für normale Fragen (isSending), NICHT für TOC-Berechnungen */}
+      {/* Normale Fragen können auch cache_check Steps haben, daher nur isCheckingTOC/isGeneratingTOC prüfen */}
+      {isSending && !isCheckingTOC && !isGeneratingTOC && (
         <div className="flex gap-3 mb-4">
           <div className="flex-1 min-w-0">
             <div className="bg-muted/30 border rounded-lg p-3">

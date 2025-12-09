@@ -62,6 +62,16 @@ export function GroupedItemsGrid({
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  // Berechne die Anzahl der eindeutigen Dokumente aus references
+  // WICHTIG: Diese Anzahl muss aus den eindeutigen fileId-Werten in references berechnet werden,
+  // nicht aus usedDocs.length, da usedDocs nur Dokumente enthält, die im docs-Array vorhanden sind.
+  // Die ChatReferenceList zeigt jedoch alle eindeutigen Dokumente aus references an.
+  const uniqueUsedDocsCount = React.useMemo(() => {
+    if (!references || references.length === 0) return 0
+    const uniqueFileIds = new Set(references.map(ref => ref.fileId))
+    return uniqueFileIds.size
+  }, [references])
+
   // Handler für Dokument-Klick (für ReferenceGroupHeader)
   const handleDocumentClick = (fileId: string, fileName?: string) => {
     // Finde Dokument in usedDocs oder unusedDocs
@@ -185,7 +195,7 @@ export function GroupedItemsGrid({
         <div>
           <ReferenceGroupHeader
             title={t('gallery.usedDocuments')}
-            docCount={usedDocs.length}
+            docCount={uniqueUsedDocsCount}
             references={references}
             queryId={queryId}
             libraryId={libraryId}

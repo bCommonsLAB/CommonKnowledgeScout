@@ -44,8 +44,6 @@ import type { QueryLog } from '@/types/query-log'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
-import { AppLogo } from '@/components/shared/app-logo'
-import { Bot } from 'lucide-react'
 
 interface ChatPanelProps {
   libraryId: string
@@ -68,7 +66,57 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   
   // Input State
   const [input, setInput] = useState('')
-  const [activeChatId, setActiveChatId] = useState<string | null>(null)
+  
+  // Helper-Funktionen für localStorage-Persistierung von activeChatId
+  const getStoredActiveChatId = useCallback((libId: string): string | null => {
+    if (typeof window === 'undefined') return null
+    try {
+      const stored = localStorage.getItem(`chat-activeChatId-${libId}`)
+      return stored || null
+    } catch {
+      return null
+    }
+  }, [])
+  
+  const saveActiveChatId = useCallback((libId: string, chatId: string | null) => {
+    if (typeof window === 'undefined') return
+    try {
+      if (chatId) {
+        localStorage.setItem(`chat-activeChatId-${libId}`, chatId)
+      } else {
+        localStorage.removeItem(`chat-activeChatId-${libId}`)
+      }
+    } catch {
+      // Ignoriere Fehler beim Speichern
+    }
+  }, [])
+  
+  // Initialisiere activeChatId aus localStorage
+  const [activeChatId, setActiveChatIdState] = useState<string | null>(() => {
+    return libraryId ? getStoredActiveChatId(libraryId) : null
+  })
+  
+  // Wrapper für setActiveChatId, der auch in localStorage speichert
+  const setActiveChatId = useCallback((chatId: string | null) => {
+    setActiveChatIdState(chatId)
+    if (libraryId) {
+      saveActiveChatId(libraryId, chatId)
+    }
+  }, [libraryId, saveActiveChatId])
+  
+  // Lade activeChatId aus localStorage, wenn libraryId sich ändert
+  useEffect(() => {
+    if (libraryId) {
+      const stored = getStoredActiveChatId(libraryId)
+      if (stored !== activeChatId) {
+        // Verwende setActiveChatIdState direkt, um Endlosschleife zu vermeiden
+        // (setActiveChatId würde auch speichern, was hier nicht nötig ist, da wir bereits aus localStorage laden)
+        setActiveChatIdState(stored)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryId, getStoredActiveChatId]) // activeChatId nicht als Dependency, um Endlosschleife zu vermeiden
+  
   const [answerLength, setAnswerLength] = useState<AnswerLength>(ANSWER_LENGTH_DEFAULT)
   const setChatReferencesAtom = useSetAtom(chatReferencesAtom)
   
@@ -172,6 +220,48 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   
   // Open Conversations State
   const [openConversations, setOpenConversations] = useState<Set<string>>(new Set())
+  
+  // Ref zum Verfolgen, ob die Historie bereits initial geladen wurde
+  // Dies verhindert, dass Conversations wieder geöffnet werden, wenn der Benutzer sie geschlossen hat
+  const historyInitializedRef = useRef<string | null>(null)
+  
+  // Öffne automatisch alle Conversations beim ersten Laden der Historie
+  // Dies stellt sicher, dass wiederhergestellte Fragen auf- und zuklappbar sind
+  useEffect(() => {
+    // Nur ausführen, wenn activeChatId vorhanden ist und sich geändert hat
+    if (activeChatId && historyInitializedRef.current !== activeChatId && messages.length > 0) {
+      // Markiere diesen Chat als initialisiert
+      historyInitializedRef.current = activeChatId
+      
+      // VARIANTE 2 BEHOBEN: Verwende exakt die gleiche Logik wie groupMessagesToConversations
+      // Stelle sicher, dass conversationId konsistent ist
+      const conversations: string[] = []
+      for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i]
+        if (msg.type === 'question' && msg.queryId) {
+          // Verwende EXAKT die gleiche Logik wie in groupMessagesToConversations
+          // Dies stellt sicher, dass die IDs konsistent sind
+          const conversationId = msg.queryId 
+            ? `${msg.queryId}-${msg.id}` 
+            : msg.id.replace('-question', '') || `conv-${i}`
+          conversations.push(conversationId)
+        }
+      }
+      
+      // Öffne alle Conversations beim ersten Laden
+      // Der Benutzer kann sie danach normal schließen
+      if (conversations.length > 0) {
+        setOpenConversations(new Set(conversations))
+      }
+    }
+  }, [messages, activeChatId])
+  
+  // Setze historyInitializedRef zurück, wenn activeChatId sich ändert oder null wird
+  useEffect(() => {
+    if (!activeChatId) {
+      historyInitializedRef.current = null
+    }
+  }, [activeChatId])
   
   // Chat Stream (muss vor useChatTOC sein, da sendQuestion benötigt wird)
   const checkTOCCacheRef = useRef<(() => Promise<void>) | null>(null)
@@ -923,43 +1013,26 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             <div className={`p-4 ${isEmbedded ? 'pb-20' : ''}`}>
               {isEmbedded && (
                 <>
-                  {/* Hinweis immer anzeigen, wenn Dokumente geladen sind (>= 1) */}
-                  {filteredDocsCount >= 1 && !galleryDataLoading && (
-                    <div className="mb-4 text-sm text-muted-foreground">
-                      {t('chatMessages.topicsOverviewIntro', {
-                        count: filteredDocsCount,
-                        type: t(`gallery.${typeKey}`),
-                      })}
-                    </div>
-                  )}
                   {/* StoryTopics nur anzeigen, wenn Dokumente vorhanden sind */}
                   {filteredDocsCount >= 1 && !galleryDataLoading && (
-                    <div className="flex gap-3 mb-4 pb-6 border-b">
-                      <div className="flex-shrink-0">
-                        <AppLogo 
-                          size={32} 
-                          fallback={<Bot className="h-4 w-4 text-muted-foreground" />}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <StoryTopics 
-                          libraryId={libraryId}
-                          data={cachedStoryTopicsData}
-                          isLoading={isCheckingTOC}
-                          queryId={cachedTOC?.queryId}
-                          cachedTOC={cachedTOC}
-                          showReloadButton={showReloadButton}
-                          processingSteps={processingSteps}
-                          onSelectQuestion={(question) => {
-                            setInput(question.text)
-                            setIsChatInputOpen(true)
-                            setTimeout(() => {
-                              inputRef.current?.focus()
-                            }, 100)
-                          }}
-                        />
-                      </div>
-                    </div>
+                    <StoryTopics 
+                      libraryId={libraryId}
+                      data={cachedStoryTopicsData}
+                      isLoading={isCheckingTOC}
+                      queryId={cachedTOC?.queryId}
+                      cachedTOC={cachedTOC}
+                      showReloadButton={showReloadButton}
+                      processingSteps={processingSteps}
+                      docCount={filteredDocsCount}
+                      docType={typeKey}
+                      onSelectQuestion={(question) => {
+                        setInput(question.text)
+                        setIsChatInputOpen(true)
+                        setTimeout(() => {
+                          inputRef.current?.focus()
+                        }, 100)
+                      }}
+                    />
                   )}
                   {/* Logge Render-Entscheidung */}
                 </>
@@ -1042,45 +1115,35 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           <div className={`p-6 ${isEmbedded ? 'pb-20' : ''}`}>
             {isEmbedded && (
               <>
-                {/* Hinweis immer anzeigen, wenn Dokumente geladen sind (>= 1) */}
-                {filteredDocsCount >= 1 && !galleryDataLoading && (
-                  <div className="mb-4 text-sm text-muted-foreground">
-                    {t('chatMessages.topicsOverviewIntro', {
-                      count: filteredDocsCount,
-                      type: t(`gallery.${typeKey}`),
-                    })}
-                  </div>
-                )}
                 {/* StoryTopics nur anzeigen, wenn Dokumente vorhanden sind */}
                 {filteredDocsCount >= 1 && !galleryDataLoading && (
-                  <div className="flex gap-3 mb-4 pb-6 border-b">
-                    <div className="flex-shrink-0">
-                      <AppLogo 
-                        size={32} 
-                        fallback={<Bot className="h-4 w-4 text-muted-foreground" />}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <StoryTopics 
-                        libraryId={libraryId}
-                        data={cachedStoryTopicsData}
-                        isLoading={isCheckingTOC}
-                        queryId={cachedTOC?.queryId}
-                        cachedTOC={cachedTOC}
-                        showReloadButton={showReloadButton}
-                        onRegenerate={forceRegenerateTOC}
-                        isRegenerating={isGeneratingTOC}
-                        processingSteps={processingSteps}
-                        onSelectQuestion={(question) => {
-                          setInput(question.text)
-                          setIsChatInputOpen(true)
-                          setTimeout(() => {
-                            inputRef.current?.focus()
-                          }, 200)
-                        }}
-                      />
-                    </div>
-                  </div>
+                  <StoryTopics 
+                    libraryId={libraryId}
+                    data={cachedStoryTopicsData}
+                    isLoading={isCheckingTOC}
+                    queryId={cachedTOC?.queryId}
+                    cachedTOC={cachedTOC}
+                    showReloadButton={showReloadButton}
+                    onRegenerate={forceRegenerateTOC}
+                    isRegenerating={isGeneratingTOC}
+                    processingSteps={processingSteps}
+                    docCount={filteredDocsCount}
+                    docType={typeKey}
+                    answerLength={answerLength}
+                    retriever={retriever}
+                    targetLanguage={targetLanguage}
+                    character={character}
+                    accessPerspective={accessPerspective}
+                    socialContext={socialContext}
+                    filters={galleryFilters || {}}
+                    onSelectQuestion={(question) => {
+                      setInput(question.text)
+                      setIsChatInputOpen(true)
+                      setTimeout(() => {
+                        inputRef.current?.focus()
+                      }, 200)
+                    }}
+                  />
                 )}
               </>
             )}
@@ -1114,7 +1177,6 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               isCheckingTOC={isCheckingTOC}
               isGeneratingTOC={isGeneratingTOC}
               cachedTOC={cachedTOC}
-              cachedStoryTopicsData={cachedStoryTopicsData}
             />
           </div>
         </ScrollArea>

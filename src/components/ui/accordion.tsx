@@ -9,6 +9,7 @@ type AccordionProps = React.HTMLAttributes<HTMLDivElement> & {
   collapsible?: boolean;
   value?: string;
   defaultValue?: string;
+  onValueChange?: (value: string | undefined) => void;
 };
 
 type AccordionItemProps = React.HTMLAttributes<HTMLDivElement> & {
@@ -24,10 +25,22 @@ const GroupContext = React.createContext<{
   setActiveValue: (v?: string) => void;
 } | null>(null);
 
-export function Accordion({ className, children, type = "multiple", collapsible = true, value, defaultValue }: AccordionProps) {
+export function Accordion({ className, children, type = "multiple", collapsible = true, value, defaultValue, onValueChange }: AccordionProps) {
   const [internal, setInternal] = React.useState<string | undefined>(defaultValue);
-  const activeValue = value !== undefined ? value : internal;
-  const setActiveValue = (v?: string) => setInternal(v);
+  // Prüfe, ob wir im controlled mode sind (onValueChange vorhanden bedeutet controlled)
+  const isControlled = onValueChange !== undefined;
+  // Wenn controlled, verwende immer value (auch wenn undefined), sonst internen State
+  const activeValue = isControlled ? value : (value !== undefined ? value : internal);
+  const setActiveValue = (v?: string) => {
+    if (isControlled) {
+      // Controlled mode: Rufe immer onValueChange auf, auch wenn value undefined ist
+      // Dies ermöglicht es auch, den letzten Accordion zu schließen
+      onValueChange(v)
+    } else {
+      // Uncontrolled mode: Ändere internen State
+      setInternal(v)
+    }
+  };
   return (
     <GroupContext.Provider value={{ type, collapsible, activeValue, setActiveValue }}>
       <div className={cn(className)}>{children}</div>

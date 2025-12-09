@@ -37,6 +37,8 @@ import type { Library } from '@/types/library'
 import type { FacetDef } from '@/lib/chat/dynamic-facets'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { FileLogger } from '@/lib/debug/logger'
+import { convertMongoDocToDocCardMeta, type MongoDocForConversion } from './doc-meta-formatter'
+import type { DocCardMeta } from '@/lib/gallery/types'
 
 /**
  * Konstante für den Vector Search Index-Namen.
@@ -976,27 +978,7 @@ export async function findDocs(
     skip?: number
     sort?: Record<string, 1 | -1>
   } = {}
-): Promise<{ items: Array<{
-  id: string
-  fileId: string
-  fileName?: string
-  title?: string
-  shortTitle?: string
-  authors?: string[]
-  speakers?: string[]
-  speakers_image_url?: string[]
-  year?: number | string
-  track?: string
-  date?: string
-  region?: string
-  upsertedAt?: string
-  docType?: string
-  source?: string
-  tags?: string[]
-  slug?: string
-  coverImageUrl?: string
-  pages?: number
-}>; total: number }> {
+): Promise<{ items: DocCardMeta[]; total: number }> {
   // PERFORMANCE: Nutze direkt getCollection statt getVectorCollection, um Overhead (Dimension-Check, Index-Check) zu vermeiden
   const col = await getCollection<Document>(libraryKey)
   
@@ -1073,97 +1055,14 @@ export async function findDocs(
     cursor.toArray(),
     col.countDocuments(query)
   ])
-  
-  // Hilfsfunktion zum Konvertieren von speakers_image_url (kann Array oder String sein)
-  const toStrArr = (v: unknown): string[] | undefined => {
-    // Direktes Array
-    if (Array.isArray(v)) {
-      const arr = (v as Array<unknown>).map(x => {
-        if (typeof x === 'string' && x.trim().length > 0) return x.trim()
-        return ''
-      }).filter(Boolean)
-      return arr.length > 0 ? arr : undefined
-    }
-    
-    // String der wie ein Array aussieht: "['url1', 'url2']" oder '["url1", "url2"]'
-    if (typeof v === 'string' && v.trim().length > 0) {
-      const trimmed = v.trim()
-      
-      // Versuche JSON-Array zu parsen
-      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || 
-          (trimmed.startsWith("['") && trimmed.endsWith("']"))) {
-        try {
-          // Ersetze einfache Anführungszeichen durch doppelte für JSON.parse
-          const jsonStr = trimmed.replace(/'/g, '"')
-          const parsed = JSON.parse(jsonStr)
-          if (Array.isArray(parsed)) {
-            const arr = parsed.map(x => {
-              if (typeof x === 'string' && x.trim().length > 0) return x.trim()
-              return ''
-            }).filter(Boolean)
-            return arr.length > 0 ? arr : undefined
-          }
-        } catch {
-          // Fehler beim Parsen, versuche manuell zu extrahieren
-          const matches = trimmed.match(/(['"])((?:(?!\1).)*)\1/g)
-          if (matches && matches.length > 0) {
-            const arr = matches.map(m => m.slice(1, -1).trim()).filter(Boolean)
-            return arr.length > 0 ? arr : undefined
-          }
-        }
-      }
-      
-      // Einzelner String → als Array mit einem Element
-      const singleStr = trimmed.length > 0 ? trimmed : undefined
-      return singleStr ? [singleStr] : undefined
-    }
-    
-    return undefined
-  }
 
   return {
     items: rows.map(r => {
-      const docMeta = r.docMetaJson && typeof r.docMetaJson === 'object' 
-        ? r.docMetaJson as Record<string, unknown> 
-        : undefined
-      
-      // speakers_image_url: Priorität: Top-Level > docMetaJson.speakers_image_url
-      // Kann sowohl Array als auch String sein: "['url1', 'url2']" → ['url1', 'url2']
-      const speakersImageUrlTopLevel = toStrArr(r.speakers_image_url)
-      const speakersImageUrlDocMeta = docMeta ? toStrArr(docMeta.speakers_image_url) : undefined
-      const speakersImageUrl = speakersImageUrlTopLevel || speakersImageUrlDocMeta
-      
-      return {
-        id: `${r.fileId}-meta`,
-        fileId: r.fileId,
-        fileName: r.fileName,
-        title: r.title || (docMeta?.title as string | undefined),
-        shortTitle: r.shortTitle || (docMeta?.shortTitle as string | undefined),
-        authors: Array.isArray(r.authors) ? r.authors : undefined,
-        speakers: Array.isArray(r.speakers) 
-          ? r.speakers 
-          : (Array.isArray(docMeta?.speakers) ? docMeta.speakers as string[] : undefined),
-        speakers_image_url: speakersImageUrl || undefined,
-        year: (typeof r.year === 'number' || typeof r.year === 'string') ? r.year : undefined,
-        track: r.track || (docMeta?.track as string | undefined),
-        date: r.date || (docMeta?.date as string | undefined),
-        region: typeof r.region === 'string' ? r.region : undefined,
-        upsertedAt: typeof r.upsertedAt === 'string' ? r.upsertedAt : undefined,
-        docType: typeof r.docType === 'string' ? r.docType : undefined,
-        source: typeof r.source === 'string' ? r.source : undefined,
-        tags: Array.isArray(r.tags) ? r.tags : undefined,
-        slug: r.slug || (docMeta?.slug as string | undefined),
-        coverImageUrl: r.coverImageUrl || (docMeta?.coverImageUrl as string | undefined),
-        pages: (() => {
-          const pagesValue = docMeta?.pages
-          if (typeof pagesValue === 'number') return pagesValue
-          if (typeof pagesValue === 'string') {
-            const parsed = Number(pagesValue)
-            return Number.isFinite(parsed) ? parsed : undefined
-          }
-          return undefined
-        })(),
+      // Type-Assertion: rows enthalten fileId durch projection
+      if (typeof r === 'object' && r !== null && 'fileId' in r && typeof r.fileId === 'string') {
+        return convertMongoDocToDocCardMeta(r as unknown as MongoDocForConversion)
       }
+      throw new Error('Document missing fileId field')
     }),
     total: totalCount
   }

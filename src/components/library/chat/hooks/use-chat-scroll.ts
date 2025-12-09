@@ -1,4 +1,4 @@
-import { useEffect, RefObject } from 'react'
+import { useEffect, useRef, RefObject } from 'react'
 import type { ChatMessage } from '../utils/chat-utils'
 import { groupMessagesToConversations } from '../utils/chat-utils'
 import type { ChatProcessingStep } from '@/types/chat-processing'
@@ -30,39 +30,14 @@ export function useChatScroll({
   processingSteps,
   prevMessagesLengthRef,
 }: UseChatScrollProps) {
-  // Auto-Scroll zum neuesten Accordion (nur bei neuen Nachrichten)
+  // Auto-Scroll zum neuesten Accordion wurde deaktiviert - Benutzer möchte nicht automatisch scrollen
+  // Aktualisiere nur prevMessagesLengthRef, damit andere Logik weiterhin funktioniert
   useEffect(() => {
-    // Scroll nur, wenn neue Nachrichten hinzugefügt wurden
-    if (messages.length <= prevMessagesLengthRef.current) {
+    if (messages.length > prevMessagesLengthRef.current) {
       prevMessagesLengthRef.current = messages.length
-      return
     }
-    prevMessagesLengthRef.current = messages.length
-
-    // Prüfe, ob es ein neues geöffnetes Accordion gibt
-    const conversations = groupMessagesToConversations(messages)
-    const lastConversation = conversations[conversations.length - 1]
-    if (lastConversation && openConversations.has(lastConversation.conversationId)) {
-      setTimeout(() => {
-        // Prüfe mehrfach, ob Element existiert (für ältere Geräte mit langsamerem Rendering)
-        const tryScroll = (attempts = 0) => {
-          const element = document.querySelector(`[data-conversation-id="${lastConversation.conversationId}"]`)
-          if (element && element.parentElement && element.parentElement.contains(element)) {
-            try {
-              element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-            } catch (error) {
-              // Ignoriere Scroll-Fehler auf älteren Geräten
-              console.debug('[useChatScroll] Scroll-Fehler ignoriert:', error)
-            }
-          } else if (attempts < 3) {
-            // Versuche es nochmal nach kurzer Verzögerung
-            setTimeout(() => tryScroll(attempts + 1), 200)
-          }
-        }
-        tryScroll()
-      }, 500)
-    }
-  }, [messages, openConversations, prevMessagesLengthRef])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]) // prevMessagesLengthRef ist ein Ref und muss nicht in Dependencies sein
 
   // Auto-Scroll beim Start des Sendens (wenn Frage hinzugefügt wird)
   useEffect(() => {
@@ -111,55 +86,28 @@ export function useChatScroll({
   }, [isSending, processingSteps, scrollRef])
 
   // Auto-Scroll wenn neue Antworten hinzugefügt werden - scrollt zum Anfang der Antwort
+  // Öffne nur, wenn die Antwort wirklich neu ist und noch nie automatisch geöffnet wurde
+  const openedAnswersRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     // Prüfe, ob es eine neue Antwort gibt
     const conversations = groupMessagesToConversations(messages)
     const lastConversation = conversations[conversations.length - 1]
     
     if (lastConversation?.answer) {
-      // Öffne automatisch das neueste Accordion, wenn eine Antwort vorhanden ist
-      if (!openConversations.has(lastConversation.conversationId)) {
+      const answerId = lastConversation.answer.id
+      const answerMessageIndex = messages.findIndex(m => m.id === answerId)
+      const isNewlyAdded = answerMessageIndex === messages.length - 1
+      const isFromHistory = lastConversation.answer.queryId && !isNewlyAdded
+
+      // Nur öffnen, wenn Antwort neu ist und noch nicht automatisch geöffnet wurde
+      const shouldAutoOpen = isNewlyAdded && !isFromHistory && !openedAnswersRef.current.has(answerId)
+
+      if (shouldAutoOpen && !openConversations.has(lastConversation.conversationId)) {
+        openedAnswersRef.current.add(answerId)
         setOpenConversations(prev => new Set([...prev, lastConversation.conversationId]))
       }
       
-      // Scroll zum Anfang der Antwort nach kurzer Verzögerung, damit die Antwort gerendert ist
-      setTimeout(() => {
-        const scrollToAnswerStart = (attempts = 0) => {
-          // Finde das Conversation-Element
-          const conversationElement = document.querySelector(`[data-conversation-id="${lastConversation.conversationId}"]`)
-          if (conversationElement && conversationElement.parentElement && conversationElement.parentElement.contains(conversationElement)) {
-            try {
-              // Finde das AccordionContent innerhalb des Conversation-Elements
-              // AccordionContent hat das role="region" Attribut von Radix UI
-              const accordionContent = conversationElement.querySelector('[role="region"]')
-              if (accordionContent && accordionContent.parentElement && accordionContent.parentElement.contains(accordionContent)) {
-                // Scroll zum Anfang des AccordionContent (wo die Antwort beginnt)
-                accordionContent.scrollIntoView({ 
-                  behavior: 'smooth', 
-                  block: 'start',
-                  inline: 'nearest'
-                })
-              } else {
-                // Fallback: Scroll zum Conversation-Element selbst
-                conversationElement.scrollIntoView({ 
-                  behavior: 'smooth', 
-                  block: 'start',
-                  inline: 'nearest'
-                })
-              }
-            } catch (error) {
-              // Ignoriere Scroll-Fehler auf älteren Geräten
-              console.debug('[useChatScroll] Scroll-Fehler ignoriert:', error)
-            }
-          } else if (attempts < 3) {
-            // Versuche es nochmal nach kurzer Verzögerung
-            setTimeout(() => scrollToAnswerStart(attempts + 1), 200)
-          }
-        }
-        scrollToAnswerStart()
-        // Nochmal nach kurzer Verzögerung für vollständiges Rendering
-        setTimeout(() => scrollToAnswerStart(1), 500)
-      }, 200)
+      // Auto-Scroll wurde deaktiviert - Benutzer möchte nicht automatisch scrollen
     }
   }, [messages, openConversations, setOpenConversations])
 }

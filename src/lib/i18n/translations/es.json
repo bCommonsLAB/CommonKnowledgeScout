@@ -448,7 +448,7 @@
     "welcomeDescription": "Seleccione el idioma y la perspectiva arriba, luego comience su conversación con el conocimiento.",
     "welcomeTip": "Consejo: Haga una pregunta o haga clic en una charla a la derecha para ver la historia desde su perspectiva.",
     "processing": "Procesando...",
-    "topicsOverviewIntro": "Basado en tu perspectiva y los {count} {type} seleccionados, surge la siguiente visión general de temas y respuestas:"
+    "topicsOverviewIntro": "Basado en tu perspectiva y los {count} {type} seleccionados, surge la siguiente visión general de temas y respuestas."
   },
   "suggestedQuestions": {
     "label": "Posibles preguntas adicionales sobre el tema que surgen de las fuentes:"

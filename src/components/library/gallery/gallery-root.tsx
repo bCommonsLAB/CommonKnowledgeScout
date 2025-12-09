@@ -203,9 +203,81 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     }
   }, [chatReferences?.queryId, libraryId, sessionHeaders])
 
+  // State für zusätzlich geladene Dokumente aus references
+  const [additionalDocs, setAdditionalDocs] = React.useState<DocCardMeta[]>([])
+
+  // Lade fehlende Dokumente aus references nach
+  React.useEffect(() => {
+    if (!chatReferences?.references || !libraryId || loading) {
+      setAdditionalDocs([])
+      return
+    }
+    
+    // Extrahiere alle eindeutigen fileIds aus references
+    const referencedFileIds = new Set(chatReferences.references.map(ref => ref.fileId))
+    
+    // Prüfe, welche fileIds bereits in docs vorhanden sind
+    const existingFileIds = new Set(docs.map(doc => doc.fileId || doc.id))
+    const missingFileIds = Array.from(referencedFileIds).filter(fileId => !existingFileIds.has(fileId))
+    
+    // Wenn keine fehlenden Dokumente vorhanden sind, nichts tun
+    if (missingFileIds.length === 0) {
+      setAdditionalDocs([])
+      return
+    }
+    
+    let cancelled = false
+    
+    async function loadMissingDocs() {
+      try {
+        // Lade fehlende Dokumente über den neuen Endpoint
+        const params = new URLSearchParams()
+        missingFileIds.forEach(fileId => params.append('fileId', fileId))
+        
+        const res = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/docs/by-fileids?${params.toString()}`, {
+          cache: 'no-store',
+          headers: Object.keys(sessionHeaders).length > 0 ? (sessionHeaders as Record<string, string>) : undefined,
+        })
+        
+        if (!res.ok || cancelled) return
+        
+        const data = await res.json()
+        if (cancelled) return
+        
+        if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+          setAdditionalDocs(data.items as DocCardMeta[])
+        }
+      } catch (error) {
+        console.error('[GalleryRoot] Fehler beim Nachladen fehlender Dokumente:', error)
+        setAdditionalDocs([])
+      }
+    }
+    
+    loadMissingDocs()
+    
+    return () => {
+      cancelled = true
+    }
+  }, [chatReferences?.references, libraryId, docs, loading, sessionHeaders])
+
+  // Kombiniere docs mit additionalDocs für die Gruppierung
+  const allDocs = React.useMemo(() => {
+    // Entferne Duplikate basierend auf fileId
+    const docsMap = new Map<string, DocCardMeta>()
+    docs.forEach(doc => {
+      const fileId = doc.fileId || doc.id
+      if (fileId) docsMap.set(fileId, doc)
+    })
+    additionalDocs.forEach(doc => {
+      const fileId = doc.fileId || doc.id
+      if (fileId && !docsMap.has(fileId)) docsMap.set(fileId, doc)
+    })
+    return Array.from(docsMap.values())
+  }, [docs, additionalDocs])
+
   // Gruppiere Dokumente nach Referenzen, wenn chatReferences gesetzt ist
-  // WICHTIG: Verwende `docs` statt `filteredDocs`, damit alle Dokumente aus references angezeigt werden,
-  // auch wenn sie nicht den aktuellen Filtern entsprechen
+  // WICHTIG: Verwende `allDocs` statt `docs`, damit alle Dokumente aus references angezeigt werden,
+  // auch wenn sie nicht durch Pagination geladen wurden
   // WICHTIG: Führe Gruppierung nur aus, wenn Dokumente geladen sind (nicht während loading)
   const { usedDocs, unusedDocs } = React.useMemo(() => {
     if (!chatReferences || !chatReferences.references || chatReferences.references.length === 0) {
@@ -214,13 +286,13 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     
     // Wenn noch geladen wird oder keine Dokumente vorhanden sind, gib leere Arrays zurück
     // Die Gruppierung wird automatisch neu ausgeführt, sobald Dokumente geladen sind
-    if (loading || docs.length === 0) {
+    if (loading || allDocs.length === 0) {
       return { usedDocs: [], unusedDocs: [] }
     }
     
-    const result = groupDocsByReferences(docs, chatReferences.references, sources)
+    const result = groupDocsByReferences(allDocs, chatReferences.references, sources)
     return result
-  }, [docs, chatReferences, sources, loading])
+  }, [allDocs, chatReferences, sources, loading])
   
   // Event handlers
   // Vereinfachte handleOpenDocument: Nutzt zentrale Utility-Funktion

@@ -448,7 +448,7 @@
     "welcomeDescription": "Seleziona lingua e prospettiva sopra, poi inizia la tua conversazione con la conoscenza.",
     "welcomeTip": "Suggerimento: Fai una domanda o clicca su un talk a destra per vedere la storia dalla tua prospettiva.",
     "processing": "Elaborazione...",
-    "topicsOverviewIntro": "In base alla tua prospettiva e ai {count} {type} selezionati, emerge la seguente panoramica degli argomenti e delle risposte:"
+    "topicsOverviewIntro": "In base alla tua prospettiva e ai {count} {type} selezionati, emerge la seguente panoramica degli argomenti e delle risposte."
   },
   "suggestedQuestions": {
     "label": "Possibili ulteriori domande sull'argomento che emergono dalle fonti:"
