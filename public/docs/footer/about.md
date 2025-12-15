@@ -55,3 +55,15 @@ Common Knowledge Scout ist ein Open-Source-Projekt. Beiträge sind willkommen!
 
 Bei Fragen oder Anregungen können Sie uns gerne kontaktieren.
 
+
+
+
+
+
+
+
+
+
+
+
+

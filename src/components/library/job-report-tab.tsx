@@ -214,11 +214,11 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
           ? (job.cumulativeMeta as Record<string, unknown>)['template_used']
           : undefined
         const templateName = typeof tpl === 'string' ? tpl : undefined
-        if (!templateName || !provider) return
-        // Verwende zentrale Template-Service Library
-        const { loadTemplate } = await import('@/lib/templates/template-service')
+        if (!templateName || !libraryId) return
+        // Verwende zentrale Client-Library für MongoDB-Templates
+        const { loadTemplate } = await import('@/lib/templates/template-service-client')
         const result = await loadTemplate({
-          provider,
+          libraryId,
           preferredTemplateName: templateName
         })
         const text = result.templateContent
@@ -242,7 +242,8 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
       }
     }
     void loadTemplateFields()
-  }, [job, provider])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job, provider]) // libraryId absichtlich nicht in Dependencies, da es aus job.libraryId kommt
 
   // Gemeinsamer strikter Parser
   // Hinweis: Parser wird direkt über parseSecretaryMarkdownStrict in Effekten genutzt

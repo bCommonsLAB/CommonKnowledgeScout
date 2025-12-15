@@ -43,3 +43,15 @@ Der Autor ist bestrebt, in allen Publikationen die Urheberrechte der verwendeten
 
 Alle auf der Website genannten und ggf. durch Dritte geschützten Marken- und Warenzeichen unterliegen uneingeschränkt den Bestimmungen des jeweils gültigen Kennzeichenrechts und den Besitzrechten der jeweiligen eingetragenen Eigentümer.
 
+
+
+
+
+
+
+
+
+
+
+
+

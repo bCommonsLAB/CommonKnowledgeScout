@@ -408,16 +408,17 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
 
   let metadataFromTemplate: Record<string, unknown> | null = null
   let picked: { templateContent: string; templateName: string; isPreferred: boolean } | null = null
+  // Preferred Template aus Library-Config: secretaryService.pdfDefaults.template
+  // Deklariere außerhalb des try-Blocks, damit es im catch-Block verfügbar ist
+  let preferredTemplate: string | undefined = undefined
 
   try {
     // Templates wählen via zentrale Template-Service Library
     const { pickTemplate } = await import('@/lib/external-jobs/template-files')
     
-    // Preferred Template aus Library-Config: secretaryService.pdfDefaults.template
     // Versuche Template aus Library-Config zu lesen, falls verfügbar
     // libraryConfig ist vom Typ LibraryChatConfig, aber das Template ist in storageConfig.secretaryService.pdfDefaults.template
     // Daher müssen wir die Library direkt laden, um an storageConfig zu kommen
-    let preferredTemplate: string | undefined = undefined
     try {
       const { LibraryService } = await import('@/lib/services/library-service')
       const libraryService = LibraryService.getInstance()
@@ -445,12 +446,12 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       // Nicht kritisch - pickTemplate kann auch ohne Preferred Template ein Template aus dem Templates-Ordner verwenden
     }
     
-    // pickTemplate aufrufen - auch ohne Preferred Template wird versucht, ein Template aus dem Templates-Ordner zu finden
-    // Wenn kein Preferred Template angegeben ist, wird loadTemplate einen Fehler werfen, wenn kein Template im Templates-Ordner gefunden wird
+    // pickTemplate aufrufen - lädt Template aus MongoDB
     picked = await pickTemplate({ 
-      provider, 
       repo, 
-      jobId, 
+      jobId,
+      libraryId: job.libraryId,
+      userEmail: job.userEmail,
       preferredTemplateName: preferredTemplate 
     })
     
@@ -481,14 +482,13 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     }
     try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_after_transform', attributes: { hasMeta: !!metadataFromTemplate } }) } catch {}
   } catch (err) {
-    // Prüfe ob es ein TemplateNotFoundError ist
-    const { TemplateNotFoundError } = await import('@/lib/templates/template-service')
-    if (err instanceof TemplateNotFoundError) {
-      const errorMessage = err.message
+    // Prüfe ob es ein Template-Not-Found-Fehler ist
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    if (errorMessage.includes('nicht gefunden') || errorMessage.includes('not found')) {
       FileLogger.error('phase-template', 'Template nicht gefunden', {
         jobId,
-        preferredTemplate: err.preferredTemplate,
-        availableTemplates: err.availableTemplates
+        preferredTemplate,
+        error: errorMessage
       })
       bufferLog(jobId, { 
         phase: 'transform_meta_error', 
@@ -502,8 +502,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
             step: 'transform_template',
             error: errorMessage,
             reason: 'template_not_found',
-            preferredTemplate: err.preferredTemplate,
-            availableTemplates: err.availableTemplates
+            preferredTemplate: preferredTemplate || '(nicht gesetzt)'
           }
         })
       } catch {}
@@ -513,7 +512,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     
     // Andere Fehler (z.B. HTTP-Fehler beim Template-Transform)
     // Extrahiere strukturierte Fehlerinformationen aus Error-Objekt
-    const errorMessage = err instanceof Error ? err.message : String(err)
+    // errorMessage wurde bereits oben deklariert, hier wiederverwenden
     const errorWithDetails = err as Error & {
       status?: number
       statusText?: string

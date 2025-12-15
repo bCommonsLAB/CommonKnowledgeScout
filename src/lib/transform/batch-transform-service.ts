@@ -280,10 +280,10 @@ export class BatchTransformService {
         } else {
           // Benutzerdefiniertes Template: Lade Template-Inhalt
           try {
-            // Verwende zentrale Template-Service Library
-            const { loadTemplate } = await import('@/lib/templates/template-service')
+            // Verwende zentrale Client-Library für MongoDB-Templates
+            const { loadTemplate } = await import('@/lib/templates/template-service-client')
             const templateResult = await loadTemplate({
-              provider,
+              libraryId,
               preferredTemplateName: template
             })
             const templateContent = templateResult.templateContent

@@ -166,6 +166,23 @@ export interface StorageConfig {
   /** Chat-/RAG-Konfiguration pro Library (öffentlich sichere Inhalte) */
   chat?: LibraryChatConfig;
 
+  /** Creation-Flow-Konfiguration pro Library */
+  creation?: {
+    /** Liste der verfügbaren Creation-Typen in dieser Library */
+    types?: Array<{
+      /** Eindeutige ID des Creation-Typs (z.B. 'event', 'testimonial', 'job') */
+      id: string;
+      /** Anzeigename für die UI */
+      label: string;
+      /** Beschreibung für die UI */
+      description: string;
+      /** Template-ID (Name ohne .md) */
+      templateId: string;
+      /** Icon-Name (z.B. 'calendar', 'quote', 'briefcase') */
+      icon?: string;
+    }>;
+  };
+
   /** Öffentliche Veröffentlichungseinstellungen */
   publicPublishing?: {
     /** Eindeutiger Slug für URL (z.B. "sfscon-talks") */
@@ -282,6 +299,16 @@ export interface ClientLibrary {
     };
     /** Chat-/RAG-Konfiguration für die UI */
     chat?: LibraryChatConfig;
+    /** Creation-Flow-Konfiguration für die UI */
+    creation?: {
+      types?: Array<{
+        id: string;
+        label: string;
+        description: string;
+        templateId: string;
+        icon?: string;
+      }>;
+    };
     /** Public-Publishing-Daten (ohne API-Key) */
     publicPublishing?: {
       slugName: string;

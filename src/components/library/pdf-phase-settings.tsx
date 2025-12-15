@@ -27,7 +27,9 @@ interface PdfPhaseSettingsProps {
 export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) {
   const { t } = useTranslation()
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const { provider } = useStorage();
+  // provider wird aktuell nicht verwendet, aber für zukünftige Verwendung bereitgehalten
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { provider: _unused_provider } = useStorage();
   const [templates, setTemplates] = React.useState<string[]>([]);
   const [overrides, setOverrides] = useAtom(pdfOverridesAtom);
   const [values, setValues] = React.useState<Partial<PdfTransformOptions>>({});
@@ -43,10 +45,10 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
     let cancelled = false;
     async function loadTemplates() {
       try {
-        if (!provider) return;
-        // Verwende zentrale Template-Service Library
-        const { listAvailableTemplates } = await import('@/lib/templates/template-service')
-        const templates = await listAvailableTemplates(provider)
+        if (!activeLibraryId) return;
+        // Verwende zentrale Client-Library für MongoDB-Templates
+        const { listAvailableTemplates } = await import('@/lib/templates/template-service-client')
+        const templates = await listAvailableTemplates(activeLibraryId)
         if (!cancelled) setTemplates(templates);
       } catch {
         if (!cancelled) setTemplates([]);
@@ -54,7 +56,7 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
     }
     void loadTemplates();
     return () => { cancelled = true; };
-  }, [provider, open]);
+  }, [activeLibraryId, open]);
 
   function update(partial: Partial<PdfTransformOptions>) {
     setValues(prev => ({ ...prev, ...partial }));
