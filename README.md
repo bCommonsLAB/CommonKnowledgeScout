@@ -10,7 +10,7 @@ The Common Knowledge Stack explores how distributed information (audio, video, d
 
 The Common Knowledge Stack follows a file-sharing approach to knowledge distribution, designed to work both server-side and **locally** (with a planned Electron-based desktop implementation). The architecture consists of:
 
-### Core Components
+### Core Components..
 
 - **Knowledge Scout** – Next.js web application that currently runs server-side but is **prepared for local execution** with a planned Electron implementation. It provides the main interface for organizing, publishing, and exploring knowledge. It features an **abstracted storage layer** with three drivers:
   - **Local File System** – Direct access to files on your computer
