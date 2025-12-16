@@ -44,7 +44,9 @@ export interface DiscoveryOptions {
 export async function findRelatedTestimonials(
   options: DiscoveryOptions
 ): Promise<RelatedTestimonial[]> {
-  const { provider, startFileId, dialograumId: explicitDialograumId, scopeFolderId, libraryId } = options
+  const { provider, startFileId, dialograumId: explicitDialograumId, scopeFolderId, 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    libraryId: _unused_libraryId } = options
   
   try {
     // 1. Lade Dialograum-Datei, um dialograum_id zu extrahieren

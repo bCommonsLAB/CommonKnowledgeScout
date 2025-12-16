@@ -81,10 +81,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   const [wizardState, setWizardState] = useState<WizardState>({
     currentStepIndex: 0,
     sources: [],
-    resumeFileId: resumeFileId,
   })
   
-  // Speichere seedFileId im State für späteren Zugriff beim Speichern
+  // Speichere resumeFileId und seedFileId im State für späteren Zugriff beim Speichern
+  const [resumeFileIdState] = useState<string | undefined>(resumeFileId)
   const [seedFileIdState, setSeedFileIdState] = useState<string | undefined>(seedFileId)
   const { provider, refreshItems } = useStorage()
   const currentFolderId = useAtomValue(currentFolderIdAtom)
@@ -150,13 +150,13 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   // Lade Datei für Resume-Modus
   useEffect(() => {
     async function loadResumeFile() {
-      if (!resumeFileId || !provider || !template) {
+      if (!resumeFileIdState || !provider || !template) {
         return
       }
 
       try {
         // Lade Datei-Inhalt
-        const { blob } = await provider.getBinary(resumeFileId)
+        const { blob } = await provider.getBinary(resumeFileIdState)
         const content = await blob.text()
         
         // Parse Frontmatter
@@ -206,7 +206,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     }
 
     void loadResumeFile()
-  }, [resumeFileId, provider, template])
+  }, [resumeFileIdState, provider, template])
 
   // Lade Seed-Datei (z.B. Dialograum) und initialisiere Sources
   useEffect(() => {
@@ -225,7 +225,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
         const { blob } = await provider.getBinary(seedFileId)
         const content = await blob.text()
-        const { meta, body } = parseFrontmatter(content)
+        const { body } = parseFrontmatter(content)
         
         // Erstelle WizardSource für Dialograum
         const dialograumSource: WizardSource = {
@@ -729,8 +729,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         if (dialograumSource) {
           try {
             const dialograumItem = await provider.getItemById(activeSeedFileId)
-            if (dialograumItem) {
-              const { blob } = await provider.getBinary(seedFileId)
+            if (dialograumItem && activeSeedFileId) {
+              const { blob } = await provider.getBinary(activeSeedFileId)
               const content = await blob.text()
               const { meta } = parseFrontmatter(content)
               const dialograumId = typeof meta.dialograum_id === 'string' ? meta.dialograum_id.trim() : undefined
@@ -791,11 +791,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       let targetFolderId: string
       let targetFileName: string
       
-      if (resumeFileId) {
+      if (resumeFileIdState) {
         // Resume-Modus: Überschreibe bestehende Datei (delete + upload)
         try {
           // Lade bestehende Datei, um parentId zu bekommen
-          const existingItem = await provider.getItemById(resumeFileId)
+          const existingItem = await provider.getItemById(resumeFileIdState)
           if (!existingItem) {
             throw new Error("Bestehende Datei nicht gefunden")
           }
@@ -804,7 +804,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           targetFileName = existingItem.metadata.name
           
           // Lösche alte Datei
-          await provider.deleteItem(resumeFileId)
+          await provider.deleteItem(resumeFileIdState)
           
           // Lade neue Datei hoch
           const file = new File([markdownContent], targetFileName, { type: "text/markdown" })

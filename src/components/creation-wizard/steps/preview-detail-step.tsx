@@ -23,7 +23,7 @@ export function PreviewDetailStep({ detailViewType, metadata, markdown, libraryI
       <CardHeader>
         <CardTitle>Vorschau</CardTitle>
         <CardDescription>
-          So sieht die Detailseite ungefähr aus. Wenn alles passt, klicke auf „Weiter" zum Speichern.
+          So sieht die Detailseite ungefähr aus. Wenn alles passt, klicke auf &quot;Weiter&quot; zum Speichern.
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">

@@ -3,9 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Button } from "@/components/ui/button"
 import type { WizardSource } from "@/lib/creation/corpus"
-import { CompactSourcesInfo } from "@/components/creation-wizard/components/compact-sources-info"
 
 interface SelectRelatedTestimonialsStepProps {
   /** Alle gefundenen Testimonials als Sources */

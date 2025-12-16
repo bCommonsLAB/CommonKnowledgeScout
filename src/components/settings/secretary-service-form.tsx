@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/ui/use-toast"
+import { mergeTemplateNames } from "@/lib/templates/template-options"
 
 // Formular-Schema mit Validierung
 const secretaryServiceFormSchema = z.object({
@@ -37,6 +38,8 @@ export function SecretaryServiceForm() {
   const [libraries, setLibraries] = useAtom(librariesAtom)
   const [activeLibraryId] = useAtom(activeLibraryIdAtom)
   const [isLoading, setIsLoading] = useState(false)
+  const [availableTemplateNames, setAvailableTemplateNames] = useState<string[]>([])
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
   
   // Aktuelle Bibliothek aus dem globalen Zustand
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId)
@@ -62,6 +65,59 @@ export function SecretaryServiceForm() {
       })
     }
   }, [activeLibrary, form])
+
+  const currentPdfTemplate = form.watch('pdfTemplate')
+  const mergedTemplateNames = mergeTemplateNames({
+    templateNames: availableTemplateNames,
+    currentTemplateName: currentPdfTemplate,
+  })
+
+  const hasMongoTemplates = mergedTemplateNames.length > 0
+  const isCurrentTemplateInMongo = !!(currentPdfTemplate || '').trim() && mergedTemplateNames.some(
+    (n) => n.toLowerCase() === (currentPdfTemplate || '').trim().toLowerCase()
+  )
+  const [templateMode, setTemplateMode] = useState<'select' | 'custom'>('select')
+
+  // Wenn die Config einen Wert hat, der (noch) nicht in MongoDB existiert, zeige Custom-Input an.
+  useEffect(() => {
+    const val = (currentPdfTemplate || '').trim()
+    if (!val) {
+      setTemplateMode('select')
+      return
+    }
+    setTemplateMode(isCurrentTemplateInMongo ? 'select' : 'custom')
+  }, [currentPdfTemplate, isCurrentTemplateInMongo])
+
+  // Templates aus MongoDB laden (für Dropdown)
+  useEffect(() => {
+    let cancelled = false
+    async function loadTemplates() {
+      try {
+        if (!activeLibraryId) return
+        setIsLoadingTemplates(true)
+        const response = await fetch(`/api/templates?libraryId=${encodeURIComponent(activeLibraryId)}`)
+        if (!response.ok) {
+          // Fehler still behandeln: Dropdown bleibt leer, Custom-Input bleibt nutzbar
+          if (!cancelled) setAvailableTemplateNames([])
+          return
+        }
+        const data = await response.json()
+        const templates = Array.isArray((data as { templates?: unknown }).templates)
+          ? (data as { templates: Array<{ name?: unknown }> }).templates
+          : []
+        const names = templates
+          .map((t) => (typeof t?.name === 'string' ? t.name : ''))
+          .filter((n) => n.length > 0)
+        if (!cancelled) setAvailableTemplateNames(names)
+      } catch {
+        if (!cancelled) setAvailableTemplateNames([])
+      } finally {
+        if (!cancelled) setIsLoadingTemplates(false)
+      }
+    }
+    void loadTemplates()
+    return () => { cancelled = true }
+  }, [activeLibraryId])
 
   async function onSubmit(data: SecretaryServiceFormValues) {
     setIsLoading(true)
@@ -229,10 +285,57 @@ export function SecretaryServiceForm() {
               <FormItem>
                 <FormLabel>Template (Default, ohne .md)</FormLabel>
                 <FormControl>
-                  <Input placeholder="pdfanalyse" {...field} />
+                  <div className="flex flex-col gap-2">
+                    {templateMode === 'select' ? (
+                      <select
+                        className="border rounded h-9 px-2 w-full"
+                        value={typeof field.value === 'string' ? field.value : ''}
+                        onChange={(e) => {
+                          const next = e.target.value
+                          if (next === '__custom__') {
+                            setTemplateMode('custom')
+                            return
+                          }
+                          field.onChange(next)
+                        }}
+                        disabled={isLoadingTemplates && !hasMongoTemplates}
+                      >
+                        <option value="">{isLoadingTemplates ? 'Lade Templates…' : '(kein Default)'}</option>
+                        {mergedTemplateNames.map((name) => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                        <option value="__custom__">Benutzerdefiniert…</option>
+                      </select>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="z. B. pdfanalyse-commoning"
+                          value={typeof field.value === 'string' ? field.value : ''}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          autoComplete="off"
+                          spellCheck={false}
+                          autoCapitalize="none"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            // Zur Liste zurück: wenn der aktuelle Wert nicht in MongoDB ist, leere Auswahl setzen.
+                            const val = (typeof field.value === 'string' ? field.value : '').trim()
+                            if (val && !mergedTemplateNames.some((n) => n.toLowerCase() === val.toLowerCase())) {
+                              field.onChange('')
+                            }
+                            setTemplateMode('select')
+                          }}
+                        >
+                          Aus Liste
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </FormControl>
                 <FormDescription>
-                  Wird in Phase 2 verwendet, wenn kein Template angegeben ist.
+                  Wird in Phase 2 verwendet, wenn kein Template angegeben ist. Die Liste kommt aus MongoDB (Template-Management).
                 </FormDescription>
                 <FormMessage />
               </FormItem>

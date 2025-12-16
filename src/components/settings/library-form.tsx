@@ -42,7 +42,7 @@ import { toast } from "@/components/ui/use-toast"
 import { Textarea } from "../ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import { AlertCircle, Trash2, Plus } from "lucide-react"
+import { AlertCircle, Trash2, Plus, Download, Upload } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -96,6 +96,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isNew, setIsNew] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
   
@@ -309,6 +310,133 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     }
   }
   
+  // Bibliothek exportieren
+  const handleExportLibrary = async () => {
+    if (!activeLibraryId || !user?.primaryEmailAddress?.emailAddress) {
+      toast({
+        title: "Fehler",
+        description: "Keine Bibliothek zum Exportieren ausgewählt oder Benutzer nicht angemeldet.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch(`/api/libraries/${activeLibraryId}/export`);
+      
+      if (!response.ok) {
+        throw new Error(`Fehler beim Exportieren: ${response.statusText}`);
+      }
+      
+      // Datei herunterladen
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `library-${activeLibrary?.label.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Bibliothek exportiert",
+        description: `Die Bibliothek "${activeLibrary?.label}" wurde erfolgreich exportiert.`,
+      });
+    } catch (error) {
+      console.error('Fehler beim Exportieren der Bibliothek:', error);
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Exportieren",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Bibliothek importieren
+  const handleImportLibrary = async (file: File) => {
+    if (!user?.primaryEmailAddress?.emailAddress) {
+      toast({
+        title: "Fehler",
+        description: "Sie müssen angemeldet sein, um eine Bibliothek zu importieren.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Datei als Text lesen
+      const text = await file.text();
+      const libraryData = JSON.parse(text);
+      
+      // API-Anfrage zum Importieren der Bibliothek
+      const response = await fetch('/api/libraries/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ libraryData }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Fehler beim Importieren: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      const importedLibrary = result.library;
+      
+      // Lokalen Zustand aktualisieren
+      const newLibrary = {
+        ...importedLibrary,
+        icon: <AlertCircle className="h-4 w-4" />,
+      };
+      setLibraries([...libraries, newLibrary]);
+      setActiveLibraryId(importedLibrary.id);
+      setIsNew(false);
+      setIsImportDialogOpen(false);
+      
+      // Form mit importierten Daten befüllen
+      const storageConfig = {
+        basePath: importedLibrary.path,
+        clientId: importedLibrary.config?.clientId as string || "",
+        clientSecret: importedLibrary.config?.clientSecret as string || "",
+        redirectUri: importedLibrary.config?.redirectUri as string || "",
+      };
+      
+      form.reset({
+        label: importedLibrary.label,
+        path: importedLibrary.path,
+        type: importedLibrary.type,
+        description: importedLibrary.config?.description as string || "",
+        isEnabled: importedLibrary.isEnabled,
+        transcription: importedLibrary.transcription,
+        templateDirectory: importedLibrary.config?.templateDirectory as string || "/templates",
+        storageConfig,
+      });
+      
+      toast({
+        title: "Bibliothek importiert",
+        description: `Die Bibliothek "${importedLibrary.label}" wurde erfolgreich importiert.`,
+      });
+    } catch (error) {
+      console.error('Fehler beim Importieren der Bibliothek:', error);
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Importieren",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Bibliothek löschen
   const handleDeleteLibrary = async () => {
     if (!activeLibraryId || !user?.primaryEmailAddress?.emailAddress) {
@@ -520,6 +648,125 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
               />
             </CardContent>
           </Card>
+          
+          {/* Export/Import Bereich */}
+          {!isNew && activeLibrary && (
+            <Card>
+              <CardContent className="space-y-4 pt-6">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">Bibliothek exportieren / importieren</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Exportieren Sie die Bibliothekskonfiguration als JSON-Datei oder importieren Sie eine zuvor exportierte Bibliothek.
+                  </p>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleExportLibrary}
+                    disabled={isLoading}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Bibliothek exportieren
+                  </Button>
+                  
+                  <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isLoading}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Bibliothek importieren
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Bibliothek importieren</DialogTitle>
+                        <DialogDescription>
+                          Wählen Sie eine JSON-Datei aus, die zuvor exportiert wurde. Die Bibliothek wird mit einer neuen ID erstellt.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <input
+                          type="file"
+                          accept=".json"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              void handleImportLibrary(file);
+                            }
+                          }}
+                          className="w-full"
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+                          Abbrechen
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Import-Option beim Erstellen neuer Bibliothek */}
+          {isNew && (
+            <Card>
+              <CardContent className="space-y-4 pt-6">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">Bibliothek importieren</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Importieren Sie eine zuvor exportierte Bibliothekskonfiguration als Ausgangspunkt für eine neue Bibliothek.
+                  </p>
+                </div>
+                
+                <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isLoading}
+                      className="w-full"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Bibliothek aus JSON importieren
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Bibliothek importieren</DialogTitle>
+                      <DialogDescription>
+                        Wählen Sie eine JSON-Datei aus, die zuvor exportiert wurde. Die Bibliothek wird mit einer neuen ID erstellt.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            void handleImportLibrary(file);
+                          }
+                        }}
+                        className="w-full"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+                        Abbrechen
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+          )}
           
           <div className="flex justify-between">
             {!isNew && (
