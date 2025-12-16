@@ -45,10 +45,11 @@ export function CombinedChatDialog({ provider, items, selectedTemplate, selected
         if (templateBody) {
           if (!cancelled) setTemplateContent(templateBody)
         } else {
-          // Verwende zentrale Template-Service Library
-          const { loadTemplate } = await import('@/lib/templates/template-service')
+          if (!libraryId) return
+          // Verwende zentrale Client-Library für MongoDB-Templates
+          const { loadTemplate } = await import('@/lib/templates/template-service-client')
           const result = await loadTemplate({
-            provider,
+            libraryId,
             preferredTemplateName: selectedTemplate
           })
           if (!cancelled) {
@@ -63,7 +64,8 @@ export function CombinedChatDialog({ provider, items, selectedTemplate, selected
     }
     loadTemplate()
     return () => { cancelled = true }
-  }, [provider, open, selectedTemplate, templateBody])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryId, open, selectedTemplate, templateBody]) // provider absichtlich nicht in Dependencies
 
   // Variablen aus Template extrahieren
   useEffect(() => {

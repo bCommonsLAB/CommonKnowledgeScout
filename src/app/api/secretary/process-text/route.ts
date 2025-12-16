@@ -52,7 +52,8 @@ export async function POST(request: NextRequest) {
 
     // Template-Name und Content (beide optional, aber mindestens eins MUSS vorhanden sein)
     const templateName = ((formData.get('template') as string) || '').trim();
-    const templateContent = ((formData.get('template_content') as string) || (formData.get('templateContent') as string) || '').trim();
+    let templateContent = ((formData.get('template_content') as string) || (formData.get('templateContent') as string) || '').trim();
+    const libraryId = request.headers.get('X-Library-Id') || '';
 
     if (!templateName && !templateContent) {
       console.error('[process-text] Weder template noch template_content übergeben');
@@ -60,6 +61,46 @@ export async function POST(request: NextRequest) {
         { error: 'Erforderlich: Entweder template (Name) ODER template_content (String) übergeben' },
         { status: 400 }
       );
+    }
+
+    // Wenn nur templateName übergeben wurde, lade Template aus MongoDB
+    if (templateName && !templateContent && libraryId) {
+      try {
+        const { loadTemplateFromMongoDB, serializeTemplateToMarkdown } = await import('@/lib/templates/template-service-mongodb');
+        const { currentUser } = await import('@clerk/nextjs/server');
+        const user = await currentUser();
+        const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
+        
+        if (!userEmail) {
+          throw new Error('Benutzer nicht authentifiziert');
+        }
+
+        // TODO: Admin-Check implementieren
+        const isAdmin = false;
+        
+        const template = await loadTemplateFromMongoDB(templateName, libraryId, userEmail, isAdmin);
+        
+        if (!template) {
+          throw new Error(`Template "${templateName}" nicht gefunden`);
+        }
+
+        // Serialisiere Template zu Markdown (ohne creation-Block für Secretary Service)
+        templateContent = serializeTemplateToMarkdown(template, false);
+        console.log('[process-text] Template aus MongoDB geladen:', templateName);
+      } catch (error) {
+        console.error('[process-text] Fehler beim Laden des Templates aus MongoDB:', error);
+        return NextResponse.json(
+          { error: `Fehler beim Laden des Templates: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}` },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Entferne creation-Block aus template_content, falls vorhanden
+    // (Secretary Service unterstützt nur flaches YAML)
+    if (templateContent) {
+      const { serializeTemplateWithoutCreation } = await import('@/lib/templates/template-service');
+      templateContent = serializeTemplateWithoutCreation(templateContent);
     }
 
     const isTemplateContent = templateContent.length > 0;

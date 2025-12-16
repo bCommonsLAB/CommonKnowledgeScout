@@ -321,10 +321,11 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         FileLogger.info('TextTransform', 'Lade benutzerdefinierten Template-Inhalt', { templateName: template });
         
         try {
-          // Verwende zentrale Template-Service Library
-          const { loadTemplate } = await import('@/lib/templates/template-service')
+          if (!activeLibrary?.id) return;
+          // Verwende zentrale Client-Library für MongoDB-Templates
+          const { loadTemplate } = await import('@/lib/templates/template-service-client')
           const templateResult = await loadTemplate({
-            provider,
+            libraryId: activeLibrary.id,
             preferredTemplateName: template
           })
           const templateContent = templateResult.templateContent

@@ -73,10 +73,18 @@ export interface TemplateTransformParams {
  * @returns Response vom Secretary Service
  */
 export async function callTemplateTransform(p: TemplateTransformParams): Promise<Response> {
+  // Entferne creation-Block aus template_content, falls vorhanden
+  // (Secretary Service unterstützt nur flaches YAML)
+  let templateContent = p.templateContent
+  if (templateContent) {
+    const { serializeTemplateWithoutCreation } = await import('@/lib/templates/template-service')
+    templateContent = serializeTemplateWithoutCreation(templateContent)
+  }
+  
   // JSON-Body erstellen (statt FormData für große Payloads)
   const body = {
     text: p.text,
-    template_content: p.templateContent,
+    template_content: templateContent,
     source_language: p.sourceLanguage || p.targetLanguage, // Fallback auf targetLanguage wenn nicht gesetzt
     target_language: p.targetLanguage,
     context: p.context || {},
@@ -119,6 +127,8 @@ export interface TemplateExtractFromUrlParams {
   url: string;
   templateUrl: string; // URL des Template-Endpoints (z.B. `${baseUrl}/transformer/template`)
   template?: string;
+  /** Optional: komplettes Template als YAML/Markdown (MongoDB TemplateDocument serialisiert). */
+  templateContent?: string;
   sourceLanguage?: string;
   targetLanguage?: string;
   useCache?: boolean;
@@ -148,7 +158,18 @@ export async function callTemplateExtractFromUrl(p: TemplateExtractFromUrlParams
   formData.append('url', p.url);
   formData.append('source_language', p.sourceLanguage || 'en');
   formData.append('target_language', p.targetLanguage || 'en');
-  formData.append('template', p.template || 'ExtractSessionDataFromWebsite');
+  if (p.templateContent && p.templateContent.trim()) {
+    // Entferne creation-Block aus template_content, falls vorhanden
+    // (Secretary Service unterstützt nur flaches YAML)
+    let templateContent = p.templateContent
+    if (templateContent) {
+      const { serializeTemplateWithoutCreation } = await import('@/lib/templates/template-service')
+      templateContent = serializeTemplateWithoutCreation(templateContent)
+    }
+    formData.append('template_content', templateContent);
+  } else {
+    formData.append('template', p.template || 'ExtractSessionDataFromWebsite');
+  }
   formData.append('use_cache', String(p.useCache ?? false));
   
   // Container-Selector optional hinzufügen

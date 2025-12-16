@@ -22,56 +22,63 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { env } from 'process';
+import { getSecretaryConfig } from '@/lib/env'
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[process-audio] API-Route aufgerufen');
-    
     // Authentifizierung prüfen
     const { userId } = getAuth(request);
     if (!userId) {
-      console.error('[process-audio] Nicht authentifiziert');
       return NextResponse.json(
         { error: 'Nicht authentifiziert' },
         { status: 401 }
       );
     }
 
-    console.log('[process-audio] Authentifiziert als:', userId);
-
-    // Alle Request-Header protokollieren
-    const headerObj: Record<string, string> = {};
-    request.headers.forEach((value, key) => {
-      headerObj[key] = value;
-    });
-    
     // FormData aus dem Request holen
     const formData = await request.formData();
-    const formDataKeys: string[] = [];
-    formData.forEach((value, key) => {
-      formDataKeys.push(key);
-    });
-    console.log('[process-audio] FormData erhalten mit Feldern:', formDataKeys);
-    
 
-    // Secretary Service URL und API-Key aus den Headers holen
-    const secretaryServiceUrl = env.SECRETARY_SERVICE_URL;
-    
-    console.log('[process-audio] Sende Anfrage an Secretary Service:', secretaryServiceUrl);
+    const { baseUrl: secretaryServiceUrl, apiKey } = getSecretaryConfig();
+    if (!secretaryServiceUrl) {
+      return NextResponse.json(
+        { error: 'SECRETARY_SERVICE_URL ist nicht konfiguriert' },
+        { status: 500 }
+      );
+    }
     
     // Eine neue FormData erstellen, die nur die für den Secretary Service relevanten Felder enthält
     const serviceFormData = new FormData();
     
     // Datei hinzufügen
-    if (formData.has('file')) {
-      serviceFormData.append('file', formData.get('file') as File);
+    const file = formData.get('file')
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: 'Audio-Datei fehlt (Feld "file")' },
+        { status: 400 }
+      );
     }
+    serviceFormData.append('file', file);
     
-    // Zielsprache hinzufügen
-    if (formData.has('targetLanguage')) {
-      serviceFormData.append('target_language', formData.get('targetLanguage') as string);
-    }
+    // Sprachen (unterstütze sowohl camelCase als auch snake_case von Clients)
+    const sourceLanguage =
+      (formData.get('source_language') as string | null) ||
+      (formData.get('sourceLanguage') as string | null) ||
+      undefined
+    const targetLanguage =
+      (formData.get('target_language') as string | null) ||
+      (formData.get('targetLanguage') as string | null) ||
+      'de'
+
+    if (sourceLanguage) serviceFormData.append('source_language', sourceLanguage)
+    if (targetLanguage) serviceFormData.append('target_language', targetLanguage)
+
+    // Optional: Template (Secretary kann Audio→Text danach noch template-basiert transformieren)
+    const template =
+      (formData.get('template') as string | null) ||
+      undefined
+    if (template && template.trim()) serviceFormData.append('template', template.trim())
+
+    // Cache ausschalten (Wizard soll frische Ergebnisse liefern)
     serviceFormData.append('useCache', 'false');
 
     // Anfrage an den Secretary Service senden
@@ -80,22 +87,14 @@ export async function POST(request: NextRequest) {
       body: serviceFormData,
       headers: (() => {
         const h: Record<string, string> = { 'Accept': 'application/json' };
-        const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
         if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
         return h;
       })(),
     });
 
-    console.log('[process-audio] Secretary Service Antwort:', {
-      status: response.status,
-      statusText: response.statusText
-    });
-
     const data = await response.json();
-    console.log('[process-audio] Antwortdaten:', JSON.stringify(data).substring(0, 100) + '...');
 
     if (!response.ok) {
-      console.error('[process-audio] Secretary Service Fehler:', data);
       return NextResponse.json(
         { error: data.error || 'Fehler beim Transformieren der Audio-Datei' },
         { status: response.status }
@@ -104,8 +103,7 @@ export async function POST(request: NextRequest) {
 
     // Gebe die vollständige Response zurück, nicht nur data.data
     return NextResponse.json(data);
-  } catch (error) {
-    console.error('[process-audio] Secretary Service Error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Fehler bei der Verbindung zum Secretary Service' },
       { status: 500 }

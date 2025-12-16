@@ -60,7 +60,9 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
   
   const { provider, refreshItems, listItems } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const getRootItems = useRootItems();
+  // getRootItems wird aktuell nicht verwendet, aber für zukünftige Verwendung bereitgehalten
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _unused_getRootItems = useRootItems();
   const baseOptions = useAtomValue(baseTransformOptionsAtom);
   const setTemplateContext = useSetAtom(templateContextDocsAtom)
   const router = useRouter()
@@ -83,12 +85,12 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
   useEffect(() => {
     let cancelled = false;
     async function loadTemplatesIfNeeded() {
-      if (!isOpen || !provider || !activeLibraryId) return;
+      if (!isOpen || !activeLibraryId) return;
 
       try {
-        // Verwende zentrale Template-Service Library
-        const { listAvailableTemplates } = await import('@/lib/templates/template-service')
-        const templateNames = await listAvailableTemplates(provider)
+        // Verwende zentrale Client-Library für MongoDB-Templates
+        const { listAvailableTemplates } = await import('@/lib/templates/template-service-client')
+        const templateNames = await listAvailableTemplates(activeLibraryId)
         if (!cancelled) setCustomTemplateNames(templateNames);
       } catch (error) {
         if (!cancelled) setCustomTemplateNames([]);
@@ -98,7 +100,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
 
     loadTemplatesIfNeeded();
     return () => { cancelled = true; };
-  }, [isOpen, provider, activeLibraryId, getRootItems]);
+  }, [isOpen, activeLibraryId]);
 
   // Erzeuge effektive Eingabeliste: nur Markdown; PDFs → Shadow‑Twin (Markdown) im gleichen Ordner
   const [effectiveItems, setEffectiveItems] = useState<typeof selectedItems>([]);

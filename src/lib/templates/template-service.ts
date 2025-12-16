@@ -13,6 +13,9 @@
  */
 
 import type { ExternalJobsRepository } from '@/lib/external-jobs-repository'
+import { parseTemplate } from './template-parser'
+import type { ParsedTemplate, UxConfig, PromptConfig } from './template-types'
+import { injectCreationIntoFrontmatter } from './template-frontmatter-utils'
 
 export interface TemplateServiceProvider {
   listItemsById(parentId: string): Promise<Array<{ id: string; type: string; metadata?: { name?: string } }>>
@@ -234,4 +237,106 @@ export async function loadTemplate(args: LoadTemplateArgs): Promise<LoadTemplate
     isPreferred
   }
 }
+
+/**
+ * Parst ein Template aus rohem Content
+ * 
+ * @param content Roher Template-Content
+ * @param name Template-Name
+ * @returns Parsed Template mit Validierungsfehlern
+ */
+export function parseTemplateContent(
+  content: string,
+  name: string
+): { template: ParsedTemplate; errors: Array<{ field: string; message: string; line?: number }> } {
+  return parseTemplate(content, name)
+}
+
+/**
+ * Lädt und parst ein Template
+ * 
+ * @param args Template-Loading-Argumente
+ * @returns Parsed Template
+ * @throws {TemplateNotFoundError} Wenn Template nicht gefunden wird
+ */
+export async function loadAndParseTemplate(args: LoadTemplateArgs): Promise<{
+  template: ParsedTemplate
+  errors: Array<{ field: string; message: string; line?: number }>
+}> {
+  const { templateContent, templateName } = await loadTemplate(args)
+  const { template, errors } = parseTemplate(templateContent, templateName)
+  return { template, errors }
+}
+
+/**
+ * Erstellt eine UX-Config View für den Creation-Wizard
+ * 
+ * @param template Parsed Template
+ * @returns UX-Config oder null, wenn Template keinen creation-Block hat
+ */
+export function getUxConfig(template: ParsedTemplate): UxConfig | null {
+  if (!template.creation) {
+    return null
+  }
+  
+  return {
+    templateId: template.name,
+    creation: template.creation,
+    availableFields: template.metadata.fields.map(f => f.variable)
+  }
+}
+
+/**
+ * Erstellt eine Prompt-Config View für LLM/Secretary
+ * 
+ * Enthält KEINE UX-spezifischen Daten (kein creation-Block).
+ * 
+ * @param template Parsed Template
+ * @returns Prompt-Config
+ */
+export function getPromptConfig(template: ParsedTemplate): PromptConfig {
+  return {
+    templateId: template.name,
+    metadata: template.metadata,
+    systemprompt: template.systemprompt,
+    markdownBody: template.markdownBody
+  }
+}
+
+/**
+ * Serialisiert ein Template ohne creation-Block für den Secretary Service
+ * 
+ * Entfernt den creation-Block aus dem Frontmatter, bevor das Template
+ * an den Secretary Service gesendet wird (der nur flaches YAML unterstützt).
+ * 
+ * @param templateContent Roher Template-Content (Markdown mit Frontmatter)
+ * @returns Template-Content ohne creation-Block
+ */
+export function serializeTemplateWithoutCreation(templateContent: string): string {
+  // Teile Content in Frontmatter und Body auf
+  const parts = templateContent.split('--- systemprompt')
+  const mainContent = parts[0]?.trim() || ''
+  const systemPrompt = parts[1]?.trim() || ''
+  
+  // Extrahiere Frontmatter
+  const frontmatterMatch = mainContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
+  let rawFrontmatter = ''
+  let markdownBody = ''
+  
+  if (frontmatterMatch) {
+    rawFrontmatter = `---\n${frontmatterMatch[1]}\n---`
+    markdownBody = frontmatterMatch[2]?.trim() || ''
+  } else {
+    // Kein Frontmatter gefunden - gesamter Content ist Body
+    markdownBody = mainContent
+  }
+  
+  // Entferne creation-Block aus Frontmatter
+  const frontmatterWithoutCreation = injectCreationIntoFrontmatter(rawFrontmatter, null)
+  
+  // Baue Template wieder zusammen
+  const systemPromptPart = systemPrompt ? `\n\n--- systemprompt\n${systemPrompt}` : ''
+  return `${frontmatterWithoutCreation}\n${markdownBody}${systemPromptPart}`
+}
+
 

@@ -25,5 +25,5 @@
     "types": ["node"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "src/types/**/*.d.ts", ".next/types/**/*.ts", "scripts/find-nextjs-route-params-issues.js"],
-  "exclude": ["node_modules", "docs", "public"]
+  "exclude": ["node_modules", "docs", "public", "tests"]
 }

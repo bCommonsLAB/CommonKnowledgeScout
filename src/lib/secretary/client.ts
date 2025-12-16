@@ -1008,6 +1008,32 @@ export async function importSessionFromUrl(
 } 
 
 /**
+ * Liest eine Webseite aus und gibt den extrahierten Text zurück.
+ *
+ * Motivation: Im Creation Wizard wollen wir eine URL als Quelle nutzen, ohne
+ * Session-spezifische Daten zu mappen. Wir verwenden denselben Proxy wie der
+ * Session-Import (`/api/secretary/import-from-url`) und nehmen nur `data.text`.
+ */
+export async function extractTextFromUrl(
+  url: string,
+  options: {
+    sourceLanguage?: string;
+    targetLanguage?: string;
+    /** Optional: Secretary Template-Name für URL-Extraktion (Default bleibt wie Session-Import) */
+    template?: string;
+    useCache?: boolean;
+    containerSelector?: string;
+  } = {}
+): Promise<{ text: string; raw: TemplateExtractionResponse }> {
+  const raw = await importSessionFromUrl(url, options)
+  const text = raw?.data?.text
+  if (typeof text !== 'string' || !text.trim()) {
+    throw new SecretaryServiceError('Webseite konnte nicht gelesen werden (kein Text gefunden).')
+  }
+  return { text, raw }
+}
+
+/**
  * Startet die vollständige Session-Verarbeitung im Secretary Service
  * und liefert Markdown/ZIP im Response.
  */

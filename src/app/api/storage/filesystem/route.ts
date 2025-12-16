@@ -52,6 +52,17 @@ const vLog = (...args: unknown[]) => { if (VERBOSE) console.log(...args); };
 const vWarn = (...args: unknown[]) => { if (VERBOSE) console.warn(...args); };
 
 /**
+ * Normalisiert Query-Parameter, die aus Client-Bugs gelegentlich als String "undefined"/"null" kommen.
+ * In diesem Projekt ist "root" der sichere Default für FileSystem-IDs.
+ */
+function normalizeFileIdParam(value: string | null | undefined): string {
+  const v = (value ?? '').trim()
+  if (!v) return 'root'
+  if (v === 'undefined' || v === 'null') return 'root'
+  return v
+}
+
+/**
  * Hilfsfunktion zum Abrufen der Benutzer-E-Mail-Adresse
  * Verwendet den Test-E-Mail-Parameter, falls vorhanden, sonst die authentifizierte E-Mail
  */
@@ -136,8 +147,14 @@ async function getLibrary(libraryId: string, email: string): Promise<LibraryType
 
 // Konvertiert eine ID zurück in einen Pfad
 function getPathFromId(library: LibraryType, fileId: string): string {
-  if (fileId === 'root') {
+  // Defensive: fileId kommt teilweise als String "undefined"/"null" aus dem Client (sollte root sein).
+  if (fileId === 'root' || fileId === 'undefined' || fileId === 'null') {
     return library.path;
+  }
+
+  // Wenn es NICHT wie Base64 aussieht, nicht dekodieren – Buffer.from(...,'base64') erzeugt sonst Müll (Windows: "��").
+  if (!/^[A-Za-z0-9+/=]+$/.test(fileId) || fileId.length % 4 !== 0) {
+    return library.path
   }
   
   try {
@@ -190,6 +207,38 @@ function getPathFromId(library: LibraryType, fileId: string): string {
     });
     return library.path;
   }
+}
+
+/**
+ * Heuristik: In diesem Projekt sind Storage-IDs Base64 (siehe getIdFromPath()).
+ * Wenn Clients aus Versehen einen Dateinamen oder relativen Pfad schicken, wollen wir NICHT dekodieren,
+ * weil Buffer.from(x, 'base64') sonst Müll erzeugt (Windows-Pfade mit "��").
+ */
+function isLikelyBase64Id(value: string): boolean {
+  if (!value) return false
+  if (value === 'root') return true
+  // Base64 alphabet (+ optional "=" padding). encodeURIComponent bleibt auf Client-Seite, daher hier normale Base64.
+  if (!/^[A-Za-z0-9+/=]+$/.test(value)) return false
+  if (value.length < 8) return false
+  if (value.length % 4 !== 0) return false
+  return true
+}
+
+/**
+ * Windows-sicherer Dateiname: entfernt Pfadtrenner/Reservierte Zeichen.
+ * (Wir vermeiden komplizierte Logik – Ziel ist nur: kein Path-Traversal + kein Crash.)
+ */
+function sanitizeFileName(input: string): string {
+  const raw = typeof input === 'string' ? input : ''
+  const trimmed = raw.trim()
+  if (!trimmed) return ''
+  // Entferne Pfadsegmente (nur Basename)
+  const base = trimmed.replace(/\\/g, '/').split('/').pop() || ''
+  // Entferne Windows-reservierte Zeichen + Control chars
+  return base
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 // Konvertiert einen Pfad in eine ID
@@ -330,7 +379,7 @@ export async function GET(request: NextRequest) {
   
   const url = new URL(request.url);
   const action = url.searchParams.get('action');
-  const fileId = url.searchParams.get('fileId');
+  const fileId = normalizeFileIdParam(url.searchParams.get('fileId'));
   const libraryId = url.searchParams.get('libraryId');
   
   vLog(`[API][filesystem] GET Request:`, {
@@ -351,14 +400,7 @@ export async function GET(request: NextRequest) {
     }, { status: 400 });
   }
 
-  if (!fileId) {
-    vWarn(`[API][filesystem] ❌ Fehlender fileId Parameter`);
-    return NextResponse.json({ 
-      error: 'fileId is required',
-      errorCode: 'MISSING_FILE_ID',
-      requestId 
-    }, { status: 400 });
-  }
+  // fileId ist absichtlich optional (root fallback), damit Requests wie fileId=undefined nicht 404/500 erzeugen.
 
   // E-Mail aus Authentifizierung oder Parameter ermitteln
   const userEmail = await getUserEmail(request);
@@ -645,7 +687,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const action = searchParams.get('action');
-  const fileId = searchParams.get('fileId') || 'root';
+  const fileId = normalizeFileIdParam(searchParams.get('fileId'));
   const libraryId = searchParams.get('libraryId') || '';
 
   vLog(`[API] POST ${action} fileId=${fileId}, libraryId=${libraryId}`);
@@ -687,9 +729,70 @@ export async function POST(request: NextRequest) {
         }
 
         try {
-          const parentPath = getPathFromId(library, fileId);
-          
-          const filePath = pathLib.join(parentPath, file.name);
+          // IMPORTANT:
+          // - fileId ist im Normalfall die Parent-Folder-ID (Base64).
+          // - In manchen Browser-Flows kommt file.name als "blob" an; dann brauchen wir einen Fallback.
+          // - Wenn Clients aus Versehen einen Dateinamen/relativen Pfad als fileId senden, dürfen wir NICHT Base64-dekodieren.
+          const rawIncomingName = typeof file.name === 'string' ? file.name : ''
+          const isBlobName = rawIncomingName.trim().length === 0 || rawIncomingName === 'blob'
+
+          // Fallback: wenn file.name="blob" und fileId keine Base64-ID ist, interpretieren wir fileId als Dateiname/relativen Pfad.
+          const fileIdLooksLikePath = fileId !== 'root' && !isLikelyBase64Id(fileId)
+
+          let parentPath = library.path
+          let finalFileName = sanitizeFileName(rawIncomingName)
+
+          if (fileId === 'root') {
+            parentPath = library.path
+          } else if (isLikelyBase64Id(fileId)) {
+            const decodedPath = getPathFromId(library, fileId)
+            try {
+              const decodedStats = await fs.stat(decodedPath)
+              if (decodedStats.isDirectory()) {
+                parentPath = decodedPath
+              } else {
+                // fileId zeigt auf eine Datei → überschreibe genau diese Datei
+                parentPath = pathLib.dirname(decodedPath)
+                finalFileName = sanitizeFileName(pathLib.basename(decodedPath))
+              }
+            } catch {
+              // Pfad existiert noch nicht – interpretieren als Zielordner
+              parentPath = decodedPath
+            }
+          } else if (fileIdLooksLikePath) {
+            const normalized = fileId.replace(/\\/g, '/').replace(/^\/+/, '')
+            if (!normalized.includes('..') && normalized.trim().length > 0) {
+              // Wenn es wie ein Dateipfad aussieht (hat Slash oder Extension), behandeln wir es als "library-relative file path"
+              const looksLikeFile = normalized.includes('/') || /\.[A-Za-z0-9]{1,8}$/.test(normalized)
+              if (looksLikeFile) {
+                parentPath = pathLib.join(library.path, pathLib.dirname(normalized))
+                finalFileName = sanitizeFileName(pathLib.basename(normalized))
+              } else {
+                // Sonst als Ordnername unterhalb der Library
+                parentPath = pathLib.join(library.path, normalized)
+              }
+            }
+          }
+
+          // Wenn file.name="blob" und wir noch keinen sinnvollen Namen haben, nutzen wir fileId als Namen.
+          if (isBlobName && (!finalFileName || finalFileName === 'blob') && fileIdLooksLikePath) {
+            const normalized = fileId.replace(/\\/g, '/')
+            finalFileName = sanitizeFileName(normalized.split('/').pop() || '')
+          }
+
+          if (!finalFileName) finalFileName = 'upload.bin'
+
+          // Sicherheit: parentPath muss innerhalb von library.path liegen
+          const normalizedParent = pathLib.normalize(parentPath).replace(/\\/g, '/')
+          const normalizedLib = pathLib.normalize(library.path).replace(/\\/g, '/')
+          if (!normalizedParent.startsWith(normalizedLib)) {
+            parentPath = library.path
+          }
+
+          // ENOENT Fix: Zielordner sicher erstellen
+          await fs.mkdir(parentPath, { recursive: true })
+
+          const filePath = pathLib.join(parentPath, finalFileName);
   
           const arrayBuffer = await file.arrayBuffer();
           
@@ -723,7 +826,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const fileId = searchParams.get('fileId');
+  const fileId = normalizeFileIdParam(searchParams.get('fileId'));
   const libraryId = searchParams.get('libraryId') || '';
 
   vLog(`[API] DELETE fileId=${fileId}, libraryId=${libraryId}`);
@@ -799,7 +902,7 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const action = searchParams.get('action');
-  const fileId = searchParams.get('fileId');
+  const fileId = normalizeFileIdParam(searchParams.get('fileId'));
   const newParentId = searchParams.get('newParentId');
   const libraryId = searchParams.get('libraryId') || '';
 

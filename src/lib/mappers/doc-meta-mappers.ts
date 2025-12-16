@@ -5,6 +5,7 @@
 
 import type { BookDetailData } from '@/components/library/book-detail'
 import type { SessionDetailData } from '@/components/library/session-detail'
+import type { TestimonialDetailData } from '@/components/library/testimonial-detail'
 
 /**
  * Mapper: API-Response → BookDetailData
@@ -222,6 +223,60 @@ export function mapToSessionDetail(input: unknown): SessionDetailData {
     slides: slides.length > 0 ? slides : undefined,
     
     // Technische Felder (aus root-Level)
+    fileId: toStr(root.fileId),
+    fileName: toStr(root.fileName),
+    upsertedAt: toStr(root.upsertedAt),
+    chunkCount: typeof root.chunkCount === 'number' ? root.chunkCount : undefined,
+  };
+
+  return data;
+}
+
+/**
+ * Mapper: API-Response → TestimonialDetailData
+ * Extrahiert Testimonial-spezifische Felder aus docMetaJson
+ */
+export function mapToTestimonialDetail(input: unknown): TestimonialDetailData {
+  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+  const docMetaJson = (root.docMetaJson && typeof root.docMetaJson === 'object') 
+    ? root.docMetaJson as Record<string, unknown> 
+    : {};
+  
+  const toStr = (v: unknown): string | undefined => {
+    if (typeof v === 'string' && v.trim().length > 0) {
+      return v.trim();
+    }
+    return undefined;
+  };
+
+  const toBool = (v: unknown): boolean | undefined => {
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'string') {
+      const lower = v.toLowerCase().trim();
+      if (lower === 'true' || lower === '1' || lower === 'yes') return true;
+      if (lower === 'false' || lower === '0' || lower === 'no') return false;
+    }
+    return undefined;
+  };
+
+  const data: TestimonialDetailData = {
+    title: toStr(docMetaJson.title),
+    teaser: toStr(docMetaJson.teaser),
+    markdown: toStr(docMetaJson.markdown),
+    
+    // Fragen/Antworten
+    q1_experience: toStr(docMetaJson.q1_experience),
+    q2_key_insight: toStr(docMetaJson.q2_key_insight),
+    q3_why_important: toStr(docMetaJson.q3_why_important),
+    
+    // Autor-Informationen
+    author_name: toStr(docMetaJson.author_name),
+    author_role: toStr(docMetaJson.author_role),
+    author_nickname: toStr(docMetaJson.author_nickname),
+    author_is_named: toBool(docMetaJson.author_is_named),
+    author_image_url: toStr(docMetaJson.author_image_url),
+    
+    // Technische Felder
     fileId: toStr(root.fileId),
     fileName: toStr(root.fileName),
     upsertedAt: toStr(root.upsertedAt),

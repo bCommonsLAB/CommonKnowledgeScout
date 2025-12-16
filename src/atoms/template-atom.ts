@@ -1,11 +1,20 @@
 import { atom } from "jotai"
+import type { TemplateMetadataSchema, TemplateCreationConfig } from "@/lib/templates/template-types"
 
-// Template-Struktur
+// Template-Struktur (basierend auf TemplateDocument, aber ohne MongoDB-spezifische Felder)
 export interface Template {
+  _id: string
   name: string
-  yamlFrontmatter: string
+  libraryId: string
+  user: string
+  metadata: TemplateMetadataSchema
+  systemprompt: string
   markdownBody: string
-  systemPrompt: string
+  creation?: TemplateCreationConfig | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  version?: number
+  // Legacy-Felder für Kompatibilität (werden aus metadata generiert)
   lastModified?: string
   fileId?: string
 }

@@ -1,7 +1,7 @@
 import * as React from "react"
 import { UILogger } from "@/lib/debug/logger"
 import { Button } from "@/components/ui/button"
-import { Upload, AlertTriangle, ArrowLeft, Eye, FileStack, Sidebar, LayoutList } from "lucide-react"
+import { Upload, AlertTriangle, ArrowLeft, Eye, FileStack, Sidebar, LayoutList, Plus } from "lucide-react"
 import { UploadDialog } from "./upload-dialog"
 import { StorageProvider } from "@/lib/storage/types"
 import { useCallback } from "react"
@@ -12,6 +12,7 @@ import { Breadcrumb } from "./breadcrumb"
 import { AudioRecorderClient } from "./audio-recorder-client"
 import PdfBulkImportDialog from "./pdf-bulk-import-dialog"
 import { useFolderNavigation } from "@/hooks/use-folder-navigation"
+import { useRouter } from "next/navigation"
 
 interface LibraryHeaderProps {
   provider: StorageProvider | null
@@ -42,6 +43,7 @@ export function LibraryHeader({
   const [isReviewMode, setIsReviewMode] = useAtom(reviewModeAtom);
   const libraryState = useAtomValue(libraryAtom);
   const navigateToFolder = useFolderNavigation();
+  const router = useRouter();
 
   // Aktueller Library-Name (für Root-Ebene)
   const currentLibraryName = React.useMemo(() => {
@@ -169,6 +171,16 @@ export function LibraryHeader({
             ) : (
               <Eye className="h-4 w-4" />
             )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/library/create")}
+            title="Content erstellen"
+            aria-label="Content erstellen"
+          >
+            <Plus className="h-4 w-4" />
           </Button>
 
           <Button

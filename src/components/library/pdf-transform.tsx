@@ -59,19 +59,19 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     template: undefined
   });
 
-  // Lade Templates aus /templates und setze Default (pdfanalyse.md > erstes .md)
+  // Lade Templates aus MongoDB und setze Default (pdfanalyse > erstes Template)
   const loadTemplates = useCallback(async () => {
-    if (!provider) return;
+    if (!activeLibrary?.id) return;
     try {
       setIsLoadingTemplates(true);
-      // Verwende zentrale Template-Service Library
-      const { listAvailableTemplates } = await import('@/lib/templates/template-service')
-      const templates = await listAvailableTemplates(provider)
-      setTemplateOptions(templates);
+      // Verwende zentrale Client-Library für MongoDB-Templates
+      const { listAvailableTemplates } = await import('@/lib/templates/template-service-client')
+      const templateNames = await listAvailableTemplates(activeLibrary.id)
+      setTemplateOptions(templateNames);
 
-      // Default bestimmen: pdfanalyse.md > erstes .md
-      const preferred = templates.find(n => n.toLowerCase() === 'pdfanalyse.md');
-      const chosen = preferred || templates[0] || undefined;
+      // Default bestimmen: pdfanalyse > erstes Template
+      const preferred = templateNames.find((n: string) => n.toLowerCase() === 'pdfanalyse');
+      const chosen = preferred || templateNames[0] || undefined;
       setSaveOptions(prev => ({ ...prev, template: chosen }));
     } catch (e) {
       FileLogger.warn('PdfTransform', 'Templates konnten nicht geladen werden', { error: e instanceof Error ? e.message : String(e) });
@@ -79,12 +79,12 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     } finally {
       setIsLoadingTemplates(false);
     }
-  }, [provider]);
+  }, [activeLibrary?.id]);
 
-  // Templates laden bei Provider-/Library-Wechsel
+  // Templates laden bei Library-Wechsel
   useEffect(() => {
     void loadTemplates();
-  }, [provider, activeLibrary?.id, loadTemplates]);
+  }, [activeLibrary?.id, loadTemplates]);
   
   // Prüfe ob item vorhanden ist
   if (!item) {

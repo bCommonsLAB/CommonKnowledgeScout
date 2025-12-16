@@ -1,5 +1,7 @@
 'use client'
 
+import type { Item } from '@/types/item';
+
 export interface DocCardMeta {
   id: string
   fileId?: string
@@ -17,6 +19,10 @@ export interface DocCardMeta {
   slug?: string
   coverImageUrl?: string
   pages?: number
+  /** Item-Typ (document, event, joboffer, testimonial, etc.) */
+  docType?: string
+  /** Optional: Parent-Item-ID für Hierarchien (z.B. testimonial.parentId = event.id) */
+  parentId?: string
 }
 
 export interface ChapterInfo {
@@ -40,6 +46,38 @@ export interface GalleryTexts {
 
 export interface StatsTotals { docs: number; chunks: number }
 export interface StatsResponse { ok?: boolean; indexExists?: boolean; totals?: StatsTotals }
+
+/**
+ * Mappt ein Item zu DocCardMeta für die Gallery-Anzeige.
+ * 
+ * Diese Funktion konvertiert das generische Item-Modell in das
+ * Frontend-spezifische DocCardMeta-Format.
+ * 
+ * @param item Item aus MongoDB
+ * @returns DocCardMeta für Gallery-Komponenten
+ */
+export function mapItemToDocCardMeta(item: Item): DocCardMeta {
+  return {
+    id: item.id,
+    fileId: item.id,
+    fileName: item.fileName,
+    title: item.meta.title as string | undefined,
+    shortTitle: item.meta.shortTitle as string | undefined,
+    authors: item.authors,
+    speakers: item.meta.speakers as string[] | undefined,
+    speakers_image_url: item.meta.speakers_image_url as string[] | undefined,
+    year: item.year,
+    track: item.meta.track as string | undefined,
+    date: item.meta.date as string | undefined,
+    region: item.region,
+    upsertedAt: item.upsertedAt,
+    slug: item.meta.slug as string | undefined,
+    coverImageUrl: item.meta.coverImageUrl as string | undefined,
+    pages: item.meta.pages as number | undefined,
+    docType: item.docType,
+    parentId: item.parentId,
+  };
+}
 
 
 

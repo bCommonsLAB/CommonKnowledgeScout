@@ -21,6 +21,11 @@ import { FileLogger } from "@/lib/debug/logger"
 import { JobReportTab } from './job-report-tab';
 import { PdfPhasesView } from './pdf-phases-view';
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
+import { parseFrontmatter } from '@/lib/markdown/frontmatter';
+import { DetailViewRenderer } from './detail-view-renderer';
+import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
@@ -297,6 +302,7 @@ function PreviewContent({
   //   analyze?: { chapters?: Array<Record<string, unknown>>; toc?: Array<Record<string, unknown>> };
   // } | null>(null);
   const setSelectedFile = useSetAtom(selectedFileAtom);
+  const router = useRouter();
   
   // Hole Shadow-Twin-State für die aktuelle Datei
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
@@ -405,6 +411,34 @@ function PreviewContent({
         itemName: item.metadata.name,
         contentLength: content.length
       });
+      
+      // Prüfe, ob es eine Creation-Datei ist (mit Frontmatter-Metadaten)
+      const parsed = parseFrontmatter(content);
+      const meta = parsed.meta || {};
+      const body = parsed.body || '';
+      const creationTypeId = typeof meta.creationTypeId === 'string' ? meta.creationTypeId.trim() : undefined;
+      const creationDetailViewType = typeof meta.creationDetailViewType === 'string' 
+        ? (meta.creationDetailViewType as TemplatePreviewDetailViewType)
+        : undefined;
+      
+      // Filtere System-Keys aus Metadaten (nur Template-Metadaten für DetailView)
+      const templateMetadata: Record<string, unknown> = {};
+      const systemKeys = new Set(['creationTypeId', 'creationTemplateId', 'creationDetailViewType', 'textSources', 'templateName']);
+      for (const [key, value] of Object.entries(meta)) {
+        if (!systemKeys.has(key)) {
+          templateMetadata[key] = value;
+        }
+      }
+      
+      const isCreationFile = creationTypeId && creationDetailViewType;
+      
+      // Prüfe, ob es ein Dialograum ist (für Button "Dialograum Ergebnis erstellen")
+      const dialograumId = typeof meta.dialograum_id === 'string' ? meta.dialograum_id.trim() : undefined;
+      const isDialograum = dialograumId && (
+        creationTypeId === 'dialograum-creation-de' || 
+        (typeof meta.creationTemplateId === 'string' && meta.creationTemplateId.includes('dialograum-creation'))
+      );
+      
       return (
         <div className="h-full flex flex-col">
           <Tabs defaultValue="preview" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
@@ -416,15 +450,27 @@ function PreviewContent({
             </TabsList>
             <div className="flex-1 min-h-0">
               <TabsContent value="preview" className="h-full mt-0">
-                <MarkdownPreview 
-                  content={content}
-                  currentFolderId={currentFolderId}
-                  provider={provider}
-                  className="h-full"
-                  compact
-                  onTransform={() => setActiveTab("edit")}
-                  onRefreshFolder={onRefreshFolder}
-                />
+                {isCreationFile ? (
+                  <div className="h-full overflow-auto">
+                    <DetailViewRenderer
+                      detailViewType={creationDetailViewType}
+                      metadata={templateMetadata}
+                      markdown={body}
+                      libraryId={activeLibraryId}
+                      showBackLink={false}
+                    />
+                  </div>
+                ) : (
+                  <MarkdownPreview 
+                    content={content}
+                    currentFolderId={currentFolderId}
+                    provider={provider}
+                    className="h-full"
+                    compact
+                    onTransform={() => setActiveTab("edit")}
+                    onRefreshFolder={onRefreshFolder}
+                  />
+                )}
               </TabsContent>
               <TabsContent value="metadata" className="h-full mt-0">
                 <div className="h-full overflow-auto px-4 py-2">
@@ -439,11 +485,55 @@ function PreviewContent({
                   provider={provider}
                 />
               </TabsContent>
-              <TabsContent value="edit" className="h-full mt-0">
-                <TextEditor 
-              content={content}
-              provider={provider}
-              onSaveAction={async (newContent: string) => {
+              <TabsContent value="edit" className="h-full mt-0 flex flex-col">
+                {/* Button zum Öffnen im Creation-Flow (nur wenn creationTypeId vorhanden) */}
+                {isCreationFile && creationTypeId && (
+                  <div className="px-4 py-2 border-b space-y-2">
+                    <Button
+                      onClick={() => {
+                        if (!creationTypeId) return;
+                        
+                        const creationTemplateId = typeof meta.creationTemplateId === 'string' 
+                          ? meta.creationTemplateId.trim()
+                          : undefined;
+                        const params = new URLSearchParams();
+                        params.set('resumeFileId', item.id);
+                        if (creationTemplateId) {
+                          params.set('templateIdOverride', creationTemplateId);
+                        }
+                        // Trimme creationTypeId und encode für URL
+                        const trimmedTypeId = creationTypeId.trim();
+                        router.push(`/library/create/${encodeURIComponent(trimmedTypeId)}?${params.toString()}`);
+                      }}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Im Creation-Flow öffnen
+                    </Button>
+                    
+                    {/* Button für Dialograum Ergebnis (nur wenn Dialograum erkannt) */}
+                    {isDialograum && dialograumId && (
+                      <Button
+                        onClick={() => {
+                          const params = new URLSearchParams();
+                          params.set('seedFileId', item.id);
+                          // Type-ID für Dialograum-Ergebnis (wird aus Template-Namen abgeleitet)
+                          const ergebnisTypeId = 'dialograum-ergebnis-de';
+                          router.push(`/library/create/${encodeURIComponent(ergebnisTypeId)}?${params.toString()}`);
+                        }}
+                        variant="default"
+                        className="w-full"
+                      >
+                        Dialograum Ergebnis erstellen
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <div className="flex-1 min-h-0">
+                  <TextEditor 
+                    content={content}
+                    provider={provider}
+                    onSaveAction={async (newContent: string) => {
                 FileLogger.info('FilePreview', 'onSaveAction gestartet', {
                   itemId: item.id,
                   itemName: item.metadata.name,
@@ -552,7 +642,8 @@ function PreviewContent({
                   throw new Error('Speichern nicht möglich: onRefreshFolder Callback fehlt');
                 }
               }}
-                          />
+                    />
+                  </div>
               </TabsContent>
             </div>
           </Tabs>

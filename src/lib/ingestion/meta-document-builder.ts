@@ -13,6 +13,9 @@ export interface MetaDocument {
   source?: string
   tags?: string[]
   topics?: string[]
+  // Hierarchien (für Testimonials, Unter-Dokumente)
+  parentId?: string
+  parentSlug?: string
   // Aus docMetaJsonObj
   title?: string
   shortTitle?: string
@@ -57,6 +60,9 @@ export function buildMetaDocument(
     source: typeof mongoDoc.source === 'string' ? mongoDoc.source : undefined,
     tags: Array.isArray(mongoDoc.tags) ? mongoDoc.tags as string[] : undefined,
     topics: docMetaJsonObj.topics as string[] | undefined,
+    // Hierarchien (für Testimonials, Unter-Dokumente)
+    parentId: typeof docMetaJsonObj.parentId === 'string' ? docMetaJsonObj.parentId : undefined,
+    parentSlug: typeof docMetaJsonObj.parentSlug === 'string' ? docMetaJsonObj.parentSlug : undefined,
     // Aus docMetaJsonObj
     title: docMetaJsonObj.title as string | undefined,
     shortTitle: docMetaJsonObj.shortTitle as string | undefined,

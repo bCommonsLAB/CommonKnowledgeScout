@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { StructuredTemplateEditor } from "@/components/templates/structured-template-editor"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Save, Eye, Play, FolderOpen, Info } from "lucide-react"
+import { Loader2, Save, Eye, Play, FolderOpen, Info, Upload, Download } from "lucide-react"
 import { useAtom, useAtomValue } from "jotai"
 import { activeLibraryAtom, libraryStatusAtom } from "@/atoms/library-atom"
+import { useUser } from "@clerk/nextjs"
 import { 
   templatesAtom, 
   selectedTemplateNameAtom, 
@@ -31,14 +32,18 @@ import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { JobReportTab } from "@/components/library/job-report-tab"
 import { Textarea } from "@/components/ui/textarea"
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import type { TemplateCreationConfig, TemplateMetadataSchema } from '@/lib/templates/template-types'
+import { injectCreationIntoFrontmatter } from '@/lib/templates/template-frontmatter-utils'
 // Separator ungenutzt entfernt
 
-// Schema für Template-Daten
+// Schema für Template-Daten (strukturiert, ohne Frontmatter-String)
 const templateSchema = z.object({
   name: z.string().min(1, "Prompt-Name ist erforderlich"),
-  yamlFrontmatter: z.string(),
+  metadata: z.custom<TemplateMetadataSchema>(),
   markdownBody: z.string(),
-  systemPrompt: z.string(),
+  systemprompt: z.string(),
+  creation: z.custom<TemplateCreationConfig | null | undefined>().optional(),
 })
 
 type TemplateFormValues = z.infer<typeof templateSchema>
@@ -53,6 +58,10 @@ export function TemplateManagement() {
   const [rightTab, setRightTab] = useState<'kontext'|'preview'|'testen'>('kontext')
   const [resultSavedItemId, setResultSavedItemId] = useState<string | null>(null)
   const [freeText, setFreeText] = useState<string>("")
+  // Lokaler State, um Änderungen zu verfolgen, da React Hook Form verschachtelte Objekte nicht immer korrekt erkennt
+  const [hasChanges, setHasChanges] = useState(false)
+  // State für Validierungsfehler-Dialog
+  const [validationError, setValidationError] = useState<string | null>(null)
   // Magic Design
   const [magicMode, setMagicMode] = useState<boolean>(false)
   const [magicBody, setMagicBody] = useState<string>("")
@@ -67,8 +76,11 @@ export function TemplateManagement() {
   // Atoms
   const [templates, setTemplates] = useAtom(templatesAtom)
   const [selectedTemplateName, setSelectedTemplateName] = useAtom(selectedTemplateNameAtom)
-  const [selectedTemplate] = useAtom(selectedTemplateAtom)
-  const [templatesFolderId, setTemplatesFolderId] = useAtom(templatesFolderIdAtom)
+  // Diese Atome werden aktuell nicht verwendet, aber für zukünftige Verwendung bereitgehalten
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_unused_selectedTemplate] = useAtom(selectedTemplateAtom)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_unused_templatesFolderId, _unused_setTemplatesFolderId] = useAtom(templatesFolderIdAtom)
   const [isLoading, setIsLoading] = useAtom(templateLoadingAtom)
   const [error, setError] = useAtom(templateErrorAtom)
 
@@ -81,16 +93,21 @@ export function TemplateManagement() {
   } = useStorage()
   const getRootItems = useRootItems()
   const contextDocs = useAtomValue(templateContextDocsAtom)
+  const { user } = useUser()
+  const userEmail = user?.emailAddresses?.[0]?.emailAddress || null
 
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateSchema),
     defaultValues: {
       name: "",
-      yamlFrontmatter: `---
-title: {{title|Titel des Dokuments}}
-tags: {{tags|Relevante Tags}}
-date: {{date|Datum im Format yyyy-mm-dd}}
----`,
+      metadata: {
+        fields: [
+          { key: 'title', variable: 'title', description: 'Titel des Dokuments', rawValue: '{{title|Titel des Dokuments}}' },
+          { key: 'tags', variable: 'tags', description: 'Relevante Tags', rawValue: '{{tags|Relevante Tags}}' },
+          { key: 'date', variable: 'date', description: 'Datum im Format yyyy-mm-dd', rawValue: '{{date|Datum im Format yyyy-mm-dd}}' },
+        ],
+        rawFrontmatter: ''
+      },
       markdownBody: `# {{title}}
 
 ## Zusammenfassung
@@ -98,37 +115,29 @@ date: {{date|Datum im Format yyyy-mm-dd}}
 
 ## Details
 {{details|Detaillierte Beschreibung}}`,
-      systemPrompt: `You are a specialized assistant that processes and structures information clearly and concisely.
+      systemprompt: `You are a specialized assistant that processes and structures information clearly and concisely.
 
 IMPORTANT: Your response must be a valid JSON object where each key corresponds to a template variable.`,
+      creation: null,
     },
   })
 
-  // Helper zum Erzeugen von Default-Werten
-  function getDefaultTemplateValues(name: string): TemplateFormValues {
-    return {
-      name,
-      yamlFrontmatter: `---\n` +
-        `title: {{title|Titel des Dokuments}}\n` +
-        `tags: {{tags|Relevante Tags}}\n` +
-        `date: {{date|Datum im Format yyyy-mm-dd}}\n` +
-        `---`,
-      markdownBody: `# {{title}}\n\n## Zusammenfassung\n{{summary|Kurze Zusammenfassung des Inhalts}}\n\n## Details\n{{details|Detaillierte Beschreibung}}`,
-      systemPrompt: `You are a specialized assistant that processes and structures information clearly and concisely.\n\nIMPORTANT: Your response must be a valid JSON object where each key corresponds to a template variable.`,
-    }
-  }
-
   // Template-Daten laden wenn sich die Auswahl ändert
   useEffect(() => {
-    if (selectedTemplate) {
-      form.reset({
-        name: selectedTemplate.name,
-        yamlFrontmatter: selectedTemplate.yamlFrontmatter,
-        markdownBody: selectedTemplate.markdownBody,
-        systemPrompt: selectedTemplate.systemPrompt,
-      })
+    if (selectedTemplateName) {
+      const template = templates.find(t => t.name === selectedTemplateName)
+      if (template) {
+        form.reset({
+          name: template.name,
+          metadata: template.metadata,
+          markdownBody: template.markdownBody,
+          systemprompt: template.systemprompt,
+          creation: template.creation || null,
+        })
+        setHasChanges(false) // Reset hasChanges beim Laden eines neuen Templates
+      }
     }
-  }, [selectedTemplate, form])
+  }, [selectedTemplateName, templates, form])
 
   // Ordner-Erstellung/Suche memoisiert, damit als Dep verwendbar
   const ensureTemplatesFolder = useCallback(async (): Promise<string> => {
@@ -170,13 +179,13 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
     }
   }, [providerInstance, activeLibrary]);
 
-  // Templates laden mit der gleichen Logik wie Library-Komponente
+  // Templates aus MongoDB laden
   const loadTemplates = useCallback(async () => {
-    if (!providerInstance || libraryStatus !== 'ready' || !activeLibrary) {
+    if (libraryStatus !== 'ready' || !activeLibrary || !userEmail) {
       console.log('[TemplateManagement] loadTemplates übersprungen:', {
-        hasProvider: !!providerInstance,
         libraryStatus,
-        hasActiveLibrary: !!activeLibrary
+        hasActiveLibrary: !!activeLibrary,
+        hasUserEmail: !!userEmail
       });
       return;
     }
@@ -185,89 +194,70 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       setIsLoading(true);
       setError(null);
 
-      console.log('[TemplateManagement] Starte Prompt-Loading:', {
+      console.log('[TemplateManagement] Starte Prompt-Loading aus MongoDB:', {
         libraryId: activeLibrary.id,
-        libraryPath: activeLibrary.path,
-        providerName: providerInstance.name
+        userEmail
       });
 
-      // 1. Templates-Ordner finden oder erstellen
-      const folderId = await ensureTemplatesFolder();
-      setTemplatesFolderId(folderId);
+      // MongoDB API-Call
+      const response = await fetch(`/api/templates?libraryId=${encodeURIComponent(activeLibrary.id)}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
 
-      console.log('[TemplateManagement] Templates-Ordner gefunden/erstellt:', folderId);
+      const data = await response.json();
+      const mongoTemplates = data.templates || [];
 
-      // 2. Alle Template-Dateien im Ordner auflisten
-      const items = await listItems(folderId);
-      const templateFiles = items.filter(item => 
-        item.type === 'file' && 
-        item.metadata.name.endsWith('.md')
-      );
-
-      console.log('[TemplateManagement] Prompt-Dateien gefunden:', templateFiles.length);
-
-      // 3. Template-Inhalte laden
-      const templatePromises = templateFiles.map(async (file) => {
-        try {
-          const { blob } = await providerInstance.getBinary(file.id);
-          const content = await blob.text();
-          const template = parseTemplateContent(content, file.metadata.name.replace('.md', ''));
-          
-          return {
-            ...template,
-            fileId: file.id,
-            lastModified: typeof file.metadata.modifiedAt === 'string' 
-              ? file.metadata.modifiedAt 
-              : file.metadata.modifiedAt instanceof Date 
-                ? file.metadata.modifiedAt.toISOString()
-                : new Date().toISOString()
-          } as Template;
-        } catch (error) {
-          console.error(`Fehler beim Parsen von ${file.metadata.name}:`, error);
-          return null;
-        }
+      // Konvertiere MongoDB Templates direkt zu Template-Format (ohne Frontmatter-String)
+      const convertedTemplates: Template[] = mongoTemplates.map((t: {
+        _id: string;
+        name: string;
+        libraryId: string;
+        user: string;
+        metadata: { fields: Array<{ key: string; variable: string; description: string; rawValue: string }>; rawFrontmatter: string };
+        systemprompt: string;
+        markdownBody: string;
+        creation?: TemplateCreationConfig | null;
+        createdAt?: Date | string;
+        updatedAt: Date | string;
+        version?: number;
+      }) => {
+        return {
+          _id: t._id,
+          name: t.name,
+          libraryId: t.libraryId,
+          user: t.user,
+          metadata: t.metadata,
+          systemprompt: t.systemprompt,
+          markdownBody: t.markdownBody,
+          creation: t.creation || null,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
+          version: t.version,
+          // Legacy-Felder für Kompatibilität
+          fileId: t._id,
+          lastModified: typeof t.updatedAt === 'string' ? t.updatedAt : t.updatedAt.toISOString(),
+        } as Template;
       });
-
-      const loadedTemplates = await Promise.all(templatePromises);
-      const validTemplates = loadedTemplates.filter((t): t is Template => t !== null);
       
-      setTemplates(validTemplates);
+      setTemplates(convertedTemplates);
       
-      console.log('[TemplateManagement] Prompts erfolgreich geladen:', validTemplates.length);
+      console.log('[TemplateManagement] Prompts erfolgreich geladen:', convertedTemplates.length);
       
-      if (validTemplates.length === 0) {
+      if (convertedTemplates.length === 0) {
         toast({
           title: "Keine Prompts gefunden",
-          description: "Erstellen Sie Ihren ersten Prompt im Verzeichnis '/templates'.",
+          description: "Erstellen Sie Ihren ersten Prompt oder importieren Sie einen aus dem Storage.",
         });
       }
     } catch (error) {
-      console.error('Fehler beim Laden der Prompts:', {
-        error: error instanceof Error ? {
-          message: error.message,
-          name: error.name,
-          stack: error.stack?.split('\n').slice(0, 3)
-        } : error,
-        libraryId: activeLibrary?.id,
-        libraryPath: activeLibrary?.path,
-        providerName: providerInstance?.name
-      });
-
-      let errorMessage = 'Unbekannter Fehler beim Laden der Prompts';
+      console.error('Fehler beim Laden der Prompts:', error);
       
+      let errorMessage = 'Unbekannter Fehler beim Laden der Prompts';
       if (error instanceof Error) {
         errorMessage = error.message;
-        
-        // Spezifische Fehlermeldungen für häufige Probleme
-        if (error.message.includes('Nicht authentifiziert')) {
-          errorMessage = 'Bitte authentifizieren Sie sich bei Ihrem Cloud-Speicher, um Prompts zu laden.';
-        } else if (error.message.includes('Bibliothek nicht gefunden')) {
-          errorMessage = 'Die ausgewählte Bibliothek wurde nicht gefunden. Bitte überprüfen Sie die Bibliothekskonfiguration.';
-        } else if (error.message.includes('Server-Fehler')) {
-          errorMessage = 'Server-Fehler beim Laden der Prompts. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.';
-        } else if (error.message.includes('Keine aktive Bibliothek')) {
-          errorMessage = 'Keine aktive Bibliothek verfügbar. Bitte wählen Sie eine Bibliothek aus.';
-        }
       }
       
       setError(errorMessage);
@@ -279,29 +269,26 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
     } finally {
       setIsLoading(false);
     }
-  }, [providerInstance, libraryStatus, activeLibrary, listItems, setTemplates, setTemplatesFolderId, setIsLoading, setError, toast, ensureTemplatesFolder]);
+  }, [libraryStatus, activeLibrary, userEmail, setTemplates, setIsLoading, setError, toast]);
 
-  // Effect für Template Loading (wie Library-Komponente)
+  // Effect für Template Loading
   useEffect(() => {
-    const isReady = providerInstance && libraryStatus === 'ready' && activeLibrary
+    const isReady = libraryStatus === 'ready' && activeLibrary && userEmail
     
     if (!isReady) {
       return
     }
 
-    // Templates laden wenn noch nicht geladen
-    if (!templatesFolderId) {
-      loadTemplates()
-    }
-  }, [providerInstance, libraryStatus, activeLibrary, templatesFolderId, loadTemplates])
+    // Templates laden
+    loadTemplates()
+  }, [libraryStatus, activeLibrary, userEmail, loadTemplates])
 
   // Reset wenn sich die Library ändert
   useEffect(() => {
     setSelectedTemplateName(null)
-    setTemplatesFolderId(null)
     setTemplates([])
     setError(null)
-  }, [libraryStatus, setSelectedTemplateName, setTemplatesFolderId, setTemplates, setError])
+  }, [libraryStatus, setSelectedTemplateName, setTemplates, setError])
 
   useEffect(() => {
     async function loadSelectedContext() {
@@ -327,141 +314,192 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
     void loadSelectedContext()
   }, [providerInstance, selectedContextIds, contextDocs])
 
-  function parseTemplateContent(content: string, fileName: string): Template {
-    // Template in drei Bereiche aufteilen
-    const parts = content.split('--- systemprompt')
-    
-    let yamlFrontmatter = ""
-    let markdownBody = ""
-    let systemPrompt = ""
-    
-    if (parts.length >= 2) {
-      const mainContent = parts[0].trim()
-      systemPrompt = parts[1].trim()
-      
-      // YAML Frontmatter extrahieren
-      const yamlMatch = mainContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
-      if (yamlMatch) {
-        yamlFrontmatter = `---\n${yamlMatch[1]}\n---`
-        markdownBody = yamlMatch[2].trim()
-      } else {
-        // Kein YAML Frontmatter gefunden
-        markdownBody = mainContent
-      }
-    } else {
-      // Kein Systemprompt gefunden
-      const yamlMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
-      if (yamlMatch) {
-        yamlFrontmatter = `---\n${yamlMatch[1]}\n---`
-        markdownBody = yamlMatch[2].trim()
-      } else {
-        markdownBody = content
-      }
-    }
-
-    return {
-      name: fileName,
-      yamlFrontmatter,
-      markdownBody,
-      systemPrompt,
-    }
-  }
-
   function generateTemplateContent(values: TemplateFormValues): string {
-    let content = ""
-    
-    // YAML Frontmatter hinzufügen
-    if (values.yamlFrontmatter.trim()) {
-      content += values.yamlFrontmatter + "\n\n"
+    // Generiere Frontmatter aus metadata
+    const frontmatterLines: string[] = []
+    for (const field of values.metadata.fields) {
+      frontmatterLines.push(`${field.key}: ${field.rawValue || `{{${field.variable}|${field.description}}}`}`)
     }
     
-    // Markdown Body hinzufügen
-    content += values.markdownBody
+    // Füge creation-Block hinzu, falls vorhanden
+    let frontmatter = `---\n${frontmatterLines.join('\n')}\n---`
+    if (values.creation) {
+      frontmatter = injectCreationIntoFrontmatter(frontmatter, values.creation)
+    }
     
-    // System Prompt hinzufügen
-    if (values.systemPrompt.trim()) {
-      content += "\n\n--- systemprompt\n" + values.systemPrompt
+    // Kombiniere Frontmatter, Body und Systemprompt
+    let content = frontmatter + '\n\n' + values.markdownBody
+    if (values.systemprompt.trim()) {
+      content += '\n\n--- systemprompt\n' + values.systemprompt
     }
     
     return content
   }
 
   async function onSubmit(data: TemplateFormValues) {
-    if (!activeLibrary || !templatesFolderId || !providerInstance) {
+    console.log('[TemplateManagement] onSubmit aufgerufen', { 
+      hasActiveLibrary: !!activeLibrary, 
+      hasUserEmail: !!userEmail,
+      templateName: data.name,
+      hasCreation: !!data.creation,
+      creationUI: data.creation?.ui,
+      activeLibraryId: activeLibrary?.id,
+      userEmailValue: userEmail
+    })
+    
+    if (!activeLibrary || !userEmail) {
+      console.log('[TemplateManagement] Fehler: Keine Library oder User', { 
+        activeLibrary: !!activeLibrary, 
+        userEmail: !!userEmail 
+      })
       toast({
         title: "Fehler",
-        description: "Keine aktive Bibliothek oder Templates-Ordner nicht gefunden.",
+        description: "Keine aktive Bibliothek oder Benutzer nicht authentifiziert.",
+        variant: "destructive",
+      })
+      return
+    }
+    
+    console.log('[TemplateManagement] Validierung startet...', {
+      hasCreation: !!data.creation,
+      hasFlow: !!data.creation?.flow,
+      hasSteps: !!data.creation?.flow?.steps,
+      stepsCount: data.creation?.flow?.steps?.length || 0,
+      metadataFieldsCount: data.metadata.fields.length
+    })
+
+    try {
+      // Validierung: Prüfe, ob alle referenzierten Felder in den Metadaten existieren
+      if (data.creation?.flow?.steps) {
+      console.log('[TemplateManagement] Prüfe Creation Flow Steps...', {
+        stepsCount: data.creation.flow.steps.length,
+        metadataFields: data.metadata.fields.map(f => f.key)
+      })
+      
+      const availableFieldKeys = new Set(data.metadata.fields.map(f => f.key))
+      const invalidFields: Array<{ stepId: string; stepTitle?: string; fields: string[] }> = []
+      
+      for (const step of data.creation.flow.steps) {
+        console.log('[TemplateManagement] Prüfe Step:', {
+          stepId: step.id,
+          preset: step.preset,
+          hasFields: !!step.fields,
+          fields: step.fields
+        })
+        
+        if (step.preset === 'editDraft' && step.fields) {
+          const missingFields = step.fields.filter(field => !availableFieldKeys.has(field))
+          if (missingFields.length > 0) {
+            console.log('[TemplateManagement] Fehlende Felder gefunden:', missingFields)
+            invalidFields.push({
+              stepId: step.id,
+              stepTitle: step.title,
+              fields: missingFields
+            })
+          }
+        }
+      }
+      
+      if (invalidFields.length > 0) {
+        console.log('[TemplateManagement] Validierungsfehler gefunden:', invalidFields)
+        const errorMessages = invalidFields.map(({ stepId, stepTitle, fields }) => 
+          `Step "${stepTitle || stepId}": Felder ${fields.map(f => `"${f}"`).join(', ')} existieren nicht in den Metadaten.`
+        ).join('\n')
+        
+        console.log('[TemplateManagement] Zeige Toast mit Validierungsfehler...')
+        toast({
+          title: "Validierungsfehler",
+          description: errorMessages,
+          variant: "destructive",
+          duration: 10000, // 10 Sekunden anzeigen
+        })
+        
+        // Zusätzlich Alert-Dialog anzeigen, damit der Fehler sicher sichtbar ist
+        setValidationError(errorMessages)
+        console.log('[TemplateManagement] Toast und Dialog angezeigt, beende Funktion')
+        return
+      }
+      
+      console.log('[TemplateManagement] Validierung erfolgreich - keine fehlenden Felder')
+      } else {
+        console.log('[TemplateManagement] Keine Creation Flow Steps zu validieren')
+      }
+    } catch (validationError) {
+      console.error('[TemplateManagement] Fehler während der Validierung:', validationError)
+      toast({
+        title: "Validierungsfehler",
+        description: validationError instanceof Error ? validationError.message : "Unbekannter Validierungsfehler",
         variant: "destructive",
       })
       return
     }
 
+    console.log('[TemplateManagement] Validierung erfolgreich, starte Speichern...')
     setIsSaving(true)
     try {
-      const templateContent = generateTemplateContent(data)
-      const fileName = `${data.name}.md`
-      
-      console.group('[TemplateManagement] Speichern')
-      console.log('Library', { id: activeLibrary.id, label: activeLibrary.label, path: activeLibrary.path })
-      console.log('TemplatesFolderId', templatesFolderId)
-      console.log('Datei', { fileName, contentLen: templateContent.length })
-      
-      // Falls Datei mit gleichem Namen existiert: erst löschen, dann neu schreiben
       const existing = templates.find(t => t.name.toLowerCase() === data.name.toLowerCase())
-      if (existing?.fileId) {
-        console.log('Bestehende Datei gefunden, lösche', { fileId: existing.fileId })
-        try {
-          await providerInstance.deleteItem(existing.fileId)
-          console.log('Löschen OK')
-        } catch (e) {
-          console.error('Löschen fehlgeschlagen', e)
-          toast({ title: 'Löschen fehlgeschlagen', description: e instanceof Error ? e.message : String(e), variant: 'destructive' })
+      
+      console.log('[TemplateManagement] Speichere Template', {
+        isUpdate: !!existing,
+        templateName: data.name,
+        libraryId: activeLibrary.id,
+        creation: data.creation
+      })
+      
+      if (existing) {
+        // Update bestehendes Template
+        const response = await fetch('/api/templates', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateId: data.name,
+            libraryId: activeLibrary.id,
+            metadata: data.metadata,
+            systemprompt: data.systemprompt,
+            markdownBody: data.markdownBody,
+            creation: data.creation || null,
+          }),
+        })
+        
+        console.log('[TemplateManagement] PUT Response', { status: response.status, ok: response.ok })
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `HTTP ${response.status}`)
         }
       } else {
-        console.log('Keine bestehende Datei mit gleichem Namen gefunden')
-      }
-      
-      // Datei als Blob erstellen und hochladen (Neu-Anlage / Ersetzen)
-      const blob = new Blob([templateContent], { type: 'text/markdown' })
-      const file = new File([blob], fileName, { type: 'text/markdown' })
-      const uploaded = await providerInstance.uploadFile(templatesFolderId, file)
-      console.log('Upload Ergebnis', uploaded)
-      
-      // Direkt nach Upload erneut lesen (Bypass-Stale) und lokalen State aktualisieren
-      try {
-        const { blob: rbBlob } = await providerInstance.getBinary(uploaded.id)
-        const rbText = await rbBlob.text()
-        console.log('Read-Back Länge', rbText.length, 'Auszug', rbText.slice(0, 120))
-        const parsed = parseTemplateContent(rbText, data.name)
-        const updated: Template = {
-          ...parsed,
-          fileId: uploaded.id,
-          lastModified: new Date().toISOString()
+        // Erstelle neues Template
+        const response = await fetch('/api/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: data.name,
+            libraryId: activeLibrary.id,
+            metadata: data.metadata,
+            systemprompt: data.systemprompt,
+            markdownBody: data.markdownBody,
+            creation: data.creation || null,
+          }),
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `HTTP ${response.status}`)
         }
-        const nextTemplates = templates
-          .filter((t) => t.name.toLowerCase() !== data.name.toLowerCase())
-          .concat(updated)
-        setTemplates(nextTemplates)
-      } catch (e) {
-        console.warn('Read-Back nach Upload fehlgeschlagen', e)
       }
       
-      // Kurze Wartezeit, damit Remote-Provider (OneDrive) Index/Cache aktualisiert
-      await new Promise(r => setTimeout(r, 500))
-      
-      // Templates neu laden (finaler Sync mit Remote)
+      // Templates neu laden
       await loadTemplates()
-      console.log('Templates neu geladen')
       
-      // Auswahl auf das neue Template setzen
+      // Auswahl auf das Template setzen
       setSelectedTemplateName(data.name)
-      console.log('Auswahl gesetzt', data.name)
+      form.reset(data, { keepDirty: false })
+      setHasChanges(false) // Reset hasChanges nach erfolgreichem Speichern
       
       toast({
         title: "Prompt gespeichert",
-        description: `"${data.name}" wurde aktualisiert.`,
+        description: `"${data.name}" wurde ${existing ? 'aktualisiert' : 'erstellt'}.`,
       })
-      console.groupEnd()
     } catch (error) {
       console.error('Fehler beim Speichern des Templates:', error)
       toast({
@@ -475,35 +513,77 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
   }
 
   async function renameCurrentTemplate() {
-    const current = selectedTemplateName ? templates.find(t => t.name === selectedTemplateName) : null
-    if (!current || !current.fileId || !providerInstance) return
+    if (!selectedTemplateName || !activeLibrary || !userEmail) return
+    
+    const current = templates.find(t => t.name === selectedTemplateName)
+    if (!current) return
+    
     const newName = (window.prompt('Neuen Namen eingeben:', current.name) || '').trim()
     if (!newName || newName === current.name) return
-    if (/[^a-zA-Z0-9._\- ]/.test(newName)) { toast({ title: 'Ungültiger Name', description: 'Nur Buchstaben, Zahlen, Leerzeichen, . _ - sind erlaubt.', variant: 'destructive' }); return }
-    if (templates.some(t => t.name.toLowerCase() === newName.toLowerCase())) { toast({ title: 'Bereits vorhanden', description: 'Bitte anderen Namen wählen.', variant: 'destructive' }); return }
+    if (/[^a-zA-Z0-9._\- ]/.test(newName)) { 
+      toast({ title: 'Ungültiger Name', description: 'Nur Buchstaben, Zahlen, Leerzeichen, . _ - sind erlaubt.', variant: 'destructive' })
+      return 
+    }
+    if (templates.some(t => t.name.toLowerCase() === newName.toLowerCase())) { 
+      toast({ title: 'Bereits vorhanden', description: 'Bitte anderen Namen wählen.', variant: 'destructive' })
+      return 
+    }
+    
     try {
-      await providerInstance.renameItem(current.fileId, `${newName}.md`)
+      // Lade aktuelles Template aus MongoDB
+      const loadResponse = await fetch(`/api/templates?libraryId=${encodeURIComponent(activeLibrary.id)}`)
+      if (!loadResponse.ok) throw new Error('Fehler beim Laden des Templates')
+      const { templates: allTemplates } = await loadResponse.json()
+      const currentTemplate = allTemplates.find((t: { name: string }) => t.name === selectedTemplateName)
+      
+      if (!currentTemplate) {
+        throw new Error('Template nicht gefunden')
+      }
+
+      // Erstelle neues Template mit neuem Namen
+      const createResponse = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newName,
+          libraryId: activeLibrary.id,
+          metadata: currentTemplate.metadata,
+          systemprompt: currentTemplate.systemprompt,
+          markdownBody: currentTemplate.markdownBody,
+          creation: currentTemplate.creation,
+        }),
+      })
+      
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP ${createResponse.status}`)
+      }
+
+      // Lösche altes Template
+      await deleteTemplate(selectedTemplateName)
+      
       await loadTemplates()
       setSelectedTemplateName(newName)
       form.setValue('name', newName, { shouldDirty: false })
       toast({ title: 'Umbenannt', description: `${current.name} → ${newName}` })
-      } catch (err) {
+    } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'
       toast({ title: 'Fehler beim Umbenennen', description: msg, variant: 'destructive' })
     }
   }
 
   async function deleteTemplate(templateName: string) {
-    if (!activeLibrary || !providerInstance) return
+    if (!activeLibrary || !userEmail) return
 
     try {
-      const template = templates.find(t => t.name === templateName)
-      if (!template?.fileId) {
-        throw new Error("Template-Datei nicht gefunden")
+      const response = await fetch(`/api/templates?templateId=${encodeURIComponent(templateName)}&libraryId=${encodeURIComponent(activeLibrary.id)}`, {
+        method: 'DELETE',
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
-
-      // Datei löschen
-      await providerInstance.deleteItem(template.fileId)
 
       // Templates neu laden
       await loadTemplates()
@@ -528,24 +608,188 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
   }
 
   async function createNewTemplate() {
+    if (!activeLibrary || !userEmail) {
+      toast({ title: 'Fehler', description: 'Keine aktive Bibliothek oder Benutzer nicht authentifiziert.', variant: 'destructive' })
+      return
+    }
+    
     const name = (window.prompt('Neuen Template‑Namen eingeben:') || '').trim()
     if (!name) return
     if (/[^a-zA-Z0-9._\- ]/.test(name)) { toast({ title: 'Ungültiger Name', description: 'Nur Buchstaben, Zahlen, Leerzeichen, . _ - sind erlaubt.', variant: 'destructive' }); return }
     if (templates.some(t => t.name.toLowerCase() === name.toLowerCase())) { toast({ title: 'Bereits vorhanden', description: 'Bitte anderen Namen wählen.', variant: 'destructive' }); return }
-    if (!providerInstance) { toast({ title: 'Kein Provider' , variant: 'destructive' }); return }
+    
     try {
-      const folderId = await ensureTemplatesFolder()
-      const values = getDefaultTemplateValues(name)
-      const content = (values.yamlFrontmatter ? values.yamlFrontmatter + '\n\n' : '') + values.markdownBody + '\n\n--- systemprompt\n' + values.systemPrompt
-      const file = new File([new Blob([content], { type: 'text/markdown' })], `${name}.md`, { type: 'text/markdown' })
-      await providerInstance.uploadFile(folderId, file)
+      const defaultMetadata: TemplateMetadataSchema = {
+        fields: [
+          { key: 'title', variable: 'title', description: 'Titel des Dokuments', rawValue: '{{title|Titel des Dokuments}}' },
+          { key: 'tags', variable: 'tags', description: 'Relevante Tags', rawValue: '{{tags|Relevante Tags}}' },
+          { key: 'date', variable: 'date', description: 'Datum im Format yyyy-mm-dd', rawValue: '{{date|Datum im Format yyyy-mm-dd}}' },
+        ],
+        rawFrontmatter: ''
+      }
+      
+      const response = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          libraryId: activeLibrary.id,
+          metadata: defaultMetadata,
+          systemprompt: `You are a specialized assistant that processes and structures information clearly and concisely.
+
+IMPORTANT: Your response must be a valid JSON object where each key corresponds to a template variable.`,
+          markdownBody: `# {{title}}
+
+## Zusammenfassung
+{{summary|Kurze Zusammenfassung des Inhalts}}
+
+## Details
+{{details|Detaillierte Beschreibung}}`,
+          creation: null,
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+      
       await loadTemplates()
       setSelectedTemplateName(name)
-      form.reset(values)
       toast({ title: 'Template angelegt', description: `"${name}" wurde erstellt.` })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'
       toast({ title: 'Fehler beim Anlegen', description: msg, variant: 'destructive' })
+    }
+  }
+
+  async function handleImport() {
+    if (!activeLibrary || !userEmail) {
+      toast({ title: 'Fehler', description: 'Keine aktive Bibliothek oder Benutzer nicht authentifiziert.', variant: 'destructive' })
+      return
+    }
+
+    // Erstelle verstecktes File-Input-Element
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.md'
+    input.style.display = 'none'
+    
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        // Lade Datei-Inhalt
+        const content = await file.text()
+        const fileName = file.name.replace(/\.md$/, '')
+        
+        // Parse Template
+        const { parseTemplateContent: parseTemplate } = await import('@/lib/templates/template-service')
+        const { template } = parseTemplate(content, fileName)
+        
+        // Prüfe, ob Template bereits existiert
+        const checkResponse = await fetch(`/api/templates?libraryId=${encodeURIComponent(activeLibrary.id)}`)
+        let templateExists = false
+        
+        if (checkResponse.ok) {
+          const data = await checkResponse.json()
+          const templates = data.templates || []
+          // Prüfe sowohl _id als auch name (beide sollten gleich sein, aber sicherheitshalber beide prüfen)
+          templateExists = templates.some((t: { _id?: string; name?: string }) => 
+            (t._id && t._id === fileName) || (t.name && t.name === fileName)
+          )
+        }
+        
+        // Wenn Template existiert, frage nach Bestätigung
+        if (templateExists) {
+          const shouldOverwrite = window.confirm(
+            `Das Template "${fileName}" existiert bereits.\n\nMöchten Sie es überschreiben?`
+          )
+          if (!shouldOverwrite) {
+            toast({ title: 'Import abgebrochen', description: 'Das Template wurde nicht importiert.' })
+            return
+          }
+        }
+        
+        // Speichere oder aktualisiere in MongoDB
+        const method = templateExists ? 'PUT' : 'POST'
+        
+        const response = await fetch('/api/templates', {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...(templateExists ? { templateId: fileName } : { name: fileName }),
+            libraryId: activeLibrary.id,
+            metadata: template.metadata,
+            systemprompt: template.systemprompt,
+            markdownBody: template.markdownBody,
+            creation: template.creation,
+          }),
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `HTTP ${response.status}`)
+        }
+
+        await loadTemplates()
+        toast({ 
+          title: templateExists ? 'Template aktualisiert' : 'Template importiert', 
+          description: `"${fileName}" wurde erfolgreich ${templateExists ? 'aktualisiert' : 'importiert'}.` 
+        })
+      } catch (error) {
+        console.error('Fehler beim Importieren:', error)
+        toast({
+          title: 'Fehler beim Importieren',
+          description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+          variant: 'destructive',
+        })
+      } finally {
+        document.body.removeChild(input)
+      }
+    }
+    
+    document.body.appendChild(input)
+    input.click()
+  }
+
+  async function handleExport() {
+    if (!selectedTemplateName || !activeLibrary || !userEmail) {
+      toast({ title: 'Fehler', description: 'Bitte wählen Sie ein Template aus.', variant: 'destructive' })
+      return
+    }
+
+    try {
+      // Lade Template als Markdown von API
+      const response = await fetch(
+        `/api/templates/${encodeURIComponent(selectedTemplateName)}/download?libraryId=${encodeURIComponent(activeLibrary.id)}`
+      )
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
+      // Erstelle Blob und trigger Download
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${selectedTemplateName}.md`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast({ title: 'Template exportiert', description: `"${selectedTemplateName}.md" wurde heruntergeladen.` })
+    } catch (error) {
+      console.error('Fehler beim Exportieren:', error)
+      toast({
+        title: 'Fehler beim Exportieren',
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -760,10 +1004,12 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       if (!corrected) throw new Error('Antwort ohne corrected_template')
 
       // 4) Template parsen und Formular übernehmen
-      const parsed = parseTemplateContent(corrected, selectedTemplateName)
-      form.setValue('yamlFrontmatter', parsed.yamlFrontmatter, { shouldDirty: true })
-      form.setValue('markdownBody', parsed.markdownBody, { shouldDirty: true })
-      form.setValue('systemPrompt', parsed.systemPrompt, { shouldDirty: true })
+      const { parseTemplateContent: parseTemplate } = await import('@/lib/templates/template-service')
+      const { template } = parseTemplate(corrected, selectedTemplateName)
+      form.setValue('metadata', template.metadata, { shouldDirty: true })
+      form.setValue('markdownBody', template.markdownBody, { shouldDirty: true })
+      form.setValue('systemprompt', template.systemprompt, { shouldDirty: true })
+      form.setValue('creation', template.creation || null, { shouldDirty: true })
       setMagicLastDiff(diff || '')
       toast({ title: 'Magic Design angewendet', description: 'Änderungen übernommen (nicht gespeichert).' })
 
@@ -846,7 +1092,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
       <div className="flex items-center gap-2">
         <Select value={selectedTemplateName || ''} onValueChange={(v) => { setSelectedTemplateName(v); form.setValue('name', v, { shouldDirty: false }) }} disabled={isLoading}>
           <SelectTrigger className="w-64">
-            <SelectValue placeholder="Prompt auswählen..." />
+              <SelectValue placeholder="Vorlage auswählen..." />
           </SelectTrigger>
           <SelectContent>
             {templates.map((t) => (
@@ -865,32 +1111,51 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
           </Tooltip>
         </TooltipProvider>
         <Button type="button" variant="outline" size="sm" onClick={createNewTemplate} disabled={isLoading}>Neu</Button>
-        <Button type="button" variant="outline" size="sm" onClick={renameCurrentTemplate} disabled={!selectedTemplateName}>Umbenennen</Button>
+        <Button type="button" variant="outline" size="sm" onClick={handleImport} disabled={isLoading || !userEmail}>
+          <Upload className="h-4 w-4 mr-2" />
+          Import
+        </Button>
         {selectedTemplateName && (
-          <Button type="button" variant="destructive" size="sm" onClick={() => deleteTemplate(selectedTemplateName!)}>Löschen</Button>
+          <>
+            <Button type="button" variant="outline" size="sm" onClick={handleExport} disabled={isLoading || !userEmail}>
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={renameCurrentTemplate} disabled={!selectedTemplateName}>Umbenennen</Button>
+            <Button type="button" variant="destructive" size="sm" onClick={() => deleteTemplate(selectedTemplateName!)}>Löschen</Button>
+          </>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Prompt Design</CardTitle>
+            <CardTitle>Vorlage gestalten</CardTitle>
             <CardDescription>
-              Drei Bereiche: Aufgabe (was), Rollenanweisung (wie), Metadaten (Begleitinfos).
+              Diese Vorlage beschreibt, wie Eingaben wie Dateien, Webseiten, Notizen oder Ideen in gut lesbaren, strukturierten Text verwandelt werden.
+              Sie legt fest, welche Informationen daraus extrahiert werden, wie der Text klingen soll, wie er aufgebaut ist
+              und wie Menschen ihre Daten Schritt für Schritt eingeben.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+              console.log('[TemplateManagement] Form-Validierungsfehler:', errors)
+              toast({
+                title: "Validierungsfehler",
+                description: "Bitte prüfen Sie die Eingaben.",
+                variant: "destructive",
+              })
+            })} className="space-y-6">
               {/* Template-Name Feld entfernt (oben verwaltet) */}
 
-              {!selectedTemplateName ? (
-                <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                  Bitte oben einen Prompt auswählen oder Neu anlegen.
-                </div>
+                  {!selectedTemplateName ? (
+                    <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+                      Bitte oben eine Vorlage auswählen oder Neu anlegen.
+                    </div>
               ) : previewMode ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">Prompt-Vorschau</h4>
+                    <h4 className="text-sm font-medium">Vorlagen-Vorschau</h4>
                     <Button
                       type="button"
                       variant="outline"
@@ -910,8 +1175,9 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                 <>
                   <StructuredTemplateEditor
                     markdownBody={form.watch('markdownBody')}
-                    yamlFrontmatter={form.watch('yamlFrontmatter')}
-                    systemPrompt={form.watch('systemPrompt')}
+                    metadata={form.watch('metadata')}
+                    systemprompt={form.watch('systemprompt')}
+                    creation={form.watch('creation')}
                     magicMode={magicMode}
                     magicValues={{ body: magicBody, frontmatter: magicFrontmatter, system: magicSystem }}
                     onMagicChange={(next) => {
@@ -919,10 +1185,24 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                       if (next.frontmatter !== undefined) setMagicFrontmatter(next.frontmatter)
                       if (next.system !== undefined) setMagicSystem(next.system)
                     }}
-                    onChange={({ markdownBody, yamlFrontmatter, systemPrompt }) => {
+                    onChange={({ markdownBody, metadata, systemprompt, creation }) => {
                       form.setValue('markdownBody', markdownBody, { shouldDirty: true })
-                      form.setValue('yamlFrontmatter', yamlFrontmatter, { shouldDirty: true })
-                      form.setValue('systemPrompt', systemPrompt, { shouldDirty: true })
+                      form.setValue('metadata', metadata, { shouldDirty: true })
+                      form.setValue('systemprompt', systemprompt, { shouldDirty: true })
+                      // Stelle sicher, dass creation immer ein neues Objekt ist, damit React Hook Form die Änderung erkennt
+                      // Erstelle eine Deep-Copy, damit React Hook Form die Änderung als "dirty" erkennt
+                      const creationValue = creation ? {
+                        ...creation,
+                        supportedSources: creation.supportedSources ? [...creation.supportedSources] : [],
+                        flow: creation.flow ? {
+                          ...creation.flow,
+                          steps: creation.flow.steps ? [...creation.flow.steps] : []
+                        } : { steps: [] },
+                        ui: creation.ui ? { ...creation.ui } : undefined
+                      } : null
+                      form.setValue('creation', creationValue, { shouldDirty: true })
+                      // Markiere als geändert, da React Hook Form verschachtelte Objekte nicht immer korrekt erkennt
+                      setHasChanges(true)
                     }}
                   />
                 </>
@@ -953,7 +1233,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                 </Button>
                 <Button
                   type="submit"
-                  disabled={!selectedTemplateName || isSaving || !form.formState.isDirty}
+                  disabled={!selectedTemplateName || isSaving || (!form.formState.isDirty && !hasChanges)}
                 >
                   {isSaving ? (
                     <>
@@ -974,15 +1254,15 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
 
         <Card>
           <CardHeader>
-            <CardTitle>Prompt testen</CardTitle>
+            <CardTitle>Transformation testen</CardTitle>
             <CardDescription>
-              Test mit Beispieltext. Nutzt Rollenanweisung, Aufgabe und Metadaten des Prompts.
+              Test mit Beispieltext. Nutzt Metadaten, Rollenanweisung und Struktur des Templates – unabhängig vom Creation Flow.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {!selectedTemplateName ? (
               <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                Bitte oben einen Prompt auswählen. Die Vorschau und Test‑Funktionen werden erst danach aktiviert.
+                Bitte oben eine Vorlage auswählen. Die Vorschau und Test‑Funktionen werden erst danach aktiviert.
               </div>
             ) : (
               <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as typeof rightTab)}>
@@ -1058,7 +1338,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                       ) : (
                         <>
                           <Play className="h-4 w-4 mr-2" />
-                          Prompt testen
+                          Transformation starten
                         </>
                       )}
                     </Button>
@@ -1081,7 +1361,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                       ) : (
                         <>
                           <Play className="h-4 w-4 mr-2" />
-                          Prompt testen
+                          Transformation starten
                         </>
                       )}
                     </Button>
@@ -1108,6 +1388,21 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
           </CardContent>
         </Card>
       </div>
+
+      {/* Validierungsfehler-Dialog */}
+      <AlertDialog open={!!validationError} onOpenChange={(open) => !open && setValidationError(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Validierungsfehler</AlertDialogTitle>
+            <AlertDialogDescription className="whitespace-pre-wrap">
+              {validationError}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setValidationError(null)}>Verstanden</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 } 
