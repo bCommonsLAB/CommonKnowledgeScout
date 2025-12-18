@@ -82,10 +82,10 @@ creation:
 # Template Body
 `
 
-    const result = parseTemplate(templateContent, "test-template")
-    expect(result.creation?.imageFields).toHaveLength(1)
-    expect(result.creation?.imageFields?.[0]?.key).toBe("coverImageUrl")
-    expect(result.creation?.imageFields?.[0]?.label).toBe("Cover")
+    const { template } = parseTemplate(templateContent, "test-template")
+    expect(template.creation?.imageFields).toHaveLength(1)
+    expect(template.creation?.imageFields?.[0]?.key).toBe("coverImageUrl")
+    expect(template.creation?.imageFields?.[0]?.label).toBe("Cover")
   })
 })
 

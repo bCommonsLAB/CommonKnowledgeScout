@@ -43,6 +43,35 @@ export async function findPdfMarkdown(
   baseName: string,
   lang: string
 ): Promise<FoundMarkdown> {
+  // Verwende die robuste Shadow-Twin-Suche, die auch im Shadow-Twin-Verzeichnis sucht
+  // und Fallback auf andere Sprachen hat
+  const { findShadowTwinMarkdownFile } = await import('@/lib/external-jobs/shadow-twin-finder')
+  const { findShadowTwinFolder } = await import('@/lib/storage/shadow-twin')
+  
+  // Bestimme originalName aus baseName (falls nicht verfügbar, verwende baseName)
+  const originalName = `${baseName}.pdf` // Annahme: Original ist PDF
+  
+  // 1. Versuche Shadow-Twin-Verzeichnis zu finden
+  const shadowTwinFolder = await findShadowTwinFolder(parentId, originalName, provider)
+  
+  if (shadowTwinFolder) {
+    // Suche im Shadow-Twin-Verzeichnis
+    const { findShadowTwinMarkdown } = await import('@/lib/storage/shadow-twin')
+    const markdownInFolder = await findShadowTwinMarkdown(shadowTwinFolder.id, baseName, lang, provider, true)
+    
+    if (markdownInFolder) {
+      const bin = await provider.getBinary(markdownInFolder.id)
+      const text = await bin.blob.text()
+      return {
+        hasMarkdown: true,
+        fileId: markdownInFolder.id,
+        fileName: markdownInFolder.metadata.name,
+        text,
+      }
+    }
+  }
+  
+  // 2. Fallback: Suche im Parent-Verzeichnis (wie bisher)
   const expectedFileName = `${baseName}.${lang}.md`
   const siblings = await provider.listItemsById(parentId)
 

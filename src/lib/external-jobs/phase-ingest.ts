@@ -69,6 +69,9 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
     }
   }
   
+  // Aktualisiere ctx.job mit freshJob, damit loadShadowTwinMarkdown shadowTwinState verwenden kann
+  ctx.job = freshJob
+  
   // Verwende Shadow-Twin-State aus aktuellem Job-Dokument (beim Job-Start berechnet)
   // Dies ist die zentrale Logik, die auch Template-Phase verwendet
   const shadowTwinFolderId = freshJob.shadowTwinState?.shadowTwinFolderId

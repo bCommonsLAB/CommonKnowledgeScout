@@ -38,49 +38,65 @@ export interface FrontmatterEntry {
 
 export function extractFrontmatterBlock(markdown: string): string | null {
   if (typeof markdown !== 'string' || markdown.length === 0) return null;
-  // Robustere Erkennung:
-  // - optionales UTF‑8‑BOM am Anfang
-  // - optionale Leerzeilen vor dem ersten Frontmatter‑Block
-  // - Abschluss‑Delimiter auf eigener Zeile (mit oder ohne Zeilenumbruch danach)
-  //
-  // Wichtig: Der Regex muss den kompletten Block inkl. Delimiter zurückgeben.
-  // Non-greedy Match (`*?`) stoppt beim ersten passenden End-Delimiter.
-  // Unterstützt sowohl \n (Unix) als auch \r\n (Windows) Zeilenumbrüche.
-  //
-  // Pattern: Anfang → optionales BOM → optionale Leerzeilen → `---` + Zeilenumbruch
-  //          → Inhalt (non-greedy) → Zeilenumbruch ODER direkt + `---` → optionaler Zeilenumbruch oder Ende
-  // FIX: Unterstützt jetzt auch Fälle, wo nach dem letzten `---` direkt Text kommt (ohne Zeilenumbruch davor)
-  // Geändert: Suche nach dem zweiten `---` - kann mit oder ohne Zeilenumbruch davor kommen
-  // Suche nach dem ersten `---` am Anfang, dann nach dem nächsten `---` (mit oder ohne Zeilenumbruch davor)
+  
+  // Robustere Erkennung für große Dateien:
+  // - Suche nach dem ersten `---` am Anfang (mit optionalem BOM)
+  // - Suche dann nach dem nächsten `---` am Zeilenanfang (robuster als Regex bei großen Dateien)
+  // - Unterstützt sowohl \n (Unix) als auch \r\n (Windows) Zeilenumbrüche
+  
+  // Schritt 1: Finde Start-Delimiter
   const startMatch = markdown.match(/^\uFEFF?(?:\s*[\r\n])*---[\r\n]+/);
   if (!startMatch) return null;
   
   const afterStart = markdown.slice(startMatch[0].length);
-  // Suche nach dem nächsten `---` - kann am Anfang einer Zeile stehen (nach Zeilenumbruch) oder direkt nach Text
-  // Non-greedy Match: stoppt beim ersten gefundenen `---`
-  // Unterstützt beide Fälle: `\n---` (mit Zeilenumbruch) oder `---` direkt nach Text
-  // Einfacher Ansatz: Suche nach dem ersten `---` nach dem Start
-  // Pattern: Inhalt (non-greedy) bis zum ersten `---` gefolgt von:
-  //   - Zeilenumbruch + optionaler Whitespace
-  //   - ODER Ende des Strings
-  //   - ODER einem Zeichen, das kein Zeilenumbruch und kein `-` ist (um `----` zu vermeiden)
-  const endMatch = afterStart.match(/([\s\S]*?)---(?:\s*[\r\n]|$|[^\r\n-])/);
-  if (!endMatch) {
-    // Fallback: Wenn kein Match gefunden wurde, könnte das `---` am Ende des Strings sein
-    // Suche einfach nach dem letzten `---` im String (als letzter Versuch)
-    const lastDashIndex = afterStart.lastIndexOf('---');
-    if (lastDashIndex === -1) return null;
-    // Prüfe ob nach dem `---` ein Zeilenumbruch oder Ende kommt
-    const afterDash = afterStart.slice(lastDashIndex + 3);
-    if (afterDash.length === 0 || /^[\r\n]/.test(afterDash)) {
-      return markdown.substring(0, startMatch[0].length + lastDashIndex + 3);
+  
+  // Schritt 2: Suche nach End-Delimiter am Zeilenanfang (effizienter als Regex bei großen Dateien)
+  // Suche nach `---` am Zeilenanfang (nach \n oder \r\n)
+  // Begrenze die Suche auf die ersten 500KB des Dokuments (Frontmatter sollte nicht größer sein)
+  const searchLimit = Math.min(afterStart.length, 500 * 1024);
+  const searchArea = afterStart.slice(0, searchLimit);
+  
+  // Suche nach `---` am Zeilenanfang
+  // Pattern: Zeilenumbruch gefolgt von `---` und dann Zeilenumbruch oder Ende
+  let endIndex = -1;
+  for (let i = 0; i < searchArea.length - 3; i++) {
+    // Prüfe ob wir am Zeilenanfang sind (nach \n oder \r\n)
+    if (i === 0 || searchArea[i - 1] === '\n' || (i > 1 && searchArea.slice(i - 2, i) === '\r\n')) {
+      // Prüfe ob `---` folgt
+      if (searchArea.slice(i, i + 3) === '---') {
+        // Prüfe ob nach `---` ein Zeilenumbruch oder Ende kommt
+        const afterDash = searchArea.slice(i + 3);
+        if (afterDash.length === 0 || /^[\r\n]/.test(afterDash)) {
+          endIndex = i;
+          break;
+        }
+      }
     }
-    return null;
+  }
+  
+  if (endIndex === -1) {
+    // Fallback: Wenn kein Match gefunden wurde, könnte das `---` am Ende des Strings sein
+    const lastDashIndex = searchArea.lastIndexOf('---');
+    if (lastDashIndex !== -1) {
+      const afterDash = searchArea.slice(lastDashIndex + 3);
+      if (afterDash.length === 0 || /^[\r\n]/.test(afterDash)) {
+        endIndex = lastDashIndex;
+      }
+    }
+    
+    if (endIndex === -1) {
+      // Wenn immer noch nichts gefunden: Frontmatter könnte sehr lang sein
+      // Versuche Regex als letzten Fallback (kann bei sehr großen Dateien langsam sein)
+      const endMatch = afterStart.match(/([\s\S]*?)---(?:\s*[\r\n]|$|[^\r\n-])/);
+      if (endMatch) {
+        return markdown.substring(0, startMatch[0].length + endMatch[0].length);
+      }
+      return null;
+    }
   }
   
   // Gib den kompletten Block zurück (inkl. beide Delimiter)
-  // endMatch[0] enthält den Inhalt + das `---` + optionalen Whitespace/Zeilenumbruch
-  return markdown.substring(0, startMatch[0].length + endMatch[0].length);
+  return markdown.substring(0, startMatch[0].length + endIndex + 3);
 }
 
 export function parseFrontmatterKeyValues(frontmatter: string): FrontmatterEntry[] {

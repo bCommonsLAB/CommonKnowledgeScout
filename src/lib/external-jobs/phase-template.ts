@@ -416,34 +416,46 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     // Templates wählen via zentrale Template-Service Library
     const { pickTemplate } = await import('@/lib/external-jobs/template-files')
     
-    // Versuche Template aus Library-Config zu lesen, falls verfügbar
-    // libraryConfig ist vom Typ LibraryChatConfig, aber das Template ist in storageConfig.secretaryService.pdfDefaults.template
-    // Daher müssen wir die Library direkt laden, um an storageConfig zu kommen
-    try {
-      const { LibraryService } = await import('@/lib/services/library-service')
-      const libraryService = LibraryService.getInstance()
-      const library = await libraryService.getLibrary(job.userEmail, job.libraryId)
-      preferredTemplate = library?.config?.secretaryService?.pdfDefaults?.template
-      
-      if (preferredTemplate) {
-        FileLogger.info('phase-template', 'Template aus Library-Config gefunden', {
-          jobId,
-          libraryId: job.libraryId,
-          preferredTemplate,
-        })
-      } else {
-        FileLogger.info('phase-template', 'Kein Template in Library-Config, versuche Template aus Templates-Ordner zu finden', {
-          jobId,
-          libraryId: job.libraryId,
-        })
-      }
-    } catch (error) {
-      FileLogger.warn('phase-template', 'Fehler beim Laden der Library für Template-Auswahl', {
+    // Priorität: 1. Job-Parameter, 2. Library-Config
+    // Prüfe zuerst Job-Parameter (höchste Priorität)
+    const templateFromJobParams = job.parameters?.template as string | undefined
+    if (templateFromJobParams) {
+      preferredTemplate = templateFromJobParams
+      FileLogger.info('phase-template', 'Template aus Job-Parametern gefunden', {
         jobId,
         libraryId: job.libraryId,
-        error: error instanceof Error ? error.message : String(error),
+        preferredTemplate,
       })
-      // Nicht kritisch - pickTemplate kann auch ohne Preferred Template ein Template aus dem Templates-Ordner verwenden
+    } else {
+      // Fallback: Versuche Template aus Library-Config zu lesen
+      // libraryConfig ist vom Typ LibraryChatConfig, aber das Template ist in storageConfig.secretaryService.pdfDefaults.template
+      // Daher müssen wir die Library direkt laden, um an storageConfig zu kommen
+      try {
+        const { LibraryService } = await import('@/lib/services/library-service')
+        const libraryService = LibraryService.getInstance()
+        const library = await libraryService.getLibrary(job.userEmail, job.libraryId)
+        preferredTemplate = library?.config?.secretaryService?.pdfDefaults?.template
+        
+        if (preferredTemplate) {
+          FileLogger.info('phase-template', 'Template aus Library-Config gefunden', {
+            jobId,
+            libraryId: job.libraryId,
+            preferredTemplate,
+          })
+        } else {
+          FileLogger.info('phase-template', 'Kein Template in Library-Config, versuche Template aus MongoDB zu finden', {
+            jobId,
+            libraryId: job.libraryId,
+          })
+        }
+      } catch (error) {
+        FileLogger.warn('phase-template', 'Fehler beim Laden der Library für Template-Auswahl', {
+          jobId,
+          libraryId: job.libraryId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        // Nicht kritisch - pickTemplate kann auch ohne Preferred Template ein Template aus MongoDB verwenden
+      }
     }
     
     // pickTemplate aufrufen - lädt Template aus MongoDB

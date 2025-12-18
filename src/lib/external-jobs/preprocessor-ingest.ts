@@ -24,6 +24,7 @@ import {
   validateFrontmatter,
   decideNeedIngest,
 } from '@/lib/external-jobs/preprocess-core'
+import { FileLogger } from '@/lib/debug/logger'
 
 export interface PreprocessIngestResult {
   hasMarkdown: boolean
@@ -56,7 +57,54 @@ export async function preprocessorIngest(
   const repo = new ExternalJobsRepository()
   const provider = await buildProvider({ userEmail, libraryId, jobId, repo })
 
-  const found = await findPdfMarkdown(provider, parentId, baseName, lang)
+  // Versuche zuerst mit der angeforderten Sprache
+  let found = await findPdfMarkdown(provider, parentId, baseName, lang)
+
+  // Wenn nicht gefunden und shadowTwinState verfügbar: Versuche die tatsächlich vorhandene Datei zu finden
+  if (!found.hasMarkdown && job.shadowTwinState?.transformed?.id) {
+    const transformedFileId = job.shadowTwinState.transformed.id
+    const transformedFileName = (job.shadowTwinState.transformed.metadata?.name as string) || ''
+    
+    // Extrahiere Sprache aus Dateinamen (z.B. "file.de.md" → "de")
+    const langMatch = transformedFileName.match(/\.([a-z]{2})\.md$/i)
+    const actualLang = langMatch ? langMatch[1] : lang
+    
+    // Wenn die Sprache anders ist als angefordert, versuche mit der tatsächlichen Sprache
+    if (actualLang !== lang) {
+      FileLogger.info('preprocessor-ingest', 'Datei mit anderer Sprache gefunden, versuche mit tatsächlicher Sprache', {
+        jobId,
+        requestedLang: lang,
+        actualLang,
+        transformedFileName,
+      })
+      found = await findPdfMarkdown(provider, parentId, baseName, actualLang)
+    }
+    
+    // Fallback: Versuche direkt die Datei aus shadowTwinState zu laden
+    if (!found.hasMarkdown && transformedFileId) {
+      try {
+        const bin = await provider.getBinary(transformedFileId)
+        const text = await bin.blob.text()
+        found = {
+          hasMarkdown: true,
+          fileId: transformedFileId,
+          fileName: transformedFileName,
+          text,
+        }
+        FileLogger.info('preprocessor-ingest', 'Markdown aus shadowTwinState geladen', {
+          jobId,
+          fileId: transformedFileId,
+          fileName: transformedFileName,
+        })
+      } catch (error) {
+        FileLogger.warn('preprocessor-ingest', 'Fehler beim Laden der Datei aus shadowTwinState', {
+          jobId,
+          fileId: transformedFileId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+  }
 
   if (!found.hasMarkdown || !found.text) {
     const needIngest = decideNeedIngest(false, false)

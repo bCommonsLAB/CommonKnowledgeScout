@@ -38,12 +38,21 @@ export class TemplateRepository {
   }
 
   /**
+   * Generiert eine Template-ID aus Library-ID und Name
+   * Diese Kombination ist eindeutig pro Library
+   */
+  private static generateTemplateId(libraryId: string, name: string): string {
+    return `${libraryId}:${name}`
+  }
+
+  /**
    * Stellt sicher, dass alle benötigten Indizes existieren
    */
   private static async ensureIndexes(collection: Collection<TemplateDocument>): Promise<void> {
     try {
       await Promise.all([
         // Unique Index: Template-Namen pro Library eindeutig
+        // Dieser Index stellt sicher, dass name + libraryId zusammen eindeutig sind
         collection.createIndex(
           { libraryId: 1, name: 1 },
           { unique: true, name: 'libraryId_name_unique' }
@@ -108,7 +117,7 @@ export class TemplateRepository {
   /**
    * Lädt ein einzelnes Template nach ID
    * 
-   * @param templateId Template-ID
+   * @param templateId Template-ID (kann entweder kombinierte ID `${libraryId}:${name}` oder nur `name` sein)
    * @param libraryId Library-ID für Berechtigungsprüfung
    * @param userEmail User-Email für Berechtigungsprüfung
    * @param isAdmin Optional: Ob User Admin ist
@@ -123,12 +132,40 @@ export class TemplateRepository {
     const col = await this.getCollection()
     const admin = isAdmin ?? await this.isAdmin(userEmail)
     
+    // Wenn templateId bereits die kombinierte Form hat (enthält ':'), verwende sie direkt
+    // Sonst generiere die kombinierte ID aus libraryId und templateId (name)
+    const actualId = templateId.includes(':') 
+      ? templateId 
+      : this.generateTemplateId(libraryId, templateId)
+    
+    // Debug-Logging für Template-Suche
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[TemplateRepository] findById:', {
+        templateId,
+        libraryId,
+        actualId,
+        admin,
+      })
+    }
+    
     // Admin kann alle Templates sehen, normale User nur Templates ihrer Library
     const filter = admin 
-      ? { _id: templateId }
-      : { _id: templateId, libraryId }
+      ? { _id: actualId }
+      : { _id: actualId, libraryId }
     
-    return await col.findOne(filter)
+    const result = await col.findOne(filter)
+    
+    // Debug-Logging für Ergebnis
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[TemplateRepository] findById result:', {
+        templateId,
+        actualId,
+        found: !!result,
+        resultId: result?._id,
+      })
+    }
+    
+    return result
   }
 
   /**
@@ -141,8 +178,11 @@ export class TemplateRepository {
     const col = await this.getCollection()
     const now = new Date()
     
+    // Generiere eindeutige _id aus libraryId und name
+    const templateId = this.generateTemplateId(template.libraryId, template.name)
+    
     const document: TemplateDocument = {
-      _id: template.name, // Verwende name als _id
+      _id: templateId, // Kombiniere libraryId und name für eindeutige _id
       ...template,
       createdAt: now,
       updatedAt: now,
@@ -156,7 +196,7 @@ export class TemplateRepository {
   /**
    * Aktualisiert ein bestehendes Template
    * 
-   * @param templateId Template-ID
+   * @param templateId Template-ID (kann entweder kombinierte ID `${libraryId}:${name}` oder nur `name` sein)
    * @param libraryId Library-ID für Berechtigungsprüfung
    * @param updates Teilweise Updates (ohne _id, createdAt, version)
    * @param userEmail User-Email für Berechtigungsprüfung
@@ -184,9 +224,10 @@ export class TemplateRepository {
       updatedAt: new Date(),
     }
     
+    // Verwende die tatsächliche _id aus dem gefundenen Dokument
     const filter = admin 
-      ? { _id: templateId }
-      : { _id: templateId, libraryId }
+      ? { _id: existing._id }
+      : { _id: existing._id, libraryId }
     
     const result = await col.findOneAndUpdate(
       filter,
@@ -200,7 +241,7 @@ export class TemplateRepository {
   /**
    * Löscht ein Template
    * 
-   * @param templateId Template-ID
+   * @param templateId Template-ID (kann entweder kombinierte ID `${libraryId}:${name}` oder nur `name` sein)
    * @param libraryId Library-ID für Berechtigungsprüfung
    * @param userEmail User-Email für Berechtigungsprüfung
    * @param isAdmin Optional: Ob User Admin ist
@@ -221,9 +262,10 @@ export class TemplateRepository {
       return false
     }
     
+    // Verwende die tatsächliche _id aus dem gefundenen Dokument
     const filter = admin 
-      ? { _id: templateId }
-      : { _id: templateId, libraryId }
+      ? { _id: existing._id }
+      : { _id: existing._id, libraryId }
     
     const result = await col.deleteOne(filter)
     return result.deletedCount > 0
@@ -238,7 +280,8 @@ export class TemplateRepository {
    */
   static async exists(name: string, libraryId: string): Promise<boolean> {
     const col = await this.getCollection()
-    const result = await col.findOne({ _id: name, libraryId })
+    const templateId = this.generateTemplateId(libraryId, name)
+    const result = await col.findOne({ _id: templateId })
     return result !== null
   }
 }

@@ -41,37 +41,55 @@ export async function loadShadowTwinMarkdown(
   const parentId = job.correlation?.source?.parentId || 'root'
   const originalName = job.correlation.source?.name || 'output'
 
-  // Shadow-Twin-Markdown-Datei suchen
-  const searchStartTime = Date.now()
-  FileLogger.info('phase-shadow-twin-loader', 'Starte Suche nach Shadow-Twin-Markdown', {
-    jobId,
-    parentId,
-    baseName,
-    lang,
-    twinName,
-    originalName,
-  })
+  // Priorität 1: Verwende shadowTwinState.transformed.id, falls verfügbar (direkter Zugriff)
+  let twin: { id: string } | null = null
+  let searchDuration: number | undefined = undefined
   
-  const twin = await findShadowTwinMarkdownFile(parentId, baseName, lang, originalName, provider)
-  const searchDuration = Date.now() - searchStartTime
+  if (job.shadowTwinState?.transformed?.id) {
+    const transformedId = job.shadowTwinState.transformed.id
+    FileLogger.info('phase-shadow-twin-loader', 'Verwende transformed.id aus shadowTwinState', {
+      jobId,
+      transformedId,
+      transformedName: job.shadowTwinState.transformed.metadata?.name,
+    })
+    twin = { id: transformedId }
+  }
 
+  // Priorität 2: Suche über findShadowTwinMarkdownFile, falls shadowTwinState nicht verfügbar
   if (!twin) {
-    FileLogger.warn('phase-shadow-twin-loader', 'Shadow-Twin-Markdown nicht gefunden', {
+    const searchStartTime = Date.now()
+    FileLogger.info('phase-shadow-twin-loader', 'Starte Suche nach Shadow-Twin-Markdown', {
       jobId,
       parentId,
       baseName,
       lang,
       twinName,
-      searchDurationMs: searchDuration,
+      originalName,
     })
-    return null
+    
+    twin = await findShadowTwinMarkdownFile(parentId, baseName, lang, originalName, provider)
+    searchDuration = Date.now() - searchStartTime
+
+    if (!twin) {
+      FileLogger.warn('phase-shadow-twin-loader', 'Shadow-Twin-Markdown nicht gefunden', {
+        jobId,
+        parentId,
+        baseName,
+        lang,
+        twinName,
+        searchDurationMs: searchDuration,
+        hasShadowTwinState: !!job.shadowTwinState,
+        shadowTwinStateTransformedId: job.shadowTwinState?.transformed?.id,
+      })
+      return null
+    }
   }
 
   FileLogger.info('phase-shadow-twin-loader', 'Shadow-Twin-Markdown-Datei gefunden', {
     jobId,
     fileId: twin.id,
     fileName: twinName,
-    searchDurationMs: searchDuration,
+    searchDurationMs: searchDuration ?? 0,
   })
 
   try {

@@ -482,6 +482,21 @@ export class IngestionService {
         // Nicht werfen, da Hauptfunktionalität (Chunk-Embeddings) bereits erfüllt ist
       }
       
+      // Debug: Logge docMetaJsonObj-Inhalt vor buildMetaDocument
+      FileLogger.info('ingestion', 'docMetaJsonObj vor buildMetaDocument', {
+        fileId,
+        docMetaJsonObjKeys: Object.keys(docMetaJsonObj),
+        docMetaJsonObjSample: {
+          title: docMetaJsonObj.title,
+          shortTitle: docMetaJsonObj.shortTitle,
+          slug: docMetaJsonObj.slug,
+          summary: typeof docMetaJsonObj.summary === 'string' ? docMetaJsonObj.summary.substring(0, 100) : docMetaJsonObj.summary,
+          authors: docMetaJsonObj.authors,
+          year: docMetaJsonObj.year,
+          topics: docMetaJsonObj.topics,
+        },
+      })
+      
       // Meta-Dokument erstellen und speichern (ersetzt doc_meta Collection)
       const metaDoc = buildMetaDocument(
         mongoDoc,
@@ -492,6 +507,22 @@ export class IngestionService {
         facetValues,
         userEmail
       )
+      
+      // Debug: Logge metaDoc-Inhalt nach buildMetaDocument
+      FileLogger.info('ingestion', 'metaDoc nach buildMetaDocument', {
+        fileId,
+        metaDocKeys: Object.keys(metaDoc),
+        metaDocSample: {
+          title: metaDoc.title,
+          shortTitle: metaDoc.shortTitle,
+          slug: metaDoc.slug,
+          summary: typeof metaDoc.summary === 'string' ? metaDoc.summary.substring(0, 100) : metaDoc.summary,
+          authors: metaDoc.authors,
+          year: metaDoc.year,
+          topics: metaDoc.topics,
+          docMetaJsonKeys: Object.keys(metaDoc.docMetaJson || {}),
+        },
+      })
       
       // Embedding zum Meta-Dokument hinzufügen (falls erstellt)
       if (documentEmbedding) {

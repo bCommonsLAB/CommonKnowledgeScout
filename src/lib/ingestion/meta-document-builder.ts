@@ -63,12 +63,27 @@ export function buildMetaDocument(
     // Hierarchien (für Testimonials, Unter-Dokumente)
     parentId: typeof docMetaJsonObj.parentId === 'string' ? docMetaJsonObj.parentId : undefined,
     parentSlug: typeof docMetaJsonObj.parentSlug === 'string' ? docMetaJsonObj.parentSlug : undefined,
-    // Aus docMetaJsonObj
-    title: docMetaJsonObj.title as string | undefined,
-    shortTitle: docMetaJsonObj.shortTitle as string | undefined,
-    slug: docMetaJsonObj.slug as string | undefined,
-    summary: docMetaJsonObj.summary as string | undefined,
-    teaser: docMetaJsonObj.teaser as string | undefined,
+    // Aus docMetaJsonObj (behandle null und leere Strings als undefined)
+    title: (() => {
+      const v = docMetaJsonObj.title
+      return typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined
+    })(),
+    shortTitle: (() => {
+      const v = docMetaJsonObj.shortTitle
+      return typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined
+    })(),
+    slug: (() => {
+      const v = docMetaJsonObj.slug
+      return typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined
+    })(),
+    summary: (() => {
+      const v = docMetaJsonObj.summary
+      return typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined
+    })(),
+    teaser: (() => {
+      const v = docMetaJsonObj.teaser
+      return typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined
+    })(),
     // Chapters
     chapters: chaptersForMongo,
     chaptersCount,

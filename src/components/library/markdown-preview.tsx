@@ -202,17 +202,17 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     { name: "Zusammenfassung", isStandard: true }
   ];
 
-  // Templates laden wenn Provider und Library bereit sind
+  // Templates laden wenn Library bereit ist
   React.useEffect(() => {
     async function loadTemplatesIfNeeded() {
-      if (!provider || libraryStatus !== 'ready' || !activeLibrary) {
+      if (!activeLibrary?.id || libraryStatus !== 'ready') {
         return;
       }
 
       try {
-        // Verwende zentrale Template-Service Library
-        const { listAvailableTemplates } = await import('@/lib/templates/template-service')
-        const templateNames = await listAvailableTemplates(provider)
+        // Verwende zentrale Client-Library für MongoDB-Templates
+        const { listAvailableTemplates } = await import('@/lib/templates/template-service-client')
+        const templateNames = await listAvailableTemplates(activeLibrary.id)
         setCustomTemplateNames(templateNames);
       } catch (error) {
         console.error('Fehler beim Laden der Templates:', error);
@@ -222,7 +222,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     }
 
     loadTemplatesIfNeeded();
-  }, [provider, libraryStatus, activeLibrary]);
+  }, [activeLibrary?.id, libraryStatus]);
 
   // Aktualisiere den Dateinamen, wenn das Template geändert wird
   React.useEffect(() => {

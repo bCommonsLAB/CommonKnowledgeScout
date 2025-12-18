@@ -572,7 +572,13 @@ export async function POST(
       const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
       await adoptLegacyMarkdownToShadowTwin(ctxPre, preTemplateResult, provider, repo)
       
-      // Shadow-Twin-Markdown-Datei laden
+      // Lade Job neu, um aktualisiertes shadowTwinState zu erhalten (kann sich durch adoptLegacyMarkdownToShadowTwin geändert haben)
+      const updatedJob = await repo.get(jobId)
+      if (updatedJob) {
+        ctxPre.job = updatedJob
+      }
+      
+      // Shadow-Twin-Markdown-Datei laden (verwendet jetzt shadowTwinState.transformed.id falls verfügbar)
       const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider)
       if (!shadowTwinData) {
         await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'Shadow‑Twin nicht gefunden' } })

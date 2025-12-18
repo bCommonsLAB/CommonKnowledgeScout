@@ -49,13 +49,23 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
   const errors: string[] = []
 
   // Raw key: value pairs (keep as string)
-  for (const line of fm.split('\n')) {
+  // WICHTIG: Bei großen Frontmatter-Blöcken kann split('\n') problematisch sein
+  // Verwende daher eine robustere Zeilen-Parsing-Logik
+  const lines = fm.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
     const t = line.trim()
     if (!t || t === '---') continue
     const idx = t.indexOf(':')
     if (idx > 0) {
       const k = t.slice(0, idx).trim()
-      const v = t.slice(idx + 1)
+      let v = t.slice(idx + 1).trim()
+      
+      // Wenn der Wert leer ist und die nächste Zeile nicht leer ist und nicht mit `:` beginnt,
+      // könnte es ein mehrzeiliger Wert sein (YAML multiline string)
+      // Für jetzt: Nimm nur den Wert nach dem Doppelpunkt (einfache Werte)
+      // Komplexe mehrzeilige Werte werden später über JSON-Parsing behandelt
+      
       meta[k] = v
     }
   }

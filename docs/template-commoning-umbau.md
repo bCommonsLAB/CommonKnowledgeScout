@@ -76,3 +76,9 @@ Wir wählen **Variante A (minimal kompatibel)** als ersten Schritt. Begründung:
 Wenn sich zeigt, dass DOI/ISBN/Methoden etc. im Alltag nötig sind, ist Variante B der nächste sinnvolle Schritt – dann aber bewusst mit UI/Mapper-Erweiterung.
 
 
+
+
+
+
+
+

@@ -63,8 +63,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Wenn nur templateName übergeben wurde, lade Template aus MongoDB
-    if (templateName && !templateContent && libraryId) {
+    // Standard-Templates: Diese werden direkt an den Secretary Service weitergegeben,
+    // ohne MongoDB-Lookup, da sie im Secretary Service selbst definiert sind
+    const standardTemplates = ['Besprechung', 'Gedanken', 'Interview', 'Zusammenfassung'];
+    const isStandardTemplate = templateName && standardTemplates.includes(templateName);
+
+    // Wenn nur templateName übergeben wurde UND es kein Standard-Template ist, lade Template aus MongoDB
+    if (templateName && !templateContent && libraryId && !isStandardTemplate) {
       try {
         const { loadTemplateFromMongoDB, serializeTemplateToMarkdown } = await import('@/lib/templates/template-service-mongodb');
         const { currentUser } = await import('@clerk/nextjs/server');
@@ -94,6 +99,8 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
+    } else if (isStandardTemplate) {
+      console.log('[process-text] Standard-Template erkannt, direkt an Secretary Service weitergeben:', templateName);
     }
 
     // Entferne creation-Block aus template_content, falls vorhanden

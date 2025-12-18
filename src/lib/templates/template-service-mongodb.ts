@@ -164,8 +164,11 @@ export function deserializeTemplateFromMarkdown(
   
   const now = new Date()
   
+  // Generiere kombinierte _id aus libraryId und name (konsistent mit TemplateRepository)
+  const templateId = `${libraryId}:${template.name}`
+  
   return {
-    _id: template.name,
+    _id: templateId, // Kombiniere libraryId und name für eindeutige _id
     name: template.name,
     libraryId,
     user: userEmail,
