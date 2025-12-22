@@ -40,10 +40,6 @@ export interface FrontmatterParseResult {
  */
 export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParseResult {
   const fm = extractFrontmatterBlock(markdown)
-  UILogger.debug('response-parser', 'parseSecretaryMarkdownStrict:start', {
-    markdownLength: typeof markdown === 'string' ? markdown.length : 0,
-    hasFrontmatter: !!fm
-  })
   if (!fm) return { frontmatter: null, meta: {}, errors: [] }
   const meta: Record<string, unknown> = {}
   const errors: string[] = []
@@ -59,7 +55,7 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
     const idx = t.indexOf(':')
     if (idx > 0) {
       const k = t.slice(0, idx).trim()
-      let v = t.slice(idx + 1).trim()
+      const v = t.slice(idx + 1).trim()
       
       // Wenn der Wert leer ist und die nächste Zeile nicht leer ist und nicht mit `:` beginnt,
       // könnte es ein mehrzeiliger Wert sein (YAML multiline string)
@@ -69,9 +65,6 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
       meta[k] = v
     }
   }
-  UILogger.debug('response-parser', 'parseSecretaryMarkdownStrict:raw-keys', {
-    keys: Object.keys(meta)
-  })
 
   // Generische, robuste JSON-Extraktion (Array oder Objekt) nach einem Schlüssel.
   function extractBalancedJsonAfterKey(text: string, key: string): string | null {
@@ -109,18 +102,12 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
     if (raw) {
       try { 
         meta[k] = JSON.parse(raw)
-        UILogger.debug('response-parser', 'parseSecretaryMarkdownStrict:json-parsed', { key: k, length: raw.length })
       } catch (e) { 
         errors.push(`${k} ist kein gültiges JSON: ${(e as Error).message}`)
         UILogger.warn('response-parser', 'parseSecretaryMarkdownStrict:json-error', { key: k, error: (e as Error).message })
       }
     }
   }
-
-  UILogger.debug('response-parser', 'parseSecretaryMarkdownStrict:done', {
-    keyCount: Object.keys(meta).length,
-    errorCount: errors.length
-  })
 
   return { frontmatter: fm, meta, errors }
 }

@@ -192,6 +192,25 @@ export class FileSystemClient implements StorageProvider {
     return response.json();
   }
 
+  /**
+   * Performance-Optimierung (filesystem):
+   * ZIP wird in einem Request übertragen und serverseitig entpackt.
+   *
+   * Hinweis: Nicht Teil des StorageProvider-Interfaces. Nutzung via Feature-Detection.
+   */
+  async saveAndExtractZipInFolder(parentId: string, zipBase64: string): Promise<StorageItem[]> {
+    this.invalidateCache()
+    if (!zipBase64) return []
+    const url = `${this.baseUrl}?action=saveAndExtractZipInFolder&fileId=${encodeURIComponent(parentId)}`
+    const response = await this.fetchWithError(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zipBase64 }),
+    })
+    const data = await response.json().catch(() => ({})) as { savedItems?: StorageItem[] }
+    return Array.isArray(data.savedItems) ? data.savedItems : []
+  }
+
   async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string; }> {
     console.log('[FileSystemClient] getBinary aufgerufen mit fileId:', fileId);
     const url = `${this.baseUrl}?action=binary&fileId=${encodeURIComponent(fileId)}`;

@@ -78,7 +78,21 @@ export async function preprocessorTransformTemplate(
 
   const analysis = analyzeFrontmatter(found.text)
   const validation = await validateFrontmatter(analysis.meta, userEmail, libraryId)
-  const needTemplate = decideNeedTemplate(analysis.hasFrontmatter, validation.frontmatterValid)
+  
+  // Prüfe, ob Template-Name im Frontmatter gespeichert ist und mit gewünschtem Template übereinstimmt
+  const desiredTemplate = job.parameters?.template as string | undefined
+  const existingTemplate = typeof analysis.meta?.template === 'string' ? analysis.meta.template : undefined
+  
+  // Template-Vergleich: Wenn gewünschtes Template angegeben ist und nicht mit bestehendem übereinstimmt,
+  // muss Transformation ausgeführt werden (außer bei Standard-Templates, die im Secretary Service aufgelöst werden)
+  let needTemplate = decideNeedTemplate(analysis.hasFrontmatter, validation.frontmatterValid)
+  const templateMismatch = desiredTemplate && existingTemplate && desiredTemplate !== existingTemplate
+  
+  if (templateMismatch && validation.frontmatterValid) {
+    // Template wurde geändert, Transformation muss ausgeführt werden
+    needTemplate = true
+    validation.reasons.push('template_mismatch')
+  }
 
   return {
     hasMarkdown: found.hasMarkdown,

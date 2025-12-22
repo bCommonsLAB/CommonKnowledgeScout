@@ -125,8 +125,17 @@ export async function closeDatabaseConnection(): Promise<void> {
 
 // Prozess-Beendigung behandeln
 if (typeof process !== 'undefined') {
-  process.on('SIGINT', async () => {
-    await closeDatabaseConnection();
-    process.exit(0);
-  });
+  // WICHTIG (DEV/HMR):
+  // In `next dev` wird dieses Modul durch Hot-Reload ggf. mehrfach evaluiert.
+  // Ohne Guard würden wir pro Reload einen weiteren SIGINT-Listener registrieren
+  // → MaxListenersExceededWarning + potenziell mehrfacher Cleanup.
+  const g = globalThis as unknown as Record<string, unknown>
+  const key = '__commonKnowledgeScoutMongoSigintHandlerInstalled__'
+  if (!g[key]) {
+    g[key] = true
+    process.on('SIGINT', async () => {
+      await closeDatabaseConnection()
+      process.exit(0)
+    })
+  }
 } 

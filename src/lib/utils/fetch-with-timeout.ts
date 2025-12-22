@@ -12,10 +12,12 @@ export class HttpError extends Error {
   readonly name = 'HttpError';
   readonly status: number;
   readonly statusText: string;
-  constructor(status: number, statusText: string, message?: string) {
+  readonly responseBody?: unknown;
+  constructor(status: number, statusText: string, message?: string, responseBody?: unknown) {
     super(message || `${status} ${statusText}`);
     this.status = status;
     this.statusText = statusText;
+    this.responseBody = responseBody;
   }
 }
 

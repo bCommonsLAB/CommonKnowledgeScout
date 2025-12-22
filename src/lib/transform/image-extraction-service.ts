@@ -28,6 +28,14 @@ import { StorageProvider, StorageItem } from "@/lib/storage/types";
 import { FileLogger } from "@/lib/debug/logger";
 import { generateShadowTwinFolderName } from "@/lib/storage/shadow-twin";
 
+type ZipExtractCapableProvider = StorageProvider & {
+  saveAndExtractZipInFolder: (parentId: string, zipBase64: string) => Promise<StorageItem[]>
+}
+
+function canSaveAndExtractZipInFolder(provider: StorageProvider): provider is ZipExtractCapableProvider {
+  return typeof (provider as unknown as { saveAndExtractZipInFolder?: unknown }).saveAndExtractZipInFolder === 'function'
+}
+
 /**
  * Interface für extrahierte Bilder mit zugehörigem Text
  */
@@ -105,6 +113,19 @@ export class ImageExtractionService {
           folderId: folderItem.id,
           folderName: folderName
         });
+      }
+      
+      // PERFORMANCE (filesystem):
+      // Wenn der Provider eine ZIP-Bulk-Extraktion anbietet, nutzen wir diese, um N einzelne Uploads
+      // (und damit N HTTP Requests beim LocalStorageProvider) zu vermeiden.
+      if (canSaveAndExtractZipInFolder(provider)) {
+        const savedItems = await provider.saveAndExtractZipInFolder(folderItem.id, base64ZipData)
+        FileLogger.info('ImageExtractionService', 'ZIP via Bulk-Extraction gespeichert', {
+          zipName: fileName,
+          folderId: folderItem.id,
+          savedItems: savedItems.length,
+        })
+        return { extractedImages: [], folderItem, savedItems }
       }
       
       

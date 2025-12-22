@@ -2,6 +2,7 @@ import { BlobServiceClient, ContainerClient } from '@azure/storage-blob'
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
 import { FileLogger } from '@/lib/debug/logger'
 import crypto from 'crypto'
+import * as fs from 'fs'
 
 /**
  * Sanitized Library-ID für Azure Storage-Unterordner
@@ -413,6 +414,202 @@ export class AzureStorageService {
       FileLogger.error('AzureStorageService', 'Fehler beim Löschen der Bilder', error)
       throw new Error(
         `Löschung fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+      )
+    }
+  }
+
+  /**
+   * Generiert Blob-Pfad für ein PDF mit Scope (books/sessions) und ownerId (fileId)
+   * Struktur: {libraryId}/{scope}/{ownerId}/{originalFilename}
+   * 
+   * WICHTIG: Verwendet Original-Dateinamen (sanitized), nicht Hash-basiert wie Bilder.
+   */
+  private getPdfBlobPathWithScope(
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    originalFileName: string
+  ): string {
+    if (!this.config) throw new Error('Azure Storage nicht konfiguriert')
+    const sanitizedLibraryId = sanitizeLibraryId(libraryId)
+    const sanitizedOwnerId = sanitizeLibraryId(ownerId)
+    
+    // Sanitize Dateiname: entferne ungültige Zeichen, behalte Erweiterung
+    const sanitizedFileName = originalFileName
+      .replace(/[^a-zA-Z0-9._-]/g, '_') // Ersetze ungültige Zeichen durch Unterstrich
+      .replace(/_{2,}/g, '_') // Mehrfache Unterstriche zu einem
+      .replace(/^_+|_+$/g, '') // Entferne führende/trailing Unterstriche
+    
+    // Struktur: {libraryId}/{scope}/{ownerId}/{originalFilename}
+    return `${sanitizedLibraryId}/${scope}/${sanitizedOwnerId}/${sanitizedFileName}`
+  }
+
+  /**
+   * Generiert öffentliche Azure Blob URL für PDF mit Scope
+   */
+  getPdfUrlWithScope(
+    containerName: string,
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    originalFileName: string
+  ): string {
+    if (!this.config) throw new Error('Azure Storage nicht konfiguriert')
+    const blobPath = this.getPdfBlobPathWithScope(libraryId, scope, ownerId, originalFileName)
+    return `${this.config.baseUrl}/${blobPath}`
+  }
+
+  /**
+   * Prüft ob ein PDF bereits existiert
+   */
+  async pdfExistsWithScope(
+    containerName: string,
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    originalFileName: string
+  ): Promise<boolean> {
+    if (!this.isConfigured()) return false
+
+    try {
+      const containerClient = this.getContainerClient(containerName)
+      if (!containerClient) return false
+
+      const blobPath = this.getPdfBlobPathWithScope(libraryId, scope, ownerId, originalFileName)
+      const blobClient = containerClient.getBlockBlobClient(blobPath)
+
+      const exists = await blobClient.exists()
+      return exists
+    } catch (error) {
+      FileLogger.error('AzureStorageService', 'Fehler beim Prüfen ob PDF existiert', error)
+      return false
+    }
+  }
+
+  /**
+   * Lädt ein PDF auf Azure Storage hoch mit Scope-Struktur (Streaming-Variante)
+   * Verwendet uploadStream für große Dateien, um Speicher zu sparen
+   * @param containerName Container Name
+   * @param libraryId Library ID
+   * @param scope 'books' oder 'sessions'
+   * @param ownerId fileId oder sessionId
+   * @param originalFileName Original-Dateiname des PDFs (z.B. "Habermann_Economy.pdf")
+   * @param filePath Absoluter Dateipfad zum PDF (für Streaming)
+   * @returns Öffentliche Azure Blob URL
+   */
+  async uploadPdfToScopeFromFile(
+    containerName: string,
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    originalFileName: string,
+    filePath: string
+  ): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new Error('Azure Storage nicht konfiguriert')
+    }
+
+    try {
+      const containerClient = this.getContainerClient(containerName)
+      if (!containerClient) {
+        throw new Error('Container Client konnte nicht erstellt werden')
+      }
+
+      const blobPath = this.getPdfBlobPathWithScope(libraryId, scope, ownerId, originalFileName)
+      const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
+
+      // PDF Content-Type
+      const contentType = 'application/pdf'
+
+      // Erstelle Readable Stream vom Dateisystem
+      const fileStream = fs.createReadStream(filePath)
+
+      // Upload via Stream (speicher-effizient für große Dateien)
+      await blockBlobClient.uploadStream(fileStream, undefined, undefined, {
+        blobHTTPHeaders: {
+          blobContentType: contentType,
+          blobCacheControl: 'public, max-age=31536000', // 1 Jahr Cache
+        },
+      })
+
+      const url = this.getPdfUrlWithScope(containerName, libraryId, scope, ownerId, originalFileName)
+      FileLogger.info('AzureStorageService', 'PDF hochgeladen (mit Scope, via Stream)', {
+        libraryId,
+        scope,
+        ownerId,
+        originalFileName,
+        filePath,
+        blobPath,
+        url,
+      })
+
+      return url
+    } catch (error) {
+      FileLogger.error('AzureStorageService', 'Fehler beim Upload des PDFs (Stream)', error)
+      throw new Error(
+        `PDF-Upload fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+      )
+    }
+  }
+
+  /**
+   * Lädt ein PDF auf Azure Storage hoch mit Scope-Struktur (Buffer-Variante)
+   * Fallback für Provider, die keinen direkten Dateipfad liefern können
+   * @param containerName Container Name
+   * @param libraryId Library ID
+   * @param scope 'books' oder 'sessions'
+   * @param ownerId fileId oder sessionId
+   * @param originalFileName Original-Dateiname des PDFs (z.B. "Habermann_Economy.pdf")
+   * @param buffer PDF-Daten als Buffer
+   * @returns Öffentliche Azure Blob URL
+   */
+  async uploadPdfToScope(
+    containerName: string,
+    libraryId: string,
+    scope: 'books' | 'sessions',
+    ownerId: string,
+    originalFileName: string,
+    buffer: Buffer
+  ): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new Error('Azure Storage nicht konfiguriert')
+    }
+
+    try {
+      const containerClient = this.getContainerClient(containerName)
+      if (!containerClient) {
+        throw new Error('Container Client konnte nicht erstellt werden')
+      }
+
+      const blobPath = this.getPdfBlobPathWithScope(libraryId, scope, ownerId, originalFileName)
+      const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
+
+      // PDF Content-Type
+      const contentType = 'application/pdf'
+
+      await blockBlobClient.uploadData(buffer, {
+        blobHTTPHeaders: {
+          blobContentType: contentType,
+          blobCacheControl: 'public, max-age=31536000', // 1 Jahr Cache
+        },
+      })
+
+      const url = this.getPdfUrlWithScope(containerName, libraryId, scope, ownerId, originalFileName)
+      FileLogger.info('AzureStorageService', 'PDF hochgeladen (mit Scope)', {
+        libraryId,
+        scope,
+        ownerId,
+        originalFileName,
+        blobPath,
+        url,
+        bufferSize: buffer.length,
+      })
+
+      return url
+    } catch (error) {
+      FileLogger.error('AzureStorageService', 'Fehler beim Upload des PDFs', error)
+      throw new Error(
+        `PDF-Upload fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       )
     }
   }

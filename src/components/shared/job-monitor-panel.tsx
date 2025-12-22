@@ -107,6 +107,7 @@ export function JobMonitorPanel() {
   const [hasMore, setHasMore] = useState(true);
   const eventRef = useRef<EventSource | null>(null);
   const lastEventTsRef = useRef<number>(Date.now());
+  const sseRetryAttemptRef = useRef<number>(0);
   const isFetchingRef = useRef(false);
   const upsertJobStatus = useSetAtom(upsertJobStatusAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
@@ -386,6 +387,7 @@ export function JobMonitorPanel() {
   useEffect(() => {
     if (!isOpen || !liveUpdates) {
       if (eventRef.current) { try { eventRef.current.close(); } catch {} eventRef.current = null; }
+      sseRetryAttemptRef.current = 0;
       return;
     }
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -397,6 +399,11 @@ export function JobMonitorPanel() {
       eventRef.current = es;
 
       // kein aggressiver Refresh im open-Event; initiales Laden oben beim Öffnen
+      es.onopen = () => {
+        // Verbindung steht wieder → Backoff zurücksetzen
+        sseRetryAttemptRef.current = 0;
+        lastEventTsRef.current = Date.now();
+      };
 
       const onUpdate = (e: MessageEvent) => {
         try {
@@ -482,11 +489,18 @@ export function JobMonitorPanel() {
         } catch {}
       };
       es.addEventListener('job_update', onUpdate as unknown as EventListener);
+      // "connected" und "ping" sind Server-Sent Events aus der Stream-Route.
+      // Ohne Listener würden wir fälschlicherweise "idle" annehmen und pollen.
+      es.addEventListener('connected', () => { lastEventTsRef.current = Date.now(); });
+      es.addEventListener('ping', () => { lastEventTsRef.current = Date.now(); });
       es.addEventListener('error', () => {
         try { es.close(); } catch {}
         if (retryTimer) clearTimeout(retryTimer);
-        // Nur reconnecten, wenn Panel offen bleibt
-        retryTimer = setTimeout(() => { if (isOpen && liveUpdates) connect(); }, 1000);
+        // Reconnect mit Backoff, um Dev-Logs nicht zu fluten, wenn SSE instabil ist.
+        // 0 → 1s, 1 → 2s, 2 → 4s ... bis max 30s.
+        sseRetryAttemptRef.current = Math.min(sseRetryAttemptRef.current + 1, 6);
+        const delayMs = Math.min(1000 * (2 ** (sseRetryAttemptRef.current - 1)), 30_000);
+        retryTimer = setTimeout(() => { if (isOpen && liveUpdates) connect(); }, delayMs);
       });
     }
     connect();
@@ -571,9 +585,15 @@ export function JobMonitorPanel() {
     if (!isOpen || !liveUpdates) return;
     const onTick = () => {
       const idleMs = Date.now() - lastEventTsRef.current;
-      if (idleMs > 10_000) void refreshNow();
+      // Achtung: Bei "stillen" SSE-Verbindungen (keine job_update Events) dürfen wir nicht aggressiv pollen.
+      // Wir werten "ping"/"connected" als Aktivität (siehe SSE-Listener) und wählen ein konservatives Timeout.
+      if (idleMs > 30_000) {
+        // Timestamp sofort aktualisieren, sonst würde der 2s-Timer dauerhaft feuern.
+        lastEventTsRef.current = Date.now();
+        void refreshNow();
+      }
     };
-    const timer = setInterval(onTick, 2000);
+    const timer = setInterval(onTick, 5000);
     const unsub = () => { lastEventTsRef.current = Date.now(); };
     window.addEventListener('job_update_local', unsub as unknown as EventListener);
     return () => { clearInterval(timer); window.removeEventListener('job_update_local', unsub as unknown as EventListener); };

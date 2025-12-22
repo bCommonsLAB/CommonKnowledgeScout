@@ -124,17 +124,6 @@ export async function findShadowTwinFolder(
   // Hole alle Items im Parent-Verzeichnis
   const items = await provider.listItemsById(parentId);
   
-  // Debug: Logge alle Ordner im Parent-Verzeichnis
-  const folders = items.filter(item => item.type === 'folder');
-  
-  FileLogger.debug('findShadowTwinFolder', 'Suche Shadow-Twin-Verzeichnis', {
-    originalName,
-    parentId,
-    variants,
-    foldersFound: folders.map(f => f.metadata.name),
-    totalItems: items.length
-  });
-  
   // Prüfe jede Variante
   for (const variant of variants) {
     const found = items.find(
@@ -143,11 +132,6 @@ export async function findShadowTwinFolder(
     );
     
     if (found) {
-      FileLogger.info('findShadowTwinFolder', 'Shadow-Twin-Verzeichnis gefunden', {
-        variant,
-        folderId: found.id,
-        folderName: found.metadata.name
-      });
       return found;
     }
   }
@@ -179,7 +163,11 @@ export async function findShadowTwinMarkdown(
   
   if (preferTransformed) {
     // Zuerst transformiertes File suchen (mit Language-Suffix)
-    const transformedName = generateShadowTwinName(baseName, lang, false);
+    // WICHTIG: baseName kann Punkte enthalten (z.B. "vs.") und ist bereits "ohne Extension".
+    // `generateShadowTwinName()` nutzt intern path.parse() und würde bei Punkten im baseName
+    // fälschlich kürzen (z.B. "Commoning vs. Kommerz" → "Commoning vs.de.md").
+    // Daher den Namen hier direkt aus baseName zusammensetzen.
+    const transformedName = `${baseName}.${lang}.md`;
     const transformed = items.find(
       item => item.type === 'file' && 
       item.metadata.name === transformedName
@@ -188,7 +176,7 @@ export async function findShadowTwinMarkdown(
   }
   
   // Fallback: Transcript-File suchen (ohne Language-Suffix)
-  const transcriptName = generateShadowTwinName(baseName, lang, true);
+  const transcriptName = `${baseName}.md`;
   const transcript = items.find(
     item => item.type === 'file' && 
     item.metadata.name === transcriptName
@@ -259,12 +247,6 @@ export async function findShadowTwinImage(
       );
       
       if (imageFile) {
-        FileLogger.debug('findShadowTwinImage', 'Bild im Shadow-Twin-Verzeichnis gefunden', {
-          imagePath: normalizedPath,
-          fileId: baseItem.id,
-          shadowTwinFolderId: shadowTwinFolder.id,
-          imageFileId: imageFile.id
-        });
         return imageFile;
       }
     } catch (error) {
@@ -285,12 +267,6 @@ export async function findShadowTwinImage(
     );
     
     if (imageFile) {
-      FileLogger.debug('findShadowTwinImage', 'Bild im Parent-Verzeichnis gefunden (Fallback)', {
-        imagePath: normalizedPath,
-        fileId: baseItem.id,
-        parentId: baseItem.parentId,
-        imageFileId: imageFile.id
-      });
       return imageFile;
     }
   } catch (error) {
@@ -302,34 +278,7 @@ export async function findShadowTwinImage(
     });
   }
   
-  // Für Debugging: dekodiere die Basis-Pfade aus den Base64-IDs, damit das
-  // effektive Verzeichnis im Filesystem leichter überprüft werden kann.
-  let decodedShadowTwinPath: string | undefined;
-  let decodedParentPath: string | undefined;
-  try {
-    if (shadowTwinFolder?.id) {
-      decodedShadowTwinPath = Buffer.from(shadowTwinFolder.id, 'base64').toString('utf-8');
-    }
-  } catch {
-    // Dekodierfehler ignorieren – wir loggen dann nur die IDs
-  }
-  try {
-    if (baseItem.parentId) {
-      decodedParentPath = Buffer.from(baseItem.parentId, 'base64').toString('utf-8');
-    }
-  } catch {
-    // Dekodierfehler ignorieren
-  }
-
-  FileLogger.debug('findShadowTwinImage', 'Bild nicht gefunden', {
-    imagePath: normalizedPath,
-    fileId: baseItem.id,
-    shadowTwinFolderId: shadowTwinFolder?.id || 'none',
-    shadowTwinFolderPath: decodedShadowTwinPath,
-    parentId: baseItem.parentId,
-    parentPath: decodedParentPath,
-  });
-  
+  // Bild nicht gefunden - kein Log, da dies normal sein kann (Bild noch nicht hochgeladen)
   return null;
 }
 
@@ -380,13 +329,6 @@ export async function resolveShadowTwinImageUrl(
   
   // Generiere Storage-API-URL
   const resolvedUrl = `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(imageFile.id)}&libraryId=${encodeURIComponent(libraryId)}`;
-  
-  FileLogger.debug('resolveShadowTwinImageUrl', 'Bild-URL erfolgreich aufgelöst', {
-    imagePath,
-    fileId: baseItem.id,
-    imageFileId: imageFile.id,
-    resolvedUrl
-  });
   
   return resolvedUrl;
 }

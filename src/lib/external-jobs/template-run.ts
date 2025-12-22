@@ -84,11 +84,16 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
     })
     
     const data: unknown = await resp.json().catch((parseError) => {
+      const errorMsg = `Fehler beim Parsen der Transformer-Antwort: ${parseError instanceof Error ? parseError.message : String(parseError)}`
       bufferLog(jobId, { 
         phase: 'transform_meta_error', 
-        message: `Fehler beim Parsen der Transformer-Antwort: ${parseError instanceof Error ? parseError.message : String(parseError)}` 
+        message: errorMsg
       })
-      return {}
+      // Werfe Fehler, damit er im Trace-Event erfasst wird
+      const error = new Error(errorMsg) as Error & { status?: number; statusText?: string }
+      error.status = resp.status
+      error.statusText = resp.statusText
+      throw error
     })
     
     if (resp.ok && data && typeof data === 'object' && !Array.isArray(data)) {
@@ -96,16 +101,48 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
       const normalized = normalizeStructuredData(d?.structured_data)
       if (normalized) {
         bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
+        return { meta: normalized }
       } else {
-        bufferLog(jobId, { phase: 'transform_meta_failed', message: 'Transformer lieferte kein gültiges JSON' })
+        // Secretary Service hat erfolgreich geantwortet, aber kein gültiges structured_data zurückgegeben
+        const errorMsg = `Transformer lieferte kein gültiges structured_data. Response-Struktur: ${JSON.stringify(data).substring(0, 500)}`
+        bufferLog(jobId, { phase: 'transform_meta_failed', message: errorMsg })
+        
+        // Werfe Fehler mit Response-Details, damit er im Trace-Event erfasst wird
+        const error = new Error(errorMsg) as Error & { 
+          status?: number
+          statusText?: string
+          responseData?: unknown
+        }
+        error.status = resp.status
+        error.statusText = resp.statusText
+        error.responseData = data
+        throw error
       }
-      return { meta: normalized }
     }
     
     // HTTP-Status nicht OK, aber Response erhalten
-    const errorText = typeof data === 'object' && data !== null && 'error' in data 
-      ? String((data as { error?: unknown }).error)
-      : `HTTP ${resp.status}: ${resp.statusText}`
+    // Versuche, detaillierte Fehlermeldung aus Response-Body zu extrahieren
+    let errorText = `HTTP ${resp.status}: ${resp.statusText}`
+    let responseData: unknown = data
+    
+    if (data && typeof data === 'object' && data !== null) {
+      // Versuche verschiedene Fehlerfelder zu finden
+      if ('error' in data) {
+        errorText = String((data as { error?: unknown }).error)
+      } else if ('message' in data) {
+        errorText = String((data as { message?: unknown }).message)
+      } else if ('detail' in data) {
+        errorText = String((data as { detail?: unknown }).detail)
+      } else {
+        // Verwende JSON-String der Response als Fehlermeldung (erste 500 Zeichen)
+        const dataStr = JSON.stringify(data).substring(0, 500)
+        errorText = `HTTP ${resp.status}: ${resp.statusText}. Response: ${dataStr}`
+      }
+      responseData = data
+    } else if (typeof data === 'string') {
+      errorText = `HTTP ${resp.status}: ${resp.statusText}. Response: ${data.substring(0, 500)}`
+      responseData = data
+    }
     
     // Extrahiere Max-Content-Length aus Response-Headers (falls vorhanden)
     const maxContentLength = resp.headers.get('x-max-content-length') 
@@ -122,6 +159,7 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
       extractedTextLen?: number
       templateContentLen?: number
       is413Error?: boolean
+      responseData?: unknown
     }
     error.status = resp.status
     error.statusText = resp.statusText
@@ -130,10 +168,11 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
     error.extractedTextLen = textLength
     error.templateContentLen = templateLength
     error.is413Error = resp.status === 413
+    error.responseData = responseData // Speichere Response-Daten für Debugging
     
     throw error
   } catch (error) {
-    // Fehler beim HTTP-Request (Network, Timeout, etc.)
+    // Fehler beim HTTP-Request (Network, Timeout, HttpError, etc.)
     // Erweitere Error-Objekt mit strukturierten Informationen für phase-template.ts
     if (error instanceof Error) {
       const errorMessage = error.message
@@ -150,6 +189,28 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
         is413Error?: boolean
         errorType?: string
         url?: string
+        responseData?: unknown
+      }
+      
+      // Wenn es ein HttpError ist, extrahiere responseBody (falls vorhanden)
+      // HttpError hat jetzt ein responseBody-Feld (siehe fetch-with-timeout.ts)
+      if ('status' in error && 'statusText' in error) {
+        // HttpError hat möglicherweise responseBody
+        const httpError = error as { responseBody?: unknown }
+        if (httpError.responseBody) {
+          enhancedError.responseData = httpError.responseBody
+          
+          // Extrahiere Fehlermeldung aus responseBody, falls vorhanden
+          // Secretary Service Format: { status: "error", error: { message: "..." } }
+          if (typeof httpError.responseBody === 'object' && httpError.responseBody !== null) {
+            const body = httpError.responseBody as Record<string, unknown>
+            if ('error' in body && typeof body.error === 'object' && body.error !== null && 'message' in body.error) {
+              const errorMsg = String((body.error as { message?: unknown }).message)
+              // Überschreibe error.message mit der detaillierten Fehlermeldung
+              enhancedError.message = errorMsg
+            }
+          }
+        }
       }
       
       // Wenn Error bereits erweitert wurde (z.B. von HttpError), diese Properties übernehmen

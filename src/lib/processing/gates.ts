@@ -28,6 +28,7 @@
 
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getServerProvider } from '@/lib/storage/server-provider';
+import type { StorageProvider } from '@/lib/storage/types';
 import type { Library } from '@/types/library';
 import { findShadowTwinFolder, findShadowTwinMarkdown, generateShadowTwinName } from '@/lib/storage/shadow-twin';
 
@@ -38,6 +39,13 @@ export interface GateContext {
   library: Library | null | undefined;
   source: { itemId?: string; parentId?: string; name?: string } | undefined;
   options: { targetLanguage?: string } | undefined;
+  /**
+   * Optional: Re-use an already created storage provider (request-local),
+   * to avoid redundant provider creation and repeated list/get calls.
+   *
+   * WICHTIG: Der Provider muss zur angegebenen Library gehören.
+   */
+  provider?: StorageProvider;
 }
 
 export interface GateResult {
@@ -58,7 +66,8 @@ export async function gateExtractPdf(ctx: GateContext): Promise<GateResult> {
   // 1) Shadow‑Twin per Namensschema prüfen (erweiterte Suche: Verzeichnis oder Datei)
   if (library && source?.parentId && source?.name) {
     try {
-      const provider = await getServerProvider(userEmail, library.id);
+      // Re-use provider if provided by caller (reduces redundant storage calls)
+      const provider = ctx.provider ?? await getServerProvider(userEmail, library.id);
       const base = getBaseName(source.name);
       const lang = (options?.targetLanguage || 'de').toLowerCase();
       

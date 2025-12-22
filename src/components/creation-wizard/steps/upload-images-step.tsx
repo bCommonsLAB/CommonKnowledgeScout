@@ -152,6 +152,7 @@ export function UploadImagesStep({
                   {previewUrl && (
                     <div className="flex-shrink-0">
                       <div className="w-24 h-24 border rounded overflow-hidden bg-muted flex items-center justify-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- Preview nutzt (blob:) Object-URLs; next/image bringt hier keinen Vorteil. */}
                         <img
                           src={previewUrl}
                           alt={`Preview für ${field.label || field.key}`}

@@ -14,6 +14,9 @@ import { buildMetadataPrefix } from '@/lib/ingestion/metadata-formatter'
 import { extractFacetValues, buildVectorDocuments } from '@/lib/ingestion/vector-builder'
 import { buildMetaDocument } from '@/lib/ingestion/meta-document-builder'
 import { hashId } from '@/lib/utils/string-utils'
+import { AzureStorageService } from '@/lib/services/azure-storage-service'
+import { getAzureStorageConfig } from '@/lib/config/azure-storage'
+import * as fs from 'fs/promises'
 
 /**
  * Stub-Service zum Enqueue einer Ingestion.
@@ -327,6 +330,268 @@ export class IngestionService {
       // WICHTIG: Stelle sicher, dass die aktualisierten Slides (mit Azure-URLs) in docMetaJsonObj sind
       if (metaEffective.slides && Array.isArray(metaEffective.slides)) {
         docMetaJsonObj.slides = metaEffective.slides
+      }
+      
+      // PDF-Upload: Wenn docMetaJson.url fehlt, lade Original-PDF hoch
+      if (provider && !docMetaJsonObj.url) {
+        try {
+          // Bestimme Scope basierend auf Dokumenttyp
+          const scope: 'books' | 'sessions' = isSessionMode ? 'sessions' : 'books'
+          
+          // Lade Original-PDF vom Storage Provider
+          // fileId sollte das Original-PDF sein (aus job.correlation.source.itemId)
+          const pdfItem = await provider.getItemById(fileId)
+          if (pdfItem && pdfItem.type === 'file') {
+            const pdfMimeType = pdfItem.metadata?.mimeType || ''
+            // Nur PDFs hochladen
+            if (pdfMimeType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
+              FileLogger.info('ingestion', 'Lade Original-PDF für Azure-Upload', {
+                fileId,
+                fileName: pdfItem.metadata?.name || fileName,
+              })
+              if (jobId) {
+                bufferLog(jobId, {
+                  phase: 'pdf_upload_start',
+                  message: `Lade Original-PDF hoch: ${pdfItem.metadata?.name || fileName}`,
+                })
+              }
+              
+              // Bestimme Original-Dateiname (aus PDF-Item oder fileName)
+              const originalPdfFileName = pdfItem.metadata?.name || fileName
+              
+              // Stelle sicher, dass Dateiname .pdf Endung hat
+              const sanitizedPdfFileName = originalPdfFileName.toLowerCase().endsWith('.pdf')
+                ? originalPdfFileName
+                : `${originalPdfFileName.replace(/\.[^/.]+$/, '')}.pdf`
+              
+              // Azure Storage Service für PDF-Upload
+              const azureConfig = getAzureStorageConfig()
+              if (azureConfig) {
+                const azureStorageInstance = new AzureStorageService()
+                
+                if (azureStorageInstance.isConfigured()) {
+                  // Prüfe ob Container existiert
+                  const containerExists = await azureStorageInstance.containerExists(azureConfig.containerName)
+                  if (containerExists) {
+                    // Prüfe ob PDF bereits existiert (Deduplizierung)
+                    const pdfExists = await azureStorageInstance.pdfExistsWithScope(
+                      azureConfig.containerName,
+                      libraryId,
+                      scope,
+                      fileId,
+                      sanitizedPdfFileName
+                    )
+                    
+                    let pdfUrl: string
+                    if (pdfExists) {
+                      // PDF bereits vorhanden - verwende vorhandene URL
+                      pdfUrl = azureStorageInstance.getPdfUrlWithScope(
+                        azureConfig.containerName,
+                        libraryId,
+                        scope,
+                        fileId,
+                        sanitizedPdfFileName
+                      )
+                      FileLogger.info('ingestion', 'PDF bereits vorhanden, verwende vorhandene URL', {
+                        fileId,
+                        pdfUrl,
+                      })
+                      if (jobId) {
+                        bufferLog(jobId, {
+                          phase: 'pdf_upload_deduplicated',
+                          message: `PDF bereits vorhanden: ${sanitizedPdfFileName}`,
+                        })
+                      }
+                    } else {
+                      // Versuche Streaming-Upload, wenn möglich (direkt vom Dateisystem)
+                      // Prüfe, ob Provider einen direkten Dateipfad liefern kann
+                      let useStreaming = false
+                      let filePath: string | undefined = undefined
+                      
+                      try {
+                        // Prüfe, ob Provider getPathById unterstützt
+                        // getPathById gibt einen relativen Pfad zurück - wir müssen den Library-Path kennen
+                        if ('getPathById' in provider && typeof provider.getPathById === 'function') {
+                          const relativePath = await provider.getPathById(fileId)
+                          
+                          if (typeof relativePath === 'string' && relativePath !== '/') {
+                            // Hole Library-Path aus Library-Service
+                            try {
+                              const { LibraryService } = await import('@/lib/services/library-service')
+                              const libService = LibraryService.getInstance()
+                              const library = await libService.getLibrary(userEmail, libraryId)
+                              
+                              if (library && library.path) {
+                                // Konstruiere absoluten Pfad: library.path + relativePath
+                                const pathLib = await import('path')
+                                // Entferne führenden Slash vom relativen Pfad, falls vorhanden
+                                const cleanRelativePath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath
+                                const absolutePath = pathLib.join(library.path, cleanRelativePath)
+                                
+                                // Prüfe, ob Datei existiert
+                                try {
+                                  const stats = await fs.stat(absolutePath)
+                                  if (stats.isFile()) {
+                                    filePath = absolutePath
+                                    useStreaming = true
+                                    FileLogger.info('ingestion', 'Streaming-Upload möglich - verwende direkten Dateipfad', {
+                                      fileId,
+                                      filePath,
+                                      relativePath,
+                                      libraryPath: library.path,
+                                      fileSize: stats.size,
+                                    })
+                                  }
+                                } catch {
+                                  // Datei nicht gefunden oder kein Zugriff - Fallback auf Buffer
+                                  FileLogger.debug('ingestion', 'Datei nicht gefunden oder kein Zugriff, verwende Buffer-Fallback', {
+                                    fileId,
+                                    absolutePath,
+                                  })
+                                }
+                              }
+                            } catch (libError) {
+                              // Library-Service Fehler - Fallback auf Buffer
+                              FileLogger.debug('ingestion', 'Library-Path konnte nicht ermittelt werden, verwende Buffer-Fallback', {
+                                fileId,
+                                error: libError instanceof Error ? libError.message : String(libError),
+                              })
+                            }
+                          }
+                        }
+                      } catch {
+                        // getPathById nicht verfügbar oder Fehler - Fallback auf Buffer
+                      }
+                      
+                      if (useStreaming && filePath) {
+                        // Streaming-Upload direkt vom Dateisystem
+                        pdfUrl = await azureStorageInstance.uploadPdfToScopeFromFile(
+                          azureConfig.containerName,
+                          libraryId,
+                          scope,
+                          fileId,
+                          sanitizedPdfFileName,
+                          filePath
+                        )
+                        FileLogger.info('ingestion', 'PDF erfolgreich auf Azure hochgeladen (via Stream)', {
+                          fileId,
+                          pdfUrl,
+                          fileName: sanitizedPdfFileName,
+                          filePath,
+                        })
+                      } else {
+                        // Fallback: Buffer-basierter Upload (für OneDrive oder wenn Streaming nicht möglich)
+                        FileLogger.info('ingestion', 'Verwende Buffer-basierten Upload (Streaming nicht möglich)', {
+                          fileId,
+                          fileName: sanitizedPdfFileName,
+                        })
+                        const pdfBinary = await provider.getBinary(fileId)
+                        const pdfBuffer = Buffer.from(await pdfBinary.blob.arrayBuffer())
+                        
+                        pdfUrl = await azureStorageInstance.uploadPdfToScope(
+                          azureConfig.containerName,
+                          libraryId,
+                          scope,
+                          fileId,
+                          sanitizedPdfFileName,
+                          pdfBuffer
+                        )
+                        FileLogger.info('ingestion', 'PDF erfolgreich auf Azure hochgeladen', {
+                          fileId,
+                          pdfUrl,
+                          fileName: sanitizedPdfFileName,
+                        })
+                        if (jobId) {
+                          bufferLog(jobId, {
+                            phase: 'pdf_upload_completed',
+                            message: `PDF hochgeladen: ${sanitizedPdfFileName}`,
+                          })
+                          try {
+                            await repo.traceAddEvent(jobId, {
+                              spanId: 'ingest',
+                              name: 'pdf_uploaded',
+                              attributes: {
+                                fileId,
+                                fileName: sanitizedPdfFileName,
+                                pdfUrl,
+                                scope,
+                              },
+                            })
+                          } catch {}
+                        }
+                      }
+                    }
+                    
+                    // Setze URL in docMetaJsonObj
+                    docMetaJsonObj.url = pdfUrl
+                    FileLogger.info('ingestion', 'PDF-URL in docMetaJson gesetzt', {
+                      fileId,
+                      url: pdfUrl,
+                    })
+                  } else {
+                    FileLogger.warn('ingestion', 'Azure Container existiert nicht, überspringe PDF-Upload', {
+                      fileId,
+                      containerName: azureConfig.containerName,
+                    })
+                    if (jobId) {
+                      bufferLog(jobId, {
+                        phase: 'pdf_upload_skipped',
+                        message: `Azure Container existiert nicht: ${azureConfig.containerName}`,
+                      })
+                    }
+                  }
+                } else {
+                  FileLogger.warn('ingestion', 'Azure Storage nicht konfiguriert, überspringe PDF-Upload', {
+                    fileId,
+                  })
+                }
+              } else {
+                FileLogger.warn('ingestion', 'Azure Storage Config nicht verfügbar, überspringe PDF-Upload', {
+                  fileId,
+                })
+              }
+            } else {
+              FileLogger.debug('ingestion', 'Item ist kein PDF, überspringe PDF-Upload', {
+                fileId,
+                mimeType: pdfMimeType,
+                fileName: pdfItem.metadata?.name || fileName,
+              })
+            }
+          } else {
+            FileLogger.warn('ingestion', 'PDF-Item nicht gefunden oder kein File', {
+              fileId,
+              itemType: pdfItem?.type,
+            })
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          FileLogger.warn('ingestion', 'Fehler beim PDF-Upload (nicht kritisch)', {
+            fileId,
+            error: errorMessage,
+          })
+          if (jobId) {
+            bufferLog(jobId, {
+              phase: 'pdf_upload_error',
+              message: `PDF-Upload fehlgeschlagen: ${errorMessage}`,
+            })
+            try {
+              await repo.traceAddEvent(jobId, {
+                spanId: 'ingest',
+                name: 'pdf_upload_failed',
+                attributes: {
+                  fileId,
+                  error: errorMessage,
+                },
+              })
+            } catch {}
+          }
+          // Fehler nicht werfen - PDF-Upload ist optional
+        }
+      } else if (docMetaJsonObj.url) {
+        FileLogger.info('ingestion', 'docMetaJson.url bereits vorhanden, überspringe PDF-Upload', {
+          fileId,
+          existingUrl: docMetaJsonObj.url,
+        })
       }
       
       // chunksUpserted wird später nach dem Embedding gesetzt, initialisiere mit 0

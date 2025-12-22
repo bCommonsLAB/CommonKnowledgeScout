@@ -159,10 +159,22 @@ export class TemplateRepository {
     if (process.env.NODE_ENV === 'development') {
       console.debug('[TemplateRepository] findById result:', {
         templateId,
+        libraryId,
         actualId,
         found: !!result,
         resultId: result?._id,
+        resultLibraryId: result?.libraryId,
+        filter,
       })
+      
+      // Wenn nicht gefunden, suche nach libraryId allein, um zu sehen, welche Templates existieren
+      if (!result) {
+        const byLibraryId = await col.find({ libraryId }).toArray()
+        console.debug('[TemplateRepository] findById - Templates mit dieser libraryId:', {
+          count: byLibraryId.length,
+          templates: byLibraryId.map(t => ({ _id: t._id, name: t.name, libraryId: t.libraryId }))
+        })
+      }
     }
     
     return result
@@ -283,6 +295,46 @@ export class TemplateRepository {
     const templateId = this.generateTemplateId(libraryId, name)
     const result = await col.findOne({ _id: templateId })
     return result !== null
+  }
+
+  /**
+   * Migriert ein Template von alter _id-Struktur (nur name) zu neuer Struktur (libraryId:name)
+   * 
+   * @param name Template-Name
+   * @param libraryId Library-ID
+   * @returns true wenn Migration erfolgreich war, false wenn Template nicht gefunden oder bereits migriert
+   */
+  static async migrateTemplateId(name: string, libraryId: string): Promise<boolean> {
+    const col = await this.getCollection()
+    
+    // Prüfe, ob Template mit alter _id existiert
+    const oldTemplate = await col.findOne({ _id: name, libraryId })
+    if (!oldTemplate) {
+      // Template existiert nicht oder wurde bereits migriert
+      return false
+    }
+    
+    // Prüfe, ob Template mit neuer _id bereits existiert
+    const newId = this.generateTemplateId(libraryId, name)
+    const newTemplate = await col.findOne({ _id: newId })
+    if (newTemplate) {
+      // Template wurde bereits migriert, lösche alte Version
+      await col.deleteOne({ _id: name, libraryId })
+      return true
+    }
+    
+    // Erstelle neues Template mit korrekter _id
+    const migratedTemplate: TemplateDocument = {
+      ...oldTemplate,
+      _id: newId,
+      updatedAt: new Date(),
+    }
+    
+    // Speichere neues Template und lösche altes
+    await col.insertOne(migratedTemplate)
+    await col.deleteOne({ _id: name, libraryId })
+    
+    return true
   }
 }
 

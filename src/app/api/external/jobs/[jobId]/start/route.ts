@@ -53,6 +53,63 @@ import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-lo
 import { runIngestPhase } from '@/lib/external-jobs/phase-ingest'
 import { runTemplatePhase } from '@/lib/external-jobs/phase-template'
 import { readPhasesAndPolicies } from '@/lib/external-jobs/policies'
+import { generateShadowTwinFolderName } from '@/lib/storage/shadow-twin'
+import { withRequestStorageCache } from '@/lib/storage/provider-request-cache'
+
+/**
+ * Ableitung des Extract-Gates aus einem bereits berechneten ShadowTwinState.
+ *
+ * Ziel: doppelte Storage-Scans (findShadowTwinFolder/listItemsById) vermeiden, wenn wir die
+ * Information ohnehin schon aus `analyzeShadowTwin()` haben.
+ *
+ * WICHTIG: Diese Ableitung deckt den häufigsten Fall ab:
+ * - wenn im Shadow-Twin-Verzeichnis bereits ein Transcript oder Transformiertes Markdown existiert,
+ *   dann ist Extract redundant.
+ * Falls ShadowTwinState nicht aussagekräftig ist, geben wir `undefined` zurück und fallen auf
+ * `gateExtractPdf()` zurück.
+ */
+function deriveExtractGateFromShadowTwinState(
+  shadowTwinState: unknown,
+  targetLanguage: string | undefined
+): { exists: boolean; reason?: 'shadow_twin_exists'; details?: Record<string, unknown> } | undefined {
+  try {
+    if (!shadowTwinState || typeof shadowTwinState !== 'object') return undefined
+    const st = shadowTwinState as {
+      shadowTwinFolderId?: unknown
+      transformed?: unknown
+      transcriptFiles?: unknown
+    }
+    const folderId = typeof st.shadowTwinFolderId === 'string' ? st.shadowTwinFolderId : undefined
+
+    const transformed = (st.transformed && typeof st.transformed === 'object')
+      ? (st.transformed as { id?: unknown; metadata?: { name?: unknown } })
+      : undefined
+    const transformedId = typeof transformed?.id === 'string' ? transformed.id : undefined
+    const transformedName = typeof transformed?.metadata?.name === 'string' ? transformed.metadata.name : undefined
+
+    const transcriptFiles = Array.isArray(st.transcriptFiles) ? st.transcriptFiles as Array<{ id?: unknown; metadata?: { name?: unknown } }> : []
+    const transcript = transcriptFiles.find(f => typeof f?.id === 'string')
+    const transcriptId = typeof transcript?.id === 'string' ? transcript.id : undefined
+    const transcriptName = typeof transcript?.metadata?.name === 'string' ? transcript.metadata.name : undefined
+
+    // Ohne irgendein Markdown ist die Aussage "shadow_twin_exists" nicht belastbar
+    if (!transformedId && !transcriptId) return { exists: false }
+
+    return {
+      exists: true,
+      reason: 'shadow_twin_exists',
+      details: {
+        source: 'shadowTwinState',
+        folderId: folderId || null,
+        language: (targetLanguage || 'de').toLowerCase(),
+        transformed: transformedId ? { id: transformedId, name: transformedName || null } : null,
+        transcript: transcriptId ? { id: transcriptId, name: transcriptName || null } : null,
+      },
+    }
+  } catch {
+    return undefined
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -146,6 +203,9 @@ export async function POST(
       await repo.setStatus(jobId, 'failed', { error: { code: 'source_incomplete', message: 'Quelle unvollständig' } })
       return NextResponse.json({ error: 'Quelle unvollständig' }, { status: 400 })
     }
+
+    // Request-lokales Caching für Storage-Reads aktivieren (reduziert redundante list/get/path Calls)
+    provider = withRequestStorageCache(provider)
     
     FileLogger.info('start-route', 'Lade Datei aus Storage', {
       jobId,
@@ -156,7 +216,19 @@ export async function POST(
     
     let bin: Awaited<ReturnType<typeof provider.getBinary>>
     try {
+      FileLogger.info('start-route', 'Starte getBinary-Aufruf', {
+        jobId,
+        itemId: src.itemId,
+        fileName: src.name
+      })
       bin = await provider.getBinary(src.itemId)
+      FileLogger.info('start-route', 'getBinary erfolgreich abgeschlossen', {
+        jobId,
+        itemId: src.itemId,
+        fileName: src.name,
+        blobSize: bin.blob.size,
+        mimeType: bin.mimeType
+      })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       const errorName = error instanceof Error ? error.name : 'UnknownError'
@@ -252,20 +324,24 @@ export async function POST(
     // Shadow-Twin-State beim Job-Start analysieren und im Job-Dokument speichern
     // WICHTIG: Deterministische Erstellung des Shadow-Twin-Verzeichnisses, wenn benötigt
     // Jeder Job hat seinen eigenen isolierten Kontext - keine gegenseitige Beeinflussung
+    FileLogger.info('start-route', 'Starte Shadow-Twin-Analyse', {
+      jobId,
+      itemId: src.itemId,
+      fileName: src.name
+    })
     let shadowTwinState: Awaited<ReturnType<typeof analyzeShadowTwin>> | null = null
     try {
       shadowTwinState = await analyzeShadowTwin(src.itemId, provider);
+      FileLogger.info('start-route', 'Shadow-Twin-Analyse abgeschlossen', {
+        jobId,
+        itemId: src.itemId,
+        hasShadowTwinFolder: !!shadowTwinState?.shadowTwinFolderId,
+        hasTransformed: !!shadowTwinState?.transformed
+      })
       if (shadowTwinState) {
         // Setze processingStatus auf 'processing', da Job gerade gestartet wird
         const mongoState = toMongoShadowTwinState({ ...shadowTwinState, processingStatus: 'processing' });
         await repo.setShadowTwinState(jobId, mongoState);
-        FileLogger.info('start-route', 'Shadow-Twin-State analysiert und gespeichert', {
-          jobId,
-          fileId: src.itemId,
-          hasTransformed: !!shadowTwinState.transformed,
-          hasTranscriptFiles: !!shadowTwinState.transcriptFiles && shadowTwinState.transcriptFiles.length > 0,
-          shadowTwinFolderId: shadowTwinState.shadowTwinFolderId
-        });
       }
     } catch (error) {
       FileLogger.error('start-route', 'Fehler bei Shadow-Twin-Analyse', {
@@ -294,10 +370,22 @@ export async function POST(
     // Wenn Verzeichnis benötigt wird, aber noch nicht existiert, erstelle es deterministisch
     if (needsShadowTwinFolder && !shadowTwinState?.shadowTwinFolderId) {
       try {
-        const { findOrCreateShadowTwinFolder } = await import('@/lib/external-jobs/shadow-twin-helpers')
         const parentId = src.parentId || 'root'
         const originalName = src.name || 'output'
-        const folderId = await findOrCreateShadowTwinFolder(provider, parentId, originalName, jobId)
+        const folderName = generateShadowTwinFolderName(originalName)
+
+        // OPTIMIERUNG: Wir haben eben `analyzeShadowTwin()` gemacht und wissen, dass kein Folder existiert.
+        // Daher erzeugen wir deterministisch direkt, ohne nochmal `findShadowTwinFolder()` aufzurufen.
+        // Falls zwischenzeitlich ein Folder entstanden ist, fällt `createFolder` ggf. fehl → dann fallback.
+        let folderId: string | undefined
+        try {
+          const created = await provider.createFolder(parentId, folderName)
+          folderId = created.id
+        } catch {
+          // Fallback: existierendes Verzeichnis finden/holen (robust gegen Race Conditions)
+          const { findOrCreateShadowTwinFolder } = await import('@/lib/external-jobs/shadow-twin-helpers')
+          folderId = await findOrCreateShadowTwinFolder(provider, parentId, originalName, jobId)
+        }
         
         if (folderId) {
           // Aktualisiere Shadow-Twin-State im Job-Dokument
@@ -312,6 +400,9 @@ export async function POST(
           
           const mongoState = toMongoShadowTwinState(updatedState)
           await repo.setShadowTwinState(jobId, mongoState)
+
+          // Auch lokal aktualisieren, damit spätere Checks (Gates/Decisions) den neuen Zustand sehen
+          shadowTwinState = updatedState as typeof shadowTwinState
           
           FileLogger.info('start-route', 'Shadow-Twin-Verzeichnis deterministisch erstellt', {
             jobId,
@@ -409,42 +500,23 @@ export async function POST(
           userEmail: job.userEmail
         })
       } else {
-        FileLogger.info('start-route', 'Prüfe Extract-Gate', {
-          jobId,
-          libraryId: library.id,
-          sourceName: job.correlation?.source?.name,
-          sourceParentId: job.correlation?.source?.parentId,
-          targetLanguage: job.correlation?.options?.targetLanguage
-        })
-        
-        const gateResult = await gateExtractPdf({
+        const derivedGate = deriveExtractGateFromShadowTwinState(
+          shadowTwinState,
+          (job.correlation?.options as { targetLanguage?: string } | undefined)?.targetLanguage
+        )
+        const gateResult = derivedGate ?? await gateExtractPdf({
           repo,
           jobId,
           userEmail: job.userEmail,
           library,
           source: job.correlation?.source,
-          options: job.correlation?.options as { targetLanguage?: string } | undefined
-        })
-        
-        FileLogger.info('start-route', 'Extract-Gate Ergebnis', {
-          jobId,
-          gateExists: gateResult.exists,
-          reason: gateResult.reason,
-          details: gateResult.details
+          options: job.correlation?.options as { targetLanguage?: string } | undefined,
+          provider,
         })
         
         if (gateResult.exists) {
           extractGateExists = true
           extractGateReason = gateResult.reason || 'shadow_twin_exists'
-          FileLogger.info('start-route', 'Extract-Gate: Shadow-Twin gefunden', {
-            jobId,
-            reason: extractGateReason,
-            details: gateResult.details
-          })
-        } else {
-          FileLogger.info('start-route', 'Extract-Gate: Kein Shadow-Twin gefunden', {
-            jobId
-          })
         }
       }
     } catch (error) {
@@ -479,7 +551,6 @@ export async function POST(
     const shouldRunExtractPhase = shouldRunExtract(extractGateExists, extractDirective)
     
     // Preprocess/Preprozessoren als Quelle für Entscheidungen verwenden
-    const needExtract = preExtractResult ? preExtractResult.needExtract : true
     const needTemplate = preTemplateResult ? preTemplateResult.needTemplate : true
     
     // Finale Entscheidung: Extract nur wenn Phase enabled UND Gate/Policy es erlaubt
@@ -538,18 +609,7 @@ export async function POST(
       } catch {}
     }
     
-    // Logging für Debugging
-    FileLogger.info('start-route', 'Extract-Entscheidung', {
-      jobId,
-      extractGateExists,
-      extractGateReason,
-      extractDirective,
-      extractEnabled,
-      shouldRunExtractPhase,
-      runExtract,
-      needExtract,
-      preHasMarkdown: preExtractResult?.hasMarkdown,
-    })
+    // Logging nur bei unerwarteten Situationen (z.B. Gate gefunden, aber trotzdem ausgeführt)
     
     // Wenn Gate gefunden wurde, aber trotzdem ausgeführt wird (z.B. force), logge Warnung
     if (extractGateExists && runExtract && extractDirective !== 'force') {
@@ -658,11 +718,31 @@ export async function POST(
       // - Nach erfolgreichem Template-Lauf soll diese Datei entfernt werden,
       //   damit nur noch konsolidierte Artefakte im Shadow-Twin-Verzeichnis liegen.
       const legacyMarkdownId = preTemplateResult?.markdownFileId
-      
-      // Shadow-Twin-Markdown-Datei laden
-      const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
+
+      // WICHTIG: Job-Objekt neu laden, damit shadowTwinState sicher vorhanden ist.
+      // Ohne Reload sieht loadShadowTwinMarkdown u.U. kein shadowTwinState und sucht "blind" im Storage.
+      const refreshedJob = await repo.get(jobId)
+
+      // Shadow-Twin-Markdown-Datei laden (bevorzugt shadowTwinState.transformed.id)
+      const ctxPre: RequestContext = { request, jobId, job: refreshedJob || job, body: {}, callbackToken: undefined, internalBypass: true }
       const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider)
       if (!shadowTwinData) {
+        // Job als failed markieren, da Shadow-Twin nicht gefunden wurde
+        try {
+          await repo.updateStep(jobId, 'transform_template', {
+            status: 'failed',
+            endedAt: new Date(),
+            error: { message: 'Shadow‑Twin nicht gefunden' }
+          })
+          await repo.setStatus(jobId, 'failed', {
+            error: { code: 'shadow_twin_not_found', message: 'Shadow‑Twin nicht gefunden' }
+          })
+        } catch (error) {
+          FileLogger.error('start-route', 'Fehler beim Markieren des Jobs als failed', {
+            jobId,
+            error: error instanceof Error ? error.message : String(error)
+          })
+        }
         return NextResponse.json({ error: 'Shadow‑Twin nicht gefunden' }, { status: 404 })
       }
 

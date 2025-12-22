@@ -34,6 +34,7 @@ import { getServerProvider } from '@/lib/storage/server-provider'
 import { ImageExtractionService } from '@/lib/transform/image-extraction-service'
 import { getSecretaryConfig } from '../env'
 import { findOrCreateShadowTwinFolder, prepareImageProcessingContext } from './shadow-twin-helpers'
+import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 
 /**
  * Options for processing all image sources
@@ -110,6 +111,38 @@ export async function processAllImageSources(
     return undefined
   }
 
+  const repo = new ExternalJobsRepository()
+  
+  // Starte Bild-Extraktion-Span
+  try {
+    await repo.traceStartSpan(ctx.jobId, {
+      spanId: 'image_extraction',
+      parentSpanId: 'job',
+      name: 'image_extraction',
+    })
+  } catch {
+    // Span könnte bereits existieren (nicht kritisch)
+  }
+  
+  // Trace-Event für Start der Bild-Verarbeitung (allgemein)
+  try {
+    await repo.traceAddEvent(ctx.jobId, {
+      spanId: 'image_extraction',
+      name: 'image_extraction_start',
+      attributes: {
+        hasPagesArchiveData: !!pagesArchiveData,
+        hasPagesArchiveUrl: !!pagesArchiveUrl,
+        hasImagesArchiveData: !!imagesArchiveData,
+        hasImagesArchiveUrl: !!imagesArchiveUrl,
+        hasMistralOcrImages,
+        hasMistralOcrImagesUrl: !!mistralOcrImagesUrl,
+        mistralOcrRawType: typeof mistralOcrRaw,
+      },
+    })
+  } catch {
+    // Trace-Fehler nicht kritisch
+  }
+  
   bufferLog(ctx.jobId, {
     phase: 'process_images_start',
     message: 'Starte konsolidierte Bilder-Verarbeitung',
@@ -179,6 +212,19 @@ export async function processAllImageSources(
         const arrayBuf = await resp.arrayBuffer()
         const base64Zip = Buffer.from(arrayBuf).toString('base64')
 
+        // Trace-Event für Start der spezifischen Archiv-Extraktion
+        try {
+          await repo.traceAddEvent(ctx.jobId, {
+            spanId: 'image_extraction',
+            name: 'image_extraction_archive_start',
+            attributes: {
+              archiveType: 'mistral_ocr_images',
+              archiveName: 'mistral_ocr_images.zip',
+              source: 'url',
+            },
+          })
+        } catch {}
+
         const result = await ImageExtractionService.saveZipArchive(
           base64Zip,
           'mistral_ocr_images.zip',
@@ -192,6 +238,33 @@ export async function processAllImageSources(
         )
 
         savedItemIds.push(...result.savedItems.map(it => it.id))
+        
+        // Trace-Event für Abschluss der Archiv-Extraktion mit Progress-Information
+        try {
+          await repo.traceAddEvent(ctx.jobId, {
+            spanId: 'image_extraction',
+            name: 'image_extraction_completed',
+            attributes: {
+              archiveType: 'mistral_ocr_images',
+              archiveName: 'mistral_ocr_images.zip',
+              imagesCount: result.savedItems.length,
+              totalImagesSoFar: savedItemIds.length,
+            },
+          })
+          // Progress-Event für einzelne Bild-Uploads (nachträglich, da wir die Anzahl kennen)
+          if (result.savedItems.length > 0) {
+            await repo.traceAddEvent(ctx.jobId, {
+              spanId: 'image_extraction',
+              name: 'image_upload_progress',
+              attributes: {
+                archiveType: 'mistral_ocr_images',
+                uploadedImages: result.savedItems.length,
+                totalImagesSoFar: savedItemIds.length,
+              },
+            })
+          }
+        } catch {}
+        
         bufferLog(ctx.jobId, {
           phase: 'mistral_ocr_images_extracted_from_url',
           message: `Mistral OCR Bilder von URL gespeichert (${result.savedItems.length})`
@@ -239,6 +312,19 @@ export async function processAllImageSources(
         const arrayBuf = await resp.arrayBuffer()
         const base64Zip = Buffer.from(arrayBuf).toString('base64')
 
+        // Trace-Event für Start der spezifischen Archiv-Extraktion
+        try {
+          await repo.traceAddEvent(ctx.jobId, {
+            spanId: 'image_extraction',
+            name: 'image_extraction_archive_start',
+            attributes: {
+              archiveType: 'pages',
+              archiveName: pagesArchiveFilename || 'pages.zip',
+              source: 'url',
+            },
+          })
+        } catch {}
+
         const result = await ImageExtractionService.saveZipArchive(
           base64Zip,
           pagesArchiveFilename || 'pages.zip',
@@ -252,6 +338,33 @@ export async function processAllImageSources(
         )
 
       savedItemIds.push(...result.savedItems.map(it => it.id))
+      
+      // Trace-Event für Abschluss der Archiv-Extraktion mit Progress-Information
+      try {
+        await repo.traceAddEvent(ctx.jobId, {
+          spanId: 'image_extraction',
+          name: 'image_extraction_completed',
+          attributes: {
+            archiveType: 'pages',
+            archiveName: pagesArchiveFilename || 'pages.zip',
+            imagesCount: result.savedItems.length,
+            totalImagesSoFar: savedItemIds.length,
+          },
+        })
+        // Progress-Event für einzelne Bild-Uploads (nachträglich, da wir die Anzahl kennen)
+        if (result.savedItems.length > 0) {
+          await repo.traceAddEvent(ctx.jobId, {
+            spanId: 'image_extraction',
+            name: 'image_upload_progress',
+            attributes: {
+              archiveType: 'pages',
+              uploadedImages: result.savedItems.length,
+              totalImagesSoFar: savedItemIds.length,
+            },
+          })
+        }
+      } catch {}
+      
       bufferLog(ctx.jobId, {
         phase: 'pages_images_extracted_from_url',
           message: `Seiten-Bilder von URL gespeichert (${result.savedItems.length})`
@@ -268,6 +381,19 @@ export async function processAllImageSources(
   // 2. Process pages_archive_data (Mistral OCR page images as ZIP, Legacy Base64)
   if (pagesArchiveData) {
     try {
+      // Trace-Event für Start der spezifischen Archiv-Extraktion
+      try {
+        await repo.traceAddEvent(ctx.jobId, {
+          spanId: 'image_extraction',
+          name: 'image_extraction_archive_start',
+          attributes: {
+            archiveType: 'pages',
+            archiveName: pagesArchiveFilename || 'pages.zip',
+            source: 'base64',
+          },
+        })
+      } catch {}
+      
       const result = await ImageExtractionService.saveZipArchive(
         pagesArchiveData,
         pagesArchiveFilename || 'pages.zip',
@@ -281,6 +407,33 @@ export async function processAllImageSources(
       )
 
       savedItemIds.push(...result.savedItems.map(it => it.id))
+      
+      // Trace-Event für Abschluss der Archiv-Extraktion mit Progress-Information
+      try {
+        await repo.traceAddEvent(ctx.jobId, {
+          spanId: 'image_extraction',
+          name: 'image_extraction_completed',
+          attributes: {
+            archiveType: 'pages',
+            archiveName: pagesArchiveFilename || 'pages.zip',
+            imagesCount: result.savedItems.length,
+            totalImagesSoFar: savedItemIds.length,
+          },
+        })
+        // Progress-Event für einzelne Bild-Uploads (nachträglich, da wir die Anzahl kennen)
+        if (result.savedItems.length > 0) {
+          await repo.traceAddEvent(ctx.jobId, {
+            spanId: 'image_extraction',
+            name: 'image_upload_progress',
+            attributes: {
+              archiveType: 'pages',
+              uploadedImages: result.savedItems.length,
+              totalImagesSoFar: savedItemIds.length,
+            },
+          })
+        }
+      } catch {}
+      
       bufferLog(ctx.jobId, {
         phase: 'pages_images_extracted_from_base64',
         message: `Seiten-Bilder von Base64 gespeichert (${result.savedItems.length})`
@@ -296,6 +449,19 @@ export async function processAllImageSources(
   // 3. Process images_archive_data (Standard PDF extracted images as ZIP)
   if (imagesArchiveData) {
     try {
+      // Trace-Event für Start der spezifischen Archiv-Extraktion
+      try {
+        await repo.traceAddEvent(ctx.jobId, {
+          spanId: 'image_extraction',
+          name: 'image_extraction_archive_start',
+          attributes: {
+            archiveType: 'images',
+            archiveName: imagesArchiveFilename || 'images.zip',
+            source: 'base64',
+          },
+        })
+      } catch {}
+      
       const result = await ImageExtractionService.saveZipArchive(
         imagesArchiveData,
         imagesArchiveFilename || 'images.zip',
@@ -309,6 +475,33 @@ export async function processAllImageSources(
       )
 
       savedItemIds.push(...result.savedItems.map(it => it.id))
+      
+      // Trace-Event für Abschluss der Archiv-Extraktion mit Progress-Information
+      try {
+        await repo.traceAddEvent(ctx.jobId, {
+          spanId: 'image_extraction',
+          name: 'image_extraction_completed',
+          attributes: {
+            archiveType: 'images',
+            archiveName: imagesArchiveFilename || 'images.zip',
+            imagesCount: result.savedItems.length,
+            totalImagesSoFar: savedItemIds.length,
+          },
+        })
+        // Progress-Event für einzelne Bild-Uploads (nachträglich, da wir die Anzahl kennen)
+        if (result.savedItems.length > 0) {
+          await repo.traceAddEvent(ctx.jobId, {
+            spanId: 'image_extraction',
+            name: 'image_upload_progress',
+            attributes: {
+              archiveType: 'images',
+              uploadedImages: result.savedItems.length,
+              totalImagesSoFar: savedItemIds.length,
+            },
+          })
+        }
+      } catch {}
+      
       bufferLog(ctx.jobId, {
         phase: 'images_extracted',
         message: `Bilder gespeichert (${result.savedItems.length})`
@@ -393,6 +586,15 @@ export async function processAllImageSources(
     if (urlResult) {
       savedItemIds.push(...urlResult.savedItemIds)
     }
+  }
+
+  // Beende Bild-Extraktion-Span
+  try {
+    await repo.traceEndSpan(ctx.jobId, 'image_extraction', savedItemIds.length > 0 ? 'completed' : 'skipped', {
+      totalImages: savedItemIds.length,
+    })
+  } catch {
+    // Span-Fehler nicht kritisch
   }
 
   return savedItemIds.length > 0 ? { savedItemIds } : undefined

@@ -349,6 +349,7 @@ export function EditDraftStep({
                   </div>
                 ) : previewUrl ? (
                   <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Preview nutzt (blob:) Object-URLs; next/image bringt hier keinen Vorteil. */}
                     <img
                       src={previewUrl}
                       alt={label}

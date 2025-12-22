@@ -46,10 +46,22 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
     shadowTwinFolderId: shadowTwinFolderId || null
   })
 
+  // Starte Postprocessing-Span für Markdown-Speicherung
+  // Dieser Span ist unabhängig von Template-Phase und wird auch im Extract-Only-Modus verwendet
+  try {
+    await repo.traceStartSpan(ctx.jobId, {
+      spanId: 'postprocessing',
+      parentSpanId: 'job',
+      name: 'postprocessing',
+    })
+  } catch {
+    // Span könnte bereits existieren (nicht kritisch)
+  }
+
   const file = new File([new Blob([markdown], { type: 'text/markdown' })], fileName, { type: 'text/markdown' })
   try {
     await repo.traceAddEvent(ctx.jobId, {
-      spanId: 'template',
+      spanId: 'postprocessing',
       name: 'postprocessing_save',
       attributes: {
         name: fileName,
@@ -61,7 +73,7 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
   const saved = await provider.uploadFile(targetParentId, file)
   try {
     await repo.traceAddEvent(ctx.jobId, {
-      spanId: 'template',
+      spanId: 'postprocessing',
       name: 'stored_local',
       attributes: {
         savedItemId: saved.id,
@@ -79,13 +91,22 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
   try {
     const p = await provider.getPathById(targetParentId)
     const uniqueName = (saved.metadata?.name as string | undefined) || fileName
-    await repo.appendLog(
-      ctx.jobId,
-      {
-        phase: 'stored_path',
+
+    // WICHTIG: `appendLog()` mappt "stored_path" historisch auf den `template`-Span.
+    // Da wir hier explizit im Postprocessing speichern (auch im Extract-Only-Modus),
+    // schreiben wir das Event direkt in den `postprocessing`-Span.
+    try {
+      await repo.traceAddEvent(ctx.jobId, {
+        spanId: 'postprocessing',
+        name: 'stored_path',
         message: `${p}/${uniqueName}`,
-      } as unknown as Record<string, unknown>
-    )
+        attributes: {
+          path: `${p}/${uniqueName}`,
+          parentId: targetParentId,
+          shadowTwinFolderId: shadowTwinFolderId || null,
+        },
+      })
+    } catch {}
     // WICHTIG: Refresh sowohl Parent als auch Shadow-Twin-Verzeichnis (falls vorhanden)
     // Dies stellt sicher, dass beide Ordner aktualisiert werden und die Shadow-Twin-Analyse neu läuft
     const refreshFolderIds = shadowTwinFolderId && shadowTwinFolderId !== parentId
@@ -106,7 +127,21 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
       refreshFolderIds, // Array mit allen zu refreshenden Ordnern (Parent + Shadow-Twin)
       shadowTwinFolderId: shadowTwinFolderId || null, // Shadow-Twin-Verzeichnis-ID für Client-Analyse
     } as unknown as import('@/lib/events/job-event-bus').JobUpdateEvent)
-  } catch {}
+    
+    // Beende Postprocessing-Span nach erfolgreichem Speichern
+    try {
+      await repo.traceEndSpan(ctx.jobId, 'postprocessing', 'completed', {})
+    } catch {
+      // Span-Fehler nicht kritisch
+    }
+  } catch {
+    // Bei Fehlern: Postprocessing-Span als failed markieren
+    try {
+      await repo.traceEndSpan(ctx.jobId, 'postprocessing', 'failed', {})
+    } catch {
+      // Span-Fehler nicht kritisch
+    }
+  }
   return { savedItemId: saved.id }
 }
 

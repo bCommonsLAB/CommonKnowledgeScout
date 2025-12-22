@@ -45,7 +45,6 @@ export async function findPdfMarkdown(
 ): Promise<FoundMarkdown> {
   // Verwende die robuste Shadow-Twin-Suche, die auch im Shadow-Twin-Verzeichnis sucht
   // und Fallback auf andere Sprachen hat
-  const { findShadowTwinMarkdownFile } = await import('@/lib/external-jobs/shadow-twin-finder')
   const { findShadowTwinFolder } = await import('@/lib/storage/shadow-twin')
   
   // Bestimme originalName aus baseName (falls nicht verfügbar, verwende baseName)

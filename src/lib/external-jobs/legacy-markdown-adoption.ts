@@ -90,27 +90,57 @@ export async function adoptLegacyMarkdownToShadowTwin(
         // Trace-Fehler nicht kritisch
       }
     } else {
-      // Transformierte Datei existiert bereits im Shadow-Twin → Legacy-Datei aus PDF-Ordner löschen
-      await provider.deleteItem(legacyMarkdownId)
-      FileLogger.info('legacy-markdown-adoption', 'Legacy-Datei gelöscht (transformierte Datei bereits im Shadow-Twin vorhanden)', {
-        jobId,
-        legacyMarkdownId,
-        existingTransformedId: existingTransformed.id,
-        transformedName,
-      })
-      try {
-        await repo.traceAddEvent(jobId, {
-          spanId: 'template',
-          name: 'legacy_markdown_removed_duplicate_in_shadow_twin',
-          attributes: {
-            legacyMarkdownId,
-            shadowTwinFolderId: shadowTwinFolder.id,
-            existingTransformedId: existingTransformed.id,
-            transformedName,
-          },
+      // Transformierte Datei existiert bereits im Shadow-Twin.
+      //
+      // WICHTIG (Bugfix):
+      // In manchen Fällen zeigt `legacyMarkdownId` bereits auf genau die transformierte Datei
+      // im Shadow-Twin-Verzeichnis (also `legacyMarkdownId === existingTransformed.id`).
+      // Dann darf NICHT gelöscht werden – sonst verschwindet die korrekte Datei samt Frontmatter
+      // und der Ingest-Step scheitert anschließend mit ENOENT / "Shadow‑Twin nicht gefunden".
+      if (legacyMarkdownId !== existingTransformed.id) {
+        // Legacy-Datei (außerhalb des Shadow-Twin) löschen – Duplikatbereinigung
+        await provider.deleteItem(legacyMarkdownId)
+        FileLogger.info('legacy-markdown-adoption', 'Legacy-Datei gelöscht (transformierte Datei bereits im Shadow-Twin vorhanden)', {
+          jobId,
+          legacyMarkdownId,
+          existingTransformedId: existingTransformed.id,
+          transformedName,
         })
-      } catch {
-        // Trace-Fehler nicht kritisch
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'template',
+            name: 'legacy_markdown_removed_duplicate_in_shadow_twin',
+            attributes: {
+              legacyMarkdownId,
+              shadowTwinFolderId: shadowTwinFolder.id,
+              existingTransformedId: existingTransformed.id,
+              transformedName,
+            },
+          })
+        } catch {
+          // Trace-Fehler nicht kritisch
+        }
+      } else {
+        FileLogger.warn('legacy-markdown-adoption', 'Legacy-Markdown entspricht bereits der transformierten Datei – kein Delete', {
+          jobId,
+          legacyMarkdownId,
+          existingTransformedId: existingTransformed.id,
+          transformedName,
+        })
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'template',
+            name: 'legacy_markdown_skip_delete_same_id',
+            attributes: {
+              legacyMarkdownId,
+              shadowTwinFolderId: shadowTwinFolder.id,
+              existingTransformedId: existingTransformed.id,
+              transformedName,
+            },
+          })
+        } catch {
+          // Trace-Fehler nicht kritisch
+        }
       }
     }
 

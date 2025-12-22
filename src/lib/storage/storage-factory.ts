@@ -290,6 +290,29 @@ class LocalStorageProvider implements StorageProvider {
     return response.json();
   }
 
+  /**
+   * Performance-Optimierung für filesystem:
+   * ZIP wird in *einem* Request an die filesystem-API geschickt und serverseitig entpackt.
+   *
+   * WICHTIG: Diese Methode ist bewusst NICHT Teil des generischen StorageProvider-Interfaces.
+   * Sie wird über Feature-Detection verwendet (nur wenn vorhanden).
+   */
+  async saveAndExtractZipInFolder(parentId: string, zipBase64: string): Promise<StorageItem[]> {
+    if (!zipBase64) return []
+    const url = this.getApiUrl(`/api/storage/filesystem?action=saveAndExtractZipInFolder&fileId=${parentId}&libraryId=${this.library.id}`)
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zipBase64 }),
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+      throw new Error(errorData.error || 'Failed to save and extract zip')
+    }
+    const data = await response.json().catch(() => ({})) as { savedItems?: StorageItem[] }
+    return Array.isArray(data.savedItems) ? data.savedItems : []
+  }
+
   async downloadFile(fileId: string): Promise<Blob> {
     const url = this.getApiUrl(`/api/storage/filesystem?action=download&fileId=${fileId}&libraryId=${this.library.id}`);
     const response = await fetch(url);

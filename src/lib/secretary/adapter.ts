@@ -115,7 +115,31 @@ export async function callTemplateTransform(p: TemplateTransformParams): Promise
         timeoutMs: p.timeoutMs 
       }
     )
-    if (!res.ok) throw new HttpError(res.status, res.statusText)
+    // WICHTIG: Bei HTTP-Fehlern (z.B. 400) den Body lesen, bevor wir den Fehler werfen,
+    // damit der Caller die detaillierte Fehlermeldung aus der Response extrahieren kann
+    if (!res.ok) {
+      // Versuche, Response-Body zu lesen (kann bei manchen Fehlern leer sein)
+      let errorMessage: string | undefined
+      let responseBody: unknown = undefined
+      try {
+        const errorData = await res.clone().json().catch(() => null)
+        responseBody = errorData
+        if (errorData && typeof errorData === 'object' && errorData !== null) {
+          // Versuche verschiedene Fehlerfelder zu finden (Secretary Service Format)
+          // Format: { status: "error", error: { message: "..." } }
+          if ('error' in errorData && typeof errorData.error === 'object' && errorData.error !== null && 'message' in errorData.error) {
+            errorMessage = String((errorData.error as { message?: unknown }).message)
+          } else if ('error' in errorData) {
+            errorMessage = String(errorData.error)
+          } else if ('message' in errorData) {
+            errorMessage = String(errorData.message)
+          }
+        }
+      } catch {
+        // Body konnte nicht gelesen werden, verwende Standard-Fehlermeldung
+      }
+      throw new HttpError(res.status, res.statusText, errorMessage, responseBody)
+    }
     return res
   } catch (e) {
     if (e instanceof HttpError || e instanceof TimeoutError || e instanceof NetworkError) throw e

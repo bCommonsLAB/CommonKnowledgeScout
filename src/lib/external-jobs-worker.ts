@@ -133,6 +133,35 @@ class ExternalJobsWorkerSingleton {
               statusText: startResponse.statusText,
               errorText
             });
+            
+            // Job als failed markieren, da Start-Route einen Fehler zurückgegeben hat
+            try {
+              let errorMessage = `Start-Route Fehler: ${startResponse.status} ${startResponse.statusText}`;
+              try {
+                const errorData = JSON.parse(errorText);
+                if (typeof errorData === 'object' && errorData?.error) {
+                  errorMessage = String(errorData.error);
+                }
+              } catch {
+                // Fehlertext ist kein JSON - verwende Originaltext
+                if (errorText && errorText !== 'Keine Fehlermeldung') {
+                  errorMessage = errorText;
+                }
+              }
+              
+              await repo.setStatus(claimed.jobId, 'failed', {
+                error: { 
+                  code: `start_route_${startResponse.status}`, 
+                  message: errorMessage 
+                }
+              });
+            } catch (statusError) {
+              FileLogger.error('jobs-worker', 'Fehler beim Markieren des Jobs als failed', {
+                jobId: claimed.jobId,
+                error: statusError instanceof Error ? statusError.message : String(statusError)
+              });
+            }
+            
             throw new Error(`Start-Route Fehler: ${startResponse.status} ${startResponse.statusText} - ${errorText}`);
           }
           
@@ -161,7 +190,18 @@ class ExternalJobsWorkerSingleton {
   }
 }
 
-export const ExternalJobsWorker = ExternalJobsWorkerSingleton.getInstance();
+/**
+ * DEV/HMR-SICHERHEIT:
+ * In `next dev` kann ein Modul durch Hot-Reload mehrfach evaluiert werden.
+ * Wenn dabei neue Singleton-Instanzen entstehen, laufen mehrere Intervalle parallel.
+ *
+ * Lösung: Singleton-Instanz auf `globalThis` pinnen (pro Node-Prozess).
+ */
+const globalWorkerKey = '__commonKnowledgeScoutExternalJobsWorker__'
+const g = globalThis as unknown as Record<string, unknown>
+const existing = g[globalWorkerKey] as ExternalJobsWorkerSingleton | undefined
+export const ExternalJobsWorker: ExternalJobsWorkerSingleton =
+  existing || (g[globalWorkerKey] = ExternalJobsWorkerSingleton.getInstance()) as ExternalJobsWorkerSingleton
 
 // Auto‑Start: Standardmäßig läuft der Worker immer, außer explizit deaktiviert
 try {

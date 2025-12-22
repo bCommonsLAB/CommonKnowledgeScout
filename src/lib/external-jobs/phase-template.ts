@@ -487,10 +487,14 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
     const tr = await runTemplateTransform({ ctx, extractedText: extractedText || '', templateContent, targetLanguage: lang })
     metadataFromTemplate = tr.meta as unknown as Record<string, unknown> | null
-    if (metadataFromTemplate) bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
-    else {
-      bufferLog(jobId, { phase: 'transform_meta_failed', message: 'Transformer lieferte kein gültiges JSON' })
-      templateStatus = 'failed'
+    if (metadataFromTemplate) {
+      bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
+    } else {
+      // runTemplateTransform sollte jetzt einen Fehler werfen, wenn kein gültiges Meta zurückgegeben wird
+      // Falls es doch null zurückgibt, werfe explizit einen Fehler
+      const errorMsg = 'Transformer lieferte kein gültiges structured_data'
+      bufferLog(jobId, { phase: 'transform_meta_failed', message: errorMsg })
+      throw new Error(errorMsg)
     }
     try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_after_transform', attributes: { hasMeta: !!metadataFromTemplate } }) } catch {}
   } catch (err) {
@@ -535,6 +539,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       is413Error?: boolean
       errorType?: string
       url?: string
+      responseData?: unknown
     }
     
     const isPayloadTooLarge = errorWithDetails.is413Error || errorMessage.includes('413') || errorMessage.includes('REQUEST ENTITY TOO LARGE')
@@ -570,6 +575,13 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     
     // Trace-Event für Fehler (nur einmal hier)
     try {
+      // Extrahiere Response-Daten für Debugging (falls vorhanden)
+      const responseDataPreview = errorWithDetails.responseData 
+        ? (typeof errorWithDetails.responseData === 'object' 
+          ? JSON.stringify(errorWithDetails.responseData).substring(0, 500)
+          : String(errorWithDetails.responseData).substring(0, 500))
+        : undefined
+      
       await repo.traceAddEvent(jobId, {
         spanId: 'template',
         name: 'step_failed',
@@ -584,7 +596,8 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
           templateContentLen,
           is413Error: isPayloadTooLarge,
           errorType: errorWithDetails.errorType,
-          url: errorWithDetails.url
+          url: errorWithDetails.url,
+          responseDataPreview // Erste 500 Zeichen der Response für Debugging
         }
       })
     } catch {}
@@ -602,10 +615,11 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     let errorMessage = 'Template-Transformation fehlgeschlagen'
     try {
       const latest = await repo.get(jobId)
-      const latestWithTrace = latest as ExternalJob & { trace?: { events?: Array<{ name?: string; attributes?: { error?: string; contentLength?: number; extractedTextLen?: number; templateContentLen?: number; maxContentLength?: string; is413Error?: boolean } }> } };
-      const failedEvent = latestWithTrace?.trace?.events?.find((e: { name?: string; attributes?: { error?: string; contentLength?: number; extractedTextLen?: number; templateContentLen?: number; maxContentLength?: string; is413Error?: boolean } }) => 
-        e.name === 'step_failed' && (e.attributes?.is413Error || e.attributes?.error?.includes('413'))
-      )
+      const latestWithTrace = latest as ExternalJob & { trace?: { events?: Array<{ name?: string; attributes?: { error?: string; contentLength?: number; extractedTextLen?: number; templateContentLen?: number; maxContentLength?: string; is413Error?: boolean; status?: number; statusText?: string; errorType?: string; url?: string } }> } };
+      // Suche nach dem letzten step_failed Event (kann mehrere geben)
+      const failedEvents = latestWithTrace?.trace?.events?.filter((e: { name?: string }) => e.name === 'step_failed') || []
+      const failedEvent = failedEvents[failedEvents.length - 1] // Nehm das letzte
+      
       if (failedEvent?.attributes) {
         const attrs = failedEvent.attributes
         if (attrs.is413Error || attrs.error?.includes('413')) {
@@ -616,11 +630,21 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
           errorMessage = `Template-Transformation fehlgeschlagen: Request zu groß (HTTP 413). Content-Length: ${contentLength} Bytes (Text: ${extractedTextLen}, Template: ${templateContentLen}), Max-Content-Length: ${maxContentLength}`
         } else {
           // Für andere Fehler: verwende die Error-Message aus dem Trace-Event
-          errorMessage = attrs.error ? `Template-Transformation fehlgeschlagen: ${attrs.error}` : errorMessage
+          // Füge HTTP-Status hinzu, falls vorhanden
+          const statusInfo = attrs.status ? ` (HTTP ${attrs.status}${attrs.statusText ? `: ${attrs.statusText}` : ''})` : ''
+          const errorTypeInfo = attrs.errorType ? ` [${attrs.errorType}]` : ''
+          const urlInfo = attrs.url ? ` (${attrs.url})` : ''
+          errorMessage = attrs.error 
+            ? `Template-Transformation fehlgeschlagen: ${attrs.error}${statusInfo}${errorTypeInfo}${urlInfo}` 
+            : `Template-Transformation fehlgeschlagen${statusInfo}${errorTypeInfo}${urlInfo}`
         }
       }
-    } catch {
+    } catch (traceError) {
       // Fehler beim Laden ignorieren, verwende Standard-Fehlermeldung
+      FileLogger.warn('phase-template', 'Fehler beim Extrahieren der Fehlermeldung aus Trace', {
+        jobId,
+        error: traceError instanceof Error ? traceError.message : String(traceError)
+      })
     }
     
     await handleJobError(
@@ -656,6 +680,12 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     source_file: job.correlation.source?.name || baseName,
     extract_status: 'completed',
     template_status: templateStatus,
+  }
+  // Template-Name im Frontmatter speichern, damit wir beim nächsten Mal prüfen können, ob es geändert wurde
+  // Verwende das tatsächlich verwendete Template (picked.templateName) oder das Preferred Template
+  const usedTemplate = picked?.templateName || preferredTemplate || job.parameters?.template as string | undefined
+  if (usedTemplate) {
+    ssotFlat['template'] = usedTemplate
   }
   // optionale Summary-Werte aus bereits vorhandenen Metadaten übernehmen, wenn vorhanden
   if (typeof (finalMeta as Record<string, unknown>)['summary_pages'] === 'number') ssotFlat['summary_pages'] = (finalMeta as Record<string, unknown>)['summary_pages']

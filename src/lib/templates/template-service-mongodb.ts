@@ -132,10 +132,12 @@ export function serializeTemplateToMarkdown(
     frontmatter = injectCreationIntoFrontmatter(frontmatter, null)
   }
   
-  // 3. Markdown-Body anhängen
+  // 3. Markdown-Body anhängen (kann leer sein)
   // 4. systemprompt-Block anhängen
   const systemPromptPart = template.systemprompt ? `\n\n--- systemprompt\n${template.systemprompt}` : ''
-  return `${frontmatter}\n\n${template.markdownBody}${systemPromptPart}`
+  // Wenn markdownBody leer ist, füge trotzdem eine leere Zeile hinzu für korrekte Formatierung
+  const bodyPart = template.markdownBody || ''
+  return `${frontmatter}\n\n${bodyPart}${systemPromptPart}`
 }
 
 /**

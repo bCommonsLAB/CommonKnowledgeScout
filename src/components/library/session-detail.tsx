@@ -115,6 +115,22 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
                 <p className="text-lg text-muted-foreground mb-6 text-pretty">{data.teaser}</p>
               )}
 
+              {/* PDF-Link prominent anzeigen */}
+              {data.url && (
+                <div className="mb-6">
+                  <a
+                    href={data.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-base font-medium shadow-sm"
+                  >
+                    <FileText className="w-5 h-5" />
+                    PDF öffnen
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              )}
+
               {/* Speakers Section */}
               {speakers.length > 0 && (
                 <div className="mt-6 flex flex-wrap gap-4">

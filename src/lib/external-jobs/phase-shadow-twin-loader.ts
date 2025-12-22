@@ -43,32 +43,14 @@ export async function loadShadowTwinMarkdown(
 
   // Priorität 1: Verwende shadowTwinState.transformed.id, falls verfügbar (direkter Zugriff)
   let twin: { id: string } | null = null
-  let searchDuration: number | undefined = undefined
   
   if (job.shadowTwinState?.transformed?.id) {
-    const transformedId = job.shadowTwinState.transformed.id
-    FileLogger.info('phase-shadow-twin-loader', 'Verwende transformed.id aus shadowTwinState', {
-      jobId,
-      transformedId,
-      transformedName: job.shadowTwinState.transformed.metadata?.name,
-    })
-    twin = { id: transformedId }
+    twin = { id: job.shadowTwinState.transformed.id }
   }
 
   // Priorität 2: Suche über findShadowTwinMarkdownFile, falls shadowTwinState nicht verfügbar
   if (!twin) {
-    const searchStartTime = Date.now()
-    FileLogger.info('phase-shadow-twin-loader', 'Starte Suche nach Shadow-Twin-Markdown', {
-      jobId,
-      parentId,
-      baseName,
-      lang,
-      twinName,
-      originalName,
-    })
-    
     twin = await findShadowTwinMarkdownFile(parentId, baseName, lang, originalName, provider)
-    searchDuration = Date.now() - searchStartTime
 
     if (!twin) {
       FileLogger.warn('phase-shadow-twin-loader', 'Shadow-Twin-Markdown nicht gefunden', {
@@ -77,7 +59,6 @@ export async function loadShadowTwinMarkdown(
         baseName,
         lang,
         twinName,
-        searchDurationMs: searchDuration,
         hasShadowTwinState: !!job.shadowTwinState,
         shadowTwinStateTransformedId: job.shadowTwinState?.transformed?.id,
       })
@@ -85,69 +66,16 @@ export async function loadShadowTwinMarkdown(
     }
   }
 
-  FileLogger.info('phase-shadow-twin-loader', 'Shadow-Twin-Markdown-Datei gefunden', {
-    jobId,
-    fileId: twin.id,
-    fileName: twinName,
-    searchDurationMs: searchDuration ?? 0,
-  })
-
   try {
-    // Markdown-Datei laden mit Timeout-Überwachung
-    const loadStartTime = Date.now()
-    FileLogger.info('phase-shadow-twin-loader', 'Starte Laden der Markdown-Datei von Azure/OneDrive', {
-      jobId,
-      fileId: twin.id,
-      fileName: twinName,
-      providerType: provider.constructor.name,
-    })
-    
+    // Markdown-Datei laden
     const bin = await provider.getBinary(twin.id)
-    const loadDuration = Date.now() - loadStartTime
-    
-    FileLogger.info('phase-shadow-twin-loader', 'Markdown-Datei erfolgreich geladen', {
-      jobId,
-      fileId: twin.id,
-      fileName: twinName,
-      loadDurationMs: loadDuration,
-      blobSize: bin.blob.size,
-      mimeType: bin.mimeType,
-    })
-    
-    const textStartTime = Date.now()
     const markdownText = await bin.blob.text()
-    const textDuration = Date.now() - textStartTime
-    
-    FileLogger.info('phase-shadow-twin-loader', 'Markdown-Text extrahiert', {
-      jobId,
-      fileId: twin.id,
-      fileName: twinName,
-      textDurationMs: textDuration,
-      textLength: markdownText.length,
-      totalDurationMs: loadDuration + textDuration,
-    })
 
     // Frontmatter parsen
     const parsed = parseSecretaryMarkdownStrict(markdownText)
     const meta = (parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta))
       ? (parsed.meta as Record<string, unknown>)
       : {}
-
-    // Erweiterte Logging für Debugging
-    const hasFrontmatterBlock = markdownText.trim().startsWith('---')
-    const frontmatterPreview = markdownText.substring(0, Math.min(500, markdownText.length))
-    
-    FileLogger.info('phase-shadow-twin-loader', 'Shadow-Twin-Markdown geladen', {
-      jobId,
-      fileId: twin.id,
-      fileName: twinName,
-      markdownLength: markdownText.length,
-      hasMeta: Object.keys(meta).length > 0,
-      metaKeys: Object.keys(meta),
-      hasFrontmatterBlock,
-      frontmatterPreview: frontmatterPreview.substring(0, 200), // Erste 200 Zeichen für Debugging
-      parsedMetaKeys: parsed?.meta && typeof parsed.meta === 'object' ? Object.keys(parsed.meta as Record<string, unknown>) : [],
-    })
 
     return {
       markdown: markdownText,

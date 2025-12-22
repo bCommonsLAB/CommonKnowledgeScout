@@ -69,6 +69,7 @@ export function mapToBookDetail(input: unknown): BookDetailData {
     upsertedAt: toStr(root.upsertedAt),
     markdown: toStr(docMetaJson.markdown),
     coverImageUrl: toStr((docMetaJson as { coverImageUrl?: unknown }).coverImageUrl),
+    url: toStr(docMetaJson.url), // PDF-URL aus Azure Storage
     chapters: chaptersIn.map((c, i) => {
       const ch = (c && typeof c === 'object') ? c as Record<string, unknown> : {};
       const order = toNum(ch.order) ?? (i + 1);

@@ -38,7 +38,34 @@ export async function pickTemplate(args: PickTemplateArgs): Promise<PickTemplate
   const templateName = preferredTemplateName || 'pdfanalyse'
   
   // Lade Template aus MongoDB
-  const template = await loadTemplateFromMongoDB(templateName, libraryId, userEmail, false)
+  let template = await loadTemplateFromMongoDB(templateName, libraryId, userEmail, false)
+  
+  // Fallback: Wenn Template nicht gefunden wurde, suche nach Name in allen Templates der Library
+  // Dies kann passieren, wenn die _id nicht mit der generierten ID übereinstimmt
+  if (!template) {
+    const { listTemplatesFromMongoDB } = await import('@/lib/templates/template-service-mongodb')
+    const allTemplates = await listTemplatesFromMongoDB(libraryId, userEmail, false)
+    
+    // Suche nach Template-Name (case-insensitive)
+    template = allTemplates.find(t => 
+      t.name.toLowerCase() === templateName.toLowerCase()
+    ) || null
+    
+    if (template) {
+      // Template gefunden, aber mit anderer _id - logge Warnung
+      try {
+        await repo.traceAddEvent(jobId, {
+          spanId: 'template',
+          name: 'template_found_by_name_fallback',
+          attributes: {
+            preferredTemplate: preferredTemplateName || '(nicht gesetzt)',
+            foundTemplateId: template._id,
+            foundTemplateName: template.name
+          }
+        })
+      } catch {}
+    }
+  }
   
   if (!template) {
     // Versuche alle Templates zu laden, um verfügbare zu zeigen

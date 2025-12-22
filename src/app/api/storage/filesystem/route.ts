@@ -537,7 +537,26 @@ export async function GET(request: NextRequest) {
             }, { status: 400 });
           }
 
+          // Logge Dateigröße vor dem Lesen
+          vLog(`[API][filesystem][binary] 📊 Starte Datei-Laden:`, {
+            absolutePath,
+            fileSize: stats.size,
+            fileSizeMB: (stats.size / 1024 / 1024).toFixed(2),
+            requestId
+          });
+          
+          const readStartTime = Date.now();
           const content = await fs.readFile(absolutePath);
+          const readDuration = Date.now() - readStartTime;
+          
+          vLog(`[API][filesystem][binary] ✅ Datei geladen:`, {
+            absolutePath,
+            fileSize: stats.size,
+            fileSizeMB: (stats.size / 1024 / 1024).toFixed(2),
+            readDurationMs: readDuration,
+            readDurationSec: (readDuration / 1000).toFixed(2),
+            requestId
+          });
 
           const mimeType = mime.lookup(absolutePath) || 'application/octet-stream';
           vLog(`[API][filesystem][binary] 🏷️ MIME-Type erkannt:`, {
@@ -716,6 +735,54 @@ export async function POST(request: NextRequest) {
         const item = await statsToStorageItem(library, newFolderPath, stats);
         
         return NextResponse.json(item);
+      }
+
+      case 'saveAndExtractZipInFolder': {
+        // Performance-Optimierung für filesystem:
+        // - statt N einzelner Upload-Requests (action=upload) nur 1 Request mit Base64-ZIP
+        // - serverseitiges Entpacken + direktes Schreiben ins Filesystem
+        const body = await request.json().catch(() => ({})) as { zipBase64?: unknown }
+        const zipBase64 = typeof body.zipBase64 === 'string' ? body.zipBase64 : ''
+        if (!zipBase64) {
+          return NextResponse.json({ error: 'zipBase64 fehlt' }, { status: 400 })
+        }
+
+        const parentPath = getPathFromId(library, fileId)
+        await fs.mkdir(parentPath, { recursive: true })
+
+        // ZIP laden
+        const JSZip = await import('jszip')
+        const zip = new JSZip.default()
+        const buf = Buffer.from(zipBase64, 'base64')
+        const zipContent = await zip.loadAsync(buf)
+
+        const saved: StorageItem[] = []
+
+        for (const [zipPath, entry] of Object.entries(zipContent.files)) {
+          if (entry.dir) continue
+
+          // Nur Basename verwenden (kein Traversal)
+          const originalName = zipPath.replace(/\\/g, '/').split('/').pop() || ''
+          const safeNameRaw = sanitizeFileName(originalName)
+          if (!safeNameRaw) continue
+
+          // Gleiche Namenslogik wie in ImageExtractionService (minimal):
+          // Konvertiere image_XXX → page_XXX (mit führenden Nullen)
+          const finalName = safeNameRaw.replace(/^image_(\d+)/, (_m, pageNum: string) => {
+            return `page_${String(pageNum).padStart(3, '0')}`
+          })
+
+          const outPath = pathLib.join(parentPath, finalName)
+          const fileBuffer = await entry.async('nodebuffer')
+
+          // Überschreiben ist ok (idempotenter Import)
+          await fs.writeFile(outPath, fileBuffer, { flag: 'w' })
+          const st = await fs.stat(outPath)
+          const item = await statsToStorageItem(library, outPath, st)
+          saved.push(item)
+        }
+
+        return NextResponse.json({ savedItems: saved })
       }
 
       case 'upload': {

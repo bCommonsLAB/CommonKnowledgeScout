@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, FileText, MapPin, BookOpen, Tag } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, MapPin, BookOpen, Tag, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { ChapterAccordion } from "./chapter-accordion";
@@ -40,6 +40,7 @@ export interface BookDetailData {
   upsertedAt?: string;
   markdown?: string;
   coverImageUrl?: string;
+  url?: string; // PDF-URL aus Azure Storage
 }
 
 interface BookDetailProps {
@@ -77,11 +78,26 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
               />
             </div>
 
-            <div className="flex-1">
+              <div className="flex-1">
               <h1 className="text-2xl font-bold text-foreground mb-2 text-balance">{title}</h1>
               {authors.length > 0 ? (
                 <p className="text-base text-muted-foreground mb-3">{authors.join(", ")}</p>
               ) : null}
+              {/* PDF-Link prominent anzeigen */}
+              {data.url && (
+                <div className="mb-3">
+                  <a
+                    href={data.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                  >
+                    <FileText className="w-4 h-4" />
+                    PDF öffnen
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 {data.year !== undefined && (
                   <Badge variant="outline" className="text-xs"><Calendar className="w-3 h-3 mr-1" />{String(data.year)}</Badge>
@@ -101,6 +117,21 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
         ) : (
           <div>
             <h1 className="text-2xl font-bold text-foreground mb-2 text-balance">{title}</h1>
+            {/* PDF-Link prominent anzeigen (auch ohne Cover) */}
+            {data.url && (
+              <div className="mb-3">
+                <a
+                  href={data.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                >
+                  <FileText className="w-4 h-4" />
+                  PDF öffnen
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
             {/* Ohne Cover kein Autoren-Teaser, nur Badges */}
             <div className="flex flex-wrap gap-2">
               {data.year !== undefined && (
