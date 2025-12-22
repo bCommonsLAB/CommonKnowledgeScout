@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { callLlmJson } from './llm'
 
 /**
  * Ergebnis der Frage-Analyse für Retriever-Modus-Auswahl
@@ -109,56 +110,30 @@ export async function analyzeQuestionForRetriever(
     userPrompt += `\n\nLibrary type: ${context.libraryType}`
   }
 
-  // LLM-Aufruf mit structured output
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${effectiveApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+  // LLM-Aufruf mit structured output über provider-agnostischen LLM-Client
+  const resultData = await callLlmJson(
+    {
+      apiKey: effectiveApiKey,
       model,
       temperature,
-      response_format: { type: 'json_object' },
+      responseFormat: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
-    }),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`OpenAI question analysis error: ${response.status} ${errorText.slice(0, 200)}`)
-  }
-
-  const raw = await response.json()
-  const content = raw?.choices?.[0]?.message?.content
-  
-  if (!content || typeof content !== 'string') {
-    throw new Error('Invalid response from OpenAI: No content')
-  }
-
-  // Parse and validate JSON
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(content)
-  } catch {
-    throw new Error('OpenAI response could not be parsed as JSON')
-  }
-
-  // Zod-Validierung
-  const validated = questionAnalysisSchema.parse(parsed)
+    },
+    questionAnalysisSchema
+  )
   
   // Konvertiere null zu undefined für optionale Felder und erstelle typisiertes Ergebnis
   const result: QuestionAnalysisResult = {
-    recommendation: validated.recommendation,
-    confidence: validated.confidence,
-    reasoning: validated.reasoning,
-    explanation: validated.explanation,
-    suggestedQuestionChunk: validated.suggestedQuestionChunk ?? undefined,
-    suggestedQuestionSummary: validated.suggestedQuestionSummary ?? undefined,
-    chatTitle: validated.chatTitle,
+    recommendation: resultData.data.recommendation,
+    confidence: resultData.data.confidence,
+    reasoning: resultData.data.reasoning,
+    explanation: resultData.data.explanation,
+    suggestedQuestionChunk: resultData.data.suggestedQuestionChunk ?? undefined,
+    suggestedQuestionSummary: resultData.data.suggestedQuestionSummary ?? undefined,
+    chatTitle: resultData.data.chatTitle,
   }
 
   // Additional validation: If unclear, suggestedQuestions must be present

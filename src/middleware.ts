@@ -161,18 +161,6 @@ export default clerkMiddleware(async (auth, req) => {
       isPublic = true;
     }
 
-    // NEU: Interner Analyze-Endpoint für Kapitel – Bypass per Header
-    if (!isPublic) {
-      const isAnalyze = /^\/api\/chat\/[^/]+\/analyze-chapters$/.test(path)
-      if (isAnalyze && req.method === 'POST') {
-        const token = req.headers.get('x-internal-token') || req.headers.get('X-Internal-Token') || ''
-        const jobHdr = req.headers.get('x-external-job') || req.headers.get('X-External-Job') || ''
-        const env = process.env.INTERNAL_TEST_TOKEN || ''
-        if ((token && env && token === env) || (!!jobHdr && jobHdr.length > 0)) {
-          isPublic = true
-        }
-      }
-    }
   }
 
   // console.debug(`[Middleware] isPublicRoute: ${isPublic}`);

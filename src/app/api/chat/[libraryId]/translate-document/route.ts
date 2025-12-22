@@ -139,19 +139,13 @@ export async function POST(
       targetLanguage,
     })
 
-    // API-Key für Library bestimmen
-    const apiKey = ctx.library.config?.publicPublishing?.apiKey || process.env.OPENAI_API_KEY || ''
-    if (!apiKey) {
-      console.error('[translate-document] OpenAI API-Key fehlt')
-      return NextResponse.json(
-        { error: 'OpenAI API-Key nicht konfiguriert' },
-        { status: 500 }
-      )
-    }
+    // Secretary Service API-Key bestimmen (optional, verwendet Config wenn nicht gesetzt)
+    const apiKey = ctx.library.config?.publicPublishing?.apiKey || process.env.SECRETARY_SERVICE_API_KEY || undefined
     
-    console.log('[translate-document] API-Key vorhanden:', {
+    console.log('[translate-document] Secretary Service Config:', {
       hasLibraryKey: !!ctx.library.config?.publicPublishing?.apiKey,
-      hasEnvKey: !!process.env.OPENAI_API_KEY,
+      hasEnvKey: !!process.env.SECRETARY_SERVICE_API_KEY,
+      hasApiKey: !!apiKey,
     })
 
     // Cache prüfen
@@ -245,7 +239,7 @@ export async function POST(
         hasMarkdown: !!sessionData.markdown,
       })
       console.log('[translate-document] Starte Session-Übersetzung...')
-      translatedData = await translateSessionData(sessionData, targetLanguage, sourceLanguage, apiKey)
+      translatedData = await translateSessionData(sessionData, targetLanguage, sourceLanguage, apiKey || undefined)
       console.log('[translate-document] ✅ Session-Übersetzung abgeschlossen')
     } else {
       console.log('[translate-document] Mappe Book-Daten...')
@@ -265,7 +259,7 @@ export async function POST(
         chaptersCount: bookData.chapters?.length || 0,
       })
       console.log('[translate-document] Starte Book-Übersetzung...')
-      translatedData = await translateBookData(bookData, targetLanguage, sourceLanguage, apiKey)
+      translatedData = await translateBookData(bookData, targetLanguage, sourceLanguage, apiKey || undefined)
       console.log('[translate-document] ✅ Book-Übersetzung abgeschlossen')
     }
 

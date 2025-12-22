@@ -38,7 +38,7 @@ export interface QueryRetrievalStep {
 }
 
 export interface QueryPromptInfo {
-  provider: 'openai' | 'anthropic' | 'azureOpenAI' | 'other';
+  provider: 'openai' | 'anthropic' | 'azureOpenAI' | 'secretary' | 'other';
   model: string;
   temperature?: number;
   prompt: string; // secrets vorher entfernen/maskieren

@@ -1,10 +1,10 @@
 /**
- * @fileoverview Document Translation - LLM-based Translation with Structured Output
+ * @fileoverview Document Translation - Secretary Service Transformer Integration
  * 
  * @description
- * Provides translation functionality for BookDetailData and SessionDetailData using OpenAI LLM
- * with structured output. Uses Zod schemas for validation and follows DRY principles by
- * reusing callOpenAI from llm.ts (same pattern as Story Mode).
+ * Provides translation functionality for BookDetailData and SessionDetailData using
+ * Secretary Service Transformer API with template-based structured output.
+ * Uses Zod schemas for validation.
  * 
  * @module chat
  * 
@@ -16,14 +16,16 @@
  * - src/app/api/chat/[libraryId]/translate-document/route.ts: Translation API endpoint
  * 
  * @dependencies
- * - @/lib/chat/common/llm: LLM calling utilities
+ * - @/lib/secretary/adapter: Secretary Service adapter
+ * - @/lib/env: Secretary Service configuration
  * - @/components/library/book-detail: BookDetailData type
  * - @/components/library/session-detail: SessionDetailData type
  * - zod: Schema validation
  */
 
 import { z } from 'zod'
-import { parseOpenAIResponseWithUsage } from '@/lib/chat/common/llm'
+import { callTemplateTransform } from '@/lib/secretary/adapter'
+import { getSecretaryConfig } from '@/lib/env'
 import type { BookDetailData } from '@/components/library/book-detail'
 import type { SessionDetailData } from '@/components/library/session-detail'
 import type { TargetLanguage } from '@/lib/chat/constants'
@@ -115,30 +117,47 @@ const sessionTranslationSchema = z.object({
 })
 
 /**
- * Übersetzt BookDetailData in die Zielsprache
+ * Template für BookDetailData-Übersetzung (strukturierte JSON-Ausgabe)
+ */
+const bookTranslationTemplate = `---
+structured_data:
+  title: {{title|Übersetze den Titel}}
+  authors: {{authors|Übersetze die Autorenliste (Array von Strings)}}
+  summary: {{summary|Übersetze die Zusammenfassung (optional)}}
+  topics: {{topics|Übersetze die Themenliste (Array von Strings, optional)}}
+  chapters: {{chapters|Übersetze die Kapitel-Liste (Array von Objekten mit order, level, title, startPage, endPage, summary, keywords, optional)}}
+---
+
+Übersetze die folgenden Buchdaten von der Originalsprache in die Zielsprache. Behalte die exakte Struktur bei, ändere nur die Sprache.`
+
+/**
+ * Übersetzt BookDetailData in die Zielsprache über Secretary Service Transformer
  * 
  * @param data Die zu übersetzenden Buchdaten
  * @param targetLanguage Die Zielsprache
  * @param sourceLanguage Die Originalsprache (optional, für bessere Übersetzung)
- * @param apiKey Der OpenAI API-Key
+ * @param apiKey Der Secretary Service API-Key (optional, verwendet Config wenn nicht gesetzt)
  * @returns Die übersetzten Buchdaten
  */
 export async function translateBookData(
   data: BookDetailData,
   targetLanguage: TargetLanguage,
   sourceLanguage: string | undefined,
-  apiKey: string
+  apiKey?: string
 ): Promise<BookDetailData> {
-  const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
-  const temperature = 0.3
+  const { baseUrl, apiKey: configApiKey } = getSecretaryConfig()
+  const effectiveApiKey = apiKey || configApiKey
+  
+  if (!baseUrl) {
+    throw new Error('SECRETARY_SERVICE_URL nicht konfiguriert')
+  }
+  
+  if (!effectiveApiKey) {
+    throw new Error('Secretary Service API-Key fehlt')
+  }
 
-  // System-Prompt für präzise Übersetzung ohne Interpretation
-  const systemPrompt = `Du bist ein präziser Übersetzer. Übersetze den folgenden Text ohne Interpretation, Umformulierung oder Perspektivwechsel in die Zielsprache. Behalte die exakte Struktur und den Inhalt bei, ändere nur die Sprache.`
-
-  // User-Prompt mit zu übersetzenden Daten
-  const userPrompt = `Übersetze die folgenden Buchdaten von ${sourceLanguage || 'der Originalsprache'} nach ${targetLanguage}:
-
-${JSON.stringify({
+  // Daten für Übersetzung vorbereiten
+  const dataToTranslate = JSON.stringify({
     title: data.title,
     authors: data.authors,
     summary: data.summary,
@@ -152,57 +171,44 @@ ${JSON.stringify({
       summary: ch.summary,
       keywords: ch.keywords,
     })),
-  }, null, 2)}
+  }, null, 2)
 
-Antworte NUR mit einem JSON-Objekt, das die übersetzten Felder enthält. Die Struktur muss identisch sein wie das Input-Objekt.`
-
-  // LLM-Aufruf mit structured output (response_format: json_object)
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      temperature,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-    }),
+  // Secretary Service Transformer aufrufen
+  const transformerUrl = `${baseUrl}/transformer/template`
+  const response = await callTemplateTransform({
+    url: transformerUrl,
+    text: dataToTranslate,
+    targetLanguage,
+    templateContent: bookTranslationTemplate,
+    sourceLanguage,
+    useCache: true,
+    apiKey: effectiveApiKey,
+    timeoutMs: 60000, // 60 Sekunden Timeout
   })
   
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`OpenAI Translation Fehler: ${response.status} ${errorText.slice(0, 200)}`)
+    throw new Error(`Secretary Service Translation Fehler: ${response.status} ${errorText.slice(0, 200)}`)
   }
 
-  const result = await parseOpenAIResponseWithUsage(response)
+  // Parse Response vom Secretary Service
+  const responseData: unknown = await response.json().catch(() => {
+    throw new Error('Fehler beim Parsen der Secretary Service Antwort')
+  })
   
-  // Parse JSON aus Response (structured output gibt direkt JSON zurück)
-  let parsed: unknown
-  try {
-    const responseJson = JSON.parse(result.raw)
-    const content = (responseJson as { choices?: Array<{ message?: { content?: unknown } }> })?.choices?.[0]?.message?.content
-    if (typeof content === 'string') {
-      // Structured output gibt JSON-String zurück
-      parsed = JSON.parse(content)
-    } else if (content && typeof content === 'object') {
-      // Falls bereits Objekt
-      parsed = content
-    } else {
-      throw new Error('Ungültiges Response-Format')
-    }
-  } catch (error) {
-    console.error('[DocumentTranslation] Parse-Fehler:', error)
-    console.error('[DocumentTranslation] Raw response:', result.raw.substring(0, 500))
-    throw new Error('Fehler beim Parsen der Übersetzungsantwort')
+  // Secretary Service Format: { status: "success", data: { structured_data: {...} } }
+  let structuredData: unknown
+  if (responseData && typeof responseData === 'object' && !Array.isArray(responseData)) {
+    const data = (responseData as { data?: { structured_data?: unknown } }).data
+    structuredData = data?.structured_data
+  }
+  
+  if (!structuredData) {
+    throw new Error('Secretary Service lieferte kein structured_data')
   }
 
   // Validiere gegen Zod-Schema
-  const validated = bookTranslationSchema.parse(parsed)
+  const validated = bookTranslationSchema.parse(structuredData)
 
   // Kombiniere übersetzte Felder mit originalen nicht-textuellen Feldern
   // Übersetzte Felder überschreiben Original-Felder
@@ -227,40 +233,49 @@ Antworte NUR mit einem JSON-Objekt, das die übersetzten Felder enthält. Die St
 }
 
 /**
- * Übersetzt SessionDetailData in die Zielsprache
+ * Template für SessionDetailData-Übersetzung (strukturierte JSON-Ausgabe)
+ */
+const sessionTranslationTemplate = `---
+structured_data:
+  title: {{title|Übersetze den Titel}}
+  shortTitle: {{shortTitle|Übersetze den Kurztitel (optional)}}
+  teaser: {{teaser|Übersetze den Teaser (optional)}}
+  summary: {{summary|Übersetze die Zusammenfassung (optional)}}
+  markdown: {{markdown|Übersetze den Markdown-Text (optional)}}
+  speakers: {{speakers|Übersetze die Sprecherliste (Array von Strings, optional)}}
+  topics: {{topics|Übersetze die Themenliste (Array von Strings, optional)}}
+---
+
+Übersetze die folgenden Session-Daten von der Originalsprache in die Zielsprache. Behalte die exakte Struktur bei, ändere nur die Sprache.`
+
+/**
+ * Übersetzt SessionDetailData in die Zielsprache über Secretary Service Transformer
  * 
  * @param data Die zu übersetzenden Session-Daten
  * @param targetLanguage Die Zielsprache
  * @param sourceLanguage Die Originalsprache (optional, für bessere Übersetzung)
- * @param apiKey Der OpenAI API-Key
+ * @param apiKey Der Secretary Service API-Key (optional, verwendet Config wenn nicht gesetzt)
  * @returns Die übersetzten Session-Daten
  */
 export async function translateSessionData(
   data: SessionDetailData,
   targetLanguage: TargetLanguage,
   sourceLanguage: string | undefined,
-  apiKey: string
+  apiKey?: string
 ): Promise<SessionDetailData> {
-  const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
-  const temperature = 0.3
+  const { baseUrl, apiKey: configApiKey } = getSecretaryConfig()
+  const effectiveApiKey = apiKey || configApiKey
+  
+  if (!baseUrl) {
+    throw new Error('SECRETARY_SERVICE_URL nicht konfiguriert')
+  }
+  
+  if (!effectiveApiKey) {
+    throw new Error('Secretary Service API-Key fehlt')
+  }
 
-  console.log('[DocumentTranslation] translateSessionData gestartet:', {
-    model,
-    temperature,
-    sourceLanguage: sourceLanguage || 'unknown',
-    targetLanguage,
-    hasTitle: !!data.title,
-    hasSummary: !!data.summary,
-    hasMarkdown: !!data.markdown,
-    speakersCount: data.speakers?.length || 0,
-    topicsCount: data.topics?.length || 0,
-  })
-
-  // System-Prompt für präzise Übersetzung ohne Interpretation
-  const systemPrompt = `Du bist ein präziser Übersetzer. Übersetze den folgenden Text ohne Interpretation, Umformulierung oder Perspektivwechsel in die Zielsprache. Behalte die exakte Struktur und den Inhalt bei, ändere nur die Sprache.`
-
-  // User-Prompt mit zu übersetzenden Daten
-  const dataToTranslate = {
+  // Daten für Übersetzung vorbereiten
+  const dataToTranslate = JSON.stringify({
     title: data.title,
     shortTitle: data.shortTitle,
     teaser: data.teaser,
@@ -268,105 +283,44 @@ export async function translateSessionData(
     markdown: data.markdown,
     speakers: data.speakers,
     topics: data.topics,
-  }
-  
-  console.log('[DocumentTranslation] Zu übersetzende Daten:', {
-    titleLength: data.title?.length || 0,
-    summaryLength: data.summary?.length || 0,
-    markdownLength: data.markdown?.length || 0,
-  })
-  
-  const userPrompt = `Übersetze die folgenden Session-Daten von ${sourceLanguage || 'der Originalsprache'} nach ${targetLanguage}:
+  }, null, 2)
 
-${JSON.stringify(dataToTranslate, null, 2)}
-
-Antworte NUR mit einem JSON-Objekt, das die übersetzten Felder enthält. Die Struktur muss identisch sein wie das Input-Objekt.`
-
-  // LLM-Aufruf mit structured output (response_format: json_object)
-  console.log('[DocumentTranslation] Sende Request an OpenAI...')
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      temperature,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-    }),
-  })
-  
-  console.log('[DocumentTranslation] OpenAI Response Status:', {
-    ok: response.ok,
-    status: response.status,
-    statusText: response.statusText,
+  // Secretary Service Transformer aufrufen
+  const transformerUrl = `${baseUrl}/transformer/template`
+  const response = await callTemplateTransform({
+    url: transformerUrl,
+    text: dataToTranslate,
+    targetLanguage,
+    templateContent: sessionTranslationTemplate,
+    sourceLanguage,
+    useCache: true,
+    apiKey: effectiveApiKey,
+    timeoutMs: 60000, // 60 Sekunden Timeout
   })
   
   if (!response.ok) {
     const errorText = await response.text()
-    console.error('[DocumentTranslation] OpenAI Fehler:', {
-      status: response.status,
-      errorText: errorText.substring(0, 500),
-    })
-    throw new Error(`OpenAI Translation Fehler: ${response.status} ${errorText.slice(0, 200)}`)
+    throw new Error(`Secretary Service Translation Fehler: ${response.status} ${errorText.slice(0, 200)}`)
   }
 
-  const result = await parseOpenAIResponseWithUsage(response)
-  console.log('[DocumentTranslation] Response geparst:', {
-    hasRaw: !!result.raw,
-    rawLength: result.raw?.length || 0,
-    promptTokens: result.promptTokens,
-    completionTokens: result.completionTokens,
-    totalTokens: result.totalTokens,
+  // Parse Response vom Secretary Service
+  const responseData: unknown = await response.json().catch(() => {
+    throw new Error('Fehler beim Parsen der Secretary Service Antwort')
   })
   
-  // Parse JSON aus Response (structured output gibt direkt JSON zurück)
-  let parsed: unknown
-  try {
-    const responseJson = JSON.parse(result.raw)
-    const content = (responseJson as { choices?: Array<{ message?: { content?: unknown } }> })?.choices?.[0]?.message?.content
-    console.log('[DocumentTranslation] Content extrahiert:', {
-      hasContent: !!content,
-      contentType: typeof content,
-      isString: typeof content === 'string',
-    })
-    
-    if (typeof content === 'string') {
-      // Structured output gibt JSON-String zurück
-      console.log('[DocumentTranslation] Parse JSON-String...')
-      parsed = JSON.parse(content)
-    } else if (content && typeof content === 'object') {
-      // Falls bereits Objekt
-      console.log('[DocumentTranslation] Content ist bereits Objekt')
-      parsed = content
-    } else {
-      throw new Error('Ungültiges Response-Format')
-    }
-    
-    console.log('[DocumentTranslation] Parsed erfolgreich:', {
-      hasParsed: !!parsed,
-      parsedKeys: parsed && typeof parsed === 'object' ? Object.keys(parsed) : [],
-    })
-  } catch (error) {
-    console.error('[DocumentTranslation] Parse-Fehler:', error)
-    console.error('[DocumentTranslation] Raw response (erste 1000 Zeichen):', result.raw.substring(0, 1000))
-    throw new Error('Fehler beim Parsen der Übersetzungsantwort')
+  // Secretary Service Format: { status: "success", data: { structured_data: {...} } }
+  let structuredData: unknown
+  if (responseData && typeof responseData === 'object' && !Array.isArray(responseData)) {
+    const data = (responseData as { data?: { structured_data?: unknown } }).data
+    structuredData = data?.structured_data
+  }
+  
+  if (!structuredData) {
+    throw new Error('Secretary Service lieferte kein structured_data')
   }
 
   // Validiere gegen Zod-Schema
-  console.log('[DocumentTranslation] Validiere gegen Zod-Schema...')
-  const validated = sessionTranslationSchema.parse(parsed)
-  console.log('[DocumentTranslation] ✅ Validierung erfolgreich:', {
-    hasTitle: !!validated.title,
-    hasSummary: !!validated.summary,
-    speakersCount: validated.speakers?.length || 0,
-    topicsCount: validated.topics?.length || 0,
-  })
+  const validated = sessionTranslationSchema.parse(structuredData)
 
   // Kombiniere übersetzte Felder mit originalen nicht-textuellen Feldern
   // Übersetzte Felder überschreiben Original-Felder

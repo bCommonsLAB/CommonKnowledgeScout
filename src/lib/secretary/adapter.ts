@@ -12,9 +12,13 @@
  * @exports
  * - callPdfProcess: Calls PDF processing endpoint
  * - callTemplateTransform: Calls template transformation endpoint (text-based)
+ * - callTextTranslate: Calls text translation endpoint
+ * - callTransformerChat: Calls LLM broker chat endpoint
  * - callTemplateExtractFromUrl: Calls template transformation endpoint (URL-based extraction)
  * - PdfProcessParams: Parameters interface for PDF processing
  * - TemplateTransformParams: Parameters interface for template transformation
+ * - TextTranslateParams: Parameters interface for text translation
+ * - TransformerChatParams: Parameters interface for LLM broker chat
  * - TemplateExtractFromUrlParams: Parameters interface for URL-based template extraction
  * 
  * @usedIn
@@ -140,6 +144,184 @@ export async function callTemplateTransform(p: TemplateTransformParams): Promise
       }
       throw new HttpError(res.status, res.statusText, errorMessage, responseBody)
     }
+    return res
+  } catch (e) {
+    if (e instanceof HttpError || e instanceof TimeoutError || e instanceof NetworkError) throw e
+    throw new NetworkError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+export interface TextTranslateParams {
+  url: string; // URL des Transformer-Endpoints (z.B. `${baseUrl}/transformer/text`)
+  text: string;
+  sourceLanguage?: string;
+  targetLanguage: string;
+  useCache?: boolean;
+  apiKey?: string;
+  timeoutMs?: number;
+}
+
+/**
+ * Ruft den Text-Translate-Endpoint des Secretary Services auf.
+ * 
+ * @param p Text-Translate-Parameter
+ * @returns Response vom Secretary Service
+ */
+export async function callTextTranslate(p: TextTranslateParams): Promise<Response> {
+  const body = {
+    text: p.text,
+    source_language: p.sourceLanguage || p.targetLanguage, // Fallback auf targetLanguage wenn nicht gesetzt
+    target_language: p.targetLanguage,
+    use_cache: p.useCache ?? false,
+  }
+  
+  const headers: Record<string, string> = { 
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  }
+  if (p.apiKey) { 
+    headers['Authorization'] = `Bearer ${p.apiKey}`
+    headers['X-Service-Token'] = p.apiKey
+  }
+  
+  try {
+    const res = await fetchWithTimeout(
+      p.url, 
+      { 
+        method: 'POST', 
+        body: JSON.stringify(body), 
+        headers, 
+        timeoutMs: p.timeoutMs 
+      }
+    )
+    if (!res.ok) {
+      let errorMessage: string | undefined
+      let responseBody: unknown = undefined
+      try {
+        const errorData = await res.clone().json().catch(() => null)
+        responseBody = errorData
+        if (errorData && typeof errorData === 'object' && errorData !== null) {
+          if ('error' in errorData && typeof errorData.error === 'object' && errorData.error !== null && 'message' in errorData.error) {
+            errorMessage = String((errorData.error as { message?: unknown }).message)
+          } else if ('error' in errorData) {
+            errorMessage = String(errorData.error)
+          } else if ('message' in errorData) {
+            errorMessage = String(errorData.message)
+          }
+        }
+      } catch {
+        // Body konnte nicht gelesen werden
+      }
+      throw new HttpError(res.status, res.statusText, errorMessage, responseBody)
+    }
+    return res
+  } catch (e) {
+    if (e instanceof HttpError || e instanceof TimeoutError || e instanceof NetworkError) throw e
+    throw new NetworkError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+export interface TransformerChatParams {
+  url: string; // URL des Chat-Endpoints (z.B. `${baseUrl}/api/transformer/chat`)
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+  model?: string;
+  provider?: string;
+  temperature?: number;
+  maxTokens?: number;
+  responseFormat?: 'text' | 'json_object';
+  schemaJson?: string; // JSON Schema as string (Draft-07)
+  schemaId?: string; // Server-known schema identifier
+  strict?: boolean; // Schema validation strictness (default: true when structured)
+  useCache?: boolean;
+  apiKey?: string;
+  timeoutMs?: number;
+}
+
+/**
+ * Ruft den LLM Broker Chat-Endpoint des Secretary Services auf.
+ * 
+ * Verwendet application/x-www-form-urlencoded für Request-Body.
+ * 
+ * @param p Chat-Parameter
+ * @returns Response vom Secretary Service
+ */
+export async function callTransformerChat(p: TransformerChatParams): Promise<Response> {
+  const formData = new URLSearchParams()
+  formData.append('messages', JSON.stringify(p.messages))
+  
+  if (p.model) formData.append('model', p.model)
+  if (p.provider) formData.append('provider', p.provider)
+  if (p.temperature !== undefined) formData.append('temperature', String(p.temperature))
+  if (p.maxTokens !== undefined) formData.append('max_tokens', String(p.maxTokens))
+  if (p.responseFormat) formData.append('response_format', p.responseFormat)
+  if (p.schemaJson) formData.append('schema_json', p.schemaJson)
+  if (p.schemaId) formData.append('schema_id', p.schemaId)
+  if (p.strict !== undefined) formData.append('strict', String(p.strict))
+  formData.append('use_cache', String(p.useCache ?? true))
+  if (p.timeoutMs !== undefined) formData.append('timeout_ms', String(p.timeoutMs))
+  
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/x-www-form-urlencoded',
+  }
+  
+  if (p.apiKey) {
+    headers['Authorization'] = `Bearer ${p.apiKey}`
+    headers['X-Secretary-Api-Key'] = p.apiKey
+  }
+  
+  try {
+    const res = await fetchWithTimeout(
+      p.url,
+      {
+        method: 'POST',
+        body: formData.toString(),
+        headers,
+        timeoutMs: p.timeoutMs
+      }
+    )
+    
+    // Bei HTTP-Fehlern Response-Body lesen für detaillierte Fehlermeldung
+    if (!res.ok) {
+      let errorMessage: string | undefined
+      let responseBody: unknown = undefined
+      try {
+        const errorData = await res.clone().json().catch(() => null)
+        responseBody = errorData
+        if (errorData && typeof errorData === 'object' && errorData !== null) {
+          if ('error' in errorData && typeof errorData.error === 'object' && errorData.error !== null) {
+            const err = errorData.error as { code?: unknown; message?: unknown }
+            if ('message' in err) {
+              errorMessage = String(err.message)
+            } else if ('code' in err) {
+              errorMessage = String(err.code)
+            }
+          } else if ('error' in errorData) {
+            errorMessage = String(errorData.error)
+          } else if ('message' in errorData) {
+            errorMessage = String(errorData.message)
+          }
+        }
+      } catch {
+        // Body konnte nicht gelesen werden - versuche als Text
+        try {
+          const errorText = await res.clone().text()
+          if (errorText) {
+            errorMessage = errorText.slice(0, 500)
+          }
+        } catch {
+          // Kein Body verfügbar
+        }
+      }
+      
+      // Erweiterte Fehlermeldung mit URL-Info für Debugging
+      const enhancedMessage = errorMessage 
+        ? `${res.status} ${res.statusText}: ${errorMessage}`
+        : `${res.status} ${res.statusText}`
+      
+      throw new HttpError(res.status, res.statusText, enhancedMessage, responseBody)
+    }
+    
     return res
   } catch (e) {
     if (e instanceof HttpError || e instanceof TimeoutError || e instanceof NetworkError) throw e

@@ -3,6 +3,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { ANSWER_LENGTH_ZOD_ENUM, ANSWER_LENGTH_DEFAULT } from '@/lib/chat/constants'
+import { callLlmText } from '@/lib/chat/common/llm'
 
 const bodySchema = z.object({
   systemPrompt: z.string().optional(),
@@ -37,8 +38,6 @@ export async function POST(
 
     const chatApiKey = process.env.OPENAI_API_KEY
     if (!chatApiKey) return NextResponse.json({ error: 'OPENAI_API_KEY fehlt' }, { status: 500 })
-    const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
-    const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.2)
 
     const styleInstruction = answerLength === 'ausführlich'
       ? 'Schreibe eine strukturierte, ausführliche Antwort (ca. 250–600 Wörter).'
@@ -49,35 +48,20 @@ export async function POST(
     const system = systemPrompt || 'Du bist ein hilfreicher, faktenbasierter Assistent. Nutze ausschließlich den bereitgestellten Kontext.'
     const userPrompt = `Kontext:\n${contextText}\n\nInstruktionen:\n${instructions}\n\nAnforderungen:\n- ${styleInstruction}\n- Antworte auf Deutsch.`
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${chatApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        temperature,
+    try {
+      const result = await callLlmText({
+        apiKey: chatApiKey,
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: userPrompt }
         ]
       })
-    })
 
-    if (!res.ok) {
-      const text = await res.text()
-      return NextResponse.json({ error: `OpenAI Chat Fehler: ${res.status} ${text.slice(0, 400)}` }, { status: 500 })
+      return NextResponse.json({ status: 'ok', answer: result.text })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'LLM Chat Fehler'
+      return NextResponse.json({ error: errorMessage }, { status: 500 })
     }
-    const raw = await res.text()
-    let answer = ''
-    try {
-      const parsedRes: unknown = JSON.parse(raw)
-      const p = (parsedRes && typeof parsedRes === 'object') ? parsedRes as { choices?: Array<{ message?: { content?: unknown } }> } : {}
-      const c = p.choices?.[0]?.message?.content
-      if (typeof c === 'string') answer = c
-    } catch {
-      return NextResponse.json({ error: 'OpenAI Chat Parse Fehler', details: raw.slice(0, 400) }, { status: 502 })
-    }
-
-    return NextResponse.json({ status: 'ok', answer })
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('[api/chat/adhoc] Unhandled error', error)

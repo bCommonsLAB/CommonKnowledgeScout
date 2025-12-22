@@ -29,7 +29,7 @@
  */
 
 import { buildPrompt, buildTOCPrompt, getSourceDescription } from '@/lib/chat/common/prompt'
-import { callOpenAI, parseStructuredLLMResponse, parseOpenAIResponseWithUsage } from '@/lib/chat/common/llm'
+import { callLlmText, parseStructuredLLMResponse, getLlmProvider, getLlmProviderForLogging } from '@/lib/chat/common/llm'
 import { parseStoryTopicsData } from '@/lib/chat/common/toc-parser'
 import { getBaseBudget, reduceBudgets } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog } from '@/lib/logging/query-logger'
@@ -182,7 +182,9 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.3)
   // Verwende publicApiKey wenn vorhanden, sonst globalen API-Key
   const apiKey = run.apiKey || process.env.OPENAI_API_KEY || ''
-  await logSetPrompt(run.queryId, { provider: 'openai', model, temperature, prompt })
+  const provider = getLlmProvider()
+  const providerForLogging = getLlmProviderForLogging(provider)
+  await logSetPrompt(run.queryId, { provider: providerForLogging, model, temperature, prompt })
   
   // Sende prompt_complete direkt nach dem Prompt-Building
   const { estimateTokensFromText } = await import('@/lib/chat/common/budget')
@@ -202,16 +204,48 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     ? Math.min(32000, Math.max(16000, Math.floor(sources.length * 20))) // Mindestens 16k, max 32k, skaliert mit Anzahl der Chunks
     : undefined
   
-  let res = await callOpenAI({ model, temperature, prompt, apiKey, maxTokens })
+  // Konvertiere Prompt zu Messages-Format (Prompt enthält bereits System + User Content)
+  // Der Prompt ist bereits vollständig formatiert, also als single user message
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+    { role: 'user', content: prompt }
+  ]
+  
   let raw = ''
   let promptTokens: number | undefined = undefined
   let completionTokens: number | undefined = undefined
   let totalTokens: number | undefined = undefined
   
-  if (!res.ok) {
-    const text = await res.text()
-    const tooLong = text.includes('maximum context length') || res.status === 400
+  try {
+    const result = await callLlmText({
+      apiKey,
+      model,
+      temperature,
+      messages,
+      maxTokens
+    })
+    
+    // callLlmText gibt nur text zurück, aber wir brauchen das raw JSON für parseStructuredLLMResponse
+    // Für jetzt: Verwende text als raw (parseStructuredLLMResponse kann damit umgehen)
+    raw = result.text
+    promptTokens = result.usage?.promptTokens
+    completionTokens = result.usage?.completionTokens
+    totalTokens = result.usage?.totalTokens
+  } catch (error) {
+    // Importiere LlmProviderError für bessere Fehlerbehandlung
+    const { LlmProviderError } = await import('@/lib/chat/common/llm')
+    
+    const errorMessage = error instanceof Error ? error.message : 'LLM Chat Fehler'
+    const errorCode = error instanceof LlmProviderError ? error.code : undefined
+    const statusCode = error instanceof LlmProviderError ? error.statusCode : undefined
+    
+    // Prüfe auf "too long" Fehler (kann bei verschiedenen Providern unterschiedlich formuliert sein)
+    const tooLong = errorMessage.includes('maximum context length') 
+      || errorMessage.includes('400')
+      || errorMessage.includes('context length')
+      || (statusCode === 400 && errorMessage.includes('token'))
+    
     if (tooLong) {
+      // Retry mit reduzierten Quellen
       const budgets = reduceBudgets(run.answerLength)
       let retried = false
       for (const b of budgets) {
@@ -242,27 +276,37 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
               facetDefs: run.facetDefs,
             })
         // Bei Retry mit reduzierten Quellen: Kein maxTokens (verwende Standard)
-        res = await callOpenAI({ model, temperature, prompt: p2, apiKey })
-        if (res.ok) { 
+        try {
+          const retryResult = await callLlmText({
+            apiKey,
+            model,
+            temperature,
+            messages: [{ role: 'user', content: p2 }]
+          })
+          raw = retryResult.text
+          promptTokens = retryResult.usage?.promptTokens
+          completionTokens = retryResult.usage?.completionTokens
+          totalTokens = retryResult.usage?.totalTokens
           retried = true
-          const result = await parseOpenAIResponseWithUsage(res)
-          raw = result.raw
-          promptTokens = result.promptTokens
-          completionTokens = result.completionTokens
-          totalTokens = result.totalTokens
-          break 
+          break
+        } catch {
+          // Weiter zum nächsten Budget
         }
       }
-      if (!retried) throw new Error(`OpenAI Chat Fehler: ${res.status} ${text.slice(0, 200)}`)
+      if (!retried) {
+        // Behalte ursprünglichen Fehler-Typ bei
+        if (error instanceof LlmProviderError) {
+          throw error
+        }
+        throw new Error(`LLM Chat Fehler: ${errorMessage}`)
+      }
     } else {
-      throw new Error(`OpenAI Chat Fehler: ${res.status} ${text.slice(0, 200)}`)
+      // Behalte ursprünglichen Fehler-Typ bei
+      if (error instanceof LlmProviderError) {
+        throw error
+      }
+      throw new Error(`LLM Chat Fehler: ${errorMessage}`)
     }
-  } else {
-    const result = await parseOpenAIResponseWithUsage(res)
-    raw = result.raw
-    promptTokens = result.promptTokens
-    completionTokens = result.completionTokens
-    totalTokens = result.totalTokens
   }
   
   // Parse structured response (answer, suggestedQuestions, usedReferences)
@@ -375,5 +419,6 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     storyTopicsData 
   }
 }
+
 
 
