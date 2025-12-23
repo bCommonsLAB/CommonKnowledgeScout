@@ -623,7 +623,7 @@ export async function maybeProcessImages(args: ImagesArgs): Promise<ImagesResult
   const { apiKey } = getSecretaryConfig()
   if (apiKey) {
     headers['Authorization'] = `Bearer ${apiKey}`
-    headers['X-Service-Token'] = apiKey
+    headers['X-Secretary-Api-Key'] = apiKey
   }
 
   const resp = await fetch(archiveUrl, { method: 'GET', headers })
