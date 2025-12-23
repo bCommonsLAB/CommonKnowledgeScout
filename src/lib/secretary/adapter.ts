@@ -286,7 +286,7 @@ export async function callTransformerChat(p: TransformerChatParams): Promise<Res
   
   if (p.apiKey) {
     headers['Authorization'] = `Bearer ${p.apiKey}`
-    headers['X-Secretary-Api-Key'] = p.apiKey
+    headers['X-Service-Token'] = p.apiKey
   }
   
   try {
