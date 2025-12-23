@@ -41,6 +41,19 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 const COLLECTION_NAME = 'queries'
 
 /**
+ * Input-Typ für insertQueryLog
+ *
+ * NOTE:
+ * - `llmModel` gehört NICHT in den Root von QueryLog (Sicherheits-/Konsistenz-Regel),
+ *   muss aber für die Cache-Hash-Berechnung bekannt sein und wird ausschließlich in `cacheParams` persistiert.
+ */
+interface InsertQueryLogInput
+  extends Omit<QueryLog, 'createdAt' | 'status' | 'queryId' | 'cacheParams'>,
+    Partial<Pick<QueryLog, 'queryId' | 'status'>> {
+  llmModel?: string
+}
+
+/**
  * Ermittelt die Anzahl der Dokumente in einer Library (GESAMT, ohne Filter)
  * 
  * @param library - Die Library (mit Config)
@@ -132,7 +145,7 @@ async function getQueriesCollection(): Promise<Collection<QueryLog>> {
   return col
 }
 
-export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' | 'queryId'> & Partial<Pick<QueryLog, 'queryId' | 'status'>>): Promise<string> {
+export async function insertQueryLog(doc: InsertQueryLogInput): Promise<string> {
   const col = await getQueriesCollection()
   const queryId = doc.queryId || crypto.randomUUID()
   
@@ -175,6 +188,9 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
     facetsSelected: doc.facetsSelected,
     documentCount: providedDocumentCount,
     library: libraryForCache, // Verwende Library-Objekt für DocumentCount-Berechnung (falls documentCount nicht vorhanden)
+    // WICHTIG: llmModel ist Teil des Cache-Kontexts (wird NICHT als Root-Feld gespeichert).
+    // Damit Cache-Hash und Cache-Parameter konsistent sind, muss es bei der Berechnung hier bekannt sein.
+    llmModel: doc.llmModel,
   })
   
   // Erstelle cacheParams-Objekt für einfaches Debugging (kann einfach kopiert werden)
@@ -191,6 +207,8 @@ export async function insertQueryLog(doc: Omit<QueryLog, 'createdAt' | 'status' 
     retriever: cacheHashParams.retriever as import('@/lib/chat/constants').Retriever | undefined,
     facetsSelected: cacheHashParams.facetsSelected,
     documentCount: cacheHashParams.documentCount,
+    // Speichere llmModel nur als string; vermeide null/'' für saubere Debug-Ausgaben.
+    llmModel: cacheHashParams.llmModel || undefined,
   }
   
   // Berechne cacheHash für schnelle Cache-Lookups
@@ -363,6 +381,7 @@ export async function findQueryByQuestionAndContext(args: {
   retriever?: string
   queryType?: 'toc' | 'question' // Optional: Filter nach Query-Typ
   facetsSelected?: Record<string, unknown> // Optional: Filter nach Facetten
+  llmModel?: string // Optional: LLM-Modell-ID (Teil des Cache-Hashes)
 }): Promise<QueryLog | null> {
   const col = await getQueriesCollection()
   
@@ -394,6 +413,7 @@ export async function findQueryByQuestionAndContext(args: {
     genderInclusive: args.genderInclusive,
     retriever: args.retriever,
     facetsSelected: args.facetsSelected,
+    llmModel: args.llmModel,
     library: libraryContext.library, // Verwende Library-Objekt für DocumentCount-Berechnung
   })
   

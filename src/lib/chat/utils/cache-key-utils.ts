@@ -188,6 +188,12 @@ export function createCacheHash(params: CacheHashParams): string {
   if (params.retriever) {
     normalized.retriever = params.retriever.toLowerCase().trim()
   }
+  // WICHTIG: llmModel ist Teil des Cache-Kontexts.
+  // Ohne dieses Feld würden unterschiedliche Modelle den gleichen Hash erzeugen
+  // und könnten falsche Cache-Treffer produzieren.
+  if (params.llmModel) {
+    normalized.llmModel = params.llmModel.toLowerCase().trim()
+  }
   if (params.documentCount !== undefined) {
     normalized.documentCount = String(params.documentCount)
   }

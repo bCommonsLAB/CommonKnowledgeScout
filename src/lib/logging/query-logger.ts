@@ -30,6 +30,7 @@ export async function startQueryLog(context: {
   facetsSelected?: Record<string, unknown>
   filtersNormalized?: Record<string, unknown>
   documentCount?: number // Optional: Bereits berechnete Dokumentenanzahl (wird sonst in insertQueryLog berechnet)
+  llmModel?: string // Optional: Teil des Cache-Kontexts
 }): Promise<string> {
   // Validierung: Entweder userEmail ODER sessionId muss vorhanden sein
   if (!context.userEmail && !context.sessionId) {

@@ -299,6 +299,12 @@ export async function POST(
         const genderInclusiveParam = parsedUrl.searchParams.get('genderInclusive')
         const llmModelParam = parsedUrl.searchParams.get('llmModel')
         const llmTemperatureParam = parsedUrl.searchParams.get('llmTemperature')
+
+        // Cache-/Log-Helper: konsistent normalisieren (keine null/'' Werte)
+        const llmModelForCache =
+          typeof llmModelParam === 'string' && llmModelParam.trim().length > 0
+            ? llmModelParam.trim()
+            : undefined
         
         // Parse character Parameter aus URL (komma-separierter String → Character[] Array)
         const effectiveCharacter = parseCharacterFromUrlParam(characterParam)
@@ -387,6 +393,7 @@ export async function POST(
             facetsSelected: facetsSelectedForCache,
             library: ctx.library, // Verwende Library-Objekt für DocumentCount-Berechnung
             uiLocale: uiLocale, // UI-Locale für 'global' targetLanguage Konvertierung
+            llmModel: llmModelForCache,
           })
           
           documentCount = cacheHashParamsForLog.documentCount
@@ -423,6 +430,7 @@ export async function POST(
             genderInclusive: effectiveChatConfig.genderInclusive,
             retriever: retrieverForCache,
             facetsSelected: Object.keys(facetsSelectedForCache).length > 0 ? facetsSelectedForCache : undefined,
+            llmModel: llmModelForCache,
           })
 
           // Wenn Cache gefunden wurde und Antwort vorhanden ist
@@ -637,6 +645,7 @@ export async function POST(
           facetsSelected: facetsSelectedForCache, // Verwende facetsSelectedForCache für Cache (behält shortTitle)
           filtersNormalized: { ...built.normalized },
           documentCount, // Übergebe bereits berechnete documentCount (verhindert fehlerhafte Neuberechnung)
+          llmModel: llmModelForCache, // Cache-Kontext (Modell)
         })
         
         // Speichere Cache-Check-Step auch im retrieval Array (auch wenn kein Cache gefunden wurde)
