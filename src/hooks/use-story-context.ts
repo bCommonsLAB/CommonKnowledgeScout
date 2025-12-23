@@ -18,6 +18,7 @@ import {
   type Character,
   type SocialContext,
   type AccessPerspective,
+  type LlmModelId,
   TARGET_LANGUAGE_VALUES,
   CHARACTER_VALUES,
   SOCIAL_CONTEXT_VALUES,
@@ -26,6 +27,7 @@ import {
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_DEFAULT,
   ACCESS_PERSPECTIVE_DEFAULT,
+  LLM_MODEL_DEFAULT,
   TARGET_LANGUAGE_LABELS,
   normalizeCharacterToArray,
   normalizeAccessPerspectiveToArray,
@@ -35,6 +37,7 @@ import {
   storyCharacterAtom,
   storySocialContextAtom,
   storyAccessPerspectiveAtom,
+  storyLlmModelAtom,
 } from '@/atoms/story-context-atom'
 import { useTranslation } from '@/lib/i18n/hooks'
 
@@ -53,8 +56,8 @@ const loadedStorageKeys = new Set<string>()
  * müssen wir hier nur noch einmal prüfen, ob Werte aktualisiert werden müssen
  * (für den Fall, dass localStorage später verfügbar wird oder sich ändert).
  */
-function useLocalStorageSync<T extends TargetLanguage | Character[] | SocialContext | AccessPerspective[]>(
-  atom: typeof storyTargetLanguageAtom | typeof storyCharacterAtom | typeof storySocialContextAtom | typeof storyAccessPerspectiveAtom,
+function useLocalStorageSync<T extends TargetLanguage | Character[] | SocialContext | AccessPerspective[] | LlmModelId>(
+  atom: typeof storyTargetLanguageAtom | typeof storyCharacterAtom | typeof storySocialContextAtom | typeof storyAccessPerspectiveAtom | typeof storyLlmModelAtom,
   storageKey: string,
   defaultValue: T,
   isAnonymous: boolean
@@ -76,11 +79,15 @@ function useLocalStorageSync<T extends TargetLanguage | Character[] | SocialCont
       if (stored) {
         const parsed = JSON.parse(stored)
         // Für Character und AccessPerspective: Normalisiere zu Array (Backward-Compatibility)
+        // Für llmModel: Stelle sicher, dass es ein String ist (oder leerer String als Default)
         let normalized: T
         if (storageKey.includes('character')) {
           normalized = normalizeCharacterToArray(parsed) as T
         } else if (storageKey.includes('accessPerspective')) {
           normalized = normalizeAccessPerspectiveToArray(parsed) as T
+        } else if (storageKey.includes('llmModel')) {
+          // Stelle sicher, dass llmModel immer ein String ist (kann leer sein)
+          normalized = (typeof parsed === 'string' ? parsed : '') as T
         } else {
           normalized = parsed as T
         }
@@ -120,6 +127,7 @@ export function saveStoryContextToLocalStorage(
   character: Character[],
   socialContext: SocialContext,
   accessPerspective: AccessPerspective[],
+  llmModel: LlmModelId,
   isAnonymous: boolean
 ): void {
   // WICHTIG: Speichere für alle Benutzer, nicht nur anonyme
@@ -134,6 +142,7 @@ export function saveStoryContextToLocalStorage(
     localStorage.setItem(`${STORAGE_KEY_PREFIX}character`, JSON.stringify(character))
     localStorage.setItem(`${STORAGE_KEY_PREFIX}socialContext`, JSON.stringify(socialContext))
     localStorage.setItem(`${STORAGE_KEY_PREFIX}accessPerspective`, JSON.stringify(accessPerspective))
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}llmModel`, JSON.stringify(llmModel))
     
     // Setze Flag, dass Perspektive gesetzt wurde (falls noch nicht gesetzt)
     if (!previousPerspectiveSet) {
@@ -147,6 +156,7 @@ export function saveStoryContextToLocalStorage(
       character,
       socialContext,
       accessPerspective,
+      llmModel,
       isAnonymous,
       perspectiveSet: true,
     })
@@ -175,6 +185,10 @@ export interface UseStoryContextReturn {
   socialContext: SocialContext;
   /** Setter für Sozialen Kontext */
   setSocialContext: (value: SocialContext) => void;
+  /** Aktuelles LLM-Modell */
+  llmModel: LlmModelId;
+  /** Setter für LLM-Modell */
+  setLlmModel: (value: LlmModelId) => void;
   /** Labels für alle verfügbaren Sprachen */
   targetLanguageLabels: Record<TargetLanguage, string>;
   /** Labels für alle verfügbaren Charaktere */
@@ -342,6 +356,60 @@ export function useStoryContext(): UseStoryContextReturn {
     isAnonymous
   )
 
+  const [llmModel, setLlmModel] = useLocalStorageSync(
+    storyLlmModelAtom,
+    `${STORAGE_KEY_PREFIX}llmModel`,
+    LLM_MODEL_DEFAULT,
+    isAnonymous
+  )
+
+  // Validiere llmModel und lade Default-Modell wenn nötig
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    async function validateAndLoadDefaultModel() {
+      try {
+        console.log('[useStoryContext] Validiere llmModel:', llmModel)
+        const res = await fetch('/api/llm-models')
+        if (!res.ok) {
+          console.error('[useStoryContext] Fehler beim Laden der Modelle:', res.status)
+          return
+        }
+        const models = await res.json()
+        
+        if (models.length === 0) {
+          console.warn('[useStoryContext] Keine Modelle in der Datenbank gefunden')
+          return
+        }
+        
+        const defaultModel = models[0] // Erstes Modell nach Sortierung (niedrigste order-Nummer)
+        
+        // Wenn llmModel leer ist, setze Default-Modell
+        if (!llmModel) {
+          console.log('[useStoryContext] llmModel ist leer, setze Default-Modell:', defaultModel._id)
+          setLlmModel(defaultModel._id)
+          return
+        }
+        
+        // Prüfe, ob das gespeicherte Modell noch gültig ist
+        const isValidModel = models.some((m: { _id: string }) => m._id === llmModel)
+        
+        if (!isValidModel) {
+          console.warn('[useStoryContext] Gespeichertes Modell ist nicht mehr gültig:', llmModel)
+          console.log('[useStoryContext] Wechsle auf Default-Modell:', defaultModel._id)
+          setLlmModel(defaultModel._id)
+        } else {
+          console.log('[useStoryContext] Modell ist gültig:', llmModel)
+        }
+      } catch (error) {
+        console.error('[useStoryContext] Fehler beim Validieren/Laden des Modells:', error)
+      }
+    }
+    
+    validateAndLoadDefaultModel()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Nur einmal beim Mount ausführen
+
   // Übersetzte Labels für Character
   const characterLabels = useMemo(() => {
     const labels: Record<Character, string> = {} as Record<Character, string>
@@ -383,6 +451,15 @@ export function useStoryContext(): UseStoryContextReturn {
     return labels
   }, [t])
 
+  // Stelle sicher, dass llmModel immer einen Wert hat (auch wenn leer)
+  const safeLlmModel = llmModel || ''
+  
+  console.log('[useStoryContext] Rückgabe:', {
+    llmModel,
+    safeLlmModel,
+    hasLlmModel: !!llmModel,
+  })
+  
   return {
     targetLanguage,
     setTargetLanguage,
@@ -392,6 +469,8 @@ export function useStoryContext(): UseStoryContextReturn {
     setAccessPerspective,
     socialContext,
     setSocialContext,
+    llmModel: safeLlmModel,
+    setLlmModel,
     targetLanguageLabels,
     characterLabels,
     accessPerspectiveLabels,

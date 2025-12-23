@@ -1,5 +1,6 @@
-import * as z from 'zod'
 import { callLlmJson } from './llm'
+import { getSecretaryConfig } from '@/lib/env'
+import { questionAnalysisSchemaJson, questionAnalysisZodSchema } from './structured-schemas'
 
 /**
  * Ergebnis der Frage-Analyse für Retriever-Modus-Auswahl
@@ -20,19 +21,6 @@ export interface QuestionAnalysisResult {
   /** Chat-Titel basierend auf der Frage (max. ~60 Zeichen, prägnant und beschreibend) */
   chatTitle?: string
 }
-
-/**
- * Zod-Schema für Validierung der LLM-Antwort
- */
-const questionAnalysisSchema = z.object({
-  recommendation: z.enum(['chunk', 'summary', 'unclear']),
-  confidence: z.enum(['high', 'medium', 'low']),
-  reasoning: z.string().min(10),
-  suggestedQuestionChunk: z.string().nullish(),
-  suggestedQuestionSummary: z.string().nullish(),
-  explanation: z.string().min(20),
-  chatTitle: z.string().max(60).optional(), // Chat-Titel basierend auf der Frage (max. 60 Zeichen)
-})
 
 /**
  * System prompt for question analysis
@@ -80,7 +68,7 @@ There are two retrieval modes:
  * 
  * @param question Die Benutzerfrage, die analysiert werden soll
  * @param context Optional: Library-Kontext (z.B. Event-Modus aktiv?)
- * @param apiKey Optional: Library-spezifischer OpenAI API-Key. Wenn nicht gesetzt, wird der globale OPENAI_API_KEY verwendet.
+ * @param apiKey Optional: Library-spezifischer Secretary Service API-Key. Wenn nicht gesetzt, wird SECRETARY_SERVICE_API_KEY verwendet.
  * @returns Analyse-Ergebnis mit Empfehlung und optionalen Frage-Vorschlägen
  */
 export async function analyzeQuestionForRetriever(
@@ -91,12 +79,21 @@ export async function analyzeQuestionForRetriever(
   },
   apiKey?: string
 ): Promise<QuestionAnalysisResult> {
-  const model = process.env.QUESTION_ANALYZER_MODEL || process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
-  const temperature = Number(process.env.QUESTION_ANALYZER_TEMPERATURE ?? 0.3)
-  const effectiveApiKey = apiKey || process.env.OPENAI_API_KEY || ''
+  // Model und Temperature müssen explizit gesetzt sein (deterministisch, kein Fallback)
+  if (!process.env.QUESTION_ANALYZER_MODEL) {
+    throw new Error('QUESTION_ANALYZER_MODEL Umgebungsvariable ist erforderlich')
+  }
+  const model = process.env.QUESTION_ANALYZER_MODEL
+  const temperatureStr = process.env.QUESTION_ANALYZER_TEMPERATURE
+  if (!temperatureStr) {
+    throw new Error('QUESTION_ANALYZER_TEMPERATURE Umgebungsvariable ist erforderlich')
+  }
+  const temperature = Number(temperatureStr)
+  const { apiKey: configApiKey } = getSecretaryConfig()
+  const effectiveApiKey = apiKey || configApiKey
   
   if (!effectiveApiKey) {
-    throw new Error('OPENAI_API_KEY missing for question analysis')
+    throw new Error('Secretary Service API-Key fehlt für Frage-Analyse')
   }
 
   // Build user prompt
@@ -110,7 +107,7 @@ export async function analyzeQuestionForRetriever(
     userPrompt += `\n\nLibrary type: ${context.libraryType}`
   }
 
-  // LLM-Aufruf mit structured output über provider-agnostischen LLM-Client
+  // LLM-Aufruf mit structured output über Secretary Service
   const resultData = await callLlmJson(
     {
       apiKey: effectiveApiKey,
@@ -122,7 +119,8 @@ export async function analyzeQuestionForRetriever(
         { role: 'user', content: userPrompt },
       ],
     },
-    questionAnalysisSchema
+    questionAnalysisZodSchema,
+    questionAnalysisSchemaJson
   )
   
   // Konvertiere null zu undefined für optionale Felder und erstelle typisiertes Ergebnis

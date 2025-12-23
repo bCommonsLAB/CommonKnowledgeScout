@@ -10,7 +10,7 @@ import type { ChatProcessingStep } from '@/types/chat-processing'
 import type { ChatMessage } from '../utils/chat-utils'
 import type { ChatResponse } from '@/types/chat-response'
 import type { StoryTopicsData } from '@/types/story-topics'
-import type { AnswerLength, Retriever, TargetLanguage, Character, SocialContext, AccessPerspective } from '@/lib/chat/constants'
+import type { AnswerLength, Retriever, TargetLanguage, Character, SocialContext, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
 import { TOC_QUESTION, characterArrayToString, accessPerspectiveArrayToString } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { compareCacheKeys, type CacheKeyParams } from '@/lib/chat/utils/cache-key-utils'
@@ -35,6 +35,7 @@ interface UseChatStreamParams {
   accessPerspective: AccessPerspective[] // Array (kann leer sein)
   socialContext: SocialContext
   genderInclusive: boolean
+  llmModel: LlmModelId
   galleryFilters?: GalleryFilters
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
   setActiveChatId: (id: string | null) => void
@@ -81,6 +82,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
     accessPerspective,
     socialContext,
     genderInclusive,
+    llmModel,
     galleryFilters,
     setMessages,
     setActiveChatId,
@@ -138,6 +140,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
           character,
           accessPerspective,
           facetsSelected: galleryFilters,
+          llmModel: llmModel || undefined,
         }
         
         // Prüfe, ob eine Message mit identischem Cache-Key bereits vorhanden ist
@@ -155,6 +158,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
             character: msg.character,
             accessPerspective: msg.accessPerspective,
             facetsSelected: msg.facetsSelected,
+            llmModel: msg.llmModel,
           }
           
           return compareCacheKeys(currentCacheKey, msgCacheKey)
@@ -185,6 +189,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
           socialContext,
           genderInclusive,
           facetsSelected: galleryFilters, // Gallery-Filter (Facetten) - Teil des Cache-Schlüssels
+          llmModel: llmModel || undefined, // LLM-Modell für Cache-Key
         }
         setMessages((prev) => [...prev, questionMessage])
         setOpenConversations(new Set())
@@ -215,6 +220,16 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
         params.set('accessPerspective', accessPerspectiveArrayToString(accessPerspective) || '')
         params.set('socialContext', socialContext)
         params.set('genderInclusive', String(genderInclusive))
+        if (llmModel) {
+          params.set('llmModel', llmModel)
+        }
+        
+        // Temperature: Verwende Library-spezifische Temperature oder Default (0.3)
+        // WICHTIG: Temperature muss immer gesetzt sein (deterministisch, kein Fallback im Backend)
+        // Hinweis: cfg enthält nur Chat-UI-Config, nicht die vollständige Library-Config mit models
+        // Die Temperature wird daher standardmäßig auf 0.3 gesetzt (Library-spezifische Temperature wird im Backend verwendet)
+        const llmTemperature = 0.3
+        params.set('llmTemperature', String(llmTemperature))
         
         console.log('[useChatStream] Sende Chat-Request mit Parametern:', {
           targetLanguage: effectiveTargetLanguage,
@@ -224,6 +239,8 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
           socialContext,
           genderInclusive,
           retriever: effectiveRetriever,
+          llmModel,
+          llmTemperature,
         })
 
         // Bereite Chatverlauf vor: Nur vollständige Frage-Antwort-Paare
@@ -416,6 +433,11 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
           }
         }
       } catch (e) {
+        // Wichtig: Im Story-Mode wird sendQuestion automatisch (TOC) aufgerufen.
+        // Wenn hier etwas schief läuft, brauchen wir den Stacktrace im Browser, nicht nur die UI-Message.
+        // eslint-disable-next-line no-console
+        console.error('[useChatStream] Fehler beim Senden/Verarbeiten:', e)
+
         const errorMessage = e instanceof Error ? e.message : 'Unbekannter Fehler'
         const formattedError = formatChatError(errorMessage)
         onError?.(formattedError)
@@ -442,6 +464,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
       galleryFilters,
       activeChatId,
       sessionHeaders,
+      llmModel,
       setMessages,
       setActiveChatId,
       setOpenConversations,

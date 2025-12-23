@@ -869,3 +869,22 @@ export function isValidRetriever(value: unknown): value is Retriever {
  */
 export const TOC_QUESTION = 'What topics are covered here? Can we output them as a table of contents.'
 
+// ============================================================================
+// LLM MODELL (LlmModelId)
+// ============================================================================
+
+/**
+ * LLM Modell-ID Type
+ * 
+ * Repräsentiert die Modell-ID für LLM-Aufrufe (z.B. 'google/gemini-2.5-flash')
+ */
+export type LlmModelId = string
+
+/**
+ * Standard LLM Modell-ID
+ * 
+ * Wird verwendet, wenn kein Modell explizit gewählt wurde.
+ * Das tatsächliche Standard-Modell wird aus MongoDB geladen (erstes Modell nach order-Sortierung).
+ */
+export const LLM_MODEL_DEFAULT: LlmModelId = ''
+

@@ -260,6 +260,25 @@ export async function callTransformerChat(p: TransformerChatParams): Promise<Res
   formData.append('use_cache', String(p.useCache ?? true))
   if (p.timeoutMs !== undefined) formData.append('timeout_ms', String(p.timeoutMs))
   
+  // Logging der Parameter für Debugging (ohne sensible Daten)
+  console.log('[Secretary Adapter] callTransformerChat Parameters:', {
+    url: p.url,
+    model: p.model,
+    provider: p.provider,
+    temperature: p.temperature,
+    maxTokens: p.maxTokens,
+    responseFormat: p.responseFormat,
+    schemaId: p.schemaId,
+    strict: p.strict,
+    useCache: p.useCache,
+    timeoutMs: p.timeoutMs,
+    messagesCount: p.messages.length,
+    messagesPreview: p.messages.map(m => ({ role: m.role, contentLength: m.content.length, contentPreview: m.content.slice(0, 100) + '...' })),
+    schemaJsonLength: p.schemaJson?.length,
+    schemaJsonPreview: p.schemaJson ? p.schemaJson.slice(0, 500) + '...' : undefined,
+    hasApiKey: !!p.apiKey,
+  })
+  
   const headers: Record<string, string> = {
     'Accept': 'application/json',
     'Content-Type': 'application/x-www-form-urlencoded',

@@ -32,6 +32,7 @@ export interface CacheHashInputParams {
   documentCount?: number // Optional: Bereits berechnete DocumentCount
   library?: Library // Optional: Library-Objekt für DocumentCount-Berechnung
   uiLocale?: string // UI-Locale für 'global' targetLanguage Konvertierung
+  llmModel?: string
 }
 
 /**
@@ -132,6 +133,7 @@ export async function buildCacheHashParams(
     retriever: normalizedRetriever,
     facetsSelected: normalizedFacetsSelected,
     documentCount,
+    llmModel: params.llmModel,
   }
 }
 

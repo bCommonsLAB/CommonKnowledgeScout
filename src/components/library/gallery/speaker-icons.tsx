@@ -68,21 +68,6 @@ export function SpeakerOrAuthorIcons({ doc }: { doc: DocLike }) {
   // Wenn keine Bilder vorhanden sind, sollen die großen Kreise komplett entfallen.
   const hasRealImages = Array.isArray(images) && images.some(url => typeof url === 'string' && url.trim().length > 0)
   
-  // DEBUG: Logging für Debugging (nur in Entwicklung)
-  if (process.env.NODE_ENV === 'development' && names && names.length > 0) {
-    console.log('[SpeakerOrAuthorIcons]', {
-      hasSpeakers: !!doc.speakers && doc.speakers.length > 0,
-      hasAuthors: !!doc.authors && doc.authors.length > 0,
-      namesCount: names.length,
-      rawSpeakersImageUrl: doc.speakers_image_url,
-      rawSpeakersImageUrlType: typeof doc.speakers_image_url,
-      hasImages: !!images,
-      imagesCount: images?.length || 0,
-      hasRealImages,
-      imagesPreview: images?.slice(0, 2)
-    })
-  }
-  
   // Icons nur anzeigen, wenn Namen UND echte Bilder vorhanden sind
   if (!names || names.length === 0 || !hasRealImages) {
     // Kein Name oder keine echten Bilder → keine Kreise rendern

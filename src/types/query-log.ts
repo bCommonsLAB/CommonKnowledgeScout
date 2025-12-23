@@ -74,6 +74,7 @@ export interface CacheParams {
   retriever?: Retriever;
   facetsSelected?: Record<string, unknown>;
   documentCount?: number; // Anzahl Dokumente zum Zeitpunkt der Query
+  llmModel?: string; // LLM-Modell-ID für Cache-Key
 }
 
 export interface QueryLog {

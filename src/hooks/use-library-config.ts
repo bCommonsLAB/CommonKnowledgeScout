@@ -71,6 +71,16 @@ export function useLibraryConfig(libraryId: string): UseLibraryConfigResult {
     let cancelled = false
 
     async function load() {
+      // Guard: Verhindere Fetches mit leerer/ungültiger libraryId (führt sonst zu /api/chat/config)
+      if (!libraryId) {
+        if (!cancelled) {
+          setCfg(null)
+          setError(null)
+          setLoading(false)
+        }
+        return
+      }
+
       setLoading(true)
       setError(null)
       

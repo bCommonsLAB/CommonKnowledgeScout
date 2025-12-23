@@ -67,6 +67,14 @@ const chatRequestSchema = z.object({
 })
 
 /**
+ * Route Segment Config: Maximale Ausführungsdauer für diesen Route Handler
+ * 
+ * Standard in Next.js: 10s (Development), 60s (Production)
+ * Für LLM-Chat-Requests benötigen wir mehr Zeit (bis zu 4 Minuten)
+ */
+export const maxDuration = 240 // 240 Sekunden (4 Minuten)
+
+/**
  * SSE-Streaming-Endpoint für Chat-Verarbeitung mit Status-Updates
  */
 export async function POST(
@@ -173,7 +181,7 @@ export async function POST(
         // Nur Parameter, die tatsächlich Facetten sind (inkl. shortTitle)
         parsedUrl.searchParams.forEach((v, k) => {
           // Überspringe Chat-Konfigurations-Parameter
-          if (['retriever', 'targetLanguage', 'character', 'socialContext', 'genderInclusive', 'chatId'].includes(k)) {
+          if (['retriever', 'targetLanguage', 'character', 'socialContext', 'genderInclusive', 'chatId', 'llmModel'].includes(k)) {
             return
           }
           // Facetten-Parameter ODER shortTitle übernehmen
@@ -289,6 +297,8 @@ export async function POST(
         const accessPerspectiveParam = parsedUrl.searchParams.get('accessPerspective')
         const socialContextParam = parsedUrl.searchParams.get('socialContext')
         const genderInclusiveParam = parsedUrl.searchParams.get('genderInclusive')
+        const llmModelParam = parsedUrl.searchParams.get('llmModel')
+        const llmTemperatureParam = parsedUrl.searchParams.get('llmTemperature')
         
         // Parse character Parameter aus URL (komma-separierter String → Character[] Array)
         const effectiveCharacter = parseCharacterFromUrlParam(characterParam)
@@ -649,7 +659,18 @@ export async function POST(
         // Schritt 5: Retriever ausführen (mit Status-Updates)
         send({ type: 'retrieval_start', retriever: effectiveRetriever })
         
-        const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
+        // LLM-Modell muss explizit gesetzt sein (deterministisch, kein Fallback)
+        if (!llmModelParam) {
+          throw new Error('llmModel Parameter ist erforderlich')
+        }
+        if (!llmTemperatureParam) {
+          throw new Error('llmTemperature Parameter ist erforderlich')
+        }
+        const model = llmModelParam
+        const temperature = Number(llmTemperatureParam)
+        if (isNaN(temperature)) {
+          throw new Error('llmTemperature muss eine gültige Zahl sein')
+        }
         send({ type: 'llm_start', model })
 
         // Normalisiere chatConfig für Orchestrator (character und accessPerspective müssen Arrays sein)
@@ -666,6 +687,8 @@ export async function POST(
           userEmail: userEmail,
           context: {},
           question: message,
+          llmModel: llmModelParam, // LLM-Modell (muss gesetzt sein)
+          temperature: temperature, // Temperature (muss gesetzt sein)
           answerLength,
           filters: built.mongo,
           queryId,

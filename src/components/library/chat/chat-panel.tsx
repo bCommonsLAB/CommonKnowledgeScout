@@ -16,6 +16,7 @@ import {
   type Retriever,
   type TargetLanguage,
   type SocialContext,
+  type LlmModelId,
   ANSWER_LENGTH_DEFAULT,
   RETRIEVER_DEFAULT,
   TOC_QUESTION,
@@ -33,7 +34,7 @@ import { ChatConfigBar } from './chat-config-bar'
 import { ChatConfigPopover } from './chat-config-popover'
 import { ChatMessagesList } from './chat-messages-list'
 import { useChatScroll } from './hooks/use-chat-scroll'
-import { getInitialTargetLanguage, getInitialCharacter, getInitialAccessPerspective, getInitialSocialContext, getInitialGenderInclusive } from './utils/chat-storage'
+import { getInitialTargetLanguage, getInitialCharacter, getInitialAccessPerspective, getInitialSocialContext, getInitialGenderInclusive, getInitialLlmModel } from './utils/chat-storage'
 import { useLibraryConfig } from '@/hooks/use-library-config'
 import { useAnonymousPreferences } from '@/hooks/use-anonymous-preferences'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
@@ -133,12 +134,22 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const [accessPerspectiveState, setAccessPerspectiveState] = useState<AccessPerspective[]>(getInitialAccessPerspective())
   const [socialContextState, setSocialContextState] = useState<SocialContext>(getInitialSocialContext())
   const [genderInclusive, setGenderInclusive] = useState<boolean>(getInitialGenderInclusive())
+  const [llmModelState] = useState<LlmModelId>(getInitialLlmModel())
   
   const targetLanguage = isEmbedded ? storyContext.targetLanguage : targetLanguageState
   const character = isEmbedded ? storyContext.character : characterState
   const accessPerspective = isEmbedded ? storyContext.accessPerspective : accessPerspectiveState
   const socialContext = isEmbedded ? storyContext.socialContext : socialContextState
+  const llmModel = (isEmbedded ? storyContext.llmModel : llmModelState) || ''
   const setTargetLanguage = isEmbedded ? storyContext.setTargetLanguage : setTargetLanguageState
+  
+  console.log('[ChatPanel] llmModel bestimmt:', {
+    isEmbedded,
+    llmModel,
+    storyContextLlmModel: storyContext.llmModel,
+    llmModelState,
+    hasLlmModel: !!llmModel,
+  })
   
   // Log targetLanguage-Quelle für Debugging
   useEffect(() => {
@@ -297,6 +308,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     accessPerspective,
     socialContext,
     genderInclusive,
+    llmModel,
     galleryFilters,
     setMessages,
     setActiveChatId,
@@ -663,6 +675,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       character,
       socialContext,
       genderInclusive,
+      llmModel,
     })
     
     // Prüfe, ob sich Filter oder Parameter geändert haben
@@ -686,11 +699,15 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     if (filteredDocsCount < 1 || galleryDataLoading) {
       return
     }
+    // WICHTIG: Ohne llmModel kein konsistenter Cache-Key → warte auf Initialisierung
+    if (!llmModel) {
+      return
+    }
     hasCheckedCacheRef.current = true
     shouldAutoGenerateRef.current = true // Markiere für automatische Generierung, falls kein Cache
     checkTOCCache()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg, isEmbedded, perspectiveOpen, isSending, galleryFilters, targetLanguage, character, socialContext, genderInclusive, messages, filteredDocsCount, galleryDataLoading])
+  }, [cfg, isEmbedded, perspectiveOpen, isSending, galleryFilters, targetLanguage, character, socialContext, genderInclusive, llmModel, messages, filteredDocsCount, galleryDataLoading])
   
   // Automatische Generierung beim ersten Laden ODER wenn kein Cache gefunden wurde
   // WICHTIG: Warte, bis der Cache-Check abgeschlossen ist (isCheckingTOC === false)
@@ -707,6 +724,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       return
     }
     if (!sendQuestion) {
+      return
+    }
+    // WICHTIG: Ohne llmModel kein konsistenter Cache-Key → warte auf Initialisierung
+    if (!llmModel) {
       return
     }
     // WICHTIG: Prüfe auch, ob Dokumente geladen sind (mindestens 1)
@@ -736,7 +757,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       generateTOC()
     }, 300)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cachedStoryTopicsData, cachedTOC, isCheckingTOC, isEmbedded, sendQuestion, isSending, isGeneratingTOC, processingSteps, filteredDocsCount, galleryDataLoading])
+  }, [cachedStoryTopicsData, cachedTOC, isCheckingTOC, isEmbedded, sendQuestion, isSending, isGeneratingTOC, processingSteps, filteredDocsCount, galleryDataLoading, llmModel])
   
   // Zusätzlicher useEffect: Wenn sendQuestion verfügbar wird und noch kein Cache-Check durchgeführt wurde
   // WICHTIG: Nur beim ersten Laden, wenn sendQuestion verfügbar wird

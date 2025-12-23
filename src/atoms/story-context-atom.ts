@@ -13,10 +13,12 @@ import {
   type Character,
   type SocialContext,
   type AccessPerspective,
+  type LlmModelId,
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_DEFAULT,
   SOCIAL_CONTEXT_DEFAULT,
   ACCESS_PERSPECTIVE_DEFAULT,
+  LLM_MODEL_DEFAULT,
   normalizeCharacterToArray,
   normalizeAccessPerspectiveToArray,
 } from '@/lib/chat/constants'
@@ -158,6 +160,20 @@ function getInitialAccessPerspective(): AccessPerspective[] {
   return ACCESS_PERSPECTIVE_DEFAULT
 }
 
+function getInitialLlmModel(): LlmModelId {
+  if (typeof window === 'undefined') return LLM_MODEL_DEFAULT
+  try {
+    const stored = localStorage.getItem('story-context-llmModel')
+    if (stored) {
+      const parsed = JSON.parse(stored) as LlmModelId
+      return parsed
+    }
+  } catch {
+    // Ignoriere Fehler
+  }
+  return LLM_MODEL_DEFAULT
+}
+
 /**
  * Atom für die Zielsprache im Story-Modus.
  * Initialisiert mit Wert aus localStorage (falls vorhanden).
@@ -187,6 +203,13 @@ storySocialContextAtom.debugLabel = 'storySocialContextAtom'
  */
 export const storyAccessPerspectiveAtom = atom<AccessPerspective[]>(getInitialAccessPerspective())
 storyAccessPerspectiveAtom.debugLabel = 'storyAccessPerspectiveAtom'
+
+/**
+ * Atom für das LLM-Modell im Story-Modus.
+ * Initialisiert mit Wert aus localStorage (falls vorhanden).
+ */
+export const storyLlmModelAtom = atom<LlmModelId>(getInitialLlmModel())
+storyLlmModelAtom.debugLabel = 'storyLlmModelAtom'
 
 /**
  * Atom für den Zustand des Perspektive-Popovers im Story-Modus.

@@ -65,6 +65,7 @@ export interface CacheKeyParams {
   accessPerspective?: AccessPerspective[]
   facetsSelected?: GalleryFilters
   queryType?: 'toc' | 'question'
+  llmModel?: string
 }
 
 /**
@@ -85,6 +86,7 @@ export interface CacheHashParams {
   retriever?: string
   facetsSelected?: Record<string, unknown>
   documentCount?: number // Anzahl der Dokumente in der Library (für Cache-Invalidierung bei neuen Dokumenten)
+  llmModel?: string
 }
 
 /**
@@ -105,6 +107,7 @@ export function createCacheKey(params: CacheKeyParams): string {
   if (params.socialContext) normalized.socialContext = params.socialContext
   if (params.genderInclusive !== undefined) normalized.genderInclusive = String(params.genderInclusive)
   if (params.retriever) normalized.retriever = params.retriever
+  if (params.llmModel) normalized.llmModel = params.llmModel
   
   // Normalisiere Arrays
   if (params.character) normalized.character = normalizeCharacter(params.character)

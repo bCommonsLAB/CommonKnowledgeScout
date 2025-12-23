@@ -44,11 +44,10 @@ services:
       - JOBS_WORKER_INTERVAL_MS=2000
       - JOBS_WORKER_CONCURRENCY=6
       
-      # OpenAI Configuration
-      - OPENAI_API_KEY=sk-proj-your_openai_api_key_here
-      - OPENAI_CHAT_MODEL_NAME=gpt-4.1
-      - OPENAI_CHAT_TEMPERATURE=0.3
-      - OPENAI_EMBEDDINGS_MODEL_NAME=text-embedding-3-large
+      # LLM Chat Configuration (Required - no fallbacks)
+      # Note: All LLM calls are routed through the Secretary Service
+      - QUESTION_ANALYZER_MODEL=gpt-4.1-mini
+      - QUESTION_ANALYZER_TEMPERATURE=0.3
       
       # RAG Configuration
       - SUMMARY_MAX_DOCS=1500

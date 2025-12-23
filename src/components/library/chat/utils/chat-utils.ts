@@ -1,5 +1,5 @@
 import type { ChatResponse } from '@/types/chat-response'
-import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext, AccessPerspective } from '@/lib/chat/constants'
+import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 
 /**
@@ -21,6 +21,7 @@ export interface ChatMessage {
   accessPerspective?: AccessPerspective[] // Array (kann leer sein) - Zugangsperspektive
   genderInclusive?: boolean // Gendergerechte Formulierung
   facetsSelected?: GalleryFilters // Gallery-Filter (Facetten) - Teil des Cache-Schlüssels
+  llmModel?: LlmModelId // LLM-Modell-ID für Cache-Key
 }
 
 /**
@@ -51,6 +52,7 @@ export function createMessagesFromQueryLog(queryLog: {
   socialContext?: SocialContext
   genderInclusive?: boolean
   facetsSelected?: GalleryFilters // Gallery-Filter (Facetten)
+  llmModel?: LlmModelId
   cacheParams?: {
     answerLength?: AnswerLength
     retriever?: Retriever
@@ -60,6 +62,7 @@ export function createMessagesFromQueryLog(queryLog: {
     socialContext?: SocialContext
     genderInclusive?: boolean
     facetsSelected?: Record<string, unknown>
+    llmModel?: LlmModelId
   }
 }): ChatMessage[] {
   const messages: ChatMessage[] = []
@@ -73,6 +76,7 @@ export function createMessagesFromQueryLog(queryLog: {
   const socialContext = queryLog.cacheParams?.socialContext ?? queryLog.socialContext
   const genderInclusive = queryLog.cacheParams?.genderInclusive ?? queryLog.genderInclusive
   const facetsSelected = (queryLog.cacheParams?.facetsSelected ?? queryLog.facetsSelected) as GalleryFilters | undefined
+  const llmModel = queryLog.cacheParams?.llmModel ?? queryLog.llmModel
   
   // Frage als Message
   messages.push({
@@ -89,6 +93,7 @@ export function createMessagesFromQueryLog(queryLog: {
     socialContext,
     genderInclusive,
     facetsSelected, // Gallery-Filter (Facetten)
+    llmModel,
   })
   
   // Antwort als Message (wenn vorhanden)
@@ -114,6 +119,7 @@ export function createMessagesFromQueryLog(queryLog: {
       socialContext,
       genderInclusive,
       facetsSelected, // Gallery-Filter (Facetten)
+      llmModel,
     })
   }
   

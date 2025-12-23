@@ -3,11 +3,13 @@ import {
   type Character,
   type AccessPerspective,
   type SocialContext,
+  type LlmModelId,
   TARGET_LANGUAGE_DEFAULT,
   CHARACTER_DEFAULT,
   ACCESS_PERSPECTIVE_DEFAULT,
   SOCIAL_CONTEXT_DEFAULT,
   GENDER_INCLUSIVE_DEFAULT,
+  LLM_MODEL_DEFAULT,
 } from '@/lib/chat/constants'
 
 /**
@@ -97,6 +99,20 @@ export function getInitialGenderInclusive(): boolean {
   return GENDER_INCLUSIVE_DEFAULT
 }
 
+export function getInitialLlmModel(): LlmModelId {
+  if (typeof window === 'undefined') return LLM_MODEL_DEFAULT
+  try {
+    const stored = localStorage.getItem('story-context-llmModel')
+    if (stored) {
+      const parsed = JSON.parse(stored) as LlmModelId
+      return parsed
+    }
+  } catch {
+    // Ignoriere Fehler
+  }
+  return LLM_MODEL_DEFAULT
+}
+
 /**
  * Speichert Chat-Kontext-Werte im localStorage
  */
@@ -105,7 +121,8 @@ export function saveChatContextToLocalStorage(
   character: Character[], // Array (kann leer sein)
   accessPerspective: AccessPerspective[], // Array (kann leer sein)
   socialContext: SocialContext,
-  genderInclusive: boolean
+  genderInclusive: boolean,
+  llmModel: LlmModelId
 ): void {
   if (typeof window === 'undefined') return
   try {
@@ -114,6 +131,7 @@ export function saveChatContextToLocalStorage(
     localStorage.setItem('story-context-accessPerspective', JSON.stringify(accessPerspective))
     localStorage.setItem('story-context-socialContext', JSON.stringify(socialContext))
     localStorage.setItem('story-context-genderInclusive', JSON.stringify(genderInclusive))
+    localStorage.setItem('story-context-llmModel', JSON.stringify(llmModel))
   } catch (error) {
     console.error('[chat-storage] Fehler beim Speichern in localStorage:', error)
   }

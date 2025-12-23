@@ -28,9 +28,10 @@
  * - @/types/chat-response: Chat response types
  */
 
-import { buildPrompt, buildTOCPrompt, getSourceDescription } from '@/lib/chat/common/prompt'
-import { callLlmText, parseStructuredLLMResponse, getLlmProvider, getLlmProviderForLogging } from '@/lib/chat/common/llm'
-import { parseStoryTopicsData } from '@/lib/chat/common/toc-parser'
+import { getSourceDescription, buildChatMessages, buildTOCMessages } from '@/lib/chat/common/prompt'
+import { callLlmJson, getLlmProviderForLogging } from '@/lib/chat/common/llm'
+import { chatAnswerSchemaJson, chatAnswerZodSchema, storyTopicsSchemaJson, storyTopicsZodSchema } from '@/lib/chat/common/structured-schemas'
+import { getSecretaryConfig } from '@/lib/env'
 import { getBaseBudget, reduceBudgets } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog } from '@/lib/logging/query-logger'
 import type { RetrieverInput, RetrieverOutput } from '@/types/retriever'
@@ -51,6 +52,8 @@ export interface OrchestratorInput extends RetrieverInput {
   apiKey?: string  // Optional: API-Key für öffentliche Libraries
   isTOCQuery?: boolean  // Wenn true, verwende TOC-Prompt und parse StoryTopicsData
   uiLocale?: string  // UI-Locale für 'global' targetLanguage (z.B. 'de', 'fr', 'en')
+  llmModel?: string  // Optional: LLM-Modell-ID (z.B. 'google/gemini-2.5-flash')
+  temperature?: number  // Optional: Temperature für LLM (default: 0.3)
   // libraryId ist bereits in RetrieverInput enthalten (required)
 }
 
@@ -147,10 +150,25 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
   // Verwende answerLength direkt (nicht mehr konvertieren, damit unbegrenzt auch wirklich unbegrenzt bleibt)
   run.onProcessingStep?.({ type: 'prompt_building', message: 'Building prompt...' })
   
-  // Für TOC-Queries: Verwende speziellen TOC-Prompt
-  let prompt: string
+  // LLM-Modell muss explizit gesetzt sein (deterministisch, kein Fallback)
+  if (!run.llmModel) {
+    throw new Error('llmModel ist erforderlich für Chat-Orchestrierung')
+  }
+  const model = run.llmModel
+  const temperature = run.temperature ?? 0.3
+  
+  // Verwende publicApiKey wenn vorhanden, sonst Secretary Service API-Key
+  const { apiKey: configApiKey } = getSecretaryConfig()
+  const apiKey = run.apiKey || configApiKey || ''
+  const providerForLogging = getLlmProviderForLogging()
+  
+  // Erstelle Messages-Array (System + History + User)
+  let messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+  let promptForLogging: string
+  
   if (run.isTOCQuery && run.libraryId) {
-    prompt = buildTOCPrompt(run.libraryId, sources, {
+    // TOC: Verwende buildTOCMessages
+    messages = buildTOCMessages(run.libraryId, sources, {
       targetLanguage: run.chatConfig?.targetLanguage,
       character: run.chatConfig?.character,
       accessPerspective: run.chatConfig?.accessPerspective,
@@ -160,8 +178,11 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       facetDefs: run.facetDefs,
       uiLocale: run.uiLocale,
     })
+    // Für Logging: Konvertiere Messages zu String
+    promptForLogging = messages.map(m => `${m.role}: ${m.content}`).join('\n\n---\n\n')
   } else {
-    prompt = buildPrompt(run.question, sources, run.answerLength, {
+    // Chat: Verwende buildChatMessages
+    messages = buildChatMessages(run.question, sources, run.answerLength, {
       targetLanguage: run.chatConfig?.targetLanguage,
       character: run.chatConfig?.character,
       accessPerspective: run.chatConfig?.accessPerspective,
@@ -171,28 +192,23 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       filters: run.facetsSelected,
       facetDefs: run.facetDefs,
       uiLocale: run.uiLocale,
+      candidatesCount: stats?.candidatesCount,
+      usedInPrompt: stats?.usedInPrompt,
     })
+    // Für Logging: Konvertiere Messages zu String
+    promptForLogging = messages.map(m => `${m.role}: ${m.content}`).join('\n\n---\n\n')
   }
-  // Note only for chunk mode: In summary and chunkSummary mode, all documents/chunks are included
-  if (run.retriever === 'chunk' && stats && typeof stats.candidatesCount === 'number' && typeof stats.usedInPrompt === 'number' && stats.usedInPrompt < stats.candidatesCount) {
-    const hint = `\n\nNote: Due to space constraints, only ${stats.usedInPrompt} of ${stats.candidatesCount} matching documents could be considered.`
-    prompt = prompt + hint
-  }
-  const model = process.env.OPENAI_CHAT_MODEL_NAME || 'gpt-4.1-mini'
-  const temperature = Number(process.env.OPENAI_CHAT_TEMPERATURE ?? 0.3)
-  // Verwende publicApiKey wenn vorhanden, sonst globalen API-Key
-  const apiKey = run.apiKey || process.env.OPENAI_API_KEY || ''
-  const provider = getLlmProvider()
-  const providerForLogging = getLlmProviderForLogging(provider)
-  await logSetPrompt(run.queryId, { provider: providerForLogging, model, temperature, prompt })
+  
+  await logSetPrompt(run.queryId, { provider: providerForLogging, model, temperature, prompt: promptForLogging })
   
   // Sende prompt_complete direkt nach dem Prompt-Building
   const { estimateTokensFromText } = await import('@/lib/chat/common/budget')
+  const totalPromptLength = messages.reduce((sum, m) => sum + m.content.length, 0)
   run.onProcessingStep?.({
     type: 'prompt_complete',
-    promptLength: prompt.length,
+    promptLength: totalPromptLength,
     documentsUsed: sources.length,
-    tokenCount: estimateTokensFromText(prompt),
+    tokenCount: estimateTokensFromText(promptForLogging),
   })
 
   const tL0 = Date.now()
@@ -204,38 +220,114 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     ? Math.min(32000, Math.max(16000, Math.floor(sources.length * 20))) // Mindestens 16k, max 32k, skaliert mit Anzahl der Chunks
     : undefined
   
-  // Konvertiere Prompt zu Messages-Format (Prompt enthält bereits System + User Content)
-  // Der Prompt ist bereits vollständig formatiert, also als single user message
-  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-    { role: 'user', content: prompt }
-  ]
-  
-  let raw = ''
   let promptTokens: number | undefined = undefined
   let completionTokens: number | undefined = undefined
   let totalTokens: number | undefined = undefined
+  let answer = ''
+  let suggestedQuestions: string[] = []
+  let usedReferences: number[] = []
+  let storyTopicsData: StoryTopicsData | undefined = undefined
   
   try {
-    const result = await callLlmText({
-      apiKey,
-      model,
-      temperature,
-      messages,
-      maxTokens
-    })
-    
-    // callLlmText gibt nur text zurück, aber wir brauchen das raw JSON für parseStructuredLLMResponse
-    // Für jetzt: Verwende text als raw (parseStructuredLLMResponse kann damit umgehen)
-    raw = result.text
-    promptTokens = result.usage?.promptTokens
-    completionTokens = result.usage?.completionTokens
-    totalTokens = result.usage?.totalTokens
+    if (run.isTOCQuery && run.libraryId) {
+      // TOC: Verwende callLlmJson mit storyTopicsSchema
+      const result = await callLlmJson(
+        {
+          apiKey,
+          model,
+          temperature,
+          responseFormat: { type: 'json_object' },
+          messages,
+          maxTokens,
+        },
+        storyTopicsZodSchema,
+        storyTopicsSchemaJson
+      )
+      
+      storyTopicsData = result.data
+      promptTokens = result.usage?.promptTokens
+      completionTokens = result.usage?.completionTokens
+      totalTokens = result.usage?.totalTokens
+      
+      // Create a Markdown answer from StoryTopicsData for the normal answer (for backward compatibility)
+      answer = `# ${storyTopicsData.title}\n\n${storyTopicsData.tagline}\n\n${storyTopicsData.intro}\n\n`
+      storyTopicsData.topics.forEach((topic) => {
+        answer += `## ${topic.title}\n\n`
+        if (topic.summary) {
+          answer += `${topic.summary}\n\n`
+        }
+        topic.questions.forEach((q, qIndex) => {
+          answer += `${qIndex + 1}. ${q.text}\n`
+        })
+        answer += '\n'
+      })
+      // Generate suggestedQuestions from topics
+      suggestedQuestions = storyTopicsData.topics.flatMap(topic => 
+        topic.questions.map(q => q.text)
+      ).slice(0, 7) // Limit to 7 questions
+    } else {
+      // Chat: Verwende callLlmJson mit chatAnswerSchema
+      const result = await callLlmJson(
+        {
+          apiKey,
+          model,
+          temperature,
+          responseFormat: { type: 'json_object' },
+          messages,
+          maxTokens,
+        },
+        chatAnswerZodSchema,
+        chatAnswerSchemaJson
+      )
+      
+      answer = result.data.answer
+      suggestedQuestions = result.data.suggestedQuestions
+      usedReferences = result.data.usedReferences
+      promptTokens = result.usage?.promptTokens
+      completionTokens = result.usage?.completionTokens
+      totalTokens = result.usage?.totalTokens
+      
+      // Optional: Konsistenz-Check für References
+      // Extrahiere zitierten References aus answer per Regex
+      const citedRefs = new Set<number>()
+      const citationRegex = /\[(\d+)\]/g
+      let match: RegExpExecArray | null
+      while ((match = citationRegex.exec(answer)) !== null) {
+        const refNum = parseInt(match[1], 10)
+        if (refNum > 0) {
+          citedRefs.add(refNum)
+        }
+      }
+      
+      // Normalisiere usedReferences (sortiert, unique)
+      const normalizedUsedRefs = [...new Set(usedReferences)].sort((a, b) => a - b)
+      
+      // Wenn citedRefs vorhanden sind, aber nicht mit usedReferences übereinstimmen, logge Warnung
+      if (citedRefs.size > 0 && normalizedUsedRefs.length > 0) {
+        const citedArray = [...citedRefs].sort((a, b) => a - b)
+        const refsMatch = citedArray.length === normalizedUsedRefs.length && 
+          citedArray.every((val, idx) => val === normalizedUsedRefs[idx])
+        if (!refsMatch) {
+          console.warn('[Orchestrator] Reference mismatch:', {
+            citedInAnswer: citedArray,
+            reportedInUsedReferences: normalizedUsedRefs,
+          })
+          // Verwende citedRefs als Fallback, wenn usedReferences leer oder deutlich abweichend
+          if (normalizedUsedRefs.length === 0 || Math.abs(citedArray.length - normalizedUsedRefs.length) > 2) {
+            usedReferences = citedArray
+          }
+        } else {
+          usedReferences = normalizedUsedRefs
+        }
+      } else {
+        usedReferences = normalizedUsedRefs
+      }
+    }
   } catch (error) {
     // Importiere LlmProviderError für bessere Fehlerbehandlung
     const { LlmProviderError } = await import('@/lib/chat/common/llm')
     
     const errorMessage = error instanceof Error ? error.message : 'LLM Chat Fehler'
-    const errorCode = error instanceof LlmProviderError ? error.code : undefined
     const statusCode = error instanceof LlmProviderError ? error.statusCode : undefined
     
     // Prüfe auf "too long" Fehler (kann bei verschiedenen Providern unterschiedlich formuliert sein)
@@ -255,8 +347,10 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
         let acc = 0
         const reduced: typeof sources = []
         for (const s of sources) { const len = s.text?.length ?? 0; if (acc + len > b) break; reduced.push(s); acc += len }
-        const p2 = run.isTOCQuery && run.libraryId
-          ? buildTOCPrompt(run.libraryId, reduced, {
+        
+        // Erstelle reduzierte Messages
+        const reducedMessages = run.isTOCQuery && run.libraryId
+          ? buildTOCMessages(run.libraryId, reduced, {
               targetLanguage: run.chatConfig?.targetLanguage,
               character: run.chatConfig?.character,
               accessPerspective: run.chatConfig?.accessPerspective,
@@ -265,7 +359,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
               filters: run.facetsSelected,
               facetDefs: run.facetDefs,
             })
-          : buildPrompt(run.question, reduced, 'kurz', {
+          : buildChatMessages(run.question, reduced, 'kurz', {
               targetLanguage: run.chatConfig?.targetLanguage,
               character: run.chatConfig?.character,
               accessPerspective: run.chatConfig?.accessPerspective,
@@ -275,18 +369,60 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
               filters: run.facetsSelected,
               facetDefs: run.facetDefs,
             })
+        
         // Bei Retry mit reduzierten Quellen: Kein maxTokens (verwende Standard)
         try {
-          const retryResult = await callLlmText({
-            apiKey,
-            model,
-            temperature,
-            messages: [{ role: 'user', content: p2 }]
-          })
-          raw = retryResult.text
-          promptTokens = retryResult.usage?.promptTokens
-          completionTokens = retryResult.usage?.completionTokens
-          totalTokens = retryResult.usage?.totalTokens
+          if (run.isTOCQuery && run.libraryId) {
+            const retryResult = await callLlmJson(
+              {
+                apiKey,
+                model,
+                temperature,
+                responseFormat: { type: 'json_object' },
+                messages: reducedMessages,
+              },
+              storyTopicsZodSchema,
+              storyTopicsSchemaJson
+            )
+            storyTopicsData = retryResult.data
+            promptTokens = retryResult.usage?.promptTokens
+            completionTokens = retryResult.usage?.completionTokens
+            totalTokens = retryResult.usage?.totalTokens
+            
+            // Create Markdown answer
+            answer = `# ${storyTopicsData.title}\n\n${storyTopicsData.tagline}\n\n${storyTopicsData.intro}\n\n`
+            storyTopicsData.topics.forEach((topic) => {
+              answer += `## ${topic.title}\n\n`
+              if (topic.summary) {
+                answer += `${topic.summary}\n\n`
+              }
+              topic.questions.forEach((q, qIndex) => {
+                answer += `${qIndex + 1}. ${q.text}\n`
+              })
+              answer += '\n'
+            })
+            suggestedQuestions = storyTopicsData.topics.flatMap(topic => 
+              topic.questions.map(q => q.text)
+            ).slice(0, 7)
+          } else {
+            const retryResult = await callLlmJson(
+              {
+                apiKey,
+                model,
+                temperature,
+                responseFormat: { type: 'json_object' },
+                messages: reducedMessages,
+              },
+              chatAnswerZodSchema,
+              chatAnswerSchemaJson
+            )
+            answer = retryResult.data.answer
+            suggestedQuestions = retryResult.data.suggestedQuestions
+            usedReferences = [...new Set(retryResult.data.usedReferences)].sort((a, b) => a - b)
+            promptTokens = retryResult.usage?.promptTokens
+            completionTokens = retryResult.usage?.completionTokens
+            totalTokens = retryResult.usage?.totalTokens
+          }
           retried = true
           break
         } catch {
@@ -309,53 +445,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     }
   }
   
-  // Parse structured response (answer, suggestedQuestions, usedReferences)
-  // For TOC queries: Parse StoryTopicsData instead of normal answer
   run.onProcessingStep?.({ type: 'parsing_response', message: 'Processing response...' })
-  let answer = ''
-  let suggestedQuestions: string[] = []
-  let usedReferences: number[] = []
-  let storyTopicsData: StoryTopicsData | undefined = undefined
-
-  if (run.isTOCQuery) {
-    // For TOC queries: Try to parse StoryTopicsData
-    const parsedTopicsData = parseStoryTopicsData(raw)
-    if (parsedTopicsData) {
-     
-      storyTopicsData = parsedTopicsData
-      // Create a Markdown answer from StoryTopicsData for the normal answer
-      // (for backward compatibility)
-      answer = `# ${parsedTopicsData.title}\n\n${parsedTopicsData.tagline}\n\n${parsedTopicsData.intro}\n\n`
-      parsedTopicsData.topics.forEach((topic) => {
-        answer += `## ${topic.title}\n\n`
-        if (topic.summary) {
-          answer += `${topic.summary}\n\n`
-        }
-        topic.questions.forEach((q, qIndex) => {
-          answer += `${qIndex + 1}. ${q.text}\n`
-        })
-        answer += '\n'
-      })
-      // Generate suggestedQuestions from topics
-      suggestedQuestions = parsedTopicsData.topics.flatMap(topic => 
-        topic.questions.map(q => q.text)
-      ).slice(0, 7) // Limit to 7 questions
-    } else {
-      console.error('[Orchestrator] ❌ StoryTopicsData parsing failed. Raw length:', raw.length)
-      console.error('[Orchestrator] Raw (first 1000 characters):', raw.substring(0, 1000))
-      // Fallback: Parse normal answer
-      const parsed = parseStructuredLLMResponse(raw)
-      answer = parsed.answer
-      suggestedQuestions = parsed.suggestedQuestions
-      usedReferences = parsed.usedReferences
-    }
-  } else {
-    // Normal queries: Standard parsing
-    const parsed = parseStructuredLLMResponse(raw)
-    answer = parsed.answer
-    suggestedQuestions = parsed.suggestedQuestions
-    usedReferences = parsed.usedReferences
-  }
   
   // Füge Warnung zur Antwort hinzu, falls vorhanden
   if (warning) {

@@ -237,6 +237,31 @@ export async function POST(
       const acceptLanguage = request.headers.get('accept-language') || undefined
       const cookieLocale = request.cookies.get('locale')?.value
       const uiLocale = getLocale(undefined, cookieLocale, acceptLanguage)
+      
+      // LLM-Modell und Temperature: Aus Query-Parameter oder Library-Config oder Default
+      const llmModelParam = parsedUrl.searchParams.get('llmModel')
+      const llmTemperatureParam = parsedUrl.searchParams.get('llmTemperature')
+      let llmModel: string | undefined = llmModelParam || ctx.library.config?.chat?.models?.chat
+      let llmTemperature: number | undefined = llmTemperatureParam ? Number(llmTemperatureParam) : ctx.library.config?.chat?.models?.temperature
+      
+      // Wenn kein Modell gesetzt, lade Default-Modell
+      if (!llmModel) {
+        const { getDefaultLlmModel } = await import('@/lib/db/llm-models-repo')
+        const defaultModel = await getDefaultLlmModel()
+        if (defaultModel) {
+          llmModel = defaultModel._id
+        }
+      }
+      
+      // Wenn keine Temperature gesetzt, verwende Default (0.3)
+      if (llmTemperature === undefined || llmTemperature === null || isNaN(llmTemperature)) {
+        llmTemperature = 0.3
+      }
+      
+      if (!llmModel) {
+        return NextResponse.json({ error: 'LLM-Modell ist erforderlich' }, { status: 400 })
+      }
+      
       const { answer, sources, references, suggestedQuestions } = await runChatOrchestrated({
         retriever: 'summary',
         libraryId,
@@ -250,6 +275,8 @@ export async function POST(
         chatHistory: chatHistory,
         apiKey: publicApiKey,
         uiLocale: uiLocale, // UI-Locale für 'global' targetLanguage
+        llmModel,
+        temperature: llmTemperature,
       })
       return NextResponse.json({
         status: 'ok',
@@ -298,6 +325,31 @@ export async function POST(
     const acceptLanguage = request.headers.get('accept-language') || undefined
     const cookieLocale = request.cookies.get('locale')?.value
     const uiLocale = getLocale(undefined, cookieLocale, acceptLanguage)
+    
+    // LLM-Modell und Temperature: Aus Query-Parameter oder Library-Config oder Default
+    const llmModelParam = parsedUrl.searchParams.get('llmModel')
+    const llmTemperatureParam = parsedUrl.searchParams.get('llmTemperature')
+    let llmModel: string | undefined = llmModelParam || ctx.library.config?.chat?.models?.chat
+    let llmTemperature: number | undefined = llmTemperatureParam ? Number(llmTemperatureParam) : ctx.library.config?.chat?.models?.temperature
+    
+    // Wenn kein Modell gesetzt, lade Default-Modell
+    if (!llmModel) {
+      const { getDefaultLlmModel } = await import('@/lib/db/llm-models-repo')
+      const defaultModel = await getDefaultLlmModel()
+      if (defaultModel) {
+        llmModel = defaultModel._id
+      }
+    }
+    
+    // Wenn keine Temperature gesetzt, verwende Default (0.3)
+    if (llmTemperature === undefined || llmTemperature === null || isNaN(llmTemperature)) {
+      llmTemperature = 0.3
+    }
+    
+    if (!llmModel) {
+      return NextResponse.json({ error: 'LLM-Modell ist erforderlich' }, { status: 400 })
+    }
+    
     // Verwende Orchestrator für einheitliche Verarbeitung (wie Summary-Flow)
     const { answer, sources, references, suggestedQuestions } = await runChatOrchestrated({
       retriever: 'chunk',
@@ -312,6 +364,8 @@ export async function POST(
       uiLocale: uiLocale, // UI-Locale für 'global' targetLanguage
       chatHistory: chatHistory,
       apiKey: libraryApiKey,
+      llmModel,
+      temperature: llmTemperature,
     })
     
     return NextResponse.json({

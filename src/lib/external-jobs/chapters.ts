@@ -25,7 +25,6 @@
 import type { ChaptersArgs, ChaptersResult, Frontmatter } from '@/types/external-jobs'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
-import { getPolicies } from '@/lib/processing/phase-policy'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
 
@@ -370,8 +369,8 @@ export async function analyzeAndMergeChapters(args: ChaptersArgs): Promise<Chapt
 
   let mergedMeta: Frontmatter = { ...(baseMeta || {}) }
   if (chapters.length > 0) {
-  const existingChapters: Array<Record<string, unknown>> = Array.isArray(mergedMeta.chapters) ? (mergedMeta.chapters as Array<Record<string, unknown>>) : []
-    const norm = chapters as Array<Record<string, unknown>>
+    const existingChapters: Array<Record<string, unknown>> = Array.isArray(mergedMeta.chapters) ? (mergedMeta.chapters as Array<Record<string, unknown>>) : []
+    const norm = chapters as unknown as Array<Record<string, unknown>>
     const normalizeTitle = (s: string) => s.replace(/[\*`_#>\[\]]+/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
     const findMatch = (ec: Record<string, unknown>): Record<string, unknown> | undefined => {
       const o = typeof ec.order === 'number' ? (ec.order as number) : undefined

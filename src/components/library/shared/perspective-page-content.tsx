@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -8,10 +8,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { ArrowRight, Globe, Compass, Eye, Users, Sparkles, ArrowLeft, X, AlertCircle } from 'lucide-react'
+import { ArrowRight, Globe, Compass, Eye, Users, Sparkles, ArrowLeft, X, AlertCircle, ExternalLink } from 'lucide-react'
 import { useStoryContext, saveStoryContextToLocalStorage } from '@/hooks/use-story-context'
 import { useTranslation } from '@/lib/i18n/hooks'
-import type { Character, SocialContext, TargetLanguage, AccessPerspective } from '@/lib/chat/constants'
+import type { Character, SocialContext, TargetLanguage, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
 import { CHARACTER_VALUES, ACCESS_PERSPECTIVE_VALUES, TARGET_LANGUAGE_VALUES, getLanguageCategory, TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants'
 import { useUser } from '@clerk/nextjs'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -63,11 +63,22 @@ export function PerspectivePageContent({
     setAccessPerspective,
     socialContext,
     setSocialContext,
+    llmModel: storyLlmModel,
+    setLlmModel,
     targetLanguageLabels,
     characterLabels,
     accessPerspectiveLabels,
     socialContextLabels,
   } = useStoryContext()
+  
+  // Stelle sicher, dass llmModel immer einen Wert hat
+  const llmModel = storyLlmModel || ''
+  
+  console.log('[PerspectivePage] useStoryContext Rückgabe:', {
+    storyLlmModel,
+    llmModel,
+    hasLlmModel: !!storyLlmModel,
+  })
 
   // Konvertiere UI-Locale zu TargetLanguage
   const localeToTargetLanguage = (locale: string): TargetLanguage => {
@@ -140,18 +151,180 @@ export function PerspectivePageContent({
   }, [locale, targetLanguageLabels])
 
   // Lokaler State für die Formularwerte (werden erst beim Speichern übernommen)
+  console.log('[PerspectivePage] Initialisiere States:', {
+    targetLanguage,
+    llmModel,
+    character,
+    accessPerspective,
+    socialContext,
+  })
+  
   const [localLanguage, setLocalLanguage] = useState<TargetLanguage>(targetLanguage)
   const [localInterests, setLocalInterests] = useState<Character[]>(character)
   const [localAccessPerspective, setLocalAccessPerspective] = useState<AccessPerspective[]>(accessPerspective)
   const [localLanguageStyle, setLocalLanguageStyle] = useState<SocialContext>(socialContext)
+  const [localLlmModel, setLocalLlmModel] = useState<LlmModelId>(llmModel || '')
+  
+  console.log('[PerspectivePage] States initialisiert:', {
+    localLanguage,
+    localLlmModel,
+    hasLlmModel: !!llmModel,
+  })
+  
+  // State für LLM-Modelle
+  const [availableModels, setAvailableModels] = useState<Array<{
+    modelId: string
+    name: string
+    strengths: string
+    supportedLanguages: TargetLanguage[]
+    url?: string
+    order: number
+  }>>([])
+  const [modelsLoading, setModelsLoading] = useState(true)
+  const [modelAutoSwitched, setModelAutoSwitched] = useState(false)
 
-  // Synchronisiere lokale Werte mit globalen Werten beim Laden
+  // Synchronisiere lokale Werte mit globalen Werten nur beim initialen Laden
+  // WICHTIG: Nicht bei jeder Änderung synchronisieren, da sonst lokale Änderungen überschrieben werden
+  const [isInitialized, setIsInitialized] = useState(false)
   useEffect(() => {
-    setLocalLanguage(targetLanguage)
-    setLocalInterests(character)
-    setLocalAccessPerspective(accessPerspective)
-    setLocalLanguageStyle(socialContext)
-  }, [targetLanguage, character, accessPerspective, socialContext])
+    if (!isInitialized) {
+      console.log('[PerspectivePage] Initiale Synchronisation lokaler Werte:', {
+        targetLanguage,
+        llmModel,
+        character,
+        accessPerspective,
+        socialContext,
+        currentLocalLlmModel: localLlmModel,
+      })
+      setLocalLanguage(targetLanguage)
+      setLocalInterests(character)
+      setLocalAccessPerspective(accessPerspective)
+      setLocalLanguageStyle(socialContext)
+      if (llmModel) {
+        setLocalLlmModel(llmModel)
+      }
+      setIsInitialized(true)
+    }
+  }, [targetLanguage, character, accessPerspective, socialContext, llmModel, isInitialized, localLlmModel])
+  
+  // Lade LLM-Modelle beim Mount
+  useEffect(() => {
+    console.log('[PerspectivePage] Starte Laden der LLM-Modelle...')
+    async function loadModels() {
+      try {
+        setModelsLoading(true)
+        console.log('[PerspectivePage] Fetching /api/llm-models...')
+        const res = await fetch('/api/llm-models')
+        if (!res.ok) {
+          console.error('[PerspectivePage] Fehler beim Laden der Modelle:', res.status)
+          return
+        }
+        const models = await res.json() as Array<{
+          _id: string
+          name: string
+          strengths: string
+          supportedLanguages: TargetLanguage[]
+          url?: string
+          order: number
+        }>
+        console.log('[PerspectivePage] Modelle geladen:', {
+          count: models.length,
+          models: models.map(m => ({ id: m._id, name: m.name })),
+        })
+        const mappedModels = models.map(m => ({
+          modelId: m._id,
+          name: m.name,
+          strengths: m.strengths,
+          supportedLanguages: m.supportedLanguages,
+          url: m.url,
+          order: m.order,
+        }))
+        setAvailableModels(mappedModels)
+        console.log('[PerspectivePage] availableModels gesetzt:', mappedModels.length)
+      } catch (error) {
+        console.error('[PerspectivePage] Fehler beim Laden der Modelle:', error)
+      } finally {
+        setModelsLoading(false)
+        console.log('[PerspectivePage] modelsLoading auf false gesetzt')
+      }
+    }
+    loadModels()
+  }, [])
+  
+  // Filtere Modelle basierend auf gewählter Sprache
+  const filteredModels = useMemo(() => {
+    console.log('[PerspectivePage] Filtere Modelle:', {
+      localLanguage,
+      availableModelsCount: availableModels.length,
+      availableModels: availableModels.map(m => ({ id: m.modelId, name: m.name, languages: m.supportedLanguages })),
+    })
+    let filtered: typeof availableModels
+    if (localLanguage === 'global') {
+      // Bei 'global' alle Modelle anzeigen
+      filtered = availableModels.sort((a, b) => a.order - b.order)
+    } else {
+      filtered = availableModels
+        .filter(model => model.supportedLanguages.includes(localLanguage))
+        .sort((a, b) => a.order - b.order)
+    }
+    console.log('[PerspectivePage] Gefilterte Modelle:', {
+      count: filtered.length,
+      models: filtered.map(m => ({ id: m.modelId, name: m.name })),
+    })
+    return filtered
+  }, [availableModels, localLanguage])
+  
+  // Handler für Sprachänderung: Prüfe Modell-Kompatibilität
+  const handleLanguageChange = useCallback((newLanguage: TargetLanguage) => {
+    setLocalLanguage(newLanguage)
+    // WICHTIG: Speichere Sprache sofort im Story Context, damit sie nicht zurückgesetzt wird
+    setTargetLanguage(newLanguage)
+    setModelAutoSwitched(false)
+    
+    // Berechne verfügbare Modelle für die neue Sprache
+    const modelsForNewLanguage = newLanguage === 'global'
+      ? availableModels.sort((a, b) => a.order - b.order)
+      : availableModels
+          .filter(model => model.supportedLanguages.includes(newLanguage))
+          .sort((a, b) => a.order - b.order)
+    
+    // Prüfe, ob aktuelles Modell die neue Sprache unterstützt
+    if (localLlmModel) {
+      const currentModel = availableModels.find(m => m.modelId === localLlmModel)
+      if (currentModel && newLanguage !== 'global') {
+        const supportsLanguage = currentModel.supportedLanguages.includes(newLanguage)
+        if (!supportsLanguage) {
+          // Modell unterstützt Sprache nicht → wähle erstes verfügbares Modell
+          if (modelsForNewLanguage.length > 0) {
+            const newModelId = modelsForNewLanguage[0].modelId
+            setLocalLlmModel(newModelId)
+            setLlmModel(newModelId) // Speichere auch sofort im Story Context
+            setModelAutoSwitched(true)
+          }
+        }
+      }
+    } else if (modelsForNewLanguage.length > 0) {
+      // Kein Modell gewählt → wähle erstes verfügbares Modell
+      const newModelId = modelsForNewLanguage[0].modelId
+      setLocalLlmModel(newModelId)
+      setLlmModel(newModelId) // Speichere auch sofort im Story Context
+    }
+  }, [localLlmModel, availableModels, setTargetLanguage, setLlmModel])
+  
+  // Initialisiere Modell, wenn noch keines gewählt ist
+  useEffect(() => {
+    console.log('[PerspectivePage] Prüfe Modell-Initialisierung:', {
+      localLlmModel,
+      filteredModelsCount: filteredModels.length,
+      modelsLoading,
+      firstModel: filteredModels[0]?.modelId,
+    })
+    if (!localLlmModel && filteredModels.length > 0 && !modelsLoading) {
+      const firstModelId = filteredModels[0].modelId
+      console.log('[PerspectivePage] Setze initiales Modell:', firstModelId)
+      setLocalLlmModel(firstModelId)
+    }
+  }, [localLlmModel, filteredModels, modelsLoading])
 
   /**
    * Toggle-Funktion für Interessenprofil-Auswahl (max. 5)
@@ -228,6 +401,7 @@ export function PerspectivePageContent({
     setCharacter(validInterests.length > 0 ? validInterests : localInterests)
     setAccessPerspective(validAccessPerspective.length > 0 ? validAccessPerspective : localAccessPerspective)
     setSocialContext(localLanguageStyle) // Kann auch 'undefined' sein
+    setLlmModel(localLlmModel) // Übernehme LLM-Modell in Story Context
 
     // Speichere im localStorage (für alle Benutzer, nicht nur anonyme)
     // Speichere die gefilterten Werte (ohne 'undefined'), außer wenn nur 'undefined' vorhanden ist
@@ -244,6 +418,7 @@ export function PerspectivePageContent({
       validInterests.length > 0 ? validInterests : localInterests,
       localLanguageStyle,
       validAccessPerspective.length > 0 ? validAccessPerspective : localAccessPerspective,
+      localLlmModel,
       isAnonymous
     )
 
@@ -356,14 +531,14 @@ export function PerspectivePageContent({
         {/* Perspective Selection */}
         <TooltipProvider>
           <div className="space-y-6">
-            {/* 1. Language */}
+            {/* 1. Sprache (vereinfacht) */}
             <Card>
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                     <Globe className="h-5 w-5 text-primary" />
                   </div>
-                  <div className="flex-1 space-y-3">
+                  <div className="flex-1 space-y-4">
                     <div>
                       <h2 className="text-lg font-semibold">
                         {t('chat.perspectivePage.languageSectionTitle')}
@@ -372,18 +547,21 @@ export function PerspectivePageContent({
                         {t('chat.perspectivePage.languageSectionHelp')}
                       </p>
                     </div>
-                    <Select value={localLanguage} onValueChange={(v) => setLocalLanguage(v as TargetLanguage)}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sortedLanguages.map((lang) => (
-                          <SelectItem key={lang} value={lang}>
-                            {targetLanguageLabels[lang]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {/* Sprachauswahl */}
+                    <div className="space-y-2">
+                      <Select value={localLanguage} onValueChange={(v) => handleLanguageChange(v as TargetLanguage)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sortedLanguages.map((lang) => (
+                            <SelectItem key={lang} value={lang}>
+                              {targetLanguageLabels[lang]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     
                     {/* Warnhinweise für exotische Sprachen */}
                     {(() => {
@@ -428,6 +606,98 @@ export function PerspectivePageContent({
                       }
                       return null
                     })()}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 2. LLM Modell (separater Teaser mit Magic-Icon) */}
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 space-y-4">
+                    <div>
+                      <h2 className="text-lg font-semibold">
+                        {t('chat.perspectivePage.modelLabel')}
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        {t('chat.perspectivePage.modelInfo')}
+                      </p>
+                    </div>
+                    
+                    {/* LLM Modell-Auswahl (gefiltert basierend auf Sprache) */}
+                    <div className="space-y-2">
+                      {(() => {
+                        console.log('[PerspectivePage] Rendere Modell-Auswahl:', {
+                          modelsLoading,
+                          filteredModelsCount: filteredModels?.length || 0,
+                          localLlmModel,
+                          hasFilteredModels: !!filteredModels,
+                        })
+                        if (modelsLoading) {
+                          return <div className="text-sm text-muted-foreground">Lade Modelle...</div>
+                        }
+                        if (!filteredModels || filteredModels.length === 0) {
+                          return (
+                            <div className="text-sm text-muted-foreground">
+                              {t('chat.perspectivePage.noModelsAvailable')}
+                            </div>
+                          )
+                        }
+                        return (
+                          <>
+                            <Select value={localLlmModel || ''} onValueChange={(v) => {
+                              console.log('[PerspectivePage] Modell geändert:', v)
+                              setLocalLlmModel(v)
+                              setLlmModel(v) // Übernehme sofort in Story Context
+                            }}>
+                              <SelectTrigger className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {filteredModels.map((model) => (
+                                  <SelectItem key={model.modelId} value={model.modelId}>
+                                    <div className="flex flex-col">
+                                      <div className="flex items-center gap-2">
+                                        <span>{model.name}</span>
+                                        {model.url && (
+                                          <a 
+                                            href={model.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="text-xs text-muted-foreground hover:text-primary"
+                                          >
+                                            <ExternalLink className="h-3 w-3" />
+                                          </a>
+                                        )}
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">
+                                        {model.strengths}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {modelAutoSwitched && (
+                              <Alert className="mt-2 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
+                                <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+                                <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+                                  {t('chat.perspectivePage.modelAutoSwitched', { 
+                                    model: filteredModels.find(m => m.modelId === localLlmModel)?.name || '',
+                                    language: targetLanguageLabels[localLanguage]
+                                  })}
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                          </>
+                        )
+                      })()}
+                    </div>
                   </div>
                 </div>
               </CardContent>

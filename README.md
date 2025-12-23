@@ -122,13 +122,19 @@ The application requires several environment variables to be configured. Create 
 | `MONGODB_DATABASE_NAME` | Yes | Database name |
 | `MONGODB_COLLECTION_NAME` | No | Collection name (default: `libraries`) |
 
-#### OpenAI Chat (Optional)
+#### LLM Chat Configuration
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_API_KEY` | No | OpenAI API key for chat features |
-| `OPENAI_CHAT_MODEL_NAME` | No | Chat model name (default: `gpt-4.1-mini`) |
-| `OPENAI_CHAT_TEMPERATURE` | No | Chat temperature (default: `0.2`) |
+**Note:** All LLM calls are routed through the Secretary Service. The Secretary Service API key is configured via `SECRETARY_SERVICE_API_KEY` (see Secretary Service section above).
+
+**Required environment variables:**
+- `QUESTION_ANALYZER_MODEL`: Model for question analysis (required, no fallback)
+- `QUESTION_ANALYZER_TEMPERATURE`: Temperature for question analysis (required, no fallback)
+
+**Optional environment variables:**
+- `LLM_CHAT_TIMEOUT_MS`: Timeout for LLM chat requests in milliseconds (default: `240000` = 240 seconds)
+
+**API Requirements:**
+- `llmModel` query parameter is required for chat requests (no fallback)
 
 #### Authentication (Clerk)
 

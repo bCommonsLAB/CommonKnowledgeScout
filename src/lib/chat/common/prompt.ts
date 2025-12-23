@@ -9,8 +9,11 @@
  * @module chat
  * 
  * @exports
- * - buildPrompt: Builds regular chat prompt
- * - buildTOCPrompt: Builds TOC (Table of Contents) prompt for story mode
+ * - buildPrompt: Builds regular chat prompt (legacy)
+ * - buildTOCPrompt: Builds TOC (Table of Contents) prompt for story mode (legacy)
+ * - buildChatMessages: Builds messages array for chat prompts (new)
+ * - buildTOCMessages: Builds messages array for TOC prompts (new)
+ * - buildChatHistoryMessages: Converts chat history to messages array
  * - getSourceDescription: Creates user-friendly source descriptions
  * - buildContext: Formats sources into context string
  * 
@@ -225,7 +228,27 @@ function getLanguageInstruction(targetLanguage: TargetLanguage, uiLocale?: strin
 }
 
 /**
- * Formats chat history for LLM prompt
+ * Konvertiert Chat-Historie zu Messages-Array für LLM
+ * 
+ * @param history Chat-Historie mit question/answer Paaren
+ * @returns Array von user/assistant Messages
+ */
+export function buildChatHistoryMessages(
+  history: Array<{ question: string; answer: string }>
+): Array<{ role: 'user' | 'assistant'; content: string }> {
+  if (!history || history.length === 0) return []
+  
+  const messages: Array<{ role: 'user' | 'assistant'; content: string }> = []
+  for (const item of history) {
+    messages.push({ role: 'user', content: item.question })
+    messages.push({ role: 'assistant', content: item.answer })
+  }
+  return messages
+}
+
+/**
+ * Formats chat history for LLM prompt (legacy - wird nicht mehr verwendet)
+ * @deprecated Verwende buildChatHistoryMessages() für echtes Messages-Array
  */
 function formatChatHistory(history: Array<{ question: string; answer: string }>): string {
   if (!history || history.length === 0) return ''
@@ -298,6 +321,190 @@ function buildFacetFilterText(
   }
   
   return filterParts
+}
+
+/**
+ * Message-Typ für LLM Messages-Array
+ */
+export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
+
+/**
+ * Erstellt System-Message für Chat-Prompts
+ * 
+ * @param options Konfiguration für Sprache, Character, Perspektive, etc.
+ * @returns System-Message mit allen Anweisungen
+ */
+export function buildSystemMessage(options?: {
+  targetLanguage?: TargetLanguage
+  character?: Character | Character[]
+  accessPerspective?: AccessPerspective | AccessPerspective[]
+  socialContext?: SocialContext
+  genderInclusive?: boolean
+  uiLocale?: string
+}): ChatMessage {
+  const promptComponents = buildSystemPromptComponents(options)
+  const { characterInstruction, accessPerspectiveInstruction, socialContextInstruction, genderInclusiveInstruction, languageInstruction } = promptComponents
+  
+  const systemParts: string[] = ['You are a precise assistant. Answer the question exclusively based on the provided sources.']
+  
+  if (languageInstruction) {
+    systemParts.push(`\nLanguage Instructions:\n${languageInstruction}`)
+  }
+  if (characterInstruction) {
+    systemParts.push(`\nUser Character Instructions:\n${characterInstruction}`)
+  }
+  if (accessPerspectiveInstruction) {
+    systemParts.push(`\nUser Perspective Instructions:\n${accessPerspectiveInstruction}`)
+  }
+  if (socialContextInstruction) {
+    systemParts.push(`\nSocial Context Instructions:\n${socialContextInstruction}`)
+  }
+  if (genderInclusiveInstruction) {
+    systemParts.push(`\nGender Inclusive Instructions:\n${genderInclusiveInstruction}`)
+  }
+  
+  return {
+    role: 'system',
+    content: systemParts.join('')
+  }
+}
+
+/**
+ * Erstellt User-Message für Chat-Prompts mit Frage, Sources und Requirements
+ * 
+ * @param question Die aktuelle Frage
+ * @param sources Gefundene Quellen
+ * @param answerLength Antwortlänge
+ * @param options Optionale Konfiguration (Filter, etc.)
+ * @returns User-Message mit Frage + Sources + Requirements
+ */
+export function buildChatUserMessage(
+  question: string,
+  sources: RetrievedSource[],
+  answerLength: AnswerLength,
+  options?: {
+    filters?: Record<string, unknown>
+    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    candidatesCount?: number
+    usedInPrompt?: number
+  }
+): ChatMessage {
+  const context = buildContext(sources)
+  const style = styleInstruction(answerLength)
+  
+  // Create mapping from source number to description for better clarity
+  const sourceDescriptions = sources.map((s, i) => {
+    const desc = getSourceDescription(s)
+    return `[${i + 1}] = ${desc}`
+  }).join(', ')
+  
+  // Create filter text for the prompt
+  const filterParts = buildFacetFilterText(options?.filters, options?.facetDefs)
+  const filterText = filterParts.length > 0
+    ? `\n\nIMPORTANT: The answer refers only to documents that match the following filter criteria:\n${filterParts.map(p => `- ${p}`).join('\n')}\nPlease mention in your answer, if relevant, that this is a summary or analysis of the filtered documents (e.g., "Summary of documents from 2024" or "Analysis of talks on Open Source").`
+    : ''
+  
+  // Note about space constraints (only for chunk mode)
+  const spaceConstraintNote = options?.candidatesCount && options?.usedInPrompt && options.usedInPrompt < options.candidatesCount
+    ? `\n\nNote: Due to space constraints, only ${options.usedInPrompt} of ${options.candidatesCount} matching documents could be considered.`
+    : ''
+  
+  const content = `Question:
+${question}
+
+Sources:
+${context}
+
+Requirements:
+- ${style}
+- Factually correct, without speculation.
+- Always respond in **Markdown format** with clear formatting (headings, lists, bold).
+- Cite reference numbers of used sources as [n] at the end.
+- IMPORTANT: Use only the numbers, NOT "Chunk X".
+- Example: "[1] [2] [5]".
+- Available descriptions: ${sourceDescriptions}${filterText}${spaceConstraintNote}
+
+Output Format:
+Always respond as a JSON object with exactly these three fields:
+- "answer": Markdown-formatted text with reference numbers [1], [2], etc.
+- "suggestedQuestions": Array with exactly 7 meaningful follow-up questions based on the context covered
+- "usedReferences": Array of numbers containing the reference numbers of all sources you actually used in your answer (e.g., [2, 4, 6, 7, 9, 17])
+
+Example:
+{
+  "answer": "## Titel take question into account \\n\\nThe topics are covered...\\n\\n[1] [2]",
+  "suggestedQuestions": [
+    "How does X work?",
+    "What are the prerequisites for Y?",
+    ...
+  ],
+  "usedReferences": [1, 2]
+}
+
+IMPORTANT: 
+- References are added server-side, do not generate them in JSON.
+- The "usedReferences" field must contain all numbers you cite as [n] in your answer.`
+  
+  return {
+    role: 'user',
+    content
+  }
+}
+
+/**
+ * Erstellt vollständiges Messages-Array für Chat-Prompts
+ * 
+ * @param question Die aktuelle Frage
+ * @param sources Gefundene Quellen
+ * @param answerLength Antwortlänge
+ * @param options Optionale Konfiguration (System-Prompt, History, Filter, etc.)
+ * @returns Messages-Array mit system + history + user Messages
+ */
+export function buildChatMessages(
+  question: string,
+  sources: RetrievedSource[],
+  answerLength: AnswerLength,
+  options?: {
+    targetLanguage?: TargetLanguage
+    character?: Character | Character[]
+    accessPerspective?: AccessPerspective | AccessPerspective[]
+    socialContext?: SocialContext
+    genderInclusive?: boolean
+    chatHistory?: Array<{ question: string; answer: string }>
+    filters?: Record<string, unknown>
+    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    uiLocale?: string
+    candidatesCount?: number
+    usedInPrompt?: number
+  }
+): ChatMessage[] {
+  const messages: ChatMessage[] = []
+  
+  // System-Message zuerst
+  messages.push(buildSystemMessage({
+    targetLanguage: options?.targetLanguage,
+    character: options?.character,
+    accessPerspective: options?.accessPerspective,
+    socialContext: options?.socialContext,
+    genderInclusive: options?.genderInclusive,
+    uiLocale: options?.uiLocale,
+  }))
+  
+  // Chat-Historie als echte Messages
+  if (options?.chatHistory && options.chatHistory.length > 0) {
+    const historyMessages = buildChatHistoryMessages(options.chatHistory)
+    messages.push(...historyMessages)
+  }
+  
+  // Aktuelle User-Message mit Frage + Sources + Requirements
+  messages.push(buildChatUserMessage(question, sources, answerLength, {
+    filters: options?.filters,
+    facetDefs: options?.facetDefs,
+    candidatesCount: options?.candidatesCount,
+    usedInPrompt: options?.usedInPrompt,
+  }))
+  
+  return messages
 }
 
 export function buildPrompt(
@@ -406,9 +613,227 @@ IMPORTANT:
 }
 
 /**
+ * Erstellt System-Message für TOC-Prompts
+ * 
+ * @param options Konfiguration für Sprache, Character, Perspektive, etc.
+ * @returns System-Message für TOC-Generierung
+ */
+export function buildTOCSystemMessage(options?: {
+  targetLanguage?: TargetLanguage
+  character?: Character | Character[]
+  accessPerspective?: AccessPerspective | AccessPerspective[]
+  socialContext?: SocialContext
+  genderInclusive?: boolean
+  uiLocale?: string
+}): ChatMessage {
+  const promptComponents = buildSystemPromptComponents(options)
+  const { characterInstruction, accessPerspectiveInstruction, socialContextInstruction, genderInclusiveInstruction, languageInstruction } = promptComponents
+  
+  const systemParts: string[] = ['You create a structured topic overview based on the provided sources. Analyze the content and identify the central topic areas.']
+  
+  if (languageInstruction) {
+    systemParts.push(`\nLanguage Instructions:\n${languageInstruction}`)
+  }
+  if (characterInstruction) {
+    systemParts.push(`\n${characterInstruction}`)
+  }
+  if (accessPerspectiveInstruction) {
+    systemParts.push(`\n${accessPerspectiveInstruction}`)
+  }
+  if (socialContextInstruction) {
+    systemParts.push(`\n${socialContextInstruction}`)
+  }
+  if (genderInclusiveInstruction) {
+    systemParts.push(`\n${genderInclusiveInstruction}`)
+  }
+  
+  return {
+    role: 'system',
+    content: systemParts.join('')
+  }
+}
+
+/**
+ * Erstellt User-Message für TOC-Prompts mit Task, Sources und Requirements
+ * 
+ * @param libraryId Eindeutige ID der Library
+ * @param sources Gefundene Quellen
+ * @param options Optionale Konfiguration (Filter, etc.)
+ * @returns User-Message für TOC-Generierung
+ */
+export function buildTOCUserMessage(
+  libraryId: string,
+  sources: RetrievedSource[],
+  options?: {
+    filters?: Record<string, unknown>
+    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+  }
+): ChatMessage {
+  const context = buildContext(sources)
+  
+  // Create filter text for the prompt
+  const filterParts = buildFacetFilterText(options?.filters, options?.facetDefs)
+  
+  // fileId-Filter (spezielle Behandlung für TOC)
+  const fileIdFilter = options?.filters?.fileId
+  if (fileIdFilter !== undefined && fileIdFilter !== null) {
+    let fileIdValues: string[] = []
+    if (Array.isArray(fileIdFilter)) {
+      fileIdValues = fileIdFilter.map(v => String(v))
+    } else if (typeof fileIdFilter === 'object' && '$in' in fileIdFilter && Array.isArray(fileIdFilter.$in)) {
+      fileIdValues = (fileIdFilter.$in as unknown[]).map(v => String(v))
+    } else {
+      fileIdValues = [String(fileIdFilter)]
+    }
+    
+    // Versuche Dokumentennamen aus sources zu extrahieren
+    const docTitles = new Set<string>()
+    for (const source of sources) {
+      if (source.fileId && fileIdValues.includes(source.fileId)) {
+        const title = source.fileName || source.fileId
+        if (title) docTitles.add(title)
+      }
+    }
+    
+    if (docTitles.size > 0) {
+      filterParts.push(`Document: ${Array.from(docTitles).join(', ')}`)
+    } else if (fileIdValues.length > 0) {
+      filterParts.push(`Document: ${fileIdValues.length} ${fileIdValues.length === 1 ? 'document' : 'documents'}`)
+    }
+  }
+  
+  const filterText = filterParts.length > 0
+    ? `\n\nIMPORTANT: The topic overview refers only to documents that match the following filter criteria:\n${filterParts.map(p => `- ${p}`).join('\n')}\nPlease consider this when selecting and formulating topics.`
+    : ''
+  
+  const content = `Task:
+Create a structured topic overview (Table of Contents) based on the following sources.
+Identify the central topic areas and formulate relevant questions for each topic that users might ask.
+
+Sources:
+${context}${filterText}
+
+Output Format:
+Respond EXCLUSIVELY as a JSON object with exactly this structure:
+
+{
+  "id": "${libraryId}",
+  "title": "Short Title for Topic Overview considering filters (max. 100 characters)",
+  "tagline": "Short, concise tagline (max. 50 characters)",
+  "intro": "Introductory text describing how the topic overview is structured and how it can be used (max. 300 characters)",
+  "topics": [
+    {
+      "id": "topic-1",
+      "title": "Title of the first topic",
+      "summary": "Brief summary of the topic (optional, max. 200 characters)",
+      "questions": [
+        {
+          "id": "q-1-1",
+          "text": "Formulate a concrete question about this topic",
+          "intent": "what",
+          "retriever": "auto"
+        },
+        {
+          "id": "q-1-2",
+          "text": "Another question about this topic",
+          "intent": "why",
+          "retriever": "summary"
+        }
+      ]
+    },
+    {
+      "id": "topic-2",
+      "title": "Title of the second topic",
+      "summary": "Brief summary",
+      "questions": [
+        {
+          "id": "q-2-1",
+          "text": "Question about the second topic",
+          "intent": "how",
+          "retriever": "auto"
+        }
+      ]
+    }
+  ]
+}
+
+Requirements:
+- Create 5-10 central topic areas (topics) that emerge from the sources
+- Each topic should contain 4-7 relevant questions (questions)
+- Questions should be concrete and answerable 
+- Use unique IDs: "topic-1", "topic-2", etc. for topics and "q-1-1", "q-1-2", etc. for questions
+- The "intent" can be: "what", "why", "how", "compare" or "recommend" (optional)
+- The "retriever" can be: "summary", "chunk" or "auto" (optional, default: "auto")
+- The "summary" per topic is optional but recommended for better UX
+- The "tagline" should be concise, e.g., "Seven central topic areas" or "Overview of the most important topics"
+- The "intro" should explain how the topic overview can be used
+
+Example Structure:
+- If the sources deal with Open Source, AI, Sustainability, topics could be:
+  - "Open Source & Society" with questions like "Why is Open Source more than technology?"
+  - "Artificial Intelligence & Ethics" with questions like "How can AI promote common good?"
+  - "Energy & Sustainability" with questions like "What role does software play for the climate?"
+
+IMPORTANT:
+- Respond ONLY as a JSON object, no Markdown, no code fences
+- All strings must be valid JSON (correct escapes for quotation marks)
+- The structure must be exactly followed
+- IDs must be unique and follow the pattern`
+  
+  return {
+    role: 'user',
+    content
+  }
+}
+
+/**
+ * Erstellt vollständiges Messages-Array für TOC-Prompts
+ * 
+ * @param libraryId Eindeutige ID der Library
+ * @param sources Gefundene Quellen
+ * @param options Optionale Konfiguration (System-Prompt, Filter, etc.)
+ * @returns Messages-Array mit system + user Messages
+ */
+export function buildTOCMessages(
+  libraryId: string,
+  sources: RetrievedSource[],
+  options?: {
+    targetLanguage?: TargetLanguage
+    character?: Character | Character[]
+    accessPerspective?: AccessPerspective | AccessPerspective[]
+    socialContext?: SocialContext
+    genderInclusive?: boolean
+    filters?: Record<string, unknown>
+    facetDefs?: Array<{ metaKey: string; label?: string; type: string }>
+    uiLocale?: string
+  }
+): ChatMessage[] {
+  const messages: ChatMessage[] = []
+  
+  // System-Message zuerst
+  messages.push(buildTOCSystemMessage({
+    targetLanguage: options?.targetLanguage,
+    character: options?.character,
+    accessPerspective: options?.accessPerspective,
+    socialContext: options?.socialContext,
+    genderInclusive: options?.genderInclusive,
+    uiLocale: options?.uiLocale,
+  }))
+  
+  // User-Message mit Task + Sources + Requirements
+  messages.push(buildTOCUserMessage(libraryId, sources, {
+    filters: options?.filters,
+    facetDefs: options?.facetDefs,
+  }))
+  
+  return messages
+}
+
+/**
  * Erstellt einen speziellen Prompt für die TOC-Generierung (Table of Contents).
  * Dieser Prompt fordert eine strukturierte StoryTopicsData-Struktur zurück.
  * 
+ * @deprecated Verwende buildTOCMessages() für echtes Messages-Array
  * @param libraryId Eindeutige ID der Library (wird als id in StoryTopicsData verwendet)
  * @param sources Gefundene Quellen für die Themenübersicht
  * @param options Optionale Konfiguration für Sprache, Charakter, Kontext und Filter
@@ -505,7 +930,7 @@ Respond EXCLUSIVELY as a JSON object with exactly this structure:
 
 {
   "id": "${libraryId}",
-  "title": "Short Title for Topic Overview considering filters",
+  "title": "Short Title for Topic Overview considering filters (max. 100 characters)",
   "tagline": "Short, concise tagline (max. 50 characters)",
   "intro": "Introductory text describing how the topic overview is structured and how it can be used (max. 300 characters)",
   "topics": [

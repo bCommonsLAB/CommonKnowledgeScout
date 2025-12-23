@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { ANSWER_LENGTH_ZOD_ENUM, ANSWER_LENGTH_DEFAULT } from '@/lib/chat/constants'
 import { callLlmText } from '@/lib/chat/common/llm'
+import { getSecretaryConfig } from '@/lib/env'
 
 const bodySchema = z.object({
   systemPrompt: z.string().optional(),
@@ -36,8 +37,30 @@ export async function POST(
 
     const { systemPrompt, instructions, contextText, answerLength } = parsed.data
 
-    const chatApiKey = process.env.OPENAI_API_KEY
-    if (!chatApiKey) return NextResponse.json({ error: 'OPENAI_API_KEY fehlt' }, { status: 500 })
+    const { apiKey: chatApiKey } = getSecretaryConfig()
+    if (!chatApiKey) return NextResponse.json({ error: 'Secretary Service API-Key fehlt' }, { status: 500 })
+
+    // LLM-Modell und Temperature: Aus Library-Config oder Default
+    let llmModel: string | undefined = ctx.library.config?.chat?.models?.chat
+    let llmTemperature: number | undefined = ctx.library.config?.chat?.models?.temperature
+    
+    // Wenn kein Modell gesetzt, lade Default-Modell
+    if (!llmModel) {
+      const { getDefaultLlmModel } = await import('@/lib/db/llm-models-repo')
+      const defaultModel = await getDefaultLlmModel()
+      if (defaultModel) {
+        llmModel = defaultModel._id
+      }
+    }
+    
+    // Wenn keine Temperature gesetzt, verwende Default (0.3)
+    if (llmTemperature === undefined || llmTemperature === null || isNaN(llmTemperature)) {
+      llmTemperature = 0.3
+    }
+    
+    if (!llmModel) {
+      return NextResponse.json({ error: 'LLM-Modell ist erforderlich' }, { status: 400 })
+    }
 
     const styleInstruction = answerLength === 'ausführlich'
       ? 'Schreibe eine strukturierte, ausführliche Antwort (ca. 250–600 Wörter).'
@@ -51,6 +74,8 @@ export async function POST(
     try {
       const result = await callLlmText({
         apiKey: chatApiKey,
+        model: llmModel,
+        temperature: llmTemperature,
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: userPrompt }
