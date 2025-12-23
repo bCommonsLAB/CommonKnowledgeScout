@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       headers: (() => {
         const h: Record<string, string> = { 'Accept': 'application/json' };
         const { apiKey } = getSecretaryConfig();
-        if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
+        if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Secretary-Api-Key'] = apiKey; }
         return h;
       })(),
     });

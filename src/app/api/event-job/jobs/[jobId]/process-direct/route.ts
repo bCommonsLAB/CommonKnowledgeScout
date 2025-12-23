@@ -95,8 +95,8 @@ export async function POST(
     };
     if (apiKey) {
       headers['Authorization'] = `Bearer ${apiKey}`;
-      headers['X-Service-Token'] = apiKey;
-      headers['X-Service-Token'] = apiKey;
+      headers['X-Secretary-Api-Key'] = apiKey;
+      headers['X-Secretary-Api-Key'] = apiKey;
     }
 
     // Secretary-Service aufrufen

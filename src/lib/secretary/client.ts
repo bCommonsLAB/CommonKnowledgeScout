@@ -1143,7 +1143,7 @@ export async function embedTextRag(params: {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${apiKey}`,
-    'X-Service-Token': apiKey,
+    'X-Secretary-Api-Key': apiKey,
   };
 
   try {

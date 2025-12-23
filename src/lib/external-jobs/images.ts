@@ -194,7 +194,7 @@ export async function processAllImageSources(
       const { apiKey } = getSecretaryConfig()
       if (apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`
-        headers['X-Service-Token'] = apiKey
+        headers['X-Secretary-Api-Key'] = apiKey
       }
 
       bufferLog(ctx.jobId, {
@@ -294,7 +294,7 @@ export async function processAllImageSources(
       const { apiKey } = getSecretaryConfig()
       if (apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`
-        headers['X-Service-Token'] = apiKey
+        headers['X-Secretary-Api-Key'] = apiKey
       }
 
       bufferLog(ctx.jobId, {

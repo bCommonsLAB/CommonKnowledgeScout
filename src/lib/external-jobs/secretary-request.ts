@@ -44,7 +44,7 @@ export function prepareSecretaryRequest(
   const headers: Record<string, string> = {
     'x-worker': 'true',
     'Authorization': `Bearer ${apiKey}`,
-    'X-Service-Token': apiKey,
+    'X-Secretary-Api-Key': apiKey,
   }
 
   let url: string

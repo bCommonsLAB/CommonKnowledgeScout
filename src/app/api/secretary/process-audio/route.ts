@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       body: serviceFormData,
       headers: (() => {
         const h: Record<string, string> = { 'Accept': 'application/json' };
-        if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Service-Token'] = apiKey; }
+        if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Secretary-Api-Key'] = apiKey; }
         return h;
       })(),
     });

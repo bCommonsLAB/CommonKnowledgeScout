@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
     };
     if (apiKey) {
       headers['Authorization'] = `Bearer ${apiKey}`;
-      headers['X-Service-Token'] = apiKey;
-      headers['X-Service-Token'] = apiKey;
+      headers['X-Secretary-Api-Key'] = apiKey;
+      headers['X-Secretary-Api-Key'] = apiKey;
     }
 
     const resp = await fetch(apiUrl, {

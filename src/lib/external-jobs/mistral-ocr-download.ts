@@ -64,7 +64,7 @@ export async function downloadMistralOcrRaw(
     const headers: Record<string, string> = {}
     if (apiKey) {
       headers['Authorization'] = `Bearer ${apiKey}`
-      headers['X-Service-Token'] = apiKey
+      headers['X-Secretary-Api-Key'] = apiKey
     }
 
     bufferLog(jobId, {

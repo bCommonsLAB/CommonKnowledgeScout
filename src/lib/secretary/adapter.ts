@@ -40,7 +40,7 @@ export interface PdfProcessParams {
 
 export async function callPdfProcess(params: PdfProcessParams): Promise<Response> {
   const headers: Record<string, string> = { 'Accept': 'application/json' };
-  if (params.apiKey) { headers['Authorization'] = `Bearer ${params.apiKey}`; headers['X-Service-Token'] = params.apiKey; }
+  if (params.apiKey) { headers['Authorization'] = `Bearer ${params.apiKey}`; headers['X-Secretary-Api-Key'] = params.apiKey; }
   try {
     const res = await fetchWithTimeout(params.url, { method: 'POST', body: params.formData as unknown as BodyInit, headers, timeoutMs: params.timeoutMs });
     if (!res.ok) throw new HttpError(res.status, res.statusText);
@@ -106,7 +106,7 @@ export async function callTemplateTransform(p: TemplateTransformParams): Promise
   }
   if (p.apiKey) { 
     headers['Authorization'] = `Bearer ${p.apiKey}`
-    headers['X-Service-Token'] = p.apiKey
+    headers['X-Secretary-Api-Key'] = p.apiKey
   }
   
   try {
@@ -181,7 +181,7 @@ export async function callTextTranslate(p: TextTranslateParams): Promise<Respons
   }
   if (p.apiKey) { 
     headers['Authorization'] = `Bearer ${p.apiKey}`
-    headers['X-Service-Token'] = p.apiKey
+    headers['X-Secretary-Api-Key'] = p.apiKey
   }
   
   try {
@@ -409,7 +409,7 @@ export async function callTemplateExtractFromUrl(p: TemplateExtractFromUrlParams
   
   if (p.apiKey) {
     headers['Authorization'] = `Bearer ${p.apiKey}`;
-    headers['X-Service-Token'] = p.apiKey;
+    headers['X-Secretary-Api-Key'] = p.apiKey;
   }
   
   try {

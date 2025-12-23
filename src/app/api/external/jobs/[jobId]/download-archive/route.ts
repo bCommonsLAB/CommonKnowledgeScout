@@ -50,7 +50,7 @@ export async function GET(
     const headers: Record<string, string> = {};
     if (apiKey) {
       headers['Authorization'] = `Bearer ${apiKey}`;
-      headers['X-Service-Token'] = apiKey;
+      headers['X-Secretary-Api-Key'] = apiKey;
     }
 
     const upstream = await fetch(targetUrl, { method: 'GET', headers });
