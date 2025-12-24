@@ -369,7 +369,7 @@ export async function analyzeAndMergeChapters(args: ChaptersArgs): Promise<Chapt
 
   let mergedMeta: Frontmatter = { ...(baseMeta || {}) }
   if (chapters.length > 0) {
-    const existingChapters: Array<Record<string, unknown>> = Array.isArray(mergedMeta.chapters) ? (mergedMeta.chapters as Array<Record<string, unknown>>) : []
+  const existingChapters: Array<Record<string, unknown>> = Array.isArray(mergedMeta.chapters) ? (mergedMeta.chapters as Array<Record<string, unknown>>) : []
     const norm = chapters as unknown as Array<Record<string, unknown>>
     const normalizeTitle = (s: string) => s.replace(/[\*`_#>\[\]]+/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
     const findMatch = (ec: Record<string, unknown>): Record<string, unknown> | undefined => {
