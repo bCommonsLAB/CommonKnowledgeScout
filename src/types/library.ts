@@ -197,6 +197,14 @@ export interface StorageConfig {
     apiKey?: string;
     /** Flag für öffentliche Verfügbarkeit */
     isPublic: boolean;
+    /**
+     * Flag: Auf der Homepage listen.
+     * Wenn `false`, bleibt die Library über ihren Slug erreichbar, wird aber nicht in der Homepage-Liste angezeigt.
+     *
+     * WICHTIG (Backwards-Compatibility):
+     * Wenn das Feld fehlt, behandeln wir es als `true`, damit bestehende Libraries weiterhin gelistet werden.
+     */
+    showOnHomepage?: boolean;
     /** Zugriff nur nach Freigabe/Einladung erforderlich */
     requiresAuth?: boolean;
     /** URL für Hintergrundbild auf der Homepage */
@@ -316,6 +324,8 @@ export interface ClientLibrary {
       description: string;
       icon?: string;
       isPublic: boolean;
+      /** Siehe serverseitiges Feld `publicPublishing.showOnHomepage` (fehlend => true) */
+      showOnHomepage?: boolean;
       /** Zugriff nur nach Freigabe/Einladung erforderlich */
       requiresAuth?: boolean;
       /** URL für Hintergrundbild auf der Homepage */

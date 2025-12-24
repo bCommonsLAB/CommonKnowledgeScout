@@ -25,6 +25,7 @@
 
 import { getCollection } from '@/lib/mongodb-service';
 import { Library, ClientLibrary } from '@/types/library';
+import { shouldShowOnHomepage } from '@/lib/public-publishing';
 
 export interface UserLibraries {
   email: string;  // Statt userId eine E-Mail-Adresse verwenden
@@ -284,6 +285,8 @@ export class LibraryService {
           description: lib.config.publicPublishing.description,
           icon: lib.config.publicPublishing.icon,
           isPublic: lib.config.publicPublishing.isPublic,
+          // Fehlend => true (Backwards-Compatibility)
+          showOnHomepage: shouldShowOnHomepage(lib.config.publicPublishing.showOnHomepage),
           requiresAuth: lib.config.publicPublishing.requiresAuth,
           backgroundImageUrl: lib.config.publicPublishing.backgroundImageUrl,
           // Gallery-Texte übertragen
@@ -399,6 +402,11 @@ export class LibraryService {
         {
           $match: {
             'libraries.config.publicPublishing.isPublic': true,
+            // Flag: fehlend => true (Backwards-Compatibility)
+            $or: [
+              { 'libraries.config.publicPublishing.showOnHomepage': true },
+              { 'libraries.config.publicPublishing.showOnHomepage': { $exists: false } }
+            ],
             'libraries.config.publicPublishing.slugName': { $exists: true, $nin: [null, ''] }
           }
         },

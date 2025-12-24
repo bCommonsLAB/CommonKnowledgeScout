@@ -35,3 +35,4 @@ Konsequenz: Zwei Requests, die sich nur im Modell unterscheiden, erzeugen den **
 Ich entscheide mich für **Variante A**, weil sie **die Backend-Semantik repariert** und gleichzeitig minimal-invasiv ist. Temperatur (Variante B) ist diskutabel; wir lassen sie bewusst draußen, solange das Produktverhalten nicht explizit „Temperaturwechsel muss Cache trennen“ fordert.
 
 
+

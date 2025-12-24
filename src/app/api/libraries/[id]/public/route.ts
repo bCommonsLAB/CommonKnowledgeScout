@@ -34,7 +34,7 @@ export async function PUT(
 
     // Request Body parsen
     const body = await request.json().catch(() => ({}));
-    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, backgroundImageUrl, gallery } = body;
+    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, gallery } = body;
 
     // Validierung
     if (isPublic === true) {
@@ -71,6 +71,15 @@ export async function PUT(
     if (requiresAuth === true && isPublic !== true) {
       return NextResponse.json(
         { error: 'requiresAuth kann nur aktiviert werden, wenn die Library öffentlich ist' },
+        { status: 400 }
+      );
+    }
+    
+    // Validierung: showOnHomepage kann nur deaktiviert werden, wenn die Library öffentlich ist
+    // (ansonsten wäre die Semantik für Nutzer verwirrend; technisch wäre es egal)
+    if (showOnHomepage === false && isPublic !== true) {
+      return NextResponse.json(
+        { error: 'Show-on-Homepage kann nur gesetzt werden, wenn die Library öffentlich ist' },
         { status: 400 }
       );
     }
@@ -121,6 +130,9 @@ export async function PUT(
             ? apiKey 
             : library.config?.publicPublishing?.apiKey,
           isPublic: isPublic !== undefined ? isPublic : false,
+          // Backwards-Compatibility: fehlend => true
+          // Wenn der Client nichts sendet, behalten wir den bisherigen Wert (oder true, wenn bisher nicht vorhanden).
+          showOnHomepage: showOnHomepage !== undefined ? showOnHomepage : (library.config?.publicPublishing?.showOnHomepage ?? true),
           requiresAuth: requiresAuth !== undefined ? requiresAuth : (library.config?.publicPublishing?.requiresAuth || false),
           // Hintergrundbild-URL: Wenn gesetzt, verwende neuen Wert, sonst behalte alten oder undefined
           backgroundImageUrl: backgroundImageUrl !== undefined 

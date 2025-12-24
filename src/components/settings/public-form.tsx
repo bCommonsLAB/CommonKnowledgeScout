@@ -29,7 +29,7 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { Textarea } from "../ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
+import { AlertCircle, CheckCircle2, Copy, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
 
@@ -63,9 +63,10 @@ const publicFormSchema = z.object({
     .min(10, "Die Beschreibung muss mindestens 10 Zeichen lang sein.")
     .max(500, "Die Beschreibung darf maximal 500 Zeichen lang sein."),
   icon: z.string().optional(),
-  apiKey: z.string().optional(),
   isPublic: z.boolean().default(false),
   requiresAuth: z.boolean().default(false),
+  // Flag: ob die Library auf der Homepage gelistet wird (fehlend => true)
+  showOnHomepage: z.boolean().default(true),
   // Hintergrundbild-URL für die Homepage
   backgroundImageUrl: z.union([
     z.string().url("Bitte geben Sie eine gültige URL ein."),
@@ -119,9 +120,9 @@ export function PublicForm() {
         publicName: "",
         description: "",
         icon: "",
-        apiKey: "",
         isPublic: false,
         requiresAuth: false,
+        showOnHomepage: true,
         backgroundImageUrl: "",
         galleryHeadline: "Entdecke, was Menschen auf der SFSCon gesagt haben",
         gallerySubtitle: "Befrage das kollektive Wissen",
@@ -130,17 +131,15 @@ export function PublicForm() {
       }
     }
 
-    const apiKeyValue = activeLibrary.config?.publicPublishing?.apiKey || "";
-    const isMasked = apiKeyValue.includes('...') || apiKeyValue.includes('••••') || (apiKeyValue.match(/\./g)?.length || 0) >= 10;
-
     return {
       slugName: activeLibrary.config?.publicPublishing?.slugName || "",
       publicName: activeLibrary.config?.publicPublishing?.publicName || activeLibrary.label || "",
       description: activeLibrary.config?.publicPublishing?.description || "",
       icon: activeLibrary.config?.publicPublishing?.icon || "",
-      apiKey: isMasked ? apiKeyValue : "",
       isPublic: activeLibrary.config?.publicPublishing?.isPublic === true || false,
       requiresAuth: activeLibrary.config?.publicPublishing?.requiresAuth === true || false,
+      // Backwards-Compatibility: fehlend => true
+      showOnHomepage: activeLibrary.config?.publicPublishing?.showOnHomepage !== false,
       backgroundImageUrl: activeLibrary.config?.publicPublishing?.backgroundImageUrl || "",
       // Gallery-Texte: Verwende gespeicherte Werte oder Defaults
       galleryHeadline: activeLibrary.config?.publicPublishing?.gallery?.headline || "Entdecke, was Menschen auf der SFSCon gesagt haben",
@@ -160,6 +159,7 @@ export function PublicForm() {
 
   // Slug-Validierung beim Tippen
   const slugName = form.watch("slugName")
+  const isPublic = form.watch("isPublic")
   useEffect(() => {
     if (!slugName || slugName.length < 3) {
       setSlugAvailable(null);
@@ -193,6 +193,38 @@ export function PublicForm() {
     return () => clearTimeout(timeoutId);
   }, [slugName, activeLibraryId]);
 
+  const publicLink = useMemo(() => {
+    const path = slugName ? `/explore/${slugName}` : ""
+    const origin = typeof window !== "undefined" ? window.location.origin : ""
+    return origin ? `${origin}${path}` : path
+  }, [slugName])
+
+  async function handleCopyPublicLink() {
+    if (!publicLink) {
+      toast({
+        title: "Kein Link verfügbar",
+        description: "Bitte zuerst einen gültigen Slug setzen.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      if (!navigator?.clipboard?.writeText) throw new Error("Clipboard API nicht verfügbar")
+      await navigator.clipboard.writeText(publicLink)
+      toast({
+        title: "Kopiert",
+        description: "Der öffentliche Link wurde in die Zwischenablage kopiert.",
+      })
+    } catch {
+      toast({
+        title: "Kopieren fehlgeschlagen",
+        description: "Bitte kopieren Sie den Link manuell.",
+        variant: "destructive",
+      })
+    }
+  }
+
   async function onSubmit(data: PublicFormValues) {
     if (!user?.primaryEmailAddress?.emailAddress) {
       toast({
@@ -216,21 +248,14 @@ export function PublicForm() {
 
     try {
       // Public-Publishing-Config erstellen
-      // Prüfe ob API-Key maskiert ist - wenn ja, nicht ändern
-      const currentApiKey = activeLibrary?.config?.publicPublishing?.apiKey || "";
-      const isMasked = currentApiKey.includes('...') || currentApiKey.includes('••••') || (currentApiKey.match(/\./g)?.length || 0) >= 10;
-      const apiKeyToSave = data.apiKey && !data.apiKey.includes('...') && !data.apiKey.includes('••••') && (data.apiKey.match(/\./g)?.length || 0) < 10
-        ? data.apiKey  // Neuer Key wurde eingegeben
-        : (isMasked ? undefined : data.apiKey); // Wenn maskiert, undefined (behält alten), sonst verwendeter Wert
-      
       const publicPublishing = {
         slugName: data.slugName,
         publicName: data.publicName,
         description: data.description,
         icon: data.icon || undefined,
-        apiKey: apiKeyToSave,
         isPublic: data.isPublic,
         requiresAuth: data.requiresAuth,
+        showOnHomepage: data.showOnHomepage,
         backgroundImageUrl: data.backgroundImageUrl || undefined,
         // Gallery-Texte werden nicht mehr gespeichert, da sie jetzt aus den Übersetzungen kommen
       };
@@ -383,6 +408,53 @@ export function PublicForm() {
               )}
             />
 
+            <div className="space-y-2">
+              <FormLabel>Öffentlicher Link</FormLabel>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={publicLink}
+                  readOnly
+                  placeholder="Wird automatisch aus dem Slug erstellt"
+                  aria-label="Öffentlicher Link"
+                  disabled={!isPublic || !slugName || slugName.length < 3 || slugAvailable === false}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleCopyPublicLink}
+                  disabled={!isPublic || !publicLink || slugAvailable === false}
+                  aria-label="Öffentlichen Link kopieren"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <FormDescription>
+                Dieser Link führt direkt zur öffentlichen Ansicht (auch wenn „Show on Homepage“ deaktiviert ist).
+              </FormDescription>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="showOnHomepage"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Show on Homepage</FormLabel>
+                    <FormDescription>
+                      Wenn deaktiviert, ist die Library weiterhin über den Slug erreichbar, wird aber nicht auf der Homepage gelistet.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="publicName"
@@ -458,51 +530,6 @@ export function PublicForm() {
                   <FormMessage />
                 </FormItem>
               )}
-            />
-
-            <FormField
-              control={form.control}
-              name="apiKey"
-              render={({ field }) => {
-                const fieldValue = field.value || "";
-                const isMasked = fieldValue.includes('...') || fieldValue.includes('••••') || (fieldValue.match(/\./g)?.length || 0) >= 10;
-                
-                return (
-                  <FormItem>
-                    <FormLabel>OpenAI API-Key (optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type={isMasked ? "text" : "password"}
-                        placeholder="sk-..."
-                        value={fieldValue}
-                        onChange={(e) => {
-                          const newValue = e.target.value;
-                          // Wenn der Benutzer etwas eingibt, entferne die Maskierung
-                          const hasMasking = newValue.includes('...') || newValue.includes('••••') || (newValue.match(/\./g)?.length || 0) >= 10;
-                          if (newValue !== fieldValue && !hasMasking) {
-                            field.onChange(newValue);
-                          } else if (newValue === "" || newValue === fieldValue) {
-                            // Wenn gelöscht oder unverändert, behalte den Wert
-                            field.onChange(newValue);
-                          }
-                        }}
-                        onFocus={(e) => {
-                          // Beim Fokus: wenn maskiert, löschen damit Benutzer neuen Key eingeben kann
-                          if (isMasked) {
-                            e.target.value = "";
-                            field.onChange("");
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Optional: OpenAI API-Key für anonyme Chat-Anfragen. Wenn nicht gesetzt, wird der globale API-Key verwendet.
-                      {isMasked && " (Aktueller Key: " + fieldValue + ")"}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                );
-              }}
             />
 
             <FormField

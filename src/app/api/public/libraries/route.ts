@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { LibraryService } from '@/lib/services/library-service';
+import { shouldShowOnHomepage } from '@/lib/public-publishing';
 
 /**
  * Next.js Route Segment Config für Caching
@@ -32,8 +33,14 @@ export async function GET() {
     const libraryService = LibraryService.getInstance();
     const publicLibraries = await libraryService.getAllPublicLibraries();
 
+    // Backwards-Compatibility: Wenn showOnHomepage fehlt, behandeln wir es als true.
+    // So bleiben bestehende Libraries weiterhin auf der Homepage sichtbar, bis das Flag explizit deaktiviert wird.
+    const homepageLibraries = publicLibraries.filter(lib =>
+      shouldShowOnHomepage(lib.config?.publicPublishing?.showOnHomepage)
+    );
+
     // Nur sichere Daten zurückgeben (ohne API-Keys, Secrets, etc.)
-    const safeLibraries = publicLibraries.map(lib => ({
+    const safeLibraries = homepageLibraries.map(lib => ({
       id: lib.id,
       label: lib.config?.publicPublishing?.publicName || lib.label,
       slugName: lib.config?.publicPublishing?.slugName,
