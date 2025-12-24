@@ -26,7 +26,12 @@ export async function GET(
     }
     
     // Für anonyme Nutzer: Session-ID muss vorhanden sein
+    // Aber wenn Library öffentlich ist und keine Session-ID vorhanden ist, gib leere Liste zurück statt Fehler
     if (!userEmail && !sessionId) {
+      // Wenn Library öffentlich ist, gib leere Liste zurück (keine Historie für anonyme Nutzer ohne Session)
+      if (ctx?.library.config?.publicPublishing?.isPublic) {
+        return NextResponse.json({ items: [] })
+      }
       return NextResponse.json({ error: 'Session-ID erforderlich für anonyme Nutzer' }, { status: 400 })
     }
     
@@ -34,8 +39,21 @@ export async function GET(
     const limitRaw = url.searchParams.get('limit')
     const limit = limitRaw ? Number(limitRaw) : 20
     const chatId = url.searchParams.get('chatId') // Optional: Filter nach chatId
-    const items = await listRecentQueries({ libraryId, userEmail, sessionId, chatId: chatId || undefined, limit })
-    return NextResponse.json({ items })
+    
+    try {
+      const items = await listRecentQueries({ libraryId, userEmail, sessionId, chatId: chatId || undefined, limit })
+      return NextResponse.json({ items })
+    } catch (queryError) {
+      // Wenn listRecentQueries einen Fehler wirft (z.B. "Entweder userEmail oder sessionId muss angegeben werden"),
+      // gib leere Liste zurück statt Fehler (für bessere UX)
+      console.error('[api/chat] listRecentQueries error', {
+        error: queryError instanceof Error ? queryError.message : String(queryError),
+        userEmail: userEmail || null,
+        sessionId: sessionId || null,
+        libraryId,
+      })
+      return NextResponse.json({ items: [] })
+    }
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('[api/chat] list queries error', {

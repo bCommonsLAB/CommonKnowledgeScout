@@ -6,8 +6,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ libraryId: string; queryId: string }> }
 ) {
+  const { libraryId, queryId } = await params
   try {
-    const { libraryId, queryId } = await params
     const { userId } = await auth()
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress
@@ -26,14 +26,36 @@ export async function GET(
     }
     
     // Für anonyme Nutzer: Session-ID muss vorhanden sein
+    // Aber wenn Library öffentlich ist und keine Session-ID vorhanden ist, gib 404 zurück (Query existiert nicht für diese Session)
     if (!userEmail && !sessionId) {
+      // Wenn Library öffentlich ist, gib 404 zurück (Query kann ohne Session-ID nicht gefunden werden)
+      if (ctx?.library.config?.publicPublishing?.isPublic) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
       return NextResponse.json({ error: 'Session-ID erforderlich für anonyme Nutzer' }, { status: 400 })
     }
 
-    const log = await getQueryLogById({ libraryId, queryId, userEmail, sessionId })
-    if (!log) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    return NextResponse.json(log)
-  } catch {
+    try {
+      const log = await getQueryLogById({ libraryId, queryId, userEmail, sessionId })
+      if (!log) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      return NextResponse.json(log)
+    } catch (queryError) {
+      // Wenn getQueryLogById einen Fehler wirft (z.B. "Entweder userEmail oder sessionId muss angegeben werden"),
+      // gib 404 zurück statt Fehler (für bessere UX)
+      console.error('[api/chat/queries] getQueryLogById error', {
+        error: queryError instanceof Error ? queryError.message : String(queryError),
+        queryId,
+        userEmail: userEmail || null,
+        sessionId: sessionId || null,
+        libraryId,
+      })
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+  } catch (error) {
+    console.error('[api/chat/queries] GET error', {
+      error: error instanceof Error ? error.message : String(error),
+      queryId,
+    })
     return NextResponse.json({ error: 'Interner Fehler' }, { status: 500 })
   }
 }
@@ -42,8 +64,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ libraryId: string; queryId: string }> }
 ) {
+  const { libraryId, queryId } = await params
   try {
-    const { libraryId, queryId } = await params
     const { userId } = await auth()
     const user = await currentUser()
     const userEmail = user?.emailAddresses?.[0]?.emailAddress
@@ -62,7 +84,12 @@ export async function DELETE(
     }
     
     // Für anonyme Nutzer: Session-ID muss vorhanden sein
+    // Aber wenn Library öffentlich ist und keine Session-ID vorhanden ist, gib 404 zurück (Query existiert nicht für diese Session)
     if (!userEmail && !sessionId) {
+      // Wenn Library öffentlich ist, gib 404 zurück (Query kann ohne Session-ID nicht gefunden werden)
+      if (ctx?.library.config?.publicPublishing?.isPublic) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
       return NextResponse.json({ error: 'Session-ID erforderlich für anonyme Nutzer' }, { status: 400 })
     }
 
