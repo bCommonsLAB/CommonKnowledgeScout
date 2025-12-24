@@ -38,6 +38,9 @@ const isPublicRoute = createRouteMatcher([
   '/docs(.*)',
   '/explore(.*)',
   '/api/public(.*)',
+  // LLM-Modelle werden auch auf öffentlichen Seiten benötigt (z.B. Story-/Chat-UI).
+  // Ohne diese Ausnahme maskiert Clerk die Route für anonyme Nutzer als 404.
+  '/api/llm-models(.*)',
   '/api/markdown(.*)',
   '/info(.*)',
   '/sign-in(.*)', // Clerk Sign-In Route
@@ -52,6 +55,7 @@ if (process.env.NODE_ENV === 'development') {
     '/docs(.*)',
     '/explore(.*)',
     '/api/public(.*)',
+    '/api/llm-models(.*)',
     '/info(.*)',
   ]);
 }

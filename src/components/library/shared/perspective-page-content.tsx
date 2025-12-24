@@ -213,8 +213,8 @@ export function PerspectivePageContent({
     async function loadModels() {
       try {
         setModelsLoading(true)
-        console.log('[PerspectivePage] Fetching /api/llm-models...')
-        const res = await fetch('/api/llm-models')
+        console.log('[PerspectivePage] Fetching /api/public/llm-models...')
+        const res = await fetch('/api/public/llm-models')
         if (!res.ok) {
           console.error('[PerspectivePage] Fehler beim Laden der Modelle:', res.status)
           return

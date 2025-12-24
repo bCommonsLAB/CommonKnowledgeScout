@@ -370,7 +370,9 @@ export function useStoryContext(): UseStoryContextReturn {
     async function validateAndLoadDefaultModel() {
       try {
         console.log('[useStoryContext] Validiere llmModel:', llmModel)
-        const res = await fetch('/api/llm-models')
+        // WICHTIG: In Prod kann `/api/llm-models` durch Clerk-Middleware für anonyme Nutzer als 404 maskiert werden.
+        // Daher nutzen wir eine explizit öffentliche Route unter `/api/public/*`.
+        const res = await fetch('/api/public/llm-models')
         if (!res.ok) {
           console.error('[useStoryContext] Fehler beim Laden der Modelle:', res.status)
           return

@@ -36,3 +36,5 @@ Das gewünschte Verhalten ist: Eine Library kann öffentlich sein (über `/explo
 - `tests/unit/...` (Unit-Test für Default-Logik)
 
 
+
+
