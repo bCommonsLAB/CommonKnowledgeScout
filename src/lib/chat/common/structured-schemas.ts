@@ -23,8 +23,19 @@ import * as z from 'zod'
  */
 export const chatAnswerZodSchema = z.object({
   answer: z.string().min(1),
-  suggestedQuestions: z.array(z.string()).length(7),
-  usedReferences: z.array(z.number().int().positive()),
+  /**
+   * suggestedQuestions ist UX-orientiert (für die UI).
+   * Wir validieren hier nur "mindestens 1" (statt exakt 7), um Modell-Variabilität abzufedern.
+   *
+   * WICHTIG: Im Orchestrator normalisieren wir danach wieder auf genau 7 Einträge,
+   * damit die UI stabil bleibt, ohne dass das Schema unnötig fragil wird.
+   */
+  suggestedQuestions: z.array(z.string()).min(1).max(12),
+  /**
+   * usedReferences wird oft "fast korrekt" geliefert (z.B. fehlend oder leer).
+   * Da wir downstream ohnehin ein Fallback haben, erlauben wir missing und defaulten auf [].
+   */
+  usedReferences: z.array(z.number().int().positive()).optional().default([]),
 })
 
 /**
@@ -32,13 +43,13 @@ export const chatAnswerZodSchema = z.object({
  * 
  * Struktur:
  * - answer: Markdown-formatieter Text mit Referenzen [1], [2], etc.
- * - suggestedQuestions: Array mit genau 7 Follow-up-Fragen
- * - usedReferences: Array von Referenznummern (positive integers)
+ * - suggestedQuestions: Array mit Follow-up-Fragen (mindestens 1; server normalisiert auf 7 für die UI)
+ * - usedReferences: Array von Referenznummern (optional; positive integers)
  */
 export const chatAnswerSchemaJson = JSON.stringify({
   $schema: 'http://json-schema.org/draft-07/schema#',
   type: 'object',
-  required: ['answer', 'suggestedQuestions', 'usedReferences'],
+  required: ['answer', 'suggestedQuestions'],
   properties: {
     answer: {
       type: 'string',
@@ -46,12 +57,12 @@ export const chatAnswerSchemaJson = JSON.stringify({
     },
     suggestedQuestions: {
       type: 'array',
-      minItems: 7,
-      maxItems: 7,
+      minItems: 1,
+      maxItems: 12,
       items: {
         type: 'string',
       },
-      description: 'Array with exactly 7 meaningful follow-up questions based on the context covered',
+      description: 'Array with meaningful follow-up questions (at least 1; server normalizes to 7 for the UI)',
     },
     usedReferences: {
       type: 'array',

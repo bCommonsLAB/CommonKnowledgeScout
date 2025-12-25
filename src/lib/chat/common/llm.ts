@@ -534,39 +534,71 @@ export async function callLlmJson<T>(
   
   // Timeout-Konfiguration: Verwende ENV-Variable oder Default (240 Sekunden für lange LLM-Antworten)
   const timeoutMs = Number(process.env.LLM_CHAT_TIMEOUT_MS || 240000)
+
+  /**
+   * Retry-Strategie für SchemaValidationError
+   *
+   * Motivation:
+   * - Einige Modelle liefern gelegentlich "fast korrektes" JSON, das erst bei Zod scheitert.
+   * - Wiederholung derselben Anfrage funktioniert häufig (transient / sampling noise).
+   *
+   * Regeln:
+   * - Nur retry'en bei LlmProviderError mit code === 'SchemaValidationError'
+   * - Bei Retry: Cache deaktivieren (sonst riskieren wir denselben invaliden Cache-Hit)
+   * - Bei Retry: Temperature auf <= 0.2 senken (stabileres Structured Output)
+   */
+  const maxSchemaValidationRetries = Number(process.env.LLM_SCHEMA_VALIDATION_RETRY_COUNT || 2)
+  const retryBackoffMs = Number(process.env.LLM_SCHEMA_VALIDATION_RETRY_BACKOFF_MS || 150)
   
-  try {
-    const response = await callTransformerChat({
-      url: chatUrl,
-      messages: args.messages,
-      model: args.model,
-      temperature: args.temperature,
-      maxTokens: args.maxTokens,
-      responseFormat: 'json_object',
-      schemaJson: effectiveSchemaJson,
-      strict: false, // Strict validation deaktiviert (erlaubt flexiblere Schema-Validierung)
-      useCache: true,
-      apiKey: effectiveApiKey,
-      timeoutMs
-    })
-    
-    return parseSecretaryJsonResponse(response, schema)
-  } catch (error) {
-    if (error instanceof LlmProviderError) {
-      throw error
-    }
-    // HttpError von fetch-with-timeout enthält bereits Details
-    const { HttpError: HttpErrorType } = await import('@/lib/utils/fetch-with-timeout')
-    if (error instanceof HttpErrorType) {
+  for (let attempt = 0; attempt <= maxSchemaValidationRetries; attempt++) {
+    const isRetry = attempt > 0
+
+    try {
+      const response = await callTransformerChat({
+        url: chatUrl,
+        messages: args.messages,
+        model: args.model,
+        temperature: isRetry ? Math.min(args.temperature, 0.2) : args.temperature,
+        maxTokens: args.maxTokens,
+        responseFormat: 'json_object',
+        schemaJson: effectiveSchemaJson,
+        strict: false, // Strict validation deaktiviert (erlaubt flexiblere Schema-Validierung)
+        useCache: !isRetry,
+        apiKey: effectiveApiKey,
+        timeoutMs
+      })
+
+      return await parseSecretaryJsonResponse(response, schema)
+    } catch (error) {
+      // Retry nur bei SchemaValidationError (Zod) – alles andere sofort weiterwerfen/wrappen.
+      if (error instanceof LlmProviderError) {
+        if (error.code === 'SchemaValidationError' && attempt < maxSchemaValidationRetries) {
+          const backoff = retryBackoffMs * (attempt + 1)
+          if (backoff > 0) {
+            await new Promise(resolve => setTimeout(resolve, backoff))
+          }
+          continue
+        }
+        throw error
+      }
+
+      // HttpError von fetch-with-timeout enthält bereits Details
+      const { HttpError: HttpErrorType } = await import('@/lib/utils/fetch-with-timeout')
+      if (error instanceof HttpErrorType) {
+        throw new LlmProviderError(
+          `Secretary Service Fehler (${error.status}): ${error.message || error.statusText}`,
+          'SecretaryRequestError',
+          error.status
+        )
+      }
+
       throw new LlmProviderError(
-        `Secretary Service Fehler (${error.status}): ${error.message || error.statusText}`,
-        'SecretaryRequestError',
-        error.status
+        error instanceof Error ? error.message : 'Secretary Service request failed',
+        'SecretaryRequestError'
       )
     }
-    throw new LlmProviderError(
-      error instanceof Error ? error.message : 'Secretary Service request failed',
-      'SecretaryRequestError'
-    )
   }
+
+  // Sollte nie erreicht werden, aber TypeScript zuliebe:
+  throw new LlmProviderError('Schema validation failed after retries', 'SchemaValidationError')
 }

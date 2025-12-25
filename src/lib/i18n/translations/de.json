@@ -118,7 +118,7 @@
     "storyMode": {
       "headline": "Story Mode – Lass dir die Inhalte aus deiner Perspektive erklären",
       "subtitle": "Gemeinsam geteiltes Wissen erleben",
-      "description": "Diese Übersicht zeigt dir die wichtigsten Fragen und Themen aus den von dir ausgewählten Talks. Du kannst festlegen, welche Interessen du mitbringst und aus welchem Kontext du auf die Inhalte schaust. So werden Antworten auf die Aspekte ausgerichtet, die für dich besonders relevant sind. Stell eigene Fragen oder folge den vorgeschlagenen Themen – ganz nach deinem Zugang.",
+      "description": "Diese Übersicht fasst die wichtigsten Themen aus deinen Quellen zusammen. Wähle deine Interessen und Perspektive, damit die Antworten besser zu dir passen. Du kannst Fragen stellen oder Vorschläge auswählen.",
       "generatingTopics": "Generiere Themenübersicht...",
       "reloadTooltip": "Übersicht nicht mehr aktuell, bitte neu berechnen",
       "perspective": {
@@ -508,7 +508,7 @@
     "welcomeDescription": "Wähle oben Sprache und Perspektive, dann beginne dein Gespräch mit dem Wissen.",
     "welcomeTip": "Tipp: Stelle eine Frage oder klicke rechts auf einen Talk, um die Story aus deiner Sicht zu sehen.",
     "processing": "Wird verarbeitet...",
-    "topicsOverviewIntro": "Aufgrund deiner Perspektive und der ausgewählten {count} {type} ergeben sich folgende Themenübersicht und Antworten."
+    "topicsOverviewIntro": "Aufgrund deiner Perspektive und der ausgewählten {count} {type} ergeben sich folgende Themenübersicht und sinngemäße Fragestellungen."
   },
   "suggestedQuestions": {
     "label": "Mögliche weitere Fragen zum Thema, die sich aus den Quellen ergeben:"

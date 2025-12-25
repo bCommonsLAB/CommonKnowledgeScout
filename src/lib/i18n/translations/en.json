@@ -117,7 +117,7 @@
     "storyMode": {
       "headline": "Story Mode – Have the contents explained to you from your perspective",
       "subtitle": "Experience shared knowledge together",
-      "description": "This overview shows you the most important questions and topics from the talks you selected. You can specify what interests you bring and from which context you view the contents. This way, answers are aligned to the aspects that are particularly relevant to you. Ask your own questions or follow the suggested topics – according to your approach.",
+      "description": "This overview summarizes the most important topics from your sources. Choose your interests and perspective so the answers fit you better. You can ask questions or select suggestions.",
       "generatingTopics": "Generating topic overview...",
       "reloadTooltip": "Overview no longer current, please recalculate",
       "perspective": {
@@ -453,7 +453,7 @@
     "welcomeDescription": "Select language and perspective above, then start your conversation with the knowledge.",
     "welcomeTip": "Tip: Ask a question or click on a talk on the right to see the story from your perspective.",
     "processing": "Processing...",
-    "topicsOverviewIntro": "Based on your perspective and the selected {count} {type}, the following topic overview and answers emerge."
+    "topicsOverviewIntro": "Based on your perspective and the selected {count} {type}, the following topic overview and paraphrased questions emerge."
   },
   "suggestedQuestions": {
     "label": "Possible further questions on the topic that emerge from the sources:"

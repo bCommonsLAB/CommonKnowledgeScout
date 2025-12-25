@@ -427,7 +427,7 @@ Requirements:
 Output Format:
 Always respond as a JSON object with exactly these three fields:
 - "answer": Markdown-formatted text with reference numbers [1], [2], etc.
-- "suggestedQuestions": Array with exactly 7 meaningful follow-up questions based on the context covered
+- "suggestedQuestions": Array with meaningful follow-up questions based on the context covered (preferably 7, at least 1; server normalizes to 7 for the UI)
 - "usedReferences": Array of numbers containing the reference numbers of all sources you actually used in your answer (e.g., [2, 4, 6, 7, 9, 17])
 
 Example:
@@ -593,7 +593,7 @@ ${filterText}
 Output Format:
 Always respond as a JSON object with exactly these three fields:
 - "answer": Markdown-formatted text with reference numbers [1], [2], etc.
-- "suggestedQuestions": Array with exactly 7 meaningful follow-up questions based on the context covered
+- "suggestedQuestions": Array with meaningful follow-up questions based on the context covered (preferably 7, at least 1; server normalizes to 7 for the UI)
 - "usedReferences": Array of numbers containing the reference numbers of all sources you actually used in your answer (e.g., [2, 4, 6, 7, 9, 17])
 
 Example:
@@ -720,7 +720,7 @@ Respond EXCLUSIVELY as a JSON object with exactly this structure:
   "id": "${libraryId}",
   "title": "Short Title for Topic Overview considering filters (max. 100 characters)",
   "tagline": "Short, concise tagline (max. 50 characters)",
-  "intro": "Introductory text describing how the topic overview is structured and how it can be used (max. 300 characters)",
+  "intro": "Context summary: Describe the central topic and scope of the selected sources in plain language (max. 300 characters). No structure explanation.",
   "topics": [
     {
       "id": "topic-1",

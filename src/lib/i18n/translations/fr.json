@@ -117,7 +117,7 @@
     "storyMode": {
       "headline": "Mode Histoire – Faites-vous expliquer les contenus depuis votre perspective",
       "subtitle": "Vivre ensemble la connaissance partagée",
-      "description": "Cette vue d'ensemble vous montre les questions et sujets les plus importants des conférences que vous avez sélectionnées. Vous pouvez spécifier quels intérêts vous apportez et depuis quel contexte vous regardez les contenus. Ainsi, les réponses sont alignées sur les aspects qui sont particulièrement pertinents pour vous. Posez vos propres questions ou suivez les sujets suggérés – selon votre approche.",
+      "description": "Cette vue d'ensemble résume les sujets les plus importants de vos sources. Choisissez vos centres d'intérêt et votre perspective pour que les réponses vous correspondent mieux. Vous pouvez poser des questions ou sélectionner des suggestions.",
       "generatingTopics": "Génération de la vue d'ensemble des sujets...",
       "reloadTooltip": "Vue d'ensemble plus à jour, veuillez recalculer",
       "perspective": {
@@ -453,7 +453,7 @@
     "welcomeDescription": "Sélectionnez la langue et la perspective ci-dessus, puis commencez votre conversation avec la connaissance.",
     "welcomeTip": "Astuce : Posez une question ou cliquez sur une conférence à droite pour voir l'histoire de votre perspective.",
     "processing": "Traitement...",
-    "topicsOverviewIntro": "Sur la base de votre perspective et des {count} {type} sélectionnés, la vue d'ensemble des sujets et les réponses suivantes émergent."
+    "topicsOverviewIntro": "Sur la base de votre perspective et des {count} {type} sélectionnés, la vue d'ensemble des sujets et les questions reformulées suivantes émergent."
   },
   "suggestedQuestions": {
     "label": "Questions supplémentaires possibles sur le sujet qui émergent des sources :"

@@ -117,7 +117,7 @@
     "storyMode": {
       "headline": "Modo Historia – Hazte explicar los contenidos desde tu perspectiva",
       "subtitle": "Experimentar juntos el conocimiento compartido",
-      "description": "Esta visión general te muestra las preguntas y temas más importantes de las charlas que seleccionaste. Puedes especificar qué intereses traes y desde qué contexto ves los contenidos. De esta manera, las respuestas se alinean con los aspectos que son particularmente relevantes para ti. Haz tus propias preguntas o sigue los temas sugeridos – según tu enfoque.",
+      "description": "Esta visión general resume los temas más importantes de tus fuentes. Elige tus intereses y tu perspectiva para que las respuestas se adapten mejor a ti. Puedes hacer preguntas o seleccionar sugerencias.",
       "generatingTopics": "Generando resumen de temas...",
       "reloadTooltip": "Resumen ya no está actualizado, por favor recalcular",
       "perspective": {
@@ -453,7 +453,7 @@
     "welcomeDescription": "Seleccione el idioma y la perspectiva arriba, luego comience su conversación con el conocimiento.",
     "welcomeTip": "Consejo: Haga una pregunta o haga clic en una charla a la derecha para ver la historia desde su perspectiva.",
     "processing": "Procesando...",
-    "topicsOverviewIntro": "Basado en tu perspectiva y los {count} {type} seleccionados, surge la siguiente visión general de temas y respuestas."
+    "topicsOverviewIntro": "Basado en tu perspectiva y los {count} {type} seleccionados, surge la siguiente visión general de temas y preguntas reformuladas."
   },
   "suggestedQuestions": {
     "label": "Posibles preguntas adicionales sobre el tema que surgen de las fuentes:"

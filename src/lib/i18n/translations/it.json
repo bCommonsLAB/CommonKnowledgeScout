@@ -117,7 +117,7 @@
     "storyMode": {
       "headline": "Modalità Storia – Fatti spiegare i contenuti dalla tua prospettiva",
       "subtitle": "Sperimentare insieme la conoscenza condivisa",
-      "description": "Questa panoramica ti mostra le domande e i temi più importanti dei talk che hai selezionato. Puoi specificare quali interessi porti e da quale contesto guardi i contenuti. In questo modo, le risposte sono allineate agli aspetti che sono particolarmente rilevanti per te. Fai le tue domande o segui i temi suggeriti – secondo il tuo approccio.",
+      "description": "Questa panoramica riassume i temi più importanti delle tue fonti. Scegli i tuoi interessi e la tua prospettiva, così le risposte si adattano meglio a te. Puoi fare domande o selezionare suggerimenti.",
       "generatingTopics": "Generazione panoramica dei temi...",
       "reloadTooltip": "Panoramica non più aggiornata, si prega di ricalcolare",
       "perspective": {
@@ -453,7 +453,7 @@
     "welcomeDescription": "Seleziona lingua e prospettiva sopra, poi inizia la tua conversazione con la conoscenza.",
     "welcomeTip": "Suggerimento: Fai una domanda o clicca su un talk a destra per vedere la storia dalla tua prospettiva.",
     "processing": "Elaborazione...",
-    "topicsOverviewIntro": "In base alla tua prospettiva e ai {count} {type} selezionati, emerge la seguente panoramica degli argomenti e delle risposte."
+    "topicsOverviewIntro": "In base alla tua prospettiva e ai {count} {type} selezionati, emerge la seguente panoramica degli argomenti e delle domande riformulate."
   },
   "suggestedQuestions": {
     "label": "Possibili ulteriori domande sull'argomento che emergono dalle fonti:"

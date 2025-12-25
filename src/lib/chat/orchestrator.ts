@@ -31,6 +31,7 @@
 import { getSourceDescription, buildChatMessages, buildTOCMessages } from '@/lib/chat/common/prompt'
 import { callLlmJson, getLlmProviderForLogging } from '@/lib/chat/common/llm'
 import { chatAnswerSchemaJson, chatAnswerZodSchema, storyTopicsSchemaJson, storyTopicsZodSchema } from '@/lib/chat/common/structured-schemas'
+import { normalizeSuggestedQuestionsToSeven } from '@/lib/chat/common/normalize-suggested-questions'
 import { getSecretaryConfig } from '@/lib/env'
 import { getBaseBudget, reduceBudgets } from '@/lib/chat/common/budget'
 import { markStepStart, markStepEnd, appendRetrievalStep as logAppend, setPrompt as logSetPrompt, finalizeQueryLog } from '@/lib/logging/query-logger'
@@ -281,8 +282,12 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       )
       
       answer = result.data.answer
-      suggestedQuestions = result.data.suggestedQuestions
-      usedReferences = result.data.usedReferences
+      // suggestedQuestions sind UX-orientiert: immer auf genau 7 normalisieren, um die UI stabil zu halten.
+      suggestedQuestions = normalizeSuggestedQuestionsToSeven({
+        suggestedQuestions: result.data.suggestedQuestions,
+        seedQuestion: run.question,
+      })
+      usedReferences = result.data.usedReferences ?? []
       promptTokens = result.usage?.promptTokens
       completionTokens = result.usage?.completionTokens
       totalTokens = result.usage?.totalTokens
@@ -418,7 +423,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
             )
             answer = retryResult.data.answer
             suggestedQuestions = retryResult.data.suggestedQuestions
-            usedReferences = [...new Set(retryResult.data.usedReferences)].sort((a, b) => a - b)
+            usedReferences = [...new Set(retryResult.data.usedReferences ?? [])].sort((a, b) => a - b)
             promptTokens = retryResult.usage?.promptTokens
             completionTokens = retryResult.usage?.completionTokens
             totalTokens = retryResult.usage?.totalTokens
