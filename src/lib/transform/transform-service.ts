@@ -33,6 +33,15 @@ import { transformAudio, transformText, transformVideo, transformPdf, transformI
 import { ImageExtractionService, ImageExtractionResult } from "./image-extraction-service";
 import { FileLogger } from '@/lib/debug/logger';
 import { generateShadowTwinFolderName } from "@/lib/storage/shadow-twin";
+import { logArtifactWrite } from "@/lib/shadow-twin/artifact-logger";
+import { parseArtifactName, buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
+import { getShadowTwinMode } from "@/lib/shadow-twin/mode-helper";
+import { replacePlaceholdersInMarkdown } from "@/lib/markdown/placeholder-replacement";
+import { writeArtifact, type WriteArtifactOptions } from "@/lib/shadow-twin/artifact-writer";
+import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
+// LibraryService wird nur serverseitig verwendet - dynamischer Import verhindert Browser-Bundling
+import type { Library } from "@/types/library";
+let LibraryService: typeof import("@/lib/services/library-service").LibraryService | null = null;
 
 export interface TransformSaveOptions {
   targetLanguage: string;
@@ -122,15 +131,54 @@ interface TransformMetadata {
  */
 export class TransformService {
   /**
-   * Generiert einen standardisierten Namen für einen Shadow-Twin
-   * @param originalName Der ursprüngliche Dateiname
-   * @param targetLanguage Die Zielsprache
-   * @returns Der generierte Shadow-Twin-Name ohne Dateiendung
+   * Bestimmt den Shadow-Twin-Modus einer Library aus libraryId.
+   * Lädt die Library aus MongoDB, falls nötig (nur serverseitig).
+   * 
+   * WICHTIG: Im Browser wird immer 'legacy' zurückgegeben, um MongoDB-Import zu vermeiden.
+   * 
+   * @param libraryId ID der Library
+   * @param userEmail Optional: E-Mail des Benutzers (für Library-Zugriff, nur serverseitig)
+   * @returns 'legacy' oder 'v2'
    */
-  static generateShadowTwinName(originalName: string, targetLanguage: string): string {
-    // Entferne alle Dateiendungen aus dem Namen
-    const nameWithoutExtension = originalName.split('.').slice(0, -1).join('.');
-    return `${nameWithoutExtension}.${targetLanguage}`;
+  private static async getLibraryMode(libraryId: string, userEmail?: string): Promise<'legacy' | 'v2'> {
+    // Prüfe, ob wir im Browser sind (typeof window !== 'undefined')
+    if (typeof window !== 'undefined') {
+      // Browser-Umgebung: Verwende immer 'legacy', um MongoDB-Import zu vermeiden
+      FileLogger.debug('TransformService', 'Browser-Umgebung erkannt, verwende legacy-Modus', { libraryId });
+      return 'legacy';
+    }
+    
+    // Server-Umgebung: Lade Library aus MongoDB
+    try {
+      // Dynamischer Import nur serverseitig
+      if (!LibraryService) {
+        const libraryServiceModule = await import("@/lib/services/library-service");
+        LibraryService = libraryServiceModule.LibraryService;
+      }
+      
+      const libraryService = LibraryService.getInstance();
+      let library: Library | null = null;
+      
+      if (userEmail) {
+        library = await libraryService.getLibrary(userEmail, libraryId);
+      }
+      
+      // Falls keine Library gefunden, versuche öffentliche Library
+      if (!library) {
+        // Für öffentliche Libraries müssten wir getPublicLibraryById nutzen
+        // Für jetzt: Default zu legacy
+        FileLogger.debug('TransformService', 'Library nicht gefunden, verwende legacy-Modus', { libraryId });
+        return 'legacy';
+      }
+      
+      return getShadowTwinMode(library);
+    } catch (error) {
+      FileLogger.warn('TransformService', 'Fehler beim Laden der Library, verwende legacy-Modus', { 
+        libraryId, 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      return 'legacy';
+    }
   }
 
   /**
@@ -210,14 +258,26 @@ export class TransformService {
     
     // Ergebnis wird gespeichert, wenn gewünscht
     if (options.createShadowTwin) {
-      const shadowTwinName = TransformService.generateShadowTwinName(originalItem.metadata.name, options.targetLanguage);
+      // Erstelle ArtifactKey für Transcript
+      const artifactKey: ArtifactKey = {
+        sourceId: originalItem.id,
+        kind: 'transcript',
+        targetLanguage: options.targetLanguage,
+      };
+      
+      // Generiere Dateiname mit zentraler Logik (nur für Fallback, writeArtifact generiert selbst)
+      const shadowTwinName = buildArtifactName(artifactKey, originalItem.metadata.name).replace(/\.md$/, '');
+      
       const result = await TransformService.saveTwinFile(
         markdownContent,
         originalItem,
         shadowTwinName,
         options.fileExtension,
         provider,
-        refreshItems
+        refreshItems,
+        undefined, // parentId
+        libraryId, // libraryId für Modus-Bestimmung
+        artifactKey // ArtifactKey
       );
       
       return {
@@ -354,13 +414,23 @@ export class TransformService {
     if (options.createShadowTwin && transformedText) {
       console.log('[TransformService] Speichere Shadow-Twin mit Länge:', markdownContent.length);
       
+      // Erstelle ArtifactKey für Transcript
+      const artifactKey: ArtifactKey = {
+        sourceId: originalItem.id,
+        kind: 'transcript',
+        targetLanguage: options.targetLanguage,
+      };
+      
       const result = await TransformService.saveTwinFile(
         markdownContent,
         originalItem,
         options.fileName,
         options.fileExtension,
         provider,
-        refreshItems
+        refreshItems,
+        undefined, // parentId
+        libraryId, // libraryId
+        artifactKey // ArtifactKey
       );
       
       return {
@@ -401,22 +471,39 @@ export class TransformService {
     });
     
     // Text wird transformiert
-    const transformedText = await transformText(
+    let transformedText = await transformText(
       textContent,
       options.targetLanguage,
       libraryId,
       template
     );
     
+    // Ersetze Platzhalter im Frontmatter (z.B. {{audiofile}} → tatsächlicher Dateiname)
+    // WICHTIG: Wenn originalItem bereits ein Shadow-Twin ist, sollte source_file aus dessen Frontmatter verwendet werden
+    // Aber transformText erhält nur textContent (ohne Frontmatter), daher verwenden wir originalItem.metadata.name
+    // Die Platzhalter-Ersetzung sollte idealerweise bereits im Frontend erfolgen, wo wir Zugriff auf das vollständige content haben
+    transformedText = replacePlaceholdersInMarkdown(transformedText, originalItem.metadata.name);
+    
     // Ergebnis wird gespeichert, wenn gewünscht
     if (options.createShadowTwin) {
+      // Erstelle ArtifactKey für Transformation (mit template)
+      const artifactKey: ArtifactKey = {
+        sourceId: originalItem.id,
+        kind: 'transformation',
+        targetLanguage: options.targetLanguage,
+        templateName: template,
+      };
+      
       const result = await TransformService.saveTwinFile(
         transformedText,
         originalItem,
         options.fileName,
         options.fileExtension,
         provider,
-        refreshItems
+        refreshItems,
+        undefined, // parentId
+        libraryId, // libraryId
+        artifactKey // ArtifactKey
       );
       
       return {
@@ -718,6 +805,14 @@ export class TransformService {
       // Sonst: Markdown im Parent-Verzeichnis speichern (wie bisher)
       const parentIdForMarkdown = shadowTwinFolderId || originalItem.parentId;
       
+      // Erstelle ArtifactKey: Transformation wenn template vorhanden, sonst Transcript
+      const artifactKey: ArtifactKey = {
+        sourceId: originalItem.id,
+        kind: options.template ? 'transformation' : 'transcript',
+        targetLanguage: options.targetLanguage,
+        templateName: options.template,
+      };
+      
       const result = await TransformService.saveTwinFile(
         markdownContent,
         originalItem,
@@ -725,7 +820,9 @@ export class TransformService {
         options.fileExtension,
         provider,
         refreshItems,
-        parentIdForMarkdown // Parent-ID für Markdown (Verzeichnis oder Original-Parent)
+        parentIdForMarkdown, // Parent-ID für Markdown (Verzeichnis oder Original-Parent)
+        libraryId, // libraryId
+        artifactKey // ArtifactKey
       );
       
       FileLogger.info('TransformService', 'Shadow-Twin erfolgreich gespeichert', {
@@ -910,13 +1007,23 @@ export class TransformService {
         markdownLength: markdownContent.length
       });
       
+      // Erstelle ArtifactKey für Transcript
+      const artifactKey: ArtifactKey = {
+        sourceId: originalItem.id,
+        kind: 'transcript',
+        targetLanguage: options.targetLanguage,
+      };
+      
       const result = await TransformService.saveTwinFile(
         markdownContent,
         originalItem,
         options.fileName,
         options.fileExtension,
         provider,
-        refreshItems
+        refreshItems,
+        undefined, // parentId
+        libraryId, // libraryId
+        artifactKey // ArtifactKey
       );
       
       return {
@@ -939,6 +1046,8 @@ export class TransformService {
   }
   
   // Hilfsmethode zum Speichern der transformierten Datei
+  // Nutzt jetzt die zentrale writeArtifact() Logik
+  // WICHTIG: artifactKey ist erforderlich - keine Parsing-Logik mehr!
   private static async saveTwinFile(
     content: string,
     originalItem: StorageItem,
@@ -946,41 +1055,92 @@ export class TransformService {
     fileExtension: string,
     provider: StorageProvider,
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
-    parentId?: string // Optional: Parent-ID für Markdown (Shadow-Twin-Verzeichnis oder Original-Parent)
+    parentId: string | undefined, // Optional: Parent-ID für Markdown (Shadow-Twin-Verzeichnis oder Original-Parent)
+    libraryId: string | undefined, // Optional: Library-ID für Modus-Bestimmung
+    artifactKey: ArtifactKey // ERFORDERLICH: ArtifactKey muss explizit übergeben werden
   ): Promise<{ savedItem?: StorageItem; updatedItems: StorageItem[] }> {
-    console.log('[TransformService] saveTwinFile aufgerufen mit:', {
+    FileLogger.info('TransformService', 'saveTwinFile aufgerufen', {
       originalItemName: originalItem.metadata.name,
       fileName: fileName,
-      fileExtension: fileExtension
+      fileExtension: fileExtension,
+      parentId: parentId || originalItem.parentId,
+      artifactKey
     });
     
     // Bestimme Parent-ID (Shadow-Twin-Verzeichnis oder Original-Parent)
     const targetParentId = parentId || originalItem.parentId;
     
-    // NEU: Detaillierte Debug-Logs
-    FileLogger.info('TransformService', 'saveTwinFile gestartet', {
-      originalItemName: originalItem.metadata.name,
-      fileName: fileName,
-      fileExtension: fileExtension,
-      contentLength: content.length,
+    // Nutze explizit übergebenen ArtifactKey (ERFORDERLICH - kein Parsing mehr!)
+    const key = artifactKey;
+    
+    // Bestimme Library-Modus
+    let mode: 'legacy' | 'v2' = 'legacy';
+    if (libraryId) {
+      try {
+        mode = await this.getLibraryMode(libraryId);
+      } catch (error) {
+        FileLogger.warn('TransformService', 'Fehler beim Bestimmen des Library-Modus, verwende legacy', {
+          libraryId,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+    
+    // Prüfe ob Shadow-Twin-Verzeichnis verwendet werden soll
+    const createFolder = parentId && parentId !== originalItem.parentId;
+    
+    // Nutze zentrale writeArtifact() Logik
+    // WICHTIG: Entferne Anführungszeichen aus sourceName, falls vorhanden
+    let cleanSourceName = originalItem.metadata.name;
+    cleanSourceName = cleanSourceName.replace(/^["']|["']$/g, '').trim();
+    
+    const writeResult = await writeArtifact(provider, {
+      key,
+      sourceName: cleanSourceName,
       parentId: targetParentId,
-      isShadowTwinFolder: !!parentId
+      content,
+      mode,
+      createFolder,
     });
     
-    // Hole aktuelle Dateien im Verzeichnis
-    const currentItems = await refreshItems(targetParentId);
-    FileLogger.debug('TransformService', 'Aktuelle Dateien im Verzeichnis', {
-      parentId: originalItem.parentId,
-      itemCount: currentItems.length,
-      existingFiles: currentItems.filter(item => item.type === 'file').map(item => item.metadata.name)
+    // Aktualisierte Dateiliste holen (für UI-Update)
+    const finalParentId = writeResult.location === 'dotFolder' && writeResult.shadowTwinFolderId 
+      ? writeResult.shadowTwinFolderId 
+      : targetParentId;
+    const updatedItems = await refreshItems(finalParentId);
+    
+    FileLogger.info('TransformService', 'Shadow-Twin gespeichert via writeArtifact', {
+      fileId: writeResult.file.id,
+      fileName: writeResult.file.metadata.name,
+      location: writeResult.location,
+      wasUpdated: writeResult.wasUpdated,
+      mode
     });
+    
+    return {
+      savedItem: writeResult.file,
+      updatedItems
+    };
+  }
+  
+  // Legacy-Implementierung für Fallback (wenn Parsing fehlschlägt)
+  private static async saveTwinFileLegacy(
+    content: string,
+    originalItem: StorageItem,
+    fileName: string,
+    fileExtension: string,
+    provider: StorageProvider,
+    refreshItems: (folderId: string) => Promise<StorageItem[]>,
+    parentId?: string
+  ): Promise<{ savedItem?: StorageItem; updatedItems: StorageItem[] }> {
+    const targetParentId = parentId || originalItem.parentId;
+    const currentItems = await refreshItems(targetParentId);
     
     // Funktion zum Generieren eines eindeutigen Dateinamens
     const generateUniqueFileName = (baseName: string, extension: string): string => {
       let counter = 0;
       let candidateName = `${baseName}.${extension}`;
       
-      // Prüfe ob der Name bereits existiert
       while (currentItems.some(item => 
         item.type === 'file' && 
         item.metadata.name.toLowerCase() === candidateName.toLowerCase()
@@ -992,95 +1152,134 @@ export class TransformService {
       return candidateName;
     };
     
-    // Generiere eindeutigen Dateinamen
     const uniqueFileName = generateUniqueFileName(fileName, fileExtension);
-    
-    console.log('[TransformService] Eindeutiger Dateiname generiert:', {
-      baseNameWithLanguage: fileName,
-      uniqueFileName: uniqueFileName,
-      existingFiles: currentItems.filter(item => item.type === 'file').map(item => item.metadata.name)
-    });
-    
-    FileLogger.info('TransformService', 'Dateiname generiert', {
-      baseName: fileName,
-      uniqueFileName: uniqueFileName,
-      existingFilesCount: currentItems.filter(item => item.type === 'file').length
-    });
-    
-    // Markdown-Datei erstellen und speichern
     const fileBlob = new Blob([content], { type: "text/markdown" });
     const file = new File([fileBlob], uniqueFileName, { type: "text/markdown" });
     
-    FileLogger.info('TransformService', 'Datei vorbereitet für Upload', {
-      fileName: uniqueFileName,
-      fileSize: file.size,
-      fileType: file.type,
-      contentLength: content.length
-    });
-    
-    // In dasselbe Verzeichnis wie die Originaldatei hochladen
-    FileLogger.info('TransformService', 'Starte Upload', {
-      parentId: targetParentId,
-      fileName: uniqueFileName
-    });
-    
     const savedItem = await provider.uploadFile(targetParentId, file);
-    
-    FileLogger.info('TransformService', 'Upload erfolgreich', {
-      savedItemId: savedItem.id,
-      savedItemName: savedItem.metadata.name,
-      savedItemSize: savedItem.metadata.size
-    });
-    
-    // Aktualisierte Dateiliste holen
     const updatedItems = await refreshItems(targetParentId);
-    
-    FileLogger.info('TransformService', 'Dateiliste aktualisiert', {
-      updatedItemsCount: updatedItems.length,
-      newFileFound: updatedItems.some(item => item.id === savedItem.id)
-    });
     
     return { savedItem, updatedItems };
   }
 
   /**
    * Speichert einen bereits transformierten Text direkt ohne erneute Transformation
+   * 
+   * WICHTIG: artifactKind ist ERFORDERLICH - keine Parsing-Logik mehr!
+   * 
+   * @param text Transformierter Text (mit Frontmatter)
+   * @param originalItem Original-StorageItem
+   * @param options TransformSaveOptions (enthält targetLanguage, fileName, etc.)
+   * @param provider Storage-Provider
+   * @param refreshItems Callback zum Aktualisieren der Dateiliste
+   * @param libraryId Optional: Library-ID für Modus-Bestimmung
+   * @param artifactKind ERFORDERLICH: Art des Artefakts ('transcript' oder 'transformation')
+   * @param templateName Optional: Template-Name (ERFORDERLICH wenn artifactKind === 'transformation')
    */
   static async saveTransformedText(
     text: string,
     originalItem: StorageItem,
     options: TransformSaveOptions,
     provider: StorageProvider,
-    refreshItems: (folderId: string) => Promise<StorageItem[]>
+    refreshItems: (folderId: string) => Promise<StorageItem[]>,
+    libraryId: string | undefined, // Optional: Library-ID für Modus-Bestimmung
+    artifactKind: 'transcript' | 'transformation', // ERFORDERLICH: Art des Artefakts
+    templateName: string | undefined // Optional: Template-Name (ERFORDERLICH wenn artifactKind === 'transformation')
   ): Promise<TransformResult> {
+    // Ersetze Platzhalter im Frontmatter (z.B. {{audiofile}} → tatsächlicher Dateiname)
+    const textWithReplacedPlaceholders = replacePlaceholdersInMarkdown(text, originalItem.metadata.name);
+    
     return this.saveTransformationResult(
-      text,
+      textWithReplacedPlaceholders,
       originalItem,
       options,
       provider,
-      refreshItems
+      refreshItems,
+      libraryId, // libraryId weitergeben
+      artifactKind, // artifactKind weitergeben
+      templateName // templateName weitergeben
     );
   }
 
   /**
    * Speichert das Transformationsergebnis als Datei
+   * 
+   * WICHTIG: artifactKind und targetLanguage sind ERFORDERLICH - keine Parsing-Logik mehr!
+   * 
+   * @param text Transformierter Text (mit Frontmatter)
+   * @param originalItem Original-StorageItem
+   * @param options TransformSaveOptions (enthält targetLanguage, fileName, etc.)
+   * @param provider Storage-Provider
+   * @param refreshItems Callback zum Aktualisieren der Dateiliste
+   * @param libraryId Optional: Library-ID für Modus-Bestimmung
+   * @param artifactKind ERFORDERLICH: Art des Artefakts ('transcript' oder 'transformation')
+   * @param templateName Optional: Template-Name (nur bei Transformation, ERFORDERLICH wenn artifactKind === 'transformation')
    */
   static async saveTransformationResult(
     text: string,
     originalItem: StorageItem,
     options: TransformSaveOptions,
     provider: StorageProvider,
-    refreshItems: (folderId: string) => Promise<StorageItem[]>
+    refreshItems: (folderId: string) => Promise<StorageItem[]>,
+    libraryId: string | undefined, // Optional: Library-ID für Modus-Bestimmung
+    artifactKind: 'transcript' | 'transformation', // ERFORDERLICH: Art des Artefakts
+    templateName: string | undefined // Optional: Template-Name (ERFORDERLICH wenn artifactKind === 'transformation')
   ): Promise<TransformResult> {
     // Als Shadow-Twin oder als normale Datei mit angegebenem Namen speichern
     if (options.createShadowTwin) {
+      // Validiere erforderliche Parameter
+      if (!artifactKind) {
+        FileLogger.error('TransformService', 'artifactKind ist erforderlich', {
+          fileName: options.fileName,
+          targetLanguage: options.targetLanguage
+        });
+        return {
+          text,
+          updatedItems: []
+        };
+      }
+      
+      if (!options.targetLanguage) {
+        FileLogger.error('TransformService', 'targetLanguage ist erforderlich', {
+          fileName: options.fileName,
+          artifactKind
+        });
+        return {
+          text,
+          updatedItems: []
+        };
+      }
+      
+      if (artifactKind === 'transformation' && !templateName) {
+        FileLogger.error('TransformService', 'templateName ist erforderlich für Transformation', {
+          fileName: options.fileName,
+          artifactKind,
+          targetLanguage: options.targetLanguage
+        });
+        return {
+          text,
+          updatedItems: []
+        };
+      }
+      
+      // Erstelle ArtifactKey aus expliziten Parametern (KEIN Parsing mehr!)
+      const artifactKey: ArtifactKey = {
+        sourceId: originalItem.id,
+        kind: artifactKind,
+        targetLanguage: options.targetLanguage,
+        templateName: artifactKind === 'transformation' ? templateName : undefined,
+      };
+      
       const result = await TransformService.saveTwinFile(
         text,
         originalItem,
         options.fileName,
         options.fileExtension,
         provider,
-        refreshItems
+        refreshItems,
+        undefined, // parentId
+        libraryId, // libraryId
+        artifactKey // ArtifactKey (explizit erstellt)
       );
       
       return {

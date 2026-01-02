@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
+import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
+import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
 
 export interface TransformSaveOptions {
   [key: string]: unknown;
@@ -67,9 +69,22 @@ export function TransformSaveOptions({
     return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
   }
 
-  // Generiere Shadow-Twin Dateinamen nach Konvention: {originalname}.{targetLanguage}.md
-  function generateShadowTwinName(baseName: string, targetLanguage: string): string {
-    return `${baseName}.${targetLanguage}`;
+  // Generiere Shadow-Twin Dateinamen mit zentraler buildArtifactName Funktion
+  // WICHTIG: Diese Komponente generiert standardmäßig Transcript-Namen (keine Transformation)
+  function generateShadowTwinName(sourceFileName: string, targetLanguage: string): string {
+    // Erstelle ArtifactKey für Transcript (Standard-Fall)
+    // sourceId ist hier ein Platzhalter, da wir nur den Dateinamen generieren
+    const artifactKey: ArtifactKey = {
+      sourceId: 'placeholder', // Wird beim tatsächlichen Speichern durch TransformService ersetzt
+      kind: 'transcript',
+      targetLanguage,
+    };
+    
+    // Nutze zentrale buildArtifactName Funktion
+    const artifactName = buildArtifactName(artifactKey, sourceFileName);
+    
+    // Entferne .md Extension für die UI-Anzeige (wird später wieder hinzugefügt)
+    return artifactName.replace(/\.md$/, '');
   }
 
   const [options, setOptions] = React.useState<TransformSaveOptions>(() => {
@@ -92,6 +107,11 @@ export function TransformSaveOptions({
     setOptions(prev => {
       const updated = { ...prev, ...newOptions };
       
+      // Wenn showCreateShadowTwin=false, dann ist createShadowTwin immer true (nicht optional)
+      if (!showCreateShadowTwin) {
+        updated.createShadowTwin = true;
+      }
+      
       // Wenn sich die Zielsprache ändert und Shadow-Twin aktiviert ist, 
       // aktualisiere den Dateinamen entsprechend
       if (newOptions.targetLanguage && updated.createShadowTwin) {
@@ -108,7 +128,7 @@ export function TransformSaveOptions({
       onOptionsChangeAction(updated);
       return updated;
     });
-  }, [onOptionsChangeAction, originalFileName]);
+  }, [onOptionsChangeAction, originalFileName, showCreateShadowTwin]);
 
   // Effekt, um die Optionen bei Änderung des Originalnamens zu aktualisieren
   React.useEffect(() => {

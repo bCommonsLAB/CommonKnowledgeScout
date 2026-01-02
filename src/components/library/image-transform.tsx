@@ -12,7 +12,9 @@ import { TransformService, TransformResult, ImageTransformOptions } from "@/lib/
 import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
-import { FileLogger } from "@/lib/debug/logger"
+import { FileLogger } from "@/lib/debug/logger";
+import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
+import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
 
 interface ImageTransformProps {
   onTransformComplete?: (text: string, twinItem?: StorageItem, updatedItems?: StorageItem[]) => void;
@@ -29,23 +31,23 @@ export function ImageTransform({ onTransformComplete, onRefreshFolder }: ImageTr
   // Referenz für den TransformResultHandler
   const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});
   
-  // Hilfsfunktion für den Basis-Dateinamen
-  const getBaseFileName = (fileName: string): string => {
-    const lastDotIndex = fileName.lastIndexOf(".");
-    return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
+  // Generiere Shadow-Twin Dateinamen mit zentraler buildArtifactName Funktion
+  const generateShadowTwinName = (sourceFileName: string, targetLanguage: string): string => {
+    const artifactKey: ArtifactKey = {
+      sourceId: 'placeholder', // Wird beim Speichern durch TransformService ersetzt
+      kind: 'transcript',
+      targetLanguage,
+    };
+    const artifactName = buildArtifactName(artifactKey, sourceFileName);
+    // Entferne .md Extension für die UI-Anzeige (wird später wieder hinzugefügt)
+    return artifactName.replace(/\.md$/, '');
   };
   
-  // Generiere Shadow-Twin Dateinamen nach Konvention
-  const generateShadowTwinName = (baseName: string, targetLanguage: string): string => {
-    return `${baseName}.${targetLanguage}`;
-  };
-  
-  const baseName = item ? getBaseFileName(item.metadata.name) : '';
   const defaultLanguage = "de";
   
   const [saveOptions, setSaveOptions] = useState<ImageTransformOptions>({
     targetLanguage: defaultLanguage,
-    fileName: generateShadowTwinName(baseName, defaultLanguage),
+    fileName: item ? generateShadowTwinName(item.metadata.name, defaultLanguage) : '',
     createShadowTwin: true,
     fileExtension: "md",
     extractionMethod: "ocr",

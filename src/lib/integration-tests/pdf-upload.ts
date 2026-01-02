@@ -16,8 +16,9 @@ import {
   findShadowTwinFolder,
   findShadowTwinMarkdown,
   generateShadowTwinFolderName,
-  generateShadowTwinName,
 } from '@/lib/storage/shadow-twin'
+import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import type { StorageItem } from '@/lib/storage/types'
 import { FileLogger } from '@/lib/debug/logger'
 import { extractFrontmatterBlock } from '@/lib/markdown/frontmatter'
@@ -136,9 +137,15 @@ export async function prepareShadowTwinForTestCase(args: PrepareShadowTwinArgs):
       const name = String(it.metadata?.name || '')
       if (!name.toLowerCase().endsWith('.md')) return false
       // Transcript oder transformiert für diese Basisdatei
-      const transcriptName = generateShadowTwinName(baseName, lang, true)
-      const transformedName = generateShadowTwinName(baseName, lang, false)
-      return name === transcriptName || name === transformedName
+      // Nutze zentrale buildArtifactName Funktion
+      const transcriptKey: ArtifactKey = {
+        sourceId: 'test',
+        kind: 'transcript',
+        targetLanguage: lang,
+      }
+      const transcriptName = buildArtifactName(transcriptKey, `${baseName}.pdf`)
+      // Für Transformation: würde templateName benötigen, hier nur Transcript prüfen
+      return name === transcriptName
     })
     return undefined
   }
@@ -149,7 +156,14 @@ export async function prepareShadowTwinForTestCase(args: PrepareShadowTwinArgs):
   }
 
   if (state === 'legacy_markdown_in_parent') {
-    const transformedName = generateShadowTwinName(baseName, lang, false)
+    // Nutze zentrale buildArtifactName Funktion für Legacy-Test
+    // Für Legacy-Tests verwenden wir Transcript-Format (ohne Template)
+    const transcriptKey: ArtifactKey = {
+      sourceId: 'test',
+      kind: 'transcript',
+      targetLanguage: lang,
+    }
+    const transformedName = buildArtifactName(transcriptKey, `${baseName}.pdf`)
     let usedRealFiles = false
     let shadowTwinMarkdownFound = false
     let shadowTwinMarkdownHasFrontmatter = false

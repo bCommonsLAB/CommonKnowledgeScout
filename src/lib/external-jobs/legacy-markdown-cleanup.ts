@@ -35,23 +35,63 @@ export async function cleanupLegacyMarkdownAfterTemplate(
     return
   }
 
+  // WICHTIG: Prüfe, ob die Datei im Shadow-Twin-Verzeichnis liegt.
+  // Wenn ja, handelt es sich um ein Transcript (korrektes Artefakt) und sollte NICHT gelöscht werden.
+  // Nur Legacy-Dateien im Parent-Verzeichnis (PDF-Ordner) sollten gelöscht werden.
   try {
-    await provider.deleteItem(legacyMarkdownId)
-    try {
-      await repo.traceAddEvent(jobId, {
-        spanId: 'template',
-        name: 'legacy_markdown_removed_from_parent',
-        attributes: {
-          legacyMarkdownId,
-          parentId: preTemplateResult.markdownFileId ? 'unknown' : 'unknown', // parentId wird nicht benötigt für Trace
-        },
+    const fileItem = await provider.getItemById(legacyMarkdownId)
+    if (!fileItem) {
+      // Datei existiert nicht mehr, nichts zu tun
+      return
+    }
+
+    const fileParentId = fileItem.parentId
+    const sourceParentId = preTemplateResult.internal?.parentId as string | undefined || 'root'
+    
+    // Prüfe, ob die Datei im Shadow-Twin-Verzeichnis liegt
+    const { findShadowTwinFolder } = await import('@/lib/storage/shadow-twin')
+    const shadowTwinFolder = await findShadowTwinFolder(sourceParentId, preTemplateResult.markdownFileName || '', provider)
+    
+    // Wenn die Datei im Shadow-Twin-Verzeichnis liegt, ist es ein Transcript → NICHT löschen
+    if (shadowTwinFolder && fileParentId === shadowTwinFolder.id) {
+      FileLogger.info('legacy-markdown-cleanup', 'Markdown liegt im Shadow-Twin-Verzeichnis (Transcript) - wird nicht gelöscht', {
+        jobId,
+        legacyMarkdownId,
+        fileParentId,
+        shadowTwinFolderId: shadowTwinFolder.id,
+        fileName: preTemplateResult.markdownFileName,
       })
-    } catch {
-      // Trace-Fehler nicht kritisch
+      return
+    }
+
+    // Nur löschen, wenn die Datei im Parent-Verzeichnis liegt (Legacy-Datei)
+    if (fileParentId === sourceParentId) {
+      await provider.deleteItem(legacyMarkdownId)
+      try {
+        await repo.traceAddEvent(jobId, {
+          spanId: 'template',
+          name: 'legacy_markdown_removed_from_parent',
+          attributes: {
+            legacyMarkdownId,
+            parentId: fileParentId,
+            fileName: preTemplateResult.markdownFileName,
+          },
+        })
+      } catch {
+        // Trace-Fehler nicht kritisch
+      }
+    } else {
+      FileLogger.info('legacy-markdown-cleanup', 'Markdown liegt nicht im Parent-Verzeichnis - wird nicht gelöscht', {
+        jobId,
+        legacyMarkdownId,
+        fileParentId,
+        sourceParentId,
+        fileName: preTemplateResult.markdownFileName,
+      })
     }
   } catch (error) {
     // Fehler beim Löschen sind nicht kritisch für den Job, aber für Debugging interessant
-    FileLogger.warn('legacy-markdown-cleanup', 'Legacy-Markdown konnte nicht aus PDF-Ordner gelöscht werden', {
+    FileLogger.warn('legacy-markdown-cleanup', 'Fehler beim Prüfen/Löschen der Legacy-Markdown-Datei', {
       jobId,
       legacyMarkdownId,
       error: error instanceof Error ? error.message : String(error),

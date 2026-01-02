@@ -276,6 +276,8 @@ export class LibraryService {
       const baseConfig = {
         transcription: lib.transcription,
         secretaryService: lib.config?.secretaryService,
+        // Shadow-Twin-Modus ist kein Secret und muss für UI/Flows sichtbar sein
+        shadowTwin: lib.config?.shadowTwin,
         // Chat-/Galerie-Settings sind sicher und werden an den Client geliefert
         chat: lib.config?.chat,
         // Public-Publishing-Daten (ohne API-Key) sind sicher für den Client

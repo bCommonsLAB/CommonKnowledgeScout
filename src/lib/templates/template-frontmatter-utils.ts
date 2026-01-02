@@ -424,6 +424,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         const autoFillMetadataField = fileNameObj && typeof fileNameObj.autoFillMetadataField === 'boolean' ? fileNameObj.autoFillMetadataField : undefined
         const extension = fileNameObj && typeof fileNameObj.extension === 'string' ? fileNameObj.extension : undefined
         const fallbackPrefix = fileNameObj && typeof fileNameObj.fallbackPrefix === 'string' ? fileNameObj.fallbackPrefix : undefined
+        const createInOwnFolder = outputObj && typeof outputObj.createInOwnFolder === 'boolean' ? outputObj.createInOwnFolder : undefined
         
         // ImageFields extrahieren
         const imageFields = Array.isArray(obj.imageFields) ? obj.imageFields : []
@@ -477,7 +478,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         if (detailViewType === 'book' || detailViewType === 'session') {
           result.preview = { detailViewType }
         }
-        if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix) {
+        if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix || createInOwnFolder !== undefined) {
           result.output = {
             fileName: {
               metadataFieldKey,
@@ -485,6 +486,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
               extension,
               fallbackPrefix,
             },
+            createInOwnFolder,
           }
         }
         
@@ -537,6 +539,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         const autoFillMetadataField = fileNameObj && typeof fileNameObj.autoFillMetadataField === 'boolean' ? fileNameObj.autoFillMetadataField : undefined
         const extension = fileNameObj && typeof fileNameObj.extension === 'string' ? fileNameObj.extension : undefined
         const fallbackPrefix = fileNameObj && typeof fileNameObj.fallbackPrefix === 'string' ? fileNameObj.fallbackPrefix : undefined
+        const createInOwnFolder = outputObj && typeof outputObj.createInOwnFolder === 'boolean' ? outputObj.createInOwnFolder : undefined
         
         // ImageFields extrahieren (Fallback)
         const imageFields = Array.isArray(obj.imageFields) ? obj.imageFields : []
@@ -590,7 +593,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         if (detailViewType === 'book' || detailViewType === 'session') {
           result.preview = { detailViewType }
         }
-        if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix) {
+        if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix || createInOwnFolder !== undefined) {
           result.output = {
             fileName: {
               metadataFieldKey,
@@ -598,6 +601,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
               extension,
               fallbackPrefix,
             },
+            createInOwnFolder,
           }
         }
         
@@ -700,21 +704,28 @@ function serializeCreationToYaml(creation: TemplateCreationConfig, indent: numbe
     lines.push(`${indentStr}  detailViewType: ${creation.preview.detailViewType}`)
   }
 
-  // output.fileName (optional)
-  if (creation.output?.fileName) {
+  // output.fileName und output.createInOwnFolder (optional)
+  if (creation.output?.fileName || creation.output?.createInOwnFolder !== undefined) {
     const fn = creation.output.fileName
-    const hasAny =
-      Boolean(fn.metadataFieldKey) ||
-      fn.autoFillMetadataField !== undefined ||
-      Boolean(fn.extension) ||
-      Boolean(fn.fallbackPrefix)
-    if (hasAny) {
+    const hasFileName =
+      Boolean(fn?.metadataFieldKey) ||
+      fn?.autoFillMetadataField !== undefined ||
+      Boolean(fn?.extension) ||
+      Boolean(fn?.fallbackPrefix)
+    const hasCreateInOwnFolder = creation.output.createInOwnFolder !== undefined
+    
+    if (hasFileName || hasCreateInOwnFolder) {
       lines.push(`${indentStr}output:`)
-      lines.push(`${indentStr}  fileName:`)
-      if (fn.metadataFieldKey) lines.push(`${indentStr}    metadataFieldKey: ${fn.metadataFieldKey}`)
-      if (fn.autoFillMetadataField !== undefined) lines.push(`${indentStr}    autoFillMetadataField: ${fn.autoFillMetadataField ? 'true' : 'false'}`)
-      if (fn.extension) lines.push(`${indentStr}    extension: ${fn.extension}`)
-      if (fn.fallbackPrefix) lines.push(`${indentStr}    fallbackPrefix: "${fn.fallbackPrefix.replace(/"/g, '\\"')}"`)
+      if (hasFileName && fn) {
+        lines.push(`${indentStr}  fileName:`)
+        if (fn.metadataFieldKey) lines.push(`${indentStr}    metadataFieldKey: ${fn.metadataFieldKey}`)
+        if (fn.autoFillMetadataField !== undefined) lines.push(`${indentStr}    autoFillMetadataField: ${fn.autoFillMetadataField ? 'true' : 'false'}`)
+        if (fn.extension) lines.push(`${indentStr}    extension: ${fn.extension}`)
+        if (fn.fallbackPrefix) lines.push(`${indentStr}    fallbackPrefix: "${fn.fallbackPrefix.replace(/"/g, '\\"')}"`)
+      }
+      if (hasCreateInOwnFolder) {
+        lines.push(`${indentStr}  createInOwnFolder: ${creation.output.createInOwnFolder ? 'true' : 'false'}`)
+      }
     }
   }
   

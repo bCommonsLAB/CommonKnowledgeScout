@@ -106,11 +106,14 @@ export interface ChaptersResult {
 }
 
 // --- Storage ---
+import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
+
 export interface SaveMarkdownArgs {
   ctx: RequestContext
   parentId: string
   fileName: string
   markdown: string
+  artifactKey?: ArtifactKey // Optional: Expliziter ArtifactKey für zentrale Logik (verhindert Parsing aus Dateinamen)
 }
 
 export interface SaveMarkdownResult {

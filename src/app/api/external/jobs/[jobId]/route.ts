@@ -482,19 +482,109 @@ export async function POST(
         const shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
         const targetParentId = shadowTwinFolderId || job.correlation?.source?.parentId || 'root';
 
-        // Optionale Template-Verarbeitung (Phase 2) - vereinfacht via runTemplatePhase
-        const fmFromBodyUnknown = (body?.data?.metadata as unknown) || null
-        const fmFromBody = (fmFromBodyUnknown && typeof fmFromBodyUnknown === 'object' && !Array.isArray(fmFromBodyUnknown)) ? (fmFromBodyUnknown as Record<string, unknown>) : null
+        // WICHTIG: Wenn Extract-Phase aktiviert ist und extractedText vorhanden ist,
+        // speichere das Transcript-Markdown SOFORT, bevor die Template-Phase ausgeführt wird.
+        // Dies stellt sicher, dass Schritt 1 sein Ergebnis speichert, bevor Schritt 2 beginnt.
+        // Die Schritte sollten unabhängig voneinander ihre Ergebnisse speichern.
+        if (extractedText) {
+          try {
+            const { writeArtifact } = await import('@/lib/shadow-twin/artifact-writer')
+            const { getShadowTwinMode } = await import('@/lib/shadow-twin/mode-helper')
+            const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
+            const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+            const sourceItemId = job.correlation.source?.itemId || 'unknown'
+            const sourceName = job.correlation.source?.name || 'output'
+            
+            // Bestimme Library-Modus
+            let mode: 'legacy' | 'v2' = 'legacy'
+            try {
+              const libraryService = LibraryService.getInstance()
+              const library = await libraryService.getLibrary(job.userEmail, job.libraryId)
+              if (library) {
+                mode = getShadowTwinMode(library)
+              }
+            } catch {
+              // Fallback zu legacy
+            }
+            
+            // Erstelle ArtifactKey für Transcript
+            const artifactKey = {
+              sourceId: sourceItemId,
+              kind: 'transcript' as const,
+              targetLanguage: lang,
+            }
+            
+            // Speichere Markdown OHNE Frontmatter (reines Transcript)
+            // Frontmatter wird erst bei Template-Phase hinzugefügt
+            const cleanText = stripAllFrontmatter(extractedText)
+            
+            // WICHTIG: Wenn shadowTwinFolderId vorhanden ist, ist parentId bereits das Shadow-Twin-Verzeichnis.
+            // In diesem Fall sollte createFolder false sein, da das Verzeichnis bereits existiert.
+            const createFolder = !shadowTwinFolderId
+            
+            // Nutze zentrale writeArtifact() Logik
+            const writeResult = await writeArtifact(provider, {
+              key: artifactKey,
+              sourceName,
+              parentId: targetParentId,
+              content: cleanText,
+              mode,
+              createFolder,
+            })
+            
+            bufferLog(jobId, {
+              phase: 'extract_transcript_saved',
+              message: `Transcript-Markdown gespeichert${shadowTwinFolderId ? ' im Shadow-Twin-Verzeichnis' : ' direkt im Parent'}`,
+              parentId: targetParentId,
+              shadowTwinFolderId: shadowTwinFolderId || null,
+              savedItemId: writeResult.file.id,
+              fileName: writeResult.file.metadata.name,
+            })
+            
+            // WICHTIG: Shadow-Twin-State nach dem Speichern aktualisieren
+            // Dies stellt sicher, dass das Shadow-Twin-State im Job-Dokument aktualisiert wird
+            if (writeResult.file.id && job.correlation?.source?.itemId) {
+              try {
+                const { analyzeShadowTwin } = await import('@/lib/shadow-twin/analyze-shadow-twin')
+                const { toMongoShadowTwinState } = await import('@/lib/shadow-twin/shared')
+                const updatedShadowTwinState = await analyzeShadowTwin(job.correlation.source.itemId, provider)
+                if (updatedShadowTwinState) {
+                  const mongoState = toMongoShadowTwinState({
+                    ...updatedShadowTwinState,
+                    processingStatus: 'processing' as const, // Noch nicht ready, Template-Phase folgt noch
+                  })
+                  await repo.setShadowTwinState(jobId, mongoState)
+                  bufferLog(jobId, {
+                    phase: 'extract_shadow_twin_state_updated',
+                    message: 'Shadow-Twin-State nach Transcript-Speicherung aktualisiert',
+                    shadowTwinFolderId: updatedShadowTwinState.shadowTwinFolderId || null,
+                  })
+                }
+              } catch (error) {
+                bufferLog(jobId, {
+                  phase: 'extract_shadow_twin_state_update_error',
+                  message: `Fehler beim Aktualisieren des Shadow-Twin-States: ${error instanceof Error ? error.message : String(error)}`
+                })
+                // Fehler nicht kritisch - Template-Phase kann trotzdem fortgesetzt werden
+              }
+            }
+          } catch (error) {
+            bufferLog(jobId, {
+              phase: 'extract_transcript_save_failed',
+              message: `Fehler beim Speichern des Transcript-Markdowns: ${error instanceof Error ? error.message : String(error)}`
+            })
+            // Fehler nicht kritisch - Template-Phase kann trotzdem fortgesetzt werden
+          }
+        }
 
-        const templateResult = await runTemplatePhase({
-          ctx,
-          provider,
-          repo,
-          extractedText: extractedText || '',
-          bodyMetadata: fmFromBody || undefined,
-          policies: { metadata: policies.metadata as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
-          autoSkip,
-          imagesPhaseEnabled,
+        // WICHTIG: Bilder werden in Phase 1 (Extract) verarbeitet, nicht in Phase 2 (Template)
+        // Die Bilder werden beim Extract erstellt und sollten dort auch gespeichert werden
+        if (extractedText && imagesPhaseEnabled) {
+          try {
+            const { processAllImageSources } = await import('@/lib/external-jobs/images')
+            const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+            
+            await processAllImageSources(ctx, provider, {
               pagesArchiveData,
               pagesArchiveUrl,
               pagesArchiveFilename: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename,
@@ -503,8 +593,52 @@ export async function POST(
               imagesArchiveUrl: imagesArchiveUrlFromWorker,
               mistralOcrRaw,
               hasMistralOcrImages,
-          mistralOcrImagesUrl,
+              mistralOcrImagesUrl,
+              extractedText,
+              lang,
               targetParentId,
+              imagesPhaseEnabled,
+              shadowTwinFolderId, // Verwende Shadow-Twin-Verzeichnis aus Job-State
+            })
+            
+            bufferLog(jobId, {
+              phase: 'extract_images_processed',
+              message: 'Bilder-Verarbeitung in Phase 1 (Extract) abgeschlossen'
+            })
+          } catch (error) {
+            bufferLog(jobId, {
+              phase: 'extract_images_error',
+              message: `Fehler bei der Bild-Verarbeitung in Phase 1: ${error instanceof Error ? error.message : String(error)}`
+            })
+            // Fehler nicht kritisch - Template-Phase kann trotzdem fortgesetzt werden
+          }
+        }
+
+        // Optionale Template-Verarbeitung (Phase 2) - vereinfacht via runTemplatePhase
+        const fmFromBodyUnknown = (body?.data?.metadata as unknown) || null
+        const fmFromBody = (fmFromBodyUnknown && typeof fmFromBodyUnknown === 'object' && !Array.isArray(fmFromBodyUnknown)) ? (fmFromBodyUnknown as Record<string, unknown>) : null
+
+        // WICHTIG: Bilder werden nicht mehr in der Template-Phase verarbeitet
+        // Sie wurden bereits in Phase 1 (Extract) verarbeitet
+        const templateResult = await runTemplatePhase({
+          ctx,
+          provider,
+          repo,
+          extractedText: extractedText || '',
+          bodyMetadata: fmFromBody || undefined,
+          policies: { metadata: policies.metadata as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
+          autoSkip,
+          imagesPhaseEnabled: false, // Bilder werden nicht mehr in Template-Phase verarbeitet
+          pagesArchiveData: undefined, // Nicht mehr benötigt - Bilder wurden bereits in Phase 1 verarbeitet
+          pagesArchiveUrl: undefined,
+          pagesArchiveFilename: undefined,
+          imagesArchiveData: undefined,
+          imagesArchiveFilename: undefined,
+          imagesArchiveUrl: undefined,
+          mistralOcrRaw: undefined,
+          hasMistralOcrImages: false,
+          mistralOcrImagesUrl: undefined,
+          targetParentId,
           libraryConfig: undefined, // libraryConfig wird derzeit nicht verwendet
         })
 
@@ -534,8 +668,9 @@ export async function POST(
         docMetaForIngestion = templateResult.metadata
         savedItemId = templateResult.savedItemId
 
-      // Bilder-Verarbeitung wurde bereits in runTemplatePhase durchgeführt
-      if (imagesPhaseEnabled && templateResult.savedItemId) {
+      // WICHTIG: Bilder-Verarbeitung wurde bereits in Phase 1 (Extract) durchgeführt
+      // Die Template-Phase speichert nur das transformierte Markdown
+      if (templateResult.savedItemId) {
         savedItems.push(templateResult.savedItemId)
       }
 
@@ -552,15 +687,18 @@ export async function POST(
           try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 10, updatedAt: new Date().toISOString(), message: 'ingest_start', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, libraryId: job.libraryId }) } catch {}
 
           // Ingest-Phase ausführen
+          // WICHTIG: Übergebe leeres markdown, damit loadShadowTwinMarkdown() das transformierte Markdown lädt
+          // (nicht das rohe extractedText/Transcript)
+          // Die Bilder werden über shadowTwinFolderId aufgelöst
           const ingestResult = await runIngestPhase({
             ctx,
             provider,
             repo,
-            markdown: extractedText || '',
+            markdown: '', // Leer lassen, damit loadShadowTwinMarkdown() das transformierte Markdown lädt
             meta: docMetaForIngestion,
             savedItemId: savedItemId || '',
             policies: { ingest: policies.ingest as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
-            extractedText,
+            extractedText: undefined, // Nicht übergeben, damit loadShadowTwinMarkdown() verwendet wird
           })
 
           if (ingestResult.error) {

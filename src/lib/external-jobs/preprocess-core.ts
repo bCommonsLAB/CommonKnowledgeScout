@@ -16,6 +16,9 @@ import type { StorageProvider } from '@/lib/storage/types'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { LibraryService } from '@/lib/services/library-service'
+import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
+import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
+import type { Library } from '@/types/library'
 
 export interface FoundMarkdown {
   hasMarkdown: boolean;
@@ -41,14 +44,46 @@ export async function findPdfMarkdown(
   provider: StorageProvider,
   parentId: string,
   baseName: string,
-  lang: string
+  lang: string,
+  library?: Library | null,
+  sourceItemId?: string,
+  sourceName?: string
 ): Promise<FoundMarkdown> {
-  // Verwende die robuste Shadow-Twin-Suche, die auch im Shadow-Twin-Verzeichnis sucht
-  // und Fallback auf andere Sprachen hat
-  const { findShadowTwinFolder } = await import('@/lib/storage/shadow-twin')
+  const originalName = sourceName || `${baseName}.pdf` // Annahme: Original ist PDF
   
-  // Bestimme originalName aus baseName (falls nicht verfügbar, verwende baseName)
-  const originalName = `${baseName}.pdf` // Annahme: Original ist PDF
+  // Ermittle Library-Modus (falls Library verfügbar)
+  const mode = library ? getShadowTwinMode(library) : 'legacy'
+  
+  if (mode === 'v2' && sourceItemId) {
+    // V2-Modus: Nutze neuen Resolver
+    const resolved = await resolveArtifact(provider, {
+      sourceItemId,
+      sourceName: originalName,
+      parentId,
+      mode: 'v2',
+      targetLanguage: lang,
+      preferredKind: 'transcript',
+    })
+    
+    if (resolved) {
+      try {
+        const bin = await provider.getBinary(resolved.fileId)
+        const text = await bin.blob.text()
+        return {
+          hasMarkdown: true,
+          fileId: resolved.fileId,
+          fileName: resolved.fileName,
+          text,
+        }
+      } catch {
+        // Fallback zu Legacy bei Fehler
+      }
+    }
+  }
+  
+  // Legacy-Modus oder Fallback
+  // Verwende die robuste Shadow-Twin-Suche, die auch im Shadow-Twin-Verzeichnis sucht
+  const { findShadowTwinFolder } = await import('@/lib/storage/shadow-twin')
   
   // 1. Versuche Shadow-Twin-Verzeichnis zu finden
   const shadowTwinFolder = await findShadowTwinFolder(parentId, originalName, provider)

@@ -27,9 +27,14 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
+import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
+import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
+import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
+import { LibraryService } from '@/lib/services/library-service'
+import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 
 export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdownResult> {
-  const { ctx, parentId, fileName, markdown } = args
+  const { ctx, parentId, fileName, markdown, artifactKey: explicitArtifactKey } = args
   const repo = new ExternalJobsRepository()
   const provider = await getServerProvider(ctx.job.userEmail, ctx.job.libraryId)
 
@@ -39,11 +44,16 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
   const targetParentId = parentId
   const shadowTwinFolderId: string | undefined = ctx.job.shadowTwinState?.shadowTwinFolderId
   
+  // WICHTIG: Wenn parentId bereits das Shadow-Twin-Verzeichnis ist, sollte kein neues Verzeichnis erstellt werden
+  // Wenn shadowTwinFolderId vorhanden ist, existiert das Verzeichnis bereits
+  const isParentShadowTwinFolder = shadowTwinFolderId && parentId === shadowTwinFolderId
+  
   bufferLog(ctx.jobId, {
     phase: 'markdown_save',
-    message: `Speichere Markdown${shadowTwinFolderId && parentId === shadowTwinFolderId ? ' im Shadow-Twin-Verzeichnis' : ''}`,
+    message: `Speichere Markdown${isParentShadowTwinFolder ? ' im Shadow-Twin-Verzeichnis' : ''}`,
     parentId: targetParentId,
-    shadowTwinFolderId: shadowTwinFolderId || null
+    shadowTwinFolderId: shadowTwinFolderId || null,
+    isParentShadowTwinFolder
   })
 
   // Starte Postprocessing-Span für Markdown-Speicherung
@@ -58,19 +68,99 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
     // Span könnte bereits existieren (nicht kritisch)
   }
 
-  const file = new File([new Blob([markdown], { type: 'text/markdown' })], fileName, { type: 'text/markdown' })
+  // Bestimme Library-Modus für zentrale Logik
+  let mode: 'legacy' | 'v2' = 'legacy'
+  try {
+    const libraryService = LibraryService.getInstance()
+    const library = await libraryService.getLibrary(ctx.job.userEmail, ctx.job.libraryId)
+    if (library) {
+      mode = getShadowTwinMode(library)
+    }
+  } catch {
+    // Fallback zu legacy
+  }
+
+  // WICHTIG: Verwende expliziten ArtifactKey, falls übergeben (verhindert fehleranfälliges Parsing)
+  // Falls nicht übergeben, parse aus fileName (Legacy-Fallback für Rückwärtskompatibilität)
+  const sourceItemId = ctx.job.correlation?.source?.itemId || 'unknown'
+  const sourceName = ctx.job.correlation?.source?.name || fileName
+  
+  let artifactKey: ArtifactKey
+  if (explicitArtifactKey) {
+    // Expliziter ArtifactKey wurde übergeben - verwende diesen direkt (bevorzugt)
+    artifactKey = explicitArtifactKey
+  } else {
+    // Fallback: Parse fileName um ArtifactKey zu erstellen (Legacy-Verhalten)
+    // Nutze jetzt zentrale parseArtifactName() Funktion statt manueller split-Logik
+    try {
+      const parsed = parseArtifactName(fileName, sourceName)
+      
+      if (parsed.kind && parsed.targetLanguage) {
+        // Erfolgreich geparst: Verwende geparste Werte
+        artifactKey = {
+          sourceId: sourceItemId,
+          kind: parsed.kind,
+          targetLanguage: parsed.targetLanguage,
+          templateName: parsed.templateName || undefined,
+        }
+      } else {
+        // Parsing nicht erfolgreich: Fallback zu Default
+        artifactKey = {
+          sourceId: sourceItemId,
+          kind: 'transcript',
+          targetLanguage: 'de', // Default
+        }
+      }
+    } catch (error) {
+      // Fehler beim Parsing: Fallback zu Default
+      bufferLog(ctx.jobId, {
+        phase: 'markdown_save_parse_error',
+        message: `Fehler beim Parsen des Dateinamens, verwende Default`,
+        fileName,
+        error: error instanceof Error ? error.message : String(error)
+      })
+      artifactKey = {
+        sourceId: sourceItemId,
+        kind: 'transcript',
+        targetLanguage: 'de', // Default
+      }
+    }
+  }
+
+  // WICHTIG: Wenn parentId bereits das Shadow-Twin-Verzeichnis ist (isParentShadowTwinFolder),
+  // oder wenn shadowTwinFolderId vorhanden ist (Verzeichnis existiert bereits),
+  // dann sollte createFolder auf false gesetzt werden, um keine verschachtelten Ordner zu erstellen.
+  // Wenn shadowTwinFolderId nicht vorhanden ist, prüfe ob ein Verzeichnis erstellt werden soll.
+  const createFolderValue = ctx.job.shadowTwinState?.createFolder;
+  const createFolder = !isParentShadowTwinFolder && !shadowTwinFolderId && (createFolderValue === true || createFolderValue === 'true')
+
+  // Nutze zentrale writeArtifact() Logik
+  const writeResult = await writeArtifact(provider, {
+    key: artifactKey,
+    sourceName,
+    parentId: targetParentId,
+    content: markdown,
+    mode,
+    createFolder,
+  })
+
+  const saved = writeResult.file
+  
   try {
     await repo.traceAddEvent(ctx.jobId, {
       spanId: 'postprocessing',
       name: 'postprocessing_save',
       attributes: {
-        name: fileName,
+        name: saved.metadata.name,
         parentId: targetParentId,
         shadowTwinFolderId: shadowTwinFolderId || null,
+        artifactKind: artifactKey.kind,
+        targetLanguage: artifactKey.targetLanguage,
+        templateName: artifactKey.templateName || null,
+        mode,
       },
     })
   } catch {}
-  const saved = await provider.uploadFile(targetParentId, file)
   try {
     await repo.traceAddEvent(ctx.jobId, {
       spanId: 'postprocessing',

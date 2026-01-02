@@ -17,18 +17,11 @@
 import { StorageItem, StorageProvider } from '@/lib/storage/types';
 import { ShadowTwinState } from '@/lib/shadow-twin/shared';
 import { 
-  findShadowTwinFolder, 
-  generateShadowTwinName
+  findShadowTwinFolder
 } from '@/lib/storage/shadow-twin';
 import { extractFrontmatterBlock } from '@/lib/markdown/frontmatter';
-
-/**
- * Hilfsfunktion zum Extrahieren des Basisnamens (ohne Extension)
- */
-function getBaseName(fileName: string): string {
-  const lastDotIndex = fileName.lastIndexOf('.');
-  return lastDotIndex >= 0 ? fileName.substring(0, lastDotIndex) : fileName;
-}
+import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
+import { extractBaseName, parseArtifactName } from '@/lib/shadow-twin/artifact-naming';
 
 /**
  * Prüft, ob eine Datei eine Markdown-Datei ist
@@ -56,7 +49,7 @@ function isMediaFile(item: StorageItem): boolean {
  */
 function isTranscriptFile(item: StorageItem, baseName: string): boolean {
   if (!isMarkdownFile(item)) return false;
-  const itemBaseName = getBaseName(item.metadata.name);
+  const itemBaseName = extractBaseName(item.metadata.name);
   return itemBaseName.toLowerCase() === baseName.toLowerCase();
 }
 
@@ -81,11 +74,13 @@ async function hasFrontmatter(markdownFile: StorageItem, provider: StorageProvid
  * 
  * @param fileId ID der zu analysierenden Datei
  * @param provider Storage Provider
+ * @param mode Optional: Shadow-Twin-Modus ('legacy' oder 'v2'), Default: 'legacy'
  * @returns ShadowTwinState-Objekt oder null bei Fehler
  */
 export async function analyzeShadowTwin(
   fileId: string,
-  provider: StorageProvider
+  provider: StorageProvider,
+  mode: 'legacy' | 'v2' = 'legacy'
 ): Promise<ShadowTwinState | null> {
   const analysisTimestamp = Date.now();
   
@@ -100,7 +95,7 @@ export async function analyzeShadowTwin(
       };
     }
 
-    const baseName = getBaseName(baseItem.metadata.name);
+    const baseName = extractBaseName(baseItem.metadata.name);
     const parentId = baseItem.parentId;
     const targetLanguage = 'de'; // Standard-Sprache, könnte später aus Kontext kommen
 
@@ -122,65 +117,54 @@ export async function analyzeShadowTwin(
       // 3a. Shadow-Twin-Verzeichnis gefunden - lade Inhalt
       const folderItems = await provider.listItemsById(shadowTwinFolder.id);
       
-      // Suche nach beiden Markdown-Varianten:
-      // 1. Transformiertes File (mit Language-Suffix): document.de.md
-      // 2. Transcript-File (ohne Language-Suffix): document.md
-      // WICHTIG: baseName kann Punkte enthalten (z.B. "vs.") – daher keine path.parse()-basierte Namensgenerierung.
-      const transformedName = `${baseName}.${targetLanguage}.md`;
-      const transcriptName = `${baseName}.md`;
-      
-      const transformedFile = folderItems.find(
-        item => item.type === 'file' && 
-        item.metadata.name === transformedName
-      );
-      
-      const transcriptFile = folderItems.find(
-        item => item.type === 'file' && 
-        item.metadata.name === transcriptName
-      );
-      
+      // Suche nach Markdown-Dateien im Shadow-Twin-Verzeichnis
+      // Nutze zentrale parseArtifactName() Funktion für robuste Erkennung
       const allMarkdownFiles = folderItems.filter(item => isMarkdownFile(item));
       
-      // Prüfe transformiertes File (mit Language-Suffix)
-      if (transformedFile) {
-        const hasFm = await hasFrontmatter(transformedFile, provider);
+      // Prüfe alle Markdown-Dateien: Suche nach Dateien mit Frontmatter (transformed) oder ohne (transcript)
+      // Nutze parseArtifactName() für konsistente Erkennung statt manueller Pattern-Matching
+      for (const markdownFile of allMarkdownFiles) {
+        const fileName = markdownFile.metadata.name;
+        const hasFm = await hasFrontmatter(markdownFile, provider);
+        
+        // Nutze zentrale parseArtifactName() Funktion für robuste Erkennung
+        const parsed = parseArtifactName(fileName, baseName);
+        const isTransformedByParsing = parsed.kind === 'transformation';
+        const isTranscriptByParsing = parsed.kind === 'transcript';
+        
+        // Priorität: Frontmatter-Prüfung (zuverlässiger) > Parsing-Ergebnis
         if (hasFm) {
-          transformed = transformedFile;
-        } else {
-          // Falls kein Frontmatter: Auch als Transcript behandeln (Rückwärtskompatibilität)
-          if (!transcriptFile) {
-            transcriptFiles = [transformedFile];
+          // Datei mit Frontmatter = transformed
+          if (!transformed) {
+            transformed = markdownFile;
           }
+        } else if (isTranscriptByParsing || (!isTransformedByParsing && !hasFm)) {
+          // Datei ohne Frontmatter und als Transcript erkannt (oder nicht als Transformation)
+          // Oder: Datei ohne Frontmatter und nicht als Transformation erkannt = transcript
+          transcriptFiles = transcriptFiles ? [...transcriptFiles, markdownFile] : [markdownFile];
         }
       }
       
-      // Prüfe Transcript-File (ohne Language-Suffix)
-      if (transcriptFile) {
+      // Legacy-Fallback: Suche nach Transcript-File mit manuellen Namen (für Rückwärtskompatibilität)
+      // WICHTIG: baseName kann Punkte enthalten (z.B. "vs.") – daher keine path.parse()-basierte Namensgenerierung.
+      const transcriptName = `${baseName}.md`;
+      const transcriptWithLangName = `${baseName}.${targetLanguage}.md`;
+      const transcriptFile = folderItems.find(
+        item => item.type === 'file' && 
+        (item.metadata.name === transcriptName || item.metadata.name === transcriptWithLangName)
+      );
+      
+      // Falls kein transformed gefunden wurde, aber transcriptFile existiert, prüfe es nochmal
+      if (!transformed && transcriptFile) {
         const hasFm = await hasFrontmatter(transcriptFile, provider);
-        if (!hasFm) {
+        if (hasFm) {
+          // Falls doch Frontmatter vorhanden: Als transformed behandeln (ungewöhnlich, aber möglich)
+          transformed = transcriptFile;
+          // Entferne aus transcriptFiles falls vorhanden
+          transcriptFiles = transcriptFiles?.filter(f => f.id !== transcriptFile.id);
+        } else if (!transcriptFiles || !transcriptFiles.find(f => f.id === transcriptFile.id)) {
           // Transcript-File ohne Frontmatter
           transcriptFiles = transcriptFiles ? [...transcriptFiles, transcriptFile] : [transcriptFile];
-        } else {
-          // Falls doch Frontmatter vorhanden: Als transformed behandeln (ungewöhnlich, aber möglich)
-          if (!transformed) {
-            transformed = transcriptFile;
-          }
-        }
-      }
-      
-      // FALLBACK: Wenn keine Dateien mit exaktem Namen gefunden wurden, aber Markdown-Dateien vorhanden sind,
-      // versuche alle Markdown-Dateien zu prüfen (kann passieren, wenn Sprache nicht übereinstimmt)
-      if (!transformed && !transcriptFiles && allMarkdownFiles.length > 0) {
-        // Prüfe alle Markdown-Dateien: Suche nach Dateien mit Frontmatter (transformed) oder ohne (transcript)
-        for (const markdownFile of allMarkdownFiles) {
-          const hasFm = await hasFrontmatter(markdownFile, provider);
-          if (hasFm && !transformed) {
-            // Erste Datei mit Frontmatter = transformed
-            transformed = markdownFile;
-          } else if (!hasFm && !transformed) {
-            // Datei ohne Frontmatter = transcript (nur wenn noch kein transformed gefunden)
-            transcriptFiles = transcriptFiles ? [...transcriptFiles, markdownFile] : [markdownFile];
-          }
         }
       }
 
@@ -193,23 +177,33 @@ export async function analyzeShadowTwin(
       }
     } else {
       // 3b. Kein Shadow-Twin-Verzeichnis - prüfe auf Shadow-Twin-Markdown-Dateien im gleichen Verzeichnis
-      const siblings = await provider.listItemsById(parentId);
+      // Nutze zentrale resolveArtifact() Logik
+      const resolvedTranscript = await resolveArtifact(provider, {
+        sourceItemId: baseItem.id,
+        sourceName: baseItem.metadata.name,
+        parentId: parentId,
+        mode,
+        targetLanguage,
+        preferredKind: 'transcript',
+      });
       
-      // Suche nach beiden Markdown-Varianten:
-      // 1. Transformiertes File (mit Language-Suffix): document.de.md
-      // 2. Transcript-File (ohne Language-Suffix): document.md
-      const transformedName = generateShadowTwinName(baseItem.metadata.name, targetLanguage, false);
-      const transcriptName = generateShadowTwinName(baseItem.metadata.name, targetLanguage, true);
+      const resolvedTransformation = await resolveArtifact(provider, {
+        sourceItemId: baseItem.id,
+        sourceName: baseItem.metadata.name,
+        parentId: parentId,
+        mode,
+        targetLanguage,
+        preferredKind: 'transformation',
+      });
       
-      const transformedFile = siblings.find(
-        item => item.type === 'file' && 
-        item.metadata.name.toLowerCase() === transformedName.toLowerCase()
-      );
+      // Lade Dateien für Frontmatter-Prüfung
+      const transcriptFile = resolvedTranscript 
+        ? await provider.getItemById(resolvedTranscript.fileId).catch(() => undefined)
+        : undefined;
       
-      const transcriptFile = siblings.find(
-        item => item.type === 'file' && 
-        item.metadata.name.toLowerCase() === transcriptName.toLowerCase()
-      );
+      const transformedFile = resolvedTransformation
+        ? await provider.getItemById(resolvedTransformation.fileId).catch(() => undefined)
+        : undefined;
 
       // Prüfe transformiertes File (mit Language-Suffix)
       if (transformedFile) {
@@ -240,8 +234,10 @@ export async function analyzeShadowTwin(
 
       // Für Audio/Video: Finde Transcript-Dateien im gleichen Verzeichnis
       if (isMediaFile(baseItem)) {
-        const transcripts = siblings.filter(
-          item => isTranscriptFile(item, baseName)
+        // Suche nach Transcript-Dateien im Parent-Verzeichnis (nicht im Shadow-Twin-Verzeichnis)
+        const parentItems = await provider.listItemsById(parentId);
+        const transcripts = parentItems.filter(
+          (item): item is StorageItem => item.type === 'file' && isTranscriptFile(item, baseName)
         );
         if (transcripts.length > 0) {
           transcriptFiles = transcripts;

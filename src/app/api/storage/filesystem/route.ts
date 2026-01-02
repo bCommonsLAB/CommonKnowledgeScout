@@ -521,7 +521,30 @@ export async function GET(request: NextRequest) {
 
           const absolutePath = getPathFromId(library, fileId);
 
-          const stats = await fs.stat(absolutePath);
+          let stats: Awaited<ReturnType<typeof fs.stat>>;
+          try {
+            stats = await fs.stat(absolutePath);
+          } catch (error) {
+            const nodeError = error as NodeJS.ErrnoException;
+            if (nodeError.code === 'ENOENT') {
+              // Datei nicht gefunden - gebe 404 zurück statt 500
+              console.warn('[API][filesystem][binary] Datei nicht gefunden:', {
+                fileId,
+                absolutePath,
+                libraryId,
+                userEmail,
+                requestId
+              });
+              return NextResponse.json({ 
+                error: 'Datei nicht gefunden',
+                errorCode: 'FILE_NOT_FOUND',
+                fileId,
+                absolutePath,
+                requestId
+              }, { status: 404 });
+            }
+            throw error; // Andere Fehler weiterwerfen
+          }
           
           if (!stats.isFile()) {
             console.error('[API][filesystem] Keine Datei:', {

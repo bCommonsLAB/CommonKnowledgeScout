@@ -6,16 +6,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import type { CreationSource } from "@/lib/templates/template-types"
-import { Mic, Link, Upload, Plus, Loader2 } from "lucide-react"
+import type { CreationSource, TemplateDocument } from "@/lib/templates/template-types"
+import { Mic, Link, Upload, Plus, Loader2, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { AudioOscilloscope } from "@/components/creation-wizard/components/audio-oscilloscope"
 import { SecretaryServiceError } from "@/lib/secretary/client"
 import type { WizardSource } from "@/lib/creation/corpus"
+import { buildSourceSummary } from "@/lib/creation/corpus"
 import type { TemplateMetadataSchema } from "@/lib/templates/template-types"
+import { cn } from "@/lib/utils"
+import { X } from "lucide-react"
 
 interface CollectSourceStepProps {
-  source: CreationSource
+  source?: CreationSource // Optional: Wenn nicht gesetzt, zeige Quelle-Auswahl
   mode?: 'interview' | 'form'
   // Legacy: onCollect (wird schrittweise durch onAddSource ersetzt)
   onCollect?: (content: string) => void
@@ -33,6 +36,219 @@ interface CollectSourceStepProps {
   requiredFields?: string[]
   // Callback: Wird aufgerufen, wenn der Step verlassen wird, um noch nicht hinzugefügte Quellen zu erfassen
   onBeforeLeave?: () => WizardSource | null
+  // Quelle-Auswahl (wenn source nicht gesetzt)
+  supportedSources?: CreationSource[]
+  selectedSource?: CreationSource
+  onSourceSelect?: (source: CreationSource) => void
+  onModeSelect?: (mode: 'interview' | 'form') => void
+  template?: { metadata: TemplateMetadataSchema }
+  steps?: Array<{ preset: string; fields?: string[] }>
+}
+
+/**
+ * Quelle-Auswahl-Ansicht (wird angezeigt, wenn keine Quelle ausgewählt ist)
+ */
+function CollectSourceSelectionView({
+  supportedSources,
+  selectedSource,
+  onSourceSelect,
+  onModeSelect,
+  template,
+  requiredFields,
+  steps,
+  existingSources = [],
+  onRemoveSource,
+}: {
+  supportedSources: CreationSource[]
+  selectedSource?: CreationSource
+  onSourceSelect?: (source: CreationSource) => void
+  onModeSelect?: (mode: 'interview' | 'form') => void
+  template?: { metadata: TemplateMetadataSchema }
+  requiredFields?: string[]
+  steps?: Array<{ preset: string; fields?: string[] }>
+  existingSources?: WizardSource[]
+  onRemoveSource?: (sourceId: string) => void
+}) {
+  function getFriendlySourceLabel(source: CreationSource): string {
+    if (source.type === 'spoken') return "Interview (einmal erzählen)"
+    if (source.type === 'url') return "Über eine Webseite auslesen"
+    if (source.type === 'text') return "Text (tippen oder diktieren)"
+    if (source.type === 'file') return "Datei hochladen"
+    return source.label
+  }
+
+  function getFriendlySourceHelp(source: CreationSource): string {
+    if (source.type === 'spoken') return "Du erzählst einfach frei. Wir schreiben die wichtigsten Infos für dich mit."
+    if (source.type === 'url') return "Füge einen Link ein. Wir lesen die Infos von der Webseite aus."
+    if (source.type === 'text') return "Tippe deinen Text ein oder diktiere ihn. Du siehst das Ergebnis, bevor es verarbeitet wird."
+    if (source.type === 'file') return "Lade eine Datei hoch (z.B. Slides oder PDF)."
+    return source.helpText || ""
+  }
+
+  const SOURCE_ICON: Record<CreationSource['type'], React.ComponentType<{ className?: string }>> = {
+    spoken: Mic,
+    url: Link,
+    text: Mic,
+    file: Upload,
+  }
+
+  function toFieldLabel(key: string): string {
+    const LABEL_MAP: Record<string, string> = {
+      title: "Titel",
+      summary: "Summary",
+      date: "Datum",
+      starttime: "Startzeit",
+      endtime: "Endzeit",
+      location: "Location",
+      speakers: "Speakers",
+    }
+    return LABEL_MAP[key] || key
+  }
+
+  // Kompakte Ableitung: wir zeigen absichtlich nur die wichtigsten Felder
+  const firstEditDraftStep = steps?.find(step => step.preset === 'editDraft' && (step.fields?.length || 0) > 0)
+  const requiredFieldKeys = requiredFields && requiredFields.length > 0
+    ? requiredFields
+    : firstEditDraftStep?.fields && firstEditDraftStep.fields.length > 0
+      ? firstEditDraftStep.fields
+      : template?.metadata.fields.slice(0, 8).map(f => f.key) || []
+  const requiredFieldsText = requiredFieldKeys.map(toFieldLabel).join(", ")
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>So starten wir</CardTitle>
+        <CardDescription>
+          Wähle eine Methode. Du musst nichts Technisches wissen – einfach auswählen und loslegen.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Startmethode (vereint Modus + Quelle) */}
+        <div>
+          <h3 className="text-sm font-semibold mb-3">Wie möchtest du starten?</h3>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {/* Formular (kein Source-Step nötig) */}
+            <Card
+              className={cn(
+                "cursor-pointer transition-all hover:border-primary",
+              )}
+              onClick={() => onModeSelect?.('form')}
+            >
+              <CardHeader>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-base">Formular ausfüllen</CardTitle>
+                    <CardDescription className="mt-1">
+                      Du trägst die Infos direkt ein. Wenn du magst, kannst du einzelne Felder per Diktat füllen.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+
+            {/* Quellen (führen in Interview/Extraktion) */}
+            {supportedSources.map((source) => {
+              const Icon = SOURCE_ICON[source.type]
+              const isSelected = selectedSource?.id === source.id
+
+              return (
+                <Card
+                  key={source.id}
+                  className={cn(
+                    "cursor-pointer transition-all hover:border-primary",
+                    isSelected && "border-primary bg-primary/5"
+                  )}
+                  onClick={() => {
+                    onModeSelect?.('interview')
+                    onSourceSelect?.(source)
+                  }}
+                >
+                  <CardHeader>
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "p-2 rounded-lg",
+                        source.type === 'text' 
+                          ? "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
+                          : source.type === 'url'
+                            ? "bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400"
+                            : source.type === 'file'
+                              ? "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400"
+                              : "bg-muted text-foreground"
+                      )}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <CardTitle className="text-base">{getFriendlySourceLabel(source)}</CardTitle>
+                        <CardDescription className="mt-1">
+                          {getFriendlySourceHelp(source)}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Bestehende Quellen anzeigen (wenn vorhanden) */}
+        {existingSources.length > 0 && (
+          <div className="border-t pt-4">
+            <h3 className="text-sm font-semibold mb-3">Bereits hinzugefügte Quellen ({existingSources.length})</h3>
+            <div className="space-y-2">
+              {existingSources.map((source) => (
+                <div
+                  key={source.id}
+                  className="flex items-start justify-between p-3 border rounded-md bg-muted/50 text-sm"
+                >
+                  <div className="flex-1">
+                    <div className="font-medium mb-1">
+                      {source.kind === 'text' && '📝 Text'}
+                      {source.kind === 'url' && '🔗 Webseite'}
+                      {source.kind === 'file' && '📄 Datei'}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {buildSourceSummary(source)}
+                    </div>
+                  </div>
+                  {onRemoveSource && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2"
+                      onClick={() => onRemoveSource(source.id)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Du kannst weitere Quellen hinzufügen, indem du oben eine neue Quelle auswählst.
+            </p>
+          </div>
+        )}
+
+        {/* Kompakte Feldliste */}
+        {requiredFieldsText && (
+          <div className="border-t pt-4">
+            <h3 className="text-sm font-semibold">Wir benötigen diese wichtigsten Felder</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {requiredFieldsText}
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Deine Quelle (Text, Link oder Datei) sollte diese Informationen in irgendeiner Form enthalten.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
 export function CollectSourceStep({
@@ -45,19 +261,20 @@ export function CollectSourceStep({
   isExtracting = false,
   templateId,
   libraryId,
-  // Unbenutzte Props werden hier ignoriert, bleiben aber im Interface für zukünftige Verwendung
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  mode: _unused_mode,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onRemoveSource: _unused_onRemoveSource,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  templateMetadata: _unused_templateMetadata,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  requiredFields: _unused_requiredFields,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onBeforeLeave: _unused_onBeforeLeave,
+  mode,
+  onRemoveSource,
+  templateMetadata,
+  requiredFields,
+  onBeforeLeave,
+  supportedSources = [],
+  selectedSource,
+  onSourceSelect,
+  onModeSelect,
+  template,
+  steps,
 }: CollectSourceStepProps) {
   // Initialisiere Input-State: Verwende bestehende Text-Quelle, falls vorhanden
+  // WICHTIG: Hooks müssen VOR jedem frühen Return aufgerufen werden!
   const existingTextSource = sources.find(s => s.kind === 'text')
   const initialInput = collectedInput || existingTextSource?.text || ""
   const [input, setInput] = useState(initialInput)
@@ -93,6 +310,69 @@ export function CollectSourceStep({
     }, 1000)
     return () => window.clearInterval(intervalId)
   }, [isRecording])
+
+  // createSourceFromInput Funktion (wird später im useEffect verwendet)
+  const createSourceFromInput = (): WizardSource | null => {
+    if (!source) return null // Wenn keine Quelle ausgewählt, kann keine Quelle erstellt werden
+    if (!input.trim()) return null
+    
+    if (source.type === "url") {
+      // URL-Quellen werden bereits automatisch hinzugefügt bei handleExtractFromWebsite
+      return null
+    }
+    
+    if (source.type === "spoken" || source.type === "text") {
+      // Verwende die ID der bestehenden Text-Quelle, falls vorhanden
+      const existingTextSource = sources.find(s => s.kind === 'text')
+      return {
+        id: existingTextSource?.id || `text-${Date.now()}`,
+        kind: 'text',
+        text: input.trim(),
+        createdAt: existingTextSource?.createdAt || new Date(),
+      }
+    }
+    
+    return null
+  }
+
+  // Exponiere createSourceFromInput für den Wizard über window (temporär)
+  // WICHTIG: Dieser Hook muss VOR jedem frühen Return sein!
+  useEffect(() => {
+    // Temporäre Lösung: Exponiere Funktion für Wizard über window-Objekt
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(window as any).__collectSourceStepBeforeLeave = createSourceFromInput
+    return () => {
+      // Temporäre Lösung: Entferne Funktion vom window-Objekt
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).__collectSourceStepBeforeLeave
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input, source?.type]) // source?.type statt source.type, da source optional ist
+
+  // JETZT können wir frühe Returns machen (nach allen Hooks)
+  // Wenn keine Quelle ausgewählt ist, zeige Quelle-Auswahl
+  if (!source && supportedSources.length > 0) {
+    return <CollectSourceSelectionView 
+      supportedSources={supportedSources}
+      selectedSource={selectedSource}
+      onSourceSelect={onSourceSelect}
+      onModeSelect={onModeSelect}
+      template={template}
+      requiredFields={requiredFields}
+      steps={steps}
+      existingSources={sources}
+      onRemoveSource={onRemoveSource}
+    />
+  }
+  
+  // Wenn keine Quelle vorhanden ist, zeige Fehlermeldung
+  if (!source) {
+    return (
+      <div className="text-center text-muted-foreground p-8">
+        Bitte zuerst eine Quelle auswählen.
+      </div>
+    )
+  }
 
   const handleSubmit = () => {
     if (input.trim()) {
@@ -400,45 +680,7 @@ export function CollectSourceStep({
 
   // handleAudioFileSelect wurde entfernt, da nicht verwendet
   // Audio-Dateien werden direkt über transcribeAudio verarbeitet
-
-  /**
-   * Erstellt eine Quelle aus dem aktuellen Input (wird beim Verlassen des Steps aufgerufen).
-   * Verwendet die ID der bestehenden Text-Quelle, falls vorhanden, damit sie aktualisiert wird.
-   */
-  const createSourceFromInput = (): WizardSource | null => {
-    if (!input.trim()) return null
-    
-    if (source.type === "url") {
-      // URL-Quellen werden bereits automatisch hinzugefügt bei handleExtractFromWebsite
-      return null
-    }
-    
-    if (source.type === "spoken" || source.type === "text") {
-      // Verwende die ID der bestehenden Text-Quelle, falls vorhanden
-      const existingTextSource = sources.find(s => s.kind === 'text')
-      return {
-        id: existingTextSource?.id || `text-${Date.now()}`,
-        kind: 'text',
-        text: input.trim(),
-        createdAt: existingTextSource?.createdAt || new Date(),
-      }
-    }
-    
-    return null
-  }
-
-  // Exponiere createSourceFromInput für den Wizard über window (temporär)
-  useEffect(() => {
-    // Temporäre Lösung: Exponiere Funktion für Wizard über window-Objekt
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(window as any).__collectSourceStepBeforeLeave = createSourceFromInput
-    return () => {
-      // Temporäre Lösung: Entferne Funktion vom window-Objekt
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (window as any).__collectSourceStepBeforeLeave
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, source.type]) // createSourceFromInput absichtlich nicht in Dependencies, da es bei jedem Render neu erstellt wird
+  // createSourceFromInput wurde bereits oben definiert (vor dem frühen Return)
 
   return (
     <div className="space-y-4">

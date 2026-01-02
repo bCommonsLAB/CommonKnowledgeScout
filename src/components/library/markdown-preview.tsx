@@ -26,6 +26,9 @@ import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
 import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
 import { stripAllFrontmatter, parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { replacePlaceholdersInMarkdown } from '@/lib/markdown/placeholder-replacement'
+import { buildArtifactName, extractBaseName, parseArtifactName, type ArtifactKey } from '@/lib/shadow-twin/artifact-naming'
+import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
 
 /**
  * Fügt unsichtbare Anker vor Zeilen wie "— Seite 12 —" ein, damit Scroll‑Sync möglich ist.
@@ -71,6 +74,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   // Template-Management Integration
   const [customTemplateNames, setCustomTemplateNames] = React.useState<string[]>([]);
   const libraryStatus = useAtomValue(libraryStatusAtom);
+  const activeLibrary = useAtomValue(activeLibraryAtom);
   
   // Text State mit entferntem Frontmatter initialisieren (strikt)
   const [text, setText] = React.useState(() => {
@@ -105,55 +109,165 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
   }, []);
   
-  // Generiere Shadow-Twin Dateinamen basierend auf source_file aus Frontmatter
+  // Generiere Shadow-Twin Dateinamen mit zentraler Logik
+  // WICHTIG: Verwendet IMMER die zentrale buildArtifactName Funktion, wenn currentItem vorhanden ist
+  // WICHTIG: Verwendet IMMER den ursprünglichen Basisnamen (ohne Shadow-Twin-Suffixe)
   const generateTransformationFileName = React.useCallback((
     content: string, 
     template: string, 
     targetLanguage: string,
-    currentFileName?: string
+    currentFileName?: string,
+    currentItem?: StorageItem | null,
+    activeLibrary?: { id: string } | null
   ): string => {
-    // Extrahiere Frontmatter
-    const metadata = extractFrontmatter(content);
-    
-    // Verwende source_file aus Frontmatter, falls vorhanden
-    let baseName: string;
-    if (metadata.source_file) {
-      FileLogger.debug('TextTransform', 'Verwende source_file aus Frontmatter', { sourceFile: metadata.source_file });
-      const sourceFileStr = typeof metadata.source_file === 'string' ? metadata.source_file : String(metadata.source_file);
-      baseName = getBaseFileName(sourceFileStr);
-    } else if (currentFileName) {
-      // Fallback: Verwende aktuellen Dateinamen ohne Sprach-Suffix
-      baseName = currentFileName;
-      // Entferne existierende Sprach-Suffixe (z.B. ".de" aus "Sprache 133.de.md")
-      const langPattern = /\.(de|en|fr|es|it)$/i;
-      if (langPattern.test(baseName)) {
-        baseName = baseName.replace(langPattern, '');
+    // IMMER zentrale Logik verwenden, wenn currentItem vorhanden ist
+    if (currentItem) {
+      try {
+        // Bestimme den ursprünglichen Basisnamen:
+        // PRIORITÄT 1: source_file aus Frontmatter (beste Quelle - enthält den originalen Dateinamen)
+        // PRIORITÄT 2: Extrahiere Basisnamen aus currentItem (falls kein source_file vorhanden)
+        let originalSourceFileName: string = currentItem.metadata.name;
+        let sourceFromFrontmatter = false;
+        
+        // Versuche source_file aus Frontmatter zu extrahieren (PRIORITÄT 1)
+        try {
+          const metadata = extractFrontmatter(content);
+          if (metadata.source_file && typeof metadata.source_file === 'string') {
+            let sourceFile = metadata.source_file.trim();
+            // Entferne Anführungszeichen am Anfang und Ende (falls vorhanden)
+            sourceFile = sourceFile.replace(/^["']|["']$/g, '').trim();
+            // Entferne Platzhalter, falls vorhanden (z.B. {{audiofile}})
+            const cleanedSourceFile = sourceFile.replace(/\{\{.*?\}\}/g, '').trim();
+            if (cleanedSourceFile && cleanedSourceFile.length > 0) {
+              originalSourceFileName = cleanedSourceFile;
+              sourceFromFrontmatter = true;
+              FileLogger.debug('TextTransform', 'Verwende source_file aus Frontmatter', { 
+                sourceFile: originalSourceFileName,
+                originalSourceFile: metadata.source_file,
+                currentFileName: currentItem.metadata.name
+              });
+            }
+          }
+        } catch (error) {
+          FileLogger.debug('TextTransform', 'Konnte source_file nicht aus Frontmatter extrahieren', { error });
+        }
+        
+        // PRIORITÄT 2: Wenn kein source_file im Frontmatter gefunden wurde,
+        // extrahiere den ursprünglichen Basisnamen aus dem Dateinamen (falls Shadow-Twin)
+        if (!sourceFromFrontmatter && originalSourceFileName === currentItem.metadata.name) {
+          // Prüfe ob es ein Shadow-Twin ist (hat .md Extension und möglicherweise Suffixe)
+          if (originalSourceFileName.endsWith('.md')) {
+            const fileNameWithoutExt = originalSourceFileName.replace(/\.md$/, '');
+            const extractedBase = extractBaseName(originalSourceFileName);
+            
+            FileLogger.debug('TextTransform', 'Prüfe Shadow-Twin Extraktion (Fallback)', {
+              originalFileName: originalSourceFileName,
+              fileNameWithoutExt,
+              extractedBase,
+              isDifferent: extractedBase !== fileNameWithoutExt
+            });
+            
+            // Wenn extractBaseName den Basisnamen erfolgreich extrahiert hat (ohne Suffixe)
+            // Beispiel: "Todo jänner.de.md" -> extractBaseName = "Todo jänner"
+            if (extractedBase !== fileNameWithoutExt) {
+              // Verwende den extrahierten Basisnamen
+              // buildArtifactName verwendet path.parse().name, was die Extension entfernt
+              // Also können wir einfach den Basisnamen + eine beliebige Extension verwenden
+              originalSourceFileName = extractedBase + '.md';
+              FileLogger.debug('TextTransform', 'Extrahierten Basisnamen aus Shadow-Twin', {
+                original: currentItem.metadata.name,
+                extractedBase,
+                originalSourceFileName
+              });
+            }
+          }
+        }
+        
+        // Erstelle ArtifactKey für Transformation
+        const artifactKey: ArtifactKey = {
+          sourceId: currentItem.id, // Für UI-Vorschau reicht ID (beim Speichern wird Content-Hash verwendet)
+          kind: 'transformation',
+          targetLanguage,
+          templateName: template,
+        };
+        
+        // Nutze IMMER zentrale buildArtifactName Funktion mit dem ursprünglichen Dateinamen
+        // WICHTIG: Entferne Anführungszeichen, falls vorhanden (path.parse würde sonst falsch parsen)
+        const cleanSourceFileName = originalSourceFileName.replace(/^["']|["']$/g, '').trim();
+        const artifactName = buildArtifactName(artifactKey, cleanSourceFileName);
+        
+        FileLogger.debug('TextTransform', 'Dateiname mit zentraler Logik generiert', {
+          artifactKey,
+          artifactName,
+          originalSourceFileName,
+          currentFileName: currentItem.metadata.name,
+        });
+        
+        // Entferne .md Extension (wird später wieder hinzugefügt)
+        return artifactName.replace(/\.md$/, '');
+      } catch (error) {
+        FileLogger.error('TextTransform', 'Fehler bei zentraler Logik', { error });
+        // Fallback: Verwende aktuellen Dateinamen als Basis
+        // Versuche auch hier parseArtifactName für robuste Extraktion
+        let baseName: string;
+        if (currentFileName) {
+          try {
+            const parsed = parseArtifactName(currentFileName);
+            baseName = parsed.baseName || getBaseFileName(currentFileName);
+          } catch {
+            baseName = getBaseFileName(currentFileName);
+          }
+        } else {
+          baseName = 'transformation';
+        }
+        // Fallback-Format: {baseName}.{template}.{targetLanguage}
+        return `${baseName}.${template}.${targetLanguage}`;
       }
-      FileLogger.debug('TextTransform', 'Kein source_file in Frontmatter, verwende aktuellen Dateinamen', { baseName });
-    } else {
-      baseName = "transformation";
     }
     
-    // Generiere neuen Dateinamen: <source_file>.<template>.<targetlanguage>
+    // Fallback: Nur wenn kein currentItem vorhanden ist (sollte eigentlich nicht passieren)
+    // Versuche auch hier parseArtifactName für robuste Extraktion
+    let baseName: string;
+    if (currentFileName) {
+      try {
+        const parsed = parseArtifactName(currentFileName);
+        baseName = parsed.baseName || getBaseFileName(currentFileName);
+      } catch {
+        baseName = getBaseFileName(currentFileName);
+      }
+    } else {
+      baseName = 'transformation';
+    }
     return `${baseName}.${template}.${targetLanguage}`;
-  }, [extractFrontmatter, getBaseFileName]);
+  }, [getBaseFileName, extractFrontmatter]);
   
   // Initialisiere saveOptions mit korrektem Dateinamen
+  // WICHTIG: content sollte beim ersten Render verfügbar sein (wird als Prop übergeben)
   const [saveOptions, setSaveOptions] = React.useState<TransformSaveOptions>(() => {
     const targetLang = "de";
     
+    // Verwende content (sollte Frontmatter mit source_file enthalten)
     const fileName = generateTransformationFileName(
-      content,
+      content || '', // Fallback auf leeren String falls content noch nicht geladen
       template,
       targetLang,
-      currentItem?.metadata.name
+      currentItem?.metadata.name,
+      currentItem,
+      activeLibrary
     );
+    
+    FileLogger.debug('TextTransform', 'Initialisiere saveOptions', {
+      contentLength: content?.length || 0,
+      hasContent: !!content,
+      currentItemName: currentItem?.metadata.name,
+      generatedFileName: fileName
+    });
     
     return {
       targetLanguage: targetLang,
       fileName: fileName,
-      createShadowTwin: true,
-      fileExtension: "md"
+      createShadowTwin: true, // Immer true - Shadow-Twin ist Standard
+      fileExtension: "md" // Immer .md für Shadow-Twins
     };
   });
   
@@ -167,31 +281,41 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
   }, [saveOptions]);
   
   // Aktualisiere saveOptions wenn sich relevante Parameter ändern
+  // WICHTIG: saveOptions.fileName NICHT in Dependencies, um Endlosschleife zu vermeiden
+  // Verwende setSaveOptions mit Funktion, um auf aktuellen Wert zuzugreifen
   React.useEffect(() => {
-    if (saveOptions.createShadowTwin) {
-      const newFileName = generateTransformationFileName(
-        content,
-        template,
-        saveOptions.targetLanguage,
-        currentItem?.metadata.name
-      );
-      
-      if (newFileName !== saveOptions.fileName) {
+    // Generiere neuen Dateinamen basierend auf aktuellen Parametern
+    const newFileName = generateTransformationFileName(
+      content,
+      template,
+      saveOptions.targetLanguage,
+      currentItem?.metadata.name,
+      currentItem,
+      activeLibrary
+    );
+    
+    // Verwende setSaveOptions mit Funktion, um auf aktuellen Wert zuzugreifen
+    // Das vermeidet Race Conditions und Endlosschleifen
+    setSaveOptions(prev => {
+      // Nur aktualisieren, wenn sich der Dateiname wirklich geändert hat
+      if (prev.fileName !== newFileName) {
         FileLogger.debug('TextTransform', 'Aktualisiere fileName', {
-          oldFileName: saveOptions.fileName,
+          oldFileName: prev.fileName,
           newFileName: newFileName,
+          template,
           targetLanguage: saveOptions.targetLanguage
         });
         
-        setSaveOptions(prev => ({
+        return {
           ...prev,
           fileName: newFileName
-        }));
+        };
       }
-    }
-  }, [content, template, saveOptions.targetLanguage, saveOptions.createShadowTwin, saveOptions.fileName, currentItem, generateTransformationFileName]);
+      // Keine Änderung nötig - gib vorherigen State zurück
+      return prev;
+    });
+  }, [content, template, saveOptions.targetLanguage, currentItem?.metadata.name, currentItem, activeLibrary, generateTransformationFileName]); // saveOptions.fileName ENTFERNT aus Dependencies!
   
-  const activeLibrary = useAtomValue(activeLibraryAtom);
   const { refreshItems } = useStorage();
 
   // Standard-Templates definieren
@@ -223,32 +347,6 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
 
     loadTemplatesIfNeeded();
   }, [activeLibrary?.id, libraryStatus]);
-
-  // Aktualisiere den Dateinamen, wenn das Template geändert wird
-  React.useEffect(() => {
-    if (saveOptions.createShadowTwin) {
-      const newFileName = generateTransformationFileName(
-        content,
-        template,
-        saveOptions.targetLanguage,
-        currentItem?.metadata.name
-      );
-      
-      if (newFileName !== saveOptions.fileName) {
-        FileLogger.debug('TextTransform', 'Template geändert, aktualisiere fileName', {
-          oldTemplate: saveOptions.targetLanguage,
-          newTemplate: template,
-          oldFileName: saveOptions.fileName,
-          newFileName: newFileName
-        });
-        
-        setSaveOptions(prev => ({
-          ...prev,
-          fileName: newFileName
-        }));
-      }
-    }
-  }, [template, content, saveOptions.targetLanguage, saveOptions.createShadowTwin, currentItem?.metadata.name, saveOptions.fileName, generateTransformationFileName]);
 
   // Debug-Logging für activeLibrary
   React.useEffect(() => {
@@ -307,9 +405,41 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
         // Standard-Template: Verwende TransformService mit Template-Name
         FileLogger.info('TextTransform', 'Verwende Standard-Template', { templateName: template });
         
+        // WICHTIG: Extrahiere source_file aus Frontmatter der Quelldatei, falls vorhanden
+        // Dies stellt sicher, dass der ursprüngliche Dateiname verwendet wird, nicht der Shadow-Twin-Name
+        let originalSourceFileName = currentItem.metadata.name;
+            try {
+              const metadata = extractFrontmatter(content);
+              if (metadata.source_file && typeof metadata.source_file === 'string') {
+                let sourceFile = metadata.source_file.trim();
+                // Entferne Anführungszeichen am Anfang und Ende (falls vorhanden)
+                sourceFile = sourceFile.replace(/^["']|["']$/g, '').trim();
+                const cleanedSourceFile = sourceFile.replace(/\{\{.*?\}\}/g, '').trim();
+                if (cleanedSourceFile && cleanedSourceFile.length > 0) {
+                  originalSourceFileName = cleanedSourceFile;
+                  FileLogger.debug('TextTransform', 'Verwende source_file aus Frontmatter für Platzhalter-Ersetzung', {
+                    sourceFile: originalSourceFileName,
+                    originalSourceFile: metadata.source_file,
+                    currentFileName: currentItem.metadata.name
+                  });
+                }
+              }
+            } catch (error) {
+              FileLogger.debug('TextTransform', 'Konnte source_file nicht aus Frontmatter extrahieren', { error });
+            }
+        
+        // Erstelle temporäres Item mit korrektem Namen für Platzhalter-Ersetzung
+        const itemForPlaceholder = {
+          ...currentItem,
+          metadata: {
+            ...currentItem.metadata,
+            name: originalSourceFileName
+          }
+        };
+        
         result = await TransformService.transformText(
           text, 
-          currentItem,
+          itemForPlaceholder, // Verwende Item mit korrektem source_file Namen
           saveOptions,
           provider,
           refreshItems,
@@ -336,29 +466,71 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
           });
           
           // Direkter Secretary Service Call mit Template-Content
-          const transformedText = await transformTextWithTemplate(
+          let transformedText = await transformTextWithTemplate(
             text,
             saveOptions.targetLanguage,
             activeLibrary.id,
             templateContent
           );
           
-          // Ergebnis speichern falls gewünscht
-          if (saveOptions.createShadowTwin) {
-            const saveResult = await TransformService.saveTransformedText(
-              transformedText,
-              currentItem,
-              saveOptions,
-              provider,
-              refreshItems
-            );
-            result = saveResult;
-          } else {
-            result = {
-              text: transformedText,
-              updatedItems: []
-            };
+          // DEBUG: Logge den zurückgegebenen Text vor Platzhalter-Ersetzung
+          FileLogger.debug('TextTransform', 'Secretary Service Response erhalten', {
+            textLength: transformedText.length,
+            textPreview: transformedText.substring(0, 500),
+            hasFrontmatter: transformedText.includes('---'),
+          });
+          
+          // Ersetze Platzhalter im Frontmatter (z.B. {{audiofile}} → tatsächlicher Dateiname)
+          // WICHTIG: Verwende source_file aus Frontmatter der Quelldatei, falls vorhanden
+          if (currentItem) {
+            let originalSourceFileName = currentItem.metadata.name;
+            try {
+              const metadata = extractFrontmatter(content);
+              if (metadata.source_file && typeof metadata.source_file === 'string') {
+                let sourceFile = metadata.source_file.trim();
+                // Entferne Anführungszeichen am Anfang und Ende (falls vorhanden)
+                sourceFile = sourceFile.replace(/^["']|["']$/g, '').trim();
+                const cleanedSourceFile = sourceFile.replace(/\{\{.*?\}\}/g, '').trim();
+                if (cleanedSourceFile && cleanedSourceFile.length > 0) {
+                  originalSourceFileName = cleanedSourceFile;
+                  FileLogger.debug('TextTransform', 'Verwende source_file aus Frontmatter für Platzhalter-Ersetzung (Custom Template)', {
+                    sourceFile: originalSourceFileName,
+                    originalSourceFile: metadata.source_file,
+                    currentFileName: currentItem.metadata.name
+                  });
+                }
+              }
+            } catch (error) {
+              FileLogger.debug('TextTransform', 'Konnte source_file nicht aus Frontmatter extrahieren (Custom Template)', { error });
+            }
+            
+            const beforeReplace = transformedText;
+            transformedText = replacePlaceholdersInMarkdown(transformedText, originalSourceFileName);
+            
+            // DEBUG: Logge Unterschied nach Platzhalter-Ersetzung
+            if (beforeReplace !== transformedText) {
+              FileLogger.debug('TextTransform', 'Platzhalter ersetzt', {
+                originalItemName: currentItem.metadata.name,
+                originalSourceFileName,
+                beforePreview: beforeReplace.substring(0, 500),
+                afterPreview: transformedText.substring(0, 500),
+              });
+            }
           }
+          
+          // Ergebnis immer als Shadow-Twin speichern
+          // Explizite Parameter übergeben statt aus Dateinamen zu parsen
+          const saveResult = await TransformService.saveTransformedText(
+            transformedText,
+            currentItem,
+            saveOptions,
+            provider,
+            refreshItems,
+            activeLibrary?.id, // libraryId für Modus-Bestimmung
+            'transformation', // artifactKind: Template-Transformation
+            template // templateName: Explizit übergeben
+          );
+          result = saveResult;
         } catch (error) {
           FileLogger.error('TextTransform', 'Fehler beim Laden des Template-Inhalts', error);
           // Fallback auf Standard-Template
@@ -451,7 +623,9 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
                               content,
                               template,
                               value,
-                              currentItem?.metadata.name
+                              currentItem?.metadata.name,
+                              currentItem,
+                              activeLibrary
                             );
                             
                             setSaveOptions(prev => ({
@@ -474,65 +648,17 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
                         </Select>
                       </div>
                       
-                      <div>
-                        <Label htmlFor="file-extension">Dateierweiterung</Label>
-                        <Select
-                          value={saveOptions.fileExtension}
-                          onValueChange={(value) => setSaveOptions(prev => ({ ...prev, fileExtension: value }))}
-                          disabled={saveOptions.createShadowTwin}
-                        >
-                          <SelectTrigger id="file-extension">
-                            <SelectValue placeholder="Erweiterung wählen" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="md">Markdown (.md)</SelectItem>
-                            <SelectItem value="txt">Text (.txt)</SelectItem>
-                            <SelectItem value="json">JSON (.json)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {/* Dateierweiterung ist immer .md für Shadow-Twins */}
                     </div>
 
                     <div>
                       <Label htmlFor="file-name">Dateiname</Label>
-                      <Input
-                        id="file-name"
-                        value={saveOptions.fileName}
-                        onChange={(e) => setSaveOptions(prev => ({ ...prev, fileName: e.target.value }))}
-                        disabled={saveOptions.createShadowTwin}
-                        placeholder={saveOptions.createShadowTwin ? "Automatisch generiert" : "Dateiname eingeben"}
-                      />
-                      {saveOptions.createShadowTwin && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Format: {saveOptions.fileName}.{saveOptions.fileExtension}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="create-shadow-twin"
-                        checked={saveOptions.createShadowTwin}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            const newFileName = generateTransformationFileName(
-                              content,
-                              template,
-                              saveOptions.targetLanguage,
-                              currentItem?.metadata.name
-                            );
-                            
-                            setSaveOptions(prev => ({
-                              ...prev,
-                              createShadowTwin: true,
-                              fileName: newFileName
-                            }));
-                          } else {
-                            setSaveOptions(prev => ({ ...prev, createShadowTwin: false }));
-                          }
-                        }}
-                      />
-                      <Label htmlFor="create-shadow-twin">Als Shadow-Twin speichern</Label>
+                      <div className="px-3 py-2 bg-muted rounded-md text-sm">
+                        {saveOptions.fileName}.{saveOptions.fileExtension}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Automatisch generiert nach Konvention
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -1149,8 +1275,12 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
           }
           
           // Füge onerror Handler hinzu, falls nicht vorhanden
+          // Zeige dezente Fehlermeldung statt Bild zu verstecken
           if (!updatedAttributes.includes('onerror=')) {
-            updatedAttributes = `${updatedAttributes} onerror="this.style.display='none'"`;
+            const imageNameMatch = match.match(/alt=["']([^"']+)["']/) || match.match(/src=["']([^"']+)["']/);
+            const displayName = imageNameMatch ? imageNameMatch[1] : 'Bild';
+            // Verwende CSS-Klassen für dezente Fehlermeldung
+            updatedAttributes = `${updatedAttributes} onerror="this.onerror=null; this.style.display='none'; const placeholder=document.createElement('div'); placeholder.className='text-xs text-muted-foreground text-center p-2 border border-dashed border-muted-foreground/20 rounded bg-muted/30'; placeholder.textContent='${displayName.replace(/'/g, "\\'")} nicht verfügbar'; this.parentNode?.appendChild(placeholder);"`;
           }
           
           return `<img ${updatedAttributes}>`;
@@ -1163,7 +1293,8 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
         /&lt;img-(\d+\.(?:jpeg|jpg|png|gif|webp))&gt;/gi,
         (match, imagePath) => {
           const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId);
-          return `<img src="${resolvedUrl}" alt="${imagePath}" loading="lazy" onerror="this.style.display='none'">`;
+          const safeImagePath = imagePath.replace(/'/g, "\\'");
+          return `<img src="${resolvedUrl}" alt="${imagePath}" loading="lazy" onerror="this.onerror=null; this.style.display='none'; const placeholder=document.createElement('div'); placeholder.className='text-xs text-muted-foreground text-center p-2 border border-dashed border-muted-foreground/20 rounded bg-muted/30'; placeholder.textContent='${safeImagePath} nicht verfügbar'; this.parentNode?.appendChild(placeholder);">`;
         }
       );
       
@@ -1172,7 +1303,8 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
         /<img-(\d+\.(?:jpeg|jpg|png|gif|webp))>/gi,
         (match, imagePath) => {
           const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId);
-          return `<img src="${resolvedUrl}" alt="${imagePath}" loading="lazy" onerror="this.style.display='none'">`;
+          const safeImagePath = imagePath.replace(/'/g, "\\'");
+          return `<img src="${resolvedUrl}" alt="${imagePath}" loading="lazy" onerror="this.onerror=null; this.style.display='none'; const placeholder=document.createElement('div'); placeholder.className='text-xs text-muted-foreground text-center p-2 border border-dashed border-muted-foreground/20 rounded bg-muted/30'; placeholder.textContent='${safeImagePath} nicht verfügbar'; this.parentNode?.appendChild(placeholder);">`;
         }
       );
       

@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react"
 import { loadTemplateConfig } from "@/lib/templates/template-service-client"
 import type { TemplateDocument, CreationSource, CreationSourceType } from "@/lib/templates/template-types"
-import { ChooseSourceStep } from "./steps/choose-source-step"
 import { CollectSourceStep } from "./steps/collect-source-step"
 import { GenerateDraftStep } from "./steps/generate-draft-step"
-import { BriefingStep } from "./steps/briefing-step"
 import { EditDraftStep } from "./steps/edit-draft-step"
 import { WelcomeStep } from "./steps/welcome-step"
 import { PreviewDetailStep } from "./steps/preview-detail-step"
@@ -57,6 +55,9 @@ interface WizardState {
   draftText?: string
   // Loading-State für Re-Extract
   isExtracting?: boolean
+  // Human-in-the-loop: Quellen-Bestätigung
+  hasConfirmedSources?: boolean
+  extractionError?: string
   // Bild-Upload: ausgewählte Dateien pro Bildfeld-Key
   imageFiles?: Record<string, File | null>
   // Bild-URLs: bereits hochgeladene URLs pro Bildfeld-Key (für Preview)
@@ -75,7 +76,7 @@ interface CreationWizardProps {
   seedFileId?: string
 }
 
-export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, seedFileId }: CreationWizardProps) {
+export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, seedFileId, targetFolderId: targetFolderIdProp }: CreationWizardProps) {
   const [template, setTemplate] = useState<TemplateDocument | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [wizardState, setWizardState] = useState<WizardState>({
@@ -87,7 +88,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   const [resumeFileIdState] = useState<string | undefined>(resumeFileId)
   const [seedFileIdState, setSeedFileIdState] = useState<string | undefined>(seedFileId)
   const { provider, refreshItems } = useStorage()
-  const currentFolderId = useAtomValue(currentFolderIdAtom)
+  const currentFolderIdAtomValue = useAtomValue(currentFolderIdAtom)
+  // Verwende targetFolderIdProp, falls gesetzt (für Child-Flows), sonst currentFolderIdAtom
+  const currentFolderId = targetFolderIdProp || currentFolderIdAtomValue
   const router = useRouter()
 
   // Lade Template-Konfiguration
@@ -424,17 +427,22 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         ...prev,
         generatedDraft: { metadata, markdown },
         isExtracting: false,
+        extractionError: undefined,
       }))
 
       toast.success("Quellen wurden ausgewertet")
     } catch (error) {
       toast.error(`Fehler beim Auswerten: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
-      setWizardState(prev => ({ ...prev, isExtracting: false }))
+      setWizardState(prev => ({ 
+        ...prev, 
+        isExtracting: false,
+        extractionError: error instanceof Error ? error.message : "Unbekannter Fehler"
+      }))
     }
   }
 
   /**
-   * Fügt eine neue Quelle hinzu und triggert Re-Extract.
+   * Fügt eine neue Quelle hinzu und triggert automatische Transformation.
    * Wenn bereits eine Text-Quelle existiert, wird diese aktualisiert statt eine neue zu erstellen.
    */
   const addSource = async (source: WizardSource) => {
@@ -449,7 +457,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           id: updatedSources[existingTextSourceIndex].id, // Behalte die bestehende ID
           createdAt: updatedSources[existingTextSourceIndex].createdAt, // Behalte das ursprüngliche Datum
         }
-        setWizardState(prev => ({ ...prev, sources: updatedSources }))
+        setWizardState(prev => ({ 
+          ...prev, 
+          sources: updatedSources,
+          selectedSource: undefined, // Reset nach dem Hinzufügen, damit Quelle-Auswahl wieder angezeigt wird
+        }))
         await runExtraction(updatedSources)
         return
       }
@@ -457,12 +469,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     
     // Ansonsten: Neue Quelle hinzufügen
     const newSources = [...wizardState.sources, source]
-    setWizardState(prev => ({ ...prev, sources: newSources }))
+    setWizardState(prev => ({ 
+      ...prev, 
+      sources: newSources,
+      selectedSource: undefined, // Reset nach dem Hinzufügen, damit Quelle-Auswahl wieder angezeigt wird
+    }))
     await runExtraction(newSources)
   }
 
   /**
-   * Entfernt eine Quelle und triggert Re-Extract.
+   * Entfernt eine Quelle und triggert automatische Transformation.
    */
   const removeSource = async (sourceId: string) => {
     const newSources = wizardState.sources.filter(s => s.id !== sourceId)
@@ -517,10 +533,26 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
   const handleBack = () => {
     if (isFirstStep) return
-    setWizardState(prev => ({
-      ...prev,
-      currentStepIndex: prev.currentStepIndex - 1,
-    }))
+    
+    setWizardState(prev => {
+      const newIndex = prev.currentStepIndex - 1
+      const newStep = steps[newIndex]
+      
+      // Wenn wir zurück zum collectSource Step gehen,
+      // setze selectedSource IMMER zurück, damit die Quelle-Auswahl wieder angezeigt wird
+      if (newStep?.preset === 'collectSource') {
+        return {
+          ...prev,
+          currentStepIndex: newIndex,
+          selectedSource: undefined, // Reset, damit Quelle-Auswahl wieder angezeigt wird
+        }
+      }
+      
+      return {
+        ...prev,
+        currentStepIndex: newIndex,
+      }
+    })
   }
 
   const handleSave = async () => {
@@ -817,16 +849,137 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }
       } else {
         // Normal-Modus: Neue Datei erstellen
-        targetFolderId = currentFolderId && currentFolderId.trim().length > 0 ? currentFolderId : "root"
-        targetFileName = fileName
-        const file = new File([markdownContent], targetFileName, { type: "text/markdown" })
-        await provider.uploadFile(targetFolderId, file)
+        const createInOwnFolder = creation.output?.createInOwnFolder === true
         
-        toast.success("Content erfolgreich erstellt!")
+        if (createInOwnFolder) {
+          // Container-Modus: Ordner erstellen und Source-Datei darin speichern
+          // Ordnername = Dateiname ohne Extension (z.B. "mein-event")
+          const folderName = fileName.replace(/\.[^.]+$/, '') // Entferne Extension
+          const sourceFileName = fileName // Source-Datei heißt wie Ordner: "mein-event/mein-event.md"
+          
+          // Erstelle Ordner (falls nicht vorhanden)
+          try {
+            // Prüfe, ob Ordner bereits existiert
+            const existingItems = await provider.listItemsById(currentFolderId || "root")
+            const existingFolder = existingItems.find(
+              item => item.type === 'folder' && item.metadata.name === folderName
+            )
+            
+            if (existingFolder) {
+              // Ordner existiert bereits → nutze ihn
+              targetFolderId = existingFolder.id
+            } else {
+              // Erstelle neuen Ordner
+              const folderItem = await provider.createFolder(currentFolderId || "root", folderName)
+              targetFolderId = folderItem.id
+            }
+            
+            // Speichere Source-Datei im Ordner
+            targetFileName = sourceFileName
+            const file = new File([markdownContent], targetFileName, { type: "text/markdown" })
+            await provider.uploadFile(targetFolderId, file)
+            
+            toast.success(`Content erfolgreich erstellt in Ordner "${folderName}"!`)
+          } catch (error) {
+            toast.error(`Fehler beim Erstellen des Ordners: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
+            throw error
+          }
+        } else {
+          // Standard-Modus: Datei direkt im aktuellen Ordner speichern
+          targetFolderId = currentFolderId && currentFolderId.trim().length > 0 ? currentFolderId : "root"
+          targetFileName = fileName
+          const file = new File([markdownContent], targetFileName, { type: "text/markdown" })
+          await provider.uploadFile(targetFolderId, file)
+          
+          toast.success("Content erfolgreich erstellt!")
+        }
       }
       
       // Wichtig: refreshItems erwartet eine folderId. Ohne Parameter entsteht fileId=undefined im Request.
       await refreshItems(targetFolderId)
+      
+      // Schreibe Shadow‑Twin Bundle (falls Quellen vorhanden)
+      if (wizardState.sources.length > 0 && wizardState.generatedDraft) {
+        try {
+          // Lade die gerade gespeicherte Datei, um ihre ID zu bekommen
+          const items = await provider.listItemsById(targetFolderId)
+          const savedFile = items.find(
+            item => item.type === 'file' && item.metadata.name === targetFileName
+          )
+          
+          if (savedFile) {
+            // Baue Transcript-Inhalt (vollständiger Rohkorpus)
+            const transcriptContent = buildCorpusText(wizardState.sources)
+            
+            // Baue Transformation-Inhalt (Template-Output mit Frontmatter)
+            const transformationContent = `---\n${Object.entries(wizardState.generatedDraft.metadata)
+              .map(([key, value]) => {
+                if (value === null || value === undefined) return `${key}: ""`
+                if (Array.isArray(value)) return `${key}: ${JSON.stringify(value)}`
+                if (typeof value === 'string' && value.includes('\n')) {
+                  return `${key}: |\n${value.split('\n').map(line => `  ${line}`).join('\n')}`
+                }
+                return `${key}: ${value}`
+              })
+              .join('\n')}\n---\n\n${wizardState.generatedDraft.markdown}`
+            
+            // Rufe write-bundle API auf
+            const bundleResponse = await fetch(`/api/library/${libraryId}/creation/write-bundle`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                sourceFileId: savedFile.id,
+                sourceFileName: targetFileName,
+                sourceParentId: targetFolderId,
+                // Serialisiere sources: Date-Objekte zu ISO-Strings
+                sources: wizardState.sources.map(source => ({
+                  ...source,
+                  createdAt: source.createdAt.toISOString(),
+                })),
+                transcriptContent,
+                transformationContent,
+                templateName: template.name || templateId,
+                targetLanguage: 'de',
+              }),
+            })
+            
+            if (!bundleResponse.ok) {
+              const errorText = await bundleResponse.text().catch(() => 'Unknown error')
+              let errorData: unknown
+              try {
+                errorData = JSON.parse(errorText)
+              } catch {
+                errorData = { error: errorText }
+              }
+              console.error('[handleSave] Fehler beim Schreiben des Bundles:', {
+                status: bundleResponse.status,
+                statusText: bundleResponse.statusText,
+                errorData,
+              })
+              // Nicht fatal: Source-Datei ist bereits gespeichert
+              const errorMessage = typeof errorData === 'object' && errorData !== null && 'error' in errorData
+                ? String(errorData.error)
+                : 'Unbekannter Fehler'
+              toast.warning(`Shadow‑Twin Bundle konnte nicht geschrieben werden: ${errorMessage}`)
+            } else {
+              const bundleResult = await bundleResponse.json()
+              // Optional: Aktualisiere Source-Datei mit Referenz-IDs im Frontmatter
+              // (Für jetzt: Referenzen werden später über Resolver aufgelöst)
+              if (bundleResult.transcriptFileId || bundleResult.transformationFileId) {
+                // TODO: Optional: Frontmatter mit Referenzen aktualisieren
+                // Für jetzt: Resolver findet Artefakte automatisch
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[handleSave] Fehler beim Schreiben des Bundles:', error)
+          // Nicht fatal: Source-Datei ist bereits gespeichert
+          toast.warning('Shadow‑Twin Bundle konnte nicht geschrieben werden, aber Source-Datei wurde gespeichert')
+        }
+      }
+      
       router.push("/library")
     } catch (error) {
       toast.error(`Fehler beim Speichern: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
@@ -850,58 +1003,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         )
       }
 
-      case "briefing":
-        return (
-          <BriefingStep
-            template={template}
-            steps={steps}
-            selectedMode={wizardState.mode}
-            onModeSelect={(mode) => {
-              // Wenn Formular gewählt wird, ist keine Quelle nötig.
-              // Wir räumen die Source-Auswahl weg, damit nichts doppelt wirkt.
-              setWizardState(prev => ({
-                ...prev,
-                mode,
-                selectedSource: mode === 'form' ? undefined : prev.selectedSource,
-                collectedInput: mode === 'form' ? undefined : prev.collectedInput,
-              }))
-            }}
-            supportedSources={creation.supportedSources}
-            selectedSource={wizardState.selectedSource}
-            onSourceSelect={(source) => {
-              setWizardState(prev => ({ ...prev, selectedSource: source }))
-            }}
-          />
-        )
-
-      case "chooseSource":
-        // Wenn nur eine Quelle vorhanden ist und bereits ausgewählt, zeige eine Meldung
-        // (der Step wird beim handleNext automatisch übersprungen)
-        if (creation.supportedSources.length === 1 && wizardState.selectedSource) {
-          return (
-            <div className="text-center text-muted-foreground p-8">
-              Quelle wird automatisch ausgewählt...
-            </div>
-          )
-        }
-        return (
-          <ChooseSourceStep
-            supportedSources={creation.supportedSources}
-            onSelect={(source) => {
-              setWizardState(prev => ({ ...prev, selectedSource: source }))
-            }}
-            selectedSource={wizardState.selectedSource}
-          />
-        )
 
       case "collectSource":
-        if (!wizardState.selectedSource) {
-          return (
-            <div className="text-center text-muted-foreground p-8">
-              Bitte zuerst eine Quelle auswählen.
-            </div>
-          )
-        }
         return (
           <CollectSourceStep
             source={wizardState.selectedSource}
@@ -933,6 +1036,22 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             isExtracting={wizardState.isExtracting}
             templateId={templateId}
             libraryId={libraryId}
+            // Quelle-Auswahl (wenn source nicht gesetzt)
+            supportedSources={creation.supportedSources}
+            selectedSource={wizardState.selectedSource}
+            onSourceSelect={(source) => {
+              setWizardState(prev => ({ ...prev, selectedSource: source }))
+            }}
+            onModeSelect={(mode) => {
+              setWizardState(prev => ({
+                ...prev,
+                mode,
+                selectedSource: mode === 'form' ? undefined : prev.selectedSource,
+                collectedInput: mode === 'form' ? undefined : prev.collectedInput,
+              }))
+            }}
+            template={template}
+            steps={steps}
           />
         )
 
@@ -1256,14 +1375,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     switch (currentStep.preset) {
       case "welcome":
         return true
-      case "briefing":
-        // Step 1 ist bewusst einfach:
-        // - Formular: nur Mode reicht
-        // - Alles andere: Quelle muss gewählt sein (Interview/Webseite/Text/Datei)
-        if (wizardState.mode === 'form') return true
-        return !!wizardState.selectedSource
-      case "chooseSource":
-        return !!wizardState.selectedSource
       case "collectSource":
         // Weiter möglich, wenn:
         // 1. Quellen bereits vorhanden sind, ODER

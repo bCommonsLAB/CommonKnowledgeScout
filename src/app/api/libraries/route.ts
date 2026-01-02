@@ -131,7 +131,20 @@ export async function POST(request: NextRequest) {
   try {
     const libraryData = await request.json() as Library;
     
+    // Prüfe ob Library bereits existiert (anhand ID)
     const libraryService = LibraryService.getInstance();
+    const existingLibrary = await libraryService.getLibrary(email, libraryData.id);
+    
+    // Neue Libraries bekommen automatisch v2-Modus
+    if (!existingLibrary && !libraryData.config?.shadowTwin?.mode) {
+      libraryData.config = {
+        ...libraryData.config,
+        shadowTwin: {
+          mode: 'v2',
+        },
+      };
+    }
+    
     const success = await libraryService.updateLibrary(email, libraryData);
     
     if (success) {

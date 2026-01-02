@@ -26,6 +26,7 @@ import { DetailViewRenderer } from './detail-view-renderer';
 import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { resolveArtifactClient } from '@/lib/shadow-twin/artifact-client';
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
@@ -95,29 +96,104 @@ function getFileType(fileName: string): string {
 }
 
 // Komponente, die JobReportTab mit Shadow-Twin-Unterstützung umschließt
-// Verwendet jetzt das zentrale Shadow-Twin-Atom
+// Verwendet jetzt den zentralen resolveArtifactClient statt lokaler Heuristik
 function JobReportTabWithShadowTwin({
   libraryId,
   fileId,
   fileName,
+  parentId,
   provider
 }: {
   libraryId: string;
   fileId: string;
   fileName: string;
+  parentId: string;
   provider: StorageProvider | null;
 }) {
-  const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
-  const shadowTwinState = shadowTwinStates.get(fileId);
-  // WICHTIG: Verwende IMMER die transformierte Datei (.de.md), nicht das Transcript (.md)
-  // Das Transcript hat kein Frontmatter und sollte nicht für Metadaten verwendet werden
-  // NIEMALS auf transcriptFiles zurückfallen, da diese kein Frontmatter haben!
-  const mdFileId = shadowTwinState?.transformed?.id || null;
-  
+  const [mdFileId, setMdFileId] = React.useState<string | null>(null);
+  const [baseFileId, setBaseFileId] = React.useState<string>(fileId);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  // Variante C: Vollständig über API - kein lokales Parsing mehr
+  React.useEffect(() => {
+    async function resolveArtifact() {
+      setIsLoading(true);
+
+      // Rufe zentrale Resolver-API auf
+      // Priorität 1: Transformation (hat Frontmatter)
+      let resolved = await resolveArtifactClient({
+        libraryId,
+        sourceId: fileId,
+        sourceName: fileName,
+        parentId,
+        targetLanguage: 'de', // Standard-Sprache
+        preferredKind: 'transformation',
+      });
+
+      // Priorität 2: Fallback zu Transcript wenn keine Transformation gefunden
+      if (!resolved) {
+        resolved = await resolveArtifactClient({
+          libraryId,
+          sourceId: fileId,
+          sourceName: fileName,
+          parentId,
+          targetLanguage: 'de', // Standard-Sprache
+          preferredKind: 'transcript',
+        });
+      }
+
+      if (resolved) {
+        setMdFileId(resolved.fileId);
+        setBaseFileId(fileId); // Basis-Datei bleibt fileId
+        FileLogger.debug('JobReportTabWithShadowTwin', 'Artefakt über Resolver gefunden', {
+          originalFileId: fileId,
+          resolvedFileId: resolved.fileId,
+          resolvedFileName: resolved.fileName,
+          kind: resolved.kind,
+          location: resolved.location,
+        });
+      } else {
+        // Kein Artefakt gefunden - verwende Basis-Datei direkt
+        setMdFileId(null);
+        setBaseFileId(fileId);
+        FileLogger.debug('JobReportTabWithShadowTwin', 'Kein Shadow-Twin-Artefakt gefunden, verwende Basis-Datei', {
+          fileId,
+          fileName,
+          parentId,
+        });
+      }
+
+      setIsLoading(false);
+    }
+
+    if (libraryId && fileId && parentId) {
+      resolveArtifact().catch((error) => {
+        FileLogger.error('JobReportTabWithShadowTwin', 'Fehler bei Artefakt-Auflösung', {
+          fileId,
+          fileName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        setIsLoading(false);
+        setMdFileId(null);
+        setBaseFileId(fileId);
+      });
+    } else {
+      setIsLoading(false);
+    }
+  }, [libraryId, fileId, fileName, parentId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">Lade Metadaten...</p>
+      </div>
+    );
+  }
+
   return (
     <JobReportTab 
       libraryId={libraryId} 
-      fileId={fileId} 
+      fileId={baseFileId} 
       fileName={fileName} 
       provider={provider}
       mdFileId={mdFileId}
@@ -481,7 +557,8 @@ function PreviewContent({
                 <JobReportTabWithShadowTwin 
                   libraryId={activeLibraryId} 
                   fileId={item.id} 
-                  fileName={item.metadata.name} 
+                  fileName={item.metadata.name}
+                  parentId={item.parentId}
                   provider={provider}
                 />
               </TabsContent>

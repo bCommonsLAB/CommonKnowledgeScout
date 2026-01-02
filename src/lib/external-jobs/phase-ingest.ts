@@ -149,40 +149,58 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
   
   // Lade Markdown-Inhalt: Verwende zentrale loadShadowTwinMarkdown() Funktion (wie Template-Phase)
   // Diese Funktion findet automatisch die richtige Shadow-Twin-Datei (Verzeichnis oder Parent)
-  let markdownForIngestion = extractedText || markdown || ''
+  // WICHTIG: Bevorzuge immer das transformierte Markdown aus dem Shadow-Twin, nicht das rohe extractedText
+  // Das transformierte Markdown enthält Frontmatter mit Metadaten und ist für RAG-Ingestion optimiert
+  let markdownForIngestion = markdown || ''
   let metaForIngestion = meta
   
-  if (!markdownForIngestion) {
-    try {
-      // Verwende zentrale Shadow-Twin-Loader-Funktion
-      const shadowTwinResult = await loadShadowTwinMarkdown(ctx, ingestionProvider)
-      if (shadowTwinResult) {
-        markdownForIngestion = shadowTwinResult.markdown
-        // Meta aus Shadow-Twin überschreibt übergebenes Meta (falls vorhanden)
-        if (Object.keys(shadowTwinResult.meta).length > 0) {
-          metaForIngestion = shadowTwinResult.meta
-        }
-        // Aktualisiere fileId und fileName aus gefundener Datei
-        const actualFileId = shadowTwinResult.fileId || fileId
-        const actualFileName = shadowTwinResult.fileName || `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`
-        
-        FileLogger.info('phase-ingest', 'Markdown aus Shadow-Twin geladen', {
+  // Versuche immer zuerst das transformierte Markdown aus dem Shadow-Twin zu laden
+  // Nur wenn das fehlschlägt, verwende das übergebene markdown als Fallback
+  try {
+    // Verwende zentrale Shadow-Twin-Loader-Funktion
+    // Diese bevorzugt das transformierte Markdown (shadowTwinState.transformed.id)
+    const shadowTwinResult = await loadShadowTwinMarkdown(ctx, ingestionProvider)
+    if (shadowTwinResult) {
+      markdownForIngestion = shadowTwinResult.markdown
+      // Meta aus Shadow-Twin überschreibt übergebenes Meta (falls vorhanden)
+      if (Object.keys(shadowTwinResult.meta).length > 0) {
+        metaForIngestion = shadowTwinResult.meta
+      }
+      // Aktualisiere fileId und fileName aus gefundener Datei
+      const actualFileId = shadowTwinResult.fileId || fileId
+      const actualFileName = shadowTwinResult.fileName || `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`
+      
+      FileLogger.info('phase-ingest', 'Markdown aus Shadow-Twin geladen', {
+        jobId,
+        fileId: actualFileId,
+        fileName: actualFileName,
+        markdownLength: markdownForIngestion.length,
+        isTransformed: !!shadowTwinResult.meta.template, // Transformierte Dateien haben template im Frontmatter
+      })
+    } else {
+      // Fallback: Verwende übergebenes markdown, wenn Shadow-Twin nicht gefunden wurde
+      if (!markdownForIngestion && extractedText) {
+        markdownForIngestion = extractedText
+        FileLogger.warn('phase-ingest', 'Shadow-Twin-Markdown nicht gefunden, verwende extractedText als Fallback', {
           jobId,
-          fileId: actualFileId,
-          fileName: actualFileName,
-          markdownLength: markdownForIngestion.length,
+          fileId,
+          extractedTextLength: extractedText.length,
         })
-      } else {
-        FileLogger.warn('phase-ingest', 'Shadow-Twin-Markdown nicht gefunden, verwende Fallback', {
+      } else if (!markdownForIngestion) {
+        FileLogger.warn('phase-ingest', 'Kein Markdown verfügbar für Ingestion', {
           jobId,
           fileId,
         })
       }
-    } catch (err) {
-      FileLogger.error('phase-ingest', 'Fehler beim Laden des Shadow-Twin-Markdown', {
-        jobId,
-        error: err instanceof Error ? err.message : String(err),
-      })
+    }
+  } catch (err) {
+    FileLogger.error('phase-ingest', 'Fehler beim Laden des Shadow-Twin-Markdown', {
+      jobId,
+      error: err instanceof Error ? err.message : String(err),
+    })
+    // Fallback: Verwende übergebenes markdown oder extractedText
+    if (!markdownForIngestion && extractedText) {
+      markdownForIngestion = extractedText
     }
   }
   

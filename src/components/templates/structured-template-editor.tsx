@@ -549,7 +549,6 @@ function CreationFlowEditor({
 
   const [selectedSourceId, setSelectedSourceId] = React.useState<string | null>(null)
   const [selectedStepId, setSelectedStepId] = React.useState<string | null>(null)
-  const [showSourceDetails, setShowSourceDetails] = React.useState(true)
   const [showStepDetails, setShowStepDetails] = React.useState(true)
 
   React.useEffect(() => {
@@ -654,7 +653,7 @@ function CreationFlowEditor({
       flow: {
         steps: [
           ...c.flow.steps,
-          { id: newId, preset: 'chooseSource' }
+          { id: newId, preset: 'collectSource' }
         ]
       }
     }))
@@ -728,7 +727,7 @@ function CreationFlowEditor({
     setDraggedStepIndex(null)
   }
 
-  const availablePresets = ['welcome', 'briefing', 'chooseSource', 'collectSource', 'generateDraft', 'previewDetail', 'editDraft', 'uploadImages', 'selectRelatedTestimonials']
+  const availablePresets = ['welcome', 'collectSource', 'generateDraft', 'previewDetail', 'editDraft', 'uploadImages', 'selectRelatedTestimonials']
   
   // Verfügbare Feldnamen aus Metadaten extrahieren
   const availableFieldKeys = metadata.fields.map(f => f.key)
@@ -785,6 +784,16 @@ function CreationFlowEditor({
           ...c.output?.fileName,
           ...updates,
         },
+      },
+    }))
+  }
+
+  const updateOutputCreateInOwnFolder = (createInOwnFolder: boolean) => {
+    updateCreation((c) => ({
+      ...c,
+      output: {
+        ...c.output,
+        createInOwnFolder,
       },
     }))
   }
@@ -1003,6 +1012,25 @@ function CreationFlowEditor({
             </div>
           ) : null}
 
+          <div className="flex items-center gap-2 pt-2 border-t">
+            <Checkbox
+              checked={localCreation?.output?.createInOwnFolder === true}
+              onCheckedChange={(checked) =>
+                updateOutputCreateInOwnFolder(checked === true)
+              }
+              id="create-in-own-folder"
+            />
+            <Label htmlFor="create-in-own-folder" className="text-sm">
+              In eigenem Ordner speichern (Container-Modus)
+            </Label>
+          </div>
+          {localCreation?.output?.createInOwnFolder && (
+            <div className="text-xs text-muted-foreground pl-6">
+              Die Source-Datei wird in einem eigenen Ordner gespeichert (z.B. <span className="font-mono">mein-event/mein-event.md</span>).
+              Ermöglicht Child-Flows (z.B. Testimonials) im selben Ordner.
+            </div>
+          )}
+
           <div className="text-xs text-muted-foreground">
             Beispiel:{" "}
             <span className="font-mono">
@@ -1018,147 +1046,6 @@ function CreationFlowEditor({
             </span>
           </div>
         </Card>
-      </div>
-
-      {/* Input-Quellen Section */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">Unterstützte Input-Quellen</h3>
-            <p className="text-sm text-muted-foreground">Wie können Nutzer Daten eingeben?</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowSourceDetails(!showSourceDetails)}>
-              {showSourceDetails ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={addSource}>
-              <Plus className="w-4 h-4 mr-2" />
-              Quelle hinzufügen
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-3" style={{ gridTemplateColumns: showSourceDetails && selectedSource ? "1fr 400px" : "1fr" }}>
-          {/* Kompakte Liste */}
-          <div className="space-y-2">
-            {sources.map((source) => {
-              const Icon = SOURCE_TYPE_ICONS[source.type]
-              const colorClass = SOURCE_TYPE_COLORS[source.type]
-              const isSelected = selectedSourceId === source.id
-
-              return (
-                <div
-                  key={source.id}
-                  onClick={() => setSelectedSourceId(source.id)}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/5 shadow-sm"
-                      : "border-border hover:border-primary/50 hover:bg-accent/50"
-                  }`}
-                >
-                  <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-
-                  <div className={`p-2 rounded ${colorClass} flex-shrink-0`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{source.label || source.id}</div>
-                    <div className="text-xs text-muted-foreground truncate">{source.helpText || 'Kein Hilfetext'}</div>
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs text-muted-foreground font-mono">{source.type}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeSourceById(source.id)
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-
-            {sources.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                <p className="text-sm">Noch keine Input-Quellen definiert</p>
-              </div>
-            )}
-          </div>
-
-          {/* Detail-Panel */}
-          {showSourceDetails && selectedSource && (
-            <Card className="p-4 space-y-4 sticky top-4 h-fit">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Details bearbeiten</h4>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedSourceId(null)}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">ID (technisch)</label>
-                  <Input
-                    value={selectedSource.id}
-                    onChange={(e) => {
-                      const newId = e.target.value
-                      updateSourceById(selectedSource.id, { id: newId })
-                      setSelectedSourceId(newId)
-                    }}
-                    className="text-sm font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Typ</label>
-                  <Select
-                    value={selectedSource.type}
-                    onValueChange={(value) => updateSourceById(selectedSource.id, { type: value as TemplateCreationConfig['supportedSources'][0]['type'] })}
-                  >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="text">Text (tippen oder diktieren)</SelectItem>
-                      <SelectItem value="url">URL</SelectItem>
-                      <SelectItem value="file">Datei</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                    Label (Nutzer sieht dies)
-                  </label>
-                  <Input
-                    value={selectedSource.label}
-                    onChange={(e) => updateSourceById(selectedSource.id, { label: e.target.value })}
-                    placeholder="z.B. Ich erzähle kurz..."
-                    className="text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Hilfetext</label>
-                  <Textarea
-                    value={selectedSource.helpText || ''}
-                    onChange={(e) => updateSourceById(selectedSource.id, { helpText: e.target.value })}
-                    placeholder="Erkläre, wie diese Quelle funktioniert..."
-                    rows={3}
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-            </Card>
-          )}
-        </div>
       </div>
 
       {/* Flow Steps Section */}
@@ -1300,6 +1187,142 @@ function CreationFlowEditor({
                     className="text-sm"
                   />
                 </div>
+
+                {/* Quellen-Verwaltung für collectSource Step */}
+                {selectedStep.preset === 'collectSource' && (
+                  <div className="space-y-3 pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                          Unterstützte Quellen
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          Welche Quellen können Nutzer in diesem Step auswählen?
+                        </p>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={addSource}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Quelle hinzufügen
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {sources.map((source) => {
+                        const Icon = SOURCE_TYPE_ICONS[source.type]
+                        const colorClass = SOURCE_TYPE_COLORS[source.type]
+                        const isSelected = selectedSourceId === source.id
+
+                        return (
+                          <div
+                            key={source.id}
+                            onClick={() => setSelectedSourceId(isSelected ? null : source.id)}
+                            className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                              isSelected
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-primary/50"
+                            }`}
+                          >
+                            <div className={`p-1.5 rounded ${colorClass} flex-shrink-0`}>
+                              <Icon className="w-3.5 h-3.5" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-xs">{source.label || source.id}</div>
+                              <div className="text-xs text-muted-foreground truncate">{source.helpText || 'Kein Hilfetext'}</div>
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-xs text-muted-foreground font-mono">{source.type}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeSourceById(source.id)
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {sources.length === 0 && (
+                        <div className="text-center py-4 text-muted-foreground text-xs">
+                          <p>Noch keine Quellen definiert</p>
+                          <p className="mt-1">Klicke auf "Quelle hinzufügen" um zu beginnen</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Quelle Details (expandiert wenn ausgewählt) */}
+                    {selectedSource && (
+                      <div className="space-y-3 pt-2 border-t">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-xs font-semibold">Quelle bearbeiten</h5>
+                          <Button variant="ghost" size="sm" className="h-6" onClick={() => setSelectedSourceId(null)}>
+                            <ChevronRight className="w-3 h-3" />
+                          </Button>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Quelle ID</label>
+                            <Input
+                              value={selectedSource.id}
+                              onChange={(e) => {
+                                const newId = e.target.value
+                                updateSourceById(selectedSource.id, { id: newId })
+                                setSelectedSourceId(newId)
+                              }}
+                              className="text-xs font-mono h-8"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Typ</label>
+                            <Select
+                              value={selectedSource.type}
+                              onValueChange={(value) => updateSourceById(selectedSource.id, { type: value as TemplateCreationConfig['supportedSources'][0]['type'] })}
+                            >
+                              <SelectTrigger className="text-xs h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="text">Text (tippen oder diktieren)</SelectItem>
+                                <SelectItem value="url">URL</SelectItem>
+                                <SelectItem value="file">Datei</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Label</label>
+                            <Input
+                              value={selectedSource.label}
+                              onChange={(e) => updateSourceById(selectedSource.id, { label: e.target.value })}
+                              placeholder="z.B. Text (tippen oder diktieren)"
+                              className="text-xs h-8"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Hilfetext (optional)</label>
+                            <Textarea
+                              value={selectedSource.helpText || ''}
+                              onChange={(e) => updateSourceById(selectedSource.id, { helpText: e.target.value || undefined })}
+                              placeholder="Beschreibe, was der Nutzer hier tun kann..."
+                              rows={2}
+                              className="text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {selectedStep.preset === 'welcome' && (
                   <div className="space-y-3 pt-2 border-t">
@@ -1492,12 +1515,6 @@ function CreationFlowEditor({
                   </div>
                 )}
 
-                {selectedStep.preset === 'briefing' && (
-                  <div className="text-xs text-muted-foreground p-2 border rounded-md bg-muted/50">
-                    Dieser Step zeigt automatisch einen Spickzettel der im <code className="font-mono">editDraft</code>-Step ausgewählten Felder an.
-                    Keine zusätzliche Konfiguration erforderlich.
-                  </div>
-                )}
 
                 {selectedStep.preset === 'welcome' && (
                   <div className="text-xs text-muted-foreground p-2 border rounded-md bg-muted/50">

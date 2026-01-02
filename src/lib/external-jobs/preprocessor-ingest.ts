@@ -25,6 +25,7 @@ import {
   decideNeedIngest,
 } from '@/lib/external-jobs/preprocess-core'
 import { FileLogger } from '@/lib/debug/logger'
+import { LibraryService } from '@/lib/services/library-service'
 
 export interface PreprocessIngestResult {
   hasMarkdown: boolean
@@ -56,9 +57,14 @@ export async function preprocessorIngest(
 
   const repo = new ExternalJobsRepository()
   const provider = await buildProvider({ userEmail, libraryId, jobId, repo })
+  
+  // Lade Library für Mode-Detection
+  const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
+  const sourceItemId = job.correlation?.source?.itemId
+  const sourceName = job.correlation?.source?.name
 
   // Versuche zuerst mit der angeforderten Sprache
-  let found = await findPdfMarkdown(provider, parentId, baseName, lang)
+  let found = await findPdfMarkdown(provider, parentId, baseName, lang, library, sourceItemId, sourceName)
 
   // Wenn nicht gefunden und shadowTwinState verfügbar: Versuche die tatsächlich vorhandene Datei zu finden
   if (!found.hasMarkdown && job.shadowTwinState?.transformed?.id) {
@@ -77,7 +83,7 @@ export async function preprocessorIngest(
         actualLang,
         transformedFileName,
       })
-      found = await findPdfMarkdown(provider, parentId, baseName, actualLang)
+      found = await findPdfMarkdown(provider, parentId, baseName, actualLang, library, sourceItemId, sourceName)
     }
     
     // Fallback: Versuche direkt die Datei aus shadowTwinState zu laden

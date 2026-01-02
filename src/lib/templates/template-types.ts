@@ -33,10 +33,9 @@ export interface CreationSource {
 /**
  * Unterstützte Step-Presets im Creation-Flow
  * 
- * - `briefing`: Informations-Step, zeigt Spickzettel der benötigten Felder (keine Eingabe)
- * - `chooseSource`: Auswahl der Input-Quelle (spoken, url, text, file)
- * - `collectSource`: Sammlung der Eingabe basierend auf gewählter Quelle
- * - `generateDraft`: LLM-Transformation der Eingabe zu strukturierten Daten + Markdown
+ * - `welcome`: Willkommensseite am Anfang des Wizards
+ * - `collectSource`: Quelle sammeln (zeigt Quelle-Auswahl wenn keine ausgewählt, sonst entsprechenden Dialog)
+ * - `generateDraft`: LLM-Transformation der Eingabe zu strukturierten Daten + Markdown (optional, wird in Multi-Source-Flow automatisch übersprungen)
  * - `editDraft`: Formular-Modus: direkte Bearbeitung aller Metadaten + Markdown-Draft (mit Feld-Auswahl)
  * - `uploadImages`: Optionaler Step zum Hochladen von Bildern für konfigurierte Bildfelder
  * - `previewDetail`: Vorschau der fertigen Detailseite
@@ -44,8 +43,6 @@ export interface CreationSource {
  */
 export type CreationFlowStepPreset = 
   | 'welcome'
-  | 'briefing' 
-  | 'chooseSource' 
   | 'collectSource' 
   | 'generateDraft' 
   | 'previewDetail'
@@ -95,6 +92,13 @@ export interface TemplateCreationOutputFileNameConfig {
 export interface TemplateCreationOutputConfig {
   /** Regeln für den Output-Dateinamen */
   fileName?: TemplateCreationOutputFileNameConfig
+  /**
+   * Wenn true: Source wird in einem eigenen Ordner gespeichert (Container-Modus).
+   * Ordnername = Output-Dateiname ohne Extension (z.B. "mein-event").
+   * Source-Datei heißt wie Ordner: "mein-event/mein-event.md".
+   * Ermöglicht Child-Flows (z.B. Testimonials) im selben Ordner.
+   */
+  createInOwnFolder?: boolean
 }
 
 /**

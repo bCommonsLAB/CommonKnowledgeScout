@@ -14,6 +14,8 @@ import { TransformService, type PdfTransformOptions } from "@/lib/transform/tran
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
 import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants";
+import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
+import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
 
 interface PhaseStepperProps {
   statuses?: { p1?: "completed" | "in_progress" | "failed" | "pending"; p2?: "completed" | "in_progress" | "failed" | "pending"; p3?: "completed" | "in_progress" | "failed" | "pending" };
@@ -38,9 +40,19 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
   function buildOptions(targetPhase: PdfPhase): PdfTransformOptions | null {
     if (!provider || !activeLibraryId || !item || item.type !== 'file') return null;
     const defaults = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
+    const targetLanguage = typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT;
+    
+    // Nutze zentrale buildArtifactName() Logik für Dateinamen-Generierung
+    const artifactKey: ArtifactKey = {
+      sourceId: item.id,
+      kind: 'transcript',
+      targetLanguage,
+    };
+    const fileName = buildArtifactName(artifactKey, item.metadata.name).replace(/\.md$/, '');
+    
     const base: PdfTransformOptions = {
-      targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT,
-      fileName: TransformService.generateShadowTwinName(item.metadata.name, typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT),
+      targetLanguage,
+      fileName,
       createShadowTwin: true,
       fileExtension: 'md',
       extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native',

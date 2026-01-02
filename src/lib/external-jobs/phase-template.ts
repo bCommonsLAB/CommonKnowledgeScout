@@ -24,6 +24,11 @@ import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { handleJobError } from '@/lib/external-jobs/error-handler'
 import { FileLogger } from '@/lib/debug/logger'
 import type { LibraryChatConfig } from '@/types/library'
+import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
+import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
+import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
+import { LibraryService } from '@/lib/services/library-service'
 
 export interface TemplatePhaseArgs {
   ctx: RequestContext
@@ -670,7 +675,21 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
 
   const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
   const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-  const uniqueName = `${baseName}.${lang}.md`
+  const sourceItemId = job.correlation?.source?.itemId || 'unknown'
+  const sourceName = job.correlation?.source?.name || baseName
+  
+  // WICHTIG: Verwende zentrale buildArtifactName() Logik für Transformationen
+  // Transformation-Format: {baseName}.{templateName}.{language}.md
+  const usedTemplate = picked?.templateName || preferredTemplate || job.parameters?.template as string | undefined
+  const artifactKey: ArtifactKey = {
+    sourceId: sourceItemId,
+    kind: 'transformation',
+    targetLanguage: lang,
+    templateName: usedTemplate, // ERFORDERLICH für Transformationen
+  }
+  
+  // Generiere Dateinamen mit zentraler Logik
+  const uniqueName = buildArtifactName(artifactKey, sourceName)
 
   // SSOT: Flache, UI-taugliche Metafelder ergänzen (nur auf stabilem Meilenstein)
   const baseMeta = bodyMetadata || {}
@@ -683,7 +702,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   }
   // Template-Name im Frontmatter speichern, damit wir beim nächsten Mal prüfen können, ob es geändert wurde
   // Verwende das tatsächlich verwendete Template (picked.templateName) oder das Preferred Template
-  const usedTemplate = picked?.templateName || preferredTemplate || job.parameters?.template as string | undefined
+  // HINWEIS: usedTemplate wurde bereits oben deklariert (Zeile 683)
   if (usedTemplate) {
     ssotFlat['template'] = usedTemplate
   }
@@ -694,18 +713,39 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
 
   // Kapitel zentral normalisieren (Analyze-Endpoint), Ergebnis in Frontmatter mergen
   // Bestehendes Frontmatter laden (falls Datei existiert) und als Basis verwenden
-  // WICHTIG: Wir laden die transformierte Datei mit Sprachkürzel (z.B. Livique_Sørensen.de.md),
+  // WICHTIG: Wir laden die transformierte Datei mit Template-Namen und Sprachkürzel (z.B. Livique_Sørensen.Besprechung.de.md),
   // NICHT die OCR-generierte Datei ohne Frontmatter (z.B. Livique_Sørensen.md)
   let existingMeta: Record<string, unknown> | null = null
   let existingFileId: string | undefined = undefined
   let existingFileName: string | undefined = undefined
   try {
-    const siblings = await provider.listItemsById(targetParentId)
-    const existing = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === uniqueName) as { id: string; metadata: { name: string } } | undefined
-    if (existing) {
-      existingFileId = existing.id
-      existingFileName = existing.metadata.name
-      const bin = await provider.getBinary(existing.id)
+    // Verwende zentrale resolveArtifact() Logik für konsistente Suche
+    let mode: 'legacy' | 'v2' = 'legacy'
+    try {
+      const libraryService = LibraryService.getInstance()
+      const library = await libraryService.getLibrary(job.userEmail, job.libraryId)
+      if (library) {
+        mode = getShadowTwinMode(library)
+      }
+    } catch {
+      // Fallback zu legacy
+    }
+    
+    // Suche nach bestehender Transformation mit zentraler Logik
+    const resolved = await resolveArtifact(provider, {
+      sourceItemId,
+      sourceName,
+      parentId: targetParentId,
+      mode,
+      targetLanguage: lang,
+      templateName: usedTemplate,
+      preferredKind: 'transformation',
+    })
+    
+    if (resolved) {
+      existingFileId = resolved.fileId
+      existingFileName = resolved.fileName
+      const bin = await provider.getBinary(resolved.fileId)
       const text = await bin.blob.text()
       const parsed = parseSecretaryMarkdownStrict(text)
       existingMeta = parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta) ? parsed.meta as Record<string, unknown> : null
@@ -717,7 +757,9 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
         fileName: existingFileName,
         hasFrontmatter: !!existingMeta,
         frontmatterKeys: existingMeta ? Object.keys(existingMeta).length : 0,
-        hasChapters: Array.isArray(existingMeta?.chapters) && (existingMeta.chapters as Array<unknown>).length > 0
+        hasChapters: Array.isArray(existingMeta?.chapters) && (existingMeta.chapters as Array<unknown>).length > 0,
+        location: resolved.location,
+        mode
       })
       try {
         await repo.traceAddEvent(jobId, {
@@ -728,7 +770,9 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
             fileName: existingFileName,
             hasFrontmatter: !!existingMeta,
             frontmatterKeys: existingMeta ? Object.keys(existingMeta).length : 0,
-            hasChapters: Array.isArray(existingMeta?.chapters) && (existingMeta.chapters as Array<unknown>).length > 0
+            hasChapters: Array.isArray(existingMeta?.chapters) && (existingMeta.chapters as Array<unknown>).length > 0,
+            location: resolved.location,
+            mode
           }
         })
       } catch {}
@@ -737,7 +781,8 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
         phase: 'template_load_existing',
         message: `Keine bestehende transformierte Markdown-Datei gefunden: ${uniqueName}`,
         searchedFileName: uniqueName,
-        targetParentId
+        targetParentId,
+        mode
       })
     }
   } catch (error) {
@@ -999,9 +1044,16 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       }
     }
     // Speichern via Modul
-    // WICHTIG: Wir speichern die transformierte Datei mit Sprachkürzel (z.B. Livique_Sørensen.de.md)
+    // WICHTIG: Wir speichern die transformierte Datei mit Template-Namen und Sprachkürzel (z.B. Livique_Sørensen.Besprechung.de.md)
     // Diese Datei enthält Frontmatter und wird im Shadow-Twin-Verzeichnis gespeichert
-    const saved = await saveMarkdown({ ctx, parentId: targetParentId, fileName: uniqueName, markdown })
+    // Verwende expliziten ArtifactKey für zentrale Logik
+    const saved = await saveMarkdown({ 
+      ctx, 
+      parentId: targetParentId, 
+      fileName: uniqueName, 
+      markdown,
+      artifactKey, // Expliziter ArtifactKey für Transformation
+    })
     savedItemId = saved.savedItemId
     bufferLog(jobId, {
       phase: 'template_save',
@@ -1046,37 +1098,9 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_completed' }) } catch {}
   }
 
-  // Bilder-ZIP optional verarbeiten (modular)
-  // Unterstützt alle Quellen: pages_archive_data, images_archive_data, mistral_ocr_raw, images_archive_url
-  if (imagesPhaseEnabled) {
-    try {
-      // Verwende Shadow-Twin-State aus Job-Dokument (beim Job-Start berechnet)
-      const shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
-
-      await processAllImageSources(ctx, provider, {
-        pagesArchiveData,
-        pagesArchiveUrl,
-        pagesArchiveFilename,
-        imagesArchiveData,
-        imagesArchiveFilename,
-        imagesArchiveUrl,
-        mistralOcrRaw,
-        hasMistralOcrImages: hasMistralOcrImages ?? false,
-        mistralOcrImagesUrl,
-        extractedText,
-        lang,
-        targetParentId,
-        imagesPhaseEnabled,
-        shadowTwinFolderId, // Verwende State aus Job-Dokument
-      })
-    } catch (err) {
-      FileLogger.error('phase-template', 'Fehler bei Bild-Verarbeitung', {
-        jobId,
-        error: err instanceof Error ? err.message : String(err),
-      })
-      // Bild-Verarbeitung ist nicht kritisch, daher nicht fatal
-    }
-  }
+  // WICHTIG: Bilder-Verarbeitung wurde in Phase 1 (Extract) verschoben
+  // Die Bilder werden beim Extract erstellt und sollten dort auch gespeichert werden
+  // Daher wird die Bild-Verarbeitung hier nicht mehr durchgeführt
 
   return {
     metadata: mergedMeta,

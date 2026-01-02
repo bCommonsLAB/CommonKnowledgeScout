@@ -796,7 +796,9 @@ export async function POST(
       }
 
       // Reparatur-Logik: Legacy-Markdown im PDF-Ordner nach erfolgreichem Template-Lauf entfernen
-      await cleanupLegacyMarkdownAfterTemplate(jobId, legacyMarkdownId, preTemplateResult, provider, repo)
+      // Übergebe Original-Dateiname des PDFs für korrekte Shadow-Twin-Verzeichnis-Erkennung
+      const sourceFileName = refreshedJob?.correlation?.source?.name || job.correlation?.source?.name
+      await cleanupLegacyMarkdownAfterTemplate(jobId, legacyMarkdownId, preTemplateResult, provider, repo, sourceFileName)
 
       // Shadow-Twin-State aktualisieren: processingStatus auf 'ready' setzen
       // Template-Only: Nach erfolgreichem Template-Lauf ist der Shadow-Twin vollständig
