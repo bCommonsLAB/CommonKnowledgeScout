@@ -143,8 +143,9 @@ Add structured metadata (frontmatter) to the extracted text, enabling structured
   - **`src/lib/external-jobs/phase-template.ts`**: Consolidated template phase (decision logic, repair cases, saving transformed Markdown)
   - **`src/lib/external-jobs/template-run.ts`**: Template transformation execution (calls the Secretary template transformer and parses the response)
   - **`src/lib/external-jobs/chapters.ts`**: Chapter detection and merge based on text
-  - **`src/lib/templates/template-service.ts`**: Central management and loading of template files from the library `/templates` folder
-  - **`src/lib/external-jobs/template-files.ts`**: Wrapper around `template-service.ts` for the external jobs phase
+  - **`src/lib/external-jobs/template-files.ts`**: Template-Auswahl für External Jobs (**MongoDB Source of Truth**), serialisiert Secretary-kompatibel (ohne `creation`)
+  - **`src/lib/templates/template-service-mongodb.ts`**: MongoDB Template-Service inkl. Serialisierung zu Template-Markdown (Frontmatter + Body + systemprompt)
+  - **Hinweis (Legacy)**: `src/lib/templates/template-service.ts` lädt Templates aus dem Library-Storage `/templates` Ordner und wird primär für Import/Migration genutzt.
   - **`src/lib/processing/gates.ts`** (`gateTransformTemplate`): Gate checking (e.g. skip if chapter metadata already exists)
   - **`src/lib/external-jobs/storage.ts`**: Saves transformed Markdown (`{originalName}.{language}.md`)
 
@@ -160,7 +161,7 @@ Add structured metadata (frontmatter) to the extracted text, enabling structured
     - the repair needs of an existing shadow twin.
   - **Template transformation is only executed if no chapter metadata (`chapters`) exists yet.** If only `pages` are missing, they are reconstructed from the `--- Seite N ---` markers in the body.
   - When template processing is executed:
-    - it selects a template via the central template service from the library `/templates` folder,
+    - it selects a template from **MongoDB** (TemplateDocument) and serialisiert es als Secretary-kompatibles Template-Markdown (ohne `creation`),
     - calls the Secretary template endpoint and adds chapter information,
     - strips old frontmatter and stores the new Markdown with frontmatter via `saveMarkdown` as `{originalName}.{language}.md`,
     - and reliably marks the `transform_template` step as `completed` or `failed`.

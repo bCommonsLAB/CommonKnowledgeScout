@@ -14,6 +14,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TraceViewer } from '@/components/shared/trace-viewer';
 import { FileText, FileAudio, FileVideo, Image as ImageIcon, File as FileIcon, FileType2, RefreshCw, Ban, Activity, Copy, Trash2, FolderOpen } from "lucide-react";
+import type { JobUpdateEvent } from '@/lib/events/job-event-bus';
 
 interface JobListItem {
   jobId: string;
@@ -25,25 +26,12 @@ interface JobListItem {
   sourceItemId?: string;
   sourceParentId?: string;
   shadowTwinFolderId?: string; // Shadow-Twin-Verzeichnis-ID (falls vorhanden)
+  resultItemId?: string; // transformiertes Ergebnis (z.B. `${base}.${template}.${lang}.md`)
   libraryId?: string;
   updatedAt?: string;
   createdAt?: string;
   lastMessage?: string;
   lastProgress?: number;
-}
-
-interface JobUpdateEvent {
-  type: 'job_update';
-  jobId: string;
-  status: string;
-  phase?: string;
-  progress?: number;
-  message?: string;
-  updatedAt: string;
-  jobType?: string;
-  fileName?: string;
-  sourceItemId?: string;
-  refreshFolderId?: string;
 }
 
 function formatRelative(dateIso?: string): string {
@@ -257,6 +245,38 @@ export function JobMonitorPanel() {
     }
   };
 
+  /**
+   * Öffnet das erzeugte Ergebnis (transformiertes Markdown) im Shadow‑Twin Ordner.
+   * WICHTIG: Wir navigieren bewusst nur auf User-Klick (kein Auto-Navigation bei "completed").
+   */
+  const openJobResultFile = async (item: JobListItem) => {
+    if (!item.shadowTwinFolderId || !item.resultItemId) {
+      alert('Ergebnis kann nicht geöffnet werden: missing shadowTwinFolderId/resultItemId.');
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams(searchParams ?? undefined);
+      params.set('folderId', item.shadowTwinFolderId);
+      const url = `${pathname}?${params.toString()}`;
+      router.replace(url);
+
+      await navigateToFolder(item.shadowTwinFolderId);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      window.dispatchEvent(new CustomEvent('library_refresh', {
+        detail: {
+          folderId: item.shadowTwinFolderId,
+          selectFileId: item.resultItemId,
+          shadowTwinFolderId: item.shadowTwinFolderId,
+          triggerShadowTwinAnalysis: true,
+        }
+      }));
+    } catch (error) {
+      alert(`Fehler beim Öffnen des Ergebnisses: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
   // Worker wird nicht mehr automatisch gestartet; nur noch über die Controls
 
   // Initiale Seite nur laden, wenn Panel geöffnet wird
@@ -433,12 +453,12 @@ export function JobMonitorPanel() {
           if (evt.refreshFolderId && (evt.status === 'completed' || evt.message === 'stored_local')) {
             try {
               // Refresh alle betroffenen Ordner (Parent + Shadow-Twin)
-              const refreshFolderIds = (evt as { refreshFolderIds?: string[] }).refreshFolderIds || [evt.refreshFolderId]
+              const refreshFolderIds = evt.refreshFolderIds || [evt.refreshFolderId]
               refreshFolderIds.forEach(folderId => {
                 window.dispatchEvent(new CustomEvent('library_refresh', { 
                   detail: { 
                     folderId,
-                    shadowTwinFolderId: (evt as { shadowTwinFolderId?: string | null }).shadowTwinFolderId || null,
+                    shadowTwinFolderId: evt.shadowTwinFolderId || null,
                     triggerShadowTwinAnalysis: true // Flag für Shadow-Twin-Analyse-Neuberechnung
                   } 
                 }))
@@ -455,7 +475,8 @@ export function JobMonitorPanel() {
               jobType: evt.jobType ?? prev[idx]?.jobType,
               fileName: evt.fileName ?? prev[idx]?.fileName,
               sourceItemId: evt.sourceItemId ?? prev[idx]?.sourceItemId,
-              libraryId: (evt as { libraryId?: string }).libraryId ?? prev[idx]?.libraryId,
+              libraryId: evt.libraryId ?? prev[idx]?.libraryId,
+              resultItemId: evt.result?.savedItemId ?? prev[idx]?.resultItemId,
             };
             if (idx >= 0) {
               const updated = { ...prev[idx], ...patch };
@@ -482,7 +503,8 @@ export function JobMonitorPanel() {
               jobType: evt.jobType,
               fileName: evt.fileName,
               sourceItemId: evt.sourceItemId,
-              libraryId: (evt as { libraryId?: string }).libraryId,
+              libraryId: evt.libraryId,
+              resultItemId: evt.result?.savedItemId,
             };
             return [inserted, ...prev];
           });
@@ -519,6 +541,8 @@ export function JobMonitorPanel() {
           jobType: detail.jobType ?? prev[idx]?.jobType,
           fileName: detail.fileName ?? prev[idx]?.fileName,
           sourceItemId: detail.sourceItemId ?? prev[idx]?.sourceItemId,
+          libraryId: detail.libraryId ?? prev[idx]?.libraryId,
+          resultItemId: detail.result?.savedItemId ?? prev[idx]?.resultItemId,
         };
         if (idx >= 0) {
           const updated = { ...prev[idx], ...patch };
@@ -536,6 +560,8 @@ export function JobMonitorPanel() {
           jobType: detail.jobType,
           fileName: detail.fileName,
           sourceItemId: detail.sourceItemId,
+          libraryId: detail.libraryId,
+          resultItemId: detail.result?.savedItemId,
         };
         return [inserted, ...prev];
       });
@@ -791,6 +817,28 @@ export function JobMonitorPanel() {
                               </button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom">Datei öffnen</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+
+                      {/* Ergebnis öffnen (Shadow‑Twin Artefakt) */}
+                      {item.shadowTwinFolderId && item.resultItemId && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void openJobResultFile(item);
+                                }}
+                                className="pointer-events-auto inline-flex items-center justify-center rounded p-0.5 hover:bg-muted text-primary shrink-0"
+                                aria-label="Ergebnis öffnen"
+                                title="Ergebnis öffnen"
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Ergebnis öffnen</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       )}

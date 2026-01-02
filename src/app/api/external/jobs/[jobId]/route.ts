@@ -249,7 +249,10 @@ export async function POST(
     if (!hasFinalPayload && !hasError && phase === 'failed') {
       clearWatchdog(jobId);
       bufferLog(jobId, { phase: 'failed', message: phase });
-      try { await repo.updateStep(jobId, 'extract_pdf', { status: 'failed', endedAt: new Date(), error: { message: phase || 'Worker meldete failed' } }); } catch {}
+      try {
+        const extractStepName = job.job_type === 'audio' ? 'extract_audio' : job.job_type === 'video' ? 'extract_video' : 'extract_pdf'
+        await repo.updateStep(jobId, extractStepName, { status: 'failed', endedAt: new Date(), error: { message: phase || 'Worker meldete failed' } })
+      } catch {}
       // gepufferte Logs persistieren
       // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
       void drainBufferedLogs(jobId);
@@ -332,8 +335,21 @@ export async function POST(
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed' });
     }
 
+    function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' {
+      if (jobType === 'audio') return 'extract_audio'
+      if (jobType === 'video') return 'extract_video'
+      return 'extract_pdf'
+    }
+
     // Finale Payload
-    const extractedText: string | undefined = (body?.data as { extracted_text?: unknown })?.extracted_text as string | undefined;
+    const extractedTextRaw: string | undefined = (body?.data as { extracted_text?: unknown })?.extracted_text as string | undefined;
+    const transcriptionTextRaw: string | undefined = (body?.data as { transcription?: { text?: unknown } })?.transcription?.text as string | undefined
+    const extractedText: string | undefined = (() => {
+      if (job.job_type === 'audio' || job.job_type === 'video') {
+        return typeof transcriptionTextRaw === 'string' ? transcriptionTextRaw : undefined
+      }
+      return typeof extractedTextRaw === 'string' ? extractedTextRaw : undefined
+    })()
     const imagesArchiveUrlFromWorker: string | undefined = (body?.data as { images_archive_url?: unknown })?.images_archive_url as string | undefined;
     
     // Mistral OCR: pages_archive_data kann direkt als Base64 vorhanden sein (Legacy)
@@ -457,19 +473,21 @@ export async function POST(
     const savedItems: string[] = [];
     let docMetaForIngestion: Record<string, unknown> | undefined;
 
-    // Schrittstatus extract_pdf auf completed setzen, sobald OCR-Ergebnis vorliegt
+    const extractStepName = getExtractStepName(job.job_type)
+
+    // Schrittstatus extract_* auf completed setzen, sobald Ergebnis vorliegt
     // WICHTIG: nicht überschreiben, wenn bereits zuvor (z. B. im Retry-Gate) als completed markiert
     if (extractedText) {
       try {
         const latest = await repo.get(jobId)
-        const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === 'extract_pdf') : undefined
+        const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === extractStepName) : undefined
         const alreadyCompleted = !!st && st.status === 'completed'
-        if (!alreadyCompleted) await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date() })
+        if (!alreadyCompleted) await repo.updateStep(jobId, extractStepName, { status: 'completed', endedAt: new Date() })
       } catch {}
     }
 
     if (lib) {
-      const policies = readPhasesAndPolicies(ctx);
+        const policies = readPhasesAndPolicies(ctx);
       const autoSkip = true;
 
         // Einheitliche Serverinitialisierung des Providers (DB-Config, Token enthalten)
@@ -579,7 +597,9 @@ export async function POST(
 
         // WICHTIG: Bilder werden in Phase 1 (Extract) verarbeitet, nicht in Phase 2 (Template)
         // Die Bilder werden beim Extract erstellt und sollten dort auch gespeichert werden
-        if (extractedText && imagesPhaseEnabled) {
+        // Für Audio/Video: Images-Phase ist irrelevant und wird als disabled behandelt.
+        const imagesPhaseEnabledEffective = (job.job_type === 'pdf') ? imagesPhaseEnabled : false
+        if (extractedText && imagesPhaseEnabledEffective) {
           try {
             const { processAllImageSources } = await import('@/lib/external-jobs/images')
             const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
@@ -597,7 +617,7 @@ export async function POST(
               extractedText,
               lang,
               targetParentId,
-              imagesPhaseEnabled,
+              imagesPhaseEnabled: imagesPhaseEnabledEffective,
               shadowTwinFolderId, // Verwende Shadow-Twin-Verzeichnis aus Job-State
             })
             
@@ -752,10 +772,11 @@ export async function POST(
         fileName: job.correlation?.source?.name, 
         sourceItemId: job.correlation?.source?.itemId,
         libraryId: job.libraryId,
+        result: { savedItemId: savedItemId || undefined },
         refreshFolderId: parentId, // Primary refresh folder (für Rückwärtskompatibilität)
         refreshFolderIds, // Array mit allen zu refreshenden Ordnern (Parent + Shadow-Twin)
         shadowTwinFolderId: refreshShadowTwinFolderId || null, // Shadow-Twin-Verzeichnis-ID für Client-Analyse
-      } as unknown as import('@/lib/events/job-event-bus').JobUpdateEvent);
+      });
       return NextResponse.json({ status: 'ok', jobId: completed.jobId, kind: 'final', savedItemId, savedItemsCount: savedItems.length });
     }
 

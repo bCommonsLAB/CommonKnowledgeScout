@@ -34,7 +34,6 @@ export function prepareSecretaryRequest(
   secret: string
 ): SecretaryRequestConfig {
   const opts = (job.correlation?.options || {}) as Record<string, unknown>
-  const extractionMethod = typeof opts['extractionMethod'] === 'string' ? String(opts['extractionMethod']) : 'native'
   const { baseUrl, apiKey } = getSecretaryConfig()
 
   if (!apiKey) {
@@ -50,9 +49,84 @@ export function prepareSecretaryRequest(
   let url: string
   let formData: FormData
 
+  const normalizedBaseUrl = baseUrl.replace(/\/$/, '')
+
+  // --- Audio / Video (Secretary-only) ---
+  if (job.job_type === 'audio') {
+    const endpoint = normalizedBaseUrl.endsWith('/api') ? '/audio/process' : '/api/audio/process'
+    url = `${normalizedBaseUrl}${endpoint}`
+
+    const targetLanguage = typeof opts['targetLanguage'] === 'string' ? String(opts['targetLanguage']) : 'de'
+    const sourceLanguage = typeof opts['sourceLanguage'] === 'string' ? String(opts['sourceLanguage']) : 'auto'
+    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true
+    const template = typeof (job.parameters as Record<string, unknown> | undefined)?.['template'] === 'string'
+      ? String((job.parameters as Record<string, unknown>)['template'])
+      : undefined
+
+    formData = new FormData()
+    formData.append('file', file)
+    formData.append('target_language', targetLanguage)
+    formData.append('source_language', sourceLanguage)
+    // Secretary uses `useCache` (see existing Next proxy routes)
+    formData.append('useCache', String(useCache))
+    if (template) formData.append('template', template)
+    formData.append('callback_url', callbackUrl)
+    formData.append('callback_token', secret)
+
+    FileLogger.info('secretary-request', 'Audio FormData erstellt', {
+      jobId: job.jobId,
+      url,
+      fileName: file.name,
+      fileSize: file.size,
+      targetLanguage,
+      sourceLanguage,
+      useCache: String(useCache),
+      callbackUrl,
+    })
+
+    return { url, formData, headers }
+  }
+
+  if (job.job_type === 'video') {
+    const endpoint = normalizedBaseUrl.endsWith('/api') ? '/video/process' : '/api/video/process'
+    url = `${normalizedBaseUrl}${endpoint}`
+
+    const targetLanguage = typeof opts['targetLanguage'] === 'string' ? String(opts['targetLanguage']) : 'de'
+    const sourceLanguage = typeof opts['sourceLanguage'] === 'string' ? String(opts['sourceLanguage']) : 'auto'
+    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true
+    const template = typeof (job.parameters as Record<string, unknown> | undefined)?.['template'] === 'string'
+      ? String((job.parameters as Record<string, unknown>)['template'])
+      : undefined
+
+    formData = new FormData()
+    formData.append('file', file)
+    formData.append('target_language', targetLanguage)
+    formData.append('source_language', sourceLanguage)
+    // Secretary uses `useCache` (see existing Next proxy routes)
+    formData.append('useCache', String(useCache))
+    if (template) formData.append('template', template)
+    formData.append('callback_url', callbackUrl)
+    formData.append('callback_token', secret)
+
+    FileLogger.info('secretary-request', 'Video FormData erstellt', {
+      jobId: job.jobId,
+      url,
+      fileName: file.name,
+      fileSize: file.size,
+      targetLanguage,
+      sourceLanguage,
+      useCache: String(useCache),
+      callbackUrl,
+    })
+
+    return { url, formData, headers }
+  }
+
+  // --- PDF (existing) ---
+  const extractionMethod = typeof opts['extractionMethod'] === 'string' ? String(opts['extractionMethod']) : 'native'
+
   if (extractionMethod === 'mistral_ocr') {
     // Mistral OCR Endpoint
-    const normalizedBaseUrl = baseUrl.replace(/\/$/, '')
     const endpoint = normalizedBaseUrl.endsWith('/api')
       ? '/pdf/process-mistral-ocr'
       : '/api/pdf/process-mistral-ocr'
@@ -92,7 +166,6 @@ export function prepareSecretaryRequest(
     })
   } else {
     // Standard PDF Process Endpoint
-    const normalizedBaseUrl = baseUrl.replace(/\/$/, '')
     const endpoint = normalizedBaseUrl.endsWith('/api') ? '/pdf/process' : '/api/pdf/process'
     url = `${normalizedBaseUrl}${endpoint}`
 

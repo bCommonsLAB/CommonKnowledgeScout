@@ -6,7 +6,8 @@ status: draft
 
 ## Ausgangslage
 
-Das bestehende Template `templates/pdfanalyse.md` ist inhaltlich auf Biodiversitäts-Dokumente ausgerichtet. Es kombiniert mehrere Quellen (Dokumenttext, Dateiname, Verzeichnispfad, Akronym-Mapping) und nutzt eine domänenspezifische Themen-Taxonomie.  
+Das bestehende Template **`pdfanalyse`** ist inhaltlich auf Biodiversitäts-Dokumente ausgerichtet. Es kombiniert mehrere Quellen (Dokumenttext, Dateiname, Verzeichnispfad, Akronym-Mapping) und nutzt eine domänenspezifische Themen-Taxonomie.  
+Hinweis: In der laufenden App ist das Template als **MongoDB TemplateDocument** gespeichert; `template-samples/pdfanalyse.md` im Repo ist lediglich eine Referenz/Snapshot.  
 Für das neue Thema **Commoning / sozialwissenschaftliche Dokumente** ist die zentrale Anforderung: **Metadaten sollen primär aus dem Dokument selbst (v. a. Impressum/Colophon) extrahiert werden – nicht aus der Verzeichnisstruktur**.
 
 Zusätzlich gibt es technische Rahmenbedingungen im Projekt:
@@ -21,7 +22,7 @@ Damit ist ein “radikaler” Schema-Bruch riskant, wenn er ohne zusätzliche Co
 
 ### Variante A — Minimal kompatibel (empfohlen)
 
-**Idee:** Neues Template mit identischem Feldschema wie `pdfanalyse.md`, aber mit:
+**Idee:** Neues Template mit identischem Feldschema wie `pdfanalyse`, aber mit:
 
 - **Impressum-first Policy** (doc.meta > doc.heading > doc.toc > doc.text).  
 - Pfad/Dateiname werden **nur** für technische Felder verwendet (`filename`, `path`, `isScan`), nicht zur inhaltlichen Ableitung von Autoren/Jahr/Topics.

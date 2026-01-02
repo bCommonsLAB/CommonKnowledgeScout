@@ -44,6 +44,7 @@ export interface CreationSource {
 export type CreationFlowStepPreset = 
   | 'welcome'
   | 'collectSource' 
+  | 'reviewMarkdown'
   | 'generateDraft' 
   | 'previewDetail'
   | 'editDraft'

@@ -354,6 +354,7 @@ export async function runExtractOnly(
     jobType: job.job_type,
     fileName: job.correlation?.source?.name,
     sourceItemId: job.correlation?.source?.itemId,
+    result: { savedItemId },
   })
 
   return { savedItemId, savedItems }

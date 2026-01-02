@@ -111,6 +111,12 @@ function deriveExtractGateFromShadowTwinState(
   }
 }
 
+function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' {
+  if (jobType === 'audio') return 'extract_audio'
+  if (jobType === 'video') return 'extract_video'
+  return 'extract_pdf'
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
@@ -421,25 +427,31 @@ export async function POST(
       }
     }
 
+    const extractStepName = getExtractStepName(job.job_type)
+
     // Phasen-spezifische Preprozessoren aufrufen (bauen auf derselben Storage/Library-Logik auf)
+    // WICHTIG: Die Preprozessoren sind aktuell PDF-spezifisch (findPdfMarkdown).
+    // Für Audio/Video laufen die Entscheidungen primär über Gate + ShadowTwinState.
     const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
     let preExtractResult: Awaited<ReturnType<typeof preprocessorPdfExtract>> | null = null
     let preTemplateResult: Awaited<ReturnType<typeof preprocessorTransformTemplate>> | null = null
-    try {
-      preExtractResult = await preprocessorPdfExtract(ctxPre)
-    } catch (error) {
-      FileLogger.error('start-route', 'Fehler im preprocessorPdfExtract', {
-        jobId,
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-    try {
-      preTemplateResult = await preprocessorTransformTemplate(ctxPre)
-    } catch (error) {
-      FileLogger.error('start-route', 'Fehler im preprocessorTransformTemplate', {
-        jobId,
-        error: error instanceof Error ? error.message : String(error),
-      })
+    if (job.job_type === 'pdf') {
+      try {
+        preExtractResult = await preprocessorPdfExtract(ctxPre)
+      } catch (error) {
+        FileLogger.error('start-route', 'Fehler im preprocessorPdfExtract', {
+          jobId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+      try {
+        preTemplateResult = await preprocessorTransformTemplate(ctxPre)
+      } catch (error) {
+        FileLogger.error('start-route', 'Fehler im preprocessorTransformTemplate', {
+          jobId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
     }
 
     // Trace-Events für Preprocess aus Template-Preprozessor ableiten (für Validatoren/Debugging)
@@ -453,7 +465,7 @@ export async function POST(
     const callbackUrl = `${appUrl.replace(/\/$/, '')}/api/external/jobs/${jobId}`
     try {
       await repo.initializeSteps(jobId, [
-        { name: 'extract_pdf', status: 'pending' },
+        { name: extractStepName, status: 'pending' },
         { name: 'transform_template', status: 'pending' },
         { name: 'ingest_rag', status: 'pending' },
       ], job.parameters)
@@ -466,7 +478,7 @@ export async function POST(
       return NextResponse.json({ error: 'Fehler beim Initialisieren der Steps' }, { status: 500 })
     }
     // Status wird erst nach erfolgreichem Request gesetzt (siehe Zeile 477)
-    await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: 'process_pdf_submit', attributes: {
+    await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: job.job_type === 'pdf' ? 'process_pdf_submit' : 'process_submit', attributes: {
       libraryId: job.libraryId,
       fileName: filename,
       extractionMethod: opts['extractionMethod'] ?? job.correlation?.options?.extractionMethod ?? undefined,
@@ -622,7 +634,7 @@ export async function POST(
     }
 
     if (runIngestOnly) {
-      try { await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'preprocess_has_markdown' } }) } catch {}
+      try { await repo.updateStep(jobId, extractStepName, { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'preprocess_has_markdown' } }) } catch {}
       try { await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'preprocess_frontmatter_valid' } }) } catch {}
       try { await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() }) } catch {}
       try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_start', attributes: { libraryId: job.libraryId } }) } catch {}
@@ -689,7 +701,20 @@ export async function POST(
         }
         
         const completed = await setJobCompleted({ ctx: ctx2, result: { savedItemId: shadowTwinData.fileId } })
-        getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, libraryId: job.libraryId })
+        getJobEventBus().emitUpdate(job.userEmail, { 
+          type: 'job_update', 
+          jobId, 
+          status: 'completed', 
+          progress: 100, 
+          updatedAt: new Date().toISOString(), 
+          message: 'completed', 
+          jobType: job.job_type, 
+          fileName: job.correlation?.source?.name, 
+          sourceItemId: job.correlation?.source?.itemId, 
+          libraryId: job.libraryId,
+          result: { savedItemId: shadowTwinData.fileId },
+          shadowTwinFolderId: job.shadowTwinState?.shadowTwinFolderId || null,
+        })
         return NextResponse.json({ ok: true, jobId: completed.jobId, kind: 'ingest_only' })
       }
 
@@ -701,7 +726,7 @@ export async function POST(
       // Markiere Extract-Step als skipped, wenn Extract übersprungen wurde (Gate oder Phase deaktiviert)
       // WICHTIG: Dies muss auch hier passieren, wenn Template ausgeführt wird
       try {
-        await repo.updateStep(jobId, 'extract_pdf', {
+        await repo.updateStep(jobId, extractStepName, {
           status: 'completed',
           endedAt: new Date(),
           details: {
@@ -796,9 +821,7 @@ export async function POST(
       }
 
       // Reparatur-Logik: Legacy-Markdown im PDF-Ordner nach erfolgreichem Template-Lauf entfernen
-      // Übergebe Original-Dateiname des PDFs für korrekte Shadow-Twin-Verzeichnis-Erkennung
-      const sourceFileName = refreshedJob?.correlation?.source?.name || job.correlation?.source?.name
-      await cleanupLegacyMarkdownAfterTemplate(jobId, legacyMarkdownId, preTemplateResult, provider, repo, sourceFileName)
+      await cleanupLegacyMarkdownAfterTemplate(jobId, legacyMarkdownId, preTemplateResult, provider, repo)
 
       // Shadow-Twin-State aktualisieren: processingStatus auf 'ready' setzen
       // Template-Only: Nach erfolgreichem Template-Lauf ist der Shadow-Twin vollständig
@@ -865,7 +888,7 @@ export async function POST(
       
       // Markiere Extract-Step als skipped
       try {
-        await repo.updateStep(jobId, 'extract_pdf', {
+        await repo.updateStep(jobId, extractStepName, {
           status: 'completed',
           endedAt: new Date(),
           details: {

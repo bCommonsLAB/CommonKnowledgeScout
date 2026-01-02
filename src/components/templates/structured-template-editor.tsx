@@ -551,6 +551,100 @@ function CreationFlowEditor({
   const [selectedStepId, setSelectedStepId] = React.useState<string | null>(null)
   const [showStepDetails, setShowStepDetails] = React.useState(true)
 
+  // --- Import/Export nur für den creation-Block (Flow), unabhängig vom restlichen Template ---
+  const flowFileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const [isFlowImportOpen, setIsFlowImportOpen] = React.useState(false)
+  const [flowImportJson, setFlowImportJson] = React.useState('')
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value)
+  }
+
+  function isStringArray(value: unknown): value is string[] {
+    return Array.isArray(value) && value.every((v) => typeof v === 'string')
+  }
+
+  function isSupportedSource(value: unknown): value is { id: string; type: string; label: string; helpText?: string } {
+    if (!isRecord(value)) return false
+    if (typeof value.id !== 'string') return false
+    if (typeof value.type !== 'string') return false
+    if (typeof value.label !== 'string') return false
+    if (value.helpText !== undefined && typeof value.helpText !== 'string') return false
+    return true
+  }
+
+  function isFlowStep(value: unknown): value is { id: string; preset: string; title?: string; description?: string; fields?: string[]; imageFieldKeys?: string[] } {
+    if (!isRecord(value)) return false
+    if (typeof value.id !== 'string') return false
+    if (typeof value.preset !== 'string') return false
+    if (value.title !== undefined && typeof value.title !== 'string') return false
+    if (value.description !== undefined && typeof value.description !== 'string') return false
+    if (value.fields !== undefined && !isStringArray(value.fields)) return false
+    if (value.imageFieldKeys !== undefined && !isStringArray(value.imageFieldKeys)) return false
+    return true
+  }
+
+  function isTemplateCreationConfig(value: unknown): value is TemplateCreationConfig {
+    if (!isRecord(value)) return false
+    if (!Array.isArray(value.supportedSources) || !value.supportedSources.every(isSupportedSource)) return false
+    if (!isRecord(value.flow)) return false
+    if (!Array.isArray(value.flow.steps) || !value.flow.steps.every(isFlowStep)) return false
+    // Optional blocks: preview/output/ui/welcome
+    if (value.preview !== undefined) {
+      if (!isRecord(value.preview)) return false
+      if (value.preview.detailViewType !== undefined && typeof value.preview.detailViewType !== 'string') return false
+    }
+    if (value.output !== undefined && !isRecord(value.output)) return false
+    if (value.ui !== undefined && !isRecord(value.ui)) return false
+    if (value.welcome !== undefined && !isRecord(value.welcome)) return false
+    return true
+  }
+
+  function downloadJsonFile(args: { filename: string; data: unknown }): void {
+    const content = JSON.stringify(args.data, null, 2)
+    const blob = new Blob([content], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = args.filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  function applyImportedFlow(value: unknown): void {
+    if (value === null) {
+      setLocalCreation(null)
+      onChange(null)
+      return
+    }
+    if (!isTemplateCreationConfig(value)) {
+      throw new Error('Ungültiges JSON: Erwartet TemplateCreationConfig (supportedSources[], flow.steps[]).')
+    }
+    setLocalCreation(value)
+    onChange(value)
+  }
+
+  function exportFlow(): void {
+    downloadJsonFile({ filename: 'creation-flow.json', data: localCreation ?? null })
+  }
+
+  function importFlowFromTextarea(): void {
+    const raw = flowImportJson.trim()
+    // Leer bedeutet: Flow entfernen
+    if (!raw) {
+      applyImportedFlow(null)
+      setIsFlowImportOpen(false)
+      setFlowImportJson('')
+      return
+    }
+    const parsed = JSON.parse(raw) as unknown
+    applyImportedFlow(parsed)
+    setIsFlowImportOpen(false)
+    setFlowImportJson('')
+  }
+
   React.useEffect(() => {
     // Aktualisiere localCreation immer, auch wenn creation null ist
     if (creation) {
@@ -727,7 +821,7 @@ function CreationFlowEditor({
     setDraggedStepIndex(null)
   }
 
-  const availablePresets = ['welcome', 'collectSource', 'generateDraft', 'previewDetail', 'editDraft', 'uploadImages', 'selectRelatedTestimonials']
+  const availablePresets = ['welcome', 'collectSource', 'reviewMarkdown', 'generateDraft', 'previewDetail', 'editDraft', 'uploadImages', 'selectRelatedTestimonials']
   
   // Verfügbare Feldnamen aus Metadaten extrahieren
   const availableFieldKeys = metadata.fields.map(f => f.key)
@@ -848,6 +942,94 @@ function CreationFlowEditor({
 
   return (
     <div className="space-y-8">
+      {/* Flow Import/Export (nur creation-Block) */}
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="font-semibold">Creation Flow – Import/Export</div>
+          <div className="ml-auto flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={exportFlow}>
+              Export (.json)
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => flowFileInputRef.current?.click()}
+            >
+              Import (Datei)
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFlowImportOpen((v) => !v)}
+            >
+              Import (JSON)
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Diese Tools betreffen nur <code className="font-mono">creation</code>. In MongoDB gespeichert wird erst nach Klick auf „Speichern“ im Template‑Management.
+        </p>
+
+        <input
+          ref={flowFileInputRef}
+          type="file"
+          accept="application/json"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.currentTarget.files?.[0]
+            // Reset sofort, damit derselbe File erneut gewählt werden kann
+            e.currentTarget.value = ''
+            if (!file) return
+            try {
+              const text = await file.text()
+              const parsed = JSON.parse(text) as unknown
+              applyImportedFlow(parsed)
+            } catch (err) {
+              alert(`Import fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`)
+            }
+          }}
+        />
+
+        {isFlowImportOpen ? (
+          <div className="mt-3 space-y-2">
+            <Textarea
+              value={flowImportJson}
+              onChange={(e) => setFlowImportJson(e.target.value)}
+              placeholder='JSON für TemplateCreationConfig einfügen (oder leer lassen, um creation zu entfernen)'
+              className="min-h-[140px]"
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  try {
+                    importFlowFromTextarea()
+                  } catch (err) {
+                    alert(`Import fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`)
+                  }
+                }}
+              >
+                Importieren
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsFlowImportOpen(false)
+                  setFlowImportJson('')
+                }}
+              >
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Card>
+
       {/* UI-Metadaten Section */}
       <div>
         <div className="mb-4">

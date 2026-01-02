@@ -90,6 +90,7 @@ export async function GET(request: NextRequest) {
         sourceItemId: j.correlation?.source?.itemId,
         sourceParentId: j.correlation?.source?.parentId,
         shadowTwinFolderId: j.shadowTwinState?.shadowTwinFolderId, // Shadow-Twin-Verzeichnis-ID (falls vorhanden)
+        resultItemId: j.result?.savedItemId, // erzeugte Datei (z.B. transformiertes Markdown)
         libraryId: j.libraryId,
         batchName: j.correlation?.batchName,
         batchId: j.correlation?.batchId,

@@ -16,6 +16,8 @@ import { buildSourceSummary } from "@/lib/creation/corpus"
 import type { TemplateMetadataSchema } from "@/lib/templates/template-types"
 import { cn } from "@/lib/utils"
 import { X } from "lucide-react"
+import type { StorageProvider } from "@/lib/storage/types"
+import { Progress } from "@/components/ui/progress"
 
 interface CollectSourceStepProps {
   source?: CreationSource // Optional: Wenn nicht gesetzt, zeige Quelle-Auswahl
@@ -29,8 +31,20 @@ interface CollectSourceStepProps {
   onAddSource?: (source: WizardSource) => void
   onRemoveSource?: (sourceId: string) => void
   isExtracting?: boolean
+  processingProgress?: number
+  processingMessage?: string
   templateId?: string
   libraryId?: string
+  /**
+   * Optional: Storage Provider (für External-Jobs Upload-First Flow).
+   * Wenn nicht vorhanden, fällt der Step auf synchrone Calls zurück.
+   */
+  provider?: StorageProvider
+  /**
+   * Optional: Zielordner im Storage, in dem Wizard-Quellen abgelegt werden.
+   * Default: "root".
+   */
+  targetFolderId?: string
   // Spickzettel: Benötigte Felder anzeigen
   templateMetadata?: TemplateMetadataSchema
   requiredFields?: string[]
@@ -58,6 +72,9 @@ function CollectSourceSelectionView({
   steps,
   existingSources = [],
   onRemoveSource,
+  isProcessing = false,
+  progress,
+  message,
 }: {
   supportedSources: CreationSource[]
   selectedSource?: CreationSource
@@ -68,7 +85,16 @@ function CollectSourceSelectionView({
   steps?: Array<{ preset: string; fields?: string[] }>
   existingSources?: WizardSource[]
   onRemoveSource?: (sourceId: string) => void
+  isProcessing?: boolean
+  progress?: number
+  message?: string
 }) {
+  const [openSourceId, setOpenSourceId] = useState<string | null>(null)
+
+  function toggleOpen(sourceId: string) {
+    setOpenSourceId((prev) => (prev === sourceId ? null : sourceId))
+  }
+
   function getFriendlySourceLabel(source: CreationSource): string {
     if (source.type === 'spoken') return "Interview (einmal erzählen)"
     if (source.type === 'url') return "Über eine Webseite auslesen"
@@ -123,32 +149,44 @@ function CollectSourceSelectionView({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {isProcessing ? (
+          <div className="border rounded-md p-4 bg-muted/30">
+            <div className="text-sm font-medium">PDF wird verarbeitet…</div>
+            <div className="text-xs text-muted-foreground mt-1">{message || 'Bitte warten…'}</div>
+            <div className="mt-3">
+              <Progress value={typeof progress === 'number' ? Math.max(0, Math.min(100, progress)) : 0} />
+            </div>
+          </div>
+        ) : null}
+
         {/* Startmethode (vereint Modus + Quelle) */}
         <div>
           <h3 className="text-sm font-semibold mb-3">Wie möchtest du starten?</h3>
 
           <div className="grid gap-3 md:grid-cols-2">
             {/* Formular (kein Source-Step nötig) */}
-            <Card
-              className={cn(
-                "cursor-pointer transition-all hover:border-primary",
-              )}
-              onClick={() => onModeSelect?.('form')}
-            >
-              <CardHeader>
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400">
-                    <FileText className="w-5 h-5" />
+            {supportedSources.length !== 1 || supportedSources[0]?.type !== 'file' ? (
+              <Card
+                className={cn(
+                  "cursor-pointer transition-all hover:border-primary",
+                )}
+                onClick={() => onModeSelect?.('form')}
+              >
+                <CardHeader>
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-base">Formular ausfüllen</CardTitle>
+                      <CardDescription className="mt-1">
+                        Du trägst die Infos direkt ein. Wenn du magst, kannst du einzelne Felder per Diktat füllen.
+                      </CardDescription>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <CardTitle className="text-base">Formular ausfüllen</CardTitle>
-                    <CardDescription className="mt-1">
-                      Du trägst die Infos direkt ein. Wenn du magst, kannst du einzelne Felder per Diktat füllen.
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
+                </CardHeader>
+              </Card>
+            ) : null}
 
             {/* Quellen (führen in Interview/Extraktion) */}
             {supportedSources.map((source) => {
@@ -214,6 +252,25 @@ function CollectSourceSelectionView({
                     <div className="text-muted-foreground">
                       {buildSourceSummary(source)}
                     </div>
+
+                    {/* Markdown-Vorschau für Datei-Quellen (prüfen/confirm) */}
+                    {source.kind === 'file' && typeof source.extractedText === 'string' && source.extractedText.trim().length > 0 ? (
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toggleOpen(source.id)}
+                        >
+                          {openSourceId === source.id ? 'Vorschau ausblenden' : 'Markdown Vorschau anzeigen'}
+                        </Button>
+                        {openSourceId === source.id ? (
+                          <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded border bg-background p-2 text-xs">
+                            {source.extractedText.length > 4000 ? `${source.extractedText.slice(0, 4000)}\n\n…(gekürzt)` : source.extractedText}
+                          </pre>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                   {onRemoveSource && (
                     <Button
@@ -259,8 +316,12 @@ export function CollectSourceStep({
   sources = [],
   onAddSource,
   isExtracting = false,
+  processingProgress,
+  processingMessage,
   templateId,
   libraryId,
+  provider,
+  targetFolderId,
   mode,
   onRemoveSource,
   templateMetadata,
@@ -285,6 +346,7 @@ export function CollectSourceStep({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isExtractingUrl, setIsExtractingUrl] = useState(false)
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null)
+  const [pendingFileSource, setPendingFileSource] = useState<WizardSource | null>(null)
   
   // Synchronisiere Input-State mit bestehender Text-Quelle, wenn sich sources ändern
   useEffect(() => {
@@ -314,6 +376,8 @@ export function CollectSourceStep({
   // createSourceFromInput Funktion (wird später im useEffect verwendet)
   const createSourceFromInput = (): WizardSource | null => {
     if (!source) return null // Wenn keine Quelle ausgewählt, kann keine Quelle erstellt werden
+    // Datei-Quelle: wird über handleFileSelect vorbereitet (Upload ins Storage)
+    if (source.type === "file") return pendingFileSource
     if (!input.trim()) return null
     
     if (source.type === "url") {
@@ -362,6 +426,9 @@ export function CollectSourceStep({
       steps={steps}
       existingSources={sources}
       onRemoveSource={onRemoveSource}
+      isProcessing={isExtracting}
+      progress={processingProgress}
+      message={processingMessage}
     />
   }
   
@@ -530,6 +597,49 @@ export function CollectSourceStep({
     if (!file) return
 
     try {
+      const lowerName = String(file.name || '').toLowerCase()
+      const isPdf = file.type === 'application/pdf' || lowerName.endsWith('.pdf')
+
+      // PDF im Wizard (HITL): Storage-first Upload, Verarbeitung startet erst bei "Weiter".
+      if (isPdf) {
+        setErrorMessage(null)
+        if (!provider || !libraryId) {
+          toast.error('PDF im Wizard benötigt Storage + Library', { description: 'Bitte im Archiv/Library starten oder sicherstellen, dass provider+libraryId verfügbar sind.' })
+          return
+        }
+
+        // Upload ins Storage, damit External Jobs später per originalItemId laden können
+        async function ensureWizardSourcesFolderId(): Promise<string> {
+          const baseFolderId = (targetFolderId && targetFolderId.trim().length > 0) ? targetFolderId : "root"
+          const folderName = ".wizard-sources"
+          const items = await provider.listItemsById(baseFolderId)
+          const existing = items.find((it) => it.type === 'folder' && it.metadata?.name === folderName)
+          if (existing) return existing.id
+          const created = await provider.createFolder(baseFolderId, folderName)
+          return created.id
+        }
+
+        const wizardFolderId = await ensureWizardSourcesFolderId()
+        const uploadName = `${Date.now()}-${file.name}`
+        const uploaded = await provider.uploadFile(
+          wizardFolderId,
+          new File([file], uploadName, { type: file.type || 'application/pdf' })
+        )
+
+        // Bereite eine File-Quelle vor. Verarbeitung startet im Wizard erst bei "Weiter".
+        const prepared: WizardSource = {
+          id: `file-${uploaded.id}`,
+          kind: 'file',
+          fileName: uploaded.metadata?.name || uploadName,
+          extractedText: '',
+          summary: uploaded.metadata?.name || uploadName,
+          createdAt: new Date(),
+        }
+        setPendingFileSource(prepared)
+        toast.success('PDF bereit', { description: 'Klicke „Weiter“, um OCR/Artefakte zu starten.' })
+        return
+      }
+
       const text = await file.text()
       setInput(text)
       onCollect?.(text)
@@ -542,6 +652,151 @@ export function CollectSourceStep({
     setErrorMessage(null)
     setIsTranscribing(true)
     try {
+      /**
+       * Variante A1 (Hybrid): Audio wird als External Job verarbeitet.
+       * - Upload der Audio-Datei in einen Wizard-Quellen-Ordner
+       * - Job enqueue (/api/secretary/process-audio/job)
+       * - Warten via SSE auf completed
+       * - Transcript (result.savedItemId) als WizardSource hinzufügen
+       *
+       * Fallback: Wenn provider/libraryId fehlen, nutzen wir die alte synchrone API.
+       */
+      if (provider && libraryId) {
+        async function ensureWizardSourcesFolderId(): Promise<string> {
+          const baseFolderId = (targetFolderId && targetFolderId.trim().length > 0) ? targetFolderId : "root"
+          const folderName = ".wizard-sources"
+          const items = await provider.listItemsById(baseFolderId)
+          const existing = items.find((it) => it.type === 'folder' && it.metadata?.name === folderName)
+          if (existing) return existing.id
+          const created = await provider.createFolder(baseFolderId, folderName)
+          return created.id
+        }
+
+        interface JobUpdateWire {
+          type: 'job_update'
+          jobId: string
+          status: string
+          message?: string
+          result?: { savedItemId?: string }
+        }
+
+        async function waitForJobCompletion(args: { jobId: string; timeoutMs: number }): Promise<JobUpdateWire> {
+          const { jobId, timeoutMs } = args
+          return await new Promise<JobUpdateWire>((resolve, reject) => {
+            let settled = false
+            const es = new EventSource('/api/external/jobs/stream')
+            const timeout = setTimeout(() => {
+              if (settled) return
+              settled = true
+              try { es.close() } catch {}
+              reject(new Error(`Timeout: Job ${jobId} wurde nicht rechtzeitig fertig.`))
+            }, timeoutMs)
+
+            function cleanup() {
+              clearTimeout(timeout)
+              try { es.close() } catch {}
+            }
+
+            es.addEventListener('job_update', (e: MessageEvent) => {
+              try {
+                const evt = JSON.parse(e.data) as JobUpdateWire
+                if (!evt || evt.type !== 'job_update' || evt.jobId !== jobId) return
+                if (evt.status === 'completed') {
+                  if (settled) return
+                  settled = true
+                  cleanup()
+                  resolve(evt)
+                  return
+                }
+                if (evt.status === 'failed') {
+                  if (settled) return
+                  settled = true
+                  cleanup()
+                  reject(new Error(evt.message || 'Job fehlgeschlagen'))
+                }
+              } catch {
+                // ignore parse errors
+              }
+            })
+
+            es.addEventListener('error', () => {
+              // Wir warten weiter bis Timeout; Dev-SSE kann kurz wackeln.
+            })
+          })
+        }
+
+        const wizardFolderId = await ensureWizardSourcesFolderId()
+        const uploadName = `${Date.now()}-${file.name}`
+        const uploadFile = new File([file], uploadName, { type: file.type || 'audio/*' })
+        const uploaded = await provider.uploadFile(wizardFolderId, uploadFile)
+
+        const enqueueRes = await fetch('/api/secretary/process-audio/job', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Library-Id': libraryId,
+          },
+          body: JSON.stringify({
+            originalItemId: uploaded.id,
+            parentId: wizardFolderId,
+            fileName: uploaded.metadata?.name || uploadName,
+            mimeType: uploaded.metadata?.mimeType || file.type || 'audio/*',
+            targetLanguage: 'de',
+            useCache: true,
+            // Transcript-only: keine Template- oder Ingest-Phase
+            template: 'Besprechung',
+            policies: {
+              extract: 'do',
+              metadata: 'ignore',
+              ingest: 'ignore',
+            },
+          }),
+        })
+
+        const enqueueJson = await enqueueRes.json().catch(() => ({} as Record<string, unknown>))
+        if (!enqueueRes.ok) {
+          const msg = typeof (enqueueJson as { error?: unknown }).error === 'string'
+            ? (enqueueJson as { error: string }).error
+            : `HTTP ${enqueueRes.status}`
+          throw new Error(msg)
+        }
+
+        const jobId = typeof (enqueueJson as { job?: { id?: unknown } }).job?.id === 'string'
+          ? (enqueueJson as { job: { id: string } }).job.id
+          : ''
+        if (!jobId) throw new Error('Job-ID fehlt in Response')
+
+        toast.success('Job gestartet', { description: 'Audio wird im Hintergrund transkribiert…' })
+        const completion = await waitForJobCompletion({ jobId, timeoutMs: 3 * 60_000 })
+        const transcriptId = completion.result?.savedItemId
+        if (!transcriptId) throw new Error('Job abgeschlossen, aber kein Transcript gespeichert (savedItemId fehlt).')
+
+        const { blob } = await provider.getBinary(transcriptId)
+        const transcriptText = await blob.text()
+        const cleanText = transcriptText.trim()
+        if (!cleanText) throw new Error('Transkription ist leer.')
+
+        if (onAddSource) {
+          const newSource: WizardSource = {
+            id: `file-${transcriptId}`,
+            kind: 'file',
+            fileName: uploaded.metadata?.name || uploadName,
+            extractedText: cleanText,
+            summary: buildSourceSummary({ kind: 'text', id: `tmp-${transcriptId}`, text: cleanText, createdAt: new Date() }),
+            createdAt: new Date(),
+          }
+          onAddSource(newSource)
+          toast.success('Audio transkribiert', { description: 'Transcript wurde als Quelle hinzugefügt.' })
+        } else {
+          // Legacy-Fallback: Text in das Input-Feld schreiben
+          setInput(cleanText)
+          onCollect?.(cleanText)
+          toast.success('Audio transkribiert')
+        }
+
+        return
+      }
+
       const formData = new FormData()
       formData.append("file", file)
       // Wir transkribieren erst mal nur. Die Interpretation (Felder füllen) passiert in generateDraft.
