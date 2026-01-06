@@ -5,7 +5,9 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Progress } from "@/components/ui/progress"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
+import type { StorageProvider } from "@/lib/storage/types"
 
 interface ReviewMarkdownStepProps {
   title?: string
@@ -13,6 +15,13 @@ interface ReviewMarkdownStepProps {
   onMarkdownChange: (next: string) => void
   isConfirmed: boolean
   onConfirmedChange: (next: boolean) => void
+  isProcessing?: boolean
+  processingProgress?: number
+  processingMessage?: string
+  /** Für korrekte Bild-Auflösung in MarkdownPreview (relative Links) */
+  provider?: StorageProvider | null
+  /** Folder-ID, relativ zu der Images/Links aufgelöst werden sollen */
+  currentFolderId?: string
 }
 
 export function ReviewMarkdownStep({
@@ -21,6 +30,11 @@ export function ReviewMarkdownStep({
   onMarkdownChange,
   isConfirmed,
   onConfirmedChange,
+  isProcessing = false,
+  processingProgress,
+  processingMessage,
+  provider = null,
+  currentFolderId = 'root',
 }: ReviewMarkdownStepProps) {
   const [showPreview, setShowPreview] = useState(false)
 
@@ -35,6 +49,16 @@ export function ReviewMarkdownStep({
         <div className="text-2xl font-semibold">{title || "Markdown prüfen"}</div>
         <div className="text-sm text-muted-foreground mt-1">{hint}</div>
       </div>
+
+      {isProcessing && (
+        <div className="border rounded-md p-4 bg-muted/30">
+          <div className="text-sm font-medium">Metadaten/Template werden generiert…</div>
+          <div className="text-xs text-muted-foreground mt-1">{processingMessage || 'Bitte warten…'}</div>
+          <div className="mt-3">
+            <Progress value={typeof processingProgress === 'number' ? Math.max(0, Math.min(100, processingProgress)) : 0} />
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-2">
         <Checkbox
@@ -55,7 +79,7 @@ export function ReviewMarkdownStep({
 
       {showPreview ? (
         <div className="border rounded-md p-3 bg-background max-h-[65vh] overflow-auto">
-          <MarkdownPreview content={trimmed} />
+          <MarkdownPreview content={trimmed} provider={provider} currentFolderId={currentFolderId} compact />
         </div>
       ) : (
         <Textarea

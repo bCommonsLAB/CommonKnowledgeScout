@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { loadTemplateConfig } from "@/lib/templates/template-service-client"
 import type { TemplateDocument, CreationSource, CreationSourceType } from "@/lib/templates/template-types"
 import { CollectSourceStep } from "./steps/collect-source-step"
@@ -11,8 +11,10 @@ import { PreviewDetailStep } from "./steps/preview-detail-step"
 import { UploadImagesStep } from "./steps/upload-images-step"
 import { SelectRelatedTestimonialsStep } from "./steps/select-related-testimonials-step"
 import { ReviewMarkdownStep } from "./steps/review-markdown-step"
+import { PublishStep } from "./steps/publish-step"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 import { useStorage } from "@/contexts/storage-context"
@@ -23,7 +25,20 @@ import { buildCreationFileName } from "@/lib/creation/file-name"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildCorpusText, isCorpusTooLarge, truncateCorpus } from "@/lib/creation/corpus"
 import { parseFrontmatter } from "@/lib/markdown/frontmatter"
+import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
+import { writeArtifact } from "@/lib/shadow-twin/artifact-writer"
 import { findRelatedTestimonials } from "@/lib/creation/dialograum-discovery"
+import { promoteWizardArtifacts } from "@/lib/creation/wizard-artifact-promotion"
+import { useUser } from "@clerk/nextjs"
+import type { WizardSessionEvent } from "@/types/wizard-session"
+import {
+  createWizardSessionClient,
+  logWizardEventClient,
+  addJobIdToSessionClient,
+  finalizeWizardSessionClient,
+  getFilePathsClient,
+  getUserIdentifierClient,
+} from "@/lib/wizard-session-logger-client"
 
 declare global {
   interface Window {
@@ -59,9 +74,17 @@ interface WizardState {
   // PDF HITL: Progress-Anzeige für Jobs (Extract/Template/Ingest)
   processingProgress?: number
   processingMessage?: string
+  // PDF HITL: finaler Publish-Schritt (User sieht Publizieren explizit)
+  isPublishing?: boolean
+  publishingProgress?: number
+  publishingMessage?: string
+  publishError?: string
+  isPublished?: boolean
   // PDF HITL: Tracking
   pdfBaseFileId?: string
   pdfTranscriptFileId?: string
+  /** Parent-Folder der Transcript-Datei (wichtig für MarkdownPreview: relative Images auflösen) */
+  pdfTranscriptFolderId?: string
   pdfTransformFileId?: string
   hasConfirmedMarkdown?: boolean
   // Human-in-the-loop: Quellen-Bestätigung
@@ -83,6 +106,8 @@ interface CreationWizardProps {
   resumeFileId?: string
   /** Optional: File-ID zum Starten mit einer Seed-Datei (z.B. Dialograum für Dialograum-Ergebnis) */
   seedFileId?: string
+  /** Optional: Zielordner (base64 fileId), falls Wizard explizit in einem Ordner gestartet wird */
+  targetFolderId?: string
 }
 
 export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, seedFileId, targetFolderId: targetFolderIdProp }: CreationWizardProps) {
@@ -92,6 +117,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     currentStepIndex: 0,
     sources: [],
   })
+  // CollectSourceStep lebt lokal; dieser State dient nur dazu, den Parent neu zu rendern,
+  // damit der "Weiter"-Button enabled/disabled korrekt aktualisiert.
+  const [collectSourceCanProceed, setCollectSourceCanProceed] = useState(false)
   
   // Speichere resumeFileId und seedFileId im State für späteren Zugriff beim Speichern
   const [resumeFileIdState] = useState<string | undefined>(resumeFileId)
@@ -101,6 +129,137 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   // Verwende targetFolderIdProp, falls gesetzt (für Child-Flows), sonst currentFolderIdAtom
   const currentFolderId = targetFolderIdProp || currentFolderIdAtomValue
   const router = useRouter()
+  
+  // Wizard Session Logging (DSGVO-konform)
+  const { user } = useUser()
+  const wizardSessionIdRef = useRef<string | null>(null)
+  const userIdentifierRef = useRef<ReturnType<typeof getUserIdentifierClient> | null>(null)
+  const wizardSessionCompletedRef = useRef(false)
+  const latestStepIndexRef = useRef<number>(0)
+  const metadataLogTimerRef = useRef<number | null>(null)
+  const lastLoggedMetadataKeysHashRef = useRef<string>("")
+
+  /**
+   * Einheitliche Logging-Funktion (damit Call-Sites stabil bleiben).
+   * Logging ist best-effort und darf den Wizard nicht blockieren.
+   */
+  async function logWizardEvent(
+    sessionId: string,
+    event: Omit<WizardSessionEvent, 'eventId' | 'timestamp'>
+  ): Promise<void> {
+    await logWizardEventClient(sessionId, event)
+  }
+
+  /**
+   * Pfade best-effort: Für den Filesystem-Provider sind IDs häufig Base64-kodierte Pfade.
+   * Wir speichern nur diese abgeleiteten Pfade (keine Inhalte).
+   */
+  async function getFilePaths(
+    _provider: unknown,
+    fileIds: { baseFileId?: string; transcriptFileId?: string; transformFileId?: string; savedItemId?: string }
+  ): Promise<{ basePath?: string; transcriptPath?: string; transformPath?: string; savedPath?: string }> {
+    return getFilePathsClient(fileIds)
+  }
+
+  async function promotePdfWizardArtifacts(args: { destinationFolderId: string }) {
+    const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
+    if (!isPdfAnalyse) return
+    if (!provider) return
+    if (!wizardState.pdfBaseFileId) return
+
+    try {
+      const res = await promoteWizardArtifacts({
+        provider,
+        baseFileId: wizardState.pdfBaseFileId,
+        destinationFolderId: args.destinationFolderId,
+      })
+
+      // Optional: loggen (sparsam)
+      if (wizardSessionIdRef.current) {
+        void logWizardEventClient(wizardSessionIdRef.current, {
+          eventType: 'file_saved',
+          metadata: {
+            promoted: true,
+            movedBase: res.movedBase,
+            movedArtifactFolder: res.movedArtifactFolder,
+          },
+        })
+      }
+    } catch (error) {
+      if (wizardSessionIdRef.current) {
+        void logWizardEventClient(wizardSessionIdRef.current, {
+          eventType: 'error',
+          error: {
+            code: 'wizard_artifact_promotion_failed',
+            message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+          },
+        })
+      }
+    }
+  }
+
+  function scheduleMetadataEditedLog(metadata: Record<string, unknown>) {
+    // Sparsam: debounced + nur wenn Keys sich geändert haben
+    if (!wizardSessionIdRef.current) return
+    if (metadataLogTimerRef.current) {
+      window.clearTimeout(metadataLogTimerRef.current)
+      metadataLogTimerRef.current = null
+    }
+
+    metadataLogTimerRef.current = window.setTimeout(() => {
+      if (!wizardSessionIdRef.current) return
+      const keys = Object.keys(metadata || {}).sort()
+      const hash = keys.join("|")
+      if (hash === lastLoggedMetadataKeysHashRef.current) return
+      lastLoggedMetadataKeysHashRef.current = hash
+
+      void logWizardEventClient(wizardSessionIdRef.current, {
+        eventType: 'metadata_edited',
+        stepIndex: wizardState.currentStepIndex,
+        stepPreset: 'editDraft',
+        metadata: {
+          keysCount: keys.length,
+          keysSample: keys.slice(0, 20),
+        },
+      })
+    }, 1200)
+  }
+
+  // Wizard Session Logging: Session beim Mount erstellen
+  // WICHTIG: Dieser Hook muss IMMER aufgerufen werden (keine frühen Returns), damit die Hook-Reihenfolge konsistent bleibt
+  useEffect(() => {
+    // Prüfe, ob bereits initialisiert (ohne frühen Return)
+    const isAlreadyInitialized = !!wizardSessionIdRef.current
+    
+    if (!isAlreadyInitialized) {
+      async function initializeWizardSession() {
+        try {
+          // User Identifier ermitteln (DSGVO-konform)
+          const userIdentifier = getUserIdentifierClient()
+          if (user?.id) {
+            userIdentifier.userId = user.id
+          }
+          userIdentifierRef.current = userIdentifier
+          
+          // Session erstellen
+          const sessionId = await createWizardSessionClient({
+            userIdentifier,
+            templateId,
+            typeId,
+            libraryId,
+            initialStepIndex: wizardState.currentStepIndex,
+          })
+          
+          wizardSessionIdRef.current = sessionId
+        } catch (error) {
+          console.error('[Wizard] Fehler beim Erstellen der Session:', error)
+          // Nicht fatal: Wizard funktioniert auch ohne Logging
+        }
+      }
+      
+      void initializeWizardSession()
+    }
+  }, [templateId, typeId, libraryId, user?.id, wizardState.currentStepIndex]) // Dependencies hinzugefügt
 
   // Lade Template-Konfiguration
   useEffect(() => {
@@ -311,6 +470,26 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     void loadSeedFile()
   }, [seedFileId, provider, template, libraryId])
 
+  // Cleanup: Markiere Session als abandoned wenn Component unmountet (ohne completed)
+  // WICHTIG: Dieser Hook muss IMMER aufgerufen werden (vor frühen returns), damit die Hook-Reihenfolge konsistent bleibt
+  useEffect(() => {
+    const sessionIdRef = wizardSessionIdRef.current
+    return () => {
+      if (sessionIdRef && !wizardSessionCompletedRef.current) {
+        // Wenn nicht explizit completed: als abandoned markieren (best effort).
+        finalizeWizardSessionClient(sessionIdRef, 'abandoned', {
+          finalStepIndex: latestStepIndexRef.current,
+        }).catch(error => {
+          console.warn('[Wizard] Fehler beim Markieren der Session als abandoned:', error)
+        })
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Immer den aktuellsten StepIndex in eine Ref schreiben (damit cleanup beim Unmount korrekt ist)
+  latestStepIndexRef.current = wizardState.currentStepIndex
+
   if (isLoading) {
     return (
       <Card className="p-8">
@@ -457,6 +636,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     progress?: number
     message?: string
     result?: { savedItemId?: string }
+    shadowTwinFolderId?: string | null
   }
 
   async function waitForJobCompletionWithProgress(args: {
@@ -468,17 +648,77 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     return await new Promise<JobUpdateWire>((resolve, reject) => {
       let settled = false
       const es = new EventSource('/api/external/jobs/stream')
+      let pollTimer: number | null = null
       const timeout = setTimeout(() => {
         if (settled) return
         settled = true
         try { es.close() } catch {}
+        if (pollTimer !== null) {
+          try { window.clearInterval(pollTimer) } catch {}
+        }
         reject(new Error(`Timeout: Job ${jobId} wurde nicht rechtzeitig fertig.`))
       }, timeoutMs)
 
       function cleanup() {
         clearTimeout(timeout)
         try { es.close() } catch {}
+        if (pollTimer !== null) {
+          try { window.clearInterval(pollTimer) } catch {}
+        }
       }
+
+      // Fallback: Wenn SSE (dev) wackelt oder Completion-Event verloren geht,
+      // pollen wir den Job-Status und lösen trotzdem auf.
+      pollTimer = window.setInterval(() => {
+        if (settled) return
+        void (async () => {
+          try {
+            const res = await fetch(`/api/external/jobs/${jobId}`, { method: 'GET' })
+            const json = await res.json().catch(() => ({} as Record<string, unknown>))
+            if (!res.ok) return
+            const status = typeof (json as { status?: unknown }).status === 'string' ? (json as { status: string }).status : ''
+            if (status !== 'completed' && status !== 'failed') return
+
+            const resultUnknown = (json as { result?: unknown }).result
+            const result = (resultUnknown && typeof resultUnknown === 'object' && !Array.isArray(resultUnknown))
+              ? (resultUnknown as { savedItemId?: unknown })
+              : undefined
+            const savedItemId = typeof result?.savedItemId === 'string' ? result.savedItemId : undefined
+
+            const shadowTwinStateUnknown = (json as { shadowTwinState?: unknown }).shadowTwinState
+            const shadowTwinFolderId = (shadowTwinStateUnknown && typeof shadowTwinStateUnknown === 'object' && 'shadowTwinFolderId' in (shadowTwinStateUnknown as Record<string, unknown>))
+              ? ((shadowTwinStateUnknown as Record<string, unknown>).shadowTwinFolderId)
+              : undefined
+            const shadowTwinFolderIdStr = typeof shadowTwinFolderId === 'string' ? shadowTwinFolderId : null
+
+            const synthetic: JobUpdateWire = {
+              type: 'job_update',
+              jobId,
+              status,
+              progress: status === 'completed' ? 100 : undefined,
+              message: status === 'completed' ? 'completed (poll)' : 'failed (poll)',
+              result: savedItemId ? { savedItemId } : undefined,
+              shadowTwinFolderId: shadowTwinFolderIdStr,
+            }
+            onProgress(synthetic)
+
+            if (status === 'completed') {
+              if (settled) return
+              settled = true
+              cleanup()
+              resolve(synthetic)
+            }
+            if (status === 'failed') {
+              if (settled) return
+              settled = true
+              cleanup()
+              reject(new Error('Job fehlgeschlagen'))
+            }
+          } catch {
+            // ignore polling errors
+          }
+        })()
+      }, 1200)
 
       es.addEventListener('job_update', (e: MessageEvent) => {
         try {
@@ -505,45 +745,144 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     })
   }
 
+  async function resolvePdfAnalyseTransformFileId(args: {
+    baseFileId: string
+    targetLanguage: string
+  }): Promise<string | undefined> {
+    // Frontend darf nicht selbst Shadow-Twin Dateien suchen (list+match).
+    // Wir lösen das serverseitig über den zentralen Resolver auf.
+    if (!provider || !libraryId) return undefined
+    try {
+      const baseItem = await provider.getItemById(args.baseFileId)
+      const sourceName = String(baseItem?.metadata?.name || '')
+      const parentId = String(baseItem?.parentId || '')
+      if (!sourceName || !parentId) return undefined
+
+      const resolved = await resolveArtifactClient({
+        libraryId,
+        sourceId: args.baseFileId,
+        sourceName,
+        parentId,
+        targetLanguage: args.targetLanguage,
+        templateName: 'pdfanalyse',
+        preferredKind: 'transformation',
+      })
+      return resolved?.fileId
+    } catch {
+      return undefined
+    }
+  }
+
   /**
    * Fügt eine neue Quelle hinzu und triggert automatische Transformation.
    * Wenn bereits eine Text-Quelle existiert, wird diese aktualisiert statt eine neue zu erstellen.
+   * Verhindert auch, dass Quellen mit derselben ID doppelt hinzugefügt werden.
    */
   const addSource = async (source: WizardSource) => {
-    // Wenn es eine Text-Quelle ist und bereits eine Text-Quelle existiert, aktualisiere diese
-    if (source.kind === 'text') {
-      const existingTextSourceIndex = wizardState.sources.findIndex(s => s.kind === 'text')
-      if (existingTextSourceIndex >= 0) {
-        // Aktualisiere die bestehende Text-Quelle
-        const updatedSources = [...wizardState.sources]
-        updatedSources[existingTextSourceIndex] = {
-          ...source,
-          id: updatedSources[existingTextSourceIndex].id, // Behalte die bestehende ID
-          createdAt: updatedSources[existingTextSourceIndex].createdAt, // Behalte das ursprüngliche Datum
-        }
-        setWizardState(prev => ({ 
-          ...prev, 
-          sources: updatedSources,
-          selectedSource: undefined, // Reset nach dem Hinzufügen, damit Quelle-Auswahl wieder angezeigt wird
-        }))
-        await runExtraction(updatedSources)
-        return
-      }
-    }
-    
-    const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
+    // Single-Source UX: Wenn das Template nur "file" unterstützt, soll die Quelle-Auswahl nicht wieder erscheinen.
+    // Sonst sieht man während PDF-HITL Processing die "Startmethode"/"Quellen"-Infos (verwirrend).
+    const supportedSources = template?.creation?.supportedSources || []
+    const isSingleFileOnly = supportedSources.length === 1 && supportedSources[0]?.type === 'file'
 
-    // Ansonsten: Neue Quelle hinzufügen
-    const newSources = [...wizardState.sources, source]
-    setWizardState(prev => ({ 
-      ...prev, 
-      sources: newSources,
-      selectedSource: undefined, // Reset nach dem Hinzufügen, damit Quelle-Auswahl wieder angezeigt wird
-      // Für pdfanalyse: Metadaten erst nach "Weiter" laden, nicht sofort im Hintergrund.
-      generatedDraft: isPdfAnalyse ? undefined : prev.generatedDraft,
-    }))
+    // WICHTIG: Verwende setWizardState mit Updater-Funktion, um Race Conditions zu vermeiden
+    // (wenn addSource mehrfach schnell hintereinander aufgerufen wird)
+    let wasUpdated = false
+    let finalSources: WizardSource[] = []
+    
+    setWizardState(prev => {
+      // Prüfe, ob eine Quelle mit derselben ID bereits existiert (verhindert Duplikate)
+      const existingSourceIndex = prev.sources.findIndex(s => s.id === source.id)
+      if (existingSourceIndex >= 0) {
+        // Quelle existiert bereits: Aktualisiere sie statt eine neue hinzuzufügen
+        const updatedSources = [...prev.sources]
+        updatedSources[existingSourceIndex] = {
+          ...source,
+          id: updatedSources[existingSourceIndex].id, // Behalte die bestehende ID
+          createdAt: updatedSources[existingSourceIndex].createdAt, // Behalte das ursprüngliche Datum
+        }
+        wasUpdated = true
+        finalSources = updatedSources
+        return {
+          ...prev,
+          sources: updatedSources,
+          selectedSource: isSingleFileOnly ? prev.selectedSource : undefined, // Multi-Source: Reset; Single-File: behalten
+        }
+      }
+
+      // Zusätzliche Prüfung für File-Quellen: Verhindere Duplikate auch wenn ID unterschiedlich ist (z.B. durch verschiedene Generierungszeitpunkte)
+      if (source.kind === 'file' && source.fileName) {
+        const existingFileSourceIndex = prev.sources.findIndex(
+          s => s.kind === 'file' && s.fileName === source.fileName
+        )
+        if (existingFileSourceIndex >= 0) {
+          // File-Quelle mit gleichem Dateinamen existiert bereits: Aktualisiere sie statt eine neue hinzuzufügen
+          const updatedSources = [...prev.sources]
+          updatedSources[existingFileSourceIndex] = {
+            ...source,
+            id: updatedSources[existingFileSourceIndex].id, // Behalte die bestehende ID
+            createdAt: updatedSources[existingFileSourceIndex].createdAt, // Behalte das ursprüngliche Datum
+          }
+          wasUpdated = true
+          finalSources = updatedSources
+          return {
+            ...prev,
+            sources: updatedSources,
+            selectedSource: isSingleFileOnly ? prev.selectedSource : undefined, // Multi-Source: Reset; Single-File: behalten
+          }
+        }
+      }
+
+      // Wenn es eine Text-Quelle ist und bereits eine Text-Quelle existiert, aktualisiere diese
+      if (source.kind === 'text') {
+        const existingTextSourceIndex = prev.sources.findIndex(s => s.kind === 'text')
+        if (existingTextSourceIndex >= 0) {
+          // Aktualisiere die bestehende Text-Quelle
+          const updatedSources = [...prev.sources]
+          updatedSources[existingTextSourceIndex] = {
+            ...source,
+            id: updatedSources[existingTextSourceIndex].id, // Behalte die bestehende ID
+            createdAt: updatedSources[existingTextSourceIndex].createdAt, // Behalte das ursprüngliche Datum
+          }
+          wasUpdated = true
+          finalSources = updatedSources
+          return {
+            ...prev,
+            sources: updatedSources,
+            selectedSource: isSingleFileOnly ? prev.selectedSource : undefined, // Multi-Source: Reset; Single-File: behalten
+          }
+        }
+      }
+
+      // Quelle existiert noch nicht: Hinzufügen
+      const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
+      finalSources = [...prev.sources, source]
+      return {
+        ...prev,
+        sources: finalSources,
+        selectedSource: isSingleFileOnly ? prev.selectedSource : undefined, // Multi-Source: Reset; Single-File: behalten
+        // Für pdfanalyse: Metadaten erst nach "Weiter" laden, nicht sofort im Hintergrund.
+        generatedDraft: isPdfAnalyse ? undefined : prev.generatedDraft,
+      }
+    })
+
+    // Log source_added Event
+    if (wizardSessionIdRef.current && !wasUpdated) {
+      await logWizardEventClient(wizardSessionIdRef.current, {
+        eventType: 'source_added',
+        sourceId: source.id,
+        sourceKind: source.kind,
+        metadata: {
+          fileName: source.fileName,
+          textLength: source.text?.length,
+          extractedTextLength: source.extractedText?.length,
+        },
+      })
+    }
+
+    // Verarbeitung nur starten, wenn nicht pdfanalyse
+    const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
     if (!isPdfAnalyse) {
-      await runExtraction(newSources)
+      await runExtraction(finalSources)
     }
   }
 
@@ -558,6 +897,14 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       sources: newSources,
       generatedDraft: isPdfAnalyse ? undefined : prev.generatedDraft,
     }))
+
+    // Log source_removed Event (best effort)
+    if (wizardSessionIdRef.current) {
+      logWizardEventClient(wizardSessionIdRef.current, {
+        eventType: 'source_removed',
+        sourceId,
+      }).catch(error => console.warn('[Wizard] Fehler beim Loggen von source_removed:', error))
+    }
     if (!isPdfAnalyse) {
       await runExtraction(newSources)
     }
@@ -565,25 +912,70 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
   const handleNext = async () => {
     if (isLastStep) {
+      // Publish-Step: "Fertig" navigiert nur noch zurück. Der Step selbst finalisiert Session/Publish.
+      if (currentStep.preset === 'publish') {
+        router.push("/library")
+        return
+      }
       handleSave()
       return
     }
 
     // Beim Verlassen von collectSource: Füge noch nicht hinzugefügte Quelle hinzu
     if (currentStep.preset === 'collectSource') {
+      let justAddedSource: WizardSource | null = null
       const createSource = window.__collectSourceStepBeforeLeave
       if (createSource && typeof createSource === 'function') {
         const newSource = createSource()
         if (newSource) {
+          justAddedSource = newSource
           await addSource(newSource)
         }
       }
 
       // PDF HITL: Nach "Weiter" starten wir erst die Verarbeitung (Extract-only) und bleiben dabei auf diesem Screen.
       const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-      if (isPdfAnalyse && provider) {
-        const fileSource = [...wizardState.sources].reverse().find(s => s.kind === 'file' && typeof s.id === 'string' && s.id.startsWith('file-'))
-        const baseFileId = fileSource ? fileSource.id.replace(/^file-/, '') : ''
+      if (isPdfAnalyse) {
+        if (!provider) {
+          toast.error('Storage ist noch nicht bereit', { description: 'Bitte kurz warten und dann erneut auf „Weiter“ klicken.' })
+          if (wizardSessionIdRef.current) {
+            void logWizardEventClient(wizardSessionIdRef.current, {
+              eventType: 'error',
+              error: { code: 'pdf_collect_missing_provider', message: 'provider fehlt beim Klick auf Weiter' },
+            })
+          }
+          return
+        }
+        if (!libraryId) {
+          toast.error('Kontext fehlt', { description: 'libraryId fehlt – bitte Seite neu laden.' })
+          if (wizardSessionIdRef.current) {
+            void logWizardEventClient(wizardSessionIdRef.current, {
+              eventType: 'error',
+              error: { code: 'pdf_collect_missing_libraryId', message: 'libraryId fehlt beim Klick auf Weiter' },
+            })
+          }
+          return
+        }
+        // Wichtig: State-Updates via addSource() sind in diesem Tick noch nicht garantiert sichtbar.
+        // Darum nutzen wir primär die Quelle, die wir gerade hinzugefügt haben.
+        const baseFileIdFromJustAdded =
+          justAddedSource?.kind === 'file' && typeof justAddedSource.id === 'string' && justAddedSource.id.startsWith('file-')
+            ? justAddedSource.id.replace(/^file-/, '')
+            : ''
+        const fileSource = baseFileIdFromJustAdded
+          ? null
+          : [...wizardState.sources].reverse().find(s => s.kind === 'file' && typeof s.id === 'string' && s.id.startsWith('file-'))
+        const baseFileId = baseFileIdFromJustAdded || (fileSource ? fileSource.id.replace(/^file-/, '') : '')
+        if (!baseFileId) {
+          toast.error('Bitte zuerst eine PDF auswählen', { description: 'Es wurde keine Datei gefunden, die verarbeitet werden kann.' })
+          if (wizardSessionIdRef.current) {
+            void logWizardEventClient(wizardSessionIdRef.current, {
+              eventType: 'error',
+              error: { code: 'pdf_collect_missing_baseFileId', message: 'baseFileId konnte nicht bestimmt werden' },
+            })
+          }
+          return
+        }
         if (baseFileId) {
           // Step 1: Extract-only Job starten
           setWizardState(prev => ({
@@ -593,6 +985,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             processingMessage: 'OCR/Artefakte starten…',
             pdfBaseFileId: baseFileId,
           }))
+          let extractJobId = ''
           try {
             const baseItem = await provider.getItemById(baseFileId)
             const wizardFolderId = baseItem.parentId || 'root'
@@ -618,11 +1011,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               const msg = typeof (json as { error?: unknown }).error === 'string' ? (json as { error: string }).error : `HTTP ${res.status}`
               throw new Error(msg)
             }
-            const jobId = typeof (json as { job?: { id?: unknown } }).job?.id === 'string' ? (json as { job: { id: string } }).job.id : ''
-            if (!jobId) throw new Error('Job-ID fehlt in Response')
+            extractJobId = typeof (json as { job?: { id?: unknown } }).job?.id === 'string' ? (json as { job: { id: string } }).job.id : ''
+            if (!extractJobId) throw new Error('Job-ID fehlt in Response')
+
+            // Log job_started Event
+            if (wizardSessionIdRef.current) {
+              await addJobIdToSessionClient(wizardSessionIdRef.current, extractJobId, 'pdf_extract')
+            }
 
             const completion = await waitForJobCompletionWithProgress({
-              jobId,
+              jobId: extractJobId,
               timeoutMs: 8 * 60_000,
               onProgress: (evt) => {
                 setWizardState(prev => ({
@@ -635,8 +1033,23 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
             const transcriptFileId = completion.result?.savedItemId
             if (!transcriptFileId) throw new Error('Extract abgeschlossen, aber result.savedItemId fehlt (Transcript).')
+            const transcriptItemForFolder = await provider.getItemById(transcriptFileId)
+            const transcriptFolderId = transcriptItemForFolder.parentId || 'root'
             const { blob } = await provider.getBinary(transcriptFileId)
             const transcript = await blob.text()
+
+            // Log job_completed Event
+            if (wizardSessionIdRef.current) {
+              await logWizardEventClient(wizardSessionIdRef.current, {
+                eventType: 'job_completed',
+                jobId: extractJobId,
+                jobType: 'pdf_extract',
+                fileIds: {
+                  transcriptFileId,
+                  baseFileId: baseFileId,
+                },
+              })
+            }
 
             // Nächster Step: Markdown Review
             setWizardState(prev => ({
@@ -645,11 +1058,24 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               processingProgress: undefined,
               processingMessage: undefined,
               pdfTranscriptFileId: transcriptFileId,
+              pdfTranscriptFolderId: transcriptFolderId,
               draftText: transcript,
               hasConfirmedMarkdown: false,
               // Wir bleiben im Interview-Modus, aber springen zum nächsten Step
               currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
             }))
+            
+            // Log step_changed Event
+            if (wizardSessionIdRef.current) {
+              const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
+              const newStep = steps[newIndex]
+              await logWizardEventClient(wizardSessionIdRef.current, {
+                eventType: 'step_changed',
+                stepIndex: newIndex,
+                stepPreset: newStep?.preset,
+              })
+            }
+            
             return
           } catch (error) {
             setWizardState(prev => ({
@@ -659,17 +1085,58 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               processingMessage: undefined,
               extractionError: error instanceof Error ? error.message : 'Unbekannter Fehler',
             }))
+            
+            // Log job_failed Event (wenn Job-ID bekannt)
+            if (wizardSessionIdRef.current && extractJobId) {
+              try {
+                await logWizardEventClient(wizardSessionIdRef.current, {
+                  eventType: 'job_failed',
+                  jobId: extractJobId,
+                  jobType: 'pdf_extract',
+                  error: {
+                    code: 'pdf_extract_failed',
+                    message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+                  },
+                })
+              } catch (logError) {
+                console.warn('[Wizard] Fehler beim Loggen von job_failed:', logError)
+              }
+            }
+
+            // Log error Event
+            if (wizardSessionIdRef.current) {
+              await logWizardEventClient(wizardSessionIdRef.current, {
+                eventType: 'error',
+                error: {
+                  code: 'pdf_extract_failed',
+                  message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+                },
+              })
+            }
+            
             toast.error('PDF-Verarbeitung fehlgeschlagen', { description: error instanceof Error ? error.message : 'Unbekannter Fehler' })
             return
           }
         }
+        // WICHTIG: pdfanalyse darf nie in die generische Step-Advance-Logik fallen.
+        return
       }
     }
 
     // PDF HITL: Nach Markdown-Review startet die Metadaten/Template-Phase (und optional Ingest)
     if (currentStep.preset === 'reviewMarkdown') {
       const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-      if (isPdfAnalyse && provider && wizardState.pdfBaseFileId && wizardState.pdfTranscriptFileId) {
+      if (isPdfAnalyse) {
+        if (!provider || !wizardState.pdfBaseFileId || !wizardState.pdfTranscriptFileId) {
+          toast.error('PDF-Status unvollständig', { description: 'Bitte gehe zurück und starte zuerst die PDF-Verarbeitung (OCR).' })
+          if (wizardSessionIdRef.current) {
+            void logWizardEventClient(wizardSessionIdRef.current, {
+              eventType: 'error',
+              error: { code: 'pdf_review_missing_state', message: 'pdfBaseFileId/pdfTranscriptFileId/provider fehlt beim Klick auf Weiter' },
+            })
+          }
+          return
+        }
         if (!wizardState.hasConfirmedMarkdown) {
           toast.error('Bitte Markdown bestätigen', { description: 'Aktiviere die Checkbox, dass du das Markdown geprüft hast.' })
           return
@@ -687,6 +1154,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           processingMessage: 'Metadaten/Template starten…',
         }))
 
+        let templateJobId = ''
         try {
           // 1) Korrigiertes Transcript zurück ins Shadow‑Twin schreiben (delete+upload, da kein overwrite-by-id)
           const transcriptItem = await provider.getItemById(wizardState.pdfTranscriptFileId)
@@ -715,7 +1183,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           form.append('includePageImages', 'true')
           form.append('useCache', 'false')
           form.append('template', 'pdfanalyse')
-          form.append('policies', JSON.stringify({ extract: 'ignore', metadata: 'do', ingest: 'do' }))
+          // PDF Human-in-the-loop: Job2 erzeugt/aktualisiert das Transformations-Artefakt,
+          // aber "Publizieren/Ingest" passiert erst beim expliziten Speichern im Wizard.
+          form.append('policies', JSON.stringify({ extract: 'ignore', metadata: 'do', ingest: 'ignore' }))
 
           const res = await fetch('/api/secretary/process-pdf', { method: 'POST', headers: { 'X-Library-Id': libraryId }, body: form })
           const json = await res.json().catch(() => ({} as Record<string, unknown>))
@@ -723,11 +1193,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             const msg = typeof (json as { error?: unknown }).error === 'string' ? (json as { error: string }).error : `HTTP ${res.status}`
             throw new Error(msg)
           }
-          const jobId = typeof (json as { job?: { id?: unknown } }).job?.id === 'string' ? (json as { job: { id: string } }).job.id : ''
-          if (!jobId) throw new Error('Job-ID fehlt in Response')
+          templateJobId = typeof (json as { job?: { id?: unknown } }).job?.id === 'string' ? (json as { job: { id: string } }).job.id : ''
+          if (!templateJobId) throw new Error('Job-ID fehlt in Response')
+
+          // Log job_started Event (Template Phase)
+          if (wizardSessionIdRef.current) {
+            await addJobIdToSessionClient(wizardSessionIdRef.current, templateJobId, 'pdf_template')
+          }
 
           const completion = await waitForJobCompletionWithProgress({
-            jobId,
+            jobId: templateJobId,
             timeoutMs: 8 * 60_000,
             onProgress: (evt) => {
               setWizardState(prev => ({
@@ -739,11 +1214,29 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           })
 
           const transformFileId = completion.result?.savedItemId
-          if (!transformFileId) throw new Error('Template abgeschlossen, aber result.savedItemId fehlt (Transformation).')
+          if (!transformFileId) {
+            // Absichtlich hart: wenn das fehlt oder falsch ist, muss der zentrale Job-Contract gefixt werden,
+            // statt im Wizard "auszugleichen" (sonst debuggen wir am Symptom vorbei).
+            throw new Error('Template abgeschlossen, aber result.savedItemId (Transformation) fehlt.')
+          }
 
           const { blob } = await provider.getBinary(transformFileId)
           const content = await blob.text()
           const { meta, body } = parseFrontmatter(content)
+
+          // Log job_completed Event (Template Phase)
+          if (wizardSessionIdRef.current) {
+            await logWizardEventClient(wizardSessionIdRef.current, {
+              eventType: 'job_completed',
+              jobId: templateJobId,
+              jobType: 'pdf_template',
+              fileIds: {
+                transformFileId,
+                baseFileId: wizardState.pdfBaseFileId,
+                transcriptFileId: uploaded.id,
+              },
+            })
+          }
 
           // 3) In EditDraft springen (Metadaten prüfen)
           setWizardState(prev => ({
@@ -752,12 +1245,25 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             processingProgress: undefined,
             processingMessage: undefined,
             pdfTranscriptFileId: uploaded.id,
+            pdfTranscriptFolderId: transcriptParentId,
             pdfTransformFileId: transformFileId,
             generatedDraft: { metadata: (meta && typeof meta === 'object') ? (meta as Record<string, unknown>) : {}, markdown: typeof body === 'string' ? body : '' },
             draftMetadata: (meta && typeof meta === 'object') ? (meta as Record<string, unknown>) : prev.draftMetadata,
             draftText: typeof body === 'string' ? body : prev.draftText,
             currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
           }))
+          
+          // Log step_changed Event
+          if (wizardSessionIdRef.current) {
+            const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
+            const newStep = steps[newIndex]
+            logWizardEventClient(wizardSessionIdRef.current, {
+              eventType: 'step_changed',
+              stepIndex: newIndex,
+              stepPreset: newStep?.preset,
+            }).catch(error => console.warn('[Wizard] Fehler beim Loggen von step_changed:', error))
+          }
+          
           return
         } catch (error) {
           setWizardState(prev => ({
@@ -767,9 +1273,44 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             processingMessage: undefined,
             extractionError: error instanceof Error ? error.message : 'Unbekannter Fehler',
           }))
+          
+          // Log job_failed Event (wenn Job-ID bekannt)
+          if (wizardSessionIdRef.current && templateJobId) {
+            try {
+              await logWizardEventClient(wizardSessionIdRef.current, {
+                eventType: 'job_failed',
+                jobId: templateJobId,
+                jobType: 'pdf_template',
+                error: {
+                  code: 'pdf_template_failed',
+                  message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+                },
+              })
+            } catch (logError) {
+              console.warn('[Wizard] Fehler beim Loggen von job_failed:', logError)
+            }
+          }
+
+          // Log error Event
+          if (wizardSessionIdRef.current) {
+            try {
+              await logWizardEvent(wizardSessionIdRef.current, {
+                eventType: 'error',
+                error: {
+                  code: 'pdf_template_failed',
+                  message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+                },
+              })
+            } catch (logError) {
+              console.warn('[Wizard] Fehler beim Loggen von error:', logError)
+            }
+          }
+          
           toast.error('Metadaten/Template fehlgeschlagen', { description: error instanceof Error ? error.message : 'Unbekannter Fehler' })
           return
         }
+        // WICHTIG: pdfanalyse darf nie in die generische Step-Advance-Logik fallen.
+        return
       }
     }
 
@@ -799,6 +1340,17 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
       return { ...prev, currentStepIndex: nextRawIndex }
     })
+    
+    // Log step_changed Event
+    if (wizardSessionIdRef.current) {
+      const nextRawIndex = wizardState.currentStepIndex + 1
+      const nextStep = steps[nextRawIndex]
+      logWizardEvent(wizardSessionIdRef.current, {
+        eventType: 'step_changed',
+        stepIndex: nextRawIndex,
+        stepPreset: nextStep?.preset,
+      }).catch(error => console.warn('[Wizard] Fehler beim Loggen von step_changed:', error))
+    }
   }
 
   const handleBack = () => {
@@ -807,6 +1359,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     setWizardState(prev => {
       const newIndex = prev.currentStepIndex - 1
       const newStep = steps[newIndex]
+      const supportedSources = template?.creation?.supportedSources || []
+      const isSingleFileOnly = supportedSources.length === 1 && supportedSources[0]?.type === 'file'
       
       // Wenn wir zurück zum collectSource Step gehen,
       // setze selectedSource IMMER zurück, damit die Quelle-Auswahl wieder angezeigt wird
@@ -814,7 +1368,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return {
           ...prev,
           currentStepIndex: newIndex,
-          selectedSource: undefined, // Reset, damit Quelle-Auswahl wieder angezeigt wird
+          selectedSource: isSingleFileOnly ? prev.selectedSource : undefined, // Single-File: nicht zurück in Auswahl springen
         }
       }
       
@@ -823,6 +1377,17 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         currentStepIndex: newIndex,
       }
     })
+    
+    // Log step_changed Event (fire and forget)
+    if (wizardSessionIdRef.current) {
+      const newIndex = wizardState.currentStepIndex - 1
+      const newStep = steps[newIndex]
+      logWizardEventClient(wizardSessionIdRef.current, {
+        eventType: 'step_changed',
+        stepIndex: newIndex,
+        stepPreset: newStep?.preset,
+      }).catch(error => console.warn('[Wizard] Fehler beim Loggen von step_changed:', error))
+    }
   }
 
   const handleSave = async () => {
@@ -912,6 +1477,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           } catch (error) {
             toast.error(`Fehler beim Hochladen von ${fieldKey}: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
             // Weiter mit anderen Bildern, auch wenn eines fehlschlägt
+            if (wizardSessionIdRef.current) {
+              void logWizardEventClient(wizardSessionIdRef.current, {
+                eventType: 'error',
+                error: {
+                  code: 'upload_image_failed',
+                  message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+                  details: { fieldKey },
+                },
+              })
+            }
           }
         }
       }
@@ -1092,6 +1667,147 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       // Speichere Datei im Storage
       let targetFolderId: string
       let targetFileName: string
+      // WICHTIG: Wird weiter unten für Session-Finalisierung verwendet.
+      // Muss hier deklariert sein, sonst gibt es zur Laufzeit "savedItemId is not defined".
+      let savedItemId: string | undefined
+
+      /**
+       * PDF-Shadow‑Twin Publish (Contract-Update):
+       * - KEINE zusätzliche "finale" Datei erzeugen.
+       * - Stattdessen: Transformationsdatei im Shadow‑Twin (`*.{templateId}.de.md`) überschreiben
+       *   (Frontmatter aus editDraft, Body bleibt aus dem Transformationsartefakt).
+       * - Danach: Artefakte aus `.wizard-sources` in den Zielordner promoten (Variante C).
+       * - Danach: explizit "publizieren" = ingest (RAG) via ingest-markdown.
+       */
+      const isPdfShadowTwinPublish =
+        (templateId || '').toLowerCase() === 'pdfanalyse' &&
+        !!wizardState.pdfBaseFileId &&
+        !!wizardState.pdfTransformFileId &&
+        !!libraryId
+
+      if (isPdfShadowTwinPublish) {
+        const libId = libraryId!
+        const destinationFolderId = currentFolderId && currentFolderId.trim().length > 0 ? currentFolderId : 'root'
+
+        // 1) Promote (damit wir im Zielpfad arbeiten; IDs können sich durch move ändern)
+        const promotion = await promoteWizardArtifacts({
+          provider,
+          baseFileId: wizardState.pdfBaseFileId!,
+          destinationFolderId,
+        })
+
+        if (!promotion.destinationBaseFileId) {
+          throw new Error('PDF-Publish: destinationBaseFileId fehlt nach Promotion.')
+        }
+
+        const baseFileName = promotion.baseFileName
+        const artifactFolderId = promotion.destinationArtifactFolderId
+        if (!baseFileName || !artifactFolderId) {
+          throw new Error('PDF-Publish: Artefakt-Ordner konnte im Zielordner nicht gefunden werden.')
+        }
+
+        // 2) Transformationsdatei im (neuen) Shadow‑Twin finden (zentral über Resolver)
+        const resolvedTransform = await resolveArtifactClient({
+          libraryId: libId,
+          sourceId: promotion.destinationBaseFileId,
+          sourceName: baseFileName,
+          parentId: destinationFolderId,
+          targetLanguage: 'de',
+          templateName: String(templateId || 'pdfanalyse'),
+          preferredKind: 'transformation',
+        })
+        if (!resolvedTransform?.fileId) {
+          throw new Error('PDF-Publish: Transformationsdatei fehlt im Shadow‑Twin (resolveArtifact).')
+        }
+        const transformItem = await provider.getItemById(resolvedTransform.fileId)
+        if (!transformItem) {
+          throw new Error('PDF-Publish: Transformationsdatei konnte nicht geladen werden (getItemById).')
+        }
+
+        // 3) Body aus Transformationsartefakt behalten, nur Frontmatter ersetzen
+        const { blob: existingTransformBlob } = await provider.getBinary(transformItem.id)
+        const existingTransformContent = await existingTransformBlob.text()
+        const { body: existingTransformBody } = parseFrontmatter(existingTransformContent)
+
+        // Für PDF-Publish halten wir das Frontmatter bewusst sauber:
+        // nur Template-Metadaten (keine Wizard-Resume-Felder).
+        const pdfFrontmatter = Object.entries(frontmatterMetadata)
+          .map(([key, value]) => {
+            if (value === null || value === undefined) return `${key}: ""`
+            if (Array.isArray(value)) return `${key}: ${JSON.stringify(value)}`
+            if (typeof value === 'string' && value.includes('\n')) {
+              return `${key}: |\n${value.split('\n').map(line => `  ${line}`).join('\n')}`
+            }
+            return `${key}: ${value}`
+          })
+          .join("\n")
+
+        const pdfMarkdownContent = `---\n${pdfFrontmatter}\n---\n\n${existingTransformBody}`
+
+        // 4) Overwrite via zentralem Writer (SSOT, v2-only)
+        const templateName = String(templateId || 'pdfanalyse')
+        const writeRes = await writeArtifact(provider, {
+          key: {
+            sourceId: promotion.destinationBaseFileId,
+            kind: 'transformation',
+            targetLanguage: 'de',
+            templateName,
+          },
+          sourceName: baseFileName,
+          parentId: destinationFolderId,
+          content: pdfMarkdownContent,
+          createFolder: true,
+        })
+        const updatedTransformFile = writeRes.file
+
+        savedItemId = updatedTransformFile.id
+        targetFolderId = destinationFolderId
+        targetFileName = updatedTransformFile.metadata?.name
+
+        // 5) Refresh Zielordner
+        await refreshItems(destinationFolderId)
+
+        // 5b) Log file_saved (PDF-Publish)
+        if (wizardSessionIdRef.current) {
+          try {
+            const filePaths = await getFilePaths(provider, {
+              savedItemId: updatedTransformFile.id,
+              transformFileId: updatedTransformFile.id,
+              baseFileId: promotion.destinationBaseFileId,
+              transcriptFileId: wizardState.pdfTranscriptFileId,
+            })
+            await logWizardEvent(wizardSessionIdRef.current, {
+              eventType: 'file_saved',
+              fileIds: {
+                savedItemId: updatedTransformFile.id,
+                transformFileId: updatedTransformFile.id,
+                baseFileId: promotion.destinationBaseFileId,
+                transcriptFileId: wizardState.pdfTranscriptFileId,
+              },
+              filePaths,
+            })
+          } catch (error) {
+            console.warn('[Wizard] Fehler beim Loggen von file_saved (PDF):', error)
+          }
+        }
+
+        // 6) Publizieren (Ingestion) explizit beim Speichern
+        const ingestRes = await fetch(`/api/chat/${libId}/ingest-markdown`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileId: updatedTransformFile.id,
+            fileName: targetFileName,
+          }),
+        })
+        if (!ingestRes.ok) {
+          const errorText = await ingestRes.text().catch(() => 'Unknown error')
+          // Nicht fatal für "Datei ist gespeichert", aber wichtig als Feedback
+          toast.warning(`Gespeichert, aber Ingestion fehlgeschlagen: ${errorText}`)
+        }
+
+        toast.success('Gespeichert & publiziert (Shadow‑Twin aktualisiert).')
+      }
       
       if (resumeFileIdState) {
         // Resume-Modus: Überschreibe bestehende Datei (delete + upload)
@@ -1110,9 +1826,34 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           
           // Lade neue Datei hoch
           const file = new File([markdownContent], targetFileName, { type: "text/markdown" })
-          await provider.uploadFile(targetFolderId, file)
+          const uploadedItem = await provider.uploadFile(targetFolderId, file)
+          savedItemId = uploadedItem.id
           
           toast.success("Datei erfolgreich aktualisiert!")
+          
+          // Log file_saved Event (Resume)
+          if (wizardSessionIdRef.current) {
+            try {
+              const filePaths = await getFilePaths(provider, {
+                savedItemId: uploadedItem.id,
+                transformFileId: wizardState.pdfTransformFileId,
+                baseFileId: wizardState.pdfBaseFileId,
+                transcriptFileId: wizardState.pdfTranscriptFileId,
+              })
+              await logWizardEvent(wizardSessionIdRef.current, {
+                eventType: 'file_saved',
+                fileIds: {
+                  savedItemId: uploadedItem.id,
+                  transformFileId: wizardState.pdfTransformFileId,
+                  baseFileId: wizardState.pdfBaseFileId,
+                  transcriptFileId: wizardState.pdfTranscriptFileId,
+                },
+                filePaths,
+              })
+            } catch (error) {
+              console.warn('[Wizard] Fehler beim Loggen von file_saved:', error)
+            }
+          }
         } catch (error) {
           toast.error(`Fehler beim Aktualisieren: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
           throw error
@@ -1147,9 +1888,34 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             // Speichere Source-Datei im Ordner
             targetFileName = sourceFileName
             const file = new File([markdownContent], targetFileName, { type: "text/markdown" })
-            await provider.uploadFile(targetFolderId, file)
+            const uploadedItem = await provider.uploadFile(targetFolderId, file)
+            savedItemId = uploadedItem.id
             
             toast.success(`Content erfolgreich erstellt in Ordner "${folderName}"!`)
+            
+            // Log file_saved Event (Container-Modus)
+            if (wizardSessionIdRef.current) {
+              try {
+                const filePaths = await getFilePaths(provider, {
+                  savedItemId: uploadedItem.id,
+                  transformFileId: wizardState.pdfTransformFileId,
+                  baseFileId: wizardState.pdfBaseFileId,
+                  transcriptFileId: wizardState.pdfTranscriptFileId,
+                })
+                await logWizardEvent(wizardSessionIdRef.current, {
+                  eventType: 'file_saved',
+                  fileIds: {
+                    savedItemId: uploadedItem.id,
+                    transformFileId: wizardState.pdfTransformFileId,
+                    baseFileId: wizardState.pdfBaseFileId,
+                    transcriptFileId: wizardState.pdfTranscriptFileId,
+                  },
+                  filePaths,
+                })
+              } catch (error) {
+                console.warn('[Wizard] Fehler beim Loggen von file_saved:', error)
+              }
+            }
           } catch (error) {
             toast.error(`Fehler beim Erstellen des Ordners: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
             throw error
@@ -1159,17 +1925,49 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           targetFolderId = currentFolderId && currentFolderId.trim().length > 0 ? currentFolderId : "root"
           targetFileName = fileName
           const file = new File([markdownContent], targetFileName, { type: "text/markdown" })
-          await provider.uploadFile(targetFolderId, file)
+          const uploadedItem = await provider.uploadFile(targetFolderId, file)
+          savedItemId = uploadedItem.id
           
           toast.success("Content erfolgreich erstellt!")
+          
+          // Log file_saved Event (Standard-Modus)
+          if (wizardSessionIdRef.current) {
+            try {
+              const filePaths = await getFilePaths(provider, {
+                savedItemId: uploadedItem.id,
+                transformFileId: wizardState.pdfTransformFileId,
+                baseFileId: wizardState.pdfBaseFileId,
+                transcriptFileId: wizardState.pdfTranscriptFileId,
+              })
+              await logWizardEvent(wizardSessionIdRef.current, {
+                eventType: 'file_saved',
+                fileIds: {
+                  savedItemId: uploadedItem.id,
+                  transformFileId: wizardState.pdfTransformFileId,
+                  baseFileId: wizardState.pdfBaseFileId,
+                  transcriptFileId: wizardState.pdfTranscriptFileId,
+                },
+                filePaths,
+              })
+            } catch (error) {
+              console.warn('[Wizard] Fehler beim Loggen von file_saved:', error)
+            }
+          }
         }
       }
       
       // Wichtig: refreshItems erwartet eine folderId. Ohne Parameter entsteht fileId=undefined im Request.
-      await refreshItems(targetFolderId)
+      // PDF-Publish erledigt refresh/promotion bereits im eigenen Branch (sonst doppelte moves/Logs).
+      if (!isPdfShadowTwinPublish) {
+        await refreshItems(targetFolderId)
+
+        // Variante C: Staging-Artefakte aus `.wizard-sources` in den Zielordner verschieben
+        // (best effort, kein Blocker für Speichern)
+        await promotePdfWizardArtifacts({ destinationFolderId: targetFolderId })
+      }
       
       // Schreibe Shadow‑Twin Bundle (falls Quellen vorhanden)
-      if (wizardState.sources.length > 0 && wizardState.generatedDraft) {
+      if (!isPdfShadowTwinPublish && wizardState.sources.length > 0 && wizardState.generatedDraft) {
         try {
           // Lade die gerade gespeicherte Datei, um ihre ID zu bekommen
           const items = await provider.listItemsById(targetFolderId)
@@ -1250,12 +2048,80 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }
       }
       
+      // Ermittle savedItemId für Logging (falls noch nicht gesetzt)
+      if (!savedItemId) {
+        try {
+          const items = await provider.listItemsById(targetFolderId)
+          const savedFile = items.find(
+            item => item.type === 'file' && item.metadata.name === targetFileName
+          )
+          savedItemId = savedFile?.id
+        } catch {
+          // Ignoriere Fehler
+        }
+      }
+      
+      // Finalize Wizard Session (wizard_completed)
+      if (wizardSessionIdRef.current && savedItemId) {
+        try {
+          const filePaths = await getFilePaths(provider, {
+            savedItemId,
+            transformFileId: wizardState.pdfTransformFileId,
+            baseFileId: wizardState.pdfBaseFileId,
+            transcriptFileId: wizardState.pdfTranscriptFileId,
+          })
+
+          await logWizardEvent(wizardSessionIdRef.current, {
+            eventType: 'wizard_completed',
+            stepIndex: wizardState.currentStepIndex,
+            stepPreset: currentStep.preset,
+            fileIds: {
+              savedItemId,
+              transformFileId: wizardState.pdfTransformFileId,
+              baseFileId: wizardState.pdfBaseFileId,
+              transcriptFileId: wizardState.pdfTranscriptFileId,
+            },
+            filePaths,
+          })
+
+          wizardSessionCompletedRef.current = true
+          await finalizeWizardSessionClient(wizardSessionIdRef.current, 'completed', {
+            finalStepIndex: wizardState.currentStepIndex,
+            finalFileIds: {
+              savedItemId,
+              transformFileId: wizardState.pdfTransformFileId,
+            },
+            finalFilePaths: {
+              savedPath: filePaths.savedPath,
+              transformPath: filePaths.transformPath,
+            },
+          })
+        } catch (error) {
+          console.warn('[Wizard] Fehler beim Finalisieren der Session:', error)
+        }
+      }
+      
       router.push("/library")
     } catch (error) {
+      // Log error Event
+      if (wizardSessionIdRef.current) {
+        try {
+          await logWizardEvent(wizardSessionIdRef.current, {
+            eventType: 'error',
+            error: {
+              code: 'save_failed',
+              message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+            },
+          })
+        } catch (logError) {
+          console.warn('[Wizard] Fehler beim Loggen von error:', logError)
+        }
+      }
+      
       toast.error(`Fehler beim Speichern: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
     }
   }
-
+  
   const renderStep = () => {
     switch (currentStep.preset) {
       case "welcome": {
@@ -1326,6 +2192,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             }}
             template={template}
             steps={steps}
+            onCanProceedChange={setCollectSourceCanProceed}
           />
         )
 
@@ -1336,7 +2203,23 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             markdown={wizardState.draftText || ""}
             onMarkdownChange={(next) => setWizardState(prev => ({ ...prev, draftText: next }))}
             isConfirmed={!!wizardState.hasConfirmedMarkdown}
-            onConfirmedChange={(next) => setWizardState(prev => ({ ...prev, hasConfirmedMarkdown: next }))}
+            onConfirmedChange={(next) => {
+              setWizardState(prev => ({ ...prev, hasConfirmedMarkdown: next }))
+              
+              // Log markdown_confirmed Event
+              if (next && wizardSessionIdRef.current) {
+                logWizardEvent(wizardSessionIdRef.current, {
+                  eventType: 'markdown_confirmed',
+                  stepIndex: wizardState.currentStepIndex,
+                  stepPreset: currentStep.preset,
+                }).catch(error => console.warn('[Wizard] Fehler beim Loggen von markdown_confirmed:', error))
+              }
+            }}
+            isProcessing={wizardState.isExtracting}
+            processingProgress={wizardState.processingProgress}
+            processingMessage={wizardState.processingMessage}
+            provider={provider || null}
+            currentFolderId={wizardState.pdfTranscriptFolderId || currentFolderId || 'root'}
           />
         )
 
@@ -1371,6 +2254,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         )
 
       case "editDraft": {
+        const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
         // Initialisiere draftMetadata/draftText falls noch nicht vorhanden
         const initialMetadata = wizardState.draftMetadata 
           || wizardState.reviewedFields 
@@ -1385,6 +2269,18 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           ? currentStep.fields
           : undefined
         
+        // PDF-HITL: Wenn wir hier ohne Draft landen, ist das ein Flow-Fehler (sonst sieht man "leere" Screens).
+        if (isPdfAnalyse && Object.keys(initialMetadata).length === 0 && initialDraftText.trim().length === 0) {
+          return (
+            <Alert>
+              <AlertTitle>Keine Metadaten vorhanden</AlertTitle>
+              <AlertDescription>
+                Es wurden noch keine Metadaten/Markdown erzeugt. Bitte gehe zurück und starte zuerst OCR (und danach Template/Metadaten).
+              </AlertDescription>
+            </Alert>
+          )
+        }
+
         // Wenn Felder definiert sind, zeige den Step auch bei leerem Metadata (User kann direkt eingeben)
         // Wenn keine Felder definiert sind UND Metadata leer ist, zeige Fehlermeldung
         if (!userRelevantFields && Object.keys(initialMetadata).length === 0) {
@@ -1437,6 +2333,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                   }
                 }
               })
+
+              // DSGVO: nur Keys/Counts loggen, kein Inhalt
+              scheduleMetadataEditedLog(metadata)
             }}
             onDraftTextChange={(text) => {
               setWizardState(prev => ({ ...prev, draftText: text }))
@@ -1540,6 +2439,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
 
       case "previewDetail": {
+        const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
         const baseMetadata =
           wizardState.reviewedFields ||
           wizardState.generatedDraft?.metadata ||
@@ -1629,6 +2529,17 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
         const detailViewType = creation.preview?.detailViewType || "session"
 
+        if (isPdfAnalyse && Object.keys(baseMetadata).length === 0 && preferredPreviewMarkdown.trim().length === 0) {
+          return (
+            <Alert>
+              <AlertTitle>Keine Vorschau verfügbar</AlertTitle>
+              <AlertDescription>
+                Es gibt noch keine Metadaten/Markdown für die Vorschau. Bitte gehe zurück und führe zuerst OCR + Template aus.
+              </AlertDescription>
+            </Alert>
+          )
+        }
+
         if (Object.keys(baseMetadata).length === 0) {
           return (
             <div className="text-center text-muted-foreground p-8">
@@ -1643,6 +2554,223 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             metadata={metadataWithImages}
             markdown={previewMarkdown}
             libraryId={libraryId}
+            provider={provider}
+            currentFolderId={wizardState.pdfTranscriptFolderId || currentFolderId || 'root'}
+          />
+        )
+      }
+
+      case "publish": {
+        const onPublish = async () => {
+          const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
+          if (!isPdfAnalyse) return
+          if (!provider) throw new Error('Kein Storage Provider verfügbar')
+          if (!libraryId) throw new Error('libraryId fehlt')
+          if (!template) throw new Error('Template ist nicht geladen')
+          const libId = libraryId
+
+          if (wizardState.isPublishing) return
+          if (wizardState.isPublished) return
+
+          const baseFileId = wizardState.pdfBaseFileId
+          if (!baseFileId) throw new Error('PDF-Publish: pdfBaseFileId fehlt')
+
+          // Metadaten: aus editDraft / reviewedFields / generatedDraft
+          const baseMetadata =
+            wizardState.draftMetadata
+            || wizardState.reviewedFields
+            || wizardState.generatedDraft?.metadata
+            || {}
+
+          // Frontmatter darf nur Template-Metadaten enthalten.
+          const frontmatterKeys = new Set(template.metadata.fields.map((f) => f.key))
+          const frontmatterMetadata: Record<string, unknown> = {}
+          for (const key of frontmatterKeys) {
+            if (key in baseMetadata) frontmatterMetadata[key] = (baseMetadata as Record<string, unknown>)[key]
+          }
+
+          function serializeFrontmatter(meta: Record<string, unknown>): string {
+            return Object.entries(meta)
+              .map(([key, value]) => {
+                if (value === null || value === undefined) return `${key}: ""`
+                if (Array.isArray(value)) return `${key}: ${JSON.stringify(value)}`
+                if (typeof value === 'string' && value.includes('\n')) {
+                  return `${key}: |\n${value.split('\n').map(line => `  ${line}`).join('\n')}`
+                }
+                return `${key}: ${value}`
+              })
+              .join("\n")
+          }
+
+          const destinationFolderId = currentFolderId && currentFolderId.trim().length > 0 ? currentFolderId : 'root'
+
+          setWizardState(prev => ({
+            ...prev,
+            isPublishing: true,
+            publishError: undefined,
+            publishingProgress: 5,
+            publishingMessage: 'Publizieren vorbereiten…',
+          }))
+
+          try {
+            // 1) Promote (Variante C): `.wizard-sources` → Zielordner
+            setWizardState(prev => ({
+              ...prev,
+              publishingProgress: 15,
+              publishingMessage: 'Artefakte verschieben…',
+            }))
+            const promotion = await promoteWizardArtifacts({
+              provider,
+              baseFileId,
+              destinationFolderId,
+            })
+
+            if (!promotion.destinationBaseFileId) {
+              throw new Error('PDF-Publish: destinationBaseFileId fehlt nach Promotion.')
+            }
+
+            const baseFileName = promotion.baseFileName
+            const artifactFolderId = promotion.destinationArtifactFolderId
+            if (!baseFileName || !artifactFolderId) {
+              throw new Error('PDF-Publish: Artefakt-Ordner konnte im Zielordner nicht gefunden werden.')
+            }
+
+            // 2) Transformationsdatei finden
+            setWizardState(prev => ({
+              ...prev,
+              publishingProgress: 40,
+              publishingMessage: 'Transformationsdatei finden…',
+            }))
+            const resolvedTransform = await resolveArtifactClient({
+              libraryId: libId,
+              sourceId: promotion.destinationBaseFileId,
+              sourceName: baseFileName,
+              parentId: destinationFolderId,
+              targetLanguage: 'de',
+              templateName: String(templateId || 'pdfanalyse'),
+              preferredKind: 'transformation',
+            })
+            if (!resolvedTransform?.fileId) {
+              throw new Error('PDF-Publish: Transformationsdatei fehlt im Shadow‑Twin (resolveArtifact).')
+            }
+            const transformItem = await provider.getItemById(resolvedTransform.fileId)
+            if (!transformItem) {
+              throw new Error('PDF-Publish: Transformationsdatei konnte nicht geladen werden (getItemById).')
+            }
+
+            // 3) Body behalten, Frontmatter überschreiben
+            setWizardState(prev => ({
+              ...prev,
+              publishingProgress: 55,
+              publishingMessage: 'Frontmatter aktualisieren…',
+            }))
+            const { blob: existingTransformBlob } = await provider.getBinary(transformItem.id)
+            const existingTransformContent = await existingTransformBlob.text()
+            const { body: existingTransformBody } = parseFrontmatter(existingTransformContent)
+
+            const nextFrontmatter = serializeFrontmatter(frontmatterMetadata)
+            const nextMarkdown = `---\n${nextFrontmatter}\n---\n\n${existingTransformBody}`
+
+            const templateName = String(templateId || 'pdfanalyse')
+            const writeRes = await writeArtifact(provider, {
+              key: {
+                sourceId: promotion.destinationBaseFileId,
+                kind: 'transformation',
+                targetLanguage: 'de',
+                templateName,
+              },
+              sourceName: baseFileName,
+              parentId: destinationFolderId,
+              content: nextMarkdown,
+              createFolder: true,
+            })
+            const updatedTransformFile = writeRes.file
+
+            // 4) Ingestion (explizit, user-triggered)
+            setWizardState(prev => ({
+              ...prev,
+              publishingProgress: 80,
+              publishingMessage: 'Ingestion starten…',
+            }))
+            const ingestRes = await fetch(`/api/chat/${libId}/ingest-markdown`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileId: updatedTransformFile.id, fileName: updatedTransformFile.metadata?.name }),
+            })
+            if (!ingestRes.ok) {
+              const errorText = await ingestRes.text().catch(() => 'Unknown error')
+              throw new Error(`Ingestion fehlgeschlagen: ${errorText}`)
+            }
+
+            // 5) Logging + Session Finalisierung (Publish = Wizard-Abschluss)
+            if (wizardSessionIdRef.current) {
+              try {
+                const filePaths = await getFilePaths(provider, {
+                  savedItemId: updatedTransformFile.id,
+                  transformFileId: updatedTransformFile.id,
+                  baseFileId: promotion.destinationBaseFileId,
+                })
+                await logWizardEvent(wizardSessionIdRef.current, {
+                  eventType: 'wizard_completed',
+                  stepIndex: wizardState.currentStepIndex,
+                  stepPreset: 'publish',
+                  fileIds: {
+                    savedItemId: updatedTransformFile.id,
+                    transformFileId: updatedTransformFile.id,
+                    baseFileId: promotion.destinationBaseFileId,
+                  },
+                  filePaths,
+                })
+
+                wizardSessionCompletedRef.current = true
+                await finalizeWizardSessionClient(wizardSessionIdRef.current, 'completed', {
+                  finalStepIndex: wizardState.currentStepIndex,
+                  finalFileIds: {
+                    savedItemId: updatedTransformFile.id,
+                    transformFileId: updatedTransformFile.id,
+                  },
+                  finalFilePaths: {
+                    savedPath: filePaths.savedPath,
+                    transformPath: filePaths.transformPath,
+                  },
+                })
+              } catch (error) {
+                console.warn('[Wizard] Fehler beim Finalisieren der Session (Publish):', error)
+              }
+            }
+
+            setWizardState(prev => ({
+              ...prev,
+              isPublishing: false,
+              isPublished: true,
+              publishingProgress: 100,
+              publishingMessage: 'Fertig.',
+              pdfTransformFileId: updatedTransformFile.id,
+              pdfBaseFileId: promotion.destinationBaseFileId || prev.pdfBaseFileId,
+            }))
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Unbekannter Fehler'
+            setWizardState(prev => ({
+              ...prev,
+              isPublishing: false,
+              publishError: msg,
+              publishingProgress: prev.publishingProgress ?? 0,
+              publishingMessage: msg,
+            }))
+            toast.error('Publizieren fehlgeschlagen', { description: msg })
+          }
+        }
+
+        return (
+          <PublishStep
+            title={currentStep.title || "Publizieren"}
+            description={currentStep.description || "Jetzt wird das Ergebnis final gespeichert und für die Suche indiziert."}
+            onPublish={onPublish}
+            isPublishing={!!wizardState.isPublishing}
+            publishingProgress={typeof wizardState.publishingProgress === 'number' ? wizardState.publishingProgress : 0}
+            publishingMessage={wizardState.publishingMessage}
+            isPublished={!!wizardState.isPublished}
+            onGoToLibrary={() => router.push("/library")}
           />
         )
       }
@@ -1664,16 +2792,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         // Während wir Metadaten laden/extrahieren, darf "Weiter" nicht klickbar sein.
         if (wizardState.isExtracting) return false
         // Weiter möglich, wenn:
-        // 1. Quellen bereits vorhanden sind, ODER
-        // 2. Text im Input-Feld vorhanden ist (wird beim Next-Click automatisch hinzugefügt)
-        const hasTextInput = typeof window !== 'undefined' && window.__collectSourceStepBeforeLeave
-          ? window.__collectSourceStepBeforeLeave() !== null
-          : false
-        
-        if (wizardState.sources.length > 0 || hasTextInput) {
-          return true
-        }
-        return !!wizardState.collectedInput?.content // Legacy: collectedInput reicht
+        // 1) Quellen bereits vorhanden sind, ODER
+        // 2) CollectSourceStep meldet "can proceed" (z.B. Text eingegeben oder PDF gewählt), ODER
+        // 3) Legacy: collectedInput reicht
+        if (wizardState.sources.length > 0) return true
+        if (collectSourceCanProceed) return true
+        return !!wizardState.collectedInput?.content
       case "reviewMarkdown":
         if (wizardState.isExtracting) return false
         if (!wizardState.draftText || wizardState.draftText.trim().length === 0) return false
@@ -1693,6 +2817,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return true // selectRelatedTestimonials ist immer optional (kann übersprungen werden)
       case "previewDetail":
         return true
+      case "publish":
+        // "Weiter/Fertig" erst nach erfolgreichem Publish erlauben
+        if (wizardState.isPublishing) return false
+        return !!wizardState.isPublished
       default:
         return false
     }
@@ -1784,7 +2912,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           onClick={handleNext}
           disabled={!canProceed()}
         >
-          {isLastStep ? "Speichern" : "Weiter"}
+          {isLastStep
+            ? (currentStep.preset === 'publish' ? "Fertig" : "Speichern")
+            : "Weiter"}
           {!isLastStep && <ChevronRight className="w-4 h-4 ml-2" />}
         </Button>
       </div>

@@ -2,14 +2,14 @@
  * @fileoverview Unit-Tests für Shadow-Twin Artefakt Resolver
  * 
  * @description
- * Testet resolveArtifact() für v2 und legacy Modi, verschiedene Speicherorte (dotFolder vs sibling),
+ * Testet resolveArtifact() im v2-only Betrieb: verschiedene Speicherorte (dotFolder vs sibling),
  * preferredKind, templateName und Fehlerfälle.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
 import type { StorageProvider, StorageItem } from '@/lib/storage/types';
-import { findShadowTwinFolder, findShadowTwinMarkdown } from '@/lib/storage/shadow-twin';
+import { findShadowTwinFolder } from '@/lib/storage/shadow-twin';
 
 // Mock Logger
 vi.mock('@/lib/debug/logger', () => ({
@@ -28,7 +28,6 @@ vi.mock('@/lib/shadow-twin/artifact-logger', () => ({
 // Mock shadow-twin utilities
 vi.mock('@/lib/storage/shadow-twin', () => ({
   findShadowTwinFolder: vi.fn(),
-  findShadowTwinMarkdown: vi.fn(),
   generateShadowTwinFolderName: vi.fn((name: string) => `.${name}`),
 }));
 
@@ -117,7 +116,6 @@ describe('resolveArtifact', () => {
         sourceItemId: 'source-1',
         sourceName,
         parentId,
-        mode: 'v2',
         targetLanguage: 'de',
         preferredKind: 'transcript',
       });
@@ -154,7 +152,6 @@ describe('resolveArtifact', () => {
         sourceItemId: 'source-1',
         sourceName,
         parentId,
-        mode: 'v2',
         targetLanguage: 'de',
         templateName: 'Besprechung',
         preferredKind: 'transformation',
@@ -184,7 +181,6 @@ describe('resolveArtifact', () => {
         sourceItemId: 'source-1',
         sourceName,
         parentId,
-        mode: 'v2',
         targetLanguage: 'de',
         preferredKind: 'transcript',
       });
@@ -206,7 +202,6 @@ describe('resolveArtifact', () => {
         sourceItemId: 'source-1',
         sourceName,
         parentId,
-        mode: 'v2',
         targetLanguage: 'de',
         preferredKind: 'transcript',
       });
@@ -232,7 +227,6 @@ describe('resolveArtifact', () => {
         sourceItemId: 'source-1',
         sourceName,
         parentId,
-        mode: 'v2',
         targetLanguage: 'de',
         preferredKind: 'transcript',
       });
@@ -258,7 +252,6 @@ describe('resolveArtifact', () => {
         sourceItemId: 'source-1',
         sourceName,
         parentId,
-        mode: 'v2',
         targetLanguage: 'de',
         templateName: 'Besprechung',
       });
@@ -267,87 +260,11 @@ describe('resolveArtifact', () => {
     });
   });
 
-  describe('Legacy-Modus', () => {
-    it('sollte Transcript im dotFolder finden', async () => {
-      const sourceName = 'document.pdf';
-      const parentId = 'parent-1';
-      const shadowTwinFolderId = 'shadow-folder-1';
-      const transcriptFile: StorageItem = {
-        id: 'transcript-1',
-        type: 'file',
-        metadata: { name: 'document.de.md' },
-        parentId: shadowTwinFolderId,
-      };
-
-      const shadowTwinFolder: StorageItem = {
-        id: shadowTwinFolderId,
-        type: 'folder',
-        metadata: { name: '.document.pdf' },
-        parentId,
-      };
-      vi.mocked(findShadowTwinFolder).mockResolvedValue(shadowTwinFolder);
-      vi.mocked(findShadowTwinMarkdown).mockResolvedValue(transcriptFile);
-
-      const result = await resolveArtifact(mockProvider, {
-        sourceItemId: 'source-1',
-        sourceName,
-        parentId,
-        mode: 'legacy',
-        targetLanguage: 'de',
-      });
-
-      expect(result).not.toBeNull();
-      expect(result?.kind).toBe('transcript');
-      expect(result?.fileId).toBe('transcript-1');
-      expect(result?.location).toBe('dotFolder');
-    });
-
-    it('sollte Transcript als Sibling finden wenn kein dotFolder existiert', async () => {
-      const sourceName = 'document.pdf';
-      const parentId = 'parent-1';
-      const transcriptFile: StorageItem = {
-        id: 'transcript-1',
-        type: 'file',
-        metadata: { name: 'document.de.md' },
-        parentId,
-      };
-
-      vi.mocked(findShadowTwinFolder).mockResolvedValue(null);
-      vi.mocked(mockProvider.listItemsById).mockResolvedValue([transcriptFile]);
-
-      const result = await resolveArtifact(mockProvider, {
-        sourceItemId: 'source-1',
-        sourceName,
-        parentId,
-        mode: 'legacy',
-        targetLanguage: 'de',
-      });
-
-      expect(result).not.toBeNull();
-      expect(result?.kind).toBe('transcript');
-      expect(result?.location).toBe('sibling');
-    });
-
-    it('sollte null zurückgeben wenn nichts gefunden wird', async () => {
-      const sourceName = 'document.pdf';
-      const parentId = 'parent-1';
-
-      vi.mocked(findShadowTwinFolder).mockResolvedValue(null);
-      vi.mocked(findShadowTwinMarkdown).mockResolvedValue(null);
-      vi.mocked(mockProvider.listItemsById).mockResolvedValue([]);
-
-      const result = await resolveArtifact(mockProvider, {
-        sourceItemId: 'source-1',
-        sourceName,
-        parentId,
-        mode: 'legacy',
-        targetLanguage: 'de',
-      });
-
-      expect(result).toBeNull();
-    });
-  });
+  // Legacy-Modus wurde entfernt (v2-only). Tests dafür sind absichtlich gelöscht,
+  // damit neue Legacy-Pfade nicht wieder „still“ entstehen.
 });
+
+
 
 
 

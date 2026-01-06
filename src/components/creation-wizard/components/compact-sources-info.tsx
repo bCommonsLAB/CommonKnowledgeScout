@@ -95,11 +95,13 @@ export function CompactSourcesInfo({ sources }: CompactSourcesInfoProps) {
         <div className="flex items-center gap-2 flex-wrap">
           {sources.map((source, idx) => {
             const tooltipContent = getTooltipContent(source)
+            // Eindeutiger Key: Kombination aus ID und Index, um Duplikate zu vermeiden
+            const uniqueKey = `${source.id}-${idx}`
             
             if (!tooltipContent) {
               // Kein Tooltip: Zeige nur Label
               return (
-                <span key={source.id} className="flex items-center gap-1">
+                <span key={uniqueKey} className="flex items-center gap-1">
                   {getSourceIcon(source.kind)}
                   <span>{getSourceLabel(source)}</span>
                   {idx < sources.length - 1 && <span className="text-muted-foreground/50">•</span>}
@@ -108,7 +110,7 @@ export function CompactSourcesInfo({ sources }: CompactSourcesInfoProps) {
             }
 
             return (
-              <span key={source.id} className="flex items-center gap-1">
+              <span key={uniqueKey} className="flex items-center gap-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button

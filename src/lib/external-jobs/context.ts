@@ -34,6 +34,10 @@ function readCallbackToken(request: NextRequest, body: ExternalCallbackBody): st
   if (typeof body?.callback_token === 'string' && body.callback_token.trim().length > 0) return body.callback_token.trim()
   const h1 = request.headers.get('x-callback-token') || request.headers.get('X-Callback-Token')
   if (h1 && h1.trim().length > 0) return h1.trim()
+  // Secretary Service sendet in manchen Flows `X-Service-Token` statt `Authorization: Bearer ...`.
+  // Wenn wir das nicht auslesen, fallen wir ggf. auf ein falsches Bearer-Token zurück → hash_mismatch.
+  const svc = request.headers.get('x-service-token') || request.headers.get('X-Service-Token')
+  if (svc && svc.trim().length > 0) return svc.trim()
   const auth = request.headers.get('authorization') || request.headers.get('Authorization')
   if (auth && auth.startsWith('Bearer ')) return auth.substring('Bearer '.length)
   return undefined

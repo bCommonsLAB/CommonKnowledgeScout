@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest'
-import { findShadowTwinMarkdown } from '@/lib/storage/shadow-twin'
+import { describe, expect, it, vi } from 'vitest'
+import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
+import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
 
-describe('findShadowTwinMarkdown (baseName with dots)', () => {
-  it('finds transformed markdown when baseName contains a dot', async () => {
+vi.mock('@/lib/storage/shadow-twin', () => ({
+  findShadowTwinFolder: vi.fn(),
+}))
+
+describe('resolveArtifact (baseName with dots)', () => {
+  it('findet Transcript im dotFolder, wenn baseName Punkte enthält', async () => {
     const items = [
       { id: 'x1', type: 'file' as const, metadata: { name: 'Commoning vs. Kommerz.de.md' } },
       { id: 'x2', type: 'file' as const, metadata: { name: 'Commoning vs.de.md' } },
@@ -10,11 +15,25 @@ describe('findShadowTwinMarkdown (baseName with dots)', () => {
     ]
 
     const provider = {
-      listItemsById: async () => items,
+      listItemsById: vi.fn(async () => items),
     } as any
 
-    const found = await findShadowTwinMarkdown('folder-1', 'Commoning vs. Kommerz', 'de', provider, true)
-    expect(found?.metadata?.name).toBe('Commoning vs. Kommerz.de.md')
+    vi.mocked(findShadowTwinFolder).mockResolvedValue({
+      id: 'folder-1',
+      type: 'folder',
+      parentId: 'parent-1',
+      metadata: { name: '.Commoning vs. Kommerz.pdf' },
+    } as any)
+
+    const found = await resolveArtifact(provider, {
+      sourceItemId: 'source-1',
+      sourceName: 'Commoning vs. Kommerz.pdf',
+      parentId: 'parent-1',
+      targetLanguage: 'de',
+      preferredKind: 'transcript',
+    })
+
+    expect(found?.fileName).toBe('Commoning vs. Kommerz.de.md')
   })
 })
 

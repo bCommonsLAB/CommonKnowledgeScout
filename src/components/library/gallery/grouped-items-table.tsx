@@ -23,6 +23,7 @@ import { openDocumentBySlug } from '@/utils/document-navigation'
 import { ReferenceGroupHeader } from './reference-group-header'
 import { ViewModeToggle } from './view-mode-toggle'
 import type { ViewMode } from './gallery-sticky-header'
+import { formatUpsertedAt } from '@/utils/format-upserted-at'
 
 interface GroupedItemsTableProps {
   /** Dokumente, die in der Antwort verwendet wurden */
@@ -64,7 +65,7 @@ export function GroupedItemsTable({
   viewMode,
   onViewModeChange,
 }: GroupedItemsTableProps) {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const setChatReferences = useSetAtom(chatReferencesAtom)
   const router = useRouter()
   const pathname = usePathname()
@@ -172,9 +173,10 @@ export function GroupedItemsTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[60%]">{t('gallery.table.title')}</TableHead>
-              <TableHead className="w-[20%]">{t('gallery.table.year')}</TableHead>
-              <TableHead className="w-[20%]">{t('gallery.table.track')}</TableHead>
+              <TableHead className="w-[50%]">{t('gallery.table.title')}</TableHead>
+              <TableHead className="w-[15%]">{t('gallery.table.year')}</TableHead>
+              <TableHead className="w-[15%]">{t('gallery.table.track')}</TableHead>
+              <TableHead className="w-[20%] whitespace-nowrap">{t('gallery.table.upsertedAt')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -211,6 +213,11 @@ export function GroupedItemsTable({
                   ) : (
                     <span className="text-muted-foreground">-</span>
                   )}
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                  <span title={doc.upsertedAt ?? ''}>
+                    {formatUpsertedAt(doc.upsertedAt, { locale })}
+                  </span>
                 </TableCell>
               </TableRow>
             ))}

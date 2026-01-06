@@ -18,6 +18,10 @@ import { FileLogger } from '@/lib/debug/logger'
 import { integrationTestCases, type IntegrationTestCase, type PhasePoliciesValue } from './test-cases'
 import { listPdfTestFiles, prepareShadowTwinForTestCase, type PdfTestFile } from './pdf-upload'
 import { validateExternalJobForTestCase, type JobValidationResult } from './validators'
+import { getServerProvider } from '@/lib/storage/server-provider'
+import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
+import { IngestionService } from '@/lib/chat/ingestion-service'
+import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 
 export interface RunIntegrationTestsArgs {
   userEmail: string;
@@ -27,7 +31,7 @@ export interface RunIntegrationTestsArgs {
    * Alle PDFs in diesem Ordner werden als Test-Targets betrachtet.
    */
   folderId: string;
-  /** IDs der gewünschten Testfälle (z.B. ['TC-1.1', 'TC-2.5']) */
+  /** IDs der gewünschten Testfälle (z.B. ['pdf_mistral_report.happy_path']) */
   testCaseIds: string[];
   /**
    * Optionale Einschränkung auf bestimmte Files (Storage-Item-IDs).
@@ -39,6 +43,12 @@ export interface RunIntegrationTestsArgs {
    * Standard: 10 Minuten.
    */
   jobTimeoutMs?: number;
+  /**
+   * Optional: Template-Name als Run-Override.
+   * Wenn gesetzt, wird dieser Template-Name für alle Jobs verwendet (deterministisch).
+   * Wenn undefined, verwendet die Pipeline den Default-Pick.
+   */
+  templateName?: string;
 }
 
 export interface SingleTestExecutionResult {
@@ -50,6 +60,13 @@ export interface SingleTestExecutionResult {
 
 export interface IntegrationTestRunResult {
   results: SingleTestExecutionResult[];
+  /** Zusammenfassung: Anzahl erfolgreicher/fehlgeschlagener Tests */
+  summary: {
+    total: number;
+    passed: number;
+    failed: number;
+    skipped: number;
+  };
 }
 
 function mapPhaseValueToDirective(value: PhasePoliciesValue | undefined): 'ignore' | 'do' | 'force' {
@@ -122,8 +139,9 @@ async function createExternalJobForFile(args: {
 async function configureJobParameters(args: {
   jobId: string;
   testCase: IntegrationTestCase;
+  templateName?: string;
 }): Promise<void> {
-  const { jobId, testCase } = args
+  const { jobId, testCase, templateName } = args
   const repo = new ExternalJobsRepository()
 
   const phases = {
@@ -135,6 +153,11 @@ async function configureJobParameters(args: {
   const merged: Record<string, unknown> = {
     phases,
     ...buildPoliciesObject(testCase),
+  }
+
+  // Template-Override: Wenn templateName gesetzt ist, setze es als Parameter
+  if (templateName && templateName.trim().length > 0) {
+    merged['template'] = templateName.trim()
   }
 
   // Zusatzflags für Mistral-Tests
@@ -190,8 +213,192 @@ async function waitForJobCompletion(args: {
   }
 }
 
+function pushValidationMessage(
+  validation: JobValidationResult,
+  type: 'info' | 'warn' | 'error',
+  message: string
+): void {
+  validation.messages.push({ type, message })
+  if (type === 'error') validation.ok = false
+}
+
+function serializeFrontmatter(meta: Record<string, unknown>): string {
+  return Object.entries(meta)
+    .map(([key, value]) => {
+      if (value === null || value === undefined) return `${key}: ""`
+      if (Array.isArray(value)) return `${key}: ${JSON.stringify(value)}`
+      if (typeof value === 'string' && value.includes('\n')) {
+        return `${key}: |\n${value.split('\n').map(line => `  ${line}`).join('\n')}`
+      }
+      return `${key}: ${value}`
+    })
+    .join('\n')
+}
+
+async function runPdfHitlPublishWorkflow(args: {
+  userEmail: string
+  libraryId: string
+  file: PdfTestFile
+  testCase: IntegrationTestCase
+  timeoutMs: number
+  templateName?: string
+}): Promise<{ jobId: string; validation: JobValidationResult }> {
+  const { userEmail, libraryId, file, testCase, timeoutMs, templateName } = args
+  const repo = new ExternalJobsRepository()
+  let extractJobId: string | null = null
+  let templateJobId: string | null = null
+
+  const validation: JobValidationResult = {
+    jobId: 'n/a',
+    testCaseId: testCase.id,
+    ok: true,
+    messages: [],
+  }
+
+  try {
+    // 0) Shadow‑Twin clean (deterministisch)
+    await prepareShadowTwinForTestCase({
+      userEmail,
+      libraryId,
+      source: file,
+      state: 'clean',
+      lang: 'de',
+    })
+
+    // 1) Job1: Extract-only
+    const job1Case: IntegrationTestCase = {
+      ...testCase,
+      id: `${testCase.id}::job1_extract`,
+      phases: { extract: true, template: false, ingest: false },
+      policies: { extract: 'do', metadata: 'ignore', ingest: 'ignore' },
+      expected: { shouldComplete: true, expectShadowTwinExists: true },
+    }
+    const created1 = await createExternalJobForFile({ userEmail, libraryId, file, testCase: job1Case })
+    extractJobId = created1.jobId
+    validation.jobId = extractJobId
+    pushValidationMessage(validation, 'info', `HITL Workflow: Job1 Extract=${extractJobId}`)
+
+    await configureJobParameters({ jobId: extractJobId, testCase: job1Case, templateName: undefined })
+    await startExternalJob({ jobId: extractJobId })
+    const extractJob = await waitForJobCompletion({ jobId: extractJobId, timeoutMs })
+    if (extractJob.status !== 'completed') {
+      const err = extractJob.error?.message || extractJob.error || 'unknown'
+      pushValidationMessage(validation, 'error', `Job1 Extract ist nicht completed (status=${extractJob.status}, error=${String(err)})`)
+      return { jobId: extractJobId, validation }
+    }
+    if (!extractJob.result?.savedItemId) {
+      pushValidationMessage(validation, 'error', 'Job1 Extract completed, aber result.savedItemId fehlt')
+      return { jobId: extractJobId, validation }
+    }
+
+    // 2) Job2: Template-only (extract skip, ingest ignore)
+    const job2Case: IntegrationTestCase = {
+      ...testCase,
+      id: `${testCase.id}::job2_template`,
+      phases: { extract: true, template: true, ingest: false },
+      policies: { extract: 'ignore', metadata: 'do', ingest: 'ignore' },
+      expected: { shouldComplete: true, expectShadowTwinExists: true },
+    }
+    const created2 = await createExternalJobForFile({ userEmail, libraryId, file, testCase: job2Case })
+    templateJobId = created2.jobId
+    validation.jobId = templateJobId
+    pushValidationMessage(validation, 'info', `HITL Workflow: Job2 Template=${templateJobId}`)
+
+    await configureJobParameters({ jobId: templateJobId, testCase: job2Case, templateName })
+    await startExternalJob({ jobId: templateJobId })
+    const templateJob = await waitForJobCompletion({ jobId: templateJobId, timeoutMs })
+    if (templateJob.status !== 'completed') {
+      const err = templateJob.error?.message || templateJob.error || 'unknown'
+      pushValidationMessage(validation, 'error', `Job2 Template ist nicht completed (status=${templateJob.status}, error=${String(err)})`)
+      return { jobId: templateJobId, validation }
+    }
+
+    // 3) Baseline-Validierung auf Job2 (Global Contract + Shadow‑Twin vorhanden)
+    const baseValidation = await validateExternalJobForTestCase(testCase, templateJobId)
+    validation.ok = baseValidation.ok
+    validation.messages = [...validation.messages, ...baseValidation.messages]
+
+    const transformFileId = templateJob.result?.savedItemId
+    if (!transformFileId) {
+      pushValidationMessage(validation, 'error', 'Publish: Job2 completed, aber result.savedItemId (Transformationsdatei) fehlt')
+      return { jobId: templateJobId, validation }
+    }
+
+    // 4) Publish: Frontmatter overwrite + Ingestion (kein extra finales MD)
+    const provider = await getServerProvider(userEmail, libraryId)
+    const shadowTwinFolder = await findShadowTwinFolder(file.parentId, file.name, provider)
+    if (!shadowTwinFolder) {
+      pushValidationMessage(validation, 'error', 'Publish: Shadow‑Twin-Verzeichnis nicht gefunden')
+      return { jobId: templateJobId, validation }
+    }
+
+    const baseStem = file.name.replace(/\.[^/.]+$/, '')
+    const expectedTransformName = `${baseStem}.${(templateName || 'pdfanalyse').trim()}.de.md`
+
+    const transformItem = await provider.getItemById(transformFileId).catch(() => null)
+    if (!transformItem || transformItem.type !== 'file') {
+      pushValidationMessage(validation, 'error', 'Publish: Transformationsdatei konnte nicht geladen werden')
+      return { jobId: templateJobId, validation }
+    }
+
+    const originalMarkdown = await (await provider.getBinary(transformFileId)).blob.text()
+    const { body } = parseFrontmatter(originalMarkdown)
+
+    // Deterministischer Marker: wir setzen 2 Felder, die sicher im PDFAnalyse-Schema existieren.
+    const publishMeta: Record<string, unknown> = {
+      title: 'Integration Test – HITL Publish',
+      slug: 'integration-test-hitl-publish',
+    }
+    const overwrittenMarkdown = `---\n${serializeFrontmatter(publishMeta)}\n---\n\n${body}`
+
+    // Overwrite by delete+upload (kein overwrite-by-id)
+    await provider.deleteItem(transformFileId)
+    const updatedTransform = await provider.uploadFile(
+      shadowTwinFolder.id,
+      new File([overwrittenMarkdown], String(transformItem.metadata?.name || expectedTransformName), { type: 'text/markdown' })
+    )
+
+    pushValidationMessage(validation, 'info', `Publish: Transformationsdatei überschrieben: ${updatedTransform.id}`)
+    pushValidationMessage(validation, 'info', 'Publish Contract: savedItemId==transformFileId (kein extra finales MD)')
+
+    // Ingestion (direkt via Service, wie ingest-markdown Route)
+    const updatedText = await (await provider.getBinary(updatedTransform.id)).blob.text()
+    const ingestRes = await IngestionService.upsertMarkdown(
+      userEmail,
+      libraryId,
+      updatedTransform.id,
+      String(updatedTransform.metadata?.name || expectedTransformName),
+      updatedText,
+      undefined,
+      undefined,
+      provider
+    )
+    if (ingestRes.chunksUpserted <= 0) {
+      pushValidationMessage(validation, 'error', 'Publish: Ingestion erwartete chunksUpserted > 0, war aber 0')
+    } else {
+      pushValidationMessage(validation, 'info', `Publish: Ingestion OK (chunksUpserted=${ingestRes.chunksUpserted})`)
+    }
+
+    return { jobId: templateJobId, validation }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    const fallbackJobId = templateJobId || extractJobId || 'n/a'
+    validation.jobId = fallbackJobId
+    pushValidationMessage(validation, 'error', `HITL Workflow Exception: ${msg}`)
+    if (extractJobId) {
+      const j = await repo.get(extractJobId).catch(() => null)
+      if (j?.status) pushValidationMessage(validation, 'info', `Job1 status=${j.status}`)
+    }
+    if (templateJobId) {
+      const j = await repo.get(templateJobId).catch(() => null)
+      if (j?.status) pushValidationMessage(validation, 'info', `Job2 status=${j.status}`)
+    }
+    return { jobId: fallbackJobId, validation }
+  }
+}
+
 export async function runIntegrationTests(args: RunIntegrationTestsArgs): Promise<IntegrationTestRunResult> {
-  const { userEmail, libraryId, folderId, testCaseIds, fileIds, jobTimeoutMs } = args
+  const { userEmail, libraryId, folderId, testCaseIds, fileIds, jobTimeoutMs, templateName } = args
   const timeoutMs = jobTimeoutMs && jobTimeoutMs > 0 ? jobTimeoutMs : 10 * 60_000
 
   const selectedCases = integrationTestCases.filter(tc => testCaseIds.includes(tc.id))
@@ -220,54 +427,66 @@ export async function runIntegrationTests(args: RunIntegrationTestsArgs): Promis
           folderId,
         })
 
-        // 1) Shadow-Twin-Zustand vorbereiten (falls definiert)
-        const prepareResult = await prepareShadowTwinForTestCase({
-          userEmail,
-          libraryId,
-          source: file,
-          state: testCase.shadowTwinState,
-          lang: 'de',
-        })
+        if (testCase.workflow === 'pdf_hitl_publish') {
+          const res = await runPdfHitlPublishWorkflow({
+            userEmail,
+            libraryId,
+            file,
+            testCase,
+            timeoutMs,
+            templateName,
+          })
+          results.push({ testCase, file, jobId: res.jobId, validation: res.validation })
+        } else {
+          // 1) Shadow-Twin-Zustand vorbereiten (falls definiert)
+          const prepareResult = await prepareShadowTwinForTestCase({
+            userEmail,
+            libraryId,
+            source: file,
+            state: testCase.shadowTwinState,
+            lang: 'de',
+          })
 
-        // 2) Job erstellen
-        const { jobId } = await createExternalJobForFile({ userEmail, libraryId, file, testCase })
+          // 2) Job erstellen
+          const { jobId } = await createExternalJobForFile({ userEmail, libraryId, file, testCase })
 
-        // 2a) Info über verwendete Dateien im Job-Trace speichern (für Test-Protokoll)
-        if (prepareResult) {
-          try {
-            const repo = new ExternalJobsRepository()
-            await repo.traceAddEvent(jobId, {
-              spanId: 'job',
-              name: 'integration_test_preparation',
-              attributes: {
-                testCaseId: testCase.id,
-                usedRealFiles: prepareResult.usedRealFiles,
-                details: prepareResult.details,
-              },
-            })
-          } catch {
-            // Trace-Fehler nicht kritisch
+          // 2a) Info über verwendete Dateien im Job-Trace speichern (für Test-Protokoll)
+          if (prepareResult) {
+            try {
+              const repo = new ExternalJobsRepository()
+              await repo.traceAddEvent(jobId, {
+                spanId: 'job',
+                name: 'integration_test_preparation',
+                attributes: {
+                  testCaseId: testCase.id,
+                  usedRealFiles: prepareResult.usedRealFiles,
+                  details: prepareResult.details,
+                },
+              })
+            } catch {
+              // Trace-Fehler nicht kritisch
+            }
           }
+
+          // 3) Parameter (Phasen/Policies) auf dem Job setzen
+          await configureJobParameters({ jobId, testCase, templateName })
+
+          // 4) Job über Start-Route anstoßen (Secretary-Interaktion + Worker-Logik)
+          await startExternalJob({ jobId })
+
+          // 5) Auf Abschluss warten
+          await waitForJobCompletion({ jobId, timeoutMs })
+
+          // 6) Validieren
+          const validation = await validateExternalJobForTestCase(testCase, jobId)
+
+          results.push({
+            testCase,
+            file,
+            jobId,
+            validation,
+          })
         }
-
-        // 3) Parameter (Phasen/Policies) auf dem Job setzen
-        await configureJobParameters({ jobId, testCase })
-
-        // 4) Job über Start-Route anstoßen (Secretary-Interaktion + Worker-Logik)
-        await startExternalJob({ jobId })
-
-        // 5) Auf Abschluss warten
-        await waitForJobCompletion({ jobId, timeoutMs })
-
-        // 6) Validieren
-        const validation = await validateExternalJobForTestCase(testCase, jobId)
-
-        results.push({
-          testCase,
-          file,
-          jobId,
-          validation,
-        })
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         FileLogger.error('integration-tests', 'Testfall fehlgeschlagen', {
@@ -298,7 +517,21 @@ export async function runIntegrationTests(args: RunIntegrationTestsArgs): Promis
     }
   }
 
-  return { results }
+  // Zusammenfassung berechnen
+  const summary = {
+    total: results.length,
+    passed: results.filter(r => r.validation.ok).length,
+    failed: results.filter(r => !r.validation.ok).length,
+    skipped: 0, // Wird aktuell nicht verwendet, kann später für skipped Tests genutzt werden
+  }
+
+  FileLogger.info('integration-tests', 'Testlauf abgeschlossen', {
+    summary,
+    testCaseIds: selectedCases.map(tc => tc.id),
+    fileCount: targetFiles.length,
+  })
+
+  return { results, summary }
 }
 
 

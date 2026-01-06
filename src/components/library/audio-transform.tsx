@@ -97,11 +97,11 @@ export function AudioTransform({ onTransformComplete, onRefreshFolder }: AudioTr
           mimeType: item.metadata.mimeType,
           targetLanguage: saveOptions.targetLanguage,
           useCache: true,
-          template: 'Besprechung',
           policies: {
             extract: 'do',
-            metadata: 'do',
-            ingest: 'do',
+            // Transcript-only: keine Template- oder Ingest-Phase
+            metadata: 'ignore',
+            ingest: 'ignore',
           },
         }),
       })

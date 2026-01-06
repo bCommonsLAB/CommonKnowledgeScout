@@ -29,7 +29,6 @@ import { getServerProvider } from '@/lib/storage/server-provider'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
 import { LibraryService } from '@/lib/services/library-service'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 
@@ -66,18 +65,6 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
     })
   } catch {
     // Span könnte bereits existieren (nicht kritisch)
-  }
-
-  // Bestimme Library-Modus für zentrale Logik
-  let mode: 'legacy' | 'v2' = 'legacy'
-  try {
-    const libraryService = LibraryService.getInstance()
-    const library = await libraryService.getLibrary(ctx.job.userEmail, ctx.job.libraryId)
-    if (library) {
-      mode = getShadowTwinMode(library)
-    }
-  } catch {
-    // Fallback zu legacy
   }
 
   // WICHTIG: Verwende expliziten ArtifactKey, falls übergeben (verhindert fehleranfälliges Parsing)
@@ -140,7 +127,6 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
     sourceName,
     parentId: targetParentId,
     content: markdown,
-    mode,
     createFolder,
   })
 

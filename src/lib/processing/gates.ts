@@ -30,9 +30,7 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import type { StorageProvider } from '@/lib/storage/types';
 import type { Library } from '@/types/library';
-import { findShadowTwinFolder, findShadowTwinMarkdown } from '@/lib/storage/shadow-twin';
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper';
 
 export interface GateContext {
   repo: ExternalJobsRepository;
@@ -73,83 +71,50 @@ export async function gateExtractPdf(ctx: GateContext): Promise<GateResult> {
       const base = getBaseName(source.name);
       const lang = (options?.targetLanguage || 'de').toLowerCase();
       
-      // Ermittle Library-Modus
-      const mode = getShadowTwinMode(library);
-      
-      if (mode === 'v2') {
-        // V2-Modus: Nutze neuen Resolver
-        // Prüfe zuerst Transcript (häufigster Fall)
-        const resolved = await resolveArtifact(provider, {
-          sourceItemId: source.itemId,
-          sourceName: source.name,
-          parentId: source.parentId,
-          mode: 'v2',
-          targetLanguage: lang,
-          preferredKind: 'transcript',
-        });
-        
-        if (resolved) {
-          return {
-            exists: true,
-            reason: 'shadow_twin_exists',
-            details: {
-              type: resolved.location === 'dotFolder' ? 'folder' : 'file',
-              fileId: resolved.fileId,
-              fileName: resolved.fileName,
-              location: resolved.location,
-              shadowTwinFolderId: resolved.shadowTwinFolderId,
-            },
-          };
-        }
-      } else {
-        // Legacy-Modus: Nutze resolveArtifact() auch für Legacy (unterstützt beide Modi)
-        // Prüfe zuerst Transcript
-        const resolvedTranscript = await resolveArtifact(provider, {
-          sourceItemId: source.itemId,
-          sourceName: source.name,
-          parentId: source.parentId,
-          mode: 'legacy',
-          targetLanguage: lang,
-          preferredKind: 'transcript',
-        });
-        
-        if (resolvedTranscript) {
-          return {
-            exists: true,
-            reason: 'shadow_twin_exists',
-            details: {
-              type: resolvedTranscript.location === 'dotFolder' ? 'folder' : 'file',
-              fileId: resolvedTranscript.fileId,
-              fileName: resolvedTranscript.fileName,
-              location: resolvedTranscript.location,
-              shadowTwinFolderId: resolvedTranscript.shadowTwinFolderId,
-            },
-          };
-        }
-        
-        // Prüfe Transformation (falls kein Transcript gefunden)
-        const resolvedTransformation = await resolveArtifact(provider, {
-          sourceItemId: source.itemId,
-          sourceName: source.name,
-          parentId: source.parentId,
-          mode: 'legacy',
-          targetLanguage: lang,
-          preferredKind: 'transformation',
-        });
-        
-        if (resolvedTransformation) {
-          return {
-            exists: true,
-            reason: 'shadow_twin_exists',
-            details: {
-              type: resolvedTransformation.location === 'dotFolder' ? 'folder' : 'file',
-              fileId: resolvedTransformation.fileId,
-              fileName: resolvedTransformation.fileName,
-              location: resolvedTransformation.location,
-              shadowTwinFolderId: resolvedTransformation.shadowTwinFolderId,
-            },
-          };
-        }
+      // v2-only: Prüfe zuerst Transcript (häufigster Fall)
+      const resolvedTranscript = await resolveArtifact(provider, {
+        sourceItemId: source.itemId,
+        sourceName: source.name,
+        parentId: source.parentId,
+        targetLanguage: lang,
+        preferredKind: 'transcript',
+      });
+
+      if (resolvedTranscript) {
+        return {
+          exists: true,
+          reason: 'shadow_twin_exists',
+          details: {
+            type: resolvedTranscript.location === 'dotFolder' ? 'folder' : 'file',
+            fileId: resolvedTranscript.fileId,
+            fileName: resolvedTranscript.fileName,
+            location: resolvedTranscript.location,
+            shadowTwinFolderId: resolvedTranscript.shadowTwinFolderId,
+          },
+        };
+      }
+
+      // Prüfe Transformation (falls kein Transcript gefunden)
+      const resolvedTransformation = await resolveArtifact(provider, {
+        sourceItemId: source.itemId,
+        sourceName: source.name,
+        parentId: source.parentId,
+        targetLanguage: lang,
+        preferredKind: 'transformation',
+      });
+
+      if (resolvedTransformation) {
+        return {
+          exists: true,
+          reason: 'shadow_twin_exists',
+          details: {
+            type: resolvedTransformation.location === 'dotFolder' ? 'folder' : 'file',
+            fileId: resolvedTransformation.fileId,
+            fileName: resolvedTransformation.fileName,
+            location: resolvedTransformation.location,
+            shadowTwinFolderId: resolvedTransformation.shadowTwinFolderId,
+          },
+        };
       }
     } catch {
       // ignore

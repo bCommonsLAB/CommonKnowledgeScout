@@ -101,18 +101,14 @@ Entry point:
 
 ```typescript
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper';
-
-// The resolver requires a mode. Use the library configuration as the source of truth.
-const shadowTwinMode = getShadowTwinMode(library);
 
 const resolved = await resolveArtifact(provider, {
   sourceItemId,
   sourceName: 'document.pdf',
   parentId,
-  mode: shadowTwinMode,
   targetLanguage: 'de',
   preferredKind: 'transformation',
+  templateName: 'pdfanalyse',
 });
 ```
 
@@ -120,10 +116,6 @@ const resolved = await resolveArtifact(provider, {
 
 ```typescript
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer';
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper';
-
-// The writer requires a mode. Use the library configuration as the source of truth.
-const shadowTwinMode = getShadowTwinMode(library);
 
 await writeArtifact(provider, {
   key: {
@@ -135,7 +127,6 @@ await writeArtifact(provider, {
   sourceName: 'document.pdf',
   parentId,
   content: markdownWithFrontmatter,
-  mode: shadowTwinMode,
   createFolder: true,
 });
 ```

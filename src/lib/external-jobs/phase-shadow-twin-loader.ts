@@ -11,12 +11,9 @@
 
 import type { RequestContext } from '@/types/external-jobs'
 import type { StorageProvider } from '@/lib/storage/types'
-import { findShadowTwinMarkdownFile } from '@/lib/external-jobs/shadow-twin-finder'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { FileLogger } from '@/lib/debug/logger'
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
-import { LibraryService } from '@/lib/services/library-service'
 
 export interface ShadowTwinMarkdownResult {
   markdown: string
@@ -40,66 +37,48 @@ export async function loadShadowTwinMarkdown(
   const { jobId, job } = ctx
   const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
   const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
-  const twinName = `${baseName}.${lang}.md`
   const parentId = job.correlation?.source?.parentId || 'root'
   const originalName = job.correlation.source?.name || 'output'
   const sourceItemId = job.correlation?.source?.itemId || ''
 
   // Priorität 1: Verwende shadowTwinState.transformed.id, falls verfügbar (direkter Zugriff)
   let twin: { id: string } | null = null
+  let resolvedFileName: string | null = null
   
   if (job.shadowTwinState?.transformed?.id) {
     twin = { id: job.shadowTwinState.transformed.id }
   }
 
-  // Priorität 2: Suche über Resolver (v2) oder findShadowTwinMarkdownFile (legacy)
+  // Priorität 2: Suche über Resolver (v2-only)
   if (!twin) {
-    // Ermittle Library-Modus
-    let mode: 'legacy' | 'v2' = 'legacy'
-    try {
-      const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
-      mode = getShadowTwinMode(library)
-    } catch {
-      // Fallback zu legacy bei Fehler
-    }
+    // Versuche zuerst Transformation (falls Template vorhanden), dann Transcript
+    const templateName = job.parameters?.template as string | undefined
 
-    if (mode === 'v2' && sourceItemId) {
-      // V2-Modus: Nutze neuen Resolver
-      // Versuche zuerst Transformation (falls Template vorhanden), dann Transcript
-      const templateName = job.parameters?.template as string | undefined
-      
-      let resolved = templateName
-        ? await resolveArtifact(provider, {
-            sourceItemId,
-            sourceName: originalName,
-            parentId,
-            mode: 'v2',
-            targetLanguage: lang,
-            templateName,
-            preferredKind: 'transformation',
-          })
-        : null
-
-      if (!resolved) {
-        // Fallback zu Transcript
-        resolved = await resolveArtifact(provider, {
+    let resolved = templateName
+      ? await resolveArtifact(provider, {
           sourceItemId,
           sourceName: originalName,
           parentId,
-          mode: 'v2',
           targetLanguage: lang,
-          preferredKind: 'transcript',
+          templateName,
+          preferredKind: 'transformation',
         })
-      }
+      : null
 
-      if (resolved) {
-        twin = { id: resolved.fileId }
-      }
+    if (!resolved) {
+      // Fallback zu Transcript
+      resolved = await resolveArtifact(provider, {
+        sourceItemId,
+        sourceName: originalName,
+        parentId,
+        targetLanguage: lang,
+        preferredKind: 'transcript',
+      })
     }
 
-    // Legacy-Fallback oder wenn v2 nichts gefunden hat
-    if (!twin) {
-      twin = await findShadowTwinMarkdownFile(parentId, baseName, lang, originalName, provider)
+    if (resolved) {
+      twin = { id: resolved.fileId }
+      resolvedFileName = resolved.fileName
     }
 
     if (!twin) {
@@ -108,10 +87,8 @@ export async function loadShadowTwinMarkdown(
         parentId,
         baseName,
         lang,
-        twinName,
         hasShadowTwinState: !!job.shadowTwinState,
         shadowTwinStateTransformedId: job.shadowTwinState?.transformed?.id,
-        mode,
       })
       return null
     }
@@ -132,7 +109,7 @@ export async function loadShadowTwinMarkdown(
       markdown: markdownText,
       meta,
       fileId: twin.id,
-      fileName: twinName,
+      fileName: resolvedFileName || `${baseName}.${lang}.md`,
     }
   } catch (error) {
     FileLogger.error('phase-shadow-twin-loader', 'Fehler beim Laden der Shadow-Twin-Markdown', {

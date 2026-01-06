@@ -16,7 +16,6 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
 import type { WizardSource } from '@/lib/creation/corpus'
 import { buildCorpusText } from '@/lib/creation/corpus'
 
@@ -125,11 +124,7 @@ export async function POST(
     // Server-Provider erstellen
     const provider = await getServerProvider(userEmail, libraryId)
 
-    // Shadow‑Twin Mode bestimmen
-    const shadowTwinMode = getShadowTwinMode(library)
-
-    // Extrahiere Basename (ohne Extension)
-    const sourceBaseName = sourceFileName.replace(/\.[^.]+$/, '')
+    // v2-only: kein Mode-Switch. Migration alter Artefakte passiert später.
 
     // Ergebnisse sammeln
     const results: {
@@ -153,7 +148,6 @@ export async function POST(
         sourceName: sourceFileName,
         parentId: sourceParentId,
         content: transcriptContent,
-        mode: shadowTwinMode,
         createFolder: true, // Erstelle Dot‑Folder für Bundle
       })
 
@@ -175,7 +169,6 @@ export async function POST(
         sourceName: sourceFileName,
         parentId: sourceParentId,
         content: transformationContent,
-        mode: shadowTwinMode,
         createFolder: true, // Nutze existierenden Dot‑Folder
       })
 

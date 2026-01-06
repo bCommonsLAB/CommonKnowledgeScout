@@ -18,6 +18,7 @@ import type { ViewMode } from './gallery-sticky-header'
 import { ItemsGrid } from './items-grid'
 import { DeleteDocumentButton } from './delete-document-button'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
+import { formatUpsertedAt } from '@/utils/format-upserted-at'
 
 export interface VirtualizedItemsViewProps {
   viewMode: ViewMode
@@ -41,7 +42,7 @@ export function VirtualizedItemsView({
   isLoadingMore,
   onDocumentDeleted,
 }: VirtualizedItemsViewProps) {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -167,9 +168,10 @@ export function VirtualizedItemsView({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[60%]">{t('gallery.table.title')}</TableHead>
-                  <TableHead className="w-[20%]">{t('gallery.table.year')}</TableHead>
-                  <TableHead className="w-[20%]">{t('gallery.table.track')}</TableHead>
+                  <TableHead className="w-[50%]">{t('gallery.table.title')}</TableHead>
+                  <TableHead className="w-[15%]">{t('gallery.table.year')}</TableHead>
+                  <TableHead className="w-[15%]">{t('gallery.table.track')}</TableHead>
+                  <TableHead className="w-[20%] whitespace-nowrap">{t('gallery.table.upsertedAt')}</TableHead>
                   {isOwner && <TableHead className="w-[60px]"></TableHead>}
                 </TableRow>
               </TableHeader>
@@ -207,6 +209,11 @@ export function VirtualizedItemsView({
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      <span title={doc.upsertedAt ?? ''}>
+                        {formatUpsertedAt(doc.upsertedAt, { locale })}
+                      </span>
                     </TableCell>
                     {isOwner && libraryId && (
                       <TableCell onClick={(e) => e.stopPropagation()}>

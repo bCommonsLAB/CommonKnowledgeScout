@@ -52,7 +52,7 @@ Extract text and images from PDF files using OCR or native text extraction.
 
 3. **Markdown Creation**:
    - Extracted text saved as Markdown **without frontmatter**
-   - File name: `{originalName}.md` (no language suffix - transcript)
+   - File name (v2): `{baseName}.{language}.md` (transcript, language suffix)
 
 ### Input
 
@@ -63,7 +63,7 @@ Extract text and images from PDF files using OCR or native text extraction.
 
 ### Output
 
-- **Transcript File**: `document.md` (Markdown without frontmatter)
+- **Transcript File**: `document.de.md` (Markdown without frontmatter; language suffix)
 - **Images**: Saved to `.document.pdf/` directory (if images extracted)
 - **Shadow-Twin Directory**: Created automatically if images are present
 
@@ -101,7 +101,7 @@ Extract text and images from PDF files using OCR or native text extraction.
 
 ```
 .document.pdf/
-├── document.md          (Transcript - extracted text, no frontmatter)
+├── document.de.md       (Transcript - extracted text, no frontmatter)
 ├── page-001.png        (Extracted images)
 └── page-002.png
 ```

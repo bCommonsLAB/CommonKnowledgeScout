@@ -17,7 +17,6 @@ import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { LibraryService } from '@/lib/services/library-service'
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
 import type { Library } from '@/types/library'
 
 export interface FoundMarkdown {
@@ -45,22 +44,18 @@ export async function findPdfMarkdown(
   parentId: string,
   baseName: string,
   lang: string,
-  library?: Library | null,
+  _library?: Library | null,
   sourceItemId?: string,
   sourceName?: string
 ): Promise<FoundMarkdown> {
   const originalName = sourceName || `${baseName}.pdf` // Annahme: Original ist PDF
-  
-  // Ermittle Library-Modus (falls Library verfügbar)
-  const mode = library ? getShadowTwinMode(library) : 'legacy'
-  
-  if (mode === 'v2' && sourceItemId) {
-    // V2-Modus: Nutze neuen Resolver
+
+  // v2-only: Primär über Resolver (dotFolder + sibling, deterministisch)
+  if (sourceItemId) {
     const resolved = await resolveArtifact(provider, {
       sourceItemId,
       sourceName: originalName,
       parentId,
-      mode: 'v2',
       targetLanguage: lang,
       preferredKind: 'transcript',
     })
@@ -80,32 +75,8 @@ export async function findPdfMarkdown(
       }
     }
   }
-  
-  // Legacy-Modus oder Fallback
-  // Verwende die robuste Shadow-Twin-Suche, die auch im Shadow-Twin-Verzeichnis sucht
-  const { findShadowTwinFolder } = await import('@/lib/storage/shadow-twin')
-  
-  // 1. Versuche Shadow-Twin-Verzeichnis zu finden
-  const shadowTwinFolder = await findShadowTwinFolder(parentId, originalName, provider)
-  
-  if (shadowTwinFolder) {
-    // Suche im Shadow-Twin-Verzeichnis
-    const { findShadowTwinMarkdown } = await import('@/lib/storage/shadow-twin')
-    const markdownInFolder = await findShadowTwinMarkdown(shadowTwinFolder.id, baseName, lang, provider, true)
-    
-    if (markdownInFolder) {
-      const bin = await provider.getBinary(markdownInFolder.id)
-      const text = await bin.blob.text()
-      return {
-        hasMarkdown: true,
-        fileId: markdownInFolder.id,
-        fileName: markdownInFolder.metadata.name,
-        text,
-      }
-    }
-  }
-  
-  // 2. Fallback: Suche im Parent-Verzeichnis (wie bisher)
+
+  // Fallback (v2-only, ohne sourceItemId): deterministischer Name im Parent-Verzeichnis
   const expectedFileName = `${baseName}.${lang}.md`
   const siblings = await provider.listItemsById(parentId)
 

@@ -44,6 +44,12 @@ nav:
       - Dependency Graph: architecture/dependency-graph.md
       - Shadow-Twin: architecture/shadow-twin.md
       - PDF Transformation Phases: architecture/pdf-transformation-phases.md
+      - MongoDB Vector Search: architecture/mongodb-vector-search.md
+  - Analysis:
+      - Shadow-Twin (v2-only): analysis/shadow-twin-v2-only.md
+      - Wizard & External Jobs: analysis/wizard-and-jobs.md
+      - Ingestion: analysis/ingestion.md
+      - Storage: analysis/storage.md
   # Guide: - Dateien existieren nicht
   #   - Start: guide/index.md
   #   - Setup: guide/setup.md

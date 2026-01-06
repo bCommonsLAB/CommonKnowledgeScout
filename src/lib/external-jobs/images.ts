@@ -210,7 +210,35 @@ export async function processAllImageSources(
         })
       } else {
         const arrayBuf = await resp.arrayBuffer()
-        const base64Zip = Buffer.from(arrayBuf).toString('base64')
+        const buf = Buffer.from(arrayBuf)
+        const contentType = resp.headers.get('content-type') || ''
+        const looksLikeZipMagic = buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b // 'PK'
+        const isLikelyZip = looksLikeZipMagic || /zip|octet-stream/i.test(contentType)
+
+        // Wenn das PDF keine eingebetteten Bilder hat, liefert der Secretary-Service hier teils
+        // sehr kleine Responses (oder JSON/HTML). Das ist kein Fehler – wir skippen einfach.
+        if (!isLikelyZip || buf.length < 256) {
+          bufferLog(ctx.jobId, {
+            phase: 'mistral_ocr_images_skipped',
+            message: 'Mistral OCR Bilder-Archiv ist leer/kein ZIP – übersprungen',
+            details: { contentType, bytes: buf.length, looksLikeZipMagic }
+          })
+          try {
+            await repo.traceAddEvent(ctx.jobId, {
+              spanId: 'image_extraction',
+              name: 'image_extraction_skipped',
+              attributes: {
+                archiveType: 'mistral_ocr_images',
+                reason: 'not_a_zip_or_too_small',
+                contentType,
+                bytes: buf.length,
+              },
+            })
+          } catch {}
+          // Weiter mit pages.zip etc.
+          // eslint-disable-next-line no-lonely-if
+        } else {
+          const base64Zip = buf.toString('base64')
 
         // Trace-Event für Start der spezifischen Archiv-Extraktion
         try {
@@ -269,6 +297,7 @@ export async function processAllImageSources(
           phase: 'mistral_ocr_images_extracted_from_url',
           message: `Mistral OCR Bilder von URL gespeichert (${result.savedItems.length})`
         })
+        }
       }
     } catch (error) {
       bufferLog(ctx.jobId, {

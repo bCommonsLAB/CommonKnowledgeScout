@@ -97,6 +97,11 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     ingest: (policies.ingest || 'auto') as string
   }
   let templateStatus: 'completed' | 'failed' | 'skipped' = 'completed'
+  // WICHTIG: savedItemId muss im gesamten Funktions-Scope verfügbar sein (auch vor Skip-Branches),
+  // damit wir im Skip-Fall den globalen Contract erfüllen können:
+  // completed ⇒ result.savedItemId existiert.
+  // (Vorher wurde savedItemId erst später deklariert → TDZ → Setzen wurde geschluckt.)
+  let savedItemId: string | undefined
   let templateSkipped = false
   let templateCompletedMarked = false
 
@@ -278,9 +283,88 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
    * - Frontmatter aus bodyMetadata übernehmen
    * - Pages aus Markdown-Body rekonstruieren (falls pages fehlt)
    * - Keine Template-Transformation, keine Kapitel-Analyse
+   * - WICHTIG: savedItemId auf bestehende Transformation setzen (für Contract-Erfüllung)
    */
   if (!shouldRunTemplate) {
     bufferLog(jobId, { phase: 'transform_meta_skipped', message: 'Template-Transformation übersprungen (chapters vorhanden)' })
+    
+    try {
+      // WICHTIG: ctx.job kann in diesem Pfad stale sein. Daher Job neu laden.
+      const latestJob = await repo.get(jobId)
+      const transformedRaw = (latestJob?.shadowTwinState as { transformed?: unknown } | undefined)?.transformed as
+        | { id?: unknown; metadata?: { name?: unknown } }
+        | undefined
+      const transformedId = typeof transformedRaw?.id === 'string' ? transformedRaw.id : undefined
+      const transformedName = typeof transformedRaw?.metadata?.name === 'string' ? transformedRaw.metadata.name : undefined
+
+      if (transformedId && transformedId.trim().length > 0) {
+        savedItemId = transformedId
+        bufferLog(jobId, {
+          phase: 'template_skip_saved_item_id',
+          message: 'savedItemId auf ShadowTwin.transformed gesetzt (Template übersprungen)',
+          savedItemId: transformedId,
+          fileName: transformedName,
+        })
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'template',
+            name: 'template_skip_saved_item_id_set',
+            attributes: {
+              savedItemId: transformedId,
+              fileName: transformedName,
+              reason: 'chapters_already_exist',
+              source: 'shadowTwinState.transformed',
+            },
+          })
+        } catch {}
+      } else {
+        // Fallback: versuche, die transformierte Datei über Artifact-Resolver zu finden (z.B. *.pdfanalyse.de.md)
+        const sourceItemId = job.correlation?.source?.itemId || ''
+        const sourceName = job.correlation?.source?.name || ''
+        const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+        const templateName = typeof (job.parameters as { template?: unknown } | undefined)?.template === 'string'
+          ? String((job.parameters as { template: string }).template).trim()
+          : ''
+
+        if (sourceItemId && sourceName && templateName) {
+          const resolved = await resolveArtifact(provider, {
+            sourceItemId,
+            sourceName,
+            parentId: targetParentId,
+            targetLanguage: lang,
+            templateName,
+            preferredKind: 'transformation',
+          })
+          if (resolved?.fileId) {
+            savedItemId = resolved.fileId
+            bufferLog(jobId, {
+              phase: 'template_skip_saved_item_id',
+              message: 'savedItemId über resolveArtifact gefunden (Template übersprungen)',
+              savedItemId: resolved.fileId,
+              fileName: resolved.fileName,
+            })
+          } else {
+            bufferLog(jobId, {
+              phase: 'template_skip_no_existing_file',
+              message: 'Template übersprungen, aber keine Transformation gefunden (shadowTwinState.transformed + resolveArtifact leer)',
+              targetParentId,
+            })
+          }
+        } else {
+          bufferLog(jobId, {
+            phase: 'template_skip_no_existing_file',
+            message: 'Template übersprungen, aber shadowTwinState.transformed.id fehlt und source/template fehlen für resolveArtifact',
+            targetParentId,
+          })
+        }
+      }
+    } catch (error) {
+      FileLogger.warn('phase-template', 'Fehler beim Setzen von savedItemId bei übersprungenem Template', {
+        jobId,
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
+    
     // Sichtbares Step-/Trace-Update für UI/Monitoring – nur wenn noch KEIN Template-Span existiert
     let hasTemplateSpan = false
     try {
@@ -386,6 +470,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     templateStatus = 'skipped'
     return {
       metadata: skippedMeta,
+      savedItemId,
       status: 'skipped',
       skipped: true,
     }
@@ -401,8 +486,43 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   if (templateAlreadyCompleted && policies.metadata !== 'force') {
     bufferLog(jobId, { phase: 'transform_gate_skip', message: 'already_completed' })
     templateStatus = 'skipped'
+    // WICHTIG:
+    // Duplicate/Retry-Callbacks dürfen den globalen Contract nicht verletzen.
+    // Auch wenn der Step bereits completed ist, liefern wir die bestehende Transformationsdatei zurück,
+    // damit der Caller (Callback-Route) `result.savedItemId` stabil setzen kann.
+    try {
+      const latestJob = await repo.get(jobId)
+      const transformedRaw = (latestJob?.shadowTwinState as { transformed?: unknown } | undefined)?.transformed as
+        | { id?: unknown; metadata?: { name?: unknown } }
+        | undefined
+      const transformedId = typeof transformedRaw?.id === 'string' ? transformedRaw.id : undefined
+      if (transformedId && transformedId.trim().length > 0) {
+        savedItemId = transformedId
+      } else {
+        const sourceItemId = job.correlation?.source?.itemId || ''
+        const sourceName = job.correlation?.source?.name || ''
+        const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+        const templateName = typeof (job.parameters as { template?: unknown } | undefined)?.template === 'string'
+          ? String((job.parameters as { template: string }).template).trim()
+          : ''
+        if (sourceItemId && sourceName && templateName) {
+          const resolved = await resolveArtifact(provider, {
+            sourceItemId,
+            sourceName,
+            parentId: targetParentId,
+            targetLanguage: lang,
+            templateName,
+            preferredKind: 'transformation',
+          })
+          if (resolved?.fileId) savedItemId = resolved.fileId
+        }
+      }
+    } catch {
+      // ignore
+    }
     return {
       metadata: fmFromBody || {},
+      savedItemId,
       status: 'skipped',
       skipped: true,
     }
@@ -720,23 +840,11 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   let existingFileName: string | undefined = undefined
   try {
     // Verwende zentrale resolveArtifact() Logik für konsistente Suche
-    let mode: 'legacy' | 'v2' = 'legacy'
-    try {
-      const libraryService = LibraryService.getInstance()
-      const library = await libraryService.getLibrary(job.userEmail, job.libraryId)
-      if (library) {
-        mode = getShadowTwinMode(library)
-      }
-    } catch {
-      // Fallback zu legacy
-    }
-    
     // Suche nach bestehender Transformation mit zentraler Logik
     const resolved = await resolveArtifact(provider, {
       sourceItemId,
       sourceName,
       parentId: targetParentId,
-      mode,
       targetLanguage: lang,
       templateName: usedTemplate,
       preferredKind: 'transformation',
@@ -1010,8 +1118,6 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       }
     }
   } catch { /* ignore */ }
-
-  let savedItemId: string | undefined
 
   // Doppelte Frontmatter vermeiden: bestehenden Block am Anfang entfernen (auch mehrfach)
   if (!templateSkipped) {

@@ -11,6 +11,7 @@ import { EventSummary } from "@/components/event-summary";
 import type { Slide } from "@/components/library/slide-accordion";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 import { useTranslation } from "@/lib/i18n/hooks";
+import type { StorageProvider } from "@/lib/storage/types";
 
 /**
  * Interface für Session-Detail-Daten aus Event/Konferenz-Dokumenten
@@ -53,13 +54,22 @@ interface SessionDetailProps {
   backHref?: string;
   showBackLink?: boolean;
   libraryId?: string; // Optional: für Link zur Library
+  provider?: StorageProvider | null;
+  currentFolderId?: string;
 }
 
 /**
  * Detailansicht für Event-Sessions/Präsentationen
  * Moderne UI mit Hero-Section, Speakers mit Avataren, Event-Details Sidebar
  */
-export function SessionDetail({ data, backHref = "/library", showBackLink = false, libraryId }: SessionDetailProps) {
+export function SessionDetail({
+  data,
+  backHref = "/library",
+  showBackLink = false,
+  libraryId,
+  provider = null,
+  currentFolderId = 'root',
+}: SessionDetailProps) {
   const { t } = useTranslation()
   const title = data.title || data.shortTitle || "—";
   const speakers = Array.isArray(data.speakers) ? data.speakers : [];
@@ -197,7 +207,12 @@ export function SessionDetail({ data, backHref = "/library", showBackLink = fals
           {/* Markdown Content Section - full width (verwendet markdown Feld, fallback auf summary) */}
           {(data.markdown || data.summary) && (
             <>
-              <EventSummary summary={data.markdown || data.summary || ''} videoUrl={data.video_url} />
+              <EventSummary
+                summary={data.markdown || data.summary || ''}
+                videoUrl={data.video_url}
+                provider={provider}
+                currentFolderId={currentFolderId}
+              />
               {/* KI-Info-Hinweis für KI-generierte Zusammenfassung */}
               <AIGeneratedNotice compact />
             </>

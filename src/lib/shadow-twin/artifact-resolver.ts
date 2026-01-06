@@ -14,9 +14,8 @@
 
 import type { StorageItem, StorageProvider } from '@/lib/storage/types';
 import type { ArtifactKind } from './artifact-types';
-import { findShadowTwinFolder, findShadowTwinMarkdown } from '@/lib/storage/shadow-twin';
+import { findShadowTwinFolder } from '@/lib/storage/shadow-twin';
 import { parseArtifactName } from './artifact-naming';
-import { FileLogger } from '@/lib/debug/logger';
 import { logArtifactResolve } from './artifact-logger';
 import path from 'path';
 
@@ -46,8 +45,6 @@ export interface ResolveArtifactOptions {
   sourceName: string;
   /** ID des Parent-Verzeichnisses */
   parentId: string;
-  /** Modus: 'legacy' (alte Heuristik) oder 'v2' (neue Namenskonventionen) */
-  mode: 'legacy' | 'v2';
   /** Zielsprache (z.B. 'de', 'en') */
   targetLanguage: string;
   /** Optional: Template-Name (nur bei Transformation) */
@@ -67,13 +64,12 @@ export async function resolveArtifact(
   provider: StorageProvider,
   options: ResolveArtifactOptions
 ): Promise<ResolvedArtifact | null> {
-  const { sourceItemId, sourceName, parentId, mode, targetLanguage, templateName, preferredKind } = options;
+  const { sourceItemId, sourceName, parentId, targetLanguage, templateName, preferredKind } = options;
 
   // Logging: Start
   logArtifactResolve('start', {
     sourceId: sourceItemId,
     sourceName,
-    mode,
     kind: preferredKind,
   });
 
@@ -81,13 +77,8 @@ export async function resolveArtifact(
   let error: string | undefined;
 
   try {
-    if (mode === 'v2') {
-      // V2-Modus: Nutze neue Namenskonventionen
-      result = await resolveArtifactV2(provider, options);
-    } else {
-      // Legacy-Modus: Nutze bestehende Heuristik
-      result = await resolveArtifactLegacy(provider, options);
-    }
+    // V2-Modus: Nutze neue Namenskonventionen
+    result = await resolveArtifactV2(provider, options);
 
     // Logging: Ergebnis
     if (result) {
@@ -97,13 +88,11 @@ export async function resolveArtifact(
         kind: result.kind,
         location: result.location,
         fileName: result.fileName,
-        mode,
       });
     } else {
       logArtifactResolve('not_found', {
         sourceId: sourceItemId,
         sourceName,
-        mode,
       });
     }
 
@@ -113,7 +102,6 @@ export async function resolveArtifact(
     logArtifactResolve('error', {
       sourceId: sourceItemId,
       sourceName,
-      mode,
       error,
     });
     throw err;
@@ -219,66 +207,6 @@ async function resolveArtifactV2(
         location: 'sibling',
       };
     }
-  }
-
-  return null;
-}
-
-/**
- * Legacy-Auflösung mit bestehender Heuristik.
- */
-async function resolveArtifactLegacy(
-  provider: StorageProvider,
-  options: ResolveArtifactOptions
-): Promise<ResolvedArtifact | null> {
-  const { sourceName, parentId, targetLanguage } = options;
-
-  const sourceBaseName = path.parse(sourceName).name;
-
-  // 1. Prüfe Shadow-Twin-Verzeichnis
-  const shadowTwinFolder = await findShadowTwinFolder(parentId, sourceName, provider);
-  if (shadowTwinFolder) {
-    // Suche mit bestehender Logik (beide Varianten: transformed und transcript)
-    const markdownInFolder = await findShadowTwinMarkdown(
-      shadowTwinFolder.id,
-      sourceBaseName,
-      targetLanguage,
-      provider,
-      true // preferTransformed
-    );
-
-    if (markdownInFolder) {
-      // Versuche ArtifactKind aus Dateinamen zu bestimmen
-      const parsed = parseArtifactName(markdownInFolder.metadata.name, sourceBaseName);
-      const kind: ArtifactKind = parsed.kind || 'transcript'; // Fallback zu transcript
-
-      return {
-        kind,
-        fileId: markdownInFolder.id,
-        fileName: markdownInFolder.metadata.name,
-        location: 'dotFolder',
-        shadowTwinFolderId: shadowTwinFolder.id,
-      };
-    }
-  }
-
-  // 2. Fallback: Suche als Sibling-Datei
-  const expectedName = `${sourceBaseName}.${targetLanguage}.md`;
-  const siblings = await provider.listItemsById(parentId);
-  const artifactFile = siblings.find(
-    item => item.type === 'file' && item.metadata.name === expectedName
-  );
-
-  if (artifactFile) {
-    const parsed = parseArtifactName(artifactFile.metadata.name, sourceBaseName);
-    const kind: ArtifactKind = parsed.kind || 'transcript';
-
-    return {
-      kind,
-      fileId: artifactFile.id,
-      fileName: artifactFile.metadata.name,
-      location: 'sibling',
-    };
   }
 
   return null;

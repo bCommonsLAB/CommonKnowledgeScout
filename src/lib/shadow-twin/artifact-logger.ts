@@ -25,7 +25,6 @@ export function logArtifactResolve(
     kind?: 'transcript' | 'transformation';
     location?: 'sibling' | 'dotFolder';
     fileName?: string;
-    mode?: 'legacy' | 'v2';
     error?: string;
   }
 ) {
@@ -34,7 +33,6 @@ export function logArtifactResolve(
     FileLogger.debug('artifact-resolver', 'Artefakt-Auflösung gestartet', {
       sourceId: options.sourceId,
       sourceName: options.sourceName,
-      mode: options.mode,
       kind: options.kind,
     });
   } else if (action === 'success') {
@@ -44,13 +42,11 @@ export function logArtifactResolve(
       kind: options.kind,
       location: options.location,
       fileName: options.fileName,
-      mode: options.mode,
     });
   } else if (action === 'not_found') {
     FileLogger.info('artifact-resolver', 'Artefakt nicht gefunden', {
       sourceId: options.sourceId,
       sourceName: options.sourceName,
-      mode: options.mode,
     });
   } else if (action === 'error') {
     FileLogger.error('artifact-resolver', 'Fehler bei Artefakt-Auflösung', {
@@ -72,7 +68,6 @@ export function logArtifactWrite(
     kind: 'transcript' | 'transformation';
     location?: 'sibling' | 'dotFolder';
     fileName?: string;
-    mode?: 'legacy' | 'v2';
     wasUpdated?: boolean;
     error?: string;
   }
@@ -83,7 +78,6 @@ export function logArtifactWrite(
       sourceId: options.sourceId,
       sourceName: options.sourceName,
       kind: options.kind,
-      mode: options.mode,
     });
   } else if (action === 'success') {
     FileLogger.info('artifact-writer', options.wasUpdated ? 'Artefakt aktualisiert' : 'Artefakt erstellt', {
@@ -92,7 +86,6 @@ export function logArtifactWrite(
       kind: options.kind,
       location: options.location,
       fileName: options.fileName,
-      mode: options.mode,
       wasUpdated: options.wasUpdated,
     });
   } else if (action === 'error') {

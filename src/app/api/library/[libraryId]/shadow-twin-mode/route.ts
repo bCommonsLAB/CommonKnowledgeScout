@@ -2,7 +2,12 @@
  * @fileoverview API-Route für Shadow-Twin-Modus-Umschaltung
  * 
  * @description
- * Serverseitige Route zum Umschalten des Shadow-Twin-Modus einer Library (legacy ↔ v2).
+ * Serverseitige Route zum Setzen des Shadow-Twin-Modus einer Library.
+ *
+ * WICHTIG (v2-only Runtime):
+ * - Die Anwendung läuft ausschließlich im v2-Modus.
+ * - 'legacy' wird nicht mehr als Betriebsmodus akzeptiert (nur noch als historisches Config-Flag in bestehenden Libraries).
+ * - Migration/Repair bestehender Artefakte ist bewusst später geplant und wird hier NICHT gestartet.
  * 
  * @module api/library
  */
@@ -11,7 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { FileLogger } from '@/lib/debug/logger';
 import { LibraryService } from '@/lib/services/library-service';
-import { convertLibrary } from '@/lib/shadow-twin/conversion-job';
+import { ShadowTwinLegacyNotAllowedError } from '@/lib/shadow-twin/errors';
 
 /**
  * POST /api/library/[libraryId]/shadow-twin-mode
@@ -19,8 +24,7 @@ import { convertLibrary } from '@/lib/shadow-twin/conversion-job';
  * Setzt den Shadow-Twin-Modus einer Library.
  * 
  * Body:
- * - mode: 'legacy' | 'v2'
- * - startConversion?: boolean (optional: Startet Konvertierungs-Job wenn true)
+ * - mode: 'v2'
  */
 export async function POST(
   request: NextRequest,
@@ -39,11 +43,12 @@ export async function POST(
     }
 
     const { libraryId } = await params;
-    const body = await request.json() as { mode?: 'legacy' | 'v2'; startConversion?: boolean };
+    const body = await request.json() as { mode?: unknown };
 
-    if (!body.mode || (body.mode !== 'legacy' && body.mode !== 'v2')) {
+    const mode = body.mode
+    if (mode !== 'v2') {
       return NextResponse.json(
-        { error: 'mode muss "legacy" oder "v2" sein' },
+        { error: new ShadowTwinLegacyNotAllowedError('Shadow‑Twin legacy/v1 ist nicht erlaubt. Bitte nur v2 verwenden.').message },
         { status: 400 }
       );
     }
@@ -59,44 +64,26 @@ export async function POST(
       ...library.config,
       shadowTwin: {
         ...library.config?.shadowTwin,
-        mode: body.mode,
+        mode: 'v2',
       },
     };
 
-    await LibraryService.getInstance().updateLibrary(userEmail, libraryId, {
-      config: updatedConfig,
-    });
+    // WICHTIG: LibraryService.updateLibrary erwartet die komplette Library (kein Patch).
+    // Wir laden oben die Library und schreiben sie hier mit aktualisierter Config zurück.
+    // Dadurch ist die Umschaltung atomar auf Library-Ebene und konsistent zum Rest der API.
+    const updatedLibrary = { ...library, config: updatedConfig };
+    await LibraryService.getInstance().updateLibrary(userEmail, updatedLibrary);
 
     FileLogger.info('shadow-twin-mode', 'Shadow-Twin-Modus aktualisiert', {
       libraryId,
       userEmail,
-      mode: body.mode,
+      mode: 'v2',
     });
-
-    // Optional: Starte Konvertierungs-Job
-    let conversionResult: { converted: number; errors: number } | undefined;
-    if (body.startConversion && body.mode === 'v2') {
-      try {
-        conversionResult = await convertLibrary(userEmail, libraryId);
-        FileLogger.info('shadow-twin-mode', 'Konvertierungs-Job abgeschlossen', {
-          libraryId,
-          converted: conversionResult.converted,
-          errors: conversionResult.errors,
-        });
-      } catch (error) {
-        FileLogger.error('shadow-twin-mode', 'Fehler bei Konvertierungs-Job', {
-          libraryId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        // Fehler nicht weiterwerfen - Modus wurde bereits gesetzt
-      }
-    }
 
     return NextResponse.json(
       {
         success: true,
-        mode: body.mode,
-        conversion: conversionResult,
+        mode: 'v2',
       },
       { status: 200 }
     );

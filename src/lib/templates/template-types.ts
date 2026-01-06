@@ -43,10 +43,12 @@ export interface CreationSource {
  */
 export type CreationFlowStepPreset = 
   | 'welcome'
+  | 'chooseSource'
   | 'collectSource' 
   | 'reviewMarkdown'
   | 'generateDraft' 
   | 'previewDetail'
+  | 'publish'
   | 'editDraft'
   | 'uploadImages'
   | 'selectRelatedTestimonials'

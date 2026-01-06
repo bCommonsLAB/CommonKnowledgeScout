@@ -102,6 +102,9 @@ export async function GET(
       error: job.error,
       logs,
       result: job.result,
+      // UI-Fallback: ermöglicht Polling + Ableitung des Result-Items aus Shadow‑Twin, falls result.savedItemId fehlt.
+      shadowTwinState: job.shadowTwinState,
+      steps: job.steps,
     });
   } catch {
     return NextResponse.json({ error: 'Unerwarteter Fehler' }, { status: 500 });
@@ -126,6 +129,29 @@ export async function POST(
 
     // entfernt
 
+    // Prozess‑Guard (VOR Auth + VOR Status-Änderungen):
+    // Wenn ein alter/anderer Worker-Prozess versehentlich Callbacks an dieselbe Route sendet,
+    // ignorieren wir diese Events komplett. Sonst kann ein "falscher" Callback den Job-Status
+    // kurzzeitig auf failed setzen und Tests/UI verwirren, obwohl der korrekte Prozess später
+    // erfolgreich fertig wird.
+    try {
+      const incomingProcessId: string | undefined =
+        (body?.process && typeof body.process.id === 'string')
+          ? body.process.id
+          : (typeof body?.data?.processId === 'string' ? body.data.processId : undefined)
+      if (!internalBypass && job.processId && incomingProcessId && incomingProcessId !== job.processId) {
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'job',
+            name: 'ignored_mismatched_process',
+            level: 'warn',
+            attributes: { incomingProcessId, jobProcessId: job.processId }
+          })
+        } catch {}
+        return NextResponse.json({ status: 'ignored', reason: 'mismatched_process' });
+      }
+    } catch {}
+
     // Authorization and token guard
     await authorizeCallback(ctx)
     // entfernt
@@ -134,14 +160,7 @@ export async function POST(
     await repo.setStatus(jobId, 'running');
     // entfernt: doppeltes callback_received-Event (wir loggen unten via appendLog ausreichend Details)
     if (body?.process?.id) await repo.setProcess(jobId, body.process.id);
-    // Prozess‑Guard: Nur Events mit übereinstimmender processId akzeptieren (außer interner Bypass/Template-Callback)
-    try {
-      const incomingProcessId: string | undefined = (body?.process && typeof body.process.id === 'string') ? body.process.id : (typeof body?.data?.processId === 'string' ? body.data.processId : undefined);
-      if (!internalBypass && job.processId && incomingProcessId && incomingProcessId !== job.processId) {
-        try { await repo.traceAddEvent(jobId, { spanId: 'job', name: 'ignored_mismatched_process', level: 'warn', attributes: { incomingProcessId, jobProcessId: job.processId } }); } catch {}
-        return NextResponse.json({ status: 'ignored', reason: 'mismatched_process' });
-      }
-    } catch {}
+    // Prozess‑Guard ist bewusst bereits VOR Auth/Status-Änderungen (siehe oben).
 
     // Progress-Handling (Short-Circuit)
     const short = await handleProgressIfAny(ctx, repo, workerId)
@@ -343,11 +362,24 @@ export async function POST(
 
     // Finale Payload
     const extractedTextRaw: string | undefined = (body?.data as { extracted_text?: unknown })?.extracted_text as string | undefined;
-    const transcriptionTextRaw: string | undefined = (body?.data as { transcription?: { text?: unknown } })?.transcription?.text as string | undefined
+    const transcriptionTextRaw: string | undefined =
+      (body?.data as { transcription?: { text?: unknown } })?.transcription?.text as string | undefined
+
+    // Compatibility (audio/video): accept a few common payload shapes.
+    // Primary expected shape is: data.transcription.text
+    const audioTextCompat: string | undefined = (() => {
+      if (!(job.job_type === 'audio' || job.job_type === 'video')) return undefined
+      const data = body?.data as Record<string, unknown> | undefined
+      const directText = data && typeof data['text'] === 'string' ? String(data['text']) : undefined
+      const transcriptionText =
+        typeof transcriptionTextRaw === 'string' ? transcriptionTextRaw : undefined
+      const extractedTextFallback =
+        typeof extractedTextRaw === 'string' ? extractedTextRaw : undefined
+      return transcriptionText || directText || extractedTextFallback
+    })()
+
     const extractedText: string | undefined = (() => {
-      if (job.job_type === 'audio' || job.job_type === 'video') {
-        return typeof transcriptionTextRaw === 'string' ? transcriptionTextRaw : undefined
-      }
+      if (job.job_type === 'audio' || job.job_type === 'video') return audioTextCompat
       return typeof extractedTextRaw === 'string' ? extractedTextRaw : undefined
     })()
     const imagesArchiveUrlFromWorker: string | undefined = (body?.data as { images_archive_url?: unknown })?.images_archive_url as string | undefined;
@@ -415,6 +447,23 @@ export async function POST(
       mistralOcrRawType: typeof mistralOcrRaw,
       mistralOcrRawKeys: mistralOcrRaw && typeof mistralOcrRaw === 'object' ? Object.keys(mistralOcrRaw as Record<string, unknown>) : [],
     });
+
+    // If the worker claims "completed" for audio/video but sends no transcription text,
+    // we must fail fast (otherwise the job hangs in pending forever).
+    if ((job.job_type === 'audio' || job.job_type === 'video') && body?.phase === 'completed' && !extractedText) {
+      clearWatchdog(jobId)
+      try {
+        await repo.updateStep(jobId, getExtractStepName(job.job_type), {
+          status: 'failed',
+          endedAt: new Date(),
+          error: { message: 'Worker completed but did not provide transcription text' },
+        })
+      } catch {}
+      await repo.setStatus(jobId, 'failed', {
+        error: { code: 'worker_payload_missing_transcription', message: 'Worker completed but did not provide transcription text' },
+      })
+      return NextResponse.json({ status: 'ok', jobId, kind: 'failed_missing_transcription' })
+    }
 
     // Prüfe auch auf pages_archive_data, pages_archive_url, mistral_ocr_images_url und mistral_ocr_raw für Mistral OCR
     // WICHTIG: mistral_ocr_images_url ist ein separater Endpoint für eingebettete Bilder (nicht in mistral_ocr_raw)
@@ -487,7 +536,7 @@ export async function POST(
     }
 
     if (lib) {
-        const policies = readPhasesAndPolicies(ctx);
+      const policies = readPhasesAndPolicies(ctx);
       const autoSkip = true;
 
         // Einheitliche Serverinitialisierung des Providers (DB-Config, Token enthalten)
@@ -513,18 +562,6 @@ export async function POST(
             const sourceItemId = job.correlation.source?.itemId || 'unknown'
             const sourceName = job.correlation.source?.name || 'output'
             
-            // Bestimme Library-Modus
-            let mode: 'legacy' | 'v2' = 'legacy'
-            try {
-              const libraryService = LibraryService.getInstance()
-              const library = await libraryService.getLibrary(job.userEmail, job.libraryId)
-              if (library) {
-                mode = getShadowTwinMode(library)
-              }
-            } catch {
-              // Fallback zu legacy
-            }
-            
             // Erstelle ArtifactKey für Transcript
             const artifactKey = {
               sourceId: sourceItemId,
@@ -546,7 +583,6 @@ export async function POST(
               sourceName,
               parentId: targetParentId,
               content: cleanText,
-              mode,
               createFolder,
             })
             
@@ -688,6 +724,44 @@ export async function POST(
         docMetaForIngestion = templateResult.metadata
         savedItemId = templateResult.savedItemId
 
+        // WICHTIG (Global Contract / HITL):
+        // In seltenen Duplicate-Callback/Retry-Fällen kann `templateResult.savedItemId` leer sein,
+        // obwohl die Transformationsdatei bereits gespeichert wurde (siehe Trace: postprocessing_saved).
+        // Dann leiten wir die Datei deterministisch über den Artifact-Resolver aus dem Shadow‑Twin ab.
+        if (!savedItemId) {
+          try {
+            const { resolveArtifact } = await import('@/lib/shadow-twin/artifact-resolver')
+            const sourceItemId = job.correlation?.source?.itemId || ''
+            const sourceName = job.correlation?.source?.name || ''
+            const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+            const templateName = typeof (job.parameters as { template?: unknown } | undefined)?.template === 'string'
+              ? String((job.parameters as { template: string }).template).trim()
+              : ''
+
+            if (sourceItemId && sourceName && templateName) {
+              const resolved = await resolveArtifact(provider, {
+                sourceItemId,
+                sourceName,
+                parentId: targetParentId,
+                targetLanguage: lang,
+                templateName,
+                preferredKind: 'transformation',
+              })
+              if (resolved?.fileId) {
+                savedItemId = resolved.fileId
+                bufferLog(jobId, {
+                  phase: 'template_saved_item_id_fallback',
+                  message: 'savedItemId via resolveArtifact abgeleitet (Template-Job)',
+                  savedItemId,
+                  fileName: resolved.fileName,
+                })
+              }
+            }
+          } catch {
+            // ignore – wenn auch das nicht klappt, greift später der Validator/Client-Fallback.
+          }
+        }
+
       // WICHTIG: Bilder-Verarbeitung wurde bereits in Phase 1 (Extract) durchgeführt
       // Die Template-Phase speichert nur das transformierte Markdown
       if (templateResult.savedItemId) {
@@ -802,20 +876,27 @@ export async function POST(
       if (job) {
         bufferLog(jobId, { phase: 'failed', message });
         await repo.appendLog(jobId, { phase: 'failed', message, details: { code, status } } as unknown as Record<string, unknown>);
-        await handleJobErrorWithDetails(
-          new Error(message),
-          {
-            jobId,
-            userEmail: job.userEmail,
-            jobType: job.job_type,
-            fileName: job.correlation?.source?.name,
-            sourceItemId: job.correlation?.source?.itemId,
-          },
-          repo,
-          code,
-          { status },
-          'template'
-        );
+        // WICHTIG:
+        // 401/unauthorized sind i.d.R. Auth-/Token-Themen (z.B. falscher Bearer-Token oder alte Callbacks).
+        // Das darf einen bereits laufenden Job NICHT dauerhaft als failed markieren, sonst "flippt"
+        // der Job-Status kurz auf failed und Tests/UI brechen ab, obwohl der korrekte Prozess später
+        // erfolgreich fertig wird.
+        if (status !== 401) {
+          await handleJobErrorWithDetails(
+            new Error(message),
+            {
+              jobId,
+              userEmail: job.userEmail,
+              jobType: job.job_type,
+              fileName: job.correlation?.source?.name,
+              sourceItemId: job.correlation?.source?.itemId,
+            },
+            repo,
+            code,
+            { status },
+            'template'
+          );
+        }
       }
     } catch {
       // ignore secondary failures

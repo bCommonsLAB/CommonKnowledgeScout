@@ -13,7 +13,6 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { FileLogger } from '@/lib/debug/logger';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper';
 import { LibraryService } from '@/lib/services/library-service';
 
 /**
@@ -68,14 +67,12 @@ export async function GET(
       return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 });
     }
 
-    const mode = getShadowTwinMode(library);
     const provider = await getServerProvider(userEmail, libraryId);
 
     const resolved = await resolveArtifact(provider, {
       sourceItemId: sourceId,
       sourceName,
       parentId,
-      mode,
       targetLanguage,
       templateName,
       preferredKind: preferredKind || undefined,

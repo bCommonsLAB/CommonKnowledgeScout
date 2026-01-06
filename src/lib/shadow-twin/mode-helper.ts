@@ -16,19 +16,12 @@ import type { Library, ClientLibrary } from '@/types/library';
  * Ermittelt den Shadow-Twin-Modus einer Library.
  * 
  * @param library Library-Objekt (Library oder ClientLibrary)
- * @returns 'legacy' oder 'v2' (Default: 'legacy' für bestehende Libraries)
+ * @returns 'v2' (Die App ist v2-only; Legacy wird nicht mehr unterstützt)
  */
-export function getShadowTwinMode(library: Library | ClientLibrary | null | undefined): 'legacy' | 'v2' {
-  if (!library?.config) {
-    return 'legacy';
-  }
-  
-  // Prüfe shadowTwin.mode (kann sowohl in Library als auch ClientLibrary vorhanden sein)
-  const shadowTwinConfig = (library.config as { shadowTwin?: { mode?: 'legacy' | 'v2' } }).shadowTwin;
-  if (!shadowTwinConfig?.mode) {
-    // Default: legacy für bestehende Libraries
-    return 'legacy';
-  }
-  return shadowTwinConfig.mode;
+export function getShadowTwinMode(_library: Library | ClientLibrary | null | undefined): 'v2' {
+  // WICHTIG (v2-only):
+  // Wir lesen das gespeicherte Flag (legacy/v2) bewusst NICHT mehr, weil es sonst
+  // wieder zu doppelter Logik führt. Migration alter Artefakte passiert später.
+  return 'v2'
 }
 

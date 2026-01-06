@@ -50,6 +50,11 @@ interface CollectSourceStepProps {
   requiredFields?: string[]
   // Callback: Wird aufgerufen, wenn der Step verlassen wird, um noch nicht hinzugefügte Quellen zu erfassen
   onBeforeLeave?: () => WizardSource | null
+  /**
+   * Signalisiert dem Parent, ob "Weiter" im collectSource Step aktuell möglich ist.
+   * Der "Weiter"-Button sitzt im Parent (`CreationWizard`) und muss dafür neu rendern.
+   */
+  onCanProceedChange?: (canProceed: boolean) => void
   // Quelle-Auswahl (wenn source nicht gesetzt)
   supportedSources?: CreationSource[]
   selectedSource?: CreationSource
@@ -166,26 +171,26 @@ function CollectSourceSelectionView({
           <div className="grid gap-3 md:grid-cols-2">
             {/* Formular (kein Source-Step nötig) */}
             {supportedSources.length !== 1 || supportedSources[0]?.type !== 'file' ? (
-              <Card
-                className={cn(
-                  "cursor-pointer transition-all hover:border-primary",
-                )}
-                onClick={() => onModeSelect?.('form')}
-              >
-                <CardHeader>
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1">
-                      <CardTitle className="text-base">Formular ausfüllen</CardTitle>
-                      <CardDescription className="mt-1">
-                        Du trägst die Infos direkt ein. Wenn du magst, kannst du einzelne Felder per Diktat füllen.
-                      </CardDescription>
-                    </div>
+            <Card
+              className={cn(
+                "cursor-pointer transition-all hover:border-primary",
+              )}
+              onClick={() => onModeSelect?.('form')}
+            >
+              <CardHeader>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400">
+                    <FileText className="w-5 h-5" />
                   </div>
-                </CardHeader>
-              </Card>
+                  <div className="flex-1">
+                    <CardTitle className="text-base">Formular ausfüllen</CardTitle>
+                    <CardDescription className="mt-1">
+                      Du trägst die Infos direkt ein. Wenn du magst, kannst du einzelne Felder per Diktat füllen.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
             ) : null}
 
             {/* Quellen (führen in Interview/Extraktion) */}
@@ -308,6 +313,78 @@ function CollectSourceSelectionView({
   )
 }
 
+function CollectSingleFileSelectionView({
+  isProcessing,
+  progress,
+  message,
+  pendingFileName,
+  onPickFile,
+  onClearPending,
+  isDisabled,
+}: {
+  isProcessing: boolean
+  progress?: number
+  message?: string
+  pendingFileName?: string
+  onPickFile: (event: React.ChangeEvent<HTMLInputElement>) => void
+  onClearPending: () => void
+  isDisabled: boolean
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Datei hochladen</CardTitle>
+        <CardDescription>
+          Wähle ein PDF. Verarbeitung startet erst nach Klick auf „Weiter“.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label>PDF auswählen</Label>
+          <Input
+            type="file"
+            onChange={onPickFile}
+            className="mt-2"
+            accept=".pdf"
+            disabled={isDisabled}
+          />
+        </div>
+
+        {pendingFileName ? (
+          <div className="border rounded-md p-3 bg-muted/20 flex items-start justify-between gap-3">
+            <div className="text-sm">
+              <div className="font-medium">Ausgewählte Datei</div>
+              <div className="text-muted-foreground break-all">{pendingFileName}</div>
+              <div className="text-xs text-muted-foreground mt-2">
+                Klicke unten rechts auf „Weiter", um OCR/Artefakte zu starten.
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClearPending}
+              disabled={isDisabled}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        ) : null}
+
+        {isProcessing ? (
+          <div className="border rounded-md p-4 bg-muted/30">
+            <div className="text-sm font-medium">PDF wird verarbeitet…</div>
+            <div className="text-xs text-muted-foreground mt-1">{message || 'Bitte warten…'}</div>
+            <div className="mt-3">
+              <Progress value={typeof progress === 'number' ? Math.max(0, Math.min(100, progress)) : 0} />
+            </div>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function CollectSourceStep({
   source,
   onCollect,
@@ -327,6 +404,7 @@ export function CollectSourceStep({
   templateMetadata,
   requiredFields,
   onBeforeLeave,
+  onCanProceedChange,
   supportedSources = [],
   selectedSource,
   onSourceSelect,
@@ -411,7 +489,17 @@ export function CollectSourceStep({
       delete (window as any).__collectSourceStepBeforeLeave
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, source?.type]) // source?.type statt source.type, da source optional ist
+  }, [input, source?.type, pendingFileSource]) // pendingFileSource wichtig, damit "Weiter" nach Dateiauswahl aktiv wird
+
+  // WICHTIG: Der "Weiter"-Button sitzt im Parent (`CreationWizard`).
+  // Wenn sich nur lokaler Step-State (z.B. pendingFileSource oder input) ändert, muss der Parent gezielt neu rendern.
+  useEffect(() => {
+    if (!onCanProceedChange) return
+    onCanProceedChange(createSourceFromInput() !== null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input, source?.type, pendingFileSource, onCanProceedChange])
+
+  const isSingleFileOnly = supportedSources.length === 1 && supportedSources[0]?.type === 'file'
 
   // JETZT können wir frühe Returns machen (nach allen Hooks)
   // Wenn keine Quelle ausgewählt ist, zeige Quelle-Auswahl
@@ -438,6 +526,26 @@ export function CollectSourceStep({
       <div className="text-center text-muted-foreground p-8">
         Bitte zuerst eine Quelle auswählen.
       </div>
+    )
+  }
+
+  // Single-File/PDF Mode: schlanke Oberfläche ohne Multi-Source-Overlays.
+  if (isSingleFileOnly && source.type === 'file') {
+    return (
+      <CollectSingleFileSelectionView
+        isProcessing={!!isExtracting}
+        progress={processingProgress}
+        message={processingMessage}
+        pendingFileName={pendingFileSource?.fileName}
+        onPickFile={handleFileSelect}
+        onClearPending={() => {
+          // Hinweis: Upload-Cleanup im Storage wäre möglich, aber ist optional.
+          // Für Debugging/UX reicht das UI-Reset.
+          setPendingFileSource(null)
+          if (fileInputRef.current) fileInputRef.current.value = ''
+        }}
+        isDisabled={!!isExtracting}
+      />
     )
   }
 
@@ -592,7 +700,8 @@ export function CollectSourceStep({
     }
   }
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // WICHTIG: function (statt const) damit es vor dem Single-File Early-Return hoisted ist.
+  async function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -744,7 +853,6 @@ export function CollectSourceStep({
             targetLanguage: 'de',
             useCache: true,
             // Transcript-only: keine Template- oder Ingest-Phase
-            template: 'Besprechung',
             policies: {
               extract: 'do',
               metadata: 'ignore',

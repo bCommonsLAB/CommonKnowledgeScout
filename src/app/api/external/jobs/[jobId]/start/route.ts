@@ -37,8 +37,6 @@ import { preprocessorTransformTemplate } from '@/lib/external-jobs/preprocessor-
 import { setJobCompleted } from '@/lib/external-jobs/complete'
 import { isInternalAuthorized } from '@/lib/external-jobs/auth'
 import { FileLogger } from '@/lib/debug/logger'
-import { adoptLegacyMarkdownToShadowTwin } from '@/lib/external-jobs/legacy-markdown-adoption'
-import { cleanupLegacyMarkdownAfterTemplate } from '@/lib/external-jobs/legacy-markdown-cleanup'
 import { checkJobStartability } from '@/lib/external-jobs/job-status-check'
 import { prepareSecretaryRequest } from '@/lib/external-jobs/secretary-request'
 import { tracePreprocessEvents } from '@/lib/external-jobs/trace-helpers'
@@ -436,21 +434,21 @@ export async function POST(
     let preExtractResult: Awaited<ReturnType<typeof preprocessorPdfExtract>> | null = null
     let preTemplateResult: Awaited<ReturnType<typeof preprocessorTransformTemplate>> | null = null
     if (job.job_type === 'pdf') {
-      try {
-        preExtractResult = await preprocessorPdfExtract(ctxPre)
-      } catch (error) {
-        FileLogger.error('start-route', 'Fehler im preprocessorPdfExtract', {
-          jobId,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
-      try {
-        preTemplateResult = await preprocessorTransformTemplate(ctxPre)
-      } catch (error) {
-        FileLogger.error('start-route', 'Fehler im preprocessorTransformTemplate', {
-          jobId,
-          error: error instanceof Error ? error.message : String(error),
-        })
+    try {
+      preExtractResult = await preprocessorPdfExtract(ctxPre)
+    } catch (error) {
+      FileLogger.error('start-route', 'Fehler im preprocessorPdfExtract', {
+        jobId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+    try {
+      preTemplateResult = await preprocessorTransformTemplate(ctxPre)
+    } catch (error) {
+      FileLogger.error('start-route', 'Fehler im preprocessorTransformTemplate', {
+        jobId,
+        error: error instanceof Error ? error.message : String(error),
+      })
       }
     }
 
@@ -599,18 +597,11 @@ export async function POST(
     
     // Wenn Template nicht ausgeführt werden soll, aber Phase enabled ist, Step als skipped markieren
     // Dies passiert, wenn der Template-Preprozessor needTemplate === false liefert (Frontmatter valide)
-    // **WICHTIG**: Wenn Legacy-Datei im PDF-Ordner existiert und Frontmatter valide ist,
-    // muss sie in den Shadow-Twin-Folder übernommen werden (TC-2.5 Reparatur-Szenario)
     let templateSkipReason: string | undefined = undefined
     if (templateEnabled && !runTemplate) {
-      // Legacy-Datei-Übernahme: Wenn Frontmatter valide ist, Legacy-Datei in Shadow-Twin verschieben
-      const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
-      const legacyAdopted = await adoptLegacyMarkdownToShadowTwin(ctxPre, preTemplateResult, provider, repo)
-      
-      // Step-Reason basierend auf Legacy-Adoption setzen
-      templateSkipReason = legacyAdopted && preTemplateResult?.markdownFileId
-        ? 'legacy_markdown_adopted'
-        : 'preprocess_frontmatter_valid'
+      // v2-only: Keine Legacy-Adoption/Reparatur in Phase A.
+      // Wenn v2-Artefakte fehlen, soll das bewusst sichtbar bleiben.
+      templateSkipReason = 'preprocess_frontmatter_valid'
       
       try {
         await repo.updateStep(jobId, 'transform_template', {
@@ -639,18 +630,9 @@ export async function POST(
       try { await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() }) } catch {}
       try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_start', attributes: { libraryId: job.libraryId } }) } catch {}
 
-      // **WICHTIG**: Wenn Legacy-Datei im PDF-Ordner existiert und Frontmatter valide ist,
-      // muss sie in den Shadow-Twin-Folder übernommen werden (TC-2.5 Reparatur-Szenario)
       const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
-      await adoptLegacyMarkdownToShadowTwin(ctxPre, preTemplateResult, provider, repo)
-      
-      // Lade Job neu, um aktualisiertes shadowTwinState zu erhalten (kann sich durch adoptLegacyMarkdownToShadowTwin geändert haben)
-      const updatedJob = await repo.get(jobId)
-      if (updatedJob) {
-        ctxPre.job = updatedJob
-      }
-      
-      // Shadow-Twin-Markdown-Datei laden (verwendet jetzt shadowTwinState.transformed.id falls verfügbar)
+
+      // Shadow-Twin-Markdown-Datei laden (v2-only)
       const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider)
       if (!shadowTwinData) {
         await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'Shadow‑Twin nicht gefunden' } })
@@ -737,13 +719,6 @@ export async function POST(
         })
       } catch {}
       
-      // Optionaler Hinweis auf ein Legacy-Markdown im PDF-Ordner aus dem Preprocess
-      // Dies wird insbesondere für Reparatur-Szenarien (z.B. TC-2.5) verwendet:
-      // - Vor dem Lauf existiert eine transformierte Datei im PDF-Ordner
-      // - Nach erfolgreichem Template-Lauf soll diese Datei entfernt werden,
-      //   damit nur noch konsolidierte Artefakte im Shadow-Twin-Verzeichnis liegen.
-      const legacyMarkdownId = preTemplateResult?.markdownFileId
-
       // WICHTIG: Job-Objekt neu laden, damit shadowTwinState sicher vorhanden ist.
       // Ohne Reload sieht loadShadowTwinMarkdown u.U. kein shadowTwinState und sucht "blind" im Storage.
       const refreshedJob = await repo.get(jobId)
@@ -820,8 +795,7 @@ export async function POST(
         return NextResponse.json({ error: errorMessage }, { status: 500 })
       }
 
-      // Reparatur-Logik: Legacy-Markdown im PDF-Ordner nach erfolgreichem Template-Lauf entfernen
-      await cleanupLegacyMarkdownAfterTemplate(jobId, legacyMarkdownId, preTemplateResult, provider, repo)
+      // v2-only: Keine Legacy-Cleanup/Reparatur in Phase A.
 
       // Shadow-Twin-State aktualisieren: processingStatus auf 'ready' setzen
       // Template-Only: Nach erfolgreichem Template-Lauf ist der Shadow-Twin vollständig
@@ -1052,6 +1026,13 @@ export async function POST(
       })
       // Trace-Fehler nicht kritisch - Job kann trotzdem fortgesetzt werden
     }
+
+    // UX: Step sofort auf "running" setzen, sobald der Request zum Worker ack'ed wurde.
+    // Ohne dieses Update bleibt der Step in der UI lange auf "pending", obwohl der Job bereits läuft
+    // und nur auf den Callback wartet.
+    try {
+      await repo.updateStep(jobId, extractStepName, { status: 'running', startedAt: new Date() })
+    } catch {}
     // Status wurde bereits VOR dem Request gesetzt (siehe Zeile 360)
     // Hash wurde bereits gespeichert, damit Callbacks korrekt validiert werden können
     if (!resp.ok) {

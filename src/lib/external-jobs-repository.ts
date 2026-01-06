@@ -74,10 +74,19 @@ export class ExternalJobsRepository {
 
   async setStatus(jobId: string, status: ExternalJobStatus, extra: Partial<ExternalJob> = {}): Promise<boolean> {
     const col = await this.getCollection();
-    const res = await col.updateOne(
-      { jobId },
-      { $set: { status, updatedAt: new Date(), ...extra } }
-    );
+    // WICHTIG:
+    // Wenn ein Job erfolgreich abgeschlossen wird, dürfen alte Fehler-Flags (z.B. von einem
+    // kurzzeitig abgelehnten Callback) nicht im Dokument stehen bleiben. Sonst sieht die UI/Test-Logik
+    // "completed + error", was widersprüchlich ist.
+    const update: Record<string, unknown> = {
+      $set: { status, updatedAt: new Date(), ...extra }
+    }
+    if (status === 'completed') {
+      // `error` komplett entfernen (nicht nur `null` setzen), damit alte Fehler nicht "kleben".
+      ;(update as { $unset?: Record<string, string> }).$unset = { error: '' }
+    }
+
+    const res = await col.updateOne({ jobId }, update as unknown as Record<string, unknown>);
     // Job-Root-Span automatisch beenden
     if (status === 'completed' || status === 'failed') {
       try {

@@ -3,10 +3,13 @@
 import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { MarkdownPreview } from "@/components/library/markdown-preview";
+import type { StorageProvider } from "@/lib/storage/types";
 
 interface EventSummaryProps {
   summary: string;
   videoUrl?: string; 
+  provider?: StorageProvider | null;
+  currentFolderId?: string;
 }
 
 /**
@@ -14,7 +17,7 @@ interface EventSummaryProps {
  * Zeigt Markdown-Inhalt mit zentralem MarkdownPreview-Viewer
  * Video ist bereits im Markdown integriert
  */
-export function EventSummary({ summary, videoUrl }: EventSummaryProps) {
+export function EventSummary({ summary, videoUrl, provider = null, currentFolderId = 'root' }: EventSummaryProps) {
   if (!summary) {
     return null;
   }
@@ -38,6 +41,8 @@ export function EventSummary({ summary, videoUrl }: EventSummaryProps) {
       <div className="prose prose-slate dark:prose-invert max-w-none w-full overflow-x-hidden">
         <MarkdownPreview 
           content={summary} 
+          provider={provider}
+          currentFolderId={currentFolderId}
           compact={true}
           className="min-h-0 w-full max-w-full"
         />

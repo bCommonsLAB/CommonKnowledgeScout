@@ -6,6 +6,7 @@ Welcome to the Common Knowledge Scout documentation.
 
 - **[Use Cases](use-cases/index.md)** - Step-by-step guides for common tasks
 - **[Architecture](architecture/module-hierarchy.md)** - System architecture and module structure
+- **[Analysis](analysis/shadow-twin-v2-only.md)** - Current runtime behavior and decisions
 - **[Reference](reference/file-index.md)** - Complete file index and API reference
 
 ## Documentation Structure
@@ -23,6 +24,13 @@ Practical guides for end users:
 System design and module documentation:
 - Module Hierarchy
 - Dependency Graph
+
+### Analysis
+Current runtime behavior and validated decisions:
+- Shadow-Twin v2-only runtime
+- Wizard & External Jobs (contracts)
+- Ingestion (MongoDB Vector Search)
+- Storage providers (filesystem/OneDrive)
 
 ### Reference
 Technical reference documentation:

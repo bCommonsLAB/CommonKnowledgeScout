@@ -66,6 +66,24 @@ describe('parseArtifactName', () => {
     expect(parsed.baseName).toBe('file.name');
   });
 
+  it('sollte Transcript korrekt parsen, wenn der Basisname Punkte enthält (z.B. "vs.")', () => {
+    const base = '1767514401555-Commoning vs. Kommerz'
+    const parsed = parseArtifactName(`${base}.de.md`, base)
+    expect(parsed.kind).toBe('transcript')
+    expect(parsed.targetLanguage).toBe('de')
+    expect(parsed.templateName).toBeNull()
+    expect(parsed.baseName).toBe(base)
+  })
+
+  it('sollte Transformation korrekt parsen, wenn der Basisname Punkte enthält (z.B. "vs.")', () => {
+    const base = '1767514401555-Commoning vs. Kommerz'
+    const parsed = parseArtifactName(`${base}.pdfanalyse.de.md`, base)
+    expect(parsed.kind).toBe('transformation')
+    expect(parsed.targetLanguage).toBe('de')
+    expect(parsed.templateName).toBe('pdfanalyse')
+    expect(parsed.baseName).toBe(base)
+  })
+
   it('sollte Legacy-Format ohne Language-Suffix erkennen', () => {
     const parsed = parseArtifactName('audio.md', 'audio');
     // Kann als Transcript interpretiert werden (Originalsprache)
@@ -253,6 +271,7 @@ describe('Stabilität bei Re-Runs', () => {
     expect(artifactKeysEqual(key1, key3)).toBe(false);
   });
 });
+
 
 
 

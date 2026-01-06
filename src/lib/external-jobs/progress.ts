@@ -55,17 +55,32 @@ export async function handleProgressIfAny(
     (body?.data as { extracted_text?: unknown })?.extracted_text || 
     (body?.data as { images_archive_url?: unknown })?.images_archive_url || 
     (body?.data as { pages_archive_url?: unknown })?.pages_archive_url ||
+    // Mistral OCR: async webhooks may provide only url/metadata (indicator)
+    (body?.data as { mistral_ocr_raw_url?: unknown })?.mistral_ocr_raw_url ||
+    (body?.data as { mistral_ocr_raw_metadata?: unknown })?.mistral_ocr_raw_metadata ||
+    (body?.data as { mistral_ocr_raw?: unknown })?.mistral_ocr_raw ||
+    // Audio/Video: final webhook may contain transcription text
+    (body?.data as { transcription?: { text?: unknown } })?.transcription?.text ||
+    (body?.data as Record<string, unknown> | undefined)?.['text'] ||
     (body as { status?: unknown })?.status === 'completed' || 
-    body?.phase === 'template_completed'
+    body?.phase === 'template_completed' ||
+    // Treat "completed" as final so we do NOT short-circuit on progress handler
+    body?.phase === 'completed'
   )
 
   if (!hasFinalPayload && !hasError && (progressValue !== undefined || phase || message)) {
     // Sicherstellen, dass die Extract-Phase als running markiert ist (Span-Erzeugung)
     try {
+      const extractStepName =
+        job.job_type === 'audio'
+          ? 'extract_audio'
+          : job.job_type === 'video'
+            ? 'extract_video'
+            : 'extract_pdf'
       const latest = await repo.get(jobId)
-      const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === 'extract_pdf') : undefined
+      const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === extractStepName) : undefined
       if (!st || (st.status !== 'running' && st.status !== 'completed' && st.status !== 'failed')) {
-        await repo.updateStep(jobId, 'extract_pdf', { status: 'running', startedAt: new Date() })
+        await repo.updateStep(jobId, extractStepName, { status: 'running', startedAt: new Date() })
       }
     } catch {}
     

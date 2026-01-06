@@ -130,18 +130,6 @@ export async function runExtractOnly(
       // Sonst verwende das Original-Parent-Verzeichnis
       const parentId = shadowTwinFolderId || (job.correlation?.source?.parentId || 'root')
       
-      // Bestimme Library-Modus
-      let mode: 'legacy' | 'v2' = 'legacy'
-      try {
-        const libraryService = LibraryService.getInstance()
-        const library = await libraryService.getLibrary(job.userEmail, job.libraryId)
-        if (library) {
-          mode = getShadowTwinMode(library)
-        }
-      } catch {
-        // Fallback zu legacy
-      }
-      
       // Erstelle ArtifactKey für Transcript
       const artifactKey: ArtifactKey = {
         sourceId: sourceItemId,
@@ -167,7 +155,6 @@ export async function runExtractOnly(
         sourceName,
         parentId,
         content: cleanText,
-        mode,
         createFolder,
       })
       
@@ -299,9 +286,28 @@ export async function runExtractOnly(
     await repo.traceEndSpan(jobId, 'extract', 'completed', {})
   } catch {}
 
-  // Set job status to completed
+  // WICHTIG (Global Contract):
+  // In Integration-Tests (und auch im UI) wird der Job per Polling beobachtet. Wenn wir
+  // `status=completed` setzen, bevor `result.savedItemId` gespeichert wurde, entsteht ein
+  // Race-Condition-Fenster: Polling sieht "completed" → liest ein leeres result → Contract verletzt.
+  // Deshalb: erst Result/Payload persistieren, dann Status auf completed setzen.
+  await repo.setResult(
+    jobId,
+    {
+      extracted_text: extractedText,
+      images_archive_url: imagesArchiveUrlFromWorker || undefined,
+      metadata: (body?.data as { metadata?: unknown })?.metadata as Record<string, unknown> | undefined,
+    },
+    {
+      savedItemId,
+      savedItems: savedItems.length > 0 ? savedItems : savedItemId ? [savedItemId] : [],
+    }
+  )
+
+  // Set job status to completed (nachdem result gespeichert wurde)
   await repo.setStatus(jobId, 'completed')
   clearWatchdog(jobId)
+
   // Shadow-Twin-State nach Abschluss des Extract-Only-Laufs explizit auf "ready" setzen,
   // sofern bereits ein Shadow-Twin-State existiert. Damit ist für das UI klar erkennbar,
   // dass der Shadow-Twin für diese Datei vollständig vorliegt, auch ohne Template/Ingest.
@@ -328,18 +334,7 @@ export async function runExtractOnly(
   } catch {
     // Fehler bei der Status-Aktualisierung sind nicht kritisch für den Job-Abschluss
   }
-  await repo.setResult(
-    jobId,
-    {
-      extracted_text: extractedText,
-      images_archive_url: imagesArchiveUrlFromWorker || undefined,
-      metadata: (body?.data as { metadata?: unknown })?.metadata as Record<string, unknown> | undefined,
-    },
-    {
-      savedItemId,
-      savedItems: savedItems.length > 0 ? savedItems : savedItemId ? [savedItemId] : [],
-    }
-  )
+
   await repo.appendLog(jobId, {
     phase: 'completed',
     message: 'Job abgeschlossen (extract only: phases disabled)',

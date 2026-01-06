@@ -2,8 +2,11 @@
  * @fileoverview Unit-Tests für Shadow-Twin Artefakt Writer
  * 
  * @description
- * Testet writeArtifact() für v2 und legacy Modi, Deduplizierung (überschreibt statt dupliziert),
- * dotFolder vs sibling, und verschiedene Artefakt-Typen.
+ * Testet writeArtifact() im v2-only Runtime-Modus:
+ * - deterministische Namensgebung
+ * - Deduplizierung (überschreibt statt dupliziert)
+ * - dotFolder vs sibling
+ * - verschiedene Artefakt-Typen
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -101,7 +104,7 @@ describe('writeArtifact', () => {
     vi.clearAllMocks();
   });
 
-  describe('V2-Modus', () => {
+  describe('v2-only', () => {
     it('sollte neues Transcript im dotFolder erstellen', async () => {
       const sourceName = 'document.pdf';
       const parentId = 'parent-1';
@@ -127,7 +130,6 @@ describe('writeArtifact', () => {
         sourceName,
         parentId,
         content: '# Transcript',
-        mode: 'v2',
         createFolder: true,
       });
 
@@ -170,7 +172,6 @@ describe('writeArtifact', () => {
         sourceName,
         parentId,
         content: '# Updated Transcript',
-        mode: 'v2',
         createFolder: true,
       });
 
@@ -198,7 +199,6 @@ describe('writeArtifact', () => {
         sourceName,
         parentId,
         content: '# Transcript',
-        mode: 'v2',
         createFolder: false,
       });
 
@@ -238,7 +238,6 @@ describe('writeArtifact', () => {
         sourceName,
         parentId,
         content: '# Updated Transcript',
-        mode: 'v2',
         createFolder: false,
       });
 
@@ -274,7 +273,6 @@ describe('writeArtifact', () => {
         sourceName,
         parentId,
         content: '# Transformation',
-        mode: 'v2',
         createFolder: true,
       });
 
@@ -307,7 +305,6 @@ describe('writeArtifact', () => {
         sourceName,
         parentId,
         content: '# Transcript',
-        mode: 'v2',
         createFolder: true,
       });
 
@@ -316,117 +313,9 @@ describe('writeArtifact', () => {
       expect(mockProvider.createFolder).toHaveBeenCalledWith(parentId, '.document.pdf');
     });
   });
-
-  describe('Legacy-Modus', () => {
-    it('sollte neues Transcript im dotFolder erstellen', async () => {
-      const sourceName = 'document.pdf';
-      const parentId = 'parent-1';
-      const shadowTwinFolderId = 'shadow-folder-1';
-      const shadowTwinFolder: StorageItem = {
-        id: shadowTwinFolderId,
-        type: 'folder',
-        metadata: { name: '.document.pdf' },
-        parentId,
-      };
-
-      vi.mocked(findShadowTwinFolder).mockResolvedValue(shadowTwinFolder);
-      vi.mocked(mockProvider.listItemsById).mockResolvedValue([]);
-
-      const key: ArtifactKey = {
-        sourceId: 'source-1',
-        kind: 'transcript',
-        targetLanguage: 'de',
-      };
-
-      const result = await writeArtifact(mockProvider, {
-        key,
-        sourceName,
-        parentId,
-        content: '# Transcript',
-        mode: 'legacy',
-        createFolder: true,
-      });
-
-      expect(result).not.toBeNull();
-      expect(result.location).toBe('dotFolder');
-      expect(result.wasUpdated).toBe(false);
-      expect(result.file.metadata.name).toBe('document.de.md');
-    });
-
-    it('sollte existierendes Transcript im dotFolder überschreiben', async () => {
-      const sourceName = 'document.pdf';
-      const parentId = 'parent-1';
-      const shadowTwinFolderId = 'shadow-folder-1';
-      const existingFile: StorageItem = {
-        id: 'existing-1',
-        type: 'file',
-        metadata: { name: 'document.de.md' },
-        parentId: shadowTwinFolderId,
-      };
-      const shadowTwinFolder: StorageItem = {
-        id: shadowTwinFolderId,
-        type: 'folder',
-        metadata: { name: '.document.pdf' },
-        parentId,
-      };
-
-      vi.mocked(findShadowTwinFolder).mockResolvedValue(shadowTwinFolder);
-      vi.mocked(mockProvider.listItemsById).mockResolvedValue([existingFile]);
-
-      const key: ArtifactKey = {
-        sourceId: 'source-1',
-        kind: 'transcript',
-        targetLanguage: 'de',
-      };
-
-      const result = await writeArtifact(mockProvider, {
-        key,
-        sourceName,
-        parentId,
-        content: '# Updated Transcript',
-        mode: 'legacy',
-        createFolder: true,
-      });
-
-      expect(result).not.toBeNull();
-      expect(result.wasUpdated).toBe(true);
-    });
-
-    it('sollte Transformation mit Template-Name erstellen', async () => {
-      const sourceName = 'audio.mp3';
-      const parentId = 'parent-1';
-      const shadowTwinFolderId = 'shadow-folder-1';
-      const shadowTwinFolder: StorageItem = {
-        id: shadowTwinFolderId,
-        type: 'folder',
-        metadata: { name: '.audio.mp3' },
-        parentId,
-      };
-
-      vi.mocked(findShadowTwinFolder).mockResolvedValue(shadowTwinFolder);
-      vi.mocked(mockProvider.listItemsById).mockResolvedValue([]);
-
-      const key: ArtifactKey = {
-        sourceId: 'source-1',
-        kind: 'transformation',
-        targetLanguage: 'de',
-        templateName: 'Besprechung',
-      };
-
-      const result = await writeArtifact(mockProvider, {
-        key,
-        sourceName,
-        parentId,
-        content: '# Transformation',
-        mode: 'legacy',
-        createFolder: true,
-      });
-
-      expect(result).not.toBeNull();
-      expect(result.file.metadata.name).toBe('audio.Besprechung.de.md');
-    });
-  });
 });
+
+
 
 
 

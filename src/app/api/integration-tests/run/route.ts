@@ -9,6 +9,7 @@ interface RunRequestBody {
   testCaseIds?: string[];
   fileIds?: string[];
   jobTimeoutMs?: number;
+  templateName?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -48,6 +49,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const templateName = typeof body.templateName === 'string' && body.templateName.trim().length > 0 && body.templateName !== 'auto'
+      ? body.templateName.trim()
+      : undefined;
+
     const runResult = await runIntegrationTests({
       userEmail,
       libraryId,
@@ -55,6 +60,7 @@ export async function POST(request: NextRequest) {
       testCaseIds: selectedIds,
       fileIds,
       jobTimeoutMs,
+      templateName,
     })
 
     return NextResponse.json(
@@ -63,6 +69,7 @@ export async function POST(request: NextRequest) {
         libraryId,
         folderId,
         testCaseIds: selectedIds,
+        summary: runResult.summary,
         results: runResult.results.map(r => ({
           testCaseId: r.testCase.id,
           testCaseLabel: r.testCase.label,

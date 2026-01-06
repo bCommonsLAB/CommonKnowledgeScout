@@ -100,7 +100,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
   const [shadowTwinMode, setShadowTwinMode] = useState<'legacy' | 'v2'>('legacy');
-  const [isConverting, setIsConverting] = useState(false);
+  const [isUpgradingShadowTwinMode, setIsUpgradingShadowTwinMode] = useState(false);
   
   // Aktuelle Bibliothek aus dem globalen Zustand
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
@@ -632,18 +632,23 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                     </div>
                     {shadowTwinMode === 'legacy' && (
                       <div className="mt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Dieser Modus ist in der Anwendung nicht mehr unterstützt (v2-only Runtime).
+                          Bitte stelle die Library auf <span className="font-mono">v2</span> um, damit normale Verarbeitung/Erstellung wieder möglich ist.
+                        </p>
                         <Button
                           type="button"
                           variant="outline"
                           onClick={async () => {
                             if (!activeLibrary?.id) return;
                             
-                            setIsConverting(true);
+                            setIsUpgradingShadowTwinMode(true);
                             try {
                               const response = await fetch(`/api/library/${activeLibrary.id}/shadow-twin-mode`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ mode: 'v2', startConversion: true }),
+                                // WICHTIG: Keine Migration/Conversion hier. Wir setzen nur das Config-Flag.
+                                body: JSON.stringify({ mode: 'v2' }),
                               });
                               
                               if (!response.ok) {
@@ -654,8 +659,8 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                               setShadowTwinMode('v2');
                               
                               toast({
-                                title: 'Konvertierung gestartet',
-                                description: 'Die Bibliothek wurde auf v2-Modus umgestellt. Die Konvertierung läuft im Hintergrund.',
+                                title: 'Shadow-Twin-Modus aktualisiert',
+                                description: 'Die Bibliothek ist jetzt auf v2 gestellt (ohne Migration bestehender Artefakte).',
                               });
                             } catch (error) {
                               toast({
@@ -664,15 +669,15 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                 variant: 'destructive',
                               });
                             } finally {
-                              setIsConverting(false);
+                              setIsUpgradingShadowTwinMode(false);
                             }
                           }}
-                          disabled={isConverting}
+                          disabled={isUpgradingShadowTwinMode}
                         >
-                          {isConverting ? 'Konvertiere...' : 'Zu v2 konvertieren'}
+                          {isUpgradingShadowTwinMode ? 'Stelle um...' : 'Auf v2 umstellen'}
                         </Button>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Konvertiert die Bibliothek auf den neuen Shadow-Twin-Modus mit deterministischen IDs.
+                          Setzt nur das Konfigurations-Flag. Eine Migration/Repair bestehender Artefakte erfolgt bewusst später.
                         </p>
                       </div>
                     )}

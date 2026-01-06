@@ -777,7 +777,31 @@ export async function POST(request: NextRequest) {
         const JSZip = await import('jszip')
         const zip = new JSZip.default()
         const buf = Buffer.from(zipBase64, 'base64')
-        const zipContent = await zip.loadAsync(buf)
+        // Wenn der Input kein ZIP ist (oder leer), soll das NICHT als 500 hochpoppen.
+        // Das passiert z.B. bei PDFs ohne eingebettete Bilder, wenn upstream ein leeres/kleines Payload liefert.
+        const looksLikeZipMagic = buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b // 'PK'
+        if (!looksLikeZipMagic || buf.length < 256) {
+          return NextResponse.json({
+            savedItems: [],
+            skipped: true,
+            reason: 'invalid_zip_or_too_small',
+            bytes: buf.length,
+          })
+        }
+
+        let zipContent: import('jszip').JSZip
+        try {
+          zipContent = await zip.loadAsync(buf)
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error)
+          return NextResponse.json({
+            savedItems: [],
+            skipped: true,
+            reason: 'invalid_zip',
+            message: msg,
+            bytes: buf.length,
+          })
+        }
 
         const saved: StorageItem[] = []
 

@@ -13,7 +13,6 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { FileLogger } from '@/lib/debug/logger';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import { resolveArtifact, type ResolvedArtifact } from '@/lib/shadow-twin/artifact-resolver';
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper';
 import { LibraryService } from '@/lib/services/library-service';
 import type { StorageItem } from '@/lib/storage/types';
 
@@ -137,7 +136,6 @@ export async function POST(
       return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 });
     }
 
-    const mode = getShadowTwinMode(library);
     const provider = await getServerProvider(userEmail, libraryId);
     const preferredKind = body.preferredKind || 'transformation';
 
@@ -148,7 +146,6 @@ export async function POST(
           sourceItemId: source.sourceId,
           sourceName: source.sourceName,
           parentId: source.parentId,
-          mode,
           targetLanguage: source.targetLanguage || 'de',
           preferredKind,
         });

@@ -164,7 +164,7 @@ Nach Migration pro Library:
    - Performance prüfen: Wie lange dauert die Migration pro Library?
 
 5. **Dokumentation aktualisieren**:
-   - Nach erfolgreicher Migration: Status in `docs/_analysis/mongodb-vector-search-ingestion-analysis.md` aktualisieren
+   - Nach erfolgreicher Migration: Status im kanonischen Ingestion-Dokument aktualisieren (`docs/analysis/ingestion.md`)
    - Liste der migrierten Libraries führen
 
 ## Migrations-Script-Konzept

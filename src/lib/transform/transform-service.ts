@@ -131,57 +131,6 @@ interface TransformMetadata {
  */
 export class TransformService {
   /**
-   * Bestimmt den Shadow-Twin-Modus einer Library aus libraryId.
-   * Lädt die Library aus MongoDB, falls nötig (nur serverseitig).
-   * 
-   * WICHTIG: Im Browser wird immer 'legacy' zurückgegeben, um MongoDB-Import zu vermeiden.
-   * 
-   * @param libraryId ID der Library
-   * @param userEmail Optional: E-Mail des Benutzers (für Library-Zugriff, nur serverseitig)
-   * @returns 'legacy' oder 'v2'
-   */
-  private static async getLibraryMode(libraryId: string, userEmail?: string): Promise<'legacy' | 'v2'> {
-    // Prüfe, ob wir im Browser sind (typeof window !== 'undefined')
-    if (typeof window !== 'undefined') {
-      // Browser-Umgebung: Verwende immer 'legacy', um MongoDB-Import zu vermeiden
-      FileLogger.debug('TransformService', 'Browser-Umgebung erkannt, verwende legacy-Modus', { libraryId });
-      return 'legacy';
-    }
-    
-    // Server-Umgebung: Lade Library aus MongoDB
-    try {
-      // Dynamischer Import nur serverseitig
-      if (!LibraryService) {
-        const libraryServiceModule = await import("@/lib/services/library-service");
-        LibraryService = libraryServiceModule.LibraryService;
-      }
-      
-      const libraryService = LibraryService.getInstance();
-      let library: Library | null = null;
-      
-      if (userEmail) {
-        library = await libraryService.getLibrary(userEmail, libraryId);
-      }
-      
-      // Falls keine Library gefunden, versuche öffentliche Library
-      if (!library) {
-        // Für öffentliche Libraries müssten wir getPublicLibraryById nutzen
-        // Für jetzt: Default zu legacy
-        FileLogger.debug('TransformService', 'Library nicht gefunden, verwende legacy-Modus', { libraryId });
-        return 'legacy';
-      }
-      
-      return getShadowTwinMode(library);
-    } catch (error) {
-      FileLogger.warn('TransformService', 'Fehler beim Laden der Library, verwende legacy-Modus', { 
-        libraryId, 
-        error: error instanceof Error ? error.message : String(error) 
-      });
-      return 'legacy';
-    }
-  }
-
-  /**
    * Transformiert eine Audio-Datei in Text
    * @param file Die zu transformierende Audio-Datei
    * @param originalItem Das ursprüngliche StorageItem
@@ -1073,19 +1022,6 @@ export class TransformService {
     // Nutze explizit übergebenen ArtifactKey (ERFORDERLICH - kein Parsing mehr!)
     const key = artifactKey;
     
-    // Bestimme Library-Modus
-    let mode: 'legacy' | 'v2' = 'legacy';
-    if (libraryId) {
-      try {
-        mode = await this.getLibraryMode(libraryId);
-      } catch (error) {
-        FileLogger.warn('TransformService', 'Fehler beim Bestimmen des Library-Modus, verwende legacy', {
-          libraryId,
-          error: error instanceof Error ? error.message : String(error)
-        });
-      }
-    }
-    
     // Prüfe ob Shadow-Twin-Verzeichnis verwendet werden soll
     const createFolder = parentId && parentId !== originalItem.parentId;
     
@@ -1099,7 +1035,6 @@ export class TransformService {
       sourceName: cleanSourceName,
       parentId: targetParentId,
       content,
-      mode,
       createFolder,
     });
     
@@ -1114,7 +1049,6 @@ export class TransformService {
       fileName: writeResult.file.metadata.name,
       location: writeResult.location,
       wasUpdated: writeResult.wasUpdated,
-      mode
     });
     
     return {
@@ -1123,45 +1057,6 @@ export class TransformService {
     };
   }
   
-  // Legacy-Implementierung für Fallback (wenn Parsing fehlschlägt)
-  private static async saveTwinFileLegacy(
-    content: string,
-    originalItem: StorageItem,
-    fileName: string,
-    fileExtension: string,
-    provider: StorageProvider,
-    refreshItems: (folderId: string) => Promise<StorageItem[]>,
-    parentId?: string
-  ): Promise<{ savedItem?: StorageItem; updatedItems: StorageItem[] }> {
-    const targetParentId = parentId || originalItem.parentId;
-    const currentItems = await refreshItems(targetParentId);
-    
-    // Funktion zum Generieren eines eindeutigen Dateinamens
-    const generateUniqueFileName = (baseName: string, extension: string): string => {
-      let counter = 0;
-      let candidateName = `${baseName}.${extension}`;
-      
-      while (currentItems.some(item => 
-        item.type === 'file' && 
-        item.metadata.name.toLowerCase() === candidateName.toLowerCase()
-      )) {
-        counter++;
-        candidateName = `${baseName}(${counter}).${extension}`;
-      }
-      
-      return candidateName;
-    };
-    
-    const uniqueFileName = generateUniqueFileName(fileName, fileExtension);
-    const fileBlob = new Blob([content], { type: "text/markdown" });
-    const file = new File([fileBlob], uniqueFileName, { type: "text/markdown" });
-    
-    const savedItem = await provider.uploadFile(targetParentId, file);
-    const updatedItems = await refreshItems(targetParentId);
-    
-    return { savedItem, updatedItems };
-  }
-
   /**
    * Speichert einen bereits transformierten Text direkt ohne erneute Transformation
    * 

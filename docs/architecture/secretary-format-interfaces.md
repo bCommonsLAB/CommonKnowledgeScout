@@ -8,7 +8,7 @@ Dieses Dokument definiert die **formatspezifischen Schnittstellen** zwischen:
 Ziel ist ein **Implementationsvertrag** für die artefakt‑zentrierte Pipeline (Variante 3), insbesondere für V0 (PDF Mistral OCR + Pages/Images) und V1 (Audio/Video/YouTube/DOCX/XLSX).
 
 Quellen:
-- API Überblick: `docs/_analysis/SecretaryService API overview.md`
+- API overview (work-in-progress): `docs/_analysis/SecretaryService API overview.md`
 - Bestehende Next Routes: `src/app/api/secretary/*/route.ts`
 - Bestehende Typen: `src/lib/secretary/client.ts`
 

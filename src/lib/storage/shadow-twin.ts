@@ -116,50 +116,6 @@ export async function findShadowTwinFolder(
 }
 
 /**
- * Findet die Markdown-Datei im Shadow-Twin-Verzeichnis
- * 
- * Sucht zuerst nach dem transformierten File (mit Language-Suffix),
- * falls nicht gefunden, nach dem Transcript-File (ohne Language-Suffix).
- * 
- * @param folderId ID des Shadow-Twin-Verzeichnisses
- * @param baseName Basisname der Originaldatei (ohne Extension)
- * @param lang Zielsprache
- * @param provider Storage Provider
- * @param preferTransformed Wenn true: Suche zuerst transformiertes File (Standard)
- * @returns Gefundene Markdown-Datei oder null
- */
-export async function findShadowTwinMarkdown(
-  folderId: string,
-  baseName: string,
-  lang: string,
-  provider: StorageProvider,
-  preferTransformed: boolean = true
-): Promise<StorageItem | null> {
-  const items = await provider.listItemsById(folderId);
-  
-  if (preferTransformed) {
-    // Zuerst transformiertes File suchen (mit Language-Suffix)
-    // WICHTIG: baseName kann Punkte enthalten (z.B. "vs.") und ist bereits "ohne Extension".
-    // Daher den Namen hier direkt aus baseName zusammensetzen (nicht path.parse() verwenden).
-    const transformedName = `${baseName}.${lang}.md`;
-    const transformed = items.find(
-      item => item.type === 'file' && 
-      item.metadata.name === transformedName
-    );
-    if (transformed) return transformed;
-  }
-  
-  // Fallback: Transcript-File suchen (ohne Language-Suffix)
-  const transcriptName = `${baseName}.md`;
-  const transcript = items.find(
-    item => item.type === 'file' && 
-    item.metadata.name === transcriptName
-  );
-  
-  return transcript || null;
-}
-
-/**
  * Findet ein Bild im Shadow-Twin-Verzeichnis oder im Parent-Verzeichnis (Fallback)
  * 
  * Diese Funktion zentralisiert die Bild-Auflösungslogik für Shadow-Twin-Dateien.

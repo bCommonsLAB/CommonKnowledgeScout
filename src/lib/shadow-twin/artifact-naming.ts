@@ -77,7 +77,15 @@ export function parseArtifactName(
   fileName: string,
   sourceBaseName?: string
 ): ParsedArtifactName {
-  const baseName = extractBaseName(fileName);
+  // WICHTIG:
+  // Der Basisname kann Punkte enthalten (z.B. "Commoning vs. Kommerz").
+  // Wir dürfen daher NICHT versuchen, den Basisnamen aus dem Artefakt-Dateinamen heuristisch
+  // über "letzter Punkt" zu erraten, wenn wir den echten Basisnamen der Quelle kennen.
+  // Sonst wird ein Transcript wie "...vs. Kommerz.de.md" fälschlich als Transformation
+  // mit templateName=" Kommerz" geparsed.
+  const baseName = typeof sourceBaseName === 'string' && sourceBaseName.trim().length > 0
+    ? sourceBaseName.trim()
+    : extractBaseName(fileName);
   
   // Entferne Extension
   const withoutExt = fileName.replace(/\.md$/i, '');
@@ -95,17 +103,22 @@ export function parseArtifactName(
       const withoutLang = withoutExt.slice(0, -langSuffix.length);
       
       // Prüfe ob noch ein Template vorhanden ist
-      if (withoutLang !== baseName) {
-        // Es gibt noch etwas zwischen baseName und .{lang}
+      if (withoutLang === baseName) {
+        // Nur Language-Suffix, kein Template
+        kind = 'transcript';
+      } else if (withoutLang.startsWith(`${baseName}.`)) {
+        // Transformation: {baseName}.{template}.{lang}
         const templatePart = withoutLang.slice(baseName.length + 1); // +1 für den Punkt
         if (templatePart.length > 0) {
           templateName = templatePart;
           kind = 'transformation';
         } else {
+          // Defensive: eigentlich unmöglich, aber wir bleiben tolerant.
           kind = 'transcript';
         }
       } else {
-        // Nur Language-Suffix, kein Template
+        // Fallback: Wenn ohneLang nicht zum baseName passt, können wir es ohne Kontext nicht sicher entscheiden.
+        // Wir bleiben konservativ: Transcript (damit Resolver/Validator nicht fälschlich Templates "erfinden").
         kind = 'transcript';
       }
       break;
@@ -171,6 +184,7 @@ export function artifactKeysEqual(key1: ArtifactKey, key2: ArtifactKey): boolean
     key1.templateName === key2.templateName
   );
 }
+
 
 
 

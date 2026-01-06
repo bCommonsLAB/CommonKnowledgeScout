@@ -821,7 +821,7 @@ function CreationFlowEditor({
     setDraggedStepIndex(null)
   }
 
-  const availablePresets = ['welcome', 'collectSource', 'reviewMarkdown', 'generateDraft', 'previewDetail', 'editDraft', 'uploadImages', 'selectRelatedTestimonials']
+  const availablePresets = ['welcome', 'collectSource', 'reviewMarkdown', 'generateDraft', 'previewDetail', 'publish', 'editDraft', 'uploadImages', 'selectRelatedTestimonials']
   
   // Verfügbare Feldnamen aus Metadaten extrahieren
   const availableFieldKeys = metadata.fields.map(f => f.key)

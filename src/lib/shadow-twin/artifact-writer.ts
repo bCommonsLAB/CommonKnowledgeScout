@@ -20,7 +20,6 @@ import { buildArtifactName } from './artifact-naming';
 import { findShadowTwinFolder, generateShadowTwinFolderName } from '@/lib/storage/shadow-twin';
 import { FileLogger } from '@/lib/debug/logger';
 import { logArtifactWrite } from './artifact-logger';
-import path from 'path';
 
 /**
  * Optionen für das Schreiben eines Artefakts.
@@ -34,8 +33,6 @@ export interface WriteArtifactOptions {
   parentId: string;
   /** Markdown-Inhalt des Artefakts */
   content: string;
-  /** Modus: 'legacy' (alte Heuristik) oder 'v2' (neue Namenskonventionen) */
-  mode: 'legacy' | 'v2';
   /** Optional: Soll ein Shadow-Twin-Verzeichnis erstellt werden (für komplexe Medien) */
   createFolder?: boolean;
 }
@@ -65,27 +62,21 @@ export async function writeArtifact(
   provider: StorageProvider,
   options: WriteArtifactOptions
 ): Promise<WriteArtifactResult> {
-  const { key, sourceName, parentId, content, mode, createFolder } = options;
+  const { key, sourceName, parentId, content, createFolder } = options;
 
   // Logging: Start
   logArtifactWrite('start', {
     sourceId: key.sourceId,
     sourceName,
     kind: key.kind,
-    mode,
   });
 
   let result: WriteArtifactResult;
   let error: string | undefined;
 
   try {
-    if (mode === 'v2') {
-      // V2-Modus: Nutze neue Namenskonventionen und deterministische Deduplizierung
-      result = await writeArtifactV2(provider, options);
-    } else {
-      // Legacy-Modus: Nutze bestehende Heuristik
-      result = await writeArtifactLegacy(provider, options);
-    }
+    // V2-Modus: Nutze neue Namenskonventionen und deterministische Deduplizierung
+    result = await writeArtifactV2(provider, options);
 
     // Logging: Erfolg
     logArtifactWrite('success', {
@@ -94,7 +85,6 @@ export async function writeArtifact(
       kind: key.kind,
       location: result.location,
       fileName: result.file.metadata.name,
-      mode,
       wasUpdated: result.wasUpdated,
     });
 
@@ -105,7 +95,6 @@ export async function writeArtifact(
       sourceId: key.sourceId,
       sourceName,
       kind: key.kind,
-      mode,
       error,
     });
     throw err;
@@ -153,6 +142,10 @@ async function writeArtifactV2(
         fileName,
         location: 'dotFolder',
       });
+
+      // WICHTIG: Viele Provider unterstützen kein "overwrite-by-id".
+      // Um Duplikate zu verhindern, löschen wir die bestehende Datei und laden sie neu hoch.
+      await provider.deleteItem(existingFile.id)
 
       // Erstelle neuen Blob mit aktualisiertem Inhalt
       const fileBlob = new Blob([content], { type: 'text/markdown' });
@@ -202,6 +195,10 @@ async function writeArtifactV2(
         location: 'sibling',
       });
 
+      // WICHTIG: Viele Provider unterstützen kein "overwrite-by-id".
+      // Um Duplikate zu verhindern, löschen wir die bestehende Datei und laden sie neu hoch.
+      await provider.deleteItem(existingFile.id)
+
       const fileBlob = new Blob([content], { type: 'text/markdown' });
       const file = new File([fileBlob], fileName, { type: 'text/markdown' });
 
@@ -225,84 +222,6 @@ async function writeArtifactV2(
         location: 'sibling',
       });
 
-      return {
-        file: newFile,
-        location: 'sibling',
-        wasUpdated: false,
-      };
-    }
-  }
-}
-
-/**
- * Legacy-Schreiben mit bestehender Heuristik.
- */
-async function writeArtifactLegacy(
-  provider: StorageProvider,
-  options: WriteArtifactOptions
-): Promise<WriteArtifactResult> {
-  const { key, sourceName, parentId, content, createFolder } = options;
-
-  const sourceBaseName = path.parse(sourceName).name;
-  const fileName = key.templateName
-    ? `${sourceBaseName}.${key.templateName}.${key.targetLanguage}.md`
-    : `${sourceBaseName}.${key.targetLanguage}.md`;
-
-  // Legacy-Logik: Prüfe ob Verzeichnis erstellt werden soll
-  if (createFolder) {
-    let shadowTwinFolder = await findShadowTwinFolder(parentId, sourceName, provider);
-    
-    if (!shadowTwinFolder) {
-      const folderName = generateShadowTwinFolderName(sourceName);
-      shadowTwinFolder = await provider.createFolder(parentId, folderName);
-    }
-
-    // Prüfe ob Datei existiert (Legacy: mit Counter-Fallback)
-    const items = await provider.listItemsById(shadowTwinFolder.id);
-    const existingFile = items.find(
-      item => item.type === 'file' && item.metadata.name === fileName
-    );
-
-    const fileBlob = new Blob([content], { type: 'text/markdown' });
-    const file = new File([fileBlob], fileName, { type: 'text/markdown' });
-
-    if (existingFile) {
-      // Legacy: Überschreiben (könnte auch Counter-Logik sein, je nach Provider)
-      const updatedFile = await provider.uploadFile(shadowTwinFolder.id, file);
-      return {
-        file: updatedFile,
-        location: 'dotFolder',
-        shadowTwinFolderId: shadowTwinFolder.id,
-        wasUpdated: true,
-      };
-    } else {
-      const newFile = await provider.uploadFile(shadowTwinFolder.id, file);
-      return {
-        file: newFile,
-        location: 'dotFolder',
-        shadowTwinFolderId: shadowTwinFolder.id,
-        wasUpdated: false,
-      };
-    }
-  } else {
-    // Sibling-Datei
-    const siblings = await provider.listItemsById(parentId);
-    const existingFile = siblings.find(
-      item => item.type === 'file' && item.metadata.name === fileName
-    );
-
-    const fileBlob = new Blob([content], { type: 'text/markdown' });
-    const file = new File([fileBlob], fileName, { type: 'text/markdown' });
-
-    if (existingFile) {
-      const updatedFile = await provider.uploadFile(parentId, file);
-      return {
-        file: updatedFile,
-        location: 'sibling',
-        wasUpdated: true,
-      };
-    } else {
-      const newFile = await provider.uploadFile(parentId, file);
       return {
         file: newFile,
         location: 'sibling',
