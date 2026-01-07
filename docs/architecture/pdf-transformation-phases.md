@@ -1,5 +1,18 @@
 # PDF Transformation Phases
 
+Status: active  
+Last verified: 2026-01-06  
+
+### Scope
+This document describes the **current PDF processing pipeline** (Extract → Template → Ingestion) and how it maps to the external-jobs runtime.
+It also documents the **artifact contracts** (Shadow‑Twin) that downstream UI and ingestion rely on.
+
+### Glossary
+- **Transcript**: extracted Markdown without frontmatter (Phase 1 output)
+- **Transformation**: template-based Markdown with frontmatter/metadata (Phase 2 output)
+- **Ingestion**: RAG upsert into MongoDB Atlas Vector Search (Phase 3)
+- **Shadow‑Twin**: derived artifacts stored next to the source file (often in a dot-folder)
+
 ## Overview
 
 PDF transformation consists of three sequential phases that convert a PDF file into a searchable, structured document ready for RAG (Retrieval Augmented Generation). Each phase builds upon the previous one, creating intermediate artifacts that can be reused or skipped based on policies.
@@ -336,25 +349,28 @@ Complete
 
 ## File Naming Convention
 
-### Transcript File (Phase 1)
+### v2-only artifact naming (Shadow‑Twin)
 
-- **Format**: `{originalName}.md`
-- **Example**: `document.md`
-- **Language**: No suffix (original language)
-- **Content**: Extracted text without frontmatter
+In the current runtime, file naming is **deterministic** and shared across all media types.
+Do not rely on legacy “`originalName.md`” heuristics.
 
-### Transformed File (Phase 2)
-
-- **Format**: `{originalName}.{language}.md`
+#### Transcript artifact (Phase 1)
+- **Format**: `{baseName}.{language}.md`
 - **Example**: `document.de.md`
-- **Language**: With suffix (target language)
-- **Content**: Text with frontmatter and metadata
+- **Content**: extracted Markdown (typically **without** frontmatter)
 
-### Why Different Names?
+#### Transformation artifact (Phase 2)
+- **Format**: `{baseName}.{templateName}.{language}.md`
+- **Example**: `document.pdfanalyse.de.md`
+- **Content**: Markdown **with** frontmatter/metadata
 
-- **Transcript**: Original language, no transformation → no language suffix
-- **Transformed**: Translated/structured, target language → language suffix
-- **Coexistence**: Both files can exist simultaneously (no overwrite)
+#### Location
+Artifacts can live either:
+1) inside a **dot-folder** `.{originalName}/` (recommended when multiple assets exist), or  
+2) as **siblings** next to the PDF (common when only Markdown exists).
+
+#### Update semantics
+Re-running the same phase **updates** (overwrites) the canonical artifact instead of creating duplicates.
 
 ## Error Handling
 

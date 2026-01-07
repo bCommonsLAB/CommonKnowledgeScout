@@ -546,8 +546,12 @@ export async function POST(
         // DETERMINISTISCHE ARCHITEKTUR: Verwende Shadow-Twin-Verzeichnis aus Job-State
         // Der Kontext wurde beim Job-Start bestimmt und im Job-State gespeichert
         // Jeder Job hat seinen eigenen isolierten Kontext - keine gegenseitige Beeinflussung
-        const shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
-        const targetParentId = shadowTwinFolderId || job.correlation?.source?.parentId || 'root';
+        // IMPORTANT:
+        // `targetParentId` must be able to switch to a newly created dot-folder during this callback.
+        // Otherwise: transcript can be written into a new dot-folder, but template output is still written
+        // into the original parent folder (and in some cases transcript can be overwritten by accident).
+        let shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
+        let targetParentId = shadowTwinFolderId || job.correlation?.source?.parentId || 'root';
 
         // WICHTIG: Wenn Extract-Phase aktiviert ist und extractedText vorhanden ist,
         // speichere das Transcript-Markdown SOFORT, bevor die Template-Phase ausgeführt wird.
@@ -585,6 +589,37 @@ export async function POST(
               content: cleanText,
               createFolder,
             })
+
+            // If the transcript write created/used a dot-folder, use it for all subsequent phases in this callback.
+            // This ensures transformations are stored next to the transcript (Shadow‑Twin truth).
+            if (!shadowTwinFolderId && writeResult.shadowTwinFolderId) {
+              shadowTwinFolderId = writeResult.shadowTwinFolderId
+              targetParentId = shadowTwinFolderId
+            }
+
+            // Trace: Transcript-Speicherung explizit als Event persistieren (bufferLog allein ist im Trace nicht sichtbar).
+            try {
+              const parentPath = await provider.getPathById(targetParentId).catch(() => null)
+              await repo.traceAddEvent(jobId, {
+                spanId: 'extract',
+                name: 'extract_transcript_saved',
+                attributes: {
+                  artifactKind: artifactKey.kind,
+                  targetLanguage: artifactKey.targetLanguage,
+                  templateName: (artifactKey as { templateName?: string }).templateName || null,
+                  parentId: targetParentId,
+                  shadowTwinFolderId: shadowTwinFolderId || null,
+                  location: writeResult.location,
+                  wasUpdated: writeResult.wasUpdated,
+                  fileId: writeResult.file.id,
+                  fileName: writeResult.file.metadata.name,
+                  contentLength: cleanText.length,
+                  path: parentPath ? `${parentPath}/${writeResult.file.metadata.name}` : null,
+                },
+              })
+            } catch {
+              // Trace ist best-effort
+            }
             
             bufferLog(jobId, {
               phase: 'extract_transcript_saved',
@@ -613,6 +648,12 @@ export async function POST(
                     message: 'Shadow-Twin-State nach Transcript-Speicherung aktualisiert',
                     shadowTwinFolderId: updatedShadowTwinState.shadowTwinFolderId || null,
                   })
+
+                  // Keep the callback-local targetParentId in sync with the analyzed state.
+                  if (updatedShadowTwinState.shadowTwinFolderId) {
+                    shadowTwinFolderId = updatedShadowTwinState.shadowTwinFolderId
+                    targetParentId = updatedShadowTwinState.shadowTwinFolderId
+                  }
                 }
               } catch (error) {
                 bufferLog(jobId, {

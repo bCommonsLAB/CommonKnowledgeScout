@@ -19,7 +19,7 @@ import { ImagePreview } from './image-preview';
 import { DocumentPreview } from './document-preview';
 import { FileLogger } from "@/lib/debug/logger"
 import { JobReportTab } from './job-report-tab';
-import { PdfPhasesView } from './pdf-phases-view';
+// PdfPhasesView ist bewusst NICHT mehr Teil der File-Preview (zu heavy). Flow-View ist der Expertenmodus.
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 import { parseFrontmatter } from '@/lib/markdown/frontmatter';
 import { DetailViewRenderer } from './detail-view-renderer';
@@ -27,6 +27,7 @@ import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-typ
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { resolveArtifactClient } from '@/lib/shadow-twin/artifact-client';
+import { ExternalLink } from "lucide-react";
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
@@ -459,7 +460,7 @@ function PreviewContent({
         itemId: item.id,
         itemName: item.metadata.name
       });
-      return <AudioPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} />;
+      return <AudioPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} showTransformControls={false} />;
     case 'image':
       FileLogger.info('PreviewContent', 'ImagePreview wird gerendert', {
         itemId: item.id,
@@ -473,6 +474,7 @@ function PreviewContent({
           provider={provider}
           activeLibraryId={activeLibraryId}
           onRefreshFolder={onRefreshFolder}
+          showTransformControls={false}
         />
       );
     case 'video':
@@ -480,7 +482,7 @@ function PreviewContent({
         itemId: item.id,
         itemName: item.metadata.name
       });
-      return <VideoPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} />;
+      return <VideoPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} showTransformControls={false} />;
     case 'markdown':
       FileLogger.debug('PreviewContent', 'Markdown-Editor wird gerendert', {
         itemId: item.id,
@@ -728,10 +730,10 @@ function PreviewContent({
       );
     case 'pdf':
       return (
-        <PdfPhasesView
-          item={item}
+        <DocumentPreviewComponent
           provider={provider}
-          markdownContent={""}
+          activeLibraryId={activeLibraryId}
+          onRefreshFolder={onRefreshFolder}
         />
       );
     case 'docx':
@@ -781,6 +783,7 @@ export function FilePreview({
   file,
   onRefreshFolder
 }: FilePreviewProps) {
+  const router = useRouter()
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const selectedFileFromAtom = useAtomValue(selectedFileAtom);
   
@@ -897,6 +900,39 @@ export function FilePreview({
 
   return (
     <div className={cn("h-full flex flex-col", className)}>
+      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+        <div className="min-w-0">
+          <div className="truncate text-xs text-muted-foreground">Vorschau</div>
+          <div className="truncate text-sm font-medium">{displayFile.metadata.name}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              const url = `/library/flow?libraryId=${encodeURIComponent(activeLibraryId)}&fileId=${encodeURIComponent(displayFile.id)}&parentId=${encodeURIComponent(displayFile.parentId)}`
+              router.push(url)
+            }}
+          >
+            Flow öffnen
+          </Button>
+          {provider ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const url = await provider.getStreamingUrl(displayFile.id)
+                  window.open(url, "_blank", "noopener,noreferrer")
+                } catch {}
+              }}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Quelle
+            </Button>
+          ) : null}
+        </div>
+      </div>
       <ContentLoader
         item={displayFile}
         provider={provider}

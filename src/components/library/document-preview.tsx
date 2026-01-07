@@ -4,10 +4,9 @@ import * as React from 'react';
 import { useAtomValue } from "jotai";
 import { selectedFileAtom } from "@/atoms/library-atom";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Wand2 } from "lucide-react";
+import { Download, ExternalLink, FileText } from "lucide-react";
 import { FileLogger } from "@/lib/debug/logger";
 import { StorageProvider, StorageItem } from "@/lib/storage/types";
-import { PdfTransform } from './pdf-transform';
 
 interface DocumentPreviewProps {
   provider: StorageProvider | null;
@@ -15,11 +14,10 @@ interface DocumentPreviewProps {
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-export function DocumentPreview({ provider, onRefreshFolder }: DocumentPreviewProps) {
+export function DocumentPreview({ provider }: DocumentPreviewProps) {
   const item = useAtomValue(selectedFileAtom);
   const [documentUrl, setDocumentUrl] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [showTransform, setShowTransform] = React.useState(false);
 
   React.useEffect(() => {
     if (!item || !provider) return;
@@ -80,8 +78,9 @@ export function DocumentPreview({ provider, onRefreshFolder }: DocumentPreviewPr
     }
   };
 
-  const handleTransformButtonClick = () => {
-    setShowTransform(true);
+  const handleOpenInNewTab = () => {
+    if (!documentUrl) return;
+    window.open(documentUrl, "_blank", "noopener,noreferrer");
   };
 
   // Bestimme das passende Icon basierend auf dem Dateityp
@@ -100,77 +99,58 @@ export function DocumentPreview({ provider, onRefreshFolder }: DocumentPreviewPr
           <div className="text-xs text-muted-foreground">
             {item.metadata.name}
           </div>
-          {onRefreshFolder && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleTransformButtonClick}
-            >
-              <Wand2 className="h-4 w-4 mr-2" />
-              Transformieren
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {documentUrl && !isLoading ? (
+              <Button onClick={handleOpenInNewTab} variant="ghost" size="sm">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Im neuen Tab öffnen
+              </Button>
+            ) : null}
+          </div>
         </div>
       )}
       
-      {showTransform ? (
-        <div className="flex-1 overflow-auto">
-          <PdfTransform 
-            onRefreshFolder={(folderId, updatedItems, twinItem) => {
-              FileLogger.info('DocumentPreview', 'PDF Transformation abgeschlossen', {
-                originalFile: item.metadata.name,
-                transcriptFile: updatedItems[0]?.metadata.name || 'unknown'
-              });
-              
-              // UI schließen
-              setShowTransform(false);
-              
-              // Informiere die übergeordnete Komponente über die Aktualisierung
-              if (onRefreshFolder) {
-                onRefreshFolder(folderId, updatedItems, twinItem);
-              }
-            }}
-          />
-        </div>
-      ) : (
-        (() => {
-          const mime = (item.metadata.mimeType || '').toLowerCase();
-          const isPdf = mime.includes('pdf') || item.metadata.name.toLowerCase().endsWith('.pdf');
-          if (isPdf && documentUrl) {
-            return (
-              <div className="relative flex-1 min-h-0">
-                <iframe
-                  src={documentUrl}
-                  title={item.metadata.name}
-                  className="absolute inset-0 w-full h-full"
-                />
-              </div>
-            );
-          }
+      {(() => {
+        const mime = (item.metadata.mimeType || '').toLowerCase();
+        const isPdf = mime.includes('pdf') || item.metadata.name.toLowerCase().endsWith('.pdf');
+        if (isPdf && documentUrl) {
           return (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-              <Icon className="h-16 w-16 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">{item.metadata.name}</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Dokumentvorschau ist für diesen Dateityp nicht verfügbar
-              </p>
-              <p className="text-xs text-muted-foreground mb-6">
-                Dateigröße: {(item.metadata.size / 1024).toFixed(2)} KB
-              </p>
-              {documentUrl && !isLoading && (
-                <Button 
-                  onClick={handleDownload}
-                  disabled={isLoading}
-                  variant="outline"
-                >
+            <div className="relative flex-1 min-h-0">
+              <iframe
+                src={documentUrl}
+                title={item.metadata.name}
+                className="absolute inset-0 w-full h-full"
+              />
+            </div>
+          );
+        }
+        return (
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+            <Icon className="h-16 w-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">{item.metadata.name}</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Dokumentvorschau ist für diesen Dateityp nicht verfügbar
+            </p>
+            <p className="text-xs text-muted-foreground mb-6">
+              Dateigröße: {(item.metadata.size / 1024).toFixed(2)} KB
+            </p>
+            <div className="flex flex-col gap-2">
+              {documentUrl && !isLoading ? (
+                <Button onClick={handleOpenInNewTab} variant="outline">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Im neuen Tab öffnen
+                </Button>
+              ) : null}
+              {documentUrl && !isLoading ? (
+                <Button onClick={handleDownload} disabled={isLoading} variant="outline">
                   <Download className="h-4 w-4 mr-2" />
                   Dokument herunterladen
                 </Button>
-              )}
+              ) : null}
             </div>
-          );
-        })()
-      )}
+          </div>
+        );
+      })()}
     </div>
   );
 } 

@@ -165,11 +165,34 @@ export async function POST(
       })
       // Watchdog-Fehler nicht kritisch - Job kann trotzdem fortgesetzt werden
     }
-    // Prüfe, ob Job gestartet werden kann
+    // Duplicate-Detection (nur Logging, kein Blockieren):
+    // Wir wollen doppelte /start Requests erkennen und Ursachen finden, statt hart zu blockieren.
     const startability = checkJobStartability(job)
+    const startRequestId = request.headers.get('x-start-request-id') || request.headers.get('x-request-id') || null
+    const workerIdFromHeader = request.headers.get('x-worker-id') || null
     if (!startability.canStart) {
-      try { await repo.traceAddEvent(jobId, { spanId: 'job', name: 'start_already_started' }) } catch {}
-      return NextResponse.json({ ok: true, status: 'already_started' }, { status: 202 })
+      FileLogger.warn('start-route', 'Start-Request erneut erhalten (nicht blockiert)', {
+        jobId,
+        reason: startability.reason || 'already_started',
+        jobStatus: job.status,
+        workerId: workerIdFromHeader,
+        startRequestId,
+        pid: process.pid,
+      })
+      try {
+        await repo.traceAddEvent(jobId, {
+          spanId: 'job',
+          name: 'start_duplicate_request',
+          level: 'warn',
+          attributes: {
+            reason: startability.reason || 'already_started',
+            jobStatus: job.status,
+            workerId: workerIdFromHeader,
+            startRequestId,
+            pid: process.pid,
+          },
+        })
+      } catch {}
     }
     
     // Erlaube Neustart, wenn Job fehlgeschlagen ist
@@ -487,6 +510,11 @@ export async function POST(
       useCache: opts['useCache'] ?? job.correlation?.options?.useCache ?? undefined,
       template: (job.parameters as Record<string, unknown> | undefined)?.['template'] ?? undefined,
       phases: (job.parameters as Record<string, unknown> | undefined)?.['phases'] ?? undefined,
+      // Duplicate-Diagnose:
+      startRequestId: request.headers.get('x-start-request-id') || request.headers.get('x-request-id') || undefined,
+      workerId: request.headers.get('x-worker-id') || undefined,
+      workerTickId: request.headers.get('x-worker-tick-id') || undefined,
+      pid: process.pid,
     } })
 
     // Entscheidungslogik: Gate-basierte Prüfung für Extract-Phase
@@ -829,9 +857,9 @@ export async function POST(
     // Secretary-Flow (Extract/Template)
     const secret = (await import('crypto')).randomBytes(24).toString('base64url')
     const secretHash = repo.hashSecret(secret)
-    // WICHTIG: Hash SOFORT im Job speichern, BEVOR der Request gesendet wird
-    // Dies stellt sicher, dass Callbacks vom Secretary Service korrekt validiert werden können
-    // Der Hash muss verfügbar sein, bevor der Secretary Service den Callback sendet
+    // WICHTIG:
+    // Wir setzen Status+Hash idempotent, aber blockieren Start-Requests NICHT.
+    // Duplicate-Handling erfolgt über Logging/Root-Cause-Fix (Worker/Client).
     try {
       await repo.setStatus(jobId, 'running', { jobSecretHash: secretHash })
     } catch (error) {
@@ -1018,7 +1046,21 @@ export async function POST(
     });
     
     try {
-      await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: 'request_ack', attributes: { status: resp.status, statusText: resp.statusText, url, extractionMethod } })
+      await repo.traceAddEvent(jobId, {
+        spanId: 'preprocess',
+        name: 'request_ack',
+        attributes: {
+          status: resp.status,
+          statusText: resp.statusText,
+          url,
+          extractionMethod,
+          // Duplicate-Diagnose:
+          startRequestId: request.headers.get('x-start-request-id') || request.headers.get('x-request-id') || undefined,
+          workerId: request.headers.get('x-worker-id') || undefined,
+          workerTickId: request.headers.get('x-worker-tick-id') || undefined,
+          pid: process.pid,
+        },
+      })
     } catch (error) {
       FileLogger.error('start-route', 'Fehler beim Hinzufügen des Trace-Events', {
         jobId,

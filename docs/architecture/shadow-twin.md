@@ -1,6 +1,22 @@
-# Shadow‑Twin Architecture (Current State)
+# Shadow‑Twin (architecture)
 
-> **User-facing overview:** See `docs/guides/shadow-twin.md`.
+Status: active  
+Last verified: 2026-01-06  
+
+> User-facing overview: `docs/guides/shadow-twin.md`
+
+## Scope
+
+This document describes the **intended storage model and contracts** for Shadow‑Twin artifacts in the current system.
+It is intentionally focused on **naming, layout, and resolver/writer contracts** (not UI details).
+
+## Glossary
+
+- **Source file**: the original file (PDF/audio/video/image/…).
+- **Shadow‑Twin**: derived artifacts (Markdown + assets) stored next to the source.
+- **Transcript**: extracted text as Markdown (typically without frontmatter).
+- **Transformation**: template-based Markdown with frontmatter/metadata.
+- **Dot-folder**: hidden folder `.{originalName}` grouping multiple related artifacts.
 
 ## Concept
 

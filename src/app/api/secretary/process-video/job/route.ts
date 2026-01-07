@@ -17,7 +17,6 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import type { ExternalJob } from '@/types/external-job'
 import type { PhasePolicies } from '@/lib/processing/phase-policy'
-import { legacyToPolicies } from '@/lib/processing/phase-policy'
 
 interface Body {
   originalItemId: string
@@ -61,10 +60,19 @@ export async function POST(request: NextRequest) {
     const targetLanguage = typeof body.targetLanguage === 'string' ? body.targetLanguage : 'de'
     const sourceLanguage = typeof body.sourceLanguage === 'string' ? body.sourceLanguage : 'auto'
     const useCache = typeof body.useCache === 'boolean' ? body.useCache : true
-    const template = typeof body.template === 'string' && body.template.trim() ? body.template.trim() : 'Besprechung'
-    const policies: PhasePolicies = body.policies && body.policies.extract && body.policies.metadata && body.policies.ingest
-      ? body.policies
-      : legacyToPolicies({ doExtractPDF: true })
+    // Template ist OPTIONAL. Wenn kein Template angegeben ist, ist das ein Transcript-only Job.
+    const template =
+      typeof body.template === 'string' && body.template.trim() ? body.template.trim() : undefined
+
+    const hasValidPolicies =
+      !!(body.policies && body.policies.extract && body.policies.metadata && body.policies.ingest)
+
+    // Default (Video): Transcript-only (keine Template-/Ingest-Phase), außer der Client verlangt es explizit.
+    const policies: PhasePolicies = hasValidPolicies
+      ? (body.policies as PhasePolicies)
+      : (template
+          ? { extract: 'do', metadata: 'do', ingest: 'do' }
+          : { extract: 'do', metadata: 'ignore', ingest: 'ignore' })
 
     const correlation: ExternalJob['correlation'] = {
       jobId,
@@ -101,7 +109,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date(),
       updatedAt: new Date(),
       parameters: {
-        template,
+        ...(template ? { template } : {}),
         policies,
         phases: {
           extract: policies.extract !== 'ignore',

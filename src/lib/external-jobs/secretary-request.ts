@@ -62,6 +62,18 @@ export function prepareSecretaryRequest(
     const template = typeof (job.parameters as Record<string, unknown> | undefined)?.['template'] === 'string'
       ? String((job.parameters as Record<string, unknown>)['template'])
       : undefined
+    const phases = (() => {
+      const raw = job.parameters && typeof job.parameters === 'object'
+        ? (job.parameters as { phases?: unknown }).phases
+        : undefined
+      if (!raw || typeof raw !== 'object') return undefined
+      return raw as { extract?: boolean; template?: boolean; ingest?: boolean }
+    })()
+    const isTemplatePhaseEnabled = phases?.template !== false
+    // WICHTIG:
+    // Wenn unsere Pipeline eine Template-Phase ausführt, darf Extract für Audio/Video nur das ROHE Transkript liefern.
+    // Sonst liefert der Secretary schon template-transformierten Text zurück, und wir speichern diesen fälschlich als Transcript (*.de.md).
+    const shouldSendTemplateToSecretary = !!(template && template.trim()) && !isTemplatePhaseEnabled
 
     formData = new FormData()
     formData.append('file', file)
@@ -69,7 +81,7 @@ export function prepareSecretaryRequest(
     formData.append('source_language', sourceLanguage)
     // Secretary uses `useCache` (see existing Next proxy routes)
     formData.append('useCache', String(useCache))
-    if (template) formData.append('template', template)
+    if (shouldSendTemplateToSecretary) formData.append('template', template!.trim())
     formData.append('callback_url', callbackUrl)
     formData.append('callback_token', secret)
 
@@ -81,6 +93,9 @@ export function prepareSecretaryRequest(
       targetLanguage,
       sourceLanguage,
       useCache: String(useCache),
+      templateRequested: !!(template && template.trim()),
+      templateSentToSecretary: shouldSendTemplateToSecretary,
+      templatePhaseEnabled: isTemplatePhaseEnabled,
       callbackUrl,
     })
 
@@ -97,6 +112,15 @@ export function prepareSecretaryRequest(
     const template = typeof (job.parameters as Record<string, unknown> | undefined)?.['template'] === 'string'
       ? String((job.parameters as Record<string, unknown>)['template'])
       : undefined
+    const phases = (() => {
+      const raw = job.parameters && typeof job.parameters === 'object'
+        ? (job.parameters as { phases?: unknown }).phases
+        : undefined
+      if (!raw || typeof raw !== 'object') return undefined
+      return raw as { extract?: boolean; template?: boolean; ingest?: boolean }
+    })()
+    const isTemplatePhaseEnabled = phases?.template !== false
+    const shouldSendTemplateToSecretary = !!(template && template.trim()) && !isTemplatePhaseEnabled
 
     formData = new FormData()
     formData.append('file', file)
@@ -104,7 +128,7 @@ export function prepareSecretaryRequest(
     formData.append('source_language', sourceLanguage)
     // Secretary uses `useCache` (see existing Next proxy routes)
     formData.append('useCache', String(useCache))
-    if (template) formData.append('template', template)
+    if (shouldSendTemplateToSecretary) formData.append('template', template!.trim())
     formData.append('callback_url', callbackUrl)
     formData.append('callback_token', secret)
 
@@ -116,6 +140,9 @@ export function prepareSecretaryRequest(
       targetLanguage,
       sourceLanguage,
       useCache: String(useCache),
+      templateRequested: !!(template && template.trim()),
+      templateSentToSecretary: shouldSendTemplateToSecretary,
+      templatePhaseEnabled: isTemplatePhaseEnabled,
       callbackUrl,
     })
 

@@ -90,6 +90,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   } = args
 
   const { jobId, job } = ctx
+  const mode = getShadowTwinMode(undefined)
   
   // Erweitere policies um ingest, falls nicht vorhanden
   const fullPolicies: PhasePolicies = {
@@ -163,7 +164,17 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     try {
       const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
       const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-      const uniqueName = `${baseName}.${lang}.md`
+      const sourceItemId = job.correlation?.source?.itemId || 'unknown'
+      const sourceName = job.correlation?.source?.name || `${baseName}.md`
+      const templateNameRaw = (job.parameters as { template?: unknown } | undefined)?.template
+      const templateName = typeof templateNameRaw === 'string' ? templateNameRaw.trim() : ''
+
+      // WICHTIG:
+      // Chapters gehören zur Transformation (nicht zum Transcript).
+      // Wenn ein Template gesetzt ist, prüfen wir daher die Transformationsdatei `{base}.{template}.{lang}.md`.
+      const uniqueName = templateName
+        ? buildArtifactName({ sourceId: sourceItemId, kind: 'transformation', targetLanguage: lang, templateName }, sourceName)
+        : `${baseName}.${lang}.md`
       
       bufferLog(jobId, {
         phase: 'template_check_chapters_before',
@@ -1121,9 +1132,12 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
 
   // Doppelte Frontmatter vermeiden: bestehenden Block am Anfang entfernen (auch mehrfach)
   if (!templateSkipped) {
-    const bodyOnly = stripAllFrontmatter(textSource)
+    const transcriptBody = stripAllFrontmatter(textSource)
+    const metaForFrontmatter = omitTranscriptFromFrontmatter(mergedMeta)
+    const transformedBody = buildTemplateBodyFromMeta(metaForFrontmatter)
+    const bodyOnly = transformedBody || transcriptBody
     const { createMarkdownWithFrontmatter } = await import('@/lib/markdown/compose')
-    const markdown = createMarkdownWithFrontmatter(bodyOnly, mergedMeta)
+    const markdown = createMarkdownWithFrontmatter(bodyOnly, metaForFrontmatter)
     // Zielordner prüfen
     try {
       await provider.getPathById(targetParentId)
@@ -1183,7 +1197,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
         }
       })
     } catch {}
-    await repo.appendMeta(jobId, mergedMeta, 'template_transform')
+    await repo.appendMeta(jobId, metaForFrontmatter, 'template_transform')
   }
 
   // Final: Template zuverlässig abschließen (keine Hänger)
@@ -1214,6 +1228,42 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     status: templateStatus,
     skipped: templateSkipped,
   }
+}
+
+function omitTranscriptFromFrontmatter(meta: Record<string, unknown>): Record<string, unknown> {
+  // WICHTIG:
+  // Das Transkript existiert bereits als eigenes Artefakt (`*.de.md`).
+  // In der Transformationsdatei (`*.{template}.de.md`) erzeugt ein zusätzliches `transcript` Feld
+  // nur Duplikate (und wirkt so, als wäre der Body nicht transformiert).
+  const next: Record<string, unknown> = { ...meta }
+  delete next['transcript']
+  return next
+}
+
+function buildTemplateBodyFromMeta(meta: Record<string, unknown>): string {
+  function getString(key: string): string {
+    const v = meta[key]
+    if (typeof v === 'string') return v.trim()
+    if (Array.isArray(v)) {
+      const parts = v.map(x => (typeof x === 'string' ? x.trim() : '')).filter(s => s.length > 0)
+      return parts.join('\n')
+    }
+    return ''
+  }
+
+  const title = getString('title')
+  const summary = getString('summary')
+  const messages = getString('messages')
+  // historischer Tippfehler: `nexsSteps`
+  const nextSteps = getString('nextSteps') || getString('nexsSteps')
+
+  const blocks: string[] = []
+  if (title) blocks.push(`# ${title}`)
+  if (summary) blocks.push(`## Zusammenfassung\n${summary}`)
+  if (messages) blocks.push(`## Inhalte\n${messages}`)
+  if (nextSteps) blocks.push(`## Nächste Schritte\n${nextSteps}`)
+
+  return blocks.join('\n\n').trim()
 }
 
 

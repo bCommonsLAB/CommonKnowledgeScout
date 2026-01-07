@@ -17,7 +17,6 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import type { ExternalJob } from '@/types/external-job'
 import type { PhasePolicies } from '@/lib/processing/phase-policy'
-import { legacyToPolicies } from '@/lib/processing/phase-policy'
 
 interface Body {
   originalItemId: string

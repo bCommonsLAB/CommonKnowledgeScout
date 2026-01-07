@@ -1,102 +1,121 @@
 import { describe, expect, it, vi } from 'vitest'
-
-vi.mock('@/lib/env', () => {
-  return {
-    getSecretaryConfig: () => ({ baseUrl: 'http://localhost:5001/api', apiKey: 'test-key' }),
-  }
-})
-
 import { prepareSecretaryRequest } from '@/lib/external-jobs/secretary-request'
+import type { ExternalJob } from '@/types/external-job'
 
-function createFile(name: string, type: string): File {
-  return new File(['test'], name, { type })
+vi.mock('@/lib/env', () => ({
+  getSecretaryConfig: () => ({ baseUrl: 'http://127.0.0.1:5001/api', apiKey: 'test-key' }),
+}))
+
+vi.mock('@/lib/debug/logger', () => ({
+  FileLogger: {
+    info: () => undefined,
+    warn: () => undefined,
+    error: () => undefined,
+    debug: () => undefined,
+  },
+}))
+
+function createFile(name: string, mimeType: string): File {
+  return new File([new Blob(['x'], { type: mimeType })], name, { type: mimeType })
+}
+
+function createJob(partial: Partial<ExternalJob>): ExternalJob {
+  const now = new Date()
+  return {
+    jobId: 'job-1',
+    jobSecretHash: 'hash',
+    job_type: 'pdf',
+    operation: 'extract',
+    worker: 'secretary',
+    status: 'queued',
+    libraryId: 'lib-1',
+    userEmail: 'u@example.com',
+    correlation: {
+      jobId: 'job-1',
+      libraryId: 'lib-1',
+      source: { mediaType: 'pdf', name: 'doc.pdf', itemId: 'it-1', parentId: 'p-1' },
+      options: {},
+    },
+    createdAt: now,
+    updatedAt: now,
+    ...partial,
+  }
+}
+
+function getStringField(formData: FormData, key: string): string | null {
+  const v = formData.get(key)
+  return typeof v === 'string' ? v : null
 }
 
 describe('prepareSecretaryRequest', () => {
   it('builds PDF mistral_ocr request with callback', () => {
-    const job = {
-      jobId: 'job1',
-      jobSecretHash: 'hash',
+    const job = createJob({
       job_type: 'pdf',
-      operation: 'extract',
-      worker: 'secretary',
-      status: 'queued',
-      libraryId: 'lib1',
-      userEmail: 'u@example.com',
       correlation: {
-        jobId: 'job1',
-        libraryId: 'lib1',
+        jobId: 'job-pdf',
+        libraryId: 'lib-1',
         source: { mediaType: 'pdf', name: 'doc.pdf', itemId: 'it1', parentId: 'p1' },
         options: { extractionMethod: 'mistral_ocr', includeOcrImages: true, includePageImages: true, useCache: true, targetLanguage: 'de' },
       },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as const
+    })
 
-    const cfg = prepareSecretaryRequest(job as any, createFile('doc.pdf', 'application/pdf'), 'https://app/cb', 'secret')
+    const cfg = prepareSecretaryRequest(job, createFile('doc.pdf', 'application/pdf'), 'https://app/cb', 'secret')
     expect(cfg.url).toContain('/pdf/process-mistral-ocr')
     expect(cfg.headers.Authorization).toContain('test-key')
-    expect(cfg.formData.get('callback_url')).toBe('https://app/cb')
-    expect(cfg.formData.get('callback_token')).toBe('secret')
+    expect(getStringField(cfg.formData, 'callback_url')).toBe('https://app/cb')
+    expect(getStringField(cfg.formData, 'callback_token')).toBe('secret')
   })
 
-  it('builds audio request with callback', () => {
-    const job = {
-      jobId: 'job2',
-      jobSecretHash: 'hash',
+  it('does NOT send template to /audio/process when template-phase is enabled (handled in phase 2)', () => {
+    const job = createJob({
       job_type: 'audio',
-      operation: 'transcribe',
-      worker: 'secretary',
-      status: 'queued',
-      libraryId: 'lib1',
-      userEmail: 'u@example.com',
       correlation: {
-        jobId: 'job2',
-        libraryId: 'lib1',
+        jobId: 'job-audio',
+        libraryId: 'lib-1',
+        source: { mediaType: 'audio', name: 'Analyse Asana.m4a', itemId: 'it2', parentId: 'p1' },
+        options: { targetLanguage: 'de', sourceLanguage: 'auto', useCache: true },
+      },
+      parameters: { template: 'besprechung', phases: { extract: true, template: true, ingest: false } },
+    })
+
+    const cfg = prepareSecretaryRequest(job, createFile('Analyse Asana.m4a', 'audio/mp4'), 'https://app/cb', 'secret')
+    expect(cfg.url).toContain('/audio/process')
+    expect(getStringField(cfg.formData, 'template')).toBeNull()
+  })
+
+  it('sends template to /audio/process when template-phase is disabled (extract-only shortcut)', () => {
+    const job = createJob({
+      job_type: 'audio',
+      correlation: {
+        jobId: 'job-audio2',
+        libraryId: 'lib-1',
         source: { mediaType: 'audio', name: 'a.mp3', itemId: 'it2', parentId: 'p1' },
         options: { targetLanguage: 'de', sourceLanguage: 'auto', useCache: true },
       },
-      parameters: { template: 'Besprechung' },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as const
+      parameters: { template: 'besprechung', phases: { extract: true, template: false, ingest: false } },
+    })
 
-    const cfg = prepareSecretaryRequest(job as any, createFile('a.mp3', 'audio/mpeg'), 'https://app/cb', 'secret')
+    const cfg = prepareSecretaryRequest(job, createFile('a.mp3', 'audio/mpeg'), 'https://app/cb', 'secret')
     expect(cfg.url).toContain('/audio/process')
-    expect(cfg.formData.get('target_language')).toBe('de')
-    expect(cfg.formData.get('source_language')).toBe('auto')
-    expect(cfg.formData.get('useCache')).toBe('true')
-    expect(cfg.formData.get('template')).toBe('Besprechung')
-    expect(cfg.formData.get('callback_url')).toBe('https://app/cb')
+    expect(getStringField(cfg.formData, 'template')).toBe('besprechung')
   })
 
-  it('builds video request with callback', () => {
-    const job = {
-      jobId: 'job3',
-      jobSecretHash: 'hash',
+  it('does NOT send template to /video/process when template-phase is enabled (handled in phase 2)', () => {
+    const job = createJob({
       job_type: 'video',
-      operation: 'transcribe',
-      worker: 'secretary',
-      status: 'queued',
-      libraryId: 'lib1',
-      userEmail: 'u@example.com',
       correlation: {
-        jobId: 'job3',
-        libraryId: 'lib1',
+        jobId: 'job-video',
+        libraryId: 'lib-1',
         source: { mediaType: 'video', name: 'v.mp4', itemId: 'it3', parentId: 'p1' },
         options: { targetLanguage: 'de', sourceLanguage: 'auto', useCache: false },
       },
-      parameters: { template: 'Besprechung' },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as const
+      parameters: { template: 'besprechung', phases: { extract: true, template: true, ingest: false } },
+    })
 
-    const cfg = prepareSecretaryRequest(job as any, createFile('v.mp4', 'video/mp4'), 'https://app/cb', 'secret')
+    const cfg = prepareSecretaryRequest(job, createFile('v.mp4', 'video/mp4'), 'https://app/cb', 'secret')
     expect(cfg.url).toContain('/video/process')
-    expect(cfg.formData.get('target_language')).toBe('de')
-    expect(cfg.formData.get('useCache')).toBe('false')
-    expect(cfg.formData.get('callback_url')).toBe('https://app/cb')
+    expect(getStringField(cfg.formData, 'template')).toBeNull()
   })
 })
 
-
+ 

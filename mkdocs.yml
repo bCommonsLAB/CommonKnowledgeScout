@@ -48,6 +48,7 @@ nav:
   - Analysis:
       - Shadow-Twin (v2-only): analysis/shadow-twin-v2-only.md
       - Wizard & External Jobs: analysis/wizard-and-jobs.md
+      - Audio/Video (no template): analysis/audio-jobs-transcript-only.md
       - Ingestion: analysis/ingestion.md
       - Storage: analysis/storage.md
   # Guide: - Dateien existieren nicht

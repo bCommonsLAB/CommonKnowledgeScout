@@ -31,6 +31,7 @@ Current runtime behavior and validated decisions:
 - Wizard & External Jobs (contracts)
 - Ingestion (MongoDB Vector Search)
 - Storage providers (filesystem/OneDrive)
+ - Audio/Video transcript-only when no template is selected
 
 ### Reference
 Technical reference documentation:
@@ -40,5 +41,9 @@ Technical reference documentation:
 ## Getting Help
 
 For detailed technical information, see the [Reference Documentation](reference/file-index.md).
+
+## Notes
+
+- `docs/_analysis/` contains short-lived scratch notes and is intentionally **not** linked from MkDocs navigation.
 
 

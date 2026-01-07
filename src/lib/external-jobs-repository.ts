@@ -101,6 +101,31 @@ export class ExternalJobsRepository {
     return res.modifiedCount > 0;
   }
 
+  /**
+   * Setzt den Status nur dann, wenn der aktuelle Status genau `expectedStatus` ist.
+   *
+   * WICHTIG:
+   * Diese Methode dient als Idempotency-Gate (z.B. für `/start`), um doppelte Requests und
+   * doppelte Enqueue/Uploads zu verhindern (race-condition safe via Mongo filter).
+   */
+  async setStatusIf(
+    jobId: string,
+    expectedStatus: ExternalJobStatus,
+    status: ExternalJobStatus,
+    extra: Partial<ExternalJob> = {}
+  ): Promise<boolean> {
+    const col = await this.getCollection()
+    const update: Record<string, unknown> = {
+      $set: { status, updatedAt: new Date(), ...extra },
+    }
+    // Gleiche "completed unsets error" Semantik wie setStatus()
+    if (status === 'completed') {
+      ;(update as { $unset?: Record<string, string> }).$unset = { error: '' }
+    }
+    const res = await col.updateOne({ jobId, status: expectedStatus }, update as unknown as Record<string, unknown>)
+    return res.modifiedCount > 0
+  }
+
   async setProcess(jobId: string, processId: string): Promise<void> {
     const col = await this.getCollection();
     await col.updateOne({ jobId }, { $set: { processId, updatedAt: new Date() } });

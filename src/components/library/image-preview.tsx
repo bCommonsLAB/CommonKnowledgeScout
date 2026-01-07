@@ -14,9 +14,11 @@ interface ImagePreviewProps {
   provider: StorageProvider | null;
   activeLibraryId: string;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
+  /** Wenn false, keine Transform-UI im Preview (bleibt leichtgewichtig). */
+  showTransformControls?: boolean;
 }
 
-export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
+export function ImagePreview({ provider, onRefreshFolder, showTransformControls = true }: ImagePreviewProps) {
   const item = useAtomValue(selectedFileAtom);
   const [imageUrl, setImageUrl] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -184,6 +186,7 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
   });
 
   const handleTransformButtonClick = () => {
+    if (!showTransformControls) return
     setShowTransform(true);
   };
 
@@ -196,7 +199,7 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
             <span className="text-xs font-semibold text-muted-foreground">Image Preview</span>
             <span className="text-xs text-muted-foreground truncate max-w-[40vw]">{item.metadata.name}</span>
             <div className="flex-1" />
-            {onRefreshFolder && (
+            {showTransformControls && onRefreshFolder && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -210,7 +213,7 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
         </div>
       )}
       
-      {showTransform ? (
+      {showTransformControls && showTransform ? (
         <div className="flex-1 overflow-auto">
           <ImageTransform 
             onRefreshFolder={(folderId, updatedItems, twinItem) => {
