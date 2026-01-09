@@ -195,47 +195,64 @@ export function useShadowTwinAnalysis(
             }),
           ]);
 
-          // Konvertiere ResolvedArtifactWithItem-Ergebnisse zu ShadowTwinState
-          // Die API gibt bereits vollständige StorageItem-Objekte zurück
-          const currentState = new Map<string, FrontendShadowTwinState>();
+          // Konvertiere ResolvedArtifactWithItem-Ergebnisse zu ShadowTwinState.
+          // WICHTIG: Wir schreiben **für alle Dateien** einen Eintrag (auch wenn keine Artefakte existieren),
+          // damit UI/Debug sauber zwischen "checked but empty" vs. "not analyzed yet" unterscheiden kann.
+          const analyzedAt = Date.now()
+          const currentFileById = new Map<string, StorageItem>()
+          for (const it of currentFileItems) currentFileById.set(it.id, it)
 
-          for (const item of itemsToAnalyze) {
-            const transformation = transformationResults.get(item.id);
-            const transcript = transcriptResults.get(item.id);
+          setShadowTwinState((prev) => {
+            const next = new Map<string, FrontendShadowTwinState>()
 
-            // Erstelle ShadowTwinState nur wenn mindestens ein Artefakt gefunden wurde
-            if (transformation || transcript) {
-              const state: FrontendShadowTwinState = {
-                baseItem: item,
-                transformed: transformation?.kind === 'transformation' && transformation.item
-                  ? transformation.item
-                  : undefined,
-                transcriptFiles: transcript?.kind === 'transcript' && transcript.item
-                  ? [transcript.item]
-                  : undefined,
-                shadowTwinFolderId: transformation?.shadowTwinFolderId || transcript?.shadowTwinFolderId,
-                analysisTimestamp: Date.now(),
-              };
-
-              currentState.set(item.id, state);
-
-              // Aktualisiere previousItemsRef
-              const modifiedAt = item.metadata.modifiedAt;
-              previousItemsRef.current.set(item.id, {
-                modifiedAt: modifiedAt instanceof Date ? modifiedAt : (modifiedAt ? new Date(modifiedAt) : undefined)
-              });
+            // Nur States für aktuelle Folder-Files behalten/aktualisieren.
+            for (const it of currentFileItems) {
+              const prevState = prev.get(it.id)
+              next.set(it.id, {
+                ...prevState,
+                baseItem: it,
+                analysisTimestamp: prevState?.analysisTimestamp ?? analyzedAt,
+              })
             }
-          }
 
-          // Aktualisiere Atom
-          setShadowTwinState(new Map(currentState));
+            for (const it of itemsToAnalyze) {
+              const transformation = transformationResults.get(it.id)
+              const transcript = transcriptResults.get(it.id)
+              const hasArtifacts = Boolean(transformation || transcript)
+
+              const transformed =
+                transformation?.kind === 'transformation' && transformation.item ? transformation.item : undefined
+              const transcriptFiles =
+                transcript?.kind === 'transcript' && transcript.item ? [transcript.item] : undefined
+              const shadowTwinFolderId = transformation?.shadowTwinFolderId || transcript?.shadowTwinFolderId
+
+              const merged: FrontendShadowTwinState = {
+                baseItem: it,
+                transformed,
+                transcriptFiles,
+                shadowTwinFolderId,
+                analysisTimestamp: analyzedAt,
+                processingStatus: hasArtifacts ? 'ready' : 'pending',
+              }
+
+              next.set(it.id, merged)
+
+              // Aktualisiere previousItemsRef (auch wenn keine Artefakte existieren)
+              const modifiedAt = it.metadata.modifiedAt
+              previousItemsRef.current.set(it.id, {
+                modifiedAt: modifiedAt instanceof Date ? modifiedAt : (modifiedAt ? new Date(modifiedAt) : undefined),
+              })
+            }
+
+            return next
+          })
           
           isAnalyzingRef.current = false;
           
           // Nur loggen wenn Shadow-Twins gefunden wurden
-          if (currentState.size > 0) {
+          if (itemsToAnalyze.length > 0) {
             FileLogger.info('useShadowTwinAnalysis', 'Shadow-Twin-Analyse abgeschlossen (Bulk-API)', {
-              analyzedCount: currentState.size,
+              analyzedCount: itemsToAnalyze.length,
               totalFiles: itemsToAnalyze.length,
             });
           }

@@ -65,6 +65,10 @@ Diese Schablone wird pro Use Case ausgefüllt (und pro Persona/Entry‑Point ref
   - Extract/Transcript: `{base}.{lang}.md`
   - Transformation: `{base}.{template}.{lang}.md`
   - Assets: pages/images archives (URLs) + Ablagekonvention
+
+Hinweis zur Storage-Policy (Zielbild):
+- Artefakte werden kanonisch im **Dot‑Folder** gespeichert (`.{originalName}/`).
+- Siblings gelten als Legacy und werden nur noch im Read-Only Modus toleriert, bis ein Repair/Migration-Run sie eliminiert.
 - **Gates/Policies**
   - Welche Artefakte skippen welche Phase?
   - Welche Policies überschreiben Gates (`force`)?

@@ -173,6 +173,25 @@ async function validateShadowTwin(
     ? templateRaw.trim()
     : undefined
 
+  // Legacy-Policy (Siblings):
+  // Wir tolerieren Siblings als Read-Only Fallback, aber wollen sie sichtbar machen,
+  // damit Repair/Migration-Runs (Siblings→Dot-Folder) später sauber messbar sind.
+  // => WARN, aber kein FAIL.
+  const resolvedTranscript = await resolveArtifact(provider, {
+    sourceItemId: source.itemId,
+    sourceName: source.name,
+    parentId: source.parentId,
+    targetLanguage: lang,
+    preferredKind: 'transcript',
+  })
+  if (resolvedTranscript?.location === 'sibling') {
+    pushMessage(
+      messages,
+      'warn',
+      `Legacy Sibling-Transcript gefunden: ${resolvedTranscript.fileName} (Zielbild: Dot-Folder als kanonischer Write-Pfad)`
+    )
+  }
+
   const resolved = await resolveArtifact(provider, {
     sourceItemId: source.itemId,
     sourceName: source.name,
@@ -186,6 +205,13 @@ async function validateShadowTwin(
     pushMessage(messages, 'error', 'Im Shadow‑Twin wurde keine transformierte Markdown-Datei gefunden')
   } else {
     pushMessage(messages, 'info', `Transformierte Markdown-Datei gefunden: ${resolved.fileName}`)
+    if (resolved.location === 'sibling') {
+      pushMessage(
+        messages,
+        'warn',
+        `Legacy Sibling-Transformation gefunden: ${resolved.fileName} (Zielbild: Dot-Folder als kanonischer Write-Pfad)`
+      )
+    }
   }
 }
 

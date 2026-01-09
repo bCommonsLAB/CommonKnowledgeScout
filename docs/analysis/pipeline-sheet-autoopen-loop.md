@@ -28,3 +28,4 @@ Beim Schließen setzt die UI `pipeline=0` (oder vorher implizit „closed“), d
 Wir wählen **Variante A**, weil sie minimal-invasiv ist, keinen zusätzlichen Persistenz-State braucht und gut debuggbar bleibt.
 
 
+

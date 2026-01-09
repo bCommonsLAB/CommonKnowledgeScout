@@ -29,11 +29,28 @@ Shadow‑Twins exist to enable:
 - structured metadata
 - reliable downstream ingestion / RAG
 
+## User story mapping (how this feels in the UI)
+
+Even for expert users, the mental model is usually **intent-driven**, not file-driven. We therefore describe the pipeline as a 3‑step story:
+
+1. **Text erzeugen** (media-dependent)
+   - PDF/Image: OCR/Extract → transcript artifact
+   - Audio/Video: Transkription → transcript artifact
+2. **Transformieren** (journalistic moment)
+   - LLM/template converts raw text into structured, meaningful content → transformation artifact
+3. **Veröffentlichen**
+   - ingestion into the Library/RAG index → Mongo Vector Search (meta + chunks)
+
+Storage-wise these steps map deterministically to Shadow‑Twin artifacts:
+- Step 1 → Transcript `{base}.{lang}.md`
+- Step 2 → Transformation `{base}.{template}.{lang}.md`
+- Step 3 → Ingestion records keyed by the **source fileId** (index/chunks)
+
 ## Storage layout
 
-Shadow‑Twins can exist in two forms (the resolver checks both):
+Shadow‑Twins have a **single canonical write layout** and one legacy read fallback.
 
-### 1) Dot‑folder (when many assets exist)
+### 1) Dot‑folder (canonical)
 
 Hidden folder (starts with `.`), containing all related files:
 
@@ -48,9 +65,11 @@ Hidden folder (starts with `.`), containing all related files:
 **Folder naming**: `.{originalName}` (e.g. `.document.pdf/`)  
 **Length limit**: 255 characters (truncated if necessary).
 
-### 2) Siblings (when only markdown exists)
+### 2) Siblings (legacy read fallback only)
 
-Files stored next to the original:
+Files stored next to the original (legacy). The system may still resolve these for backwards compatibility,
+but **new writes should not create siblings**. A future repair/migration run is expected to move siblings into
+the dot-folder and remove them.
 
 ```
 document.pdf

@@ -139,7 +139,8 @@ export function FlowActions({
   const router = useRouter()
   const [targetLanguage, setTargetLanguage] = useQueryState("targetLanguage", parseAsString.withDefault("de"))
   const [templateName, setTemplateName] = useQueryState("templateName", parseAsString.withDefault(""))
-  const [leftPaneMode, setLeftPaneMode] = useQueryState("left", parseAsString.withDefault("pdf"))
+  // mobile-first default: hide left/source pane unless user explicitly enables it
+  const [leftPaneMode, setLeftPaneMode] = useQueryState("left", parseAsString.withDefault("off"))
   const [activeTransformationId, setActiveTransformationId] = useQueryState("transformationId", parseAsString.withDefault(""))
   // `pipeline` Query Param:
   // - ''  => nicht gesetzt (Initialzustand; Auto-Open darf einmal greifen)
@@ -344,7 +345,7 @@ export function FlowActions({
             <TooltipContent side="bottom">Zurück</TooltipContent>
           </Tooltip>
 
-          {/* Left pane controls first (Expert-Toolbar) */}
+          {/* Left pane controls (mobile-first: default hidden, user can enable) */}
           {isPdf ? (
             <>
               <Tooltip>
@@ -354,14 +355,14 @@ export function FlowActions({
                     variant={leftPaneMode === "pdf" ? "secondary" : "outline"}
                     size="icon"
                     className="h-8 w-8"
-                    aria-label="Linkes Panel: PDF"
+                    aria-label="Linkes Panel: Quelle"
                     aria-pressed={leftPaneMode === "pdf"}
                     onClick={() => void setLeftPaneMode("pdf")}
                   >
                     <FileText className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">Links: PDF</TooltipContent>
+                <TooltipContent side="bottom">Links: Quelle</TooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -398,7 +399,43 @@ export function FlowActions({
                 <TooltipContent side="bottom">Links ausblenden</TooltipContent>
               </Tooltip>
             </>
-          ) : null}
+          ) : (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant={leftPaneMode === "pdf" ? "secondary" : "outline"}
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Linkes Panel: Quelle"
+                    aria-pressed={leftPaneMode === "pdf"}
+                    onClick={() => void setLeftPaneMode("pdf")}
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Links: Quelle</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant={leftPaneMode === "off" ? "secondary" : "outline"}
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Linkes Panel ausblenden"
+                    aria-pressed={leftPaneMode === "off"}
+                    onClick={() => void setLeftPaneMode("off")}
+                  >
+                    <PanelLeftClose className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Links ausblenden</TooltipContent>
+              </Tooltip>
+            </>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -425,7 +462,7 @@ export function FlowActions({
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Transformation</span>
+                <span className="text-xs text-muted-foreground">Transformieren</span>
                 <Select
                   value={transformationSelectValue}
                   onValueChange={(v) => void setActiveTransformationId(v === "__latest__" ? "" : v)}
@@ -464,10 +501,10 @@ export function FlowActions({
                 disabled={isRunning}
               >
                 <Sparkles className="h-4 w-4" />
-                Aufbereiten
+                Transformieren
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Aufbereiten &amp; Publizieren öffnen</TooltipContent>
+            <TooltipContent side="bottom">Story Creator öffnen</TooltipContent>
           </Tooltip>
 
           {activeJob ? (

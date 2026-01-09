@@ -24,10 +24,22 @@ V0 Fokus: **PDF Mistral OCR inkl. Pages/Images** (File‑Liste Single‑File).
 - **Transformation**: `{base}.{template}.{lang}.md`
 
 ### Storage
-- Artefakte liegen im **Shadow‑Twin** (Sibling oder Dot‑Folder), kompatibel zur bestehenden Resolver‑Logik.
+- Artefakte liegen im **Shadow‑Twin**. Zielbild: **Dot‑Folder ist kanonisch** (Write-Pfad).  
+  **Siblings** sind eine **Legacy-Altlast** und sollen nur noch im **Read-Only** Modus funktionieren (Resolver-Fallback).  
+  Ein späterer Repair/Migration-Run verschiebt Sibling-Artefakte in den Dot‑Folder und eliminiert sie.
 - Große Binärdaten (Pages/Images ZIP) werden als **URLs/Refs** gehandhabt; optionaler Download/Spiegelung im Storage ist eine separate Optimierung.
 
 ## Phasenmodell
+
+## User journey (Story Creator)
+
+The UI entry point for single-file processing is the **Story Creator** (library page + dedicated route). It frames the pipeline in user terms:
+
+1. **Text erzeugen** (OCR/Extract or Transkription)
+2. **Transformieren** (template-based LLM structuring)
+3. **Veröffentlichen** (RAG ingestion/index)
+
+Internally this maps 1:1 to the technical phases below.
 
 ### PhaseExtract
 Input: `SourceRef`, `targetLanguage`, format-spezifische Optionen (z.B. `extractionMethod=mistral_ocr`).\n

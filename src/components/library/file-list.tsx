@@ -36,7 +36,7 @@ import { FileLogger, StateLogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
-import { shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
+import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -623,8 +623,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
   // Shadow-Twin-Analyse für alle Dateien im Ordner
   // Shadow-Twin-Analyse mit Trigger für manuelles Neustarten
-  const shadowTwinAnalysisTriggerRef = React.useRef(0);
-  useShadowTwinAnalysis(allItemsInFolder ?? [], provider, shadowTwinAnalysisTriggerRef.current);
+  const [shadowTwinAnalysisTrigger, setShadowTwinAnalysisTrigger] = useAtom(shadowTwinAnalysisTriggerAtom);
+  useShadowTwinAnalysis(allItemsInFolder ?? [], provider, shadowTwinAnalysisTrigger);
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
 
   // Kein mobiles Flag mehr notwendig
@@ -987,12 +987,12 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       
       // Shadow-Twin-Analyse neu starten, indem wir den Trigger erhöhen
       // Dies wird von useShadowTwinAnalysis erkannt und führt zu einer Neu-Analyse
-      shadowTwinAnalysisTriggerRef.current += 1;
+      setShadowTwinAnalysisTrigger((v) => v + 1);
       
       FileLogger.info('FileList', 'Dateiliste und Shadow-Twins aktualisiert', {
         folderId: currentFolderId,
         itemCount: refreshedItems.length,
-        triggerValue: shadowTwinAnalysisTriggerRef.current
+        triggerValue: shadowTwinAnalysisTrigger + 1
       });
       
       toast.success('Dateiliste und Shadow-Twins aktualisiert');
@@ -1037,7 +1037,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
               currentParentId
             })
             // Erhöhe den Trigger-Wert, um eine erzwungene Neu-Analyse auszulösen
-            shadowTwinAnalysisTriggerRef.current += 1
+            setShadowTwinAnalysisTrigger((v) => v + 1)
           }
         }
       } catch {}

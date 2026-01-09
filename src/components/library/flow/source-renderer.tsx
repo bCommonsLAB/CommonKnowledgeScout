@@ -39,34 +39,55 @@ export function SourceRenderer({
 }: SourceRendererProps) {
   const kind = getMediaKind(file)
   const [streamingUrl, setStreamingUrl] = React.useState<string | null>(streamingUrlProp || null)
-  const [hasTriedUrl, setHasTriedUrl] = React.useState(false)
+  const lastFileIdRef = React.useRef<string | null>(null)
 
+  // Reset state when file.id changes
   React.useEffect(() => {
-    setStreamingUrl(streamingUrlProp || null)
-  }, [streamingUrlProp])
+    if (lastFileIdRef.current !== file.id) {
+      lastFileIdRef.current = file.id
+      setStreamingUrl(streamingUrlProp || null)
+    }
+  }, [file.id, streamingUrlProp])
 
+  // Load streaming URL if not provided via prop
   React.useEffect(() => {
     let cancelled = false
     async function loadUrl() {
-      if (streamingUrl || hasTriedUrl) return
+      // If URL already set (from prop or previous load), skip
+      if (streamingUrl) return
+      // If prop is provided, don't load (it will be synced by the effect above)
+      if (streamingUrlProp) return
       if (file.type !== "file") return
+      if (lastFileIdRef.current !== file.id) return // Guard: only load for current file
+      
       try {
-        setHasTriedUrl(true)
+        FileLogger.debug("flow-source-renderer", "Lade Streaming-URL", {
+          fileId: file.id,
+          fileName: file.metadata?.name,
+        })
         const url = await provider.getStreamingUrl(file.id)
         if (cancelled) return
+        if (lastFileIdRef.current !== file.id) return // Guard: file changed during load
         setStreamingUrl(url)
+        FileLogger.debug("flow-source-renderer", "Streaming-URL geladen", {
+          fileId: file.id,
+          hasUrl: !!url,
+        })
       } catch (err) {
+        if (cancelled) return
+        if (lastFileIdRef.current !== file.id) return // Guard: file changed during error
         FileLogger.warn("flow-source-renderer", "Streaming URL konnte nicht geladen werden", {
           fileId: file.id,
           error: err instanceof Error ? err.message : String(err),
         })
+        // Don't set error state - just leave streamingUrl as null to show loading message
       }
     }
     void loadUrl()
     return () => {
       cancelled = true
     }
-  }, [provider, file.id, file.type, streamingUrl, hasTriedUrl])
+  }, [provider, file.id, file.type, streamingUrl, streamingUrlProp])
 
   const openInNewTab = React.useCallback(() => {
     if (!streamingUrl) return

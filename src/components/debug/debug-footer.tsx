@@ -649,16 +649,25 @@ function ShadowTwinDebugContent() {
   if (!state) {
     return (
       <div className="text-sm text-muted-foreground">
-        Kein Shadow-Twin-State für &quot;{selectedFile.metadata.name}&quot; vorhanden. Die Analyse läuft möglicherweise noch.
+        Kein Shadow‑Twin‑State für &quot;{selectedFile.metadata.name}&quot; vorhanden. Noch nicht analysiert (oder Analyse läuft).
       </div>
     );
   }
+
+  const hasTranscript = Boolean(state.transcriptFiles && state.transcriptFiles.length > 0)
+  const hasTransform = Boolean(state.transformed)
+  const isEmptyButChecked = !hasTranscript && !hasTransform
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-4">
         {/* Linke Spalte: Alle Informationen */}
         <div className="space-y-3">
+          {isEmptyButChecked ? (
+            <div className="rounded border bg-muted/30 p-2 text-xs text-muted-foreground">
+              Analysiert: keine Artefakte gefunden (noch nicht verarbeitet).
+            </div>
+          ) : null}
           <div>
             <div className="text-xs font-medium text-muted-foreground mb-1">Base Item</div>
             <div className="text-xs break-all">{state.baseItem.metadata.name}</div>

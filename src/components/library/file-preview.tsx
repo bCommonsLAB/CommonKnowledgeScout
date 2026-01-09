@@ -10,7 +10,7 @@ import { MarkdownPreview } from './markdown-preview';
 import { MarkdownMetadata } from './markdown-metadata';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { activeLibraryIdAtom, selectedFileAtom } from "@/atoms/library-atom";
 import { TextEditor } from './text-editor';
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
@@ -27,7 +27,16 @@ import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-typ
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { resolveArtifactClient } from '@/lib/shadow-twin/artifact-client';
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, RefreshCw } from "lucide-react";
+import { SourceAndTranscriptPane } from "@/components/library/shared/source-and-transcript-pane"
+import { useResolvedTranscriptItem } from "@/components/library/shared/use-resolved-transcript-item"
+import { ArtifactInfoPanel } from "@/components/library/shared/artifact-info-panel"
+import { useStoryStatus } from "@/components/library/shared/use-story-status"
+import { StoryStatusIcons } from "@/components/library/shared/story-status-icons"
+import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { StoryView } from "@/components/library/shared/story-view"
+import { IngestionDataProvider } from "@/components/library/shared/ingestion-data-context"
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
@@ -363,6 +372,14 @@ function PreviewContent({
   onContentUpdated: (content: string) => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }) {
+  const [infoTab, setInfoTab] = React.useState<"original" | "story" | "info">("original")
+  const transcript = useResolvedTranscriptItem({
+    provider,
+    libraryId: activeLibraryId,
+    sourceFile: fileType === "audio" || fileType === "pdf" ? item : null,
+    targetLanguage: "de",
+  })
+
   const [activeTab, setActiveTab] = React.useState<string>("preview");
   // Statusabfrage-States (derzeit nicht genutzt – bei Bedarf aktivieren)
   // const [ragLoading, setRagLoading] = React.useState(false);
@@ -420,6 +437,7 @@ function PreviewContent({
   
   React.useEffect(() => {
     setActiveTab("preview");
+    setInfoTab("original");
   }, [item.id]);
 
   // async function loadRagStatus() {
@@ -455,12 +473,70 @@ function PreviewContent({
   }
 
   switch (fileType) {
-    case 'audio':
+    case 'audio': {
       FileLogger.debug('PreviewContent', 'Audio-Player wird gerendert', {
         itemId: item.id,
         itemName: item.metadata.name
       });
-      return <AudioPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} showTransformControls={false} />;
+      if (!provider) {
+        return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
+      }
+      const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
+        ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
+        : undefined
+
+      return (
+        <IngestionDataProvider
+          libraryId={activeLibraryId}
+          fileId={item.id}
+          docModifiedAt={docModifiedAt}
+          includeChapters={true}
+        >
+          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v === "original" ? "original" : v === "story" ? "story" : "info")} className="flex h-full flex-col">
+            <TabsList className="mx-3 mt-3 w-fit">
+              <TabsTrigger value="original">Original</TabsTrigger>
+              <TabsTrigger value="story">Story View</TabsTrigger>
+              <TabsTrigger value="info">Story Info</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border">
+                <SourceAndTranscriptPane
+                  provider={provider}
+                  sourceFile={item}
+                  streamingUrl={null}
+                  transcriptItem={transcript.transcriptItem}
+                  leftPaneMode="audio"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "story" ? (
+                <div className="h-full overflow-auto rounded border p-3">
+                  <StoryView libraryId={activeLibraryId} />
+                </div>
+              ) : null}
+            </TabsContent>
+
+            <TabsContent value="info" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "info" ? (
+                <div className="rounded border">
+                  <ArtifactInfoPanel
+                    libraryId={activeLibraryId}
+                    sourceFile={item}
+                    shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId || null}
+                    transcriptFiles={shadowTwinState?.transcriptFiles}
+                    transformed={shadowTwinState?.transformed}
+                    targetLanguage="de"
+                  />
+                </div>
+              ) : null}
+            </TabsContent>
+          </Tabs>
+        </IngestionDataProvider>
+      )
+    }
     case 'image':
       FileLogger.info('PreviewContent', 'ImagePreview wird gerendert', {
         itemId: item.id,
@@ -728,14 +804,66 @@ function PreviewContent({
           </Tabs>
         </div>
       );
-    case 'pdf':
+    case 'pdf': {
+      if (!provider) {
+        return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
+      }
+      const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
+        ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
+        : undefined
+
       return (
-        <DocumentPreviewComponent
-          provider={provider}
-          activeLibraryId={activeLibraryId}
-          onRefreshFolder={onRefreshFolder}
-        />
-      );
+        <IngestionDataProvider
+          libraryId={activeLibraryId}
+          fileId={item.id}
+          docModifiedAt={docModifiedAt}
+          includeChapters={true}
+        >
+          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v === "original" ? "original" : v === "story" ? "story" : "info")} className="flex h-full flex-col">
+            <TabsList className="mx-3 mt-3 w-fit">
+              <TabsTrigger value="original">Original</TabsTrigger>
+              <TabsTrigger value="story">Story View</TabsTrigger>
+              <TabsTrigger value="info">Story Info</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border">
+                <SourceAndTranscriptPane
+                  provider={provider}
+                  sourceFile={item}
+                  streamingUrl={null}
+                  transcriptItem={transcript.transcriptItem}
+                  leftPaneMode="pdf"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "story" ? (
+                <div className="h-full overflow-auto rounded border p-3">
+                  <StoryView libraryId={activeLibraryId} />
+                </div>
+              ) : null}
+            </TabsContent>
+
+            <TabsContent value="info" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "info" ? (
+                <div className="rounded border">
+                  <ArtifactInfoPanel
+                    libraryId={activeLibraryId}
+                    sourceFile={item}
+                    shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId || null}
+                    transcriptFiles={shadowTwinState?.transcriptFiles}
+                    transformed={shadowTwinState?.transformed}
+                    targetLanguage="de"
+                  />
+                </div>
+              ) : null}
+            </TabsContent>
+          </Tabs>
+        </IngestionDataProvider>
+      )
+    }
     case 'docx':
     case 'pptx':
     case 'xlsx':
@@ -786,9 +914,17 @@ export function FilePreview({
   const router = useRouter()
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const selectedFileFromAtom = useAtomValue(selectedFileAtom);
+  const shadowTwinStates = useAtomValue(shadowTwinStateAtom)
+  const [, setShadowTwinAnalysisTrigger] = useAtom(shadowTwinAnalysisTriggerAtom)
   
   // Verwende explizite file prop oder fallback zum selectedFileAtom
   const displayFile = file || selectedFileFromAtom;
+  const shadowTwinState = displayFile ? shadowTwinStates.get(displayFile.id) : undefined
+  const storyStatus = useStoryStatus({
+    libraryId: activeLibraryId,
+    file: displayFile,
+    shadowTwinState,
+  })
   
   // Debug-Log für FilePreview-Hauptkomponente
   React.useEffect(() => {
@@ -906,15 +1042,31 @@ export function FilePreview({
           <div className="truncate text-sm font-medium">{displayFile.metadata.name}</div>
         </div>
         <div className="flex items-center gap-2">
+          <StoryStatusIcons steps={storyStatus.steps} />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShadowTwinAnalysisTrigger((v) => v + 1)}
+                  aria-label="Shadow-Twin Status aktualisieren"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Status aktualisieren</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Button
             size="sm"
             variant="secondary"
             onClick={() => {
-              const url = `/library/flow?libraryId=${encodeURIComponent(activeLibraryId)}&fileId=${encodeURIComponent(displayFile.id)}&parentId=${encodeURIComponent(displayFile.parentId)}`
+              const url = `/library/story-creator?libraryId=${encodeURIComponent(activeLibraryId)}&fileId=${encodeURIComponent(displayFile.id)}&parentId=${encodeURIComponent(displayFile.parentId)}&left=off`
               router.push(url)
             }}
           >
-            Flow öffnen
+            Story Creator
           </Button>
           {provider ? (
             <Button

@@ -21,6 +21,9 @@ Diese Anforderungen definieren die **artefakt‑zentrierte Pipeline (Variante 3)
   - **Extract/Transcript**: `{base}.{lang}.md`
   - **Transformation**: `{base}.{template}.{lang}.md`
 - Assets (z.B. PDF pages/images ZIP) werden als **URLs/Refs** verwaltet; keine großen Base64 Payloads als Standard.
+- **Storage Policy (Zielbild)**:
+  - **Dot‑Folder ist kanonisch** für alle Medien (Write-Pfad).
+  - **Siblings** gelten als Legacy und werden nur noch als **Read-Only Fallback** toleriert, bis ein Repair/Migration-Run sie eliminiert.
 
 ### FR‑2: Template = Ziel (quelle-agnostisch)
 

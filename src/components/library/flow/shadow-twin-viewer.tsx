@@ -6,12 +6,12 @@ import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { parseFrontmatter } from "@/lib/markdown/frontmatter"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { SourceRenderer } from "@/components/library/flow/source-renderer"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { MarkdownMetadata } from "@/components/library/markdown-metadata"
 import { ChapterAccordion, type Chapter } from "@/components/library/chapter-accordion"
 import { IngestionStatus } from "@/components/library/ingestion-status"
 import type { ShadowTwinTransformationEntry } from "@/components/library/flow/use-shadow-twin-artifacts"
+import { SourceAndTranscriptPane } from "@/components/library/shared/source-and-transcript-pane"
 
 interface ShadowTwinViewerProps {
   libraryId: string
@@ -69,11 +69,7 @@ export function ShadowTwinViewer(props: ShadowTwinViewerProps) {
   const mediaType = getMediaType(props.sourceFile)
   const isPdf = mediaType === "pdf"
   const leftMode = props.leftPaneMode
-  const isLeftHidden = isPdf && leftMode === "off"
-
-  const [transcriptText, setTranscriptText] = React.useState<string>("")
-  const [isTranscriptLoading, setIsTranscriptLoading] = React.useState(false)
-  const [transcriptError, setTranscriptError] = React.useState<string | null>(null)
+  const isLeftHidden = leftMode === "off"
 
   // Viewer zeigt bewusst NUR die aktuellste Transformation (neueste zuerst).
   // Die Auswahl-/Filter-Logik zum Starten neuer Jobs ist oben in `FlowActions` abgebildet.
@@ -88,37 +84,6 @@ export function ShadowTwinViewer(props: ShadowTwinViewerProps) {
   const [transformationText, setTransformationText] = React.useState<string>("")
   const [isTransformationLoading, setIsTransformationLoading] = React.useState(false)
   const [transformationError, setTransformationError] = React.useState<string | null>(null)
-
-  // Transcript Text lazy laden (PDF nur im Transcript‑Mode; Audio immer)
-  const shouldLoadTranscript = mediaType === "audio" || (mediaType === "pdf" && leftMode === "transcript")
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function loadTranscript() {
-      setTranscriptError(null)
-      setTranscriptText("")
-      if (!props.transcriptItem) return
-      if (!shouldLoadTranscript) return
-
-      try {
-        setIsTranscriptLoading(true)
-        const { blob } = await props.provider.getBinary(props.transcriptItem.id)
-        const text = await blob.text()
-        if (cancelled) return
-        setTranscriptText(text)
-      } catch (e) {
-        if (cancelled) return
-        setTranscriptError(e instanceof Error ? e.message : String(e))
-      } finally {
-        if (!cancelled) setIsTranscriptLoading(false)
-      }
-    }
-
-    void loadTranscript()
-    return () => {
-      cancelled = true
-    }
-  }, [props.provider, props.transcriptItem, shouldLoadTranscript])
 
   // 3) Transformation Text laden
   React.useEffect(() => {
@@ -163,65 +128,56 @@ export function ShadowTwinViewer(props: ShadowTwinViewerProps) {
     return undefined
   }, [selectedTransformation])
 
+  const [rightTab, setRightTab] = React.useState<"text" | "transform" | "publish">("transform")
+  React.useEffect(() => {
+    setRightTab(props.transformations.length > 0 ? "transform" : "text")
+  }, [props.sourceFile.id, props.transformations.length])
+
+  const [transcriptText, setTranscriptText] = React.useState<string>("")
+  const [isTranscriptLoading, setIsTranscriptLoading] = React.useState(false)
+  const [transcriptError, setTranscriptError] = React.useState<string | null>(null)
+  React.useEffect(() => {
+    let cancelled = false
+
+    async function loadTranscript() {
+      setTranscriptError(null)
+      setTranscriptText("")
+      if (!props.transcriptItem) return
+      if (rightTab !== "text") return
+
+      try {
+        setIsTranscriptLoading(true)
+        const { blob } = await props.provider.getBinary(props.transcriptItem.id)
+        const text = await blob.text()
+        if (cancelled) return
+        setTranscriptText(text)
+      } catch (e) {
+        if (cancelled) return
+        setTranscriptError(e instanceof Error ? e.message : String(e))
+      } finally {
+        if (!cancelled) setIsTranscriptLoading(false)
+      }
+    }
+
+    void loadTranscript()
+    return () => {
+      cancelled = true
+    }
+  }, [props.provider, props.transcriptItem, rightTab])
+
   return (
     <div className={isLeftHidden ? "grid h-full min-h-0 gap-3" : "grid h-full min-h-0 gap-3 md:grid-cols-2"}>
       {/* Links: Quelle + Transcript (Shadow‑Twin) */}
       {isLeftHidden ? null : (
         <div className="min-h-0 overflow-hidden rounded border">
         <div className="flex h-full flex-col">
-          {/* Quelle */}
-          <div className={mediaType === "audio" ? "min-h-0 flex-1 overflow-hidden" : "min-h-0 flex-1 overflow-hidden"}>
-            {mediaType === "pdf" ? (
-              <div className="flex h-full flex-col">
-                <div className="min-h-0 flex-1 overflow-hidden">
-                  {leftMode === "transcript" ? (
-                    <div className="h-full overflow-auto p-3">
-                      {!props.transcriptItem ? (
-                        <div className="text-sm text-muted-foreground">Kein Transcript vorhanden.</div>
-                      ) : transcriptError ? (
-                        <div className="text-sm text-destructive">{transcriptError}</div>
-                      ) : isTranscriptLoading ? (
-                        <div className="text-sm text-muted-foreground">Lade Transcript…</div>
-                      ) : (
-                        <MarkdownPreview content={transcriptText} compact className="h-full" />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex h-full flex-col">
-                      <div className="border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground truncate">
-                        {props.sourceFile.metadata?.name}
-                      </div>
-                      <div className="min-h-0 flex-1">
-                        <SourceRenderer provider={props.provider} file={props.sourceFile} streamingUrl={props.streamingUrl} showHeader={false} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <SourceRenderer provider={props.provider} file={props.sourceFile} streamingUrl={props.streamingUrl} showHeader={false} />
-            )}
-          </div>
-
-          {/* Transcript unter Audio */}
-          {mediaType === "audio" ? (
-            <div className="min-h-0 flex-1 border-t">
-              <div className="border-b bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                Transcript (Shadow‑Twin{props.transcriptItem?.metadata?.name ? `: ${props.transcriptItem.metadata.name}` : ""})
-              </div>
-              <div className="h-full overflow-auto p-3">
-                {!props.transcriptItem ? (
-                  <div className="text-sm text-muted-foreground">Kein Transcript vorhanden.</div>
-                ) : transcriptError ? (
-                  <div className="text-sm text-destructive">{transcriptError}</div>
-                ) : isTranscriptLoading ? (
-                  <div className="text-sm text-muted-foreground">Lade Transcript…</div>
-                ) : (
-                  <MarkdownPreview content={transcriptText} compact className="h-full" />
-                )}
-              </div>
-            </div>
-          ) : null}
+          <SourceAndTranscriptPane
+            provider={props.provider}
+            sourceFile={props.sourceFile}
+            streamingUrl={props.streamingUrl}
+            transcriptItem={props.transcriptItem}
+            leftPaneMode={leftMode}
+          />
         </div>
       </div>
       )}
@@ -234,50 +190,71 @@ export function ShadowTwinViewer(props: ShadowTwinViewerProps) {
               <div className="p-3 text-sm text-destructive">{props.shadowTwinError}</div>
             ) : props.shadowTwinLoading ? (
               <div className="p-3 text-sm text-muted-foreground">Lade Shadow‑Twin…</div>
-            ) : props.transformations.length === 0 ? (
-              <div className="p-3 text-sm text-muted-foreground">Keine Transformationen vorhanden.</div>
-            ) : transformationError ? (
-              <div className="p-3 text-sm text-destructive">{transformationError}</div>
-            ) : isTransformationLoading ? (
-              <div className="p-3 text-sm text-muted-foreground">Lade Transformation…</div>
             ) : (
-              <Tabs defaultValue="body" className="flex h-full flex-col">
+              <Tabs value={rightTab} onValueChange={(v) => setRightTab(v === "text" || v === "publish" ? v : "transform")} className="flex h-full flex-col">
                 <div className="mx-3 mt-3 truncate text-xs text-muted-foreground">
-                  Transformation: {selectedTransformation?.item?.metadata?.name ?? "—"}
+                  {selectedTransformation?.item?.metadata?.name ? `Transformiert: ${selectedTransformation.item.metadata.name}` : "Noch keine Transformation"}
                 </div>
                 <TabsList className="mx-3 mt-3 w-fit">
-                  <TabsTrigger value="body">Markdown</TabsTrigger>
-                  <TabsTrigger value="meta">Metadaten</TabsTrigger>
-                  {transformationParsed && transformationParsed.chapters.length > 0 ? (
-                    <TabsTrigger value="chapters">Kapitel</TabsTrigger>
-                  ) : null}
-                  <TabsTrigger value="ingestion">Ingestion</TabsTrigger>
+                  <TabsTrigger value="text">Text</TabsTrigger>
+                  <TabsTrigger value="transform" disabled={props.transformations.length === 0}>
+                    Transformieren
+                  </TabsTrigger>
+                  <TabsTrigger value="publish">Veröffentlichen</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="body" className="min-h-0 flex-1 overflow-auto p-3">
-                  <MarkdownPreview content={transformationParsed?.body ?? transformationText} compact className="h-full" />
-                </TabsContent>
-
-                <TabsContent value="meta" className="min-h-0 flex-1 overflow-auto p-3">
-                  <MarkdownMetadata content={transformationText} libraryId={props.libraryId} />
-                </TabsContent>
-
-                {transformationParsed && transformationParsed.chapters.length > 0 ? (
-                  <TabsContent value="chapters" className="min-h-0 flex-1 overflow-auto p-3">
-                    <ChapterAccordion chapters={transformationParsed.chapters} />
-                  </TabsContent>
-                ) : null}
-
-                <TabsContent value="ingestion" className="min-h-0 flex-1 overflow-auto p-3">
-                  {selectedTransformation ? (
-                    <IngestionStatus
-                      libraryId={props.libraryId}
-                      fileId={selectedTransformation.item.id}
-                      docModifiedAt={transformationDocModifiedAt}
-                    />
+                <TabsContent value="text" className="min-h-0 flex-1 overflow-auto p-3">
+                  {!props.transcriptItem ? (
+                    <div className="text-sm text-muted-foreground">Noch kein Text vorhanden.</div>
+                  ) : transcriptError ? (
+                    <div className="text-sm text-destructive">{transcriptError}</div>
+                  ) : isTranscriptLoading ? (
+                    <div className="text-sm text-muted-foreground">Lade Text…</div>
                   ) : (
-                    <div className="text-sm text-muted-foreground">Keine Transformation ausgewählt.</div>
+                    <MarkdownPreview content={transcriptText} compact className="h-full" />
                   )}
+                </TabsContent>
+
+                <TabsContent value="transform" className="min-h-0 flex-1 overflow-hidden">
+                  {props.transformations.length === 0 ? (
+                    <div className="p-3 text-sm text-muted-foreground">Noch keine Transformation vorhanden.</div>
+                  ) : transformationError ? (
+                    <div className="p-3 text-sm text-destructive">{transformationError}</div>
+                  ) : isTransformationLoading ? (
+                    <div className="p-3 text-sm text-muted-foreground">Lade Transformation…</div>
+                  ) : (
+                    <Tabs defaultValue="body" className="flex h-full flex-col">
+                      <TabsList className="mx-3 mt-3 w-fit">
+                        <TabsTrigger value="body">Ergebnis</TabsTrigger>
+                        <TabsTrigger value="meta">Metadaten</TabsTrigger>
+                        {transformationParsed && transformationParsed.chapters.length > 0 ? (
+                          <TabsTrigger value="chapters">Struktur</TabsTrigger>
+                        ) : null}
+                      </TabsList>
+
+                      <TabsContent value="body" className="min-h-0 flex-1 overflow-auto p-3">
+                        <MarkdownPreview content={transformationParsed?.body ?? transformationText} compact className="h-full" />
+                      </TabsContent>
+
+                      <TabsContent value="meta" className="min-h-0 flex-1 overflow-auto p-3">
+                        <MarkdownMetadata content={transformationText} libraryId={props.libraryId} />
+                      </TabsContent>
+
+                      {transformationParsed && transformationParsed.chapters.length > 0 ? (
+                        <TabsContent value="chapters" className="min-h-0 flex-1 overflow-auto p-3">
+                          <ChapterAccordion chapters={transformationParsed.chapters} />
+                        </TabsContent>
+                      ) : null}
+                    </Tabs>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="publish" className="min-h-0 flex-1 overflow-auto p-3">
+                  <IngestionStatus
+                    libraryId={props.libraryId}
+                    fileId={props.sourceFile.id}
+                    docModifiedAt={transformationDocModifiedAt}
+                  />
                 </TabsContent>
               </Tabs>
             )}
