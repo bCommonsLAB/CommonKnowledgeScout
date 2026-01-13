@@ -50,4 +50,3 @@ shadowTwinStateAtom.debugLabel = 'shadowTwinStateAtom';
  */
 export const shadowTwinAnalysisTriggerAtom = atom<number>(0);
 shadowTwinAnalysisTriggerAtom.debugLabel = 'shadowTwinAnalysisTriggerAtom';
-

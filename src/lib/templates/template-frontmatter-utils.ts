@@ -406,6 +406,14 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
           icon: typeof ui.icon === 'string' ? ui.icon : undefined
         } : undefined
 
+        // Folge-Wizards (optional) extrahieren
+        const follow = obj.followWizards && typeof obj.followWizards === 'object' ? obj.followWizards as Record<string, unknown> : null
+        const followWizards = follow ? {
+          testimonialTemplateId: typeof follow.testimonialTemplateId === 'string' ? follow.testimonialTemplateId : undefined,
+          finalizeTemplateId: typeof follow.finalizeTemplateId === 'string' ? follow.finalizeTemplateId : undefined,
+          publishTemplateId: typeof follow.publishTemplateId === 'string' ? follow.publishTemplateId : undefined,
+        } : undefined
+
         // Welcome (Markdown) extrahieren
         const welcomeObj = obj.welcome && typeof obj.welcome === 'object' ? obj.welcome as Record<string, unknown> : null
         const welcomeMarkdown = welcomeObj && typeof welcomeObj.markdown === 'string' ? welcomeObj.markdown : undefined
@@ -472,10 +480,14 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
           }
         }
 
+        if (followWizards && (followWizards.testimonialTemplateId || followWizards.finalizeTemplateId || followWizards.publishTemplateId)) {
+          result.followWizards = followWizards
+        }
+
         if (welcomeMarkdown && welcomeMarkdown.trim()) {
           result.welcome = { markdown: welcomeMarkdown }
         }
-        if (detailViewType === 'book' || detailViewType === 'session') {
+        if (detailViewType === 'book' || detailViewType === 'session' || detailViewType === 'testimonial' || detailViewType === 'blog') {
           result.preview = { detailViewType }
         }
         if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix || createInOwnFolder !== undefined) {
@@ -519,6 +531,14 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
           displayName: typeof ui.displayName === 'string' ? ui.displayName : undefined,
           description: typeof ui.description === 'string' ? ui.description : undefined,
           icon: typeof ui.icon === 'string' ? ui.icon : undefined
+        } : undefined
+
+        // Folge-Wizards (optional) extrahieren (Fallback)
+        const follow = obj.followWizards && typeof obj.followWizards === 'object' ? obj.followWizards as Record<string, unknown> : null
+        const followWizards = follow ? {
+          testimonialTemplateId: typeof follow.testimonialTemplateId === 'string' ? follow.testimonialTemplateId : undefined,
+          finalizeTemplateId: typeof follow.finalizeTemplateId === 'string' ? follow.finalizeTemplateId : undefined,
+          publishTemplateId: typeof follow.publishTemplateId === 'string' ? follow.publishTemplateId : undefined,
         } : undefined
 
         // Welcome (Markdown) extrahieren (Fallback)
@@ -587,10 +607,14 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
           }
         }
 
+        if (followWizards && (followWizards.testimonialTemplateId || followWizards.finalizeTemplateId || followWizards.publishTemplateId)) {
+          result.followWizards = followWizards
+        }
+
         if (welcomeMarkdown && welcomeMarkdown.trim()) {
           result.welcome = { markdown: welcomeMarkdown }
         }
-        if (detailViewType === 'book' || detailViewType === 'session') {
+        if (detailViewType === 'book' || detailViewType === 'session' || detailViewType === 'testimonial' || detailViewType === 'blog') {
           result.preview = { detailViewType }
         }
         if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix || createInOwnFolder !== undefined) {
@@ -726,6 +750,18 @@ function serializeCreationToYaml(creation: TemplateCreationConfig, indent: numbe
       if (hasCreateInOwnFolder) {
         lines.push(`${indentStr}  createInOwnFolder: ${creation.output.createInOwnFolder ? 'true' : 'false'}`)
       }
+    }
+  }
+
+  // followWizards (optional) – Orchestrierung auf Preset-Ebene
+  if (creation.followWizards) {
+    const fw = creation.followWizards
+    const hasAny = Boolean(fw.testimonialTemplateId || fw.finalizeTemplateId || fw.publishTemplateId)
+    if (hasAny) {
+      lines.push(`${indentStr}followWizards:`)
+      if (fw.testimonialTemplateId) lines.push(`${indentStr}  testimonialTemplateId: ${fw.testimonialTemplateId}`)
+      if (fw.finalizeTemplateId) lines.push(`${indentStr}  finalizeTemplateId: ${fw.finalizeTemplateId}`)
+      if (fw.publishTemplateId) lines.push(`${indentStr}  publishTemplateId: ${fw.publishTemplateId}`)
     }
   }
   

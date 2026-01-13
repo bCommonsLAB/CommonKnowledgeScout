@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { addMember, removeMember, listMembers } from '@/lib/repositories/library-members-repo';
 import { LibraryService } from '@/lib/services/library-service';
+import { getPreferredUserEmail, normalizeEmail } from '@/lib/auth/user-email';
 
 /**
  * GET /api/libraries/[id]/members
@@ -34,14 +35,13 @@ export async function GET(
     }
 
     const user = await currentUser();
-    if (!user?.emailAddresses?.[0]?.emailAddress) {
+    const userEmail = getPreferredUserEmail(user);
+    if (!userEmail) {
       return NextResponse.json(
         { error: 'Keine E-Mail-Adresse gefunden' },
         { status: 401 }
       );
     }
-
-    const userEmail = user.emailAddresses[0].emailAddress;
 
     // Prüfe ob Benutzer Owner ist (nur Owner können Mitglieder sehen)
     const libraryService = LibraryService.getInstance();
@@ -92,14 +92,13 @@ export async function POST(
     }
 
     const user = await currentUser();
-    if (!user?.emailAddresses?.[0]?.emailAddress) {
+    const userEmail = getPreferredUserEmail(user);
+    if (!userEmail) {
       return NextResponse.json(
         { error: 'Keine E-Mail-Adresse gefunden' },
         { status: 401 }
       );
     }
-
-    const userEmail = user.emailAddresses[0].emailAddress;
 
     // Prüfe ob Benutzer Owner ist (nur Owner können Moderatoren hinzufügen)
     const libraryService = LibraryService.getInstance();
@@ -131,9 +130,17 @@ export async function POST(
       );
     }
 
+    const normalizedMemberEmail = normalizeEmail(memberEmail);
+    if (!normalizedMemberEmail) {
+      return NextResponse.json(
+        { error: 'E-Mail-Adresse ist erforderlich' },
+        { status: 400 }
+      );
+    }
+
     // Prüfe ob Benutzer bereits Owner ist (Owner können nicht als Moderator hinzugefügt werden)
     try {
-      await libraryService.getLibrary(memberEmail, libraryId);
+      await libraryService.getLibrary(normalizedMemberEmail, libraryId);
       return NextResponse.json(
         { error: 'Dieser Benutzer ist bereits Owner der Library.' },
         { status: 400 }
@@ -143,7 +150,7 @@ export async function POST(
     }
 
     // Füge Moderator hinzu
-    await addMember(libraryId, memberEmail, role, userEmail);
+    await addMember(libraryId, normalizedMemberEmail, role, userEmail);
 
     return NextResponse.json({
       success: true,
@@ -181,14 +188,13 @@ export async function DELETE(
     }
 
     const user = await currentUser();
-    if (!user?.emailAddresses?.[0]?.emailAddress) {
+    const userEmail = getPreferredUserEmail(user);
+    if (!userEmail) {
       return NextResponse.json(
         { error: 'Keine E-Mail-Adresse gefunden' },
         { status: 401 }
       );
     }
-
-    const userEmail = user.emailAddresses[0].emailAddress;
 
     // Prüfe ob Benutzer Owner ist (nur Owner können Moderatoren entfernen)
     const libraryService = LibraryService.getInstance();
@@ -216,7 +222,7 @@ export async function DELETE(
     console.log('[API] DELETE /members: Entferne Moderator', { libraryId, memberEmail, userEmail });
 
     // Entferne Moderator
-    await removeMember(libraryId, memberEmail);
+    await removeMember(libraryId, normalizeEmail(memberEmail));
     
     console.log('[API] DELETE /members: Moderator erfolgreich entfernt', { libraryId, memberEmail });
 

@@ -25,6 +25,7 @@ import { getCollection } from '@/lib/mongodb-service';
 import { LibraryService } from '@/lib/services/library-service';
 import type { Collection } from 'mongodb';
 import type { LibraryMember, LibraryRole } from '@/types/library-members';
+import { buildCaseInsensitiveEmailRegex, normalizeEmail } from '@/lib/auth/user-email';
 
 const COLLECTION_NAME = 'library_members';
 
@@ -59,17 +60,21 @@ export async function addMember(
   addedBy: string
 ): Promise<void> {
   const col = await getMembersCollection();
+  const normalizedUserEmail = normalizeEmail(userEmail);
+  const normalizedAddedBy = normalizeEmail(addedBy);
   
   // Prüfe ob Mitglied bereits existiert
-  const existing = await col.findOne({ libraryId, userEmail });
+  const existing =
+    (await col.findOne({ libraryId, userEmail: normalizedUserEmail })) ||
+    (await col.findOne({ libraryId, userEmail: { $regex: buildCaseInsensitiveEmailRegex(normalizedUserEmail) } }));
   if (existing) {
     // Aktualisiere bestehendes Mitglied
     await col.updateOne(
-      { libraryId, userEmail },
+      { libraryId, userEmail: existing.userEmail },
       {
         $set: {
           role,
-          addedBy,
+          addedBy: normalizedAddedBy,
           addedAt: new Date(),
         },
       }
@@ -78,10 +83,10 @@ export async function addMember(
     // Erstelle neues Mitglied
     await col.insertOne({
       libraryId,
-      userEmail,
+      userEmail: normalizedUserEmail,
       role,
       addedAt: new Date(),
-      addedBy,
+      addedBy: normalizedAddedBy,
     });
   }
 }
@@ -97,7 +102,13 @@ export async function removeMember(
   userEmail: string
 ): Promise<void> {
   const col = await getMembersCollection();
-  await col.deleteOne({ libraryId, userEmail });
+  const normalizedUserEmail = normalizeEmail(userEmail);
+
+  // Erst versuchen wir den normalisierten Key, dann Fallback case-insensitiv.
+  const res = await col.deleteOne({ libraryId, userEmail: normalizedUserEmail });
+  if (res.deletedCount === 0) {
+    await col.deleteOne({ libraryId, userEmail: { $regex: buildCaseInsensitiveEmailRegex(normalizedUserEmail) } });
+  }
 }
 
 /**
@@ -112,7 +123,11 @@ export async function getMember(
   userEmail: string
 ): Promise<LibraryMember | null> {
   const col = await getMembersCollection();
-  return await col.findOne({ libraryId, userEmail });
+  const normalizedUserEmail = normalizeEmail(userEmail);
+  return (
+    (await col.findOne({ libraryId, userEmail: normalizedUserEmail })) ||
+    (await col.findOne({ libraryId, userEmail: { $regex: buildCaseInsensitiveEmailRegex(normalizedUserEmail) } }))
+  );
 }
 
 /**
@@ -137,27 +152,52 @@ export async function isModeratorOrOwner(
   libraryId: string,
   userEmail: string
 ): Promise<boolean> {
+  const normalizedUserEmail = normalizeEmail(userEmail);
+
+  // Debug-Logging für Rollen-Prüfung (nur in Development)
+  const isDebug = process.env.NODE_ENV === 'development';
+  if (isDebug) {
+    console.log('[isModeratorOrOwner] Start:', { libraryId, userEmail, normalizedUserEmail });
+  }
+
   // Prüfe zuerst ob Benutzer Owner ist (über Library-Struktur)
   const libraryService = LibraryService.getInstance();
   
   // Versuche Library zu laden - wenn erfolgreich, ist userEmail der Owner
   try {
-    const library = await libraryService.getLibrary(userEmail, libraryId);
+    const library = await libraryService.getLibrary(normalizedUserEmail, libraryId);
     if (library) {
+      if (isDebug) {
+        console.log('[isModeratorOrOwner] Owner erkannt:', { libraryId, normalizedUserEmail });
+      }
       return true; // Owner
     }
-  } catch {
+  } catch (err) {
     // Library nicht gefunden oder nicht Owner
+    if (isDebug) {
+      console.log('[isModeratorOrOwner] Owner-Check fehlgeschlagen:', { libraryId, normalizedUserEmail, error: err instanceof Error ? err.message : String(err) });
+    }
   }
   
   // Prüfe ob Benutzer Moderator ist
   const col = await getMembersCollection();
-  const member = await col.findOne({
-    libraryId,
-    userEmail,
-    role: 'moderator',
-  });
+  const member =
+    (await col.findOne({
+      libraryId,
+      userEmail: normalizedUserEmail,
+      role: 'moderator',
+    })) ||
+    (await col.findOne({
+      libraryId,
+      userEmail: { $regex: buildCaseInsensitiveEmailRegex(normalizedUserEmail) },
+      role: 'moderator',
+    }));
   
-  return member !== null;
+  const isModerator = member !== null;
+  if (isDebug) {
+    console.log('[isModeratorOrOwner] Ergebnis:', { libraryId, normalizedUserEmail, isModerator, memberFound: !!member });
+  }
+  
+  return isModerator;
 }
 

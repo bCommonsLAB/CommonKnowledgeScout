@@ -11,7 +11,7 @@ import { MarkdownMetadata } from './markdown-metadata';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { activeLibraryIdAtom, selectedFileAtom } from "@/atoms/library-atom";
+import { activeLibraryIdAtom, selectedFileAtom, librariesAtom } from "@/atoms/library-atom";
 import { TextEditor } from './text-editor';
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { extractFrontmatter } from './markdown-metadata';
@@ -24,6 +24,7 @@ import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 import { parseFrontmatter } from '@/lib/markdown/frontmatter';
 import { DetailViewRenderer } from './detail-view-renderer';
 import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types';
+import { getDetailViewType } from '@/lib/templates/detail-view-type-utils';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { resolveArtifactClient } from '@/lib/shadow-twin/artifact-client';
@@ -571,20 +572,24 @@ function PreviewContent({
       const meta = parsed.meta || {};
       const body = parsed.body || '';
       const creationTypeId = typeof meta.creationTypeId === 'string' ? meta.creationTypeId.trim() : undefined;
-      const creationDetailViewType = typeof meta.creationDetailViewType === 'string' 
-        ? (meta.creationDetailViewType as TemplatePreviewDetailViewType)
-        : undefined;
+      
+      // Bestimme detailViewType aus Frontmatter mit Fallback auf Library-Config
+      const libraries = useAtomValue(librariesAtom);
+      const activeLibrary = activeLibraryId ? libraries.find(lib => lib.id === activeLibraryId) : undefined;
+      const libraryConfig = activeLibrary?.config?.chat;
+      const detailViewType = getDetailViewType(meta, libraryConfig);
       
       // Filtere System-Keys aus Metadaten (nur Template-Metadaten für DetailView)
       const templateMetadata: Record<string, unknown> = {};
-      const systemKeys = new Set(['creationTypeId', 'creationTemplateId', 'creationDetailViewType', 'textSources', 'templateName']);
+      const systemKeys = new Set(['creationTypeId', 'creationTemplateId', 'creationDetailViewType', 'detailViewType', 'textSources', 'templateName']);
       for (const [key, value] of Object.entries(meta)) {
         if (!systemKeys.has(key)) {
           templateMetadata[key] = value;
         }
       }
       
-      const isCreationFile = creationTypeId && creationDetailViewType;
+      // Creation-Datei: wenn creationTypeId vorhanden ist (auch wenn detailViewType aus Fallback kommt)
+      const isCreationFile = !!creationTypeId;
       
       // Prüfe, ob es ein Dialograum ist (für Button "Dialograum Ergebnis erstellen")
       const dialograumId = typeof meta.dialograum_id === 'string' ? meta.dialograum_id.trim() : undefined;
@@ -607,7 +612,7 @@ function PreviewContent({
                 {isCreationFile ? (
                   <div className="h-full overflow-auto">
                     <DetailViewRenderer
-                      detailViewType={creationDetailViewType}
+                      detailViewType={detailViewType}
                       metadata={templateMetadata}
                       markdown={body}
                       libraryId={activeLibraryId}

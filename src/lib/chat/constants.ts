@@ -872,7 +872,6 @@ export const TOC_QUESTION = 'What topics are covered here? Can we output them as
 // ============================================================================
 // LLM MODELL (LlmModelId)
 // ============================================================================
-
 /**
  * LLM Modell-ID Type
  * 
@@ -887,4 +886,3 @@ export type LlmModelId = string
  * Das tatsächliche Standard-Modell wird aus MongoDB geladen (erstes Modell nach order-Sortierung).
  */
 export const LLM_MODEL_DEFAULT: LlmModelId = ''
-

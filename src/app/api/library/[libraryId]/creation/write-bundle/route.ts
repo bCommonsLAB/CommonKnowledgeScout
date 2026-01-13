@@ -71,13 +71,23 @@ export async function POST(
       )
     }
 
-    // Library validieren
-    const libraryService = LibraryService.getInstance()
-    const library = await libraryService.getLibrary(libraryId, userEmail)
-    if (!library) {
+    // Library validieren (best-effort):
+    // In manchen Setups existiert der Storage (Client) auch dann, wenn die Library serverseitig
+    // nicht (mehr) in Mongo gefunden wird. Das Bundle ist optional → dann sauber skippen,
+    // damit "Speichern" nicht als Fehler wirkt.
+    try {
+      const libraryService = LibraryService.getInstance()
+      const library = await libraryService.getLibrary(userEmail, libraryId)
+      if (!library) {
+        return NextResponse.json(
+          { success: false, skipped: true, reason: 'library_not_found' },
+          { status: 200 }
+        )
+      }
+    } catch {
       return NextResponse.json(
-        { error: 'Library not found' },
-        { status: 404 }
+        { success: false, skipped: true, reason: 'library_not_found' },
+        { status: 200 }
       )
     }
 
@@ -121,8 +131,20 @@ export async function POST(
       )
     }
 
-    // Server-Provider erstellen
-    const provider = await getServerProvider(userEmail, libraryId)
+    // Server-Provider erstellen (best-effort)
+    let provider: Awaited<ReturnType<typeof getServerProvider>>
+    try {
+      provider = await getServerProvider(userEmail, libraryId)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg.toLowerCase().includes('library nicht gefunden') || msg.toLowerCase().includes('library not found')) {
+        return NextResponse.json(
+          { success: false, skipped: true, reason: 'library_not_found' },
+          { status: 200 }
+        )
+      }
+      throw e
+    }
 
     // v2-only: kein Mode-Switch. Migration alter Artefakte passiert später.
 

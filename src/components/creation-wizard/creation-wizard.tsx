@@ -22,12 +22,14 @@ import { useRouter } from "next/navigation"
 import { useAtomValue } from "jotai"
 import { currentFolderIdAtom } from "@/atoms/library-atom"
 import { buildCreationFileName } from "@/lib/creation/file-name"
+import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-defaults"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildCorpusText, isCorpusTooLarge, truncateCorpus } from "@/lib/creation/corpus"
 import { parseFrontmatter } from "@/lib/markdown/frontmatter"
 import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
 import { writeArtifact } from "@/lib/shadow-twin/artifact-writer"
 import { findRelatedTestimonials } from "@/lib/creation/dialograum-discovery"
+import { findRelatedEventTestimonialsFilesystem } from "@/lib/creation/event-testimonial-discovery"
 import { promoteWizardArtifacts } from "@/lib/creation/wizard-artifact-promotion"
 import { useUser } from "@clerk/nextjs"
 import type { WizardSessionEvent } from "@/types/wizard-session"
@@ -48,6 +50,10 @@ declare global {
      */
     __collectSourceStepBeforeLeave?: () => WizardSource | null
   }
+}
+
+function nowMs(): number {
+  return Date.now()
 }
 
 interface WizardState {
@@ -80,6 +86,12 @@ interface WizardState {
   publishingMessage?: string
   publishError?: string
   isPublished?: boolean
+  /** Optional: Kurze Abschluss-Statistiken (für Publish-Step) */
+  publishStats?: { documents: number; images: number; sources: number }
+  /** Optional: Zielordner für "Im Explorer öffnen" */
+  publishTargetFolderId?: string
+  /** Optional: Ziel-Slug für "Im Explorer öffnen" (Gallery) */
+  publishTargetSlug?: string
   // PDF HITL: Tracking
   pdfBaseFileId?: string
   pdfTranscriptFileId?: string
@@ -129,6 +141,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   // Verwende targetFolderIdProp, falls gesetzt (für Child-Flows), sonst currentFolderIdAtom
   const currentFolderId = targetFolderIdProp || currentFolderIdAtomValue
   const router = useRouter()
+
+  function resolveTemplateDetailViewType(): 'book' | 'session' | 'testimonial' | 'blog' {
+    // SSOT: Template-Detailansicht (im Template-Editor Tab "Detail-Ansicht")
+    const metaDvt = template?.metadata?.detailViewType
+    if (metaDvt === 'book' || metaDvt === 'session' || metaDvt === 'testimonial' || metaDvt === 'blog') return metaDvt
+    // Backward compatibility: ältere Templates hatten teils `creation.preview.detailViewType`
+    const legacy = template?.creation?.preview?.detailViewType
+    if (legacy === 'book' || legacy === 'session' || legacy === 'testimonial' || legacy === 'blog') return legacy
+    return 'session'
+  }
   
   // Wizard Session Logging (DSGVO-konform)
   const { user } = useUser()
@@ -398,8 +420,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         const content = await blob.text()
         const { body } = parseFrontmatter(content)
         
-        // Erstelle WizardSource für Dialograum
-        const dialograumSource: WizardSource = {
+        // Erstelle WizardSource für Seed-Datei (Dialograum/Event/etc.)
+        const seedSource: WizardSource = {
           id: `file-${seedFileId}`,
           kind: 'file',
           fileName: dialograumItem.metadata.name || 'unbekannt',
@@ -408,36 +430,43 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           createdAt: new Date(),
         }
         
-        // Finde zugehörige Testimonials
-        const testimonials = await findRelatedTestimonials({
-          provider,
-          startFileId: seedFileId,
-          libraryId,
-        })
-        
-        // Konvertiere Testimonials zu WizardSources
-        const testimonialSources: WizardSource[] = []
-        for (const testimonial of testimonials) {
-          try {
-            const { blob: testimonialBlob } = await provider.getBinary(testimonial.fileId)
-            const testimonialContent = await testimonialBlob.text()
-            const { body: testimonialBody } = parseFrontmatter(testimonialContent)
-            
-            testimonialSources.push({
-              id: `file-${testimonial.fileId}`,
-              kind: 'file',
-              fileName: testimonial.fileName,
-              extractedText: testimonialBody.trim(),
-              summary: `${testimonial.author_name || 'Teilnehmer'}: ${testimonial.teaser || testimonialBody.slice(0, 100)}...`,
-              createdAt: new Date(),
+        // Seed-DocType bestimmen: Event nutzt filesystem discovery; Dialograum nutzt bestehende discovery
+        const { meta: seedMeta } = parseFrontmatter(content)
+        const seedDocType = typeof seedMeta.docType === 'string' ? seedMeta.docType.trim().toLowerCase() : ''
+
+        const testimonialSources: WizardSource[] = seedDocType === 'event'
+          ? await findRelatedEventTestimonialsFilesystem({ provider, eventFileId: seedFileId, libraryId })
+          : await (async () => {
+            const testimonials = await findRelatedTestimonials({
+              provider,
+              startFileId: seedFileId,
+              libraryId,
             })
-          } catch (error) {
-            console.error(`Fehler beim Laden von Testimonial ${testimonial.fileId}:`, error)
-          }
-        }
+
+            const sources: WizardSource[] = []
+            for (const testimonial of testimonials) {
+              try {
+                const { blob: testimonialBlob } = await provider.getBinary(testimonial.fileId)
+                const testimonialContent = await testimonialBlob.text()
+                const { body: testimonialBody } = parseFrontmatter(testimonialContent)
+
+                sources.push({
+                  id: `file-${testimonial.fileId}`,
+                  kind: 'file',
+                  fileName: testimonial.fileName,
+                  extractedText: testimonialBody.trim(),
+                  summary: `${testimonial.author_name || 'Teilnehmer'}: ${testimonial.teaser || testimonialBody.slice(0, 100)}...`,
+                  createdAt: new Date(),
+                })
+              } catch (error) {
+                console.error(`Fehler beim Laden von Testimonial ${testimonial.fileId}:`, error)
+              }
+            }
+            return sources
+          })()
         
-        // Kombiniere Sources: Dialograum zuerst, dann Testimonials
-        const allSources = [dialograumSource, ...testimonialSources]
+        // Kombiniere Sources: Seed zuerst, dann Testimonials
+        const allSources = [seedSource, ...testimonialSources]
         
         // Finde ersten selectRelatedTestimonials Step (oder nächsten Step nach collectSource)
         const steps = template.creation?.flow.steps || []
@@ -461,7 +490,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           sources: allSources,
         })
         
-        toast.success(`Dialograum geladen, ${testimonials.length} Testimonial(s) gefunden`)
+        toast.success(`Seed geladen, ${testimonialSources.length} Quelle(n) gefunden`)
       } catch (error) {
         toast.error(`Fehler beim Laden der Seed-Datei: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
       }
@@ -489,6 +518,55 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
   // Immer den aktuellsten StepIndex in eine Ref schreiben (damit cleanup beim Unmount korrekt ist)
   latestStepIndexRef.current = wizardState.currentStepIndex
+
+  /**
+   * Step-Telemetrie (Begin/End + Dauer) MUSS vor frühen returns stehen,
+   * sonst ändert sich die Hook-Reihenfolge sobald das Template geladen ist.
+   */
+  const prevStepIndexRef = useRef<number | null>(null)
+  const stepEnteredAtRef = useRef<number | null>(null)
+  const lastEnteredKeyRef = useRef<string | null>(null)
+
+  const stepsForTelemetry = template?.creation?.flow?.steps
+
+  useEffect(() => {
+    const sessionId = wizardSessionIdRef.current
+    if (!sessionId) return
+    if (!stepsForTelemetry || stepsForTelemetry.length === 0) return
+
+    const step = stepsForTelemetry[wizardState.currentStepIndex]
+    if (!step) return
+
+    const stepKey = `${wizardState.currentStepIndex}:${String(step.preset || '')}`
+    if (lastEnteredKeyRef.current === stepKey) return
+
+    const prevIndex = prevStepIndexRef.current
+    const prevEnteredAt = stepEnteredAtRef.current
+    const now = nowMs()
+
+    // 1) Exit vorherigen Step (falls vorhanden)
+    if (typeof prevIndex === 'number' && prevIndex >= 0 && prevIndex < stepsForTelemetry.length && prevEnteredAt) {
+      const prevStep = stepsForTelemetry[prevIndex]
+      const durationMs = Math.max(0, now - prevEnteredAt)
+      void logWizardEventClient(sessionId, {
+        eventType: 'step_exited',
+        stepIndex: prevIndex,
+        stepPreset: prevStep?.preset,
+        metadata: { durationMs },
+      } satisfies Omit<WizardSessionEvent, 'eventId' | 'timestamp'>)
+    }
+
+    // 2) Enter aktueller Step
+    stepEnteredAtRef.current = now
+    prevStepIndexRef.current = wizardState.currentStepIndex
+    lastEnteredKeyRef.current = stepKey
+
+    void logWizardEventClient(sessionId, {
+      eventType: 'step_entered',
+      stepIndex: wizardState.currentStepIndex,
+      stepPreset: step.preset,
+    } satisfies Omit<WizardSessionEvent, 'eventId' | 'timestamp'>)
+  }, [wizardState.currentStepIndex, stepsForTelemetry])
 
   if (isLoading) {
     return (
@@ -1390,7 +1468,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     }
   }
 
-  const handleSave = async () => {
+  const handleSave = async (opts?: {
+    navigateToLibrary?: boolean
+    ingestEvent?: boolean
+    /**
+     * Session-Finalisierung (wizard_completed + finalize) nach Speichern.
+     * Im Publish-Step wollen wir das bewusst erst NACH Ingestion/Publish machen,
+     * damit die Timeline im wizard_sessions Log korrekt ist.
+     */
+    finalizeSession?: boolean
+  }): Promise<{ savedItemId?: string; fileName?: string; targetFolderId?: string; slug?: string } | undefined> => {
     if (!provider) {
       toast.error("Kein Storage Provider verfügbar")
       return
@@ -1398,6 +1485,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     if (!template?.creation) {
       toast.error("Template ist nicht geladen")
       return
+    }
+
+    const sessionIdForLogs = wizardSessionIdRef.current
+    const saveStartedAt = nowMs()
+    if (sessionIdForLogs) {
+      void logWizardEventClient(sessionIdForLogs, {
+        eventType: 'save_started',
+        stepIndex: wizardState.currentStepIndex,
+        stepPreset: currentStep?.preset,
+      })
     }
 
     try {
@@ -1423,11 +1520,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         config: template.creation.output?.fileName,
       })
 
-      // Bestimme OwnerId (Dateiname ohne .md)
-      const ownerId = fileName.replace(/\.md$/, '')
+      // Bestimme OwnerId (Dateiname ohne Extension)
+      // Wird u.a. für Bild-Uploads verwendet (Pfad/Scope).
+      const ownerId = fileName.replace(/\.[^.]+$/, '')
 
-      // Bestimme Scope aus preview.detailViewType
-      const detailViewType = template.creation.preview?.detailViewType || 'session'
+      // Bestimme Scope aus zentralem Template-DetailViewType
+      const detailViewType = resolveTemplateDetailViewType()
       const scope: 'books' | 'sessions' = detailViewType === 'book' ? 'books' : 'sessions'
 
       // Verwende bereits hochgeladene Bild-URLs oder lade sie jetzt hoch
@@ -1506,6 +1604,38 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       for (const key of frontmatterKeys) {
         if (key in metadataWithImages) frontmatterMetadata[key] = metadataWithImages[key]
       }
+
+      applyEventFrontmatterDefaults({
+        frontmatterKeys,
+        frontmatter: frontmatterMetadata,
+        typeId,
+        ownerId,
+        detailViewType,
+        generateUuid: () => crypto.randomUUID(),
+      })
+
+      // Preset-Orchestrierung (Folge-Wizards):
+      // Wird bewusst NICHT im Event-Formular ausgewählt, sondern im Template (Creation Flow).
+      // Beim Erstellen eines Events schreiben wir die IDs als System-Felder in das Event-Frontmatter,
+      // damit die Event-Detailseite Flow B/C verlinken kann.
+      const docTypeAfterDefaults = typeof frontmatterMetadata.docType === 'string' ? frontmatterMetadata.docType.trim().toLowerCase() : ''
+      if (docTypeAfterDefaults === 'event') {
+        const fw = template.creation?.followWizards
+        const testimonialId = typeof fw?.testimonialTemplateId === 'string' ? fw.testimonialTemplateId.trim() : ''
+        const finalizeId = typeof fw?.finalizeTemplateId === 'string' ? fw.finalizeTemplateId.trim() : ''
+
+        if (testimonialId) {
+          frontmatterMetadata.wizard_testimonial_template_id = testimonialId
+        } else if (!frontmatterMetadata.wizard_testimonial_template_id) {
+          frontmatterMetadata.wizard_testimonial_template_id = 'event-testimonial-creation-de'
+        }
+
+        if (finalizeId) {
+          frontmatterMetadata.wizard_finalize_template_id = finalizeId
+        } else if (!frontmatterMetadata.wizard_finalize_template_id) {
+          frontmatterMetadata.wizard_finalize_template_id = 'event-finalize-de'
+        }
+      }
       
       // Auto-generiere dialograum_id wenn Feld vorhanden aber leer ist
       if (frontmatterKeys.has('dialograum_id') && (!frontmatterMetadata.dialograum_id || String(frontmatterMetadata.dialograum_id).trim() === '')) {
@@ -1566,7 +1696,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       // Kanonische IDs für Resume (wichtig für zuverlässiges Wiederöffnen)
       creationFlowMetadata.creationTypeId = typeId
       creationFlowMetadata.creationTemplateId = template._id || templateId
-      creationFlowMetadata.creationDetailViewType = template.creation.preview?.detailViewType || 'session'
+      creationFlowMetadata.creationDetailViewType = resolveTemplateDetailViewType()
       
       // Template-Name: optional als lesbares Label (nicht mehr als primärer Key)
       const templateName = template.name || templateId
@@ -1625,6 +1755,31 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         if (frontmatterKeys.has('source_dialog_file_id')) {
           frontmatterMetadata.source_dialog_file_id = activeSeedFileId
         }
+
+        // Setze source_event_file_id (für Event-Testimonial- und Event-Finalize-Flows)
+        if (frontmatterKeys.has('source_event_file_id')) {
+          frontmatterMetadata.source_event_file_id = activeSeedFileId
+        }
+
+        // Setze originalFileId (für Final-Drafts), wenn das Template dieses Feld kennt
+        if (frontmatterKeys.has('originalFileId')) {
+          frontmatterMetadata.originalFileId = activeSeedFileId
+        }
+
+        // Wenn Seed ein Event ist, übernehme dessen slug (damit Final-Drafts denselben Explorer-Slug nutzen können)
+        if (frontmatterKeys.has('slug')) {
+          try {
+            const { blob } = await provider.getBinary(activeSeedFileId)
+            const content = await blob.text()
+            const { meta } = parseFrontmatter(content)
+            const seedSlug = typeof meta.slug === 'string' ? meta.slug.trim() : ''
+            if (seedSlug) {
+              frontmatterMetadata.slug = seedSlug
+            }
+          } catch (error) {
+            console.error('[handleSave] Fehler beim Laden der Seed-Datei für slug:', error)
+          }
+        }
         
         if (frontmatterKeys.has('source_testimonial_file_ids')) {
           const testimonialFileIds = testimonialSources
@@ -1646,6 +1801,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         ...frontmatterMetadata,
         ...creationFlowMetadata,
       }
+      const docTypeForSave = typeof allFrontmatterMetadata.docType === 'string' ? allFrontmatterMetadata.docType.trim() : ''
+      const slugForSave = typeof allFrontmatterMetadata.slug === 'string' ? allFrontmatterMetadata.slug.trim() : undefined
       
       const frontmatter = Object.entries(allFrontmatterMetadata)
         .map(([key, value]) => {
@@ -1955,6 +2112,18 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           }
         }
       }
+
+      // save_completed (zusätzlich zu file_saved) – zeigt klar Ende des Speichervorgangs
+      if (sessionIdForLogs && savedItemId) {
+        const durationMs = Math.max(0, nowMs() - saveStartedAt)
+        void logWizardEventClient(sessionIdForLogs, {
+          eventType: 'save_completed',
+          stepIndex: wizardState.currentStepIndex,
+          stepPreset: currentStep?.preset,
+          fileIds: { savedItemId },
+          metadata: { durationMs },
+        })
+      }
       
       // Wichtig: refreshItems erwartet eine folderId. Ohne Parameter entsteht fileId=undefined im Request.
       // PDF-Publish erledigt refresh/promotion bereits im eigenen Branch (sonst doppelte moves/Logs).
@@ -1964,6 +2133,74 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         // Variante C: Staging-Artefakte aus `.wizard-sources` in den Zielordner verschieben
         // (best effort, kein Blocker für Speichern)
         await promotePdfWizardArtifacts({ destinationFolderId: targetFolderId })
+      }
+
+      /**
+       * Flow A (Event) – Publizieren via Ingestion beim Speichern:
+       * Explorer/Gallery hängt am Ingestion-Index. Für Events wollen wir daher nach dem Speichern
+       * explizit ingestieren (analog zu PDF-Publish, aber ohne Shadow‑Twin Override).
+       *
+       * Testimonials sind in diesem Projekt bewusst filesystem-only; daher ingestieren wir nur docType=event.
+       */
+      const hasPublishStep = !!template.creation?.flow?.steps?.some((s) => s.preset === 'publish')
+      const shouldIngestEvent = (opts?.ingestEvent !== undefined) ? opts.ingestEvent : !hasPublishStep
+      if (shouldIngestEvent && !isPdfShadowTwinPublish && docTypeForSave === 'event' && libraryId && savedItemId) {
+        const libId = libraryId
+        const ingestStartedAt = nowMs()
+        if (sessionIdForLogs) {
+          void logWizardEventClient(sessionIdForLogs, {
+            eventType: 'ingest_started',
+            stepIndex: wizardState.currentStepIndex,
+            stepPreset: currentStep?.preset,
+            fileIds: { savedItemId },
+          })
+        }
+
+        // Wichtig: nicht blockieren (sonst wirkt "Speichern" wie "hängt"),
+        // aber im wizard_sessions Log ist die Reihenfolge trotzdem sichtbar.
+        void fetch(`/api/chat/${encodeURIComponent(libId)}/ingest-markdown`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileId: savedItemId,
+            fileName: targetFileName,
+          }),
+        })
+          .then(async (ingestRes) => {
+            if (!sessionIdForLogs) return
+            const durationMs = Math.max(0, nowMs() - ingestStartedAt)
+            if (ingestRes.ok) {
+              void logWizardEventClient(sessionIdForLogs, {
+                eventType: 'ingest_completed',
+                stepIndex: wizardState.currentStepIndex,
+                stepPreset: currentStep?.preset,
+                fileIds: { savedItemId },
+                metadata: { durationMs },
+              })
+              return
+            }
+            const errorText = await ingestRes.text().catch(() => 'Unknown error')
+            void logWizardEventClient(sessionIdForLogs, {
+              eventType: 'ingest_failed',
+              stepIndex: wizardState.currentStepIndex,
+              stepPreset: currentStep?.preset,
+              fileIds: { savedItemId },
+              metadata: { durationMs },
+              error: { code: 'ingest_failed', message: errorText },
+            })
+          })
+          .catch((error) => {
+            if (!sessionIdForLogs) return
+            const durationMs = Math.max(0, nowMs() - ingestStartedAt)
+            void logWizardEventClient(sessionIdForLogs, {
+              eventType: 'ingest_failed',
+              stepIndex: wizardState.currentStepIndex,
+              stepPreset: currentStep?.preset,
+              fileIds: { savedItemId },
+              metadata: { durationMs },
+              error: { code: 'ingest_failed', message: error instanceof Error ? error.message : String(error) },
+            })
+          })
       }
       
       // Schreibe Shadow‑Twin Bundle (falls Quellen vorhanden)
@@ -2061,8 +2298,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }
       }
       
+      const shouldFinalizeSession = opts?.finalizeSession !== false
+
       // Finalize Wizard Session (wizard_completed)
-      if (wizardSessionIdRef.current && savedItemId) {
+      if (shouldFinalizeSession && wizardSessionIdRef.current && savedItemId) {
         try {
           const filePaths = await getFilePaths(provider, {
             savedItemId,
@@ -2101,7 +2340,13 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }
       }
       
-      router.push("/library")
+      if (opts?.navigateToLibrary !== false) {
+        // UX: Wenn wir wissen, in welchem Ordner gespeichert wurde, direkt dorthin navigieren.
+        const folderParam = targetFolderId ? `?folderId=${encodeURIComponent(targetFolderId)}` : ''
+        router.push(`/library${folderParam}`)
+      }
+
+      return { savedItemId, fileName: targetFileName, targetFolderId, slug: slugForSave }
     } catch (error) {
       // Log error Event
       if (wizardSessionIdRef.current) {
@@ -2118,7 +2363,22 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }
       }
       
+      // save_failed (zusätzlich zu error)
+      if (sessionIdForLogs) {
+        const durationMs = Math.max(0, nowMs() - saveStartedAt)
+        void logWizardEventClient(sessionIdForLogs, {
+          eventType: 'save_failed',
+          stepIndex: wizardState.currentStepIndex,
+          stepPreset: currentStep?.preset,
+          metadata: { durationMs },
+          error: {
+            code: 'save_failed',
+            message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+          },
+        })
+      }
       toast.error(`Fehler beim Speichern: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
+      return undefined
     }
   }
   
@@ -2451,6 +2711,18 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           ...baseMetadata,
           ...(wizardState.imageUrls || {}),
         }
+
+        // UX/SSOT: Preview soll den korrekten docType anzeigen (z.B. Badge "Event").
+        // Der docType wird sonst erst beim Speichern via applyEventFrontmatterDefaults gesetzt.
+        // Für die Vorschau reichen Minimal-Heuristiken.
+        const previewMetadata: Record<string, unknown> = { ...metadataWithImages }
+        const currentDocType = typeof previewMetadata.docType === 'string' ? previewMetadata.docType.trim().toLowerCase() : ''
+        const typeIdLower = String(typeId || '').toLowerCase()
+        if (!currentDocType && typeIdLower.includes('event')) {
+          previewMetadata.docType = 'event'
+          // eventStatus ist optional, hilft aber beim UI-Labeling
+          if (previewMetadata.eventStatus === undefined) previewMetadata.eventStatus = 'open'
+        }
         
         const preferredPreviewMarkdown =
           wizardState.generatedDraft?.markdown ||
@@ -2527,7 +2799,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           }
         }
 
-        const detailViewType = creation.preview?.detailViewType || "session"
+        const detailViewType = resolveTemplateDetailViewType()
 
         if (isPdfAnalyse && Object.keys(baseMetadata).length === 0 && preferredPreviewMarkdown.trim().length === 0) {
           return (
@@ -2551,7 +2823,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return (
           <PreviewDetailStep
             detailViewType={detailViewType}
-            metadata={metadataWithImages}
+            metadata={previewMetadata}
             markdown={previewMarkdown}
             libraryId={libraryId}
             provider={provider}
@@ -2563,14 +2835,238 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       case "publish": {
         const onPublish = async () => {
           const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-          if (!isPdfAnalyse) return
-          if (!provider) throw new Error('Kein Storage Provider verfügbar')
+          const isEventPublishFinal = (templateId || '').toLowerCase().includes('event-publish-final')
+          const isGenericPublish = !isPdfAnalyse && !isEventPublishFinal
+          if (!isPdfAnalyse && !isEventPublishFinal && !isGenericPublish) return
           if (!libraryId) throw new Error('libraryId fehlt')
           if (!template) throw new Error('Template ist nicht geladen')
           const libId = libraryId
 
           if (wizardState.isPublishing) return
           if (wizardState.isPublished) return
+
+          const sessionIdForLogs = wizardSessionIdRef.current
+          const publishStartedAt = nowMs()
+          if (sessionIdForLogs) {
+            void logWizardEventClient(sessionIdForLogs, {
+              eventType: 'publish_started',
+              stepIndex: wizardState.currentStepIndex,
+              stepPreset: currentStep?.preset,
+              metadata: {
+                mode: isGenericPublish ? 'generic' : (isEventPublishFinal ? 'event_publish_final' : 'pdf_publish'),
+              },
+            })
+          }
+
+          // Generic Publish: Save + Ingest (z.B. Event-Erstellung).
+          // Motivation: User soll am Ende einen expliziten Abschluss mit Progress sehen
+          // und danach direkt in den Explorer wechseln können.
+          if (isGenericPublish) {
+            setWizardState(prev => ({
+              ...prev,
+              isPublishing: true,
+              publishError: undefined,
+              publishingProgress: 10,
+              publishingMessage: 'Speichern…',
+            }))
+            try {
+              const saveRes = await handleSave({ navigateToLibrary: false, ingestEvent: false, finalizeSession: false })
+              const savedItemId = saveRes?.savedItemId
+              const savedFileName = saveRes?.fileName
+              const targetFolderId = saveRes?.targetFolderId
+              const targetSlug = saveRes?.slug
+              if (!savedItemId) throw new Error('Speichern fehlgeschlagen (savedItemId fehlt).')
+
+              setWizardState(prev => ({
+                ...prev,
+                publishingProgress: 70,
+                publishingMessage: 'Ingestion starten…',
+              }))
+
+              const ingestStartedAt = nowMs()
+              if (sessionIdForLogs) {
+                void logWizardEventClient(sessionIdForLogs, {
+                  eventType: 'ingest_started',
+                  stepIndex: wizardState.currentStepIndex,
+                  stepPreset: currentStep?.preset,
+                  fileIds: { savedItemId },
+                  metadata: { mode: 'generic_publish' },
+                })
+              }
+              const ingestRes = await fetch(`/api/chat/${encodeURIComponent(libId)}/ingest-markdown`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileId: savedItemId, fileName: savedFileName }),
+              })
+              if (!ingestRes.ok) {
+                const errorText = await ingestRes.text().catch(() => 'Unknown error')
+                if (sessionIdForLogs) {
+                  const durationMs = Math.max(0, nowMs() - ingestStartedAt)
+                  void logWizardEventClient(sessionIdForLogs, {
+                    eventType: 'ingest_failed',
+                    stepIndex: wizardState.currentStepIndex,
+                    stepPreset: currentStep?.preset,
+                    fileIds: { savedItemId },
+                    metadata: { durationMs, mode: 'generic_publish' },
+                    error: { code: 'ingest_failed', message: errorText },
+                  })
+                }
+                throw new Error(`Ingestion fehlgeschlagen: ${errorText}`)
+              }
+              if (sessionIdForLogs) {
+                const durationMs = Math.max(0, nowMs() - ingestStartedAt)
+                void logWizardEventClient(sessionIdForLogs, {
+                  eventType: 'ingest_completed',
+                  stepIndex: wizardState.currentStepIndex,
+                  stepPreset: currentStep?.preset,
+                  fileIds: { savedItemId },
+                  metadata: { durationMs, mode: 'generic_publish' },
+                })
+              }
+
+              const imagesCount = Object.keys(wizardState.imageUrls || {}).length
+              const sourcesCount = Array.isArray(wizardState.sources) ? wizardState.sources.length : 0
+
+              setWizardState(prev => ({
+                ...prev,
+                isPublishing: false,
+                isPublished: true,
+                publishingProgress: 100,
+                publishingMessage: 'Fertig.',
+                publishStats: { documents: 1, images: imagesCount, sources: sourcesCount },
+                publishTargetFolderId: targetFolderId,
+                publishTargetSlug: targetSlug || prev.publishTargetSlug,
+              }))
+              if (sessionIdForLogs) {
+                const durationMs = Math.max(0, nowMs() - publishStartedAt)
+                void logWizardEventClient(sessionIdForLogs, {
+                  eventType: 'publish_completed',
+                  stepIndex: wizardState.currentStepIndex,
+                  stepPreset: currentStep?.preset,
+                  metadata: { durationMs, mode: 'generic' },
+                })
+              }
+
+              // Wizard-Session erst ganz am Ende finalisieren (nach ingest/publish),
+              // damit wizard_completed zeitlich korrekt ist.
+              if (sessionIdForLogs) {
+                try {
+                  const filePaths = await getFilePaths(provider, { savedItemId })
+                  await logWizardEventClient(sessionIdForLogs, {
+                    eventType: 'wizard_completed',
+                    stepIndex: wizardState.currentStepIndex,
+                    stepPreset: 'publish',
+                    fileIds: { savedItemId },
+                    filePaths: { savedPath: filePaths.savedPath },
+                  })
+                  wizardSessionCompletedRef.current = true
+                  await finalizeWizardSessionClient(sessionIdForLogs, 'completed', {
+                    finalStepIndex: wizardState.currentStepIndex,
+                    finalFileIds: { savedItemId },
+                    finalFilePaths: { savedPath: filePaths.savedPath },
+                  })
+                } catch (error) {
+                  console.warn('[Wizard] Fehler beim Finalisieren der Session (Generic Publish):', error)
+                }
+              }
+              return
+            } catch (error) {
+              const msg = error instanceof Error ? error.message : 'Unbekannter Fehler'
+              setWizardState(prev => ({
+                ...prev,
+                isPublishing: false,
+                publishError: msg,
+                publishingProgress: prev.publishingProgress ?? 0,
+                publishingMessage: msg,
+              }))
+              toast.error('Publizieren fehlgeschlagen', { description: msg })
+              if (sessionIdForLogs) {
+                const durationMs = Math.max(0, nowMs() - publishStartedAt)
+                void logWizardEventClient(sessionIdForLogs, {
+                  eventType: 'publish_failed',
+                  stepIndex: wizardState.currentStepIndex,
+                  stepPreset: currentStep?.preset,
+                  metadata: { durationMs, mode: 'generic' },
+                  error: { code: 'publish_failed', message: msg },
+                })
+              }
+              return
+            }
+          }
+
+          // Event Publish: Index-Swap (Final ingestieren, Original aus Index löschen).
+          // Erwartung: Wizard wird als "Resume" auf einer Final-Datei gestartet.
+          if (isEventPublishFinal) {
+            const finalFileId = resumeFileIdState
+            if (!finalFileId) throw new Error('Event-Publish: resumeFileId fehlt (Final-Datei nicht bekannt).')
+
+            setWizardState(prev => ({
+              ...prev,
+              isPublishing: true,
+              publishError: undefined,
+              publishingProgress: 10,
+              publishingMessage: 'Publizieren vorbereiten…',
+            }))
+
+            try {
+              setWizardState(prev => ({
+                ...prev,
+                publishingProgress: 55,
+                publishingMessage: 'Final ingestieren + Index-Swap…',
+              }))
+
+              const res = await fetch(`/api/library/${libId}/events/publish-final`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ finalFileId }),
+              })
+              const json = await res.json().catch(() => ({} as Record<string, unknown>))
+              if (!res.ok) {
+                const msg = typeof (json as { error?: unknown })?.error === 'string' ? String((json as { error: string }).error) : `HTTP ${res.status}`
+                throw new Error(msg)
+              }
+
+              setWizardState(prev => ({
+                ...prev,
+                isPublishing: false,
+                isPublished: true,
+                publishingProgress: 100,
+                publishingMessage: 'Fertig.',
+              }))
+              if (sessionIdForLogs) {
+                const durationMs = Math.max(0, nowMs() - publishStartedAt)
+                void logWizardEventClient(sessionIdForLogs, {
+                  eventType: 'publish_completed',
+                  stepIndex: wizardState.currentStepIndex,
+                  stepPreset: currentStep?.preset,
+                  metadata: { durationMs, mode: 'event_publish_final' },
+                })
+              }
+              return
+            } catch (error) {
+              const msg = error instanceof Error ? error.message : 'Unbekannter Fehler'
+              setWizardState(prev => ({
+                ...prev,
+                isPublishing: false,
+                publishError: msg,
+                publishingProgress: prev.publishingProgress ?? 0,
+                publishingMessage: msg,
+              }))
+              toast.error('Publizieren fehlgeschlagen', { description: msg })
+              if (sessionIdForLogs) {
+                const durationMs = Math.max(0, nowMs() - publishStartedAt)
+                void logWizardEventClient(sessionIdForLogs, {
+                  eventType: 'publish_failed',
+                  stepIndex: wizardState.currentStepIndex,
+                  stepPreset: currentStep?.preset,
+                  metadata: { durationMs, mode: 'event_publish_final' },
+                  error: { code: 'publish_failed', message: msg },
+                })
+              }
+              return
+            }
+          }
+          if (!provider) throw new Error('Kein Storage Provider verfügbar')
 
           const baseFileId = wizardState.pdfBaseFileId
           if (!baseFileId) throw new Error('PDF-Publish: pdfBaseFileId fehlt')
@@ -2748,6 +3244,15 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               pdfTransformFileId: updatedTransformFile.id,
               pdfBaseFileId: promotion.destinationBaseFileId || prev.pdfBaseFileId,
             }))
+            if (sessionIdForLogs) {
+              const durationMs = Math.max(0, nowMs() - publishStartedAt)
+              void logWizardEventClient(sessionIdForLogs, {
+                eventType: 'publish_completed',
+                stepIndex: wizardState.currentStepIndex,
+                stepPreset: currentStep?.preset,
+                metadata: { durationMs, mode: 'pdf_publish' },
+              })
+            }
           } catch (error) {
             const msg = error instanceof Error ? error.message : 'Unbekannter Fehler'
             setWizardState(prev => ({
@@ -2758,6 +3263,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               publishingMessage: msg,
             }))
             toast.error('Publizieren fehlgeschlagen', { description: msg })
+            if (sessionIdForLogs) {
+              const durationMs = Math.max(0, nowMs() - publishStartedAt)
+              void logWizardEventClient(sessionIdForLogs, {
+                eventType: 'publish_failed',
+                stepIndex: wizardState.currentStepIndex,
+                stepPreset: currentStep?.preset,
+                metadata: { durationMs, mode: 'pdf_publish' },
+                error: { code: 'publish_failed', message: msg },
+              })
+            }
           }
         }
 
@@ -2770,8 +3285,29 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             publishingProgress={typeof wizardState.publishingProgress === 'number' ? wizardState.publishingProgress : 0}
             publishingMessage={wizardState.publishingMessage}
             isPublished={!!wizardState.isPublished}
-            onGoToLibrary={() => router.push("/library")}
-          />
+            onGoToLibrary={() => {
+              // Primär: Gallery deep link via slug (Explorer-Modus)
+              if (wizardState.publishTargetSlug && wizardState.publishTargetSlug.trim().length > 0) {
+                router.push(`/library/gallery?doc=${encodeURIComponent(wizardState.publishTargetSlug)}`)
+                return
+              }
+              // Fallback: File-Explorer folderId
+              const folderParam =
+                wizardState.publishTargetFolderId && wizardState.publishTargetFolderId.trim().length > 0
+                  ? `?folderId=${encodeURIComponent(wizardState.publishTargetFolderId)}`
+                  : ''
+              router.push(`/library${folderParam}`)
+            }}
+            goToLibraryLabel="Im Explorer öffnen"
+          >
+            {wizardState.publishStats ? (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>Dokumente: <span className="font-mono">{wizardState.publishStats.documents}</span></div>
+                <div>Bilder: <span className="font-mono">{wizardState.publishStats.images}</span></div>
+                <div>Quellen: <span className="font-mono">{wizardState.publishStats.sources}</span></div>
+              </div>
+            ) : null}
+          </PublishStep>
         )
       }
 

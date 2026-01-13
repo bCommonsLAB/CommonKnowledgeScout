@@ -5,6 +5,10 @@ import { BookDetail, type BookDetailData } from "@/components/library/book-detai
 import { SessionDetail, type SessionDetailData } from "@/components/library/session-detail"
 import { useIngestionDataContext } from "./ingestion-data-context"
 import { mapToBookDetail, mapToSessionDetail } from "@/lib/mappers/doc-meta-mappers"
+import { getDetailViewType } from "@/lib/templates/detail-view-type-utils"
+import { useAtomValue } from "jotai"
+import { librariesAtom } from "@/atoms/library-atom"
+import type { TemplatePreviewDetailViewType } from "@/lib/templates/template-types"
 
 interface StoryViewProps {
   /**
@@ -24,15 +28,23 @@ interface StoryViewProps {
  */
 export function StoryView({ libraryId, viewType }: StoryViewProps) {
   const { data, loading, error } = useIngestionDataContext()
+  const libraries = useAtomValue(librariesAtom)
+  const activeLibrary = libraryId ? libraries.find(lib => lib.id === libraryId) : undefined
+  const libraryConfig = activeLibrary?.config?.chat
 
-  // Bestimme viewType aus Daten, falls nicht explizit gesetzt
-  const actualViewType = React.useMemo(() => {
-    if (viewType) return viewType
-    if (!data?.doc?.docType) return "book" // Default: book
-    // Session-Dokumente haben typischerweise docType wie "session", "event", etc.
-    const docType = String(data.doc.docType).toLowerCase()
-    return docType.includes("session") || docType.includes("event") ? "session" : "book"
-  }, [viewType, data?.doc?.docType])
+  // Bestimme viewType aus Frontmatter mit Fallback auf Library-Config
+  const actualViewType = React.useMemo<TemplatePreviewDetailViewType>(() => {
+    if (viewType) return viewType as TemplatePreviewDetailViewType
+    
+    // Extrahiere Frontmatter aus docMetaJson (falls vorhanden)
+    const docMetaJson = data?.doc?.docMetaJson
+    const meta = docMetaJson && typeof docMetaJson === 'object' 
+      ? docMetaJson as Record<string, unknown>
+      : {}
+    
+    // Verwende getDetailViewType() für Frontmatter-first mit Fallback
+    return getDetailViewType(meta, libraryConfig)
+  }, [viewType, data?.doc?.docMetaJson, libraryConfig])
 
   // Mappe die Daten aus ingestion-status Format auf BookDetailData/SessionDetailData
   const bookData = React.useMemo<BookDetailData | null>(() => {
@@ -116,6 +128,22 @@ export function StoryView({ libraryId, viewType }: StoryViewProps) {
 
   if (actualViewType === "session" && sessionData) {
     return <SessionDetail data={sessionData} showBackLink={false} libraryId={libraryId} />
+  }
+
+  if (actualViewType === "testimonial") {
+    // TODO: TestimonialDetail-Komponente verwenden, wenn verfügbar
+    // Für jetzt: Fallback auf SessionDetail
+    if (sessionData) {
+      return <SessionDetail data={sessionData} showBackLink={false} libraryId={libraryId} />
+    }
+  }
+
+  if (actualViewType === "blog") {
+    // TODO: BlogDetail-Komponente verwenden, wenn verfügbar
+    // Für jetzt: Fallback auf BookDetail
+    if (bookData) {
+      return <BookDetail data={bookData} showBackLink={false} />
+    }
   }
 
   if (bookData) {

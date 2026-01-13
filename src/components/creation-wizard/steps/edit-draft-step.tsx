@@ -4,6 +4,13 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import { Upload, Loader2, X, Mic } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import type { TemplateMetadataSchema } from "@/lib/templates/template-types"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { CompactSourcesInfo } from "@/components/creation-wizard/components/compact-sources-info"
@@ -76,6 +83,46 @@ export function EditDraftStep({
   const canUseMediaRecorder = useMemo(() => {
     return typeof window !== "undefined" && typeof MediaRecorder !== "undefined" && !!navigator?.mediaDevices?.getUserMedia
   }, [])
+
+  const [creationTemplateOptions, setCreationTemplateOptions] = useState<Array<{ id: string; label: string }>>([])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadCreationTemplates() {
+      if (!libraryId) return
+      try {
+        const res = await fetch(`/api/templates?libraryId=${encodeURIComponent(libraryId)}`, { cache: 'no-store' })
+        const json = await res.json().catch(() => ({} as Record<string, unknown>))
+        if (!res.ok) return
+        const templates = Array.isArray((json as { templates?: unknown }).templates)
+          ? ((json as { templates: unknown[] }).templates as unknown[])
+          : []
+
+        const options = templates
+          .map((t) => (t && typeof t === 'object') ? (t as Record<string, unknown>) : null)
+          .filter((t): t is Record<string, unknown> => !!t)
+          .filter((t) => {
+            const creation = t.creation
+            return !!creation && typeof creation === 'object'
+          })
+          .map((t) => {
+            const name = typeof t.name === 'string' ? t.name : ''
+            const creation = (t.creation && typeof t.creation === 'object') ? (t.creation as Record<string, unknown>) : {}
+            const ui = (creation.ui && typeof creation.ui === 'object') ? (creation.ui as Record<string, unknown>) : {}
+            const displayName = typeof ui.displayName === 'string' ? ui.displayName : ''
+            const label = displayName || name || 'Template'
+            return { id: name, label }
+          })
+          .filter((o) => o.id.trim().length > 0)
+
+        if (!cancelled) setCreationTemplateOptions(options)
+      } catch {
+        // ignore
+      }
+    }
+    void loadCreationTemplates()
+    return () => { cancelled = true }
+  }, [libraryId])
 
   useEffect(() => {
     if (!recordingField) return
@@ -403,6 +450,61 @@ export function EditDraftStep({
     const isArray = Array.isArray(value)
     const isLongText = typeof value === "string" && value.length > 120
     const displayValue = isArray ? (value as string[]).join(", ") : String(value || "")
+
+    const isWizardPickerField =
+      field.key === 'wizard_testimonial_template_id' ||
+      field.key === 'wizard_finalize_template_id'
+
+    if (isWizardPickerField) {
+      const filter = (opt: { id: string; label: string }) => {
+        const idLower = opt.id.toLowerCase()
+        if (field.key === 'wizard_testimonial_template_id') return idLower.includes('testimonial')
+        if (field.key === 'wizard_finalize_template_id') return idLower.includes('event-finalize') || idLower.includes('finalize')
+        return true
+      }
+      const options = creationTemplateOptions.filter(filter)
+      const current = typeof value === 'string' ? value : ''
+
+      return (
+        <div
+          key={field.key}
+          className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-700"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <label className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</label>
+              <div className="mt-2">
+                {libraryId && options.length > 0 ? (
+                  <Select
+                    value={current}
+                    onValueChange={(v) => updateFieldValue(field.key, v)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Wizard auswählen…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {options.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>
+                          {opt.label} <span className="text-xs text-muted-foreground">({opt.id})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <input
+                    type="text"
+                    value={displayValue}
+                    onChange={(e) => updateFieldValue(field.key, e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base dark:border-slate-500 dark:bg-slate-600 dark:text-white"
+                    placeholder="Template-ID (Name) eingeben…"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div

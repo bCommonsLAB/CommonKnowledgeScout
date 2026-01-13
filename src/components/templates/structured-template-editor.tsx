@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import type { TemplateCreationConfig, TemplateMetadataSchema, TemplateMetadataField } from '@/lib/templates/template-types'
+import type { TemplateCreationConfig, TemplateMetadataSchema, TemplateMetadataField, TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { buildCreationFileName } from '@/lib/creation/file-name'
 import { injectCreationIntoFrontmatter } from '@/lib/templates/template-frontmatter-utils'
 // Input entfällt nach UI-Verschlankung
@@ -28,6 +28,14 @@ export interface StructuredTemplateEditorProps {
   metadata: TemplateMetadataSchema
   systemprompt: string
   creation?: TemplateCreationConfig | null
+  /**
+   * Optional: Liste existierender Templates (aus MongoDB),
+   * damit wir in Designer-UI nur gültige Template-IDs anbieten.
+   */
+  availableTemplates?: Array<{
+    name: string
+    creation?: TemplateCreationConfig | null
+  }>
   onChange: (next: { markdownBody: string; metadata: TemplateMetadataSchema; systemprompt: string; creation?: TemplateCreationConfig | null }) => void
   magicMode?: boolean
   magicValues?: { body: string; frontmatter: string; system: string }
@@ -36,10 +44,10 @@ export interface StructuredTemplateEditorProps {
 
 // LineKind nicht mehr verwendet
 
-export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt, creation, onChange, magicMode, magicValues, onMagicChange }: StructuredTemplateEditorProps) {
+export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt, creation, availableTemplates, onChange, magicMode, magicValues, onMagicChange }: StructuredTemplateEditorProps) {
   const lines = React.useMemo(() => (typeof markdownBody === 'string' ? markdownBody.split('\n') : []), [markdownBody])
   const [sysPrompt, setSysPrompt] = React.useState(systemprompt)
-  const [tab, setTab] = React.useState<'body'|'frontmatter'|'system'|'creation'>('body')
+  const [tab, setTab] = React.useState<'body'|'frontmatter'|'system'|'creation'|'detail-view'>('body')
   const [sysEditing, setSysEditing] = React.useState(false)
 
   React.useEffect(() => { setSysPrompt(systemprompt) }, [systemprompt])
@@ -313,11 +321,12 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
   return (
     <div className="space-y-3">
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-5 w-full">
           <TabsTrigger value="frontmatter">Metadaten</TabsTrigger>
           <TabsTrigger value="system">Rollenanweisung</TabsTrigger>
           <TabsTrigger value="body">Struktur</TabsTrigger>
           <TabsTrigger value="creation">Creation Flow</TabsTrigger>
+          <TabsTrigger value="detail-view">Detail-Ansicht</TabsTrigger>
         </TabsList>
 
         <TabsContent value="body">
@@ -512,15 +521,56 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
         <TabsContent value="creation">
           <div className="mb-3 text-xs text-muted-foreground">
             Der Creation Flow steuert, wie Menschen ihre Eingaben Schritt für Schritt liefern.
-            Die eigentliche LLM-Transformation kannst du rechts unter <span className="font-semibold">„Transformation testen“</span> ausprobieren.
+            Die eigentliche LLM-Transformation kannst du rechts unter <span className="font-semibold">„Transformation testen"</span> ausprobieren.
           </div>
           <CreationFlowEditor
             creation={creation || null}
             metadata={metadata}
+            availableTemplates={availableTemplates}
             onChange={(newCreation) => {
               onChange({ markdownBody, metadata, systemprompt: sysPrompt, creation: newCreation })
             }}
           />
+        </TabsContent>
+
+        <TabsContent value="detail-view">
+          <div className="mb-3 text-xs text-muted-foreground">
+            Definiere, welche Detail-Ansicht für transformierte Dokumente verwendet werden soll.
+            Diese Einstellung wird im Frontmatter der transformierten Dokumente gespeichert.
+          </div>
+          <div className="space-y-2">
+            <Label>Detail-View-Type</Label>
+            <Select
+              value={metadata.detailViewType || 'book'}
+              onValueChange={(value: TemplatePreviewDetailViewType) => {
+                onChange({
+                  markdownBody,
+                  metadata: {
+                    ...metadata,
+                    detailViewType: value,
+                  },
+                  systemprompt: sysPrompt,
+                  creation,
+                })
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Detail-View-Type auswählen" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="book">Book</SelectItem>
+                <SelectItem value="session">Session</SelectItem>
+                <SelectItem value="testimonial">Testimonial</SelectItem>
+                <SelectItem value="blog">Blog</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-xs text-muted-foreground">
+              <p className="mb-1">• <strong>Book:</strong> Klassische Dokumentansicht mit Kapiteln</p>
+              <p className="mb-1">• <strong>Session:</strong> Event/Talk/Session Detail-Ansicht</p>
+              <p className="mb-1">• <strong>Testimonial:</strong> Testimonial-Ansicht</p>
+              <p>• <strong>Blog:</strong> Blog-Ansicht</p>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -534,10 +584,12 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
 function CreationFlowEditor({
   creation,
   metadata,
+  availableTemplates,
   onChange
 }: {
   creation: TemplateCreationConfig | null
   metadata: TemplateMetadataSchema
+  availableTemplates?: Array<{ name: string; creation?: TemplateCreationConfig | null }>
   onChange: (creation: TemplateCreationConfig | null) => void
 }) {
   const [localCreation, setLocalCreation] = React.useState<TemplateCreationConfig | null>(
@@ -589,6 +641,13 @@ function CreationFlowEditor({
     if (!Array.isArray(value.supportedSources) || !value.supportedSources.every(isSupportedSource)) return false
     if (!isRecord(value.flow)) return false
     if (!Array.isArray(value.flow.steps) || !value.flow.steps.every(isFlowStep)) return false
+    if (value.followWizards !== undefined) {
+      if (!isRecord(value.followWizards)) return false
+      const fw = value.followWizards as Record<string, unknown>
+      if (fw.testimonialTemplateId !== undefined && typeof fw.testimonialTemplateId !== 'string') return false
+      if (fw.finalizeTemplateId !== undefined && typeof fw.finalizeTemplateId !== 'string') return false
+      if (fw.publishTemplateId !== undefined && typeof fw.publishTemplateId !== 'string') return false
+    }
     // Optional blocks: preview/output/ui/welcome
     if (value.preview !== undefined) {
       if (!isRecord(value.preview)) return false
@@ -698,6 +757,27 @@ function CreationFlowEditor({
   const steps = localCreation?.flow.steps || []
   const selectedSource = sources.find(s => s.id === selectedSourceId)
   const selectedStep = steps.find(s => s.id === selectedStepId)
+
+  const creationTemplateOptions = React.useMemo(() => {
+    const list = Array.isArray(availableTemplates) ? availableTemplates : []
+    return list
+      .filter(t => typeof t.name === 'string' && t.name.trim().length > 0)
+      .filter(t => !!t.creation && typeof t.creation === 'object')
+      .map(t => {
+        const label = (t.creation?.ui?.displayName || t.name).trim()
+        return { id: t.name, label }
+      })
+  }, [availableTemplates])
+
+  function updateFollowWizards(updates: Partial<NonNullable<TemplateCreationConfig['followWizards']>>) {
+    updateCreation((c) => ({
+      ...c,
+      followWizards: {
+        ...(c.followWizards || {}),
+        ...updates,
+      },
+    }))
+  }
 
   const SOURCE_TYPE_ICONS = {
     spoken: Mic,
@@ -856,16 +936,6 @@ function CreationFlowEditor({
       welcome: {
         markdown
       }
-    }))
-  }
-
-  const updatePreviewConfig = (updates: Partial<NonNullable<TemplateCreationConfig['preview']>>) => {
-    updateCreation((c) => ({
-      ...c,
-      preview: {
-        detailViewType: c.preview?.detailViewType || 'session',
-        ...updates,
-      },
     }))
   }
 
@@ -1230,6 +1300,81 @@ function CreationFlowEditor({
         </Card>
       </div>
 
+      {/* Folge-Wizards (Preset-Orchestrierung) */}
+      <div>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold">Folge‑Wizards</h3>
+          <p className="text-sm text-muted-foreground">
+            Orchestrierung auf Preset‑Ebene: Welche Wizards werden für Flow B/C verwendet?
+            Diese Auswahl ist Teil des Templates (nicht pro Event).
+          </p>
+        </div>
+
+        <Card className="p-4 space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                Wizard für Testimonials (Flow B)
+              </label>
+              <Select
+                value={localCreation?.followWizards?.testimonialTemplateId || '__none__'}
+                onValueChange={(value) => updateFollowWizards({ testimonialTemplateId: value === '__none__' ? undefined : value })}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Wizard auswählen…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {creationTemplateOptions
+                    .filter(o => o.id.toLowerCase().includes('testimonial'))
+                    .map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label} <span className="text-xs text-muted-foreground">({opt.id})</span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Es werden nur Templates angeboten, die in Mongo existieren und einen Creation‑Flow haben.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                Wizard für Finalisieren (Flow C)
+              </label>
+              <Select
+                value={localCreation?.followWizards?.finalizeTemplateId || '__none__'}
+                onValueChange={(value) => updateFollowWizards({ finalizeTemplateId: value === '__none__' ? undefined : value })}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Wizard auswählen…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {creationTemplateOptions
+                    .filter(o => o.id.toLowerCase().includes('finalize') || o.id.toLowerCase().includes('event-finalize'))
+                    .map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label} <span className="text-xs text-muted-foreground">({opt.id})</span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Für Events typischerweise <span className="font-mono">event-finalize-de</span>.
+              </p>
+            </div>
+          </div>
+
+          {creationTemplateOptions.length === 0 ? (
+            <div className="text-xs text-muted-foreground">
+              Hinweis: Keine Creation‑Templates gefunden. Bitte zuerst Templates importieren/erstellen.
+            </div>
+          ) : null}
+        </Card>
+      </div>
+
       {/* Flow Steps Section */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -1551,34 +1696,14 @@ function CreationFlowEditor({
                   </div>
                 )}
 
-                {selectedStep.preset === 'previewDetail' && (
+                {selectedStep.preset === 'previewDetail' ? (
                   <div className="space-y-2 pt-2 border-t">
-                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                      Detailansicht‑Typ
-                    </label>
-                    <Select
-                      value={localCreation?.preview?.detailViewType || 'session'}
-                      onValueChange={(value) => {
-                        // Validiere, dass value ein gültiger TemplatePreviewDetailViewType ist
-                        if (value === 'book' || value === 'session' || value === 'testimonial') {
-                          updatePreviewConfig({ detailViewType: value as 'book' | 'session' | 'testimonial' })
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="session">Event/Session (Detailseite)</SelectItem>
-                        <SelectItem value="book">Buch/Dokument (Detailseite)</SelectItem>
-                        <SelectItem value="testimonial">Testimonial (Detailseite)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Diese Einstellung wirkt sich auf den Preset‑Step <code className="font-mono">previewDetail</code> im Wizard aus.
-                    </p>
+                    <div className="text-xs text-muted-foreground">
+                      Die Detailansicht wird zentral im Tab <span className="font-semibold">„Detail‑Ansicht“</span> definiert.
+                      Der Preview‑Step übernimmt diese Einstellung automatisch.
+                    </div>
                   </div>
-                )}
+                ) : null}
 
                 {selectedStep.preset === 'editDraft' && (
                   <div className="space-y-4">

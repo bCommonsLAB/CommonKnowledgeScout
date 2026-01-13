@@ -113,7 +113,11 @@ export function convertMongoDocToDocCardMeta(doc: MongoDocForConversion): DocCar
     date: doc.date || (docMeta?.date as string | undefined),
     region: typeof doc.region === 'string' ? doc.region : undefined,
     upsertedAt: typeof doc.upsertedAt === 'string' ? doc.upsertedAt : undefined,
-    // docType, source, tags werden nicht in DocCardMeta unterstützt
+    // docType/detailViewType sind für die Detailansicht-Auswahl im Frontend wichtig.
+    // - docType: kann top-level oder in docMetaJson vorhanden sein (Backwards-Compatibility)
+    // - detailViewType: ist ein Frontmatter-Feld und liegt in docMetaJson
+    docType: (typeof doc.docType === 'string' ? doc.docType : (docMeta?.docType as string | undefined)),
+    detailViewType: (docMeta?.detailViewType as string | undefined),
     slug: doc.slug || (docMeta?.slug as string | undefined),
     coverImageUrl: doc.coverImageUrl || (docMeta?.coverImageUrl as string | undefined),
     pages: (() => {

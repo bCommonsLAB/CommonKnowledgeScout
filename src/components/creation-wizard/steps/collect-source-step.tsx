@@ -156,10 +156,13 @@ function CollectSourceSelectionView({
       <CardContent className="space-y-6">
         {isProcessing ? (
           <div className="border rounded-md p-4 bg-muted/30">
-            <div className="text-sm font-medium">PDF wird verarbeitet…</div>
+            <div className="text-sm font-medium">KI extrahiert Event‑Details aus der Quelle…</div>
             <div className="text-xs text-muted-foreground mt-1">{message || 'Bitte warten…'}</div>
             <div className="mt-3">
               <Progress value={typeof progress === 'number' ? Math.max(0, Math.min(100, progress)) : 0} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-2">
+              Hinweis: Diktat → Text passiert direkt im Eingabefeld. Hier geht es um die Extraktion der Formularfelder.
             </div>
           </div>
         ) : null}
@@ -373,10 +376,13 @@ function CollectSingleFileSelectionView({
 
         {isProcessing ? (
           <div className="border rounded-md p-4 bg-muted/30">
-            <div className="text-sm font-medium">PDF wird verarbeitet…</div>
+            <div className="text-sm font-medium">KI extrahiert Event‑Details aus der Quelle…</div>
             <div className="text-xs text-muted-foreground mt-1">{message || 'Bitte warten…'}</div>
             <div className="mt-3">
               <Progress value={typeof progress === 'number' ? Math.max(0, Math.min(100, progress)) : 0} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-2">
+              Hinweis: Diktat → Text passiert direkt im Eingabefeld. Hier geht es um die Extraktion der Formularfelder.
             </div>
           </div>
         ) : null}

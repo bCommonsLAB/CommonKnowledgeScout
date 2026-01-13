@@ -64,7 +64,7 @@ export interface TemplateCreationWelcomeConfig {
   markdown: string
 }
 
-export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial'
+export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial' | 'blog'
 
 export interface TemplateCreationPreviewConfig {
   /**
@@ -159,6 +159,24 @@ export interface TemplateCreationConfig {
     /** Liste der Steps in Reihenfolge */
     steps: CreationFlowStepRef[]
   }
+  /**
+   * Folge-Wizards (Orchestrierung) für Presets.
+   *
+   * Motivation:
+   * - Diese Auswahl ist **Template/Preset-weit** (für Kommunikations-Designer),
+   *   nicht pro erstelltem Dokument/Event.
+   * - UI soll nur existierende Templates zulassen (Dropdown).
+   *
+   * Wird z.B. bei `docType: event` genutzt, um Flow B/C zu starten.
+   */
+  followWizards?: {
+    /** Template-ID/Name für Flow B (Testimonial-Erfassung) */
+    testimonialTemplateId?: string
+    /** Template-ID/Name für Flow C (Final-Draft erzeugen) */
+    finalizeTemplateId?: string
+    /** Template-ID/Name für Flow C (Publish/Index-Swap) */
+    publishTemplateId?: string
+  }
   /** Optional: Willkommensseite (Markdown) */
   welcome?: TemplateCreationWelcomeConfig
   /** Optional: Preview-Konfiguration (Detailansicht-Typ) */
@@ -207,6 +225,8 @@ export interface TemplateMetadataSchema {
   fields: TemplateMetadataField[]
   /** Roher Frontmatter-String */
   rawFrontmatter: string
+  /** Optional: Detail-View-Type für die Anzeige transformierter Dokumente */
+  detailViewType?: TemplatePreviewDetailViewType
 }
 
 /**

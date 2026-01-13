@@ -32,6 +32,13 @@ export interface WizardSessionEvent {
   eventType:
     | 'wizard_started'
     | 'step_changed'
+    /**
+     * Präzisere Step-Telemetrie:
+     * - step_changed bleibt als Navigation-Event bestehen
+     * - step_entered/step_exited zeigen klar, wann ein Step "aktiv" wurde/endet
+     */
+    | 'step_entered'
+    | 'step_exited'
     | 'source_added'
     | 'source_removed'
     | 'job_started'
@@ -40,6 +47,18 @@ export interface WizardSessionEvent {
     | 'markdown_confirmed'
     | 'metadata_edited'
     | 'file_saved'
+    /**
+     * Asynchrone Prozess-Telemetrie (Reihenfolge & Dauer sichtbar machen)
+     */
+    | 'save_started'
+    | 'save_completed'
+    | 'save_failed'
+    | 'publish_started'
+    | 'publish_completed'
+    | 'publish_failed'
+    | 'ingest_started'
+    | 'ingest_completed'
+    | 'ingest_failed'
     | 'wizard_completed'
     | 'wizard_abandoned'
     | 'error'

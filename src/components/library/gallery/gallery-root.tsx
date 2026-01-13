@@ -34,6 +34,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { ReferencesSheet } from './references-sheet'
 import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
+import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -158,6 +159,29 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     }
     return docs.find(doc => doc.slug === docSlug) || null
   }, [docSlug, libraryId, loading, docs])
+
+  // Bestimme viewType für DetailOverlay:
+  // - Primär: pro Dokument über `detailViewType` (Wizard/Frontmatter)
+  // - Fallback: Library-Config (book/session)
+  const detailViewTypeForDoc = React.useMemo<'book' | 'session'>(() => {
+    if (!selectedDoc) return detailViewType // Fallback auf Library-Config
+
+    // 1) Dokument-spezifisch (Wizard/Frontmatter)
+    const perDoc = typeof selectedDoc.detailViewType === 'string' ? selectedDoc.detailViewType : ''
+    if (perDoc) {
+      // DetailOverlay unterstützt aktuell nur 'book' und 'session'.
+      // Alles andere (testimonial/blog) fällt bewusst auf den Library-Fallback zurück.
+      if (perDoc === 'session') return 'session'
+      if (perDoc === 'book') return 'book'
+    }
+
+    // 2) Fallback: library settings
+    // (Explizit über util, damit Regeln zentral bleiben)
+    const activeLibrary = libraries.find(lib => lib.id === libraryId)
+    const libraryConfig = activeLibrary?.config?.chat
+    const result = getDetailViewType({}, libraryConfig)
+    return result === 'session' ? 'session' : 'book'
+  }, [selectedDoc, detailViewType, libraries, libraryId])
 
   // selectedDoc wird automatisch über React State verwaltet
   const { facetDefs } = useGalleryFacets(libraryId, filters)
@@ -736,7 +760,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           onClose={handleCloseDocument}
           libraryId={libraryId || ''}
           fileId={selectedDoc.fileId || selectedDoc.id}
-          viewType={detailViewType}
+          viewType={detailViewTypeForDoc}
           doc={selectedDoc}
           currentMode={mode}
           isSwitchingRef={isSwitchingToStoryModeRef}

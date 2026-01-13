@@ -122,6 +122,11 @@ export function serializeTemplateToMarkdown(
     }
   }
   
+  // 1.5. detailViewType hinzufügen (falls gesetzt)
+  if (template.metadata.detailViewType) {
+    frontmatterLines.push(`detailViewType: ${template.metadata.detailViewType}`)
+  }
+  
   let frontmatter = `---\n${frontmatterLines.join('\n')}\n---`
   
   // 2. creation-Block hinzufügen (falls gewünscht und vorhanden)

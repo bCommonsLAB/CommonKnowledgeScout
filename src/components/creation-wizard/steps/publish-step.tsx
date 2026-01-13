@@ -21,6 +21,10 @@ interface PublishStepProps {
   isPublished: boolean
   /** Optional: Zur Library navigieren */
   onGoToLibrary?: () => void
+  /** Optional: Label für den Zurück-Button */
+  goToLibraryLabel?: string
+  /** Optional: Zusätzliche Inhalte im Success-Block (z.B. kurze Statistiken) */
+  children?: React.ReactNode
 }
 
 /**
@@ -38,6 +42,8 @@ export function PublishStep({
   publishingMessage,
   isPublished,
   onGoToLibrary,
+  goToLibraryLabel = "Zur Bibliothek",
+  children,
 }: PublishStepProps) {
   const didStartRef = React.useRef(false)
 
@@ -61,12 +67,13 @@ export function PublishStep({
               Wizard abgeschlossen
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
-              Das PDF wurde gespeichert, transformiert und publiziert.
+              Das Ergebnis wurde gespeichert und indiziert.
             </div>
+            {children ? <div className="mt-3">{children}</div> : null}
             {onGoToLibrary ? (
               <div className="mt-3">
                 <Button type="button" onClick={onGoToLibrary}>
-                  Zur Bibliothek
+                  {goToLibraryLabel}
                 </Button>
               </div>
             ) : null}

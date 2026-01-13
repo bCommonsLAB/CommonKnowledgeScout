@@ -21,6 +21,14 @@ export interface DocCardMeta {
   pages?: number
   /** Item-Typ (document, event, joboffer, testimonial, etc.) */
   docType?: string
+  /**
+   * Detailansicht-Typ (Frontmatter: detailViewType).
+   *
+   * WICHTIG:
+   * - Der Wizard/Frontmatter soll die UI-Detailansicht pro Dokument steuern.
+   * - Fallback (wenn nicht gesetzt): Library-Konfiguration.
+   */
+  detailViewType?: string
   /** Optional: Parent-Item-ID für Hierarchien (z.B. testimonial.parentId = event.id) */
   parentId?: string
 }
@@ -75,6 +83,7 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     coverImageUrl: item.meta.coverImageUrl as string | undefined,
     pages: item.meta.pages as number | undefined,
     docType: item.docType,
+    detailViewType: item.meta.detailViewType as string | undefined,
     parentId: item.parentId,
   };
 }

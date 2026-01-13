@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/vector-repo'
+import { isModeratorOrOwner } from '@/lib/repositories/library-members-repo'
 
 /**
  * GET /api/chat/[libraryId]/doc-meta
@@ -66,14 +67,35 @@ export async function GET(
     }
 
     // Response zusammenstellen (alle Daten direkt aus MongoDB)
+    // Security: Bei öffentlichen Libraries dürfen bestimmte Felder nicht an anonyme/gewöhnliche Viewer geleakt werden.
+    // Beispiel: `testimonialWriteKey` ermöglicht (anonyme) Uploads. Dieses Feld ist für Moderatoren/Owner gedacht.
+    const docMetaJsonRaw = (docMeta.docMetaJson && typeof docMeta.docMetaJson === 'object')
+      ? docMeta.docMetaJson as Record<string, unknown>
+      : undefined
+
+    // Wenn Library nicht public ist, ist diese Route ohnehin auth-protected (siehe oben).
+    // Für public: nur Owner/Moderator dürfen Secrets sehen.
+    const isOwnerOrMod = (userId && userEmail)
+      ? await isModeratorOrOwner(libraryId, userEmail)
+      : false
+    const canSeeSecrets = !ctx.library.config?.publicPublishing?.isPublic || isOwnerOrMod
+
+    const docMetaJson = (() => {
+      if (!docMetaJsonRaw) return undefined
+      // Avoid mutating cached objects from Mongo driver
+      const cloned: Record<string, unknown> = { ...docMetaJsonRaw }
+      if (!canSeeSecrets) {
+        delete cloned.testimonialWriteKey
+      }
+      return cloned
+    })()
+
     const response = {
       exists: true,
       fileId: typeof docMeta.fileId === 'string' ? docMeta.fileId : undefined,
       fileName: typeof docMeta.fileName === 'string' ? docMeta.fileName : undefined,
       // Komplettes docMetaJson-Objekt
-      docMetaJson: (docMeta.docMetaJson && typeof docMeta.docMetaJson === 'object') 
-        ? docMeta.docMetaJson as Record<string, unknown> 
-        : undefined,
+      docMetaJson,
       // Top-Level chapters Feld (falls vorhanden)
       chapters: Array.isArray(docMeta.chapters) ? docMeta.chapters : undefined,
       // Technische Felder

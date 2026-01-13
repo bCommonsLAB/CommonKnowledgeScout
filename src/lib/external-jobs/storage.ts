@@ -31,6 +31,9 @@ import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import { LibraryService } from '@/lib/services/library-service'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { loadTemplateFromMongoDB } from '@/lib/templates/template-service-mongodb'
+import { parseFrontmatter, parseFrontmatterObjectFromBlock } from '@/lib/markdown/frontmatter'
+import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 
 export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdownResult> {
   const { ctx, parentId, fileName, markdown, artifactKey: explicitArtifactKey } = args
@@ -121,12 +124,68 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
   const createFolderValue = ctx.job.shadowTwinState?.createFolder;
   const createFolder = !isParentShadowTwinFolder && !shadowTwinFolderId && (createFolderValue === true || createFolderValue === 'true')
 
+  // 5. Füge detailViewType aus Template ins Frontmatter ein (falls Template vorhanden)
+  let finalMarkdown = markdown
+  if (artifactKey.templateName && artifactKey.kind === 'transformation') {
+    try {
+      // Lade Template aus MongoDB
+      const template = await loadTemplateFromMongoDB(
+        artifactKey.templateName,
+        ctx.job.libraryId,
+        ctx.job.userEmail,
+        false
+      )
+      
+      if (template?.metadata?.detailViewType) {
+        // Parse Frontmatter
+        const parsed = parseFrontmatter(markdown)
+        const meta = parsed.meta || {}
+        
+        // Füge detailViewType hinzu (nur wenn noch nicht vorhanden)
+        if (!meta.detailViewType) {
+          meta.detailViewType = template.metadata.detailViewType as TemplatePreviewDetailViewType
+          
+          // Serialisiere Frontmatter neu
+          const frontmatterLines: string[] = []
+          for (const [key, value] of Object.entries(meta)) {
+            if (value === undefined) continue
+            if (typeof value === 'string') {
+              frontmatterLines.push(`${key}: "${value.replace(/"/g, '\\"')}"`)
+            } else if (typeof value === 'number' || typeof value === 'boolean') {
+              frontmatterLines.push(`${key}: ${value}`)
+            } else {
+              frontmatterLines.push(`${key}: ${JSON.stringify(value)}`)
+            }
+          }
+          
+          const newFrontmatter = `---\n${frontmatterLines.join('\n')}\n---`
+          finalMarkdown = `${newFrontmatter}\n\n${parsed.body}`
+          
+          bufferLog(ctx.jobId, {
+            phase: 'markdown_save_detailviewtype',
+            message: `detailViewType "${template.metadata.detailViewType}" aus Template ins Frontmatter eingefügt`,
+            templateName: artifactKey.templateName,
+            detailViewType: template.metadata.detailViewType,
+          })
+        }
+      }
+    } catch (error) {
+      // Fehler beim Laden des Templates nicht kritisch - verwende Original-Markdown
+      bufferLog(ctx.jobId, {
+        phase: 'markdown_save_detailviewtype_error',
+        message: `Fehler beim Laden des Templates für detailViewType`,
+        templateName: artifactKey.templateName,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
   // Nutze zentrale writeArtifact() Logik
   const writeResult = await writeArtifact(provider, {
     key: artifactKey,
     sourceName,
     parentId: targetParentId,
-    content: markdown,
+    content: finalMarkdown,
     createFolder,
   })
 
