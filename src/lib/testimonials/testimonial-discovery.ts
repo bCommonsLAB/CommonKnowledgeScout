@@ -1,7 +1,6 @@
 import type { StorageProvider } from '@/lib/storage/types'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
-import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 
 /**
  * Einheitliche Datenstruktur für ein gefundenes Testimonial
@@ -224,7 +223,7 @@ export async function discoverTestimonials(args: {
           
           const speakerName = meta && typeof meta === 'object' && 'speakerName' in (meta as Record<string, unknown>)
             ? (typeof (meta as Record<string, unknown>).speakerName === 'string' 
-                ? (meta as Record<string, unknown>).speakerName.trim() 
+                ? String((meta as Record<string, unknown>).speakerName).trim() 
                 : null)
             : null
           

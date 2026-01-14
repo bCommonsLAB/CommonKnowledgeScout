@@ -15,7 +15,6 @@ import { TransformResultHandler } from "@/components/library/transform-result-ha
 import { FileLogger } from "@/lib/debug/logger"
 import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
 import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
-import { getShadowTwinMode } from "@/lib/shadow-twin/mode-helper";
 
 interface PdfTransformProps {
   onTransformComplete?: (text: string, twinItem?: StorageItem, updatedItems?: StorageItem[]) => void;
@@ -34,11 +33,6 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
   // Referenz für den TransformResultHandler
   const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});
   
-  // Hilfsfunktion für den Basis-Dateinamen
-  const getBaseFileName = (fileName: string): string => {
-    const lastDotIndex = fileName.lastIndexOf(".");
-    return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
-  };
   
   // Generiere Shadow-Twin Dateinamen nach Konvention
   // Nutze zentrale buildArtifactName() Logik (wird in TransformService verwendet)

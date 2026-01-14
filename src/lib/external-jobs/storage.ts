@@ -29,11 +29,9 @@ import { getServerProvider } from '@/lib/storage/server-provider'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
-import { LibraryService } from '@/lib/services/library-service'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { loadTemplateFromMongoDB } from '@/lib/templates/template-service-mongodb'
-import { parseFrontmatter, parseFrontmatterObjectFromBlock } from '@/lib/markdown/frontmatter'
-import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
+import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 
 export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdownResult> {
   const { ctx, parentId, fileName, markdown, artifactKey: explicitArtifactKey } = args
@@ -121,7 +119,7 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
   // oder wenn shadowTwinFolderId vorhanden ist (Verzeichnis existiert bereits),
   // dann sollte createFolder auf false gesetzt werden, um keine verschachtelten Ordner zu erstellen.
   // Wenn shadowTwinFolderId nicht vorhanden ist, prüfe ob ein Verzeichnis erstellt werden soll.
-  const createFolderValue = ctx.job.shadowTwinState?.createFolder;
+  const createFolderValue = (ctx.job.shadowTwinState as { createFolder?: boolean | string } | undefined)?.createFolder;
   const createFolder = !isParentShadowTwinFolder && !shadowTwinFolderId && (createFolderValue === true || createFolderValue === 'true')
 
   // 5. Füge detailViewType aus Template ins Frontmatter ein (falls Template vorhanden)
@@ -143,7 +141,7 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
         
         // Füge detailViewType hinzu (nur wenn noch nicht vorhanden)
         if (!meta.detailViewType) {
-          meta.detailViewType = template.metadata.detailViewType as TemplatePreviewDetailViewType
+          meta.detailViewType = template.metadata.detailViewType as string | undefined
           
           // Serialisiere Frontmatter neu
           const frontmatterLines: string[] = []
@@ -202,7 +200,6 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
         artifactKind: artifactKey.kind,
         targetLanguage: artifactKey.targetLanguage,
         templateName: artifactKey.templateName || null,
-        mode,
       },
     })
   } catch {}

@@ -702,11 +702,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     const extractionStartedAt = nowMs()
     const sessionIdForLogs = wizardSessionIdRef.current
 
-    // Log extraction_started Event
+    // Log job_started Event
     if (sessionIdForLogs) {
       const currentStepForLog = template?.creation?.flow?.steps?.[wizardState.currentStepIndex]
       void logWizardEventClient(sessionIdForLogs, {
-        eventType: 'extraction_started',
+        eventType: 'job_started',
         stepIndex: wizardState.currentStepIndex,
         stepPreset: currentStepForLog?.preset,
         metadata: {
@@ -732,7 +732,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         if (sessionIdForLogs) {
           const currentStepForLog = template?.creation?.flow?.steps?.[wizardState.currentStepIndex]
           void logWizardEventClient(sessionIdForLogs, {
-            eventType: 'extraction_failed',
+            eventType: 'job_failed',
             stepIndex: wizardState.currentStepIndex,
             stepPreset: currentStepForLog?.preset,
             metadata: { durationMs: Math.max(0, nowMs() - extractionStartedAt) },
@@ -762,7 +762,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         if (sessionIdForLogs) {
           const currentStepForLog = template?.creation?.flow?.steps?.[wizardState.currentStepIndex]
           void logWizardEventClient(sessionIdForLogs, {
-            eventType: 'extraction_failed',
+            eventType: 'job_failed',
             stepIndex: wizardState.currentStepIndex,
             stepPreset: currentStepForLog?.preset,
             metadata: { durationMs: Math.max(0, nowMs() - extractionStartedAt) },
@@ -791,7 +791,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         const durationMs = Math.max(0, nowMs() - extractionStartedAt)
         const currentStepForLog = template?.creation?.flow?.steps?.[wizardState.currentStepIndex]
         void logWizardEventClient(sessionIdForLogs, {
-          eventType: 'extraction_completed',
+          eventType: 'job_completed',
           stepIndex: wizardState.currentStepIndex,
           stepPreset: currentStepForLog?.preset,
           metadata: {
@@ -819,7 +819,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         const durationMs = Math.max(0, nowMs() - extractionStartedAt)
         const currentStepForLog = template?.creation?.flow?.steps?.[wizardState.currentStepIndex]
         void logWizardEventClient(sessionIdForLogs, {
-          eventType: 'extraction_failed',
+          eventType: 'job_failed',
           stepIndex: wizardState.currentStepIndex,
           stepPreset: currentStepForLog?.preset,
           metadata: { durationMs },
@@ -945,6 +945,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function resolvePdfAnalyseTransformFileId(args: {
     baseFileId: string
     targetLanguage: string
@@ -2714,7 +2715,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               const sessionId = wizardSessionIdRef.current
               if (!sessionId) return
               void logWizardEventClient(sessionId, {
-                eventType: 'extraction_started',
+                eventType: 'job_started',
                 stepIndex: wizardState.currentStepIndex,
                 stepPreset: currentStep?.preset,
                 metadata: {
@@ -2735,7 +2736,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               const sessionId = wizardSessionIdRef.current
               if (!sessionId) return
               void logWizardEventClient(sessionId, {
-                eventType: 'extraction_completed',
+                eventType: 'job_completed',
                 stepIndex: wizardState.currentStepIndex,
                 stepPreset: currentStep?.preset,
                 metadata: {
@@ -2751,7 +2752,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               if (!sessionId) return
               const msg = error instanceof Error ? error.message : String(error)
               void logWizardEventClient(sessionId, {
-                eventType: 'extraction_failed',
+                eventType: 'job_failed',
                 stepIndex: wizardState.currentStepIndex,
                 stepPreset: currentStep?.preset,
                 error: { code: 'process_text_failed', message: msg },

@@ -198,7 +198,7 @@ export function useShadowTwinArtifacts(args: {
     return () => {
       cancelled = true
     }
-  }, [provider, parentId, sourceFile?.id, sourceFile?.metadata.name, targetLanguage, sourceBaseName])
+  }, [provider, parentId, sourceFile, targetLanguage, sourceBaseName])
 
   return state
 }

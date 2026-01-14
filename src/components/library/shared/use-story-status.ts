@@ -104,7 +104,7 @@ export function useStoryStatus(args: UseStoryStatusArgs): UseStoryStatusResult {
     return () => {
       cancelled = true
     }
-  }, [args.libraryId, args.file?.id, docModifiedAt, shouldFetchPublish])
+  }, [args.libraryId, args.file, docModifiedAt, shouldFetchPublish])
 
   const steps = React.useMemo<StoryStepStatus[]>(() => {
     const textLabel = getTextStepLabel(mediaType)

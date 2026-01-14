@@ -102,7 +102,7 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
   // Falls Template-Phase übersprungen wurde, existiert oft bereits die Transformation im Shadow-Twin.
   if (!savedItemId && transformedId) savedItemId = transformedId
 
-  if (sourceItemId && sourceName && sourceParentId) {
+  if (sourceItemId && sourceName && sourceParentId && job) {
     const provider = await buildProvider({ userEmail: job.userEmail, libraryId: job.libraryId, jobId: ctx.jobId, repo })
     const expectedKind = templateEnabled ? 'transformation' : 'transcript'
     const sourceBaseName = path.parse(sourceName).name

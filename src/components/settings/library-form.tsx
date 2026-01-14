@@ -655,7 +655,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                 throw new Error('Fehler beim Konvertieren');
                               }
                               
-                              const data = await response.json();
+                              await response.json();
                               setShadowTwinMode('v2');
                               
                               toast({

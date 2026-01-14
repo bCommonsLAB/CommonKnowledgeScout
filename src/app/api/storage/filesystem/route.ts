@@ -789,7 +789,7 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        let zipContent: import('jszip').JSZip
+        let zipContent: Awaited<ReturnType<typeof zip.loadAsync>>
         try {
           zipContent = await zip.loadAsync(buf)
         } catch (error) {

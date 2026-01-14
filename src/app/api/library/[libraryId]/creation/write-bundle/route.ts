@@ -17,7 +17,6 @@ import { LibraryService } from '@/lib/services/library-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
 import type { WizardSource } from '@/lib/creation/corpus'
-import { buildCorpusText } from '@/lib/creation/corpus'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -105,6 +104,7 @@ export async function POST(
     } = body
 
     // Deserialisiere sources: ISO-Strings zurück zu Date-Objekten
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sources: WizardSource[] = (sourcesRaw || []).map((source: unknown) => {
       if (source && typeof source === 'object') {
         const s = source as Record<string, unknown>

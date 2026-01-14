@@ -522,11 +522,11 @@ function validateGlobalContracts(
     // Extract-Policy prüfen
     if (policies.extract === 'ignore') {
       const extractStep = steps.find(s => s?.name === 'extract_pdf')
-      if (extractStep && extractStep.status !== 'skipped' && extractStep.status !== 'completed') {
+      if (extractStep && extractStep.status !== 'completed') {
         pushMessage(
           messages,
           'warn',
-          `Policy/Step-Inkonsistenz: extract=ignore, aber extract_pdf Step hat Status "${extractStep.status}" (erwarte skipped/completed)`
+          `Policy/Step-Inkonsistenz: extract=ignore, aber extract_pdf Step hat Status "${extractStep.status}" (erwarte completed)`
         )
       }
     }
@@ -534,11 +534,11 @@ function validateGlobalContracts(
     // Template/Metadata-Policy prüfen
     if (policies.metadata === 'ignore') {
       const templateStep = steps.find(s => s?.name === 'transform_template')
-      if (templateStep && templateStep.status !== 'skipped' && templateStep.status !== 'completed') {
+      if (templateStep && templateStep.status !== 'completed') {
         pushMessage(
           messages,
           'warn',
-          `Policy/Step-Inkonsistenz: metadata=ignore, aber transform_template Step hat Status "${templateStep.status}" (erwarte skipped/completed)`
+          `Policy/Step-Inkonsistenz: metadata=ignore, aber transform_template Step hat Status "${templateStep.status}" (erwarte completed)`
         )
       }
     }
@@ -546,11 +546,11 @@ function validateGlobalContracts(
     // Ingest-Policy prüfen
     if (policies.ingest === 'ignore') {
       const ingestStep = steps.find(s => s?.name === 'ingest_rag')
-      if (ingestStep && ingestStep.status !== 'skipped' && ingestStep.status !== 'completed') {
+      if (ingestStep && ingestStep.status !== 'completed') {
         pushMessage(
           messages,
           'warn',
-          `Policy/Step-Inkonsistenz: ingest=ignore, aber ingest_rag Step hat Status "${ingestStep.status}" (erwarte skipped/completed)`
+          `Policy/Step-Inkonsistenz: ingest=ignore, aber ingest_rag Step hat Status "${ingestStep.status}" (erwarte completed)`
         )
       }
     }

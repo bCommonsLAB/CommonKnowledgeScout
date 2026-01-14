@@ -62,7 +62,7 @@ export async function writeArtifact(
   provider: StorageProvider,
   options: WriteArtifactOptions
 ): Promise<WriteArtifactResult> {
-  const { key, sourceName, parentId, content, createFolder } = options;
+  const { key, sourceName } = options;
 
   // Logging: Start
   logArtifactWrite('start', {

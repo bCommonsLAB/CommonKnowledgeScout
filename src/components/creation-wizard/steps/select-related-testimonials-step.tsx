@@ -22,9 +22,8 @@ function convertWizardSourceToTestimonialItem(source: WizardSource): Testimonial
   
   // Fallback: Wenn _testimonialId vorhanden ist (aus findRelatedEventTestimonialsFilesystem),
   // verwende diese direkt
-  // @ts-expect-error - WizardSource kann zusätzliche Felder haben
-  if (source._testimonialId && typeof source._testimonialId === 'string') {
-    testimonialId = source._testimonialId
+  if ((source as unknown as { _testimonialId?: string })._testimonialId && typeof (source as unknown as { _testimonialId?: string })._testimonialId === 'string') {
+    testimonialId = (source as unknown as { _testimonialId: string })._testimonialId
   }
   
   // Wenn es eine Datei-ID ist, versuchen wir den Ordner-Namen aus fileName zu extrahieren

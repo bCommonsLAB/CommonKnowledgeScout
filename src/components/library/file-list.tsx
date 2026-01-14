@@ -1002,7 +1002,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     } finally {
       setIsRefreshing(false);
     }
-  }, [currentFolderId, refreshItems, setFolderItems]);
+  }, [currentFolderId, refreshItems, setFolderItems, setShadowTwinAnalysisTrigger, shadowTwinAnalysisTrigger]);
 
   // Globales Ordner-Refresh-Ereignis (z. B. nach Shadow‑Twin Speicherung)
   React.useEffect(() => {
@@ -1044,7 +1044,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     };
     window.addEventListener('library_refresh', onRefresh as unknown as EventListener);
     return () => window.removeEventListener('library_refresh', onRefresh as unknown as EventListener);
-  }, [items, handleRefresh, currentFolderId]);
+  }, [items, handleRefresh, currentFolderId, setShadowTwinAnalysisTrigger]);
 
   const handleCreateTranscript = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

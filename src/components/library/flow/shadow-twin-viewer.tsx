@@ -66,8 +66,8 @@ function coerceChapters(meta: Record<string, unknown>): Chapter[] {
 }
 
 export function ShadowTwinViewer(props: ShadowTwinViewerProps) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const mediaType = getMediaType(props.sourceFile)
-  const isPdf = mediaType === "pdf"
   const leftMode = props.leftPaneMode
   const isLeftHidden = leftMode === "off"
 

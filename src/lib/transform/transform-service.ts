@@ -33,15 +33,10 @@ import { transformAudio, transformText, transformVideo, transformPdf, transformI
 import { ImageExtractionService, ImageExtractionResult } from "./image-extraction-service";
 import { FileLogger } from '@/lib/debug/logger';
 import { generateShadowTwinFolderName } from "@/lib/storage/shadow-twin";
-import { logArtifactWrite } from "@/lib/shadow-twin/artifact-logger";
-import { parseArtifactName, buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
-import { getShadowTwinMode } from "@/lib/shadow-twin/mode-helper";
+import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
 import { replacePlaceholdersInMarkdown } from "@/lib/markdown/placeholder-replacement";
-import { writeArtifact, type WriteArtifactOptions } from "@/lib/shadow-twin/artifact-writer";
+import { writeArtifact } from "@/lib/shadow-twin/artifact-writer";
 import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
-// LibraryService wird nur serverseitig verwendet - dynamischer Import verhindert Browser-Bundling
-import type { Library } from "@/types/library";
-let LibraryService: typeof import("@/lib/services/library-service").LibraryService | null = null;
 
 export interface TransformSaveOptions {
   targetLanguage: string;
@@ -1023,7 +1018,7 @@ export class TransformService {
     const key = artifactKey;
     
     // Prüfe ob Shadow-Twin-Verzeichnis verwendet werden soll
-    const createFolder = parentId && parentId !== originalItem.parentId;
+    const createFolder: boolean | undefined = parentId && parentId !== originalItem.parentId ? true : undefined;
     
     // Nutze zentrale writeArtifact() Logik
     // WICHTIG: Entferne Anführungszeichen aus sourceName, falls vorhanden

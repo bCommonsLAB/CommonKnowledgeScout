@@ -260,8 +260,8 @@ export default function IntegrationTestsPage() {
               <tbody>
                 {integrationTestCases.map((tc: IntegrationTestCase) => {
                   const checked = selectedIds.includes(tc.id);
-                  const useCaseId = 'useCaseId' in tc ? tc.useCaseId : tc.id.split('.')[0] || 'unknown';
-                  const scenarioId = 'scenarioId' in tc ? tc.scenarioId : tc.id.split('.').slice(1).join('.') || tc.id;
+                  const useCaseId = 'useCaseId' in tc && tc.useCaseId ? tc.useCaseId : tc.id.split('.')[0] || 'unknown';
+                  const scenarioId = 'scenarioId' in tc && tc.scenarioId ? tc.scenarioId : tc.id.split('.').slice(1).join('.') || tc.id;
                   return (
                     <tr
                       key={tc.id}

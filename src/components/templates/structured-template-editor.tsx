@@ -521,7 +521,7 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
         <TabsContent value="creation">
           <div className="mb-3 text-xs text-muted-foreground">
             Der Creation Flow steuert, wie Menschen ihre Eingaben Schritt für Schritt liefern.
-            Die eigentliche LLM-Transformation kannst du rechts unter <span className="font-semibold">„Transformation testen"</span> ausprobieren.
+            Die eigentliche LLM-Transformation kannst du rechts unter <span className="font-semibold">&quot;Transformation testen&quot;</span> ausprobieren.
           </div>
           <CreationFlowEditor
             creation={creation || null}
@@ -1579,7 +1579,7 @@ function CreationFlowEditor({
                       {sources.length === 0 && (
                         <div className="text-center py-4 text-muted-foreground text-xs">
                           <p>Noch keine Quellen definiert</p>
-                          <p className="mt-1">Klicke auf "Quelle hinzufügen" um zu beginnen</p>
+                          <p className="mt-1">Klicke auf &quot;Quelle hinzufügen&quot; um zu beginnen</p>
                         </div>
                       )}
                     </div>

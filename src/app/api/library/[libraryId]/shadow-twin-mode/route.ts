@@ -64,7 +64,7 @@ export async function POST(
       ...library.config,
       shadowTwin: {
         ...library.config?.shadowTwin,
-        mode: 'v2',
+        mode: 'v2' as const,
       },
     };
 

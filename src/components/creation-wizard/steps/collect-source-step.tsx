@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import type { CreationSource, TemplateDocument } from "@/lib/templates/template-types"
+import type { CreationSource } from "@/lib/templates/template-types"
 import { Link, Upload, Plus, Loader2, FileText, Mic } from "lucide-react"
 import { toast } from "sonner"
 import { DictationTextarea } from "@/components/shared/dictation-textarea"
@@ -359,7 +359,7 @@ function CollectSingleFileSelectionView({
               <div className="font-medium">Ausgewählte Datei</div>
               <div className="text-muted-foreground break-all">{pendingFileName}</div>
               <div className="text-xs text-muted-foreground mt-2">
-                Klicke unten rechts auf „Weiter", um OCR/Artefakte zu starten.
+                Klicke unten rechts auf &quot;Weiter&quot;, um OCR/Artefakte zu starten.
               </div>
             </div>
             <Button
@@ -405,11 +405,14 @@ export function CollectSourceStep({
   libraryId,
   provider,
   targetFolderId,
-  mode,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  mode: _mode,
   onRemoveSource,
-  templateMetadata,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  templateMetadata: _templateMetadata,
   requiredFields,
-  onBeforeLeave,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onBeforeLeave: _onBeforeLeave,
   onCanProceedChange,
   supportedSources = [],
   selectedSource,
@@ -705,6 +708,7 @@ export function CollectSourceStep({
 
         // Upload ins Storage, damit External Jobs später per originalItemId laden können
         async function ensureWizardSourcesFolderId(): Promise<string> {
+          if (!provider) throw new Error('Provider nicht verfügbar')
           const baseFolderId = (targetFolderId && targetFolderId.trim().length > 0) ? targetFolderId : "root"
           const folderName = ".wizard-sources"
           const items = await provider.listItemsById(baseFolderId)
@@ -744,6 +748,7 @@ export function CollectSourceStep({
   }
 
   // transcribeAudio wird nur noch für Audio-Dateien verwendet (nicht für Diktat)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function transcribeAudio(file: File): Promise<void> {
     setErrorMessage(null)
     // Kein setIsTranscribing mehr nötig, da Diktat über DictationTextarea läuft
@@ -759,6 +764,7 @@ export function CollectSourceStep({
        */
       if (provider && libraryId) {
         async function ensureWizardSourcesFolderId(): Promise<string> {
+          if (!provider) throw new Error('Provider nicht verfügbar')
           const baseFolderId = (targetFolderId && targetFolderId.trim().length > 0) ? targetFolderId : "root"
           const folderName = ".wizard-sources"
           const items = await provider.listItemsById(baseFolderId)

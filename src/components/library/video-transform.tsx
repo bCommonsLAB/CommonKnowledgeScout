@@ -6,13 +6,8 @@ import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
 import { useAtomValue } from "jotai";
 import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
-import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
-import { 
-  TransformService, 
-  VideoTransformOptions, 
-  TransformResult 
-} from "@/lib/transform/transform-service";
+import type { TransformResult } from "@/lib/transform/transform-service";
 import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
@@ -26,12 +21,16 @@ interface VideoTransformProps {
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-export function VideoTransform({ onTransformComplete, onRefreshFolder }: VideoTransformProps) {
+export function VideoTransform({ 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onTransformComplete: _onTransformComplete, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onRefreshFolder: _onRefreshFolder 
+}: VideoTransformProps) {
   const item = useAtomValue(selectedFileAtom);
   const [isLoading, setIsLoading] = useState(false);
   const provider = useStorageProvider();
   const activeLibrary = useAtomValue(activeLibraryAtom);
-  const { refreshItems } = useStorage();
   
   // Referenz für den TransformResultHandler
   const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});

@@ -18,6 +18,7 @@ import type { Library, ClientLibrary } from '@/types/library';
  * @param library Library-Objekt (Library oder ClientLibrary)
  * @returns 'v2' (Die App ist v2-only; Legacy wird nicht mehr unterstützt)
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function getShadowTwinMode(_library: Library | ClientLibrary | null | undefined): 'v2' {
   // WICHTIG (v2-only):
   // Wir lesen das gespeicherte Flag (legacy/v2) bewusst NICHT mehr, weil es sonst

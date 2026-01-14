@@ -8,7 +8,7 @@ import * as React from "react"
  * 
  * Die Daten kommen aus der ingestion-status API (mit chapters, wenn nicht compact).
  */
-interface IngestionData {
+export interface IngestionData {
   indexExists: boolean
   doc: {
     exists: boolean
@@ -30,6 +30,7 @@ interface IngestionData {
     language?: string
     topics?: string[]
     summary?: string
+    docMetaJson?: unknown
   }
   chapters: Array<{
     chapterId: string

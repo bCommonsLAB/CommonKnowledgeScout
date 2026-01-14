@@ -64,7 +64,7 @@ export async function resolveArtifact(
   provider: StorageProvider,
   options: ResolveArtifactOptions
 ): Promise<ResolvedArtifact | null> {
-  const { sourceItemId, sourceName, parentId, targetLanguage, templateName, preferredKind } = options;
+  const { sourceItemId, sourceName, preferredKind } = options;
 
   // Logging: Start
   logArtifactResolve('start', {

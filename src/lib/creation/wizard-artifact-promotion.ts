@@ -27,6 +27,7 @@ function isFileNamed(item: StorageItem, name: string): boolean {
   return item.type === 'file' && item.metadata?.name === name
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function ensureFolder(provider: StorageProvider, parentId: string, name: string): Promise<StorageItem> {
   const items = await provider.listItemsById(parentId)
   const existing = items.find((it) => isFolderNamed(it, name))

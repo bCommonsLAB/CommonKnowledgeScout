@@ -2,7 +2,6 @@
 
 import * as React from "react"
 
-import { Badge } from "@/components/ui/badge"
 import { useIngestionDataContext } from "./ingestion-data-context"
 
 interface IngestionStatusData {

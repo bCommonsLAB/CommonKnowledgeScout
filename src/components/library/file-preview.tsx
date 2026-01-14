@@ -4,7 +4,6 @@ import * as React from 'react';
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { AudioPlayer } from './audio-player';
 import { VideoPlayer } from './video-player';
 import { MarkdownPreview } from './markdown-preview';
 import { MarkdownMetadata } from './markdown-metadata';
@@ -23,7 +22,6 @@ import { JobReportTab } from './job-report-tab';
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 import { parseFrontmatter } from '@/lib/markdown/frontmatter';
 import { DetailViewRenderer } from './detail-view-renderer';
-import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types';
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -403,6 +401,9 @@ function PreviewContent({
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const shadowTwinState = shadowTwinStates.get(item.id);
   
+  // Hole Libraries-Atom für Markdown-Preview (muss vor allen frühen Returns sein)
+  const libraries = useAtomValue(librariesAtom);
+  
   // Bestimme das Verzeichnis für Bild-Auflösung im Markdown-Viewer:
   // 
   // Strategie:
@@ -574,7 +575,6 @@ function PreviewContent({
       const creationTypeId = typeof meta.creationTypeId === 'string' ? meta.creationTypeId.trim() : undefined;
       
       // Bestimme detailViewType aus Frontmatter mit Fallback auf Library-Config
-      const libraries = useAtomValue(librariesAtom);
       const activeLibrary = activeLibraryId ? libraries.find(lib => lib.id === activeLibraryId) : undefined;
       const libraryConfig = activeLibrary?.config?.chat;
       const detailViewType = getDetailViewType(meta, libraryConfig);

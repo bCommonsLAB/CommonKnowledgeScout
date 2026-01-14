@@ -560,7 +560,6 @@ export async function POST(
         if (extractedText) {
           try {
             const { writeArtifact } = await import('@/lib/shadow-twin/artifact-writer')
-            const { getShadowTwinMode } = await import('@/lib/shadow-twin/mode-helper')
             const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
             const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
             const sourceItemId = job.correlation.source?.itemId || 'unknown'

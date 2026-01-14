@@ -49,19 +49,16 @@ export async function findRelatedEventTestimonialsFilesystem(args: {
     return {
       id: t.source === 'markdown' ? `file-${t.testimonialId}` : `text-${t.testimonialId}`,
       kind: t.source === 'markdown' ? 'file' : 'text',
-      fileName: t.source === 'markdown' ? `${t.testimonialId}.md` : null,
-      text: t.text || null,
-      extractedText: enrichedText || null,
+      fileName: t.source === 'markdown' ? `${t.testimonialId}.md` : undefined,
+      text: t.text || undefined,
+      extractedText: enrichedText || undefined,
       summary,
       createdAt: new Date(t.createdAt),
       // Speichere zusätzliche Metadaten für späteren Zugriff
-      // @ts-expect-error - WizardSource erlaubt zusätzliche Felder
       _testimonialId: t.testimonialId,
-      // @ts-expect-error
       _folderId: t.folderId,
-      // @ts-expect-error
       _fileId: fileId,
-    }
+    } as unknown as WizardSource & { _testimonialId: string; _folderId: string; _fileId: string }
   })
 
   return sources

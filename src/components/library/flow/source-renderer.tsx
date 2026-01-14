@@ -87,7 +87,7 @@ export function SourceRenderer({
     return () => {
       cancelled = true
     }
-  }, [provider, file.id, file.type, streamingUrl, streamingUrlProp])
+  }, [provider, file.id, file.type, file.metadata?.name, streamingUrl, streamingUrlProp])
 
   const openInNewTab = React.useCallback(() => {
     if (!streamingUrl) return

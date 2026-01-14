@@ -18,7 +18,6 @@ import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
 import { runTemplateTransform } from '@/lib/external-jobs/template-run'
 import { analyzeAndMergeChapters } from '@/lib/external-jobs/chapters'
 import { saveMarkdown } from '@/lib/external-jobs/storage'
-import { processAllImageSources } from '@/lib/external-jobs/images'
 import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { handleJobError } from '@/lib/external-jobs/error-handler'
@@ -27,8 +26,6 @@ import type { LibraryChatConfig } from '@/types/library'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
-import { LibraryService } from '@/lib/services/library-service'
 
 export interface TemplatePhaseArgs {
   ctx: RequestContext
@@ -75,21 +72,32 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     bodyMetadata,
     policies,
     autoSkip,
-    imagesPhaseEnabled,
-    pagesArchiveData,
-    pagesArchiveUrl,
-    pagesArchiveFilename,
-    imagesArchiveData,
-    imagesArchiveFilename,
-    imagesArchiveUrl,
-    mistralOcrRaw,
-    hasMistralOcrImages,
-    mistralOcrImagesUrl,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesPhaseEnabled: _imagesPhaseEnabled,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pagesArchiveData: _pagesArchiveData,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pagesArchiveUrl: _pagesArchiveUrl,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pagesArchiveFilename: _pagesArchiveFilename,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesArchiveData: _imagesArchiveData,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesArchiveFilename: _imagesArchiveFilename,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesArchiveUrl: _imagesArchiveUrl,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    mistralOcrRaw: _mistralOcrRaw,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    hasMistralOcrImages: _hasMistralOcrImages,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    mistralOcrImagesUrl: _mistralOcrImagesUrl,
     targetParentId,
     // libraryConfig wird derzeit nicht verwendet
   } = args
 
   const { jobId, job } = ctx
+  const { getShadowTwinMode } = await import('@/lib/shadow-twin/mode-helper')
   const mode = getShadowTwinMode(undefined)
   
   // Erweitere policies um ingest, falls nicht vorhanden

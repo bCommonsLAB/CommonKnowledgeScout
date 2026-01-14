@@ -18,7 +18,6 @@ import {
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import type { StorageItem } from '@/lib/storage/types'
-import { FileLogger } from '@/lib/debug/logger'
 
 export interface PdfTestFile {
   itemId: string;
@@ -90,6 +89,7 @@ async function deleteItemIfExists(
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function ensureShadowTwinFolder(
   provider: import('@/lib/storage/types').StorageProvider,
   parentId: string,

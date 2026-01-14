@@ -8,6 +8,7 @@
  * @module shadow-twin
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function getShadowTwinModeClient(_libraryId: string): Promise<'v2'> {
   try {
     // WICHTIG (v2-only Runtime):

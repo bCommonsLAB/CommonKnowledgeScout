@@ -66,7 +66,7 @@ export function useResolvedTranscriptItem(args: {
     return () => {
       cancelled = true
     }
-  }, [provider, libraryId, sourceFile?.id, sourceFile?.parentId, sourceFile?.metadata.name, targetLanguage])
+  }, [provider, libraryId, sourceFile, targetLanguage])
 
   return state
 }

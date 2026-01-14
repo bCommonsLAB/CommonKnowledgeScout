@@ -14,7 +14,7 @@
  */
 
 import type { StorageProvider } from '@/lib/storage/types'
-import { discoverTestimonials, type DiscoveredTestimonial } from './testimonial-discovery'
+import { discoverTestimonials } from './testimonial-discovery'
 import type { CreateTestimonialOptions, CreateTestimonialResult, Testimonial } from './testimonial-types'
 import crypto from 'crypto'
 

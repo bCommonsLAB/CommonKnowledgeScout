@@ -78,7 +78,7 @@ export async function convertLibrary(
         ops.push({
           updateOne: {
             filter: { _id: doc._id },
-            update,
+            update: update as unknown as Record<string, unknown>,
           },
         })
 

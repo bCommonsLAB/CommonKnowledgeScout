@@ -91,7 +91,8 @@ export function useDictationTranscription(
     targetLanguage = "de",
     onAudioBlob,
     onTranscriptionComplete,
-    mergeStrategy = "append",
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    mergeStrategy: _mergeStrategy = "append",
   } = options
 
   const [status, setStatus] = React.useState<DictationStatus>("idle")
@@ -114,7 +115,7 @@ export function useDictationTranscription(
    * Transkribiert eine Audio-Datei via Secretary Service.
    * Gibt nur den neuen Text zurück (ohne Merging - das macht die Komponente).
    */
-  async function transcribe(file: File): Promise<string> {
+  const transcribe = React.useCallback(async (file: File): Promise<string> => {
     const formData = new FormData()
     formData.append("file", file)
     formData.append("source_language", sourceLanguage)
@@ -167,7 +168,7 @@ export function useDictationTranscription(
     if (!text.trim()) throw new Error("Keine Transkription erhalten.")
 
     return text.trim()
-  }
+  }, [transcribeEndpoint, extraFormFields, sourceLanguage, targetLanguage])
 
   const startRecording = React.useCallback(async (): Promise<void> => {
     if (!canUseMediaRecorder) {
@@ -256,7 +257,7 @@ export function useDictationTranscription(
       mediaStreamRef.current = null
       setLiveStream(null)
     }
-  }, [canUseMediaRecorder, transcribeEndpoint, extraFormFields, sourceLanguage, targetLanguage, onAudioBlob, onTranscriptionComplete])
+  }, [canUseMediaRecorder, onAudioBlob, onTranscriptionComplete, transcribe])
 
   const stopRecording = React.useCallback((): void => {
     const recorder = mediaRecorderRef.current

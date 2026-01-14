@@ -10,7 +10,7 @@
  * - replacePlaceholdersInMarkdown: Ersetzt Platzhalter im Markdown-Frontmatter
  */
 
-import { extractFrontmatterBlock, parseFrontmatter } from './frontmatter';
+import { extractFrontmatterBlock } from './frontmatter';
 
 /**
  * Ersetzt Platzhalter im Markdown-Frontmatter.

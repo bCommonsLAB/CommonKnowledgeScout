@@ -27,16 +27,12 @@
 
 import type { RequestContext } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
-import { saveMarkdown } from './storage'
-import { processAllImageSources } from './images'
 import { buildProvider } from './provider'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { clearWatchdog } from '@/lib/external-jobs-watchdog'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
-import { LibraryService } from '@/lib/services/library-service'
 
 /**
  * Runs extract-only mode processing. This mode is activated when both template
@@ -235,6 +231,7 @@ export async function runExtractOnly(
         mistralOcrRawKeys: mistralOcrRaw && typeof mistralOcrRaw === 'object' ? Object.keys(mistralOcrRaw as Record<string, unknown>) : [],
       })
 
+      const { processAllImageSources } = await import('./images')
       const imageResult = await processAllImageSources(ctx, provider, {
         pagesArchiveData,
         pagesArchiveUrl,

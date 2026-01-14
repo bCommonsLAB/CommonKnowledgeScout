@@ -20,9 +20,6 @@ import type { StorageProvider } from '@/lib/storage/types'
 import type { StorageItem } from '@/lib/storage/types'
 import { writeArtifact, type WriteArtifactResult } from '@/lib/shadow-twin/artifact-writer'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
-import { loadTemplateFromMongoDB } from '@/lib/templates/template-service-mongodb'
-import type { TemplateDocument } from '@/lib/templates/template-types'
-import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { FileLogger } from '@/lib/debug/logger'
 
 /**
@@ -68,6 +65,7 @@ export interface WriteTestimonialArtifactsResult {
  * 
  * Ersetzt {{key|description}} und {{key}} Patterns durch Werte aus values.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function renderTemplateBody(args: { body: string; values: Record<string, unknown> }): string {
   const { body, values } = args
   
@@ -131,14 +129,18 @@ export async function writeTestimonialArtifacts(
 ): Promise<WriteTestimonialArtifactsResult> {
   const {
     provider,
-    eventFileId,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    eventFileId: _eventFileId,
     testimonialFolderId,
     sourceFile,
     text,
     targetLanguage,
-    templateName,
-    libraryId,
-    userEmail,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    templateName: _templateName,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    libraryId: _libraryId,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    userEmail: _userEmail,
     metadata,
   } = options
 

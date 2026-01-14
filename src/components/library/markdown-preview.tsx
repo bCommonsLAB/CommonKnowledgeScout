@@ -20,15 +20,14 @@ import { transformTextWithTemplate } from "@/lib/secretary/client";
 import { Label } from "@/components/ui/label";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
 import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
 import { stripAllFrontmatter, parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { replacePlaceholdersInMarkdown } from '@/lib/markdown/placeholder-replacement'
-import { buildArtifactName, extractBaseName, parseArtifactName, type ArtifactKey } from '@/lib/shadow-twin/artifact-naming'
-import { getShadowTwinMode } from '@/lib/shadow-twin/mode-helper'
+import { buildArtifactName, extractBaseName, parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 
 /**
  * Fügt unsichtbare Anker vor Zeilen wie "— Seite 12 —" ein, damit Scroll‑Sync möglich ist.
@@ -118,6 +117,7 @@ const TextTransform = ({ content, currentItem, provider, onTransform, onRefreshF
     targetLanguage: string,
     currentFileName?: string,
     currentItem?: StorageItem | null,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     activeLibrary?: { id: string } | null
   ): string => {
     // IMMER zentrale Logik verwenden, wenn currentItem vorhanden ist

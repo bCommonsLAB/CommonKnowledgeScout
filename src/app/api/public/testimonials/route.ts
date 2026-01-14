@@ -86,7 +86,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const testimonialsFolderId = await ensureChildFolderId({
+    // Erstelle testimonials-Ordner (wird von discoverTestimonials verwendet)
+    await ensureChildFolderId({
       provider,
       parentId: eventFolderId,
       folderName: 'testimonials',

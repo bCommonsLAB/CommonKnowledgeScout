@@ -68,6 +68,7 @@ export async function gateExtractPdf(ctx: GateContext): Promise<GateResult> {
     try {
       // Re-use provider if provided by caller (reduces redundant storage calls)
       const provider = ctx.provider ?? await getServerProvider(userEmail, library.id);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const base = getBaseName(source.name);
       const lang = (options?.targetLanguage || 'de').toLowerCase();
       

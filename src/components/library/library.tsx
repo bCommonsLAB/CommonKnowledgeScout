@@ -330,6 +330,7 @@ export function Library() {
     listItems,
     // WICHTIG: libraryState.folderCache NICHT in Dependencies, um Endlosschleife zu vermeiden!
     // libraryState.folderCache wird innerhalb der Funktion über Closure verwendet
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     providerInstance,
     libraryStatus,
     setLibraryState,
