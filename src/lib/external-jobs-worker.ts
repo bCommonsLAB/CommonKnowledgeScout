@@ -78,7 +78,15 @@ class ExternalJobsWorkerSingleton {
       // Keine lauten Tick-Logs mehr
       const repo = new ExternalJobsRepository();
       const baseUrl = getPublicAppUrl();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Worker': 'true', 'X-Worker-Id': this.workerId };
+      const tickId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+        ? (crypto as unknown as { randomUUID: () => string }).randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Worker': 'true',
+        'X-Worker-Id': this.workerId,
+        'X-Worker-Tick-Id': tickId,
+      };
       const internalToken = process.env.INTERNAL_TEST_TOKEN || '';
       if (internalToken) headers['X-Internal-Token'] = internalToken;
 
@@ -110,13 +118,19 @@ class ExternalJobsWorkerSingleton {
           
           // Start-Route triggert die zentrale Ausführung
           const startUrl = `${baseUrl}/api/external/jobs/${claimed.jobId}/start`;
+          const startRequestId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+            ? (crypto as unknown as { randomUUID: () => string }).randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
           FileLogger.info('jobs-worker', 'Starte Job über Start-Route', {
             jobId: claimed.jobId,
             url: startUrl,
-            extractionMethod: (claimed.correlation?.options as { extractionMethod?: string } | undefined)?.extractionMethod
+            extractionMethod: (claimed.correlation?.options as { extractionMethod?: string } | undefined)?.extractionMethod,
+            tickId,
+            startRequestId,
           });
           
-          const startResponse = await fetch(startUrl, { method: 'POST', headers });
+          const startHeaders = { ...headers, 'X-Start-Request-Id': startRequestId }
+          const startResponse = await fetch(startUrl, { method: 'POST', headers: startHeaders });
           
           FileLogger.info('jobs-worker', 'Start-Route Antwort erhalten', {
             jobId: claimed.jobId,

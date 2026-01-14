@@ -2,12 +2,18 @@
  * @fileoverview Zentrale Template-Service Library
  * 
  * @description
- * Zentrale Library für Template-Verwaltung. Stellt sicher, dass Templates konsistent
- * aus den richtigen Quellen geladen werden:
- * - Server-seitig: Library-Config (secretaryService.pdfDefaults.template)
- * - Client-seitig: Jotai Atom (pdfOverridesAtom) mit Fallback auf Library-Config
+ * ⚠️ HISTORISCH / LEGACY-KONTEXT
+ * Diese Library implementiert das alte Konzept „Templates als Dateien im Library-Storage unter `/templates/*.md`“.
  * 
- * WICHTIG: Keine Fallback-Logik - wenn kein Template gefunden wird, wird ein Fehler geworfen.
+ * Heute ist die **primäre Quelle** für Templates in der Anwendung:
+ * - MongoDB (`TemplateDocument`) über `/api/templates/*` und `template-service-mongodb.ts`
+ * 
+ * Dieser File-basierte Service bleibt aktuell relevant für:
+ * - **Import** von Template-Dateien aus dem Library-Storage nach MongoDB (`/api/templates/import`)
+ * - Migration/Backward-Compatibility in einzelnen UI-Pfaden
+ * 
+ * Wichtig: Für Secretary-Calls wird ein Template in ein wire-format serialisiert (Frontmatter + Body + systemprompt).
+ * Der `creation`-Block darf dabei NICHT an Secretary gesendet werden (Secretary unterstützt nur flaches YAML).
  * 
  * @module templates
  */

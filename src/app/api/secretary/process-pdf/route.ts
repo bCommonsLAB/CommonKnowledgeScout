@@ -88,13 +88,20 @@ export async function POST(request: NextRequest) {
     const originalItemId = (formData.get('originalItemId') as string) || undefined;
     const parentId = (formData.get('parentId') as string) || undefined;
 
+    // Upload-free Job Creation (Wizard/Storage-first):
+    // Wenn kein `file` im Request enthalten ist, akzeptieren wir Name/MimeType separat,
+    // damit das Job-UI & Tracing sinnvolle Werte hat. Die Binärdaten werden dann vom Worker
+    // über `originalItemId` aus dem Storage geladen.
+    const fileNameFromForm = (formData.get('fileName') as string) || undefined;
+    const mimeTypeFromForm = (formData.get('mimeType') as string) || undefined;
+
     const correlation: ExternalJob['correlation'] = {
       jobId,
       libraryId,
       source: {
         mediaType: 'pdf',
-        mimeType: file?.type || 'application/pdf',
-        name: file?.name,
+        mimeType: file?.type || mimeTypeFromForm || 'application/pdf',
+        name: file?.name || fileNameFromForm,
         itemId: originalItemId,
         parentId,
       },

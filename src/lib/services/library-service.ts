@@ -26,6 +26,7 @@
 import { getCollection } from '@/lib/mongodb-service';
 import { Library, ClientLibrary } from '@/types/library';
 import { shouldShowOnHomepage } from '@/lib/public-publishing';
+import { buildCaseInsensitiveEmailRegex, normalizeEmail } from '@/lib/auth/user-email';
 
 export interface UserLibraries {
   email: string;  // Statt userId eine E-Mail-Adresse verwenden
@@ -58,13 +59,22 @@ export class LibraryService {
    */
   async getUserLibraries(email: string): Promise<Library[]> {
     try {
+      const normalizedEmail = normalizeEmail(email);
+      if (!normalizedEmail) return [];
+
       const collection = await getCollection<UserLibraries>(this.collectionName);
       
       // Alle Einträge mit der angegebenen E-Mail-Adresse finden
-      const userEntries = await collection.find({ email }).toArray();
+      let userEntries = await collection.find({ email: normalizedEmail }).toArray();
+
+      // Fallback für alte Datensätze mit abweichender Groß-/Kleinschreibung.
+      // (MongoDB-String-Matches sind default case-sensitiv.)
+      if (!userEntries || userEntries.length === 0) {
+        userEntries = await collection.find({ email: { $regex: buildCaseInsensitiveEmailRegex(normalizedEmail) } }).toArray();
+      }
       
       if (!userEntries || userEntries.length === 0) {
-        console.log(`Keine Einträge für Benutzer ${email} gefunden.`);
+        console.log(`Keine Einträge für Benutzer ${normalizedEmail} gefunden.`);
         return [];
       }
       
@@ -126,15 +136,23 @@ export class LibraryService {
    */
   async updateUserLibraries(email: string, libraries: Library[], userName?: string): Promise<boolean> {
     try {
+      const normalizedEmail = normalizeEmail(email);
+      if (!normalizedEmail) return false;
+
       const collection = await getCollection<UserLibraries>(this.collectionName);
       
       // Prüfen, ob bereits ein Eintrag existiert
-      const existingEntry = await collection.findOne({ email });
+      // Wichtig: wir suchen auch case-insensitiv, um existierende Daten nicht "zu verlieren".
+      const existingEntry =
+        (await collection.findOne({ email: normalizedEmail })) ||
+        (await collection.findOne({ email: { $regex: buildCaseInsensitiveEmailRegex(normalizedEmail) } }));
       
       if (existingEntry) {
         // Vorhandenen Eintrag aktualisieren
         const result = await collection.updateOne(
-          { email },
+          // Update auf dem tatsächlich gefundenen Key, um keine Duplikate zu erzeugen.
+          // (Optional könnte man hier auch eine Migration auf normalisierte Emails durchführen.)
+          { email: existingEntry.email },
           { 
             $set: { 
               libraries,
@@ -148,7 +166,7 @@ export class LibraryService {
       } else {
         // Neuen Eintrag erstellen
         const result = await collection.insertOne({
-          email,
+          email: normalizedEmail,
           name: userName || 'Unbekannter Benutzer',
           libraries,
           lastUpdated: new Date()
@@ -276,6 +294,8 @@ export class LibraryService {
       const baseConfig = {
         transcription: lib.transcription,
         secretaryService: lib.config?.secretaryService,
+        // Shadow-Twin-Modus ist kein Secret und muss für UI/Flows sichtbar sein
+        shadowTwin: lib.config?.shadowTwin,
         // Chat-/Galerie-Settings sind sicher und werden an den Client geliefert
         chat: lib.config?.chat,
         // Public-Publishing-Daten (ohne API-Key) sind sicher für den Client

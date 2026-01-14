@@ -27,12 +27,12 @@
 
 import type { RequestContext } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
-import { saveMarkdown } from './storage'
-import { processAllImageSources } from './images'
 import { buildProvider } from './provider'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { clearWatchdog } from '@/lib/external-jobs-watchdog'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
+import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
+import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 
 /**
  * Runs extract-only mode processing. This mode is activated when both template
@@ -110,20 +110,51 @@ export async function runExtractOnly(
 
   if (extractedText) {
     try {
-      const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
+      // WICHTIG: Provider MUSS vor writeArtifact erstellt werden!
+      const provider = await buildProvider({
+        userEmail: job.userEmail,
+        libraryId: job.libraryId,
+        jobId,
+        repo,
+      })
+      
       const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-      // Transcript-File OHNE Language-Suffix (Originalsprache)
-      const { generateShadowTwinName } = await import('@/lib/storage/shadow-twin')
-      const uniqueName = generateShadowTwinName(baseName, lang, true) // isTranscript = true
+      const sourceItemId = job.correlation.source?.itemId || 'unknown'
+      const sourceName = job.correlation.source?.name || 'output'
+      
+      // WICHTIG: Wenn shadowTwinFolderId vorhanden ist, verwende es als parentId
+      // Sonst verwende das Original-Parent-Verzeichnis
       const parentId = shadowTwinFolderId || (job.correlation?.source?.parentId || 'root')
-
+      
+      // Erstelle ArtifactKey für Transcript
+      const artifactKey: ArtifactKey = {
+        sourceId: sourceItemId,
+        kind: 'transcript',
+        targetLanguage: lang,
+      }
+      
       // Bei Extract-Only: Speichere Markdown OHNE Frontmatter (reines Transcript)
       // Frontmatter wird erst bei Template-Phase hinzugefügt
       // Die Job-Informationen sind bereits in der Job-Datenbank gespeichert
       const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
       const cleanText = stripAllFrontmatter(extractedText)
-      const saved = await saveMarkdown({ ctx, parentId, fileName: uniqueName, markdown: cleanText })
-      savedItemId = saved.savedItemId
+      
+      // WICHTIG: Wenn shadowTwinFolderId vorhanden ist, ist parentId bereits das Shadow-Twin-Verzeichnis.
+      // In diesem Fall sollte createFolder false sein, da das Verzeichnis bereits existiert.
+      // createFolder=true bedeutet: "Erstelle ein neues Shadow-Twin-Verzeichnis im parentId"
+      // Wenn parentId bereits das Shadow-Twin-Verzeichnis ist, würde createFolder=true zu Verschachtelung führen.
+      const createFolder = !shadowTwinFolderId
+      
+      // Nutze zentrale writeArtifact() Logik
+      const writeResult = await writeArtifact(provider, {
+        key: artifactKey,
+        sourceName,
+        parentId,
+        content: cleanText,
+        createFolder,
+      })
+      
+      savedItemId = writeResult.file.id
       if (savedItemId) savedItems.push(savedItemId)
       
       bufferLog(jobId, {
@@ -131,18 +162,15 @@ export async function runExtractOnly(
         message: `Markdown gespeichert${shadowTwinFolderId ? ' im Shadow-Twin-Verzeichnis' : ' direkt im Parent'}`,
         parentId,
         shadowTwinFolderId: shadowTwinFolderId || null,
+        savedItemId,
+        fileName: writeResult.file.metadata.name,
       })
       
       // WICHTIG: Shadow-Twin-State nach dem Speichern neu berechnen
       // Dies stellt sicher, dass das Shadow-Twin-State im Job-Dokument aktualisiert wird
+      // Verwende bereits erstellten Provider (wurde oben erstellt)
       if (savedItemId && job.correlation?.source?.itemId) {
         try {
-          const provider = await buildProvider({
-            userEmail: job.userEmail,
-            libraryId: job.libraryId,
-            jobId,
-            repo,
-          })
           const { analyzeShadowTwin } = await import('@/lib/shadow-twin/analyze-shadow-twin')
           const updatedShadowTwinState = await analyzeShadowTwin(job.correlation.source.itemId, provider)
           if (updatedShadowTwinState) {
@@ -203,6 +231,7 @@ export async function runExtractOnly(
         mistralOcrRawKeys: mistralOcrRaw && typeof mistralOcrRaw === 'object' ? Object.keys(mistralOcrRaw as Record<string, unknown>) : [],
       })
 
+      const { processAllImageSources } = await import('./images')
       const imageResult = await processAllImageSources(ctx, provider, {
         pagesArchiveData,
         pagesArchiveUrl,
@@ -254,9 +283,28 @@ export async function runExtractOnly(
     await repo.traceEndSpan(jobId, 'extract', 'completed', {})
   } catch {}
 
-  // Set job status to completed
+  // WICHTIG (Global Contract):
+  // In Integration-Tests (und auch im UI) wird der Job per Polling beobachtet. Wenn wir
+  // `status=completed` setzen, bevor `result.savedItemId` gespeichert wurde, entsteht ein
+  // Race-Condition-Fenster: Polling sieht "completed" → liest ein leeres result → Contract verletzt.
+  // Deshalb: erst Result/Payload persistieren, dann Status auf completed setzen.
+  await repo.setResult(
+    jobId,
+    {
+      extracted_text: extractedText,
+      images_archive_url: imagesArchiveUrlFromWorker || undefined,
+      metadata: (body?.data as { metadata?: unknown })?.metadata as Record<string, unknown> | undefined,
+    },
+    {
+      savedItemId,
+      savedItems: savedItems.length > 0 ? savedItems : savedItemId ? [savedItemId] : [],
+    }
+  )
+
+  // Set job status to completed (nachdem result gespeichert wurde)
   await repo.setStatus(jobId, 'completed')
   clearWatchdog(jobId)
+
   // Shadow-Twin-State nach Abschluss des Extract-Only-Laufs explizit auf "ready" setzen,
   // sofern bereits ein Shadow-Twin-State existiert. Damit ist für das UI klar erkennbar,
   // dass der Shadow-Twin für diese Datei vollständig vorliegt, auch ohne Template/Ingest.
@@ -283,18 +331,7 @@ export async function runExtractOnly(
   } catch {
     // Fehler bei der Status-Aktualisierung sind nicht kritisch für den Job-Abschluss
   }
-  await repo.setResult(
-    jobId,
-    {
-      extracted_text: extractedText,
-      images_archive_url: imagesArchiveUrlFromWorker || undefined,
-      metadata: (body?.data as { metadata?: unknown })?.metadata as Record<string, unknown> | undefined,
-    },
-    {
-      savedItemId,
-      savedItems: savedItems.length > 0 ? savedItems : savedItemId ? [savedItemId] : [],
-    }
-  )
+
   await repo.appendLog(jobId, {
     phase: 'completed',
     message: 'Job abgeschlossen (extract only: phases disabled)',
@@ -309,6 +346,7 @@ export async function runExtractOnly(
     jobType: job.job_type,
     fileName: job.correlation?.source?.name,
     sourceItemId: job.correlation?.source?.itemId,
+    result: { savedItemId },
   })
 
   return { savedItemId, savedItems }

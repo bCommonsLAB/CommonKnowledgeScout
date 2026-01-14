@@ -15,9 +15,11 @@ interface VideoPlayerProps {
   provider: StorageProvider | null;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
   activeLibraryId: string;
+  /** Wenn false, keine Transform-UI im Player (Preview bleibt leichtgewichtig). */
+  showTransformControls?: boolean;
 }
 
-export const VideoPlayer = memo(function VideoPlayer({ provider, onRefreshFolder }: VideoPlayerProps) {
+export const VideoPlayer = memo(function VideoPlayer({ provider, onRefreshFolder, showTransformControls = true }: VideoPlayerProps) {
   const item = useAtomValue(selectedFileAtom);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -163,7 +165,7 @@ export const VideoPlayer = memo(function VideoPlayer({ provider, onRefreshFolder
           <div className="text-xs text-muted-foreground">
             {item.metadata.name}
           </div>
-          {onRefreshFolder && (
+          {showTransformControls && onRefreshFolder && (
             <Button
               variant="ghost"
               size="sm"
@@ -191,7 +193,7 @@ export const VideoPlayer = memo(function VideoPlayer({ provider, onRefreshFolder
             </div>
 
             {/* Transform Dialog */}
-            {showTransform && (
+            {showTransformControls && showTransform && (
               <div className="w-80 border rounded-lg p-4 bg-background flex-shrink-0">
                 <VideoTransform 
                   onRefreshFolder={(folderId, updatedItems, twinItem) => {

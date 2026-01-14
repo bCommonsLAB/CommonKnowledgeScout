@@ -28,8 +28,8 @@ export function SignInRedirectHandler() {
     // Nur ausführen, wenn Clerk geladen ist und Benutzer eingeloggt ist
     if (!isLoaded) return
 
-    // Nur auf der Sign-In-Seite ausführen
-    if (pathname !== '/sign-in') return
+    // Nur auf der Sign-In-Seite ausführen (Catch-All Route: /sign-in und /sign-in/*)
+    if (!pathname || !pathname.startsWith('/sign-in')) return
 
     // Wenn Benutzer eingeloggt ist, prüfe Session Storage für Redirect-URL
     if (user) {

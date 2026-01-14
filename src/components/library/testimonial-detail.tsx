@@ -154,6 +154,19 @@ export function TestimonialDetail({ data, backHref = "/library", showBackLink = 
 
       {/* AI Generated Notice */}
       <AIGeneratedNotice />
+
+      {/* Debug-Modus: Detailansicht-Info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="w-full px-4 pb-8">
+          <div className="max-w-4xl mx-auto p-2 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded">
+            <div className="font-semibold text-purple-800 dark:text-purple-200 mb-1">🔍 Debug: TestimonialDetail</div>
+            <div className="text-xs text-purple-700 dark:text-purple-300">
+              <div><strong>Detailansicht:</strong> TestimonialDetail</div>
+              <div><strong>libraryId:</strong> {_unused_libraryId || '—'}</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

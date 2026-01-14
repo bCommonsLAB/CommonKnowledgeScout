@@ -25,6 +25,7 @@ import {
   validateFrontmatter,
   decideNeedTemplate,
 } from '@/lib/external-jobs/preprocess-core'
+import { LibraryService } from '@/lib/services/library-service'
 
 export interface PreprocessTransformTemplateResult {
   hasMarkdown: boolean
@@ -58,8 +59,13 @@ export async function preprocessorTransformTemplate(
 
   const repo = new ExternalJobsRepository()
   const provider = await buildProvider({ userEmail, libraryId, jobId, repo })
+  
+  // Lade Library für Mode-Detection
+  const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
+  const sourceItemId = job.correlation?.source?.itemId
+  const sourceName = job.correlation?.source?.name
 
-  const found = await findPdfMarkdown(provider, parentId, baseName, lang)
+  const found = await findPdfMarkdown(provider, parentId, baseName, lang, library, sourceItemId, sourceName)
 
   if (!found.hasMarkdown || !found.text) {
     return {
@@ -107,6 +113,7 @@ export async function preprocessorTransformTemplate(
     internal: {
       baseName,
       lang,
+      parentId, // WICHTIG: Für Cleanup-Logik - Parent-ID des PDFs
     },
   }
 }

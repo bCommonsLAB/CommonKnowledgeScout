@@ -74,10 +74,19 @@ export class ExternalJobsRepository {
 
   async setStatus(jobId: string, status: ExternalJobStatus, extra: Partial<ExternalJob> = {}): Promise<boolean> {
     const col = await this.getCollection();
-    const res = await col.updateOne(
-      { jobId },
-      { $set: { status, updatedAt: new Date(), ...extra } }
-    );
+    // WICHTIG:
+    // Wenn ein Job erfolgreich abgeschlossen wird, dürfen alte Fehler-Flags (z.B. von einem
+    // kurzzeitig abgelehnten Callback) nicht im Dokument stehen bleiben. Sonst sieht die UI/Test-Logik
+    // "completed + error", was widersprüchlich ist.
+    const update: Record<string, unknown> = {
+      $set: { status, updatedAt: new Date(), ...extra }
+    }
+    if (status === 'completed') {
+      // `error` komplett entfernen (nicht nur `null` setzen), damit alte Fehler nicht "kleben".
+      ;(update as { $unset?: Record<string, string> }).$unset = { error: '' }
+    }
+
+    const res = await col.updateOne({ jobId }, update as unknown as Record<string, unknown>);
     // Job-Root-Span automatisch beenden
     if (status === 'completed' || status === 'failed') {
       try {
@@ -90,6 +99,31 @@ export class ExternalJobsRepository {
       } catch {}
     }
     return res.modifiedCount > 0;
+  }
+
+  /**
+   * Setzt den Status nur dann, wenn der aktuelle Status genau `expectedStatus` ist.
+   *
+   * WICHTIG:
+   * Diese Methode dient als Idempotency-Gate (z.B. für `/start`), um doppelte Requests und
+   * doppelte Enqueue/Uploads zu verhindern (race-condition safe via Mongo filter).
+   */
+  async setStatusIf(
+    jobId: string,
+    expectedStatus: ExternalJobStatus,
+    status: ExternalJobStatus,
+    extra: Partial<ExternalJob> = {}
+  ): Promise<boolean> {
+    const col = await this.getCollection()
+    const update: Record<string, unknown> = {
+      $set: { status, updatedAt: new Date(), ...extra },
+    }
+    // Gleiche "completed unsets error" Semantik wie setStatus()
+    if (status === 'completed') {
+      ;(update as { $unset?: Record<string, string> }).$unset = { error: '' }
+    }
+    const res = await col.updateOne({ jobId, status: expectedStatus }, update as unknown as Record<string, unknown>)
+    return res.modifiedCount > 0
   }
 
   async setProcess(jobId: string, processId: string): Promise<void> {

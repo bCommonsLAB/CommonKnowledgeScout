@@ -55,7 +55,13 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
     const idx = t.indexOf(':')
     if (idx > 0) {
       const k = t.slice(0, idx).trim()
-      const v = t.slice(idx + 1).trim()
+      let v = t.slice(idx + 1).trim()
+      
+      // Entferne Anführungszeichen von String-Werten (YAML-Syntax)
+      // Unterstützt sowohl einfache als auch doppelte Anführungszeichen
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+        v = v.slice(1, -1)
+      }
       
       // Wenn der Wert leer ist und die nächste Zeile nicht leer ist und nicht mit `:` beginnt,
       // könnte es ein mehrzeiliger Wert sein (YAML multiline string)

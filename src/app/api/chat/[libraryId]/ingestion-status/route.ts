@@ -60,6 +60,7 @@ export async function GET(
     const url = new URL(request.url)
     const fileId = url.searchParams.get('fileId')
     const docModifiedAt = url.searchParams.get('docModifiedAt') || undefined
+    const isCompact = url.searchParams.get('compact') === '1' || url.searchParams.get('includeChapters') === 'false'
     if (!fileId) return NextResponse.json({ error: 'fileId erforderlich' }, { status: 400 })
 
     // Lade Library-Context (unterstützt auch öffentliche Libraries ohne Email)
@@ -114,6 +115,39 @@ export async function GET(
     const languageStr = normalizeStr((docMetaObj as Record<string, unknown>)?.language)
     const topicsArr = normStrArr((docMetaObj as Record<string, unknown>)?.topics)
     const summaryStr = normalizeStr((docMetaObj as Record<string, unknown>)?.summary) || normalizeStr((docMetaObj as Record<string, unknown>)?.teaser)
+
+    // COMPACT MODE:
+    // Für UI-Statuspanels (z.B. File-List "Info") brauchen wir nur Doc+Stats, nicht die Kapitel-Liste.
+    // Das spart CPU (Parsing) + Payload-Größe und reduziert die Ladezeit deutlich.
+    if (isCompact) {
+      const payload: IngestionStatusDto = {
+        indexExists: true,
+        doc: {
+          exists: true,
+          status: isStale ? 'stale' : 'ok',
+          fileName,
+          title,
+          user: userMeta,
+          chunkCount,
+          chaptersCount,
+          upsertedAt,
+          docModifiedAt: storedDocMod,
+          authors,
+          year,
+          pages: typeof pagesNum === 'number' ? pagesNum : undefined,
+          region: regionStr,
+          docType: docTypeStr,
+          source: sourceStr,
+          issue: issueVal,
+          language: languageStr,
+          topics: topicsArr,
+          summary: summaryStr,
+        },
+        chapters: [],
+      }
+      FileLogger.info('ingestion-status', 'Response (compact)', { libraryId, fileId, status: payload.doc.status })
+      return NextResponse.json(payload)
+    }
 
     // Kapitel bevorzugt aus docMetaJson.chapters; Fallback: docMeta.chapters
     let chapters: ChapterDto[] = []

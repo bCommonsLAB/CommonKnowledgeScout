@@ -20,11 +20,41 @@ const nextConfig = {
       { protocol: 'https', hostname: 'ragtempproject.blob.core.windows.net', pathname: '/**' },
     ],
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       jotai: path.resolve(process.cwd(), 'node_modules/jotai'),
     };
+    
+    // MongoDB und Node.js-spezifische Module nur auf dem Server verfügbar machen
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        net: false,
+        tls: false,
+        crypto: false,
+        stream: false,
+        url: false,
+        zlib: false,
+        http: false,
+        https: false,
+        assert: false,
+        os: false,
+        path: false,
+        fs: false,
+        dns: false,
+        child_process: false,
+        'mongodb-client-encryption': false,
+      };
+      
+      // MongoDB-Module explizit externalisieren (werden nicht im Browser-Bundle gebündelt)
+      config.externals = config.externals || [];
+      config.externals.push({
+        'mongodb': 'commonjs mongodb',
+        'mongodb-client-encryption': 'commonjs mongodb-client-encryption',
+      });
+    }
+    
     if (process.env.IS_PACKAGE_BUILD === 'true') {
       config.externals = config.externals || [];
       config.externals.push('electron');

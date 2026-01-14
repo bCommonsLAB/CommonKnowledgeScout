@@ -16,6 +16,8 @@ import type { StorageProvider } from '@/lib/storage/types'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { LibraryService } from '@/lib/services/library-service'
+import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
+import type { Library } from '@/types/library'
 
 export interface FoundMarkdown {
   hasMarkdown: boolean;
@@ -41,36 +43,40 @@ export async function findPdfMarkdown(
   provider: StorageProvider,
   parentId: string,
   baseName: string,
-  lang: string
+  lang: string,
+  _library?: Library | null,
+  sourceItemId?: string,
+  sourceName?: string
 ): Promise<FoundMarkdown> {
-  // Verwende die robuste Shadow-Twin-Suche, die auch im Shadow-Twin-Verzeichnis sucht
-  // und Fallback auf andere Sprachen hat
-  const { findShadowTwinFolder } = await import('@/lib/storage/shadow-twin')
-  
-  // Bestimme originalName aus baseName (falls nicht verfügbar, verwende baseName)
-  const originalName = `${baseName}.pdf` // Annahme: Original ist PDF
-  
-  // 1. Versuche Shadow-Twin-Verzeichnis zu finden
-  const shadowTwinFolder = await findShadowTwinFolder(parentId, originalName, provider)
-  
-  if (shadowTwinFolder) {
-    // Suche im Shadow-Twin-Verzeichnis
-    const { findShadowTwinMarkdown } = await import('@/lib/storage/shadow-twin')
-    const markdownInFolder = await findShadowTwinMarkdown(shadowTwinFolder.id, baseName, lang, provider, true)
+  const originalName = sourceName || `${baseName}.pdf` // Annahme: Original ist PDF
+
+  // v2-only: Primär über Resolver (dotFolder + sibling, deterministisch)
+  if (sourceItemId) {
+    const resolved = await resolveArtifact(provider, {
+      sourceItemId,
+      sourceName: originalName,
+      parentId,
+      targetLanguage: lang,
+      preferredKind: 'transcript',
+    })
     
-    if (markdownInFolder) {
-      const bin = await provider.getBinary(markdownInFolder.id)
-      const text = await bin.blob.text()
-      return {
-        hasMarkdown: true,
-        fileId: markdownInFolder.id,
-        fileName: markdownInFolder.metadata.name,
-        text,
+    if (resolved) {
+      try {
+        const bin = await provider.getBinary(resolved.fileId)
+        const text = await bin.blob.text()
+        return {
+          hasMarkdown: true,
+          fileId: resolved.fileId,
+          fileName: resolved.fileName,
+          text,
+        }
+      } catch {
+        // Fallback zu Legacy bei Fehler
       }
     }
   }
-  
-  // 2. Fallback: Suche im Parent-Verzeichnis (wie bisher)
+
+  // Fallback (v2-only, ohne sourceItemId): deterministischer Name im Parent-Verzeichnis
   const expectedFileName = `${baseName}.${lang}.md`
   const siblings = await provider.listItemsById(parentId)
 

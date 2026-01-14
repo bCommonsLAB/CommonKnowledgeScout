@@ -12,6 +12,21 @@ export interface JobUpdateEvent {
   fileName?: string;
   sourceItemId?: string;
   libraryId?: string;
+  /**
+   * Optional: Ergebnis-Referenz (z.B. transformiertes Markdown im Shadow‑Twin).
+   * Wird genutzt, um in der UI gezielt die erzeugte Datei zu öffnen/selektieren.
+   */
+  result?: { savedItemId?: string };
+  /**
+   * Optional: Ordner-Refresh-Hinweise für die UI (Parent + Shadow‑Twin).
+   * `refreshFolderId` bleibt aus Kompatibilitätsgründen bestehen; bevorzugt `refreshFolderIds`.
+   */
+  refreshFolderId?: string;
+  refreshFolderIds?: string[];
+  /**
+   * Optional: Shadow‑Twin Verzeichnis-ID. Wird für Navigation/Analyse im Client genutzt.
+   */
+  shadowTwinFolderId?: string | null;
 }
 
 type UserEmail = string;

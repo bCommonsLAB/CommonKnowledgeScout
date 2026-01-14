@@ -3,7 +3,7 @@
  * 
  * @description
  * React-Hook für die automatische Shadow-Twin-Analyse aller Dateien im aktuellen Ordner.
- * Führt die Analyse parallel für alle Dateien durch und speichert die Ergebnisse im Atom.
+ * Nutzt jetzt die Bulk-API für optimierte Performance (ein Request statt viele einzelne).
  * 
  * @module shadow-twin
  * 
@@ -16,38 +16,44 @@
 
 import { useEffect, useRef } from 'react';
 import { useSetAtom } from 'jotai';
-import { StorageItem, StorageProvider } from '@/lib/storage/types';
+import { StorageItem } from '@/lib/storage/types';
 import { shadowTwinStateAtom, FrontendShadowTwinState } from '@/atoms/shadow-twin-atom';
 import { ShadowTwinState } from '@/lib/shadow-twin/shared';
-import { analyzeShadowTwin } from '@/lib/shadow-twin/analyze-shadow-twin';
+import { batchResolveArtifactsClient } from '@/lib/shadow-twin/artifact-client';
 import { FileLogger } from '@/lib/debug/logger';
-
-/**
- * Maximale Anzahl gleichzeitiger Analysen (Batch-Processing)
- */
-const MAX_CONCURRENT_ANALYSES = 50;
+import { useAtomValue } from 'jotai';
+import { activeLibraryIdAtom } from '@/atoms/library-atom';
 
 /**
  * Hook für automatische Shadow-Twin-Analyse aller Dateien im Ordner
  * 
+ * Nutzt jetzt die Bulk-API für optimierte Performance (ein Request statt viele einzelne).
+ * 
  * @param items Array von StorageItems im aktuellen Ordner
- * @param provider Storage Provider
+ * @param provider Storage Provider (wird nicht mehr direkt verwendet, nur für Kompatibilität)
  * @param forceRefresh Trigger-Wert, der bei Änderung eine Neu-Analyse erzwingt
- * @returns Map von fileId -> ShadowTwinState
+ * @returns Map von fileId -> ShadowTwinState (leer, da State über Atom verwaltet wird)
  */
 export function useShadowTwinAnalysis(
   items: StorageItem[] | null,
-  provider: StorageProvider | null,
+  provider: unknown, // Wird nicht mehr verwendet, aber für Kompatibilität behalten
   forceRefresh?: number
 ): Map<string, ShadowTwinState> {
   const setShadowTwinState = useSetAtom(shadowTwinStateAtom);
+  const libraryId = useAtomValue(activeLibraryIdAtom);
   const previousItemsRef = useRef<Map<string, { modifiedAt?: Date }>>(new Map());
   const isAnalyzingRef = useRef(false);
   const lastForceRefreshRef = useRef(forceRefresh ?? 0);
 
   useEffect(() => {
     // Prüfe Voraussetzungen
-    if (!items || !provider || items.length === 0) {
+    if (!items || !libraryId || items.length === 0) {
+      if (!libraryId) {
+        FileLogger.warn('useShadowTwinAnalysis', 'libraryId fehlt, überspringe Analyse', {
+          hasItems: !!items,
+          itemsLength: items?.length,
+        });
+      }
       setShadowTwinState(new Map());
       return;
     }
@@ -83,7 +89,7 @@ export function useShadowTwinAnalysis(
     const analysisTimeoutId = setTimeout(() => {
       // Prüfe erneut, ob die Analyse noch benötigt wird
       // (Items könnten sich während der Wartezeit geändert haben)
-      if (!items || !provider || items.length === 0) {
+      if (!items || !libraryId || items.length === 0) {
         return;
       }
 
@@ -151,71 +157,115 @@ export function useShadowTwinAnalysis(
 
       isAnalyzingRef.current = true;
 
-      // Batch-Processing: Teile in Chunks auf
-      const chunks: StorageItem[][] = [];
-      for (let i = 0; i < itemsToAnalyze.length; i += MAX_CONCURRENT_ANALYSES) {
-        chunks.push(itemsToAnalyze.slice(i, i + MAX_CONCURRENT_ANALYSES));
-      }
+      // Nutze Bulk-API für optimierte Performance
+      const processBulkAnalysis = async () => {
+        try {
+          // Bereite Sources für Bulk-API vor
+          // WICHTIG: Filtere Items ohne parentId (könnte bei Root-Items vorkommen)
+          const sources = itemsToAnalyze
+            .filter(item => item.parentId) // Nur Items mit parentId
+            .map(item => ({
+              sourceId: item.id,
+              sourceName: item.metadata.name,
+              parentId: item.parentId!,
+              targetLanguage: 'de', // Standard-Sprache
+            }));
 
-      // Analysiere Chunks sequenziell, innerhalb jedes Chunks parallel
-      const currentState = new Map<string, FrontendShadowTwinState>();
+          if (sources.length === 0) {
+            FileLogger.debug('useShadowTwinAnalysis', 'Keine gültigen Sources für Bulk-API', {
+              totalItems: itemsToAnalyze.length,
+            });
+            isAnalyzingRef.current = false;
+            return;
+          }
 
-      const processChunk = async (chunk: StorageItem[]): Promise<void> => {
-        const analyses = chunk.map(async (item) => {
-          try {
-            const result = await analyzeShadowTwin(item.id, provider);
-            if (result) {
-              // analyzeShadowTwin gibt ShadowTwinState zurück, aber mit vollständigen StorageItem-Objekten
-              // Daher ist es bereits FrontendShadowTwinState-kompatibel
-              return { fileId: item.id, state: result as FrontendShadowTwinState };
+          // Führe zwei Bulk-Calls durch:
+          // 1. Transformation (bevorzugt)
+          // 2. Transcript (Fallback)
+          const [transformationResults, transcriptResults] = await Promise.all([
+            batchResolveArtifactsClient({
+              libraryId,
+              sources,
+              preferredKind: 'transformation',
+            }),
+            batchResolveArtifactsClient({
+              libraryId,
+              sources,
+              preferredKind: 'transcript',
+            }),
+          ]);
+
+          // Konvertiere ResolvedArtifactWithItem-Ergebnisse zu ShadowTwinState.
+          // WICHTIG: Wir schreiben **für alle Dateien** einen Eintrag (auch wenn keine Artefakte existieren),
+          // damit UI/Debug sauber zwischen "checked but empty" vs. "not analyzed yet" unterscheiden kann.
+          const analyzedAt = Date.now()
+          const currentFileById = new Map<string, StorageItem>()
+          for (const it of currentFileItems) currentFileById.set(it.id, it)
+
+          setShadowTwinState((prev) => {
+            const next = new Map<string, FrontendShadowTwinState>()
+
+            // Nur States für aktuelle Folder-Files behalten/aktualisieren.
+            for (const it of currentFileItems) {
+              const prevState = prev.get(it.id)
+              next.set(it.id, {
+                ...prevState,
+                baseItem: it,
+                analysisTimestamp: prevState?.analysisTimestamp ?? analyzedAt,
+              })
             }
-            // Kein Shadow-Twin gefunden - kein Log nötig (normaler Fall)
-            return null;
-          } catch (error) {
-            FileLogger.error('useShadowTwinAnalysis', 'Fehler bei Analyse', {
-              fileId: item.id,
-              fileName: item.metadata.name,
-              error: error instanceof Error ? error.message : 'Unknown error'
-            });
-            return null;
-          }
-        });
 
-        const results = await Promise.all(analyses);
-        
-        // Füge Ergebnisse zum aktuellen State hinzu
-        for (const result of results) {
-          if (result) {
-            currentState.set(result.fileId, result.state);
-            // Aktualisiere previousItemsRef
-            // Speichere modifiedAt als Date-Objekt für konsistenten Vergleich
-            const baseItemMetadata = result.state.baseItem.metadata;
-            const modifiedAt = 'modifiedAt' in baseItemMetadata ? baseItemMetadata.modifiedAt : undefined;
-            previousItemsRef.current.set(result.fileId, {
-              modifiedAt: modifiedAt instanceof Date ? modifiedAt : (modifiedAt ? new Date(modifiedAt) : undefined)
+            for (const it of itemsToAnalyze) {
+              const transformation = transformationResults.get(it.id)
+              const transcript = transcriptResults.get(it.id)
+              const hasArtifacts = Boolean(transformation || transcript)
+
+              const transformed =
+                transformation?.kind === 'transformation' && transformation.item ? transformation.item : undefined
+              const transcriptFiles =
+                transcript?.kind === 'transcript' && transcript.item ? [transcript.item] : undefined
+              const shadowTwinFolderId = transformation?.shadowTwinFolderId || transcript?.shadowTwinFolderId
+
+              const merged: FrontendShadowTwinState = {
+                baseItem: it,
+                transformed,
+                transcriptFiles,
+                shadowTwinFolderId,
+                analysisTimestamp: analyzedAt,
+                processingStatus: hasArtifacts ? 'ready' : 'pending',
+              }
+
+              next.set(it.id, merged)
+
+              // Aktualisiere previousItemsRef (auch wenn keine Artefakte existieren)
+              const modifiedAt = it.metadata.modifiedAt
+              previousItemsRef.current.set(it.id, {
+                modifiedAt: modifiedAt instanceof Date ? modifiedAt : (modifiedAt ? new Date(modifiedAt) : undefined),
+              })
+            }
+
+            return next
+          })
+          
+          isAnalyzingRef.current = false;
+          
+          // Nur loggen wenn Shadow-Twins gefunden wurden
+          if (itemsToAnalyze.length > 0) {
+            FileLogger.info('useShadowTwinAnalysis', 'Shadow-Twin-Analyse abgeschlossen (Bulk-API)', {
+              analyzedCount: itemsToAnalyze.length,
+              totalFiles: itemsToAnalyze.length,
             });
           }
-        }
-      };
-
-      // Verarbeite alle Chunks sequenziell
-      const processAllChunks = async () => {
-        for (const chunk of chunks) {
-          await processChunk(chunk);
-          // Aktualisiere Atom nach jedem Chunk für bessere UX
-          setShadowTwinState(new Map(currentState));
-        }
-        
-        isAnalyzingRef.current = false;
-        // Nur loggen wenn Shadow-Twins gefunden wurden oder Fehler aufgetreten sind
-        if (currentState.size > 0) {
-          FileLogger.info('useShadowTwinAnalysis', 'Shadow-Twin-Analyse abgeschlossen', {
-            analyzedCount: currentState.size
+        } catch (error) {
+          isAnalyzingRef.current = false;
+          FileLogger.error('useShadowTwinAnalysis', 'Fehler bei Bulk-Analyse', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            totalFiles: itemsToAnalyze.length,
           });
         }
       };
 
-      void processAllChunks();
+      void processBulkAnalysis();
     }, 500); // 500ms Lazy Loading Delay
 
     // Cleanup: Setze isAnalyzingRef zurück bei Unmount und cancel Timeout
@@ -223,7 +273,7 @@ export function useShadowTwinAnalysis(
       clearTimeout(analysisTimeoutId);
       isAnalyzingRef.current = false;
     };
-  }, [items, provider, setShadowTwinState, forceRefresh]);
+  }, [items, libraryId, setShadowTwinState, forceRefresh]);
 
   // Gib aktuellen State zurück (wird vom Atom gelesen)
   // Da wir das Atom direkt setzen, können wir hier eine leere Map zurückgeben

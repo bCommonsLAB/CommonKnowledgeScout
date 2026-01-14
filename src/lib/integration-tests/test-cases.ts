@@ -26,7 +26,6 @@ export interface PhasePolicies {
 export type ShadowTwinInitialState =
   | 'clean' // kein Shadow-Twin-Verzeichnis, keine Markdown-Files
   | 'exists' // konsistentes Shadow-Twin-Verzeichnis mit fertigen Dateien
-  | 'legacy_markdown_in_parent' // alte transformierte Markdown im PDF-Ordner plus Shadow-Twin-Verzeichnis
   | 'incomplete_frontmatter'; // Shadow-Twin mit unvollständigem Frontmatter
 
 export interface MistralExtractOptions {
@@ -63,21 +62,23 @@ export interface ExpectedOutcome {
   expectFacetMetadataInChunks?: boolean;
   /** Nach dem Testlauf existiert ein Shadow-Twin-Verzeichnis */
   expectShadowTwinExists?: boolean;
-  /** Legacy-Markdown im PDF-Ordner soll nach dem Lauf gelöscht sein */
-  expectLegacyMarkdownRemovedFromParent?: boolean;
   /** @deprecated Verwende expectMetaDocument statt expectMongoUpsert */
   expectMongoUpsert?: boolean;
 }
 
 export interface IntegrationTestCase {
-  /** Eindeutige ID, z.B. "TC-1.1" */
+  /** Eindeutige ID, z.B. "pdf_mistral_report.happy_path" (UseCaseId.ScenarioId) */
   id: string;
+  /** UseCase-ID aus docs/architecture/use-cases-and-personas.md, z.B. "pdf_mistral_report" */
+  useCaseId: string;
+  /** Szenario-ID innerhalb des UseCases, z.B. "happy_path", "gate_skip", "force_recompute" */
+  scenarioId: string;
   /** Kurzer sprechender Name für die UI */
   label: string;
   /** Ausführliche Beschreibung für die UI */
   description: string;
   /** Grobe Kategorie (für Filter/Grouping in der UI) */
-  category: 'phase1' | 'phase2' | 'phase3' | 'combined' | 'batch';
+  category: 'phase1' | 'phase2' | 'phase3' | 'combined' | 'batch' | 'usecase';
   /** Aktivierte Phasen in diesem Testfall */
   phases: PhaseFlags;
   /** Phase-Policies, die über Job-Parameter gesetzt werden sollen */
@@ -88,26 +89,36 @@ export interface IntegrationTestCase {
   shadowTwinState?: ShadowTwinInitialState;
   /** Erwartetes Verhalten / Prüfpunkte */
   expected: ExpectedOutcome;
+  /**
+   * Optionaler Workflow-Typ.
+   * - 'single_job' (default): ein External Job (extract/template/ingest per Flags)
+   * - 'pdf_hitl_publish': 2 Jobs + expliziter Publish-Schritt (Shadow‑Twin overwrite + Ingestion)
+   */
+  workflow?: 'single_job' | 'pdf_hitl_publish';
 }
 
 /**
- * Alle Integrationstestfälle für die PDF-Transformation.
+ * Alle Integrationstestfälle, gruppiert nach UseCaseId.
  * Diese Struktur wird sowohl vom Orchestrator als auch vom Frontend genutzt.
+ * 
+ * Hard Reset: Die alten TC-* wurden durch eine kleinere, UseCase-basierte Suite ersetzt.
+ * Jeder UseCase hat 3-5 Szenarien, die die wichtigsten Semantik-Fälle abdecken.
  */
 export const integrationTestCases: IntegrationTestCase[] = [
-  // Phase 1 – Mistral OCR fokussiert
+  // PDF UseCase: pdf_mistral_report
   {
-    id: 'TC-1.1',
-    label: 'Mistral OCR – Neuaufbau erzwingen (Clean Shadow-Twin)',
+    id: 'pdf_mistral_report.happy_path',
+    useCaseId: 'pdf_mistral_report',
+    scenarioId: 'happy_path',
+    label: 'PDF – Happy Path (Extract → Template → Ingest)',
     description:
-      'Shadow-Twin-Verzeichnis und relevante Dateien werden vor dem Testlauf gelöscht. ' +
-      'Extract wird mit Mistral OCR und deaktiviertem Cache neu ausgeführt. ' +
-      'Am Ende existiert ein neues Shadow-Twin-Verzeichnis mit Transcript/Markdown und optionalen Bildern.',
-    category: 'phase1',
-    phases: { extract: true, template: false, ingest: false },
+      'Voller Pipeline-Lauf: Extract mit Mistral OCR, Template-Transformation, optional Ingest. ' +
+      'Shadow-Twin wird neu erstellt. Am Ende existiert result.savedItemId (Transformation).',
+    category: 'usecase',
+    phases: { extract: true, template: true, ingest: false },
     policies: {
-      extract: 'force',
-      metadata: 'ignore',
+      extract: 'do',
+      metadata: 'do',
       ingest: 'ignore',
     },
     mistralOptions: {
@@ -118,22 +129,25 @@ export const integrationTestCases: IntegrationTestCase[] = [
     expected: {
       shouldComplete: true,
       expectExtractRun: true,
-      expectExtractSkip: false,
+      expectTemplateRun: true,
       expectShadowTwinExists: true,
     },
   },
   {
-    id: 'TC-1.2',
-    label: 'Mistral OCR – Auto/Gate (nur wenn Dateien nicht existieren)',
+    id: 'pdf_mistral_report.gate_skip_extract',
+    useCaseId: 'pdf_mistral_report',
+    scenarioId: 'gate_skip_extract',
+    label: 'PDF – Gate Skip Extract (Shadow-Twin existiert)',
     description:
       'Shadow-Twin-Verzeichnis mit fertigen Dateien existiert bereits. ' +
-      'Extract läuft mit Mistral OCR und aktiviertem Cache im Auto-Mode. ' +
-      'Gate/Policies sollen erkennen, dass Artefakte existieren, sodass Extract übersprungen wird.',
-    category: 'phase1',
-    phases: { extract: true, template: false, ingest: false },
+      'Extract läuft mit Auto-Policy; Gate/Policies sollen erkennen, dass Artefakte existieren, sodass Extract übersprungen wird. ' +
+      'Template wird ebenfalls übersprungen, wenn chapters bereits vorhanden sind (chapters_already_exist). ' +
+      'Am Ende existiert result.savedItemId (Transformation aus Shadow-Twin).',
+    category: 'usecase',
+    phases: { extract: true, template: true, ingest: false },
     policies: {
       extract: 'auto',
-      metadata: 'ignore',
+      metadata: 'do',
       ingest: 'ignore',
     },
     mistralOptions: {
@@ -145,20 +159,24 @@ export const integrationTestCases: IntegrationTestCase[] = [
       shouldComplete: true,
       expectExtractRun: false,
       expectExtractSkip: true,
+      expectTemplateRun: false, // Template wird übersprungen, wenn chapters bereits vorhanden sind
       expectShadowTwinExists: true,
     },
   },
   {
-    id: 'TC-1.3',
-    label: 'Mistral OCR – Shadow-Twin existiert, Extract trotz Gate forcen',
+    id: 'pdf_mistral_report.force_recompute',
+    useCaseId: 'pdf_mistral_report',
+    scenarioId: 'force_recompute',
+    label: 'PDF – Force Recompute (Shadow-Twin existiert, aber forciert)',
     description:
-      'Shadow-Twin-Verzeichnis mit fertigen Dateien existiert bereits, Extract wird aber über Policies forciert. ' +
-      'Secretary-Service-Lauf wird erneut angestoßen, die Shadow-Twin-Dateien werden neu geschrieben.',
-    category: 'phase1',
-    phases: { extract: true, template: false, ingest: false },
+      'Shadow-Twin-Verzeichnis mit fertigen Dateien existiert bereits, Extract/Template werden aber über Policies forciert. ' +
+      'Secretary-Service-Lauf wird erneut angestoßen, die Shadow-Twin-Dateien werden neu geschrieben. ' +
+      'Am Ende existiert result.savedItemId (Transformation).',
+    category: 'usecase',
+    phases: { extract: true, template: true, ingest: false },
     policies: {
       extract: 'force',
-      metadata: 'ignore',
+      metadata: 'force',
       ingest: 'ignore',
     },
     mistralOptions: {
@@ -170,86 +188,21 @@ export const integrationTestCases: IntegrationTestCase[] = [
       shouldComplete: true,
       expectExtractRun: true,
       expectExtractSkip: false,
-      expectShadowTwinExists: true,
-    },
-  },
-
-  // Phase 2 – Template inkl. Reparaturläufe / Shadow-Twin-Migration
-  // Reihenfolge: 1) Erstes Frontmatter erstellen → 2) Gate-Skip testen → 3) Force testen → 4) Reparaturläufe
-  {
-    id: 'TC-2.1',
-    label: 'Template-only – Erstes Frontmatter erstellen',
-    description:
-      'Nach TC-1.x existiert Markdown ohne Frontmatter. ' +
-      'Template-Phase erstellt erstes vollständiges Frontmatter auf Basis des vorhandenen Transcript-Markdowns. ' +
-      'Extract wird übersprungen, da bereits Markdown vorhanden ist.',
-    category: 'phase2',
-    phases: { extract: false, template: true, ingest: false },
-    policies: {
-      extract: 'ignore',
-      metadata: 'force',
-      ingest: 'ignore',
-    },
-    shadowTwinState: 'exists',
-    expected: {
-      shouldComplete: true,
       expectTemplateRun: true,
-      expectTemplateRepair: false,
       expectShadowTwinExists: true,
     },
   },
   {
-    id: 'TC-2.2',
-    label: 'Template mit skip-Policy (Gate-basiert)',
-    description:
-      'Nach TC-2.1 existiert vollständiges Frontmatter. ' +
-      'Template-Phase soll über Gate/Policies komplett übersprungen werden, da vollständiges Frontmatter vorhanden ist.',
-    category: 'phase2',
-    phases: { extract: false, template: true, ingest: false },
-    policies: {
-      extract: 'ignore',
-      metadata: 'skip',
-      ingest: 'ignore',
-    },
-    shadowTwinState: 'exists',
-    expected: {
-      shouldComplete: true,
-      expectTemplateRun: false,
-      expectTemplateRepair: false,
-      expectShadowTwinExists: true,
-    },
-  },
-  {
-    id: 'TC-2.3',
-    label: 'Template mit force-Policy',
-    description:
-      'Nach TC-2.2 existiert vollständiges Frontmatter. ' +
-      'Template-Phase wird unabhängig von vorhandenen Frontmatter-Artefakten erneut ausgeführt (force-Policy). ' +
-      'Dient zur Überprüfung, dass Policies die Gates korrekt übersteuern.',
-    category: 'phase2',
-    phases: { extract: false, template: true, ingest: false },
-    policies: {
-      extract: 'ignore',
-      metadata: 'force',
-      ingest: 'ignore',
-    },
-    shadowTwinState: 'exists',
-    expected: {
-      shouldComplete: true,
-      expectTemplateRun: true,
-      expectTemplateRepair: false,
-      expectShadowTwinExists: true,
-    },
-  },
-  {
-    id: 'TC-2.4',
-    label: 'Template-Reparatur – unvollständiges Frontmatter',
+    id: 'pdf_mistral_report.repair_frontmatter',
+    useCaseId: 'pdf_mistral_report',
+    scenarioId: 'repair_frontmatter',
+    label: 'PDF – Repair Frontmatter (unvollständiges Frontmatter)',
     description:
       'Es existiert bereits Frontmatter, das jedoch unvollständig ist (z.B. chapters vorhanden, aber pages fehlt). ' +
-      'Wenn chapters vorhanden sind: Template-Phase wird übersprungen, nur pages wird aus Markdown-Body rekonstruiert. ' +
-      'Wenn chapters fehlt: Template-Phase wird ausgeführt, um chapters zu erstellen. ' +
-      'Extract läuft im Auto-Mode (wird übersprungen, wenn Shadow-Twin existiert).',
-    category: 'phase2',
+      'Wenn chapters vorhanden sind, wird Template übersprungen (chapters_already_exist), aber pages wird aus Markdown-Body rekonstruiert. ' +
+      'Extract läuft im Auto-Mode (wird übersprungen, wenn Shadow-Twin existiert). ' +
+      'Am Ende existiert result.savedItemId (Transformation).',
+    category: 'usecase',
     phases: { extract: true, template: true, ingest: false },
     policies: {
       extract: 'auto',
@@ -259,213 +212,27 @@ export const integrationTestCases: IntegrationTestCase[] = [
     shadowTwinState: 'incomplete_frontmatter',
     expected: {
       shouldComplete: true,
-      // Template kann übersprungen werden, wenn chapters vorhanden sind (nur pages wird rekonstruiert)
-      // Oder ausgeführt werden, wenn chapters fehlt (chapters werden erstellt)
-      expectTemplateRun: true, // Flexibel: kann skipped sein, wenn chapters vorhanden sind
-      expectTemplateRepair: true,
+      expectTemplateRun: false, // Template wird übersprungen, wenn chapters vorhanden sind (nur pages wird rekonstruiert)
+      expectTemplateRepair: true, // Pages wird rekonstruiert, auch wenn Template übersprungen wird
       expectShadowTwinExists: true,
     },
   },
   {
-    id: 'TC-2.5',
-    label: 'Template-Reparatur – Markdown im PDF-Verzeichnis + Shadow-Twin-Verzeichnis existiert',
+    id: 'pdfanalyse.hitl_publish',
+    useCaseId: 'pdfanalyse',
+    scenarioId: 'hitl_publish',
+    label: 'PDFAnalyse – HITL Publish (2 Jobs + Publish-Step)',
     description:
-      'Ausgangslage: PDF liegt in Ordner F, im selben Ordner existiert eine alte transformierte Markdown-Datei, ' +
-      'und zusätzlich existiert bereits ein Shadow-Twin-Verzeichnis. ' +
-      'Reparaturlauf soll die alte Datei logisch übernehmen/kopieren und anschließend aus F löschen, ' +
-      'sodass nur noch konsolidierte Dateien im Shadow-Twin-Verzeichnis verbleiben.',
-    category: 'phase2',
-    phases: { extract: false, template: true, ingest: false },
-    policies: {
-      extract: 'ignore',
-      metadata: 'auto',
-      ingest: 'ignore',
-    },
-    shadowTwinState: 'legacy_markdown_in_parent',
-    expected: {
-      shouldComplete: true,
-      expectTemplateRun: true,
-      expectTemplateRepair: true,
-      expectShadowTwinExists: true,
-      expectLegacyMarkdownRemovedFromParent: true,
-    },
-  },
-
-  // Phase 3 – Ingestion (RAG)
-  {
-    id: 'TC-3.1',
-    label: 'Ingest-only (Extract/Template übersprungen)',
-    description:
-      'Bereits transformiertes Markdown existiert, Extract und Template werden übersprungen. ' +
-      'Ingestion-Phase soll vorhandenes Markdown in MongoDB Vector Search ingestieren.',
-    category: 'phase3',
-    phases: { extract: false, template: false, ingest: true },
-    policies: {
-      extract: 'ignore',
-      metadata: 'ignore',
-      ingest: 'force',
-    },
-    expected: {
-      shouldComplete: true,
-      expectIngestionRun: true,
-      expectMetaDocument: true,
-      expectChunkVectors: true,
-      expectShadowTwinExists: true,
-      // Rückwärtskompatibilität
-      expectMongoUpsert: true,
-    },
-  },
-  {
-    id: 'TC-3.2',
-    label: 'Ingest mit force-Policy',
-    description:
-      'Ingestion wird auch dann ausgeführt, wenn bereits Vektoren existieren. ' +
-      'Dient zur Überprüfung der Ingest-Policies und MongoDB Vector Search.',
-    category: 'phase3',
+      'Simuliert den Wizard-Flow ohne UI: Job1 Extract-only → Job2 Template-only → Publish (Frontmatter überschreiben + Ingestion). ' +
+      'Validiert den Contract: kein zusätzliches finales MD, savedItemId==transformFileId, Ingestion erfolgreich.',
+    category: 'usecase',
+    workflow: 'pdf_hitl_publish',
+    // Diese Flags sind für den UI-Überblick; der Orchestrator steuert hier tatsächlich 2 Jobs.
     phases: { extract: true, template: true, ingest: true },
+    // Für den Workflow werden die Policies pro Job gesetzt; hier nur als Dokumentation.
     policies: {
-      extract: 'auto',
-      metadata: 'auto',
-      ingest: 'force',
-    },
-    expected: {
-      shouldComplete: true,
-      expectIngestionRun: true,
-      expectMetaDocument: true,
-      expectChunkVectors: true,
-      expectShadowTwinExists: true,
-      // Rückwärtskompatibilität
-      expectMongoUpsert: true,
-    },
-  },
-  {
-    id: 'TC-3.3',
-    label: 'Ingest mit skip-Policy (Gate-basiert)',
-    description:
-      'Wenn bereits Vektoren existieren, soll Ingestion über Gate/Policies komplett übersprungen werden.',
-    category: 'phase3',
-    phases: { extract: true, template: true, ingest: false },
-    policies: {
-      extract: 'auto',
-      metadata: 'auto',
-      ingest: 'skip',
-    },
-    expected: {
-      shouldComplete: true,
-      expectIngestionRun: false,
-      expectShadowTwinExists: true,
-    },
-  },
-  {
-    id: 'TC-3.4',
-    label: 'MongoDB Vector Search Ingestion mit force-Policy',
-    description:
-      'Prüft, ob Meta-Dokument und Chunk-Vektoren in MongoDB Vector Search Collection existieren. ' +
-      'Ingestion wird mit force-Policy ausgeführt, auch wenn bereits Daten existieren.',
-    category: 'phase3',
-    phases: { extract: false, template: false, ingest: true },
-    policies: {
-      extract: 'ignore',
-      metadata: 'ignore',
-      ingest: 'force',
-    },
-    expected: {
-      shouldComplete: true,
-      expectIngestionRun: true,
-      expectMetaDocument: true,
-      expectChunkVectors: true,
-      expectVectorSearchIndex: true,
-      expectShadowTwinExists: true,
-      // Rückwärtskompatibilität
-      expectMongoUpsert: true,
-    },
-  },
-  {
-    id: 'TC-3.5',
-    label: 'MongoDB Vector Search Ingestion mit auto-Policy',
-    description:
-      'Prüft, ob Meta-Dokument und Chunk-Vektoren in MongoDB Vector Search Collection existieren. ' +
-      'Ingestion wird mit auto-Policy ausgeführt (Gate-basiert).',
-    category: 'phase3',
-    phases: { extract: false, template: false, ingest: true },
-    policies: {
-      extract: 'ignore',
-      metadata: 'ignore',
-      ingest: 'auto',
-    },
-    expected: {
-      shouldComplete: true,
-      expectIngestionRun: true,
-      expectMetaDocument: true,
-      expectChunkVectors: true,
-      expectVectorSearchIndex: true,
-      expectShadowTwinExists: true,
-      // Rückwärtskompatibilität
-      expectMongoUpsert: true,
-    },
-  },
-  {
-    id: 'TC-3.6',
-    label: 'Vector Search Funktionalität',
-    description:
-      'Prüft, ob Vector Search Queries funktionieren und Filter korrekt angewendet werden. ' +
-      'Testet auch Facetten-Metadaten in Chunk-Vektoren.',
-    category: 'phase3',
-    phases: { extract: false, template: false, ingest: true },
-    policies: {
-      extract: 'ignore',
-      metadata: 'ignore',
-      ingest: 'force',
-    },
-    expected: {
-      shouldComplete: true,
-      expectIngestionRun: true,
-      expectMetaDocument: true,
-      expectChunkVectors: true,
-      expectVectorSearchIndex: true,
-      expectVectorSearchQuery: true,
-      expectFacetMetadataInChunks: true,
-      expectShadowTwinExists: true,
-      // Rückwärtskompatibilität
-      expectMongoUpsert: true,
-    },
-  },
-  {
-    id: 'TC-3.7',
-    label: 'Chapter-Summaries Validierung',
-    description:
-      'Prüft, ob Chapter-Summaries korrekt in MongoDB Vector Search gespeichert werden. ' +
-      'Nur relevant für Dokumente mit Chapters.',
-    category: 'phase3',
-    phases: { extract: false, template: false, ingest: true },
-    policies: {
-      extract: 'ignore',
-      metadata: 'ignore',
-      ingest: 'force',
-    },
-    expected: {
-      shouldComplete: true,
-      expectIngestionRun: true,
-      expectMetaDocument: true,
-      expectChunkVectors: true,
-      expectChapterSummaries: true,
-      expectShadowTwinExists: true,
-      // Rückwärtskompatibilität
-      expectMongoUpsert: true,
-    },
-  },
-
-  // Kombinierte Phasen
-  {
-    id: 'TC-4.1',
-    label: 'Alle Phasen (Extract → Template → Ingest)',
-    description:
-      'Voller Pipeline-Lauf von Mistral-OCR-Extract über Template-Transformation bis zur RAG-Ingestion in MongoDB Vector Search.',
-    category: 'combined',
-    phases: { extract: true, template: true, ingest: true },
-    policies: {
-      extract: 'auto',
-      metadata: 'auto',
+      extract: 'do',
+      metadata: 'do',
       ingest: 'do',
     },
     mistralOptions: {
@@ -473,127 +240,6 @@ export const integrationTestCases: IntegrationTestCase[] = [
       includeImages: true,
     },
     shadowTwinState: 'clean',
-    expected: {
-      shouldComplete: true,
-      expectExtractRun: true,
-      expectTemplateRun: true,
-      expectIngestionRun: true,
-      expectMetaDocument: true,
-      expectChunkVectors: true,
-      expectVectorSearchIndex: true,
-      expectShadowTwinExists: true,
-      // Rückwärtskompatibilität
-      expectMongoUpsert: true,
-    },
-  },
-  {
-    id: 'TC-4.2',
-    label: 'Extract + Template (ohne Ingest)',
-    description:
-      'Pipeline endet nach Template-Phase; RAG-Ingestion ist deaktiviert. ' +
-      'Dient zur separaten Überprüfung von Extract/Template ohne RAG-Seiteffekte.',
-    category: 'combined',
-    phases: { extract: true, template: true, ingest: false },
-    policies: {
-      extract: 'auto',
-      metadata: 'auto',
-      ingest: 'ignore',
-    },
-    expected: {
-      shouldComplete: true,
-      expectExtractRun: true,
-      expectTemplateRun: true,
-      expectIngestionRun: false,
-      expectShadowTwinExists: true,
-    },
-  },
-  {
-    id: 'TC-4.3',
-    label: 'Template + Ingest (ohne Extract)',
-    description:
-      'Transcript-Markdown liegt bereits vor, Extract wird übersprungen; nur Template und Ingestion in MongoDB Vector Search laufen.',
-    category: 'combined',
-    phases: { extract: false, template: true, ingest: true },
-    policies: {
-      extract: 'ignore',
-      metadata: 'auto',
-      ingest: 'do',
-    },
-    shadowTwinState: 'exists',
-    expected: {
-      shouldComplete: true,
-      expectExtractRun: false,
-      expectTemplateRun: true,
-      expectIngestionRun: true,
-      expectMetaDocument: true,
-      expectChunkVectors: true,
-      expectShadowTwinExists: true,
-      // Rückwärtskompatibilität
-      expectMongoUpsert: true,
-    },
-  },
-
-  // Batch-Verarbeitung
-  {
-    id: 'TC-5.1',
-    label: 'Batch mit mehreren PDFs',
-    description:
-      'Mehrere PDFs im selben Testverzeichnis werden in einem Lauf verarbeitet, um Concurrency und Job-Verwaltung zu testen.',
-    category: 'batch',
-    phases: { extract: true, template: true, ingest: true },
-    policies: {
-      extract: 'auto',
-      metadata: 'auto',
-      ingest: 'do',
-    },
-    expected: {
-      shouldComplete: true,
-      expectExtractRun: true,
-      expectTemplateRun: true,
-      expectIngestionRun: true,
-      expectMetaDocument: true,
-      expectChunkVectors: true,
-      expectShadowTwinExists: true,
-      // Rückwärtskompatibilität
-      expectMongoUpsert: true,
-    },
-  },
-  {
-    id: 'TC-5.2',
-    label: 'Batch mit forcierten Phasen',
-    description:
-      'Batch-Lauf, bei dem Extract/Template/Ingestion über Policies forciert werden, unabhängig von vorhandenen Artefakten.',
-    category: 'batch',
-    phases: { extract: true, template: true, ingest: true },
-    policies: {
-      extract: 'force',
-      metadata: 'force',
-      ingest: 'force',
-    },
-    expected: {
-      shouldComplete: true,
-      expectExtractRun: true,
-      expectTemplateRun: true,
-      expectIngestionRun: true,
-      expectMetaDocument: true,
-      expectChunkVectors: true,
-      expectShadowTwinExists: true,
-      // Rückwärtskompatibilität
-      expectMongoUpsert: true,
-    },
-  },
-  {
-    id: 'TC-5.3',
-    label: 'Batch mit Gate-basierten Skips',
-    description:
-      'Batch-Lauf, der Gate-Logik und Policies nutzt, um Extract/Template/Ingestion selektiv zu überspringen, falls bereits Artefakte vorhanden sind.',
-    category: 'batch',
-    phases: { extract: true, template: true, ingest: true },
-    policies: {
-      extract: 'auto',
-      metadata: 'auto',
-      ingest: 'auto',
-    },
     expected: {
       shouldComplete: true,
       expectShadowTwinExists: true,

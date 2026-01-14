@@ -4,6 +4,7 @@ import * as React from "react"
 import { BookDetail } from "@/components/library/book-detail"
 import { SessionDetail } from "@/components/library/session-detail"
 import { TestimonialDetail } from "@/components/library/testimonial-detail"
+import type { StorageProvider } from "@/lib/storage/types"
 import type { TemplatePreviewDetailViewType } from "@/lib/templates/template-types"
 import { mapToBookDetail, mapToSessionDetail, mapToTestimonialDetail } from "@/lib/mappers/doc-meta-mappers"
 
@@ -18,6 +19,10 @@ interface DetailViewRendererProps {
   libraryId?: string
   /** Optional: Back-Link anzeigen (Standard: false) */
   showBackLink?: boolean
+  /** Optional: Provider für Bild-Auflösung im MarkdownPreview (z.B. Shadow-Twin Bilder) */
+  provider?: StorageProvider | null
+  /** Optional: Folder-ID (base64) für relative Bilder im MarkdownPreview */
+  currentFolderId?: string
 }
 
 /**
@@ -32,6 +37,8 @@ export function DetailViewRenderer({
   markdown,
   libraryId,
   showBackLink = false,
+  provider = null,
+  currentFolderId = 'root',
 }: DetailViewRendererProps) {
   // Mapper erwarten API-ähnliche Struktur: { docMetaJson: { ... } }
   const docMetaJson = React.useMemo(() => {
@@ -52,6 +59,14 @@ export function DetailViewRenderer({
   }
   
   // Default: Session
-  return <SessionDetail data={mapToSessionDetail(docMetaJson)} showBackLink={showBackLink} libraryId={libraryId} />
+  return (
+    <SessionDetail
+      data={mapToSessionDetail(docMetaJson)}
+      showBackLink={showBackLink}
+      libraryId={libraryId}
+      provider={provider}
+      currentFolderId={currentFolderId}
+    />
+  )
 }
 

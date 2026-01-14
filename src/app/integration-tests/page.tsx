@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { integrationTestCases, type IntegrationTestCase } from '@/lib/integration-tests/test-cases';
 import type { ValidationMessage } from '@/lib/integration-tests/validators';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useEffect } from 'react';
 
 interface UiResultItem {
   testCaseId: string;
@@ -21,6 +23,13 @@ interface UiResultItem {
   jobId: string;
   ok: boolean;
   messages: ValidationMessage[];
+}
+
+interface TestSummary {
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
 }
 
 export default function IntegrationTestsPage() {
@@ -34,6 +43,9 @@ export default function IntegrationTestsPage() {
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<UiResultItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<TestSummary | null>(null);
+  const [templates, setTemplates] = useState<Array<{ name: string; id?: string }>>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('auto');
 
   const allSelected = useMemo(
     () => selectedIds.length === integrationTestCases.length,
@@ -47,6 +59,36 @@ export default function IntegrationTestsPage() {
     const names = currentPathItems.map(it => String(it.metadata?.name || '/'));
     return names.join(' / ');
   }, [currentPathItems]);
+
+  // Lade Templates aus MongoDB wenn Library verfügbar ist
+  useEffect(() => {
+    async function loadTemplates() {
+      if (!activeLibrary?.id) {
+        setTemplates([]);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/templates?libraryId=${encodeURIComponent(activeLibrary.id)}`);
+        if (!res.ok) {
+          console.warn('[IntegrationTests] Fehler beim Laden der Templates:', res.status);
+          setTemplates([]);
+          return;
+        }
+        const json = (await res.json()) as { templates?: Array<{ name: string; _id?: string }> };
+        const templateList = Array.isArray(json.templates) ? json.templates : [];
+        setTemplates(
+          templateList.map(t => ({
+            name: t.name,
+            id: typeof t._id === 'string' ? t._id : undefined,
+          }))
+        );
+      } catch (e) {
+        console.error('[IntegrationTests] Fehler beim Laden der Templates:', e);
+        setTemplates([]);
+      }
+    }
+    void loadTemplates();
+  }, [activeLibrary?.id]);
 
   function toggleAll(): void {
     if (allSelected) setSelectedIds([]);
@@ -72,6 +114,7 @@ export default function IntegrationTestsPage() {
     setRunning(true);
     setError(null);
     setResults([]);
+    setSummary(null);
 
     const rawIds = fileIdsInput
       .split(',')
@@ -84,6 +127,7 @@ export default function IntegrationTestsPage() {
       Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : undefined;
 
     try {
+      const templateName = selectedTemplate === 'auto' ? undefined : selectedTemplate;
       const res = await fetch('/api/integration-tests/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -93,6 +137,7 @@ export default function IntegrationTestsPage() {
           testCaseIds: selectedIds,
           fileIds,
           jobTimeoutMs,
+          templateName,
         }),
       });
       if (!res.ok) {
@@ -106,9 +151,21 @@ export default function IntegrationTestsPage() {
       }
       const json = (await res.json()) as {
         results?: UiResultItem[];
+        summary?: TestSummary;
       };
       const list = Array.isArray(json.results) ? json.results : [];
       setResults(list);
+      if (json.summary) {
+        setSummary(json.summary);
+      } else {
+        // Fallback: Summary aus Results berechnen
+        setSummary({
+          total: list.length,
+          passed: list.filter(r => r.ok).length,
+          failed: list.filter(r => !r.ok).length,
+          skipped: 0,
+        });
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
@@ -194,7 +251,8 @@ export default function IntegrationTestsPage() {
               <thead className="bg-muted">
                 <tr>
                   <th className="w-8 px-2 py-1 text-left" />
-                  <th className="w-20 px-2 py-1 text-left">ID</th>
+                  <th className="w-32 px-2 py-1 text-left">UseCase</th>
+                  <th className="w-24 px-2 py-1 text-left">Szenario</th>
                   <th className="px-2 py-1 text-left">Beschreibung</th>
                   <th className="w-24 px-2 py-1 text-left">Kategorie</th>
                 </tr>
@@ -202,6 +260,8 @@ export default function IntegrationTestsPage() {
               <tbody>
                 {integrationTestCases.map((tc: IntegrationTestCase) => {
                   const checked = selectedIds.includes(tc.id);
+                  const useCaseId = 'useCaseId' in tc && tc.useCaseId ? tc.useCaseId : tc.id.split('.')[0] || 'unknown';
+                  const scenarioId = 'scenarioId' in tc && tc.scenarioId ? tc.scenarioId : tc.id.split('.').slice(1).join('.') || tc.id;
                   return (
                     <tr
                       key={tc.id}
@@ -214,13 +274,18 @@ export default function IntegrationTestsPage() {
                           onCheckedChange={() => toggleSingle(tc.id)}
                         />
                       </td>
-                      <td className="px-2 py-1 w-20">
+                      <td className="px-2 py-1">
                         <Label
                           htmlFor={tc.id}
-                          className="font-mono text-xs cursor-pointer whitespace-nowrap"
+                          className="font-mono text-xs cursor-pointer"
                         >
-                          {tc.id}
+                          {useCaseId}
                         </Label>
+                      </td>
+                      <td className="px-2 py-1">
+                        <span className="text-xs text-muted-foreground">
+                          {scenarioId}
+                        </span>
                       </td>
                       <td className="px-2 py-1">
                         <div className="font-medium text-xs">
@@ -252,7 +317,25 @@ export default function IntegrationTestsPage() {
           <CardTitle>Einstellungen & Start</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-select">
+                Template (Override) – Auto = UseCase Default
+              </Label>
+              <Select value={selectedTemplate} onValueChange={setSelectedTemplate} disabled={running}>
+                <SelectTrigger id="template-select">
+                  <SelectValue placeholder="Template wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto (UseCase Default)</SelectItem>
+                  {templates.map(t => (
+                    <SelectItem key={t.name} value={t.name}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="file-ids">
                 Optionale File-IDs (kommagetrennt) – leer = alle PDFs im Ordner
@@ -309,6 +392,24 @@ export default function IntegrationTestsPage() {
           <CardTitle>Ergebnisse</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {summary && (
+            <div className="flex items-center gap-4 p-3 bg-muted rounded-md">
+              <div className="text-sm">
+                <span className="font-semibold">Gesamt:</span> {summary.total}
+              </div>
+              <div className="text-sm text-green-600 dark:text-green-400">
+                <span className="font-semibold">Erfolgreich:</span> {summary.passed}
+              </div>
+              <div className="text-sm text-red-600 dark:text-red-400">
+                <span className="font-semibold">Fehlgeschlagen:</span> {summary.failed}
+              </div>
+              {summary.skipped > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-semibold">Übersprungen:</span> {summary.skipped}
+                </div>
+              )}
+            </div>
+          )}
           {results.length === 0 && (
             <p className="text-sm text-muted-foreground">
               Noch keine Ergebnisse – starte einen Testlauf.
@@ -345,7 +446,31 @@ export default function IntegrationTestsPage() {
                         <div className="text-xs text-muted-foreground space-x-2">
                           <span>File: {r.fileName}</span>
                           <span className="font-mono">({r.fileId})</span>
-                          <span>Job: {r.jobId}</span>
+                          <span>
+                            Job:{' '}
+                            <span className="font-mono">{r.jobId}</span>
+                          </span>
+                          {r.jobId !== 'n/a' && (
+                            <>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2"
+                                onClick={() => void navigator.clipboard.writeText(r.jobId)}
+                              >
+                                Copy
+                              </Button>
+                              <a
+                                href={`/api/external/jobs/${encodeURIComponent(r.jobId)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs underline text-muted-foreground hover:text-foreground"
+                              >
+                                Job JSON
+                              </a>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

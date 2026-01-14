@@ -168,7 +168,8 @@
       "year": "Año",
       "date": "Fecha",
       "track": "Track",
-      "region": "Región"
+      "region": "Región",
+      "upsertedAt": "Insertado"
     },
     "texts": {
       "session": {

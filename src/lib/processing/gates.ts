@@ -30,7 +30,7 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import type { StorageProvider } from '@/lib/storage/types';
 import type { Library } from '@/types/library';
-import { findShadowTwinFolder, findShadowTwinMarkdown, generateShadowTwinName } from '@/lib/storage/shadow-twin';
+import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
 
 export interface GateContext {
   repo: ExternalJobsRepository;
@@ -64,64 +64,58 @@ export async function gateExtractPdf(ctx: GateContext): Promise<GateResult> {
   const { repo, userEmail, library, source, options } = ctx;
   
   // 1) Shadow‑Twin per Namensschema prüfen (erweiterte Suche: Verzeichnis oder Datei)
-  if (library && source?.parentId && source?.name) {
+  if (library && source?.parentId && source?.name && source?.itemId) {
     try {
       // Re-use provider if provided by caller (reduces redundant storage calls)
       const provider = ctx.provider ?? await getServerProvider(userEmail, library.id);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const base = getBaseName(source.name);
       const lang = (options?.targetLanguage || 'de').toLowerCase();
       
-      // 1a) Zuerst Shadow-Twin-Verzeichnis prüfen
-      const shadowTwinFolder = await findShadowTwinFolder(source.parentId, source.name, provider);
-      if (shadowTwinFolder) {
-        // Markdown-Datei im Verzeichnis prüfen (beide Varianten: Transcript und Transformiert)
-        if (base) {
-          const markdownInFolder = await findShadowTwinMarkdown(shadowTwinFolder.id, base, lang, provider, true);
-          if (markdownInFolder) {
-            return { 
-              exists: true, 
-              reason: 'shadow_twin_exists', 
-              details: { 
-                type: 'folder',
-                folderId: shadowTwinFolder.id,
-                folderName: shadowTwinFolder.metadata.name,
-                markdownId: markdownInFolder.id,
-                markdownName: markdownInFolder.metadata.name
-              } 
-            };
-          }
-        }
+      // v2-only: Prüfe zuerst Transcript (häufigster Fall)
+      const resolvedTranscript = await resolveArtifact(provider, {
+        sourceItemId: source.itemId,
+        sourceName: source.name,
+        parentId: source.parentId,
+        targetLanguage: lang,
+        preferredKind: 'transcript',
+      });
+
+      if (resolvedTranscript) {
+        return {
+          exists: true,
+          reason: 'shadow_twin_exists',
+          details: {
+            type: resolvedTranscript.location === 'dotFolder' ? 'folder' : 'file',
+            fileId: resolvedTranscript.fileId,
+            fileName: resolvedTranscript.fileName,
+            location: resolvedTranscript.location,
+            shadowTwinFolderId: resolvedTranscript.shadowTwinFolderId,
+          },
+        };
       }
-      
-      // 1b) Wenn kein Verzeichnis: Shadow-Twin-Dateien im gleichen Verzeichnis prüfen
-      // Suche nach beiden Varianten: Transcript (ohne Language) und Transformiert (mit Language)
-      const siblings = await provider.listItemsById(source.parentId);
-      if (base) {
-        // Transformiertes File (mit Language-Suffix)
-        const transformedName = generateShadowTwinName(base, lang, false);
-        const transformedExists = siblings.some(
-          it => it.type === 'file' && 
-          it.metadata?.name?.toLowerCase?.() === transformedName.toLowerCase()
-        );
-        
-        // Transcript-File (ohne Language-Suffix)
-        const transcriptName = generateShadowTwinName(base, lang, true);
-        const transcriptExists = siblings.some(
-          it => it.type === 'file' && 
-          it.metadata?.name?.toLowerCase?.() === transcriptName.toLowerCase()
-        );
-        
-        if (transformedExists || transcriptExists) {
-          return { 
-            exists: true, 
-            reason: 'shadow_twin_exists', 
-            details: { 
-              type: 'file',
-              transformed: transformedExists ? transformedName : undefined,
-              transcript: transcriptExists ? transcriptName : undefined
-            } 
-          };
-        }
+
+      // Prüfe Transformation (falls kein Transcript gefunden)
+      const resolvedTransformation = await resolveArtifact(provider, {
+        sourceItemId: source.itemId,
+        sourceName: source.name,
+        parentId: source.parentId,
+        targetLanguage: lang,
+        preferredKind: 'transformation',
+      });
+
+      if (resolvedTransformation) {
+        return {
+          exists: true,
+          reason: 'shadow_twin_exists',
+          details: {
+            type: resolvedTransformation.location === 'dotFolder' ? 'folder' : 'file',
+            fileId: resolvedTransformation.fileId,
+            fileName: resolvedTransformation.fileName,
+            location: resolvedTransformation.location,
+            shadowTwinFolderId: resolvedTransformation.shadowTwinFolderId,
+          },
+        };
       }
     } catch {
       // ignore

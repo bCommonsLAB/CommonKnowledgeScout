@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseTemplate } from '@/lib/templates/template-parser'
 
-describe('templates/pdfanalyse-commoning.md', () => {
+describe('template-samples/pdfanalyse-commoning.md', () => {
   it('parses without validation errors and contains a systemprompt', () => {
-    const templatePath = join(process.cwd(), 'templates', 'pdfanalyse-commoning.md')
+    const templatePath = join(process.cwd(), 'template-samples', 'pdfanalyse-commoning.md')
     const content = readFileSync(templatePath, 'utf-8')
 
     const { template, errors } = parseTemplate(content, 'pdfanalyse-commoning')

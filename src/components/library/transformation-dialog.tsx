@@ -33,6 +33,7 @@ import { CombinedChatDialog } from '@/components/library/combined-chat-dialog'
 import { templateContextDocsAtom } from '@/atoms/template-context-atom'
 import { useSetAtom } from 'jotai'
 import { useRouter } from 'next/navigation'
+import { batchResolveArtifactsClient } from '@/lib/shadow-twin/artifact-client'
 
 interface ProgressState {
   isProcessing: boolean;
@@ -58,7 +59,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
   const [customFileName, setCustomFileName] = useState<string>('');
   const [fileNameError, setFileNameError] = useState<string>('');
   
-  const { provider, refreshItems, listItems } = useStorage();
+  const { provider, refreshItems } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   // getRootItems wird aktuell nicht verwendet, aber für zukünftige Verwendung bereitgehalten
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -110,36 +111,59 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
     let cancelled = false;
     async function computeEffective() {
       try {
-        if (!provider || selectedItems.length === 0) {
+        if (!provider || !activeLibraryId || selectedItems.length === 0) {
           if (!cancelled) { setEffectiveItems([]); setSkippedCount(0); }
           return;
         }
-        const byParent = new Map<string, StorageItem[]>();
-        const loadSiblings = async (parentId: string): Promise<StorageItem[]> => {
-          if (byParent.has(parentId)) return byParent.get(parentId)!;
-          const sibs = await listItems(parentId);
-          byParent.set(parentId, sibs);
-          return sibs;
-        };
-        const results: typeof selectedItems = [];
-        let skipped = 0;
+        const results: typeof selectedItems = []
+        let skipped = 0
+
+        // 1) Markdown direkt übernehmen (keine Heuristik nötig)
+        const pdfSources: Array<{ sourceId: string; sourceName: string; parentId: string; targetLanguage?: string }> = []
         for (const sel of selectedItems) {
-          const it = sel.item;
-          const name = it.metadata.name.toLowerCase();
-          const isMarkdown = name.endsWith('.md') || (it.metadata.mimeType || '').toLowerCase() === 'text/markdown';
-          if (isMarkdown) { results.push({ item: it, type: 'text' }); continue; }
-          const isPdf = name.endsWith('.pdf') || (it.metadata.mimeType || '').toLowerCase() === 'application/pdf';
-          if (!isPdf || !it.parentId) { skipped++; continue; }
-          const siblings = await loadSiblings(it.parentId);
-          const base = it.metadata.name.replace(/\.[^./]+$/,'');
-          // Bevorzugt Sprache passend auswählen
-          const preferred = `${base}.${selectedLanguage}.md`.toLowerCase();
-          let twin = siblings.find(s => s.type === 'file' && s.metadata.name.toLowerCase() === preferred);
-          if (!twin) {
-            twin = siblings.find(s => s.type === 'file' && s.metadata.name.toLowerCase().startsWith(`${base.toLowerCase()}.`) && s.metadata.name.toLowerCase().endsWith('.md'));
+          const it = sel.item
+          const name = (it.metadata.name || '').toLowerCase()
+          const mime = (it.metadata.mimeType || '').toLowerCase()
+          const isMarkdown = name.endsWith('.md') || mime === 'text/markdown'
+          if (isMarkdown) {
+            results.push({ item: it, type: 'text' })
+            continue
           }
-          if (twin) results.push({ item: twin, type: 'text' }); else skipped++;
+
+          const isPdf = name.endsWith('.pdf') || mime === 'application/pdf'
+          if (!isPdf || !it.parentId) {
+            skipped += 1
+            continue
+          }
+
+          // 2) PDFs: Transcript-Markdown via zentralem Resolver (kein list+match)
+          pdfSources.push({
+            sourceId: it.id,
+            sourceName: it.metadata.name,
+            parentId: it.parentId,
+            targetLanguage: selectedLanguage,
+          })
         }
+
+        if (pdfSources.length > 0) {
+          try {
+            const resolvedMap = await batchResolveArtifactsClient({
+              libraryId: activeLibraryId,
+              sources: pdfSources,
+              preferredKind: 'transcript',
+            })
+
+            for (const src of pdfSources) {
+              const resolved = resolvedMap.get(src.sourceId) || null
+              if (resolved?.item) results.push({ item: resolved.item, type: 'text' })
+              else skipped += 1
+            }
+          } catch {
+            // Wenn resolver-call fehlschlägt, skippen wir PDFs (kein harter Crash des Dialogs)
+            skipped += pdfSources.length
+          }
+        }
+
         // Anwender-entfernte IDs ausfiltern
         const filtered = results.filter(entry => !excludedItemIds.includes(entry.item.id));
         // Deduplizieren nach item.id
@@ -153,7 +177,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
     }
     void computeEffective();
     return () => { cancelled = true; };
-  }, [provider, listItems, selectedItems, selectedLanguage, excludedItemIds]);
+  }, [provider, activeLibraryId, selectedItems, selectedLanguage, excludedItemIds]);
 
   const handleRemoveEffectiveItem = (id: string) => {
     setEffectiveItems(prev => prev.filter(entry => entry.item.id !== id));

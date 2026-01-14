@@ -2,30 +2,6 @@ import path from 'path';
 import { StorageItem, StorageProvider } from './types';
 import { FileLogger } from '@/lib/debug/logger';
 
-/**
- * Generiert den Shadow-Twin-Dateinamen für eine Transformation
- * 
- * @param originalName Der ursprüngliche Dateiname
- * @param language Die Zielsprache (wird nur verwendet wenn isTranscript = false)
- * @param isTranscript Wenn true: Kein Language-Suffix (Transcript-File, Originalsprache)
- *                     Wenn false: Mit Language-Suffix (Transformiertes File, übersetzt)
- * @returns Dateiname im Format:
- *   - Transcript: {originalname}.md
- *   - Transformiert: {originalname}.{language}.md
- */
-export function generateShadowTwinName(
-  originalName: string,
-  language: string,
-  isTranscript: boolean = false
-): string {
-  const parsedPath = path.parse(originalName);
-  if (isTranscript) {
-    // Transcript-File: OHNE Language-Suffix (Originalsprache)
-    return `${parsedPath.name}.md`;
-  }
-  // Transformiertes File: MIT Language-Suffix (übersetzt)
-  return `${parsedPath.name}.${language}.md`;
-}
 
 /**
  * Generiert den Shadow-Twin-Verzeichnisnamen mit Punkt-Prefix
@@ -137,52 +113,6 @@ export async function findShadowTwinFolder(
   }
   
   return null;
-}
-
-/**
- * Findet die Markdown-Datei im Shadow-Twin-Verzeichnis
- * 
- * Sucht zuerst nach dem transformierten File (mit Language-Suffix),
- * falls nicht gefunden, nach dem Transcript-File (ohne Language-Suffix).
- * 
- * @param folderId ID des Shadow-Twin-Verzeichnisses
- * @param baseName Basisname der Originaldatei (ohne Extension)
- * @param lang Zielsprache
- * @param provider Storage Provider
- * @param preferTransformed Wenn true: Suche zuerst transformiertes File (Standard)
- * @returns Gefundene Markdown-Datei oder null
- */
-export async function findShadowTwinMarkdown(
-  folderId: string,
-  baseName: string,
-  lang: string,
-  provider: StorageProvider,
-  preferTransformed: boolean = true
-): Promise<StorageItem | null> {
-  const items = await provider.listItemsById(folderId);
-  
-  if (preferTransformed) {
-    // Zuerst transformiertes File suchen (mit Language-Suffix)
-    // WICHTIG: baseName kann Punkte enthalten (z.B. "vs.") und ist bereits "ohne Extension".
-    // `generateShadowTwinName()` nutzt intern path.parse() und würde bei Punkten im baseName
-    // fälschlich kürzen (z.B. "Commoning vs. Kommerz" → "Commoning vs.de.md").
-    // Daher den Namen hier direkt aus baseName zusammensetzen.
-    const transformedName = `${baseName}.${lang}.md`;
-    const transformed = items.find(
-      item => item.type === 'file' && 
-      item.metadata.name === transformedName
-    );
-    if (transformed) return transformed;
-  }
-  
-  // Fallback: Transcript-File suchen (ohne Language-Suffix)
-  const transcriptName = `${baseName}.md`;
-  const transcript = items.find(
-    item => item.type === 'file' && 
-    item.metadata.name === transcriptName
-  );
-  
-  return transcript || null;
 }
 
 /**
@@ -333,40 +263,3 @@ export async function resolveShadowTwinImageUrl(
   return resolvedUrl;
 }
 
-/**
- * Generiert den vollständigen Pfad für einen Shadow-Twin
- */
-export async function generateShadowTwinPath(
-  item: StorageItem,
-  language: string,
-  storageProvider: StorageProvider
-): Promise<string> {
-  const twinName = generateShadowTwinName(
-    item.metadata.name,
-    language
-  );
-  const parentPath = await storageProvider.getPathById(item.parentId);
-  return path.join(parentPath, twinName);
-}
-
-/**
- * Speichert einen Shadow-Twin im Storage
- */
-export async function saveShadowTwin(
-  originalItem: StorageItem,
-  transformationResult: {
-    output_text: string;
-  },
-  targetLanguage: string,
-  storageProvider: StorageProvider
-): Promise<StorageItem> {
-  // Erstelle eine temporäre Datei mit dem Inhalt
-  const blob = new Blob([transformationResult.output_text], { type: 'text/markdown' });
-  const file = new File([blob], generateShadowTwinName(
-    originalItem.metadata.name,
-    targetLanguage
-  ), { type: 'text/markdown' });
-
-  // Speichere die Datei im gleichen Verzeichnis wie die Originaldatei
-  return storageProvider.uploadFile(originalItem.parentId, file);
-}

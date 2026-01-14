@@ -406,6 +406,14 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
           icon: typeof ui.icon === 'string' ? ui.icon : undefined
         } : undefined
 
+        // Folge-Wizards (optional) extrahieren
+        const follow = obj.followWizards && typeof obj.followWizards === 'object' ? obj.followWizards as Record<string, unknown> : null
+        const followWizards = follow ? {
+          testimonialTemplateId: typeof follow.testimonialTemplateId === 'string' ? follow.testimonialTemplateId : undefined,
+          finalizeTemplateId: typeof follow.finalizeTemplateId === 'string' ? follow.finalizeTemplateId : undefined,
+          publishTemplateId: typeof follow.publishTemplateId === 'string' ? follow.publishTemplateId : undefined,
+        } : undefined
+
         // Welcome (Markdown) extrahieren
         const welcomeObj = obj.welcome && typeof obj.welcome === 'object' ? obj.welcome as Record<string, unknown> : null
         const welcomeMarkdown = welcomeObj && typeof welcomeObj.markdown === 'string' ? welcomeObj.markdown : undefined
@@ -424,6 +432,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         const autoFillMetadataField = fileNameObj && typeof fileNameObj.autoFillMetadataField === 'boolean' ? fileNameObj.autoFillMetadataField : undefined
         const extension = fileNameObj && typeof fileNameObj.extension === 'string' ? fileNameObj.extension : undefined
         const fallbackPrefix = fileNameObj && typeof fileNameObj.fallbackPrefix === 'string' ? fileNameObj.fallbackPrefix : undefined
+        const createInOwnFolder = outputObj && typeof outputObj.createInOwnFolder === 'boolean' ? outputObj.createInOwnFolder : undefined
         
         // ImageFields extrahieren
         const imageFields = Array.isArray(obj.imageFields) ? obj.imageFields : []
@@ -471,13 +480,17 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
           }
         }
 
+        if (followWizards && (followWizards.testimonialTemplateId || followWizards.finalizeTemplateId || followWizards.publishTemplateId)) {
+          result.followWizards = followWizards
+        }
+
         if (welcomeMarkdown && welcomeMarkdown.trim()) {
           result.welcome = { markdown: welcomeMarkdown }
         }
-        if (detailViewType === 'book' || detailViewType === 'session') {
+        if (detailViewType === 'book' || detailViewType === 'session' || detailViewType === 'testimonial' || detailViewType === 'blog') {
           result.preview = { detailViewType }
         }
-        if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix) {
+        if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix || createInOwnFolder !== undefined) {
           result.output = {
             fileName: {
               metadataFieldKey,
@@ -485,6 +498,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
               extension,
               fallbackPrefix,
             },
+            createInOwnFolder,
           }
         }
         
@@ -519,6 +533,14 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
           icon: typeof ui.icon === 'string' ? ui.icon : undefined
         } : undefined
 
+        // Folge-Wizards (optional) extrahieren (Fallback)
+        const follow = obj.followWizards && typeof obj.followWizards === 'object' ? obj.followWizards as Record<string, unknown> : null
+        const followWizards = follow ? {
+          testimonialTemplateId: typeof follow.testimonialTemplateId === 'string' ? follow.testimonialTemplateId : undefined,
+          finalizeTemplateId: typeof follow.finalizeTemplateId === 'string' ? follow.finalizeTemplateId : undefined,
+          publishTemplateId: typeof follow.publishTemplateId === 'string' ? follow.publishTemplateId : undefined,
+        } : undefined
+
         // Welcome (Markdown) extrahieren (Fallback)
         const welcomeObj = obj.welcome && typeof obj.welcome === 'object' ? obj.welcome as Record<string, unknown> : null
         const welcomeMarkdown = welcomeObj && typeof welcomeObj.markdown === 'string' ? welcomeObj.markdown : undefined
@@ -537,6 +559,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         const autoFillMetadataField = fileNameObj && typeof fileNameObj.autoFillMetadataField === 'boolean' ? fileNameObj.autoFillMetadataField : undefined
         const extension = fileNameObj && typeof fileNameObj.extension === 'string' ? fileNameObj.extension : undefined
         const fallbackPrefix = fileNameObj && typeof fileNameObj.fallbackPrefix === 'string' ? fileNameObj.fallbackPrefix : undefined
+        const createInOwnFolder = outputObj && typeof outputObj.createInOwnFolder === 'boolean' ? outputObj.createInOwnFolder : undefined
         
         // ImageFields extrahieren (Fallback)
         const imageFields = Array.isArray(obj.imageFields) ? obj.imageFields : []
@@ -584,13 +607,17 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
           }
         }
 
+        if (followWizards && (followWizards.testimonialTemplateId || followWizards.finalizeTemplateId || followWizards.publishTemplateId)) {
+          result.followWizards = followWizards
+        }
+
         if (welcomeMarkdown && welcomeMarkdown.trim()) {
           result.welcome = { markdown: welcomeMarkdown }
         }
-        if (detailViewType === 'book' || detailViewType === 'session') {
+        if (detailViewType === 'book' || detailViewType === 'session' || detailViewType === 'testimonial' || detailViewType === 'blog') {
           result.preview = { detailViewType }
         }
-        if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix) {
+        if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix || createInOwnFolder !== undefined) {
           result.output = {
             fileName: {
               metadataFieldKey,
@@ -598,6 +625,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
               extension,
               fallbackPrefix,
             },
+            createInOwnFolder,
           }
         }
         
@@ -700,21 +728,40 @@ function serializeCreationToYaml(creation: TemplateCreationConfig, indent: numbe
     lines.push(`${indentStr}  detailViewType: ${creation.preview.detailViewType}`)
   }
 
-  // output.fileName (optional)
-  if (creation.output?.fileName) {
+  // output.fileName und output.createInOwnFolder (optional)
+  if (creation.output?.fileName || creation.output?.createInOwnFolder !== undefined) {
     const fn = creation.output.fileName
-    const hasAny =
-      Boolean(fn.metadataFieldKey) ||
-      fn.autoFillMetadataField !== undefined ||
-      Boolean(fn.extension) ||
-      Boolean(fn.fallbackPrefix)
-    if (hasAny) {
+    const hasFileName =
+      Boolean(fn?.metadataFieldKey) ||
+      fn?.autoFillMetadataField !== undefined ||
+      Boolean(fn?.extension) ||
+      Boolean(fn?.fallbackPrefix)
+    const hasCreateInOwnFolder = creation.output.createInOwnFolder !== undefined
+    
+    if (hasFileName || hasCreateInOwnFolder) {
       lines.push(`${indentStr}output:`)
-      lines.push(`${indentStr}  fileName:`)
-      if (fn.metadataFieldKey) lines.push(`${indentStr}    metadataFieldKey: ${fn.metadataFieldKey}`)
-      if (fn.autoFillMetadataField !== undefined) lines.push(`${indentStr}    autoFillMetadataField: ${fn.autoFillMetadataField ? 'true' : 'false'}`)
-      if (fn.extension) lines.push(`${indentStr}    extension: ${fn.extension}`)
-      if (fn.fallbackPrefix) lines.push(`${indentStr}    fallbackPrefix: "${fn.fallbackPrefix.replace(/"/g, '\\"')}"`)
+      if (hasFileName && fn) {
+        lines.push(`${indentStr}  fileName:`)
+        if (fn.metadataFieldKey) lines.push(`${indentStr}    metadataFieldKey: ${fn.metadataFieldKey}`)
+        if (fn.autoFillMetadataField !== undefined) lines.push(`${indentStr}    autoFillMetadataField: ${fn.autoFillMetadataField ? 'true' : 'false'}`)
+        if (fn.extension) lines.push(`${indentStr}    extension: ${fn.extension}`)
+        if (fn.fallbackPrefix) lines.push(`${indentStr}    fallbackPrefix: "${fn.fallbackPrefix.replace(/"/g, '\\"')}"`)
+      }
+      if (hasCreateInOwnFolder) {
+        lines.push(`${indentStr}  createInOwnFolder: ${creation.output.createInOwnFolder ? 'true' : 'false'}`)
+      }
+    }
+  }
+
+  // followWizards (optional) – Orchestrierung auf Preset-Ebene
+  if (creation.followWizards) {
+    const fw = creation.followWizards
+    const hasAny = Boolean(fw.testimonialTemplateId || fw.finalizeTemplateId || fw.publishTemplateId)
+    if (hasAny) {
+      lines.push(`${indentStr}followWizards:`)
+      if (fw.testimonialTemplateId) lines.push(`${indentStr}  testimonialTemplateId: ${fw.testimonialTemplateId}`)
+      if (fw.finalizeTemplateId) lines.push(`${indentStr}  finalizeTemplateId: ${fw.finalizeTemplateId}`)
+      if (fw.publishTemplateId) lines.push(`${indentStr}  publishTemplateId: ${fw.publishTemplateId}`)
     }
   }
   

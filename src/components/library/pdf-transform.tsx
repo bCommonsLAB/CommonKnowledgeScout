@@ -13,6 +13,8 @@ import { TransformSaveOptions as SaveOptionsType } from "@/components/library/tr
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
 import { FileLogger } from "@/lib/debug/logger"
+import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
+import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
 
 interface PdfTransformProps {
   onTransformComplete?: (text: string, twinItem?: StorageItem, updatedItems?: StorageItem[]) => void;
@@ -31,23 +33,26 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
   // Referenz für den TransformResultHandler
   const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});
   
-  // Hilfsfunktion für den Basis-Dateinamen
-  const getBaseFileName = (fileName: string): string => {
-    const lastDotIndex = fileName.lastIndexOf(".");
-    return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
-  };
   
   // Generiere Shadow-Twin Dateinamen nach Konvention
-  const generateShadowTwinName = (baseName: string, targetLanguage: string): string => {
-    return `${baseName}.${targetLanguage}`;
-  };
+  // Nutze zentrale buildArtifactName() Logik (wird in TransformService verwendet)
   
-  const baseName = item ? getBaseFileName(item.metadata.name) : '';
   const defaultLanguage = "de";
+  
+  // Generiere Dateinamen mit zentraler Logik
+  const getInitialFileName = (): string => {
+    if (!item) return '';
+    const artifactKey: ArtifactKey = {
+      sourceId: item.id,
+      kind: 'transcript',
+      targetLanguage: defaultLanguage,
+    };
+    return buildArtifactName(artifactKey, item.metadata.name).replace(/\.md$/, '');
+  };
   
   const [saveOptions, setSaveOptions] = useState<PdfTransformOptions>({
     targetLanguage: defaultLanguage,
-    fileName: generateShadowTwinName(baseName, defaultLanguage),
+    fileName: getInitialFileName(),
     createShadowTwin: true,
     fileExtension: "md",
     extractionMethod: "native",

@@ -185,6 +185,15 @@ export function mapToSessionDetail(input: unknown): SessionDetailData {
     teaser: toStr(docMetaJson.teaser),
     summary: toStr(docMetaJson.summary), // Markdown-formatiert (für Retrieval)
     markdown: toStr(docMetaJson.markdown), // Markdown-Body für Detailansicht
+
+    // Event/Publishing-spezifische Felder (optional)
+    slug: toStr(docMetaJson.slug),
+    docType: toStr(docMetaJson.docType),
+    eventStatus: toStr((docMetaJson as { eventStatus?: unknown }).eventStatus),
+    testimonialWriteKey: toStr((docMetaJson as { testimonialWriteKey?: unknown }).testimonialWriteKey),
+    originalFileId: toStr((docMetaJson as { originalFileId?: unknown }).originalFileId),
+    wizard_testimonial_template_id: toStr((docMetaJson as { wizard_testimonial_template_id?: unknown }).wizard_testimonial_template_id),
+    wizard_finalize_template_id: toStr((docMetaJson as { wizard_finalize_template_id?: unknown }).wizard_finalize_template_id),
     
     // Session-spezifisch (alle aus docMetaJson)
     speakers: toStrArr(docMetaJson.speakers) || [],

@@ -205,6 +205,17 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
         </section>
       )}
 
+      {/* Debug-Modus: Detailansicht-Info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-6 mb-2 p-2 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded">
+          <div className="font-semibold text-blue-800 dark:text-blue-200 mb-1">🔍 Debug: BookDetail</div>
+          <div className="text-xs text-blue-700 dark:text-blue-300">
+            <div><strong>Detailansicht:</strong> BookDetail</div>
+            <div><strong>docType:</strong> {data.docType || '—'}</div>
+          </div>
+        </div>
+      )}
+
       {/* Fußzeile mit technischen Infos */}
       <div className="mt-6 text-xs text-muted-foreground border-t pt-2">
         <div className="flex flex-wrap gap-1">

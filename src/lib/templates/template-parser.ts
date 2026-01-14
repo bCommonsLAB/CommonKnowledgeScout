@@ -6,8 +6,9 @@
  * Extrahiert Frontmatter, Markdown Body, Systemprompt und optional den creation-Block.
  */
 
-import type { ParsedTemplate, TemplateMetadataSchema, TemplateMetadataField, TemplateCreationConfig, TemplateValidationError, CreationFlowStepPreset } from './template-types'
+import type { ParsedTemplate, TemplateMetadataSchema, TemplateMetadataField, TemplateCreationConfig, TemplateValidationError, CreationFlowStepPreset, TemplatePreviewDetailViewType } from './template-types'
 import { extractCreationFromFrontmatter } from './template-frontmatter-utils'
+import { parseFrontmatterObjectFromBlock } from '@/lib/markdown/frontmatter'
 
 /**
  * Parst ein Template aus rohem Markdown-Content
@@ -42,9 +43,25 @@ export function parseTemplate(
   
   // 3. Parse Frontmatter-Felder
   const metadataFields = parseFrontmatterFields(rawFrontmatter)
+  
+  // 3.5. Extrahiere detailViewType aus Frontmatter (falls vorhanden)
+  let detailViewType: TemplatePreviewDetailViewType | undefined
+  if (rawFrontmatter) {
+    try {
+      const frontmatterObj = parseFrontmatterObjectFromBlock(rawFrontmatter)
+      const dvt = frontmatterObj.detailViewType
+      if (typeof dvt === 'string' && ['book', 'session', 'testimonial', 'blog'].includes(dvt)) {
+        detailViewType = dvt as TemplatePreviewDetailViewType
+      }
+    } catch {
+      // Ignoriere Parsing-Fehler für detailViewType
+    }
+  }
+  
   const metadata: TemplateMetadataSchema = {
     fields: metadataFields,
-    rawFrontmatter
+    rawFrontmatter,
+    detailViewType
   }
   
   // 4. Versuche creation-Block aus Frontmatter zu extrahieren

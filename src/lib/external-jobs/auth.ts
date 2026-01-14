@@ -78,6 +78,18 @@ export async function authorizeCallback(ctx: RequestContext): Promise<void> {
   }
 
   if (!internalBypass) {
+    /**
+     * WICHTIG (Security + Praxis):
+     * Der Secretary Service ruft unsere Callback-Route i.d.R. mit `Authorization: Bearer <SECRETARY_SERVICE_API_KEY>`
+     * auf. Das ist *nicht* derselbe Secret wie unser per-Job `callback_token`.
+     *
+     * Wenn wir Bearer-Tokens immer als per-Job callback_token interpretieren, entsteht ein `hash_mismatch`
+     * (und damit 401), obwohl der Worker-Callback legitim ist. Deshalb akzeptieren wir hier explizit
+     * den Service-API-Key als gültigen Callback-Token.
+     */
+    const secretaryApiKey = process.env.SECRETARY_SERVICE_API_KEY || ''
+    if (secretaryApiKey && callbackToken === secretaryApiKey) return
+
     const tokenHash = repo.hashSecret(callbackToken as string)
     if (tokenHash !== job.jobSecretHash) {
       const incomingProcessId = (ctx.body?.process?.id && typeof ctx.body.process.id === 'string') ? ctx.body.process.id : (typeof ctx.body?.data?.processId === 'string' ? (ctx.body.data!.processId as string) : undefined)

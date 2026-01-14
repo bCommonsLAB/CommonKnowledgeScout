@@ -33,10 +33,9 @@ export interface CreationSource {
 /**
  * Unterstützte Step-Presets im Creation-Flow
  * 
- * - `briefing`: Informations-Step, zeigt Spickzettel der benötigten Felder (keine Eingabe)
- * - `chooseSource`: Auswahl der Input-Quelle (spoken, url, text, file)
- * - `collectSource`: Sammlung der Eingabe basierend auf gewählter Quelle
- * - `generateDraft`: LLM-Transformation der Eingabe zu strukturierten Daten + Markdown
+ * - `welcome`: Willkommensseite am Anfang des Wizards
+ * - `collectSource`: Quelle sammeln (zeigt Quelle-Auswahl wenn keine ausgewählt, sonst entsprechenden Dialog)
+ * - `generateDraft`: LLM-Transformation der Eingabe zu strukturierten Daten + Markdown (optional, wird in Multi-Source-Flow automatisch übersprungen)
  * - `editDraft`: Formular-Modus: direkte Bearbeitung aller Metadaten + Markdown-Draft (mit Feld-Auswahl)
  * - `uploadImages`: Optionaler Step zum Hochladen von Bildern für konfigurierte Bildfelder
  * - `previewDetail`: Vorschau der fertigen Detailseite
@@ -44,11 +43,12 @@ export interface CreationSource {
  */
 export type CreationFlowStepPreset = 
   | 'welcome'
-  | 'briefing' 
-  | 'chooseSource' 
+  | 'chooseSource'
   | 'collectSource' 
+  | 'reviewMarkdown'
   | 'generateDraft' 
   | 'previewDetail'
+  | 'publish'
   | 'editDraft'
   | 'uploadImages'
   | 'selectRelatedTestimonials'
@@ -64,7 +64,7 @@ export interface TemplateCreationWelcomeConfig {
   markdown: string
 }
 
-export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial'
+export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial' | 'blog'
 
 export interface TemplateCreationPreviewConfig {
   /**
@@ -95,6 +95,13 @@ export interface TemplateCreationOutputFileNameConfig {
 export interface TemplateCreationOutputConfig {
   /** Regeln für den Output-Dateinamen */
   fileName?: TemplateCreationOutputFileNameConfig
+  /**
+   * Wenn true: Source wird in einem eigenen Ordner gespeichert (Container-Modus).
+   * Ordnername = Output-Dateiname ohne Extension (z.B. "mein-event").
+   * Source-Datei heißt wie Ordner: "mein-event/mein-event.md".
+   * Ermöglicht Child-Flows (z.B. Testimonials) im selben Ordner.
+   */
+  createInOwnFolder?: boolean
 }
 
 /**
@@ -152,6 +159,24 @@ export interface TemplateCreationConfig {
     /** Liste der Steps in Reihenfolge */
     steps: CreationFlowStepRef[]
   }
+  /**
+   * Folge-Wizards (Orchestrierung) für Presets.
+   *
+   * Motivation:
+   * - Diese Auswahl ist **Template/Preset-weit** (für Kommunikations-Designer),
+   *   nicht pro erstelltem Dokument/Event.
+   * - UI soll nur existierende Templates zulassen (Dropdown).
+   *
+   * Wird z.B. bei `docType: event` genutzt, um Flow B/C zu starten.
+   */
+  followWizards?: {
+    /** Template-ID/Name für Flow B (Testimonial-Erfassung) */
+    testimonialTemplateId?: string
+    /** Template-ID/Name für Flow C (Final-Draft erzeugen) */
+    finalizeTemplateId?: string
+    /** Template-ID/Name für Flow C (Publish/Index-Swap) */
+    publishTemplateId?: string
+  }
   /** Optional: Willkommensseite (Markdown) */
   welcome?: TemplateCreationWelcomeConfig
   /** Optional: Preview-Konfiguration (Detailansicht-Typ) */
@@ -200,6 +225,8 @@ export interface TemplateMetadataSchema {
   fields: TemplateMetadataField[]
   /** Roher Frontmatter-String */
   rawFrontmatter: string
+  /** Optional: Detail-View-Type für die Anzeige transformierter Dokumente */
+  detailViewType?: TemplatePreviewDetailViewType
 }
 
 /**

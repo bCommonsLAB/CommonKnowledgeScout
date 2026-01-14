@@ -16,9 +16,11 @@ interface AudioPlayerProps {
   provider: StorageProvider | null;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
   activeLibraryId: string;
+  /** Wenn false, keine Transform-UI im Player (Preview bleibt leichtgewichtig). */
+  showTransformControls?: boolean;
 }
 
-export const AudioPlayer = memo(function AudioPlayer({ provider, onRefreshFolder }: AudioPlayerProps) {
+export const AudioPlayer = memo(function AudioPlayer({ provider, onRefreshFolder, showTransformControls = true }: AudioPlayerProps) {
   const item = useAtomValue(selectedFileAtom);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -201,14 +203,14 @@ export const AudioPlayer = memo(function AudioPlayer({ provider, onRefreshFolder
           <div className="text-xs text-muted-foreground">
             {item.metadata.name}
           </div>
-          {onRefreshFolder && (
+          {showTransformControls && onRefreshFolder && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleTransformButtonClick}
             >
               <Wand2 className="h-4 w-4 mr-2" />
-              Transformieren
+              Transkribieren
             </Button>
           )}
         </div>
@@ -230,7 +232,7 @@ export const AudioPlayer = memo(function AudioPlayer({ provider, onRefreshFolder
           </audio>
 
           {/* Transform Dialog */}
-          {showTransform && (
+          {showTransformControls && showTransform && (
             <div className="mt-4 border rounded-lg p-4">
               <AudioTransform 
                 onRefreshFolder={(folderId, updatedItems, twinItem) => {

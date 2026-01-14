@@ -33,7 +33,7 @@
 import { getCollection } from '@/lib/mongodb-service';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import { upsertVectorMeta } from '@/lib/repositories/vector-repo';
-import { findShadowTwinMarkdown, findShadowTwinFolder } from '@/lib/storage/shadow-twin';
+import { findShadowTwinFolder } from '@/lib/storage/shadow-twin';
 import { ImageProcessor } from '@/lib/ingestion/image-processor';
 import { FileLogger } from '@/lib/debug/logger';
 import type { StorageProvider } from '@/lib/storage/types';
@@ -128,16 +128,27 @@ async function loadShadowTwinMarkdown(
     
     // Versuche Markdown-Datei zu finden (zuerst transformiert, dann transcript)
     const baseName = fileName.replace(/\.[^/.]+$/, ''); // Entferne Extension
-    const markdownFile = await findShadowTwinMarkdown(
-      shadowTwinFolder.id,
-      baseName,
-      'de', // Standard-Sprache, kann später parametrisiert werden
-      provider,
-      true // preferTransformed
+    const folderItems = await provider.listItemsById(shadowTwinFolder.id);
+    
+    // Suche zuerst nach transformierter Datei (mit Template- und Sprach-Suffix)
+    // Format: {baseName}.{template}.{lang}.md oder {baseName}.{lang}.md
+    let markdownFile = folderItems.find(item => 
+      item.type === 'file' && 
+      item.metadata.name.endsWith('.md') &&
+      item.metadata.name.startsWith(baseName + '.') &&
+      item.metadata.name.includes('.de.md')
     );
     
+    // Fallback: Suche nach Transcript-Datei (nur {baseName}.md)
     if (!markdownFile) {
-      FileLogger.warn('migration', 'Shadow-Twin-Markdown nicht gefunden', { fileId, fileName });
+      markdownFile = folderItems.find(item => 
+        item.type === 'file' && 
+        item.metadata.name === `${baseName}.md`
+      );
+    }
+    
+    if (!markdownFile) {
+      FileLogger.warn('migration', 'Shadow-Twin-Markdown nicht gefunden', { fileId, fileName, baseName });
       return null;
     }
     

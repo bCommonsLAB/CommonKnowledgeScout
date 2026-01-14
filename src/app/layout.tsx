@@ -39,6 +39,7 @@ import { ConditionalFooter } from "@/components/home/conditional-footer"
 import { AutoAcceptInvites } from "@/components/auth/auto-accept-invites"
 import { headers, cookies } from 'next/headers'
 import { getLocale, type Locale } from '@/lib/i18n'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
 export const metadata = {
   title: "Knowledge Scout",
@@ -93,9 +94,11 @@ export default async function RootLayout({
               <LocaleGate>
                 <StorageContextProvider>
                   <TooltipProvider>
-                    <HomeLayout>
-                      {children}
-                    </HomeLayout>
+                    <NuqsAdapter>
+                      <HomeLayout>
+                        {children}
+                      </HomeLayout>
+                    </NuqsAdapter>
                     <ConditionalFooter />
                     <Toaster richColors />
                   </TooltipProvider>
@@ -124,9 +127,11 @@ export default async function RootLayout({
                   <AutoAcceptInvites />
                   <TooltipProvider>
                     <div className="relative min-h-screen flex flex-col">
-                      <AppLayout>
-                        {children}
-                      </AppLayout>
+                      <NuqsAdapter>
+                        <AppLayout>
+                          {children}
+                        </AppLayout>
+                      </NuqsAdapter>
                       <ConditionalFooter />
                     </div>
                     <Toaster richColors />

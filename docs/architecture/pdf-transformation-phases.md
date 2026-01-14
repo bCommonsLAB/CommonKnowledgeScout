@@ -1,5 +1,18 @@
 # PDF Transformation Phases
 
+Status: active  
+Last verified: 2026-01-06  
+
+### Scope
+This document describes the **current PDF processing pipeline** (Extract → Template → Ingestion) and how it maps to the external-jobs runtime.
+It also documents the **artifact contracts** (Shadow‑Twin) that downstream UI and ingestion rely on.
+
+### Glossary
+- **Transcript**: extracted Markdown without frontmatter (Phase 1 output)
+- **Transformation**: template-based Markdown with frontmatter/metadata (Phase 2 output)
+- **Ingestion**: RAG upsert into MongoDB Atlas Vector Search (Phase 3)
+- **Shadow‑Twin**: derived artifacts stored next to the source file (often in a dot-folder)
+
 ## Overview
 
 PDF transformation consists of three sequential phases that convert a PDF file into a searchable, structured document ready for RAG (Retrieval Augmented Generation). Each phase builds upon the previous one, creating intermediate artifacts that can be reused or skipped based on policies.
@@ -52,7 +65,7 @@ Extract text and images from PDF files using OCR or native text extraction.
 
 3. **Markdown Creation**:
    - Extracted text saved as Markdown **without frontmatter**
-   - File name: `{originalName}.md` (no language suffix - transcript)
+   - File name (v2): `{baseName}.{language}.md` (transcript, language suffix)
 
 ### Input
 
@@ -63,7 +76,7 @@ Extract text and images from PDF files using OCR or native text extraction.
 
 ### Output
 
-- **Transcript File**: `document.md` (Markdown without frontmatter)
+- **Transcript File**: `document.de.md` (Markdown without frontmatter; language suffix)
 - **Images**: Saved to `.document.pdf/` directory (if images extracted)
 - **Shadow-Twin Directory**: Created automatically if images are present
 
@@ -101,7 +114,7 @@ Extract text and images from PDF files using OCR or native text extraction.
 
 ```
 .document.pdf/
-├── document.md          (Transcript - extracted text, no frontmatter)
+├── document.de.md       (Transcript - extracted text, no frontmatter)
 ├── page-001.png        (Extracted images)
 └── page-002.png
 ```
@@ -143,8 +156,9 @@ Add structured metadata (frontmatter) to the extracted text, enabling structured
   - **`src/lib/external-jobs/phase-template.ts`**: Consolidated template phase (decision logic, repair cases, saving transformed Markdown)
   - **`src/lib/external-jobs/template-run.ts`**: Template transformation execution (calls the Secretary template transformer and parses the response)
   - **`src/lib/external-jobs/chapters.ts`**: Chapter detection and merge based on text
-  - **`src/lib/templates/template-service.ts`**: Central management and loading of template files from the library `/templates` folder
-  - **`src/lib/external-jobs/template-files.ts`**: Wrapper around `template-service.ts` for the external jobs phase
+  - **`src/lib/external-jobs/template-files.ts`**: Template-Auswahl für External Jobs (**MongoDB Source of Truth**), serialisiert Secretary-kompatibel (ohne `creation`)
+  - **`src/lib/templates/template-service-mongodb.ts`**: MongoDB Template-Service inkl. Serialisierung zu Template-Markdown (Frontmatter + Body + systemprompt)
+  - **Hinweis (Legacy)**: `src/lib/templates/template-service.ts` lädt Templates aus dem Library-Storage `/templates` Ordner und wird primär für Import/Migration genutzt.
   - **`src/lib/processing/gates.ts`** (`gateTransformTemplate`): Gate checking (e.g. skip if chapter metadata already exists)
   - **`src/lib/external-jobs/storage.ts`**: Saves transformed Markdown (`{originalName}.{language}.md`)
 
@@ -160,7 +174,7 @@ Add structured metadata (frontmatter) to the extracted text, enabling structured
     - the repair needs of an existing shadow twin.
   - **Template transformation is only executed if no chapter metadata (`chapters`) exists yet.** If only `pages` are missing, they are reconstructed from the `--- Seite N ---` markers in the body.
   - When template processing is executed:
-    - it selects a template via the central template service from the library `/templates` folder,
+    - it selects a template from **MongoDB** (TemplateDocument) and serialisiert es als Secretary-kompatibles Template-Markdown (ohne `creation`),
     - calls the Secretary template endpoint and adds chapter information,
     - strips old frontmatter and stores the new Markdown with frontmatter via `saveMarkdown` as `{originalName}.{language}.md`,
     - and reliably marks the `transform_template` step as `completed` or `failed`.
@@ -335,25 +349,28 @@ Complete
 
 ## File Naming Convention
 
-### Transcript File (Phase 1)
+### v2-only artifact naming (Shadow‑Twin)
 
-- **Format**: `{originalName}.md`
-- **Example**: `document.md`
-- **Language**: No suffix (original language)
-- **Content**: Extracted text without frontmatter
+In the current runtime, file naming is **deterministic** and shared across all media types.
+Do not rely on legacy “`originalName.md`” heuristics.
 
-### Transformed File (Phase 2)
-
-- **Format**: `{originalName}.{language}.md`
+#### Transcript artifact (Phase 1)
+- **Format**: `{baseName}.{language}.md`
 - **Example**: `document.de.md`
-- **Language**: With suffix (target language)
-- **Content**: Text with frontmatter and metadata
+- **Content**: extracted Markdown (typically **without** frontmatter)
 
-### Why Different Names?
+#### Transformation artifact (Phase 2)
+- **Format**: `{baseName}.{templateName}.{language}.md`
+- **Example**: `document.pdfanalyse.de.md`
+- **Content**: Markdown **with** frontmatter/metadata
 
-- **Transcript**: Original language, no transformation → no language suffix
-- **Transformed**: Translated/structured, target language → language suffix
-- **Coexistence**: Both files can exist simultaneously (no overwrite)
+#### Location
+Artifacts can live either:
+1) inside a **dot-folder** `.{originalName}/` (recommended when multiple assets exist), or  
+2) as **siblings** next to the PDF (common when only Markdown exists).
+
+#### Update semantics
+Re-running the same phase **updates** (overwrites) the canonical artifact instead of creating duplicates.
 
 ## Error Handling
 

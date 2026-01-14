@@ -11,9 +11,11 @@
 
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { findShadowTwinFolder, findShadowTwinMarkdown } from '@/lib/storage/shadow-twin'
+import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
 import type { IntegrationTestCase, ExpectedOutcome } from './test-cases'
 import type { ExternalJob } from '@/types/external-job'
+import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import path from 'path'
 
 export interface ValidationMessage {
   type: 'info' | 'warn' | 'error';
@@ -146,7 +148,7 @@ async function validateShadowTwin(
   expected: ExpectedOutcome,
   messages: ValidationMessage[]
 ): Promise<void> {
-  if (!expected.expectShadowTwinExists && !expected.expectLegacyMarkdownRemovedFromParent) return
+  if (!expected.expectShadowTwinExists) return
 
   const state = job.shadowTwinState
   if (expected.expectShadowTwinExists) {
@@ -157,71 +159,57 @@ async function validateShadowTwin(
     }
   }
 
-  if (!expected.expectLegacyMarkdownRemovedFromParent) return
-
+  // Optional: Sicherstellen, dass im Shadow‑Twin-Verzeichnis ein transformiertes File existiert
+  // (bei v2-only prüfen wir über resolveArtifact(), nicht über legacy Parent-Heuristiken)
   const source = job.correlation?.source
-  if (!source?.parentId || !source.name) {
+  if (!source?.parentId || !source.name || !source.itemId) return
+
+  const provider = await getServerProvider(job.userEmail, job.libraryId)
+  const langRaw = (job.correlation?.options as { targetLanguage?: unknown } | undefined)?.targetLanguage
+  const lang = typeof langRaw === 'string' && langRaw.trim() ? langRaw.trim() : 'de'
+
+  const templateRaw = (job.parameters as { template?: unknown } | undefined)?.template
+  const templateName = typeof templateRaw === 'string' && templateRaw.trim().length > 0
+    ? templateRaw.trim()
+    : undefined
+
+  // Legacy-Policy (Siblings):
+  // Wir tolerieren Siblings als Read-Only Fallback, aber wollen sie sichtbar machen,
+  // damit Repair/Migration-Runs (Siblings→Dot-Folder) später sauber messbar sind.
+  // => WARN, aber kein FAIL.
+  const resolvedTranscript = await resolveArtifact(provider, {
+    sourceItemId: source.itemId,
+    sourceName: source.name,
+    parentId: source.parentId,
+    targetLanguage: lang,
+    preferredKind: 'transcript',
+  })
+  if (resolvedTranscript?.location === 'sibling') {
     pushMessage(
       messages,
       'warn',
-      'Für die Prüfung von Legacy-Markdown fehlen parentId oder Name in job.correlation.source'
+      `Legacy Sibling-Transcript gefunden: ${resolvedTranscript.fileName} (Zielbild: Dot-Folder als kanonischer Write-Pfad)`
     )
-    return
   }
 
-  const provider = await getServerProvider(job.userEmail, job.libraryId)
-  const siblings = await provider.listItemsById(source.parentId)
-  const baseName = source.name.replace(/\.[^/.]+$/, '')
+  const resolved = await resolveArtifact(provider, {
+    sourceItemId: source.itemId,
+    sourceName: source.name,
+    parentId: source.parentId,
+    targetLanguage: lang,
+    templateName,
+    preferredKind: 'transformation',
+  })
 
-  // Transformierter Name (mit Sprache – wir kennen hier nicht sicher die Sprache, prüfen daher auf Präfix)
-  const legacyMarkdownInParent = siblings.filter(
-    it =>
-      it.type === 'file' &&
-      typeof it.metadata?.name === 'string' &&
-      // Grobe Heuristik: gleicher Basisname + .*.md
-      (it.metadata.name as string).startsWith(`${baseName}.`) &&
-      (it.metadata.name as string).endsWith('.md')
-  )
-
-  if (legacyMarkdownInParent.length > 0) {
-    pushMessage(
-      messages,
-      'error',
-      `Legacy-Markdown liegt weiterhin im PDF-Ordner: ${legacyMarkdownInParent
-        .map(it => String(it.metadata?.name))
-        .join(', ')}`
-    )
+  if (!resolved) {
+    pushMessage(messages, 'error', 'Im Shadow‑Twin wurde keine transformierte Markdown-Datei gefunden')
   } else {
-    pushMessage(messages, 'info', 'Keine Legacy-Markdown-Datei mehr im PDF-Ordner gefunden')
-  }
-
-  // Optional: Sicherstellen, dass im Shadow‑Twin-Verzeichnis ein transformiertes File existiert
-  if (state?.shadowTwinFolderId) {
-    const shadowTwinFolder = await findShadowTwinFolder(source.parentId, source.name, provider)
-    if (!shadowTwinFolder) {
+    pushMessage(messages, 'info', `Transformierte Markdown-Datei gefunden: ${resolved.fileName}`)
+    if (resolved.location === 'sibling') {
       pushMessage(
         messages,
         'warn',
-        'Shadow‑Twin-Verzeichnis konnte im Storage nicht gefunden werden, obwohl shadowTwinFolderId gesetzt ist'
-      )
-      return
-    }
-    const langRaw = (job.correlation?.options as { targetLanguage?: unknown } | undefined)?.targetLanguage
-    const lang = typeof langRaw === 'string' && langRaw.trim() ? langRaw.trim() : 'de'
-    const markdownInTwin = await findShadowTwinMarkdown(shadowTwinFolder.id, baseName, lang, provider)
-    if (!markdownInTwin) {
-      pushMessage(
-        messages,
-        'error',
-        'Im Shadow‑Twin-Verzeichnis wurde keine transformierte Markdown-Datei gefunden'
-      )
-    } else {
-      pushMessage(
-        messages,
-        'info',
-        `Transformierte Markdown-Datei im Shadow‑Twin-Verzeichnis gefunden: ${String(
-          markdownInTwin.metadata?.name
-        )}`
+        `Legacy Sibling-Transformation gefunden: ${resolved.fileName} (Zielbild: Dot-Folder als kanonischer Write-Pfad)`
       )
     }
   }
@@ -485,6 +473,146 @@ async function validateMongoUpsert(
 
 
 /**
+ * Globale Contract-Validatoren: Diese Regeln gelten für ALLE UseCases.
+ * Sie werden vor den UseCase-spezifischen Validierungen ausgeführt.
+ */
+function validateGlobalContracts(
+  job: import('@/types/external-job').ExternalJob,
+  messages: ValidationMessage[]
+): void {
+  // Contract 1: completed ⇒ result.savedItemId existiert
+  if (job.status === 'completed') {
+    const savedItemId = job.result?.savedItemId
+    if (!savedItemId || typeof savedItemId !== 'string' || savedItemId.trim().length === 0) {
+      pushMessage(
+        messages,
+        'error',
+        `Global Contract verletzt: Job ist completed, aber result.savedItemId fehlt oder ist leer`
+      )
+    } else {
+      pushMessage(messages, 'info', `Global Contract: result.savedItemId vorhanden: ${savedItemId}`)
+    }
+  }
+
+  // Contract 2: completed ⇒ kein step.status === 'pending'
+  if (job.status === 'completed') {
+    const steps = Array.isArray(job.steps) ? job.steps : []
+    const pendingSteps = steps.filter(s => s?.status === 'pending')
+    if (pendingSteps.length > 0) {
+      const pendingStepNames = pendingSteps.map(s => s?.name || 'unknown').join(', ')
+      pushMessage(
+        messages,
+        'error',
+        `Global Contract verletzt: Job ist completed, aber ${pendingSteps.length} Step(s) haben Status "pending": ${pendingStepNames}`
+      )
+    } else {
+      pushMessage(messages, 'info', 'Global Contract: Keine pending Steps bei completed Job')
+    }
+  }
+
+  // Contract 3: Policy/Step-Konsistenz
+  // Wenn eine Phase auf 'ignore' gesetzt ist, sollte der entsprechende Step skipped/completed sein (nicht pending/running)
+  const policies = job.parameters?.policies as
+    | { extract?: string; metadata?: string; ingest?: string }
+    | undefined
+
+  if (policies) {
+    const steps = Array.isArray(job.steps) ? job.steps : []
+
+    // Extract-Policy prüfen
+    if (policies.extract === 'ignore') {
+      const extractStep = steps.find(s => s?.name === 'extract_pdf')
+      if (extractStep && extractStep.status !== 'completed') {
+        pushMessage(
+          messages,
+          'warn',
+          `Policy/Step-Inkonsistenz: extract=ignore, aber extract_pdf Step hat Status "${extractStep.status}" (erwarte completed)`
+        )
+      }
+    }
+
+    // Template/Metadata-Policy prüfen
+    if (policies.metadata === 'ignore') {
+      const templateStep = steps.find(s => s?.name === 'transform_template')
+      if (templateStep && templateStep.status !== 'completed') {
+        pushMessage(
+          messages,
+          'warn',
+          `Policy/Step-Inkonsistenz: metadata=ignore, aber transform_template Step hat Status "${templateStep.status}" (erwarte completed)`
+        )
+      }
+    }
+
+    // Ingest-Policy prüfen
+    if (policies.ingest === 'ignore') {
+      const ingestStep = steps.find(s => s?.name === 'ingest_rag')
+      if (ingestStep && ingestStep.status !== 'completed') {
+        pushMessage(
+          messages,
+          'warn',
+          `Policy/Step-Inkonsistenz: ingest=ignore, aber ingest_rag Step hat Status "${ingestStep.status}" (erwarte completed)`
+        )
+      }
+    }
+  }
+}
+
+async function validateSavedItemIdKindContract(
+  job: import('@/types/external-job').ExternalJob,
+  messages: ValidationMessage[]
+): Promise<void> {
+  if (job.status !== 'completed') return
+
+  const savedItemId = job.result?.savedItemId
+  if (!savedItemId || typeof savedItemId !== 'string' || savedItemId.trim().length === 0) return
+
+  const phases = (job.parameters as { phases?: { template?: boolean } } | undefined)?.phases
+  const templateEnabled = phases ? phases.template !== false : true
+  const expectedKind: 'transcript' | 'transformation' = templateEnabled ? 'transformation' : 'transcript'
+
+  const sourceName = String(job.correlation?.source?.name || '')
+  const sourceBaseName = sourceName ? path.parse(sourceName).name : ''
+  const templateNameRaw = (job.parameters as { template?: unknown } | undefined)?.template
+  const templateName = typeof templateNameRaw === 'string' && templateNameRaw.trim().length > 0 ? templateNameRaw.trim() : undefined
+
+  try {
+    const provider = await getServerProvider(job.userEmail, job.libraryId)
+    const it = await provider.getItemById(savedItemId)
+    const candidateName = String(it?.metadata?.name || '')
+    const parsed = parseArtifactName(candidateName, sourceBaseName || undefined)
+
+    if (parsed.kind !== expectedKind) {
+      pushMessage(
+        messages,
+        'error',
+        `Global Contract verletzt: result.savedItemId zeigt auf "${candidateName}" (${parsed.kind ?? 'unknown'}), erwarte "${expectedKind}"`
+      )
+      return
+    }
+
+    if (expectedKind === 'transformation' && templateName) {
+      const parsedTemplate = typeof parsed.templateName === 'string' ? parsed.templateName : ''
+      if (!parsedTemplate || parsedTemplate.toLowerCase() !== templateName.toLowerCase()) {
+        pushMessage(
+          messages,
+          'error',
+          `Global Contract verletzt: Transformation hat templateName="${parsedTemplate || 'leer'}", erwarte "${templateName}"`
+        )
+        return
+      }
+    }
+
+    pushMessage(messages, 'info', `Global Contract: savedItemId Artefakt-Typ ok (${expectedKind})`)
+  } catch (error) {
+    pushMessage(
+      messages,
+      'warn',
+      `Global Contract: savedItemId Artefakt-Typ konnte nicht validiert werden: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+}
+
+/**
  * Validiert einen einzelnen External-Job gegen die erwarteten Ergebnisse eines Testfalls.
  */
 export async function validateExternalJobForTestCase(
@@ -499,6 +627,10 @@ export async function validateExternalJobForTestCase(
     pushMessage(messages, 'error', `Job ${jobId} nicht gefunden`)
     return { jobId, testCaseId: testCase.id, ok: false, messages }
   }
+
+  // Globale Contracts zuerst prüfen (gelten für alle UseCases)
+  validateGlobalContracts(job, messages)
+  await validateSavedItemIdKindContract(job, messages)
 
   // Basic-Status
   if (testCase.expected.shouldComplete) {
@@ -743,14 +875,6 @@ export async function validateExternalJobForTestCase(
             messages,
             'info',
             `Template wurde übersprungen (korrekt): chapters bereits vorhanden, nur pages wird rekonstruiert`
-          )
-        } else if (testCase.id === 'TC-2.5' && templateSkippedReason === 'legacy_markdown_adopted') {
-          // Sonderfall TC-2.5: Wenn Legacy-Datei übernommen wurde, ist das Überspringen korrekt
-          // (Legacy-Datei wurde ins Shadow-Twin-Verzeichnis verschoben)
-          pushMessage(
-            messages,
-            'info',
-            `Template wurde übersprungen (korrekt): Legacy-Datei wurde ins Shadow-Twin-Verzeichnis übernommen`
           )
         } else {
           pushMessage(

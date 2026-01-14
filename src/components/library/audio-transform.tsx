@@ -6,47 +6,52 @@ import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
 import { useAtomValue } from "jotai";
 import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
-import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
-import { TransformService, TransformResult } from "@/lib/transform/transform-service";
+import type { TransformResult } from "@/lib/transform/transform-service";
 import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
 import { getUserFriendlyAudioErrorMessage } from "@/lib/utils";
-import { FileLogger } from "@/lib/debug/logger"
+import { FileLogger } from "@/lib/debug/logger";
+import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
+import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
 
 interface AudioTransformProps {
   onTransformComplete?: (text: string, twinItem?: StorageItem, updatedItems?: StorageItem[]) => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }
 
-export function AudioTransform({ onTransformComplete, onRefreshFolder }: AudioTransformProps) {
+export function AudioTransform({ 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onTransformComplete: _onTransformComplete, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onRefreshFolder: _onRefreshFolder 
+}: AudioTransformProps) {
   const item = useAtomValue(selectedFileAtom);
   const [isLoading, setIsLoading] = useState(false);
   const provider = useStorageProvider();
   const activeLibrary = useAtomValue(activeLibraryAtom);
-  const { refreshItems } = useStorage();
   
   // Referenz für den TransformResultHandler
   const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});
   
-  // Hilfsfunktion für den Basis-Dateinamen
-  const getBaseFileName = (fileName: string): string => {
-    const lastDotIndex = fileName.lastIndexOf(".");
-    return lastDotIndex === -1 ? fileName : fileName.substring(0, lastDotIndex);
+  // Generiere Shadow-Twin Dateinamen mit zentraler buildArtifactName Funktion
+  const generateShadowTwinName = (sourceFileName: string, targetLanguage: string): string => {
+    const artifactKey: ArtifactKey = {
+      sourceId: 'placeholder', // Wird beim Speichern durch TransformService ersetzt
+      kind: 'transcript',
+      targetLanguage,
+    };
+    const artifactName = buildArtifactName(artifactKey, sourceFileName);
+    // Entferne .md Extension für die UI-Anzeige (wird später wieder hinzugefügt)
+    return artifactName.replace(/\.md$/, '');
   };
   
-  // Generiere Shadow-Twin Dateinamen nach Konvention
-  const generateShadowTwinName = (baseName: string, targetLanguage: string): string => {
-    return `${baseName}.${targetLanguage}`;
-  };
-  
-  const baseName = item ? getBaseFileName(item.metadata.name) : '';
   const defaultLanguage = "de";
   
   const [saveOptions, setSaveOptions] = useState<SaveOptionsType>({
     targetLanguage: defaultLanguage,
-    fileName: generateShadowTwinName(baseName, defaultLanguage),
+    fileName: item ? generateShadowTwinName(item.metadata.name, defaultLanguage) : '',
     createShadowTwin: true,
     fileExtension: "md"
   });
@@ -81,48 +86,57 @@ export function AudioTransform({ onTransformComplete, onRefreshFolder }: AudioTr
     setIsLoading(true);
 
     try {
-      // Datei vom Server laden
-      const { blob } = await provider.getBinary(item.id);
-      if (!blob) {
-        throw new Error("Datei konnte nicht geladen werden");
+      // V3/External Jobs: Audio wird als Job enqueued (Orchestrierung via Worker + SSE)
+      const res = await fetch('/api/secretary/process-audio/job', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Library-Id': activeLibrary.id,
+        },
+        body: JSON.stringify({
+          originalItemId: item.id,
+          parentId: item.parentId || 'root',
+          fileName: item.metadata.name,
+          mimeType: item.metadata.mimeType,
+          targetLanguage: saveOptions.targetLanguage,
+          useCache: true,
+          policies: {
+            extract: 'do',
+            // Transcript-only: keine Template- oder Ingest-Phase
+            metadata: 'ignore',
+            ingest: 'ignore',
+          },
+        }),
+      })
+
+      const json = await res.json().catch(() => ({} as Record<string, unknown>))
+      if (!res.ok) {
+        const msg = typeof (json as { error?: unknown }).error === 'string' ? (json as { error: string }).error : `HTTP ${res.status}`
+        throw new Error(msg)
       }
 
-      // Konvertiere Blob zu File für die Verarbeitung
-      const file = new File([blob], item.metadata.name, { type: item.metadata.mimeType });
+      const jobId = typeof (json as { job?: { id?: unknown } }).job?.id === 'string' ? (json as { job: { id: string } }).job.id : ''
+      if (!jobId) throw new Error('Job-ID fehlt in Response')
 
-      // Transformiere die Audio-Datei mit dem TransformService
-      const result = await TransformService.transformAudio(
-        file,
-        item,
-        saveOptions,
-        provider,
-        refreshItems,
-        activeLibrary.id
-      );
+      // Sofortiges lokales Event (Fallback), damit UI Panels den Job sehen, bevor SSE connected ist
+      try {
+        window.dispatchEvent(new CustomEvent('job_update_local', {
+          detail: {
+            jobId,
+            status: 'queued',
+            message: 'queued',
+            progress: 0,
+            jobType: 'audio',
+            fileName: item.metadata.name,
+            sourceItemId: item.id,
+            updatedAt: new Date().toISOString(),
+            libraryId: activeLibrary.id,
+          }
+        }))
+      } catch {}
 
-      FileLogger.info('AudioTransform', 'Audio Transformation abgeschlossen', {
-        textLength: result.text.length,
-        savedItemId: result.savedItem?.id,
-        updatedItemsCount: result.updatedItems.length
-      });
-
-      // Wenn wir einen onRefreshFolder-Handler haben, informiere die übergeordnete Komponente
-      if (onRefreshFolder && item.parentId && result.updatedItems.length > 0) {
-        FileLogger.info('AudioTransform', 'Informiere Library über aktualisierte Dateiliste', {
-          folderId: item.parentId,
-          itemsCount: result.updatedItems.length,
-          savedItemId: result.savedItem?.id
-        });
-        onRefreshFolder(item.parentId, result.updatedItems, result.savedItem || undefined);
-      } else {
-        // Wenn kein onRefreshFolder-Handler da ist, rufen wir selbst den handleTransformResult auf
-        transformResultHandlerRef.current(result);
-      }
-      
-      // Falls onTransformComplete-Callback existiert, auch für Abwärtskompatibilität aufrufen
-      if (onTransformComplete) {
-        onTransformComplete(result.text, result.savedItem || undefined, result.updatedItems);
-      }
+      FileLogger.info('AudioTransform', 'Job enqueued (Audio)', { jobId })
+      toast.success('Job gestartet', { description: 'Transkription läuft im Hintergrund. Ergebnis erscheint nach Abschluss im Shadow‑Twin.' })
     } catch (error) {
       FileLogger.error('AudioTransform', 'Fehler bei der Audio-Transformation', error);
       toast.error("Fehler", {
@@ -156,6 +170,7 @@ export function AudioTransform({ onTransformComplete, onRefreshFolder }: AudioTr
                 className="mb-4"
                 showUseCache={true}
                 defaultUseCache={true}
+                showCreateShadowTwin={false}
               />
               
               <Button 

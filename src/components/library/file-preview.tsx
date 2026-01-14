@@ -4,14 +4,13 @@ import * as React from 'react';
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { AudioPlayer } from './audio-player';
 import { VideoPlayer } from './video-player';
 import { MarkdownPreview } from './markdown-preview';
 import { MarkdownMetadata } from './markdown-metadata';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
-import { useAtomValue, useSetAtom } from "jotai";
-import { activeLibraryIdAtom, selectedFileAtom } from "@/atoms/library-atom";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { activeLibraryIdAtom, selectedFileAtom, librariesAtom } from "@/atoms/library-atom";
 import { TextEditor } from './text-editor';
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { extractFrontmatter } from './markdown-metadata';
@@ -19,13 +18,24 @@ import { ImagePreview } from './image-preview';
 import { DocumentPreview } from './document-preview';
 import { FileLogger } from "@/lib/debug/logger"
 import { JobReportTab } from './job-report-tab';
-import { PdfPhasesView } from './pdf-phases-view';
+// PdfPhasesView ist bewusst NICHT mehr Teil der File-Preview (zu heavy). Flow-View ist der Expertenmodus.
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 import { parseFrontmatter } from '@/lib/markdown/frontmatter';
 import { DetailViewRenderer } from './detail-view-renderer';
-import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types';
+import { getDetailViewType } from '@/lib/templates/detail-view-type-utils';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { resolveArtifactClient } from '@/lib/shadow-twin/artifact-client';
+import { ExternalLink, RefreshCw } from "lucide-react";
+import { SourceAndTranscriptPane } from "@/components/library/shared/source-and-transcript-pane"
+import { useResolvedTranscriptItem } from "@/components/library/shared/use-resolved-transcript-item"
+import { ArtifactInfoPanel } from "@/components/library/shared/artifact-info-panel"
+import { useStoryStatus } from "@/components/library/shared/use-story-status"
+import { StoryStatusIcons } from "@/components/library/shared/story-status-icons"
+import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { StoryView } from "@/components/library/shared/story-view"
+import { IngestionDataProvider } from "@/components/library/shared/ingestion-data-context"
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
@@ -95,29 +105,104 @@ function getFileType(fileName: string): string {
 }
 
 // Komponente, die JobReportTab mit Shadow-Twin-Unterstützung umschließt
-// Verwendet jetzt das zentrale Shadow-Twin-Atom
+// Verwendet jetzt den zentralen resolveArtifactClient statt lokaler Heuristik
 function JobReportTabWithShadowTwin({
   libraryId,
   fileId,
   fileName,
+  parentId,
   provider
 }: {
   libraryId: string;
   fileId: string;
   fileName: string;
+  parentId: string;
   provider: StorageProvider | null;
 }) {
-  const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
-  const shadowTwinState = shadowTwinStates.get(fileId);
-  // WICHTIG: Verwende IMMER die transformierte Datei (.de.md), nicht das Transcript (.md)
-  // Das Transcript hat kein Frontmatter und sollte nicht für Metadaten verwendet werden
-  // NIEMALS auf transcriptFiles zurückfallen, da diese kein Frontmatter haben!
-  const mdFileId = shadowTwinState?.transformed?.id || null;
-  
+  const [mdFileId, setMdFileId] = React.useState<string | null>(null);
+  const [baseFileId, setBaseFileId] = React.useState<string>(fileId);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  // Variante C: Vollständig über API - kein lokales Parsing mehr
+  React.useEffect(() => {
+    async function resolveArtifact() {
+      setIsLoading(true);
+
+      // Rufe zentrale Resolver-API auf
+      // Priorität 1: Transformation (hat Frontmatter)
+      let resolved = await resolveArtifactClient({
+        libraryId,
+        sourceId: fileId,
+        sourceName: fileName,
+        parentId,
+        targetLanguage: 'de', // Standard-Sprache
+        preferredKind: 'transformation',
+      });
+
+      // Priorität 2: Fallback zu Transcript wenn keine Transformation gefunden
+      if (!resolved) {
+        resolved = await resolveArtifactClient({
+          libraryId,
+          sourceId: fileId,
+          sourceName: fileName,
+          parentId,
+          targetLanguage: 'de', // Standard-Sprache
+          preferredKind: 'transcript',
+        });
+      }
+
+      if (resolved) {
+        setMdFileId(resolved.fileId);
+        setBaseFileId(fileId); // Basis-Datei bleibt fileId
+        FileLogger.debug('JobReportTabWithShadowTwin', 'Artefakt über Resolver gefunden', {
+          originalFileId: fileId,
+          resolvedFileId: resolved.fileId,
+          resolvedFileName: resolved.fileName,
+          kind: resolved.kind,
+          location: resolved.location,
+        });
+      } else {
+        // Kein Artefakt gefunden - verwende Basis-Datei direkt
+        setMdFileId(null);
+        setBaseFileId(fileId);
+        FileLogger.debug('JobReportTabWithShadowTwin', 'Kein Shadow-Twin-Artefakt gefunden, verwende Basis-Datei', {
+          fileId,
+          fileName,
+          parentId,
+        });
+      }
+
+      setIsLoading(false);
+    }
+
+    if (libraryId && fileId && parentId) {
+      resolveArtifact().catch((error) => {
+        FileLogger.error('JobReportTabWithShadowTwin', 'Fehler bei Artefakt-Auflösung', {
+          fileId,
+          fileName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        setIsLoading(false);
+        setMdFileId(null);
+        setBaseFileId(fileId);
+      });
+    } else {
+      setIsLoading(false);
+    }
+  }, [libraryId, fileId, fileName, parentId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">Lade Metadaten...</p>
+      </div>
+    );
+  }
+
   return (
     <JobReportTab 
       libraryId={libraryId} 
-      fileId={fileId} 
+      fileId={baseFileId} 
       fileName={fileName} 
       provider={provider}
       mdFileId={mdFileId}
@@ -286,6 +371,14 @@ function PreviewContent({
   onContentUpdated: (content: string) => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
 }) {
+  const [infoTab, setInfoTab] = React.useState<"original" | "story" | "info">("original")
+  const transcript = useResolvedTranscriptItem({
+    provider,
+    libraryId: activeLibraryId,
+    sourceFile: fileType === "audio" || fileType === "pdf" ? item : null,
+    targetLanguage: "de",
+  })
+
   const [activeTab, setActiveTab] = React.useState<string>("preview");
   // Statusabfrage-States (derzeit nicht genutzt – bei Bedarf aktivieren)
   // const [ragLoading, setRagLoading] = React.useState(false);
@@ -307,6 +400,9 @@ function PreviewContent({
   // Hole Shadow-Twin-State für die aktuelle Datei
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const shadowTwinState = shadowTwinStates.get(item.id);
+  
+  // Hole Libraries-Atom für Markdown-Preview (muss vor allen frühen Returns sein)
+  const libraries = useAtomValue(librariesAtom);
   
   // Bestimme das Verzeichnis für Bild-Auflösung im Markdown-Viewer:
   // 
@@ -343,6 +439,7 @@ function PreviewContent({
   
   React.useEffect(() => {
     setActiveTab("preview");
+    setInfoTab("original");
   }, [item.id]);
 
   // async function loadRagStatus() {
@@ -378,12 +475,70 @@ function PreviewContent({
   }
 
   switch (fileType) {
-    case 'audio':
+    case 'audio': {
       FileLogger.debug('PreviewContent', 'Audio-Player wird gerendert', {
         itemId: item.id,
         itemName: item.metadata.name
       });
-      return <AudioPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} />;
+      if (!provider) {
+        return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
+      }
+      const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
+        ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
+        : undefined
+
+      return (
+        <IngestionDataProvider
+          libraryId={activeLibraryId}
+          fileId={item.id}
+          docModifiedAt={docModifiedAt}
+          includeChapters={true}
+        >
+          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v === "original" ? "original" : v === "story" ? "story" : "info")} className="flex h-full flex-col">
+            <TabsList className="mx-3 mt-3 w-fit">
+              <TabsTrigger value="original">Original</TabsTrigger>
+              <TabsTrigger value="story">Story View</TabsTrigger>
+              <TabsTrigger value="info">Story Info</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border">
+                <SourceAndTranscriptPane
+                  provider={provider}
+                  sourceFile={item}
+                  streamingUrl={null}
+                  transcriptItem={transcript.transcriptItem}
+                  leftPaneMode="audio"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "story" ? (
+                <div className="h-full overflow-auto rounded border p-3">
+                  <StoryView libraryId={activeLibraryId} />
+                </div>
+              ) : null}
+            </TabsContent>
+
+            <TabsContent value="info" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "info" ? (
+                <div className="rounded border">
+                  <ArtifactInfoPanel
+                    libraryId={activeLibraryId}
+                    sourceFile={item}
+                    shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId || null}
+                    transcriptFiles={shadowTwinState?.transcriptFiles}
+                    transformed={shadowTwinState?.transformed}
+                    targetLanguage="de"
+                  />
+                </div>
+              ) : null}
+            </TabsContent>
+          </Tabs>
+        </IngestionDataProvider>
+      )
+    }
     case 'image':
       FileLogger.info('PreviewContent', 'ImagePreview wird gerendert', {
         itemId: item.id,
@@ -397,6 +552,7 @@ function PreviewContent({
           provider={provider}
           activeLibraryId={activeLibraryId}
           onRefreshFolder={onRefreshFolder}
+          showTransformControls={false}
         />
       );
     case 'video':
@@ -404,7 +560,7 @@ function PreviewContent({
         itemId: item.id,
         itemName: item.metadata.name
       });
-      return <VideoPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} />;
+      return <VideoPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} showTransformControls={false} />;
     case 'markdown':
       FileLogger.debug('PreviewContent', 'Markdown-Editor wird gerendert', {
         itemId: item.id,
@@ -417,20 +573,23 @@ function PreviewContent({
       const meta = parsed.meta || {};
       const body = parsed.body || '';
       const creationTypeId = typeof meta.creationTypeId === 'string' ? meta.creationTypeId.trim() : undefined;
-      const creationDetailViewType = typeof meta.creationDetailViewType === 'string' 
-        ? (meta.creationDetailViewType as TemplatePreviewDetailViewType)
-        : undefined;
+      
+      // Bestimme detailViewType aus Frontmatter mit Fallback auf Library-Config
+      const activeLibrary = activeLibraryId ? libraries.find(lib => lib.id === activeLibraryId) : undefined;
+      const libraryConfig = activeLibrary?.config?.chat;
+      const detailViewType = getDetailViewType(meta, libraryConfig);
       
       // Filtere System-Keys aus Metadaten (nur Template-Metadaten für DetailView)
       const templateMetadata: Record<string, unknown> = {};
-      const systemKeys = new Set(['creationTypeId', 'creationTemplateId', 'creationDetailViewType', 'textSources', 'templateName']);
+      const systemKeys = new Set(['creationTypeId', 'creationTemplateId', 'creationDetailViewType', 'detailViewType', 'textSources', 'templateName']);
       for (const [key, value] of Object.entries(meta)) {
         if (!systemKeys.has(key)) {
           templateMetadata[key] = value;
         }
       }
       
-      const isCreationFile = creationTypeId && creationDetailViewType;
+      // Creation-Datei: wenn creationTypeId vorhanden ist (auch wenn detailViewType aus Fallback kommt)
+      const isCreationFile = !!creationTypeId;
       
       // Prüfe, ob es ein Dialograum ist (für Button "Dialograum Ergebnis erstellen")
       const dialograumId = typeof meta.dialograum_id === 'string' ? meta.dialograum_id.trim() : undefined;
@@ -453,7 +612,7 @@ function PreviewContent({
                 {isCreationFile ? (
                   <div className="h-full overflow-auto">
                     <DetailViewRenderer
-                      detailViewType={creationDetailViewType}
+                      detailViewType={detailViewType}
                       metadata={templateMetadata}
                       markdown={body}
                       libraryId={activeLibraryId}
@@ -481,7 +640,8 @@ function PreviewContent({
                 <JobReportTabWithShadowTwin 
                   libraryId={activeLibraryId} 
                   fileId={item.id} 
-                  fileName={item.metadata.name} 
+                  fileName={item.metadata.name}
+                  parentId={item.parentId}
                   provider={provider}
                 />
               </TabsContent>
@@ -649,14 +809,66 @@ function PreviewContent({
           </Tabs>
         </div>
       );
-    case 'pdf':
+    case 'pdf': {
+      if (!provider) {
+        return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
+      }
+      const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
+        ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
+        : undefined
+
       return (
-        <PdfPhasesView
-          item={item}
-          provider={provider}
-          markdownContent={""}
-        />
-      );
+        <IngestionDataProvider
+          libraryId={activeLibraryId}
+          fileId={item.id}
+          docModifiedAt={docModifiedAt}
+          includeChapters={true}
+        >
+          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v === "original" ? "original" : v === "story" ? "story" : "info")} className="flex h-full flex-col">
+            <TabsList className="mx-3 mt-3 w-fit">
+              <TabsTrigger value="original">Original</TabsTrigger>
+              <TabsTrigger value="story">Story View</TabsTrigger>
+              <TabsTrigger value="info">Story Info</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border">
+                <SourceAndTranscriptPane
+                  provider={provider}
+                  sourceFile={item}
+                  streamingUrl={null}
+                  transcriptItem={transcript.transcriptItem}
+                  leftPaneMode="pdf"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "story" ? (
+                <div className="h-full overflow-auto rounded border p-3">
+                  <StoryView libraryId={activeLibraryId} />
+                </div>
+              ) : null}
+            </TabsContent>
+
+            <TabsContent value="info" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "info" ? (
+                <div className="rounded border">
+                  <ArtifactInfoPanel
+                    libraryId={activeLibraryId}
+                    sourceFile={item}
+                    shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId || null}
+                    transcriptFiles={shadowTwinState?.transcriptFiles}
+                    transformed={shadowTwinState?.transformed}
+                    targetLanguage="de"
+                  />
+                </div>
+              ) : null}
+            </TabsContent>
+          </Tabs>
+        </IngestionDataProvider>
+      )
+    }
     case 'docx':
     case 'pptx':
     case 'xlsx':
@@ -704,11 +916,20 @@ export function FilePreview({
   file,
   onRefreshFolder
 }: FilePreviewProps) {
+  const router = useRouter()
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const selectedFileFromAtom = useAtomValue(selectedFileAtom);
+  const shadowTwinStates = useAtomValue(shadowTwinStateAtom)
+  const [, setShadowTwinAnalysisTrigger] = useAtom(shadowTwinAnalysisTriggerAtom)
   
   // Verwende explizite file prop oder fallback zum selectedFileAtom
   const displayFile = file || selectedFileFromAtom;
+  const shadowTwinState = displayFile ? shadowTwinStates.get(displayFile.id) : undefined
+  const storyStatus = useStoryStatus({
+    libraryId: activeLibraryId,
+    file: displayFile,
+    shadowTwinState,
+  })
   
   // Debug-Log für FilePreview-Hauptkomponente
   React.useEffect(() => {
@@ -820,6 +1041,55 @@ export function FilePreview({
 
   return (
     <div className={cn("h-full flex flex-col", className)}>
+      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+        <div className="min-w-0">
+          <div className="truncate text-xs text-muted-foreground">Vorschau</div>
+          <div className="truncate text-sm font-medium">{displayFile.metadata.name}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <StoryStatusIcons steps={storyStatus.steps} />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShadowTwinAnalysisTrigger((v) => v + 1)}
+                  aria-label="Shadow-Twin Status aktualisieren"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Status aktualisieren</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              const url = `/library/story-creator?libraryId=${encodeURIComponent(activeLibraryId)}&fileId=${encodeURIComponent(displayFile.id)}&parentId=${encodeURIComponent(displayFile.parentId)}&left=off`
+              router.push(url)
+            }}
+          >
+            Story Creator
+          </Button>
+          {provider ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const url = await provider.getStreamingUrl(displayFile.id)
+                  window.open(url, "_blank", "noopener,noreferrer")
+                } catch {}
+              }}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Quelle
+            </Button>
+          ) : null}
+        </div>
+      </div>
       <ContentLoader
         item={displayFile}
         provider={provider}

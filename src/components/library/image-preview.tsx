@@ -14,12 +14,15 @@ interface ImagePreviewProps {
   provider: StorageProvider | null;
   activeLibraryId: string;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
+  /** Wenn false, keine Transform-UI im Preview (bleibt leichtgewichtig). */
+  showTransformControls?: boolean;
 }
 
-export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
+export function ImagePreview({ provider, onRefreshFolder, showTransformControls = true }: ImagePreviewProps) {
   const item = useAtomValue(selectedFileAtom);
   const [imageUrl, setImageUrl] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [imageError, setImageError] = React.useState(false);
   const [showTransform, setShowTransform] = React.useState(false);
   const loadingRef = React.useRef<string | null>(null); // Verhindert doppelte Requests
 
@@ -69,6 +72,7 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
         
         loadingRef.current = item.id;
         setIsLoading(true);
+        setImageError(false); // Reset error state when loading new image
         
         FileLogger.debug('ImagePreview', 'Lade Bild-URL', {
           itemId: item.id,
@@ -154,15 +158,23 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
     );
   }
 
-  if (!imageUrl) {
-    FileLogger.warn('ImagePreview', 'Keine Bild-URL verfügbar', {
+  if (!imageUrl || imageError) {
+    FileLogger.warn('ImagePreview', imageError ? 'Bild-Ladefehler' : 'Keine Bild-URL verfügbar', {
       itemId: item.id,
       itemName: item.metadata.name,
-      hasProvider: !!provider
+      hasProvider: !!provider,
+      imageError
     });
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground">
-        Bild konnte nicht geladen werden
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center p-4 border border-dashed border-muted-foreground/20 rounded bg-muted/30">
+          <p className="text-sm text-muted-foreground">
+            {item.metadata.name}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Bild nicht verfügbar
+          </p>
+        </div>
       </div>
     );
   }
@@ -174,6 +186,7 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
   });
 
   const handleTransformButtonClick = () => {
+    if (!showTransformControls) return
     setShowTransform(true);
   };
 
@@ -186,7 +199,7 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
             <span className="text-xs font-semibold text-muted-foreground">Image Preview</span>
             <span className="text-xs text-muted-foreground truncate max-w-[40vw]">{item.metadata.name}</span>
             <div className="flex-1" />
-            {onRefreshFolder && (
+            {showTransformControls && onRefreshFolder && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -200,7 +213,7 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
         </div>
       )}
       
-      {showTransform ? (
+      {showTransformControls && showTransform ? (
         <div className="flex-1 overflow-auto">
           <ImageTransform 
             onRefreshFolder={(folderId, updatedItems, twinItem) => {
@@ -234,12 +247,13 @@ export function ImagePreview({ provider, onRefreshFolder }: ImagePreviewProps) {
               });
             }}
             onError={(e) => {
-              FileLogger.error('ImagePreview', 'Fehler beim Laden des Bildes', {
+              FileLogger.warn('ImagePreview', 'Fehler beim Laden des Bildes', {
                 itemId: item.id,
                 itemName: item.metadata.name,
                 imageUrl: imageUrl.substring(0, 100) + '...',
                 errorEvent: e
               });
+              setImageError(true);
             }}
           />
         </div>

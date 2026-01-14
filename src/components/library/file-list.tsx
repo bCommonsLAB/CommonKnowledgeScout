@@ -36,7 +36,7 @@ import { FileLogger, StateLogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
-import { shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
+import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -623,8 +623,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
   // Shadow-Twin-Analyse für alle Dateien im Ordner
   // Shadow-Twin-Analyse mit Trigger für manuelles Neustarten
-  const shadowTwinAnalysisTriggerRef = React.useRef(0);
-  useShadowTwinAnalysis(allItemsInFolder ?? [], provider, shadowTwinAnalysisTriggerRef.current);
+  const [shadowTwinAnalysisTrigger, setShadowTwinAnalysisTrigger] = useAtom(shadowTwinAnalysisTriggerAtom);
+  useShadowTwinAnalysis(allItemsInFolder ?? [], provider, shadowTwinAnalysisTrigger);
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
 
   // Kein mobiles Flag mehr notwendig
@@ -653,6 +653,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
   
   // Review-Mode-Atoms
+  const [selectedFile] = useAtom(selectedFileAtom);
   const [, setSelectedShadowTwin] = useAtom(selectedShadowTwinAtom);
 
   // handleSort nutzt jetzt Atome
@@ -714,21 +715,21 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   }, [activeLibraryId, setSelectedFile, setFolderItems, setSelectedBatchItems, setSelectedTransformationItems, setSelectedShadowTwin]);
 
   // Vereinfachte Funktion zum Extrahieren des Basisnamens (ohne Endung, auch für Binärdateien)
+  // Variante C: Kein lokales Parsing mehr - nutzt nur noch ShadowTwinState aus API
   function getBaseName(name: string): string {
-    // ShadowTwin: .de.md, .en.md, etc.
-    const shadowTwinMatch = name.match(/^(.*)\.(de|en|fr|es|it)\.md$/);
-    if (shadowTwinMatch) return shadowTwinMatch[1];
-    // Sonst: alles vor der letzten Endung
+    // Fallback: alles vor der letzten Endung (für normale Dateien)
+    // Wird nur noch für Gruppierung verwendet, wenn kein ShadowTwinState vorhanden ist
     const lastDot = name.lastIndexOf('.');
     if (lastDot === -1) return name;
     return name.substring(0, lastDot);
   }
 
   // Prüft ob eine Datei ein ShadowTwin ist (Markdown mit Sprachkürzel)
+  // Variante C: Kein lokales Parsing mehr - nutzt nur noch ShadowTwinState aus API
+  // Diese Funktion wird nur noch als Fallback verwendet, wenn ShadowTwinState nicht verfügbar ist
   function isShadowTwin(name: string): boolean {
-    // Pattern: name.de.md, name.en.md, etc.
-    const shadowTwinPattern = /^(.+)\.(de|en|fr|es|it)\.md$/;
-    return shadowTwinPattern.test(name);
+    // Einfache Heuristik: Markdown-Dateien mit Sprachkürzel
+    return name.toLowerCase().endsWith('.md') && /\.(de|en|fr|es|it)\.md$/i.test(name);
   }
 
   // Gruppiere die Dateien nach Basename (verwendet zentrale Shadow-Twin-Analyse)
@@ -802,13 +803,45 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
     return undefined;
   }, [fileGroupsWithShadowTwinFolders]);
+  
+  // WICHTIG: Automatisch selectedShadowTwin aktualisieren, wenn Shadow-Twin-Analyse abgeschlossen ist
+  // und eine Transformation vorhanden ist. Dies stellt sicher, dass nach einer Transformation
+  // automatisch die transformierte Datei angezeigt wird, nicht das Transcript.
+  // MUSS nach findGroupByBaseItemId definiert werden!
+  React.useEffect(() => {
+    if (!selectedFile) {
+      setSelectedShadowTwin(null);
+      return;
+    }
+    
+    const group = findGroupByBaseItemId(selectedFile.id);
+    if (group) {
+      // Bevorzuge transformierte Datei (hat Frontmatter), sonst Transcript
+      if (group.transformed) {
+        setSelectedShadowTwin(group.transformed);
+      } else if (group.transcriptFiles && group.transcriptFiles.length > 0) {
+        setSelectedShadowTwin(group.transcriptFiles[0]);
+      } else {
+        setSelectedShadowTwin(null);
+      }
+    } else {
+      setSelectedShadowTwin(null);
+    }
+  }, [selectedFile, shadowTwinStates, findGroupByBaseItemId, setSelectedShadowTwin]);
 
   // Auswahl-Helfer für Keyboard-Navigation (dupliziert nicht die UI-spezifischen Click-Handler)
   const selectByKeyboard = React.useCallback((item: StorageItem) => {
     setSelectedFile(item);
     const group = findGroupByBaseItemId(item.id);
-    if (group && group.transcriptFiles && group.transcriptFiles.length > 0) {
-      setSelectedShadowTwin(group.transcriptFiles[0]);
+    // WICHTIG: Bevorzuge transformierte Datei (hat Frontmatter), sonst Transcript
+    if (group) {
+      if (group.transformed) {
+        setSelectedShadowTwin(group.transformed);
+      } else if (group.transcriptFiles && group.transcriptFiles.length > 0) {
+        setSelectedShadowTwin(group.transcriptFiles[0]);
+      } else {
+        setSelectedShadowTwin(null);
+      }
     } else {
       setSelectedShadowTwin(null);
     }
@@ -911,11 +944,19 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     // Nur die ausgewählte Datei setzen - Review-Modus wird über Toggle-Button gesteuert
     setSelectedFile(item);
     
-    // Wenn wir im Review-Modus sind und eine Basis-Datei mit Shadow-Twin ausgewählt wird,
-    // dann automatisch das Shadow-Twin setzen
-    if (group && group.transcriptFiles && group.transcriptFiles.length > 0) {
-      const shadowTwin = group.transcriptFiles[0];
-      setSelectedShadowTwin(shadowTwin);
+    // WICHTIG: Wenn eine Basis-Datei mit Shadow-Twin ausgewählt wird,
+    // bevorzuge die transformierte Datei (hat Frontmatter mit Metadaten),
+    // sonst das erste Transcript
+    if (group) {
+      if (group.transformed) {
+        // Transformierte Datei hat Vorrang (enthält Frontmatter mit Metadaten)
+        setSelectedShadowTwin(group.transformed);
+      } else if (group.transcriptFiles && group.transcriptFiles.length > 0) {
+        // Fallback zu Transcript, wenn keine Transformation vorhanden
+        setSelectedShadowTwin(group.transcriptFiles[0]);
+      } else {
+        setSelectedShadowTwin(null);
+      }
     } else {
       setSelectedShadowTwin(null);
     }
@@ -946,12 +987,12 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       
       // Shadow-Twin-Analyse neu starten, indem wir den Trigger erhöhen
       // Dies wird von useShadowTwinAnalysis erkannt und führt zu einer Neu-Analyse
-      shadowTwinAnalysisTriggerRef.current += 1;
+      setShadowTwinAnalysisTrigger((v) => v + 1);
       
       FileLogger.info('FileList', 'Dateiliste und Shadow-Twins aktualisiert', {
         folderId: currentFolderId,
         itemCount: refreshedItems.length,
-        triggerValue: shadowTwinAnalysisTriggerRef.current
+        triggerValue: shadowTwinAnalysisTrigger + 1
       });
       
       toast.success('Dateiliste und Shadow-Twins aktualisiert');
@@ -961,7 +1002,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     } finally {
       setIsRefreshing(false);
     }
-  }, [currentFolderId, refreshItems, setFolderItems]);
+  }, [currentFolderId, refreshItems, setFolderItems, setShadowTwinAnalysisTrigger, shadowTwinAnalysisTrigger]);
 
   // Globales Ordner-Refresh-Ereignis (z. B. nach Shadow‑Twin Speicherung)
   React.useEffect(() => {
@@ -996,14 +1037,14 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
               currentParentId
             })
             // Erhöhe den Trigger-Wert, um eine erzwungene Neu-Analyse auszulösen
-            shadowTwinAnalysisTriggerRef.current += 1
+            setShadowTwinAnalysisTrigger((v) => v + 1)
           }
         }
       } catch {}
     };
     window.addEventListener('library_refresh', onRefresh as unknown as EventListener);
     return () => window.removeEventListener('library_refresh', onRefresh as unknown as EventListener);
-  }, [items, handleRefresh, currentFolderId]);
+  }, [items, handleRefresh, currentFolderId, setShadowTwinAnalysisTrigger]);
 
   const handleCreateTranscript = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import type { TemplateCreationConfig, TemplateMetadataSchema, TemplateMetadataField } from '@/lib/templates/template-types'
+import type { TemplateCreationConfig, TemplateMetadataSchema, TemplateMetadataField, TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { buildCreationFileName } from '@/lib/creation/file-name'
 import { injectCreationIntoFrontmatter } from '@/lib/templates/template-frontmatter-utils'
 // Input entfällt nach UI-Verschlankung
@@ -28,6 +28,14 @@ export interface StructuredTemplateEditorProps {
   metadata: TemplateMetadataSchema
   systemprompt: string
   creation?: TemplateCreationConfig | null
+  /**
+   * Optional: Liste existierender Templates (aus MongoDB),
+   * damit wir in Designer-UI nur gültige Template-IDs anbieten.
+   */
+  availableTemplates?: Array<{
+    name: string
+    creation?: TemplateCreationConfig | null
+  }>
   onChange: (next: { markdownBody: string; metadata: TemplateMetadataSchema; systemprompt: string; creation?: TemplateCreationConfig | null }) => void
   magicMode?: boolean
   magicValues?: { body: string; frontmatter: string; system: string }
@@ -36,10 +44,10 @@ export interface StructuredTemplateEditorProps {
 
 // LineKind nicht mehr verwendet
 
-export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt, creation, onChange, magicMode, magicValues, onMagicChange }: StructuredTemplateEditorProps) {
+export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt, creation, availableTemplates, onChange, magicMode, magicValues, onMagicChange }: StructuredTemplateEditorProps) {
   const lines = React.useMemo(() => (typeof markdownBody === 'string' ? markdownBody.split('\n') : []), [markdownBody])
   const [sysPrompt, setSysPrompt] = React.useState(systemprompt)
-  const [tab, setTab] = React.useState<'body'|'frontmatter'|'system'|'creation'>('body')
+  const [tab, setTab] = React.useState<'body'|'frontmatter'|'system'|'creation'|'detail-view'>('body')
   const [sysEditing, setSysEditing] = React.useState(false)
 
   React.useEffect(() => { setSysPrompt(systemprompt) }, [systemprompt])
@@ -313,11 +321,12 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
   return (
     <div className="space-y-3">
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-5 w-full">
           <TabsTrigger value="frontmatter">Metadaten</TabsTrigger>
           <TabsTrigger value="system">Rollenanweisung</TabsTrigger>
           <TabsTrigger value="body">Struktur</TabsTrigger>
           <TabsTrigger value="creation">Creation Flow</TabsTrigger>
+          <TabsTrigger value="detail-view">Detail-Ansicht</TabsTrigger>
         </TabsList>
 
         <TabsContent value="body">
@@ -512,15 +521,56 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
         <TabsContent value="creation">
           <div className="mb-3 text-xs text-muted-foreground">
             Der Creation Flow steuert, wie Menschen ihre Eingaben Schritt für Schritt liefern.
-            Die eigentliche LLM-Transformation kannst du rechts unter <span className="font-semibold">„Transformation testen“</span> ausprobieren.
+            Die eigentliche LLM-Transformation kannst du rechts unter <span className="font-semibold">&quot;Transformation testen&quot;</span> ausprobieren.
           </div>
           <CreationFlowEditor
             creation={creation || null}
             metadata={metadata}
+            availableTemplates={availableTemplates}
             onChange={(newCreation) => {
               onChange({ markdownBody, metadata, systemprompt: sysPrompt, creation: newCreation })
             }}
           />
+        </TabsContent>
+
+        <TabsContent value="detail-view">
+          <div className="mb-3 text-xs text-muted-foreground">
+            Definiere, welche Detail-Ansicht für transformierte Dokumente verwendet werden soll.
+            Diese Einstellung wird im Frontmatter der transformierten Dokumente gespeichert.
+          </div>
+          <div className="space-y-2">
+            <Label>Detail-View-Type</Label>
+            <Select
+              value={metadata.detailViewType || 'book'}
+              onValueChange={(value: TemplatePreviewDetailViewType) => {
+                onChange({
+                  markdownBody,
+                  metadata: {
+                    ...metadata,
+                    detailViewType: value,
+                  },
+                  systemprompt: sysPrompt,
+                  creation,
+                })
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Detail-View-Type auswählen" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="book">Book</SelectItem>
+                <SelectItem value="session">Session</SelectItem>
+                <SelectItem value="testimonial">Testimonial</SelectItem>
+                <SelectItem value="blog">Blog</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-xs text-muted-foreground">
+              <p className="mb-1">• <strong>Book:</strong> Klassische Dokumentansicht mit Kapiteln</p>
+              <p className="mb-1">• <strong>Session:</strong> Event/Talk/Session Detail-Ansicht</p>
+              <p className="mb-1">• <strong>Testimonial:</strong> Testimonial-Ansicht</p>
+              <p>• <strong>Blog:</strong> Blog-Ansicht</p>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -534,10 +584,12 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
 function CreationFlowEditor({
   creation,
   metadata,
+  availableTemplates,
   onChange
 }: {
   creation: TemplateCreationConfig | null
   metadata: TemplateMetadataSchema
+  availableTemplates?: Array<{ name: string; creation?: TemplateCreationConfig | null }>
   onChange: (creation: TemplateCreationConfig | null) => void
 }) {
   const [localCreation, setLocalCreation] = React.useState<TemplateCreationConfig | null>(
@@ -549,8 +601,108 @@ function CreationFlowEditor({
 
   const [selectedSourceId, setSelectedSourceId] = React.useState<string | null>(null)
   const [selectedStepId, setSelectedStepId] = React.useState<string | null>(null)
-  const [showSourceDetails, setShowSourceDetails] = React.useState(true)
   const [showStepDetails, setShowStepDetails] = React.useState(true)
+
+  // --- Import/Export nur für den creation-Block (Flow), unabhängig vom restlichen Template ---
+  const flowFileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const [isFlowImportOpen, setIsFlowImportOpen] = React.useState(false)
+  const [flowImportJson, setFlowImportJson] = React.useState('')
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value)
+  }
+
+  function isStringArray(value: unknown): value is string[] {
+    return Array.isArray(value) && value.every((v) => typeof v === 'string')
+  }
+
+  function isSupportedSource(value: unknown): value is { id: string; type: string; label: string; helpText?: string } {
+    if (!isRecord(value)) return false
+    if (typeof value.id !== 'string') return false
+    if (typeof value.type !== 'string') return false
+    if (typeof value.label !== 'string') return false
+    if (value.helpText !== undefined && typeof value.helpText !== 'string') return false
+    return true
+  }
+
+  function isFlowStep(value: unknown): value is { id: string; preset: string; title?: string; description?: string; fields?: string[]; imageFieldKeys?: string[] } {
+    if (!isRecord(value)) return false
+    if (typeof value.id !== 'string') return false
+    if (typeof value.preset !== 'string') return false
+    if (value.title !== undefined && typeof value.title !== 'string') return false
+    if (value.description !== undefined && typeof value.description !== 'string') return false
+    if (value.fields !== undefined && !isStringArray(value.fields)) return false
+    if (value.imageFieldKeys !== undefined && !isStringArray(value.imageFieldKeys)) return false
+    return true
+  }
+
+  function isTemplateCreationConfig(value: unknown): value is TemplateCreationConfig {
+    if (!isRecord(value)) return false
+    if (!Array.isArray(value.supportedSources) || !value.supportedSources.every(isSupportedSource)) return false
+    if (!isRecord(value.flow)) return false
+    if (!Array.isArray(value.flow.steps) || !value.flow.steps.every(isFlowStep)) return false
+    if (value.followWizards !== undefined) {
+      if (!isRecord(value.followWizards)) return false
+      const fw = value.followWizards as Record<string, unknown>
+      if (fw.testimonialTemplateId !== undefined && typeof fw.testimonialTemplateId !== 'string') return false
+      if (fw.finalizeTemplateId !== undefined && typeof fw.finalizeTemplateId !== 'string') return false
+      if (fw.publishTemplateId !== undefined && typeof fw.publishTemplateId !== 'string') return false
+    }
+    // Optional blocks: preview/output/ui/welcome
+    if (value.preview !== undefined) {
+      if (!isRecord(value.preview)) return false
+      if (value.preview.detailViewType !== undefined && typeof value.preview.detailViewType !== 'string') return false
+    }
+    if (value.output !== undefined && !isRecord(value.output)) return false
+    if (value.ui !== undefined && !isRecord(value.ui)) return false
+    if (value.welcome !== undefined && !isRecord(value.welcome)) return false
+    return true
+  }
+
+  function downloadJsonFile(args: { filename: string; data: unknown }): void {
+    const content = JSON.stringify(args.data, null, 2)
+    const blob = new Blob([content], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = args.filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  function applyImportedFlow(value: unknown): void {
+    if (value === null) {
+      setLocalCreation(null)
+      onChange(null)
+      return
+    }
+    if (!isTemplateCreationConfig(value)) {
+      throw new Error('Ungültiges JSON: Erwartet TemplateCreationConfig (supportedSources[], flow.steps[]).')
+    }
+    setLocalCreation(value)
+    onChange(value)
+  }
+
+  function exportFlow(): void {
+    downloadJsonFile({ filename: 'creation-flow.json', data: localCreation ?? null })
+  }
+
+  function importFlowFromTextarea(): void {
+    const raw = flowImportJson.trim()
+    // Leer bedeutet: Flow entfernen
+    if (!raw) {
+      applyImportedFlow(null)
+      setIsFlowImportOpen(false)
+      setFlowImportJson('')
+      return
+    }
+    const parsed = JSON.parse(raw) as unknown
+    applyImportedFlow(parsed)
+    setIsFlowImportOpen(false)
+    setFlowImportJson('')
+  }
 
   React.useEffect(() => {
     // Aktualisiere localCreation immer, auch wenn creation null ist
@@ -606,6 +758,27 @@ function CreationFlowEditor({
   const selectedSource = sources.find(s => s.id === selectedSourceId)
   const selectedStep = steps.find(s => s.id === selectedStepId)
 
+  const creationTemplateOptions = React.useMemo(() => {
+    const list = Array.isArray(availableTemplates) ? availableTemplates : []
+    return list
+      .filter(t => typeof t.name === 'string' && t.name.trim().length > 0)
+      .filter(t => !!t.creation && typeof t.creation === 'object')
+      .map(t => {
+        const label = (t.creation?.ui?.displayName || t.name).trim()
+        return { id: t.name, label }
+      })
+  }, [availableTemplates])
+
+  function updateFollowWizards(updates: Partial<NonNullable<TemplateCreationConfig['followWizards']>>) {
+    updateCreation((c) => ({
+      ...c,
+      followWizards: {
+        ...(c.followWizards || {}),
+        ...updates,
+      },
+    }))
+  }
+
   const SOURCE_TYPE_ICONS = {
     spoken: Mic,
     url: LinkIcon,
@@ -654,7 +827,7 @@ function CreationFlowEditor({
       flow: {
         steps: [
           ...c.flow.steps,
-          { id: newId, preset: 'chooseSource' }
+          { id: newId, preset: 'collectSource' }
         ]
       }
     }))
@@ -728,7 +901,7 @@ function CreationFlowEditor({
     setDraggedStepIndex(null)
   }
 
-  const availablePresets = ['welcome', 'briefing', 'chooseSource', 'collectSource', 'generateDraft', 'previewDetail', 'editDraft', 'uploadImages', 'selectRelatedTestimonials']
+  const availablePresets = ['welcome', 'collectSource', 'reviewMarkdown', 'generateDraft', 'previewDetail', 'publish', 'editDraft', 'uploadImages', 'selectRelatedTestimonials']
   
   // Verfügbare Feldnamen aus Metadaten extrahieren
   const availableFieldKeys = metadata.fields.map(f => f.key)
@@ -766,16 +939,6 @@ function CreationFlowEditor({
     }))
   }
 
-  const updatePreviewConfig = (updates: Partial<NonNullable<TemplateCreationConfig['preview']>>) => {
-    updateCreation((c) => ({
-      ...c,
-      preview: {
-        detailViewType: c.preview?.detailViewType || 'session',
-        ...updates,
-      },
-    }))
-  }
-
   const updateOutputFileNameConfig = (updates: Partial<NonNullable<NonNullable<TemplateCreationConfig['output']>['fileName']>>) => {
     updateCreation((c) => ({
       ...c,
@@ -785,6 +948,16 @@ function CreationFlowEditor({
           ...c.output?.fileName,
           ...updates,
         },
+      },
+    }))
+  }
+
+  const updateOutputCreateInOwnFolder = (createInOwnFolder: boolean) => {
+    updateCreation((c) => ({
+      ...c,
+      output: {
+        ...c.output,
+        createInOwnFolder,
       },
     }))
   }
@@ -839,6 +1012,94 @@ function CreationFlowEditor({
 
   return (
     <div className="space-y-8">
+      {/* Flow Import/Export (nur creation-Block) */}
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="font-semibold">Creation Flow – Import/Export</div>
+          <div className="ml-auto flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={exportFlow}>
+              Export (.json)
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => flowFileInputRef.current?.click()}
+            >
+              Import (Datei)
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFlowImportOpen((v) => !v)}
+            >
+              Import (JSON)
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Diese Tools betreffen nur <code className="font-mono">creation</code>. In MongoDB gespeichert wird erst nach Klick auf „Speichern“ im Template‑Management.
+        </p>
+
+        <input
+          ref={flowFileInputRef}
+          type="file"
+          accept="application/json"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.currentTarget.files?.[0]
+            // Reset sofort, damit derselbe File erneut gewählt werden kann
+            e.currentTarget.value = ''
+            if (!file) return
+            try {
+              const text = await file.text()
+              const parsed = JSON.parse(text) as unknown
+              applyImportedFlow(parsed)
+            } catch (err) {
+              alert(`Import fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`)
+            }
+          }}
+        />
+
+        {isFlowImportOpen ? (
+          <div className="mt-3 space-y-2">
+            <Textarea
+              value={flowImportJson}
+              onChange={(e) => setFlowImportJson(e.target.value)}
+              placeholder='JSON für TemplateCreationConfig einfügen (oder leer lassen, um creation zu entfernen)'
+              className="min-h-[140px]"
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  try {
+                    importFlowFromTextarea()
+                  } catch (err) {
+                    alert(`Import fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`)
+                  }
+                }}
+              >
+                Importieren
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsFlowImportOpen(false)
+                  setFlowImportJson('')
+                }}
+              >
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Card>
+
       {/* UI-Metadaten Section */}
       <div>
         <div className="mb-4">
@@ -1003,6 +1264,25 @@ function CreationFlowEditor({
             </div>
           ) : null}
 
+          <div className="flex items-center gap-2 pt-2 border-t">
+            <Checkbox
+              checked={localCreation?.output?.createInOwnFolder === true}
+              onCheckedChange={(checked) =>
+                updateOutputCreateInOwnFolder(checked === true)
+              }
+              id="create-in-own-folder"
+            />
+            <Label htmlFor="create-in-own-folder" className="text-sm">
+              In eigenem Ordner speichern (Container-Modus)
+            </Label>
+          </div>
+          {localCreation?.output?.createInOwnFolder && (
+            <div className="text-xs text-muted-foreground pl-6">
+              Die Source-Datei wird in einem eigenen Ordner gespeichert (z.B. <span className="font-mono">mein-event/mein-event.md</span>).
+              Ermöglicht Child-Flows (z.B. Testimonials) im selben Ordner.
+            </div>
+          )}
+
           <div className="text-xs text-muted-foreground">
             Beispiel:{" "}
             <span className="font-mono">
@@ -1020,145 +1300,79 @@ function CreationFlowEditor({
         </Card>
       </div>
 
-      {/* Input-Quellen Section */}
+      {/* Folge-Wizards (Preset-Orchestrierung) */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">Unterstützte Input-Quellen</h3>
-            <p className="text-sm text-muted-foreground">Wie können Nutzer Daten eingeben?</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowSourceDetails(!showSourceDetails)}>
-              {showSourceDetails ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={addSource}>
-              <Plus className="w-4 h-4 mr-2" />
-              Quelle hinzufügen
-            </Button>
-          </div>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold">Folge‑Wizards</h3>
+          <p className="text-sm text-muted-foreground">
+            Orchestrierung auf Preset‑Ebene: Welche Wizards werden für Flow B/C verwendet?
+            Diese Auswahl ist Teil des Templates (nicht pro Event).
+          </p>
         </div>
 
-        <div className="grid gap-3" style={{ gridTemplateColumns: showSourceDetails && selectedSource ? "1fr 400px" : "1fr" }}>
-          {/* Kompakte Liste */}
-          <div className="space-y-2">
-            {sources.map((source) => {
-              const Icon = SOURCE_TYPE_ICONS[source.type]
-              const colorClass = SOURCE_TYPE_COLORS[source.type]
-              const isSelected = selectedSourceId === source.id
+        <Card className="p-4 space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                Wizard für Testimonials (Flow B)
+              </label>
+              <Select
+                value={localCreation?.followWizards?.testimonialTemplateId || '__none__'}
+                onValueChange={(value) => updateFollowWizards({ testimonialTemplateId: value === '__none__' ? undefined : value })}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Wizard auswählen…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {creationTemplateOptions
+                    .filter(o => o.id.toLowerCase().includes('testimonial'))
+                    .map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label} <span className="text-xs text-muted-foreground">({opt.id})</span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Es werden nur Templates angeboten, die in Mongo existieren und einen Creation‑Flow haben.
+              </p>
+            </div>
 
-              return (
-                <div
-                  key={source.id}
-                  onClick={() => setSelectedSourceId(source.id)}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/5 shadow-sm"
-                      : "border-border hover:border-primary/50 hover:bg-accent/50"
-                  }`}
-                >
-                  <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-
-                  <div className={`p-2 rounded ${colorClass} flex-shrink-0`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{source.label || source.id}</div>
-                    <div className="text-xs text-muted-foreground truncate">{source.helpText || 'Kein Hilfetext'}</div>
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs text-muted-foreground font-mono">{source.type}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeSourceById(source.id)
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-
-            {sources.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                <p className="text-sm">Noch keine Input-Quellen definiert</p>
-              </div>
-            )}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                Wizard für Finalisieren (Flow C)
+              </label>
+              <Select
+                value={localCreation?.followWizards?.finalizeTemplateId || '__none__'}
+                onValueChange={(value) => updateFollowWizards({ finalizeTemplateId: value === '__none__' ? undefined : value })}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Wizard auswählen…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {creationTemplateOptions
+                    .filter(o => o.id.toLowerCase().includes('finalize') || o.id.toLowerCase().includes('event-finalize'))
+                    .map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label} <span className="text-xs text-muted-foreground">({opt.id})</span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Für Events typischerweise <span className="font-mono">event-finalize-de</span>.
+              </p>
+            </div>
           </div>
 
-          {/* Detail-Panel */}
-          {showSourceDetails && selectedSource && (
-            <Card className="p-4 space-y-4 sticky top-4 h-fit">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Details bearbeiten</h4>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedSourceId(null)}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">ID (technisch)</label>
-                  <Input
-                    value={selectedSource.id}
-                    onChange={(e) => {
-                      const newId = e.target.value
-                      updateSourceById(selectedSource.id, { id: newId })
-                      setSelectedSourceId(newId)
-                    }}
-                    className="text-sm font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Typ</label>
-                  <Select
-                    value={selectedSource.type}
-                    onValueChange={(value) => updateSourceById(selectedSource.id, { type: value as TemplateCreationConfig['supportedSources'][0]['type'] })}
-                  >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="text">Text (tippen oder diktieren)</SelectItem>
-                      <SelectItem value="url">URL</SelectItem>
-                      <SelectItem value="file">Datei</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                    Label (Nutzer sieht dies)
-                  </label>
-                  <Input
-                    value={selectedSource.label}
-                    onChange={(e) => updateSourceById(selectedSource.id, { label: e.target.value })}
-                    placeholder="z.B. Ich erzähle kurz..."
-                    className="text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Hilfetext</label>
-                  <Textarea
-                    value={selectedSource.helpText || ''}
-                    onChange={(e) => updateSourceById(selectedSource.id, { helpText: e.target.value })}
-                    placeholder="Erkläre, wie diese Quelle funktioniert..."
-                    rows={3}
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-            </Card>
-          )}
-        </div>
+          {creationTemplateOptions.length === 0 ? (
+            <div className="text-xs text-muted-foreground">
+              Hinweis: Keine Creation‑Templates gefunden. Bitte zuerst Templates importieren/erstellen.
+            </div>
+          ) : null}
+        </Card>
       </div>
 
       {/* Flow Steps Section */}
@@ -1301,6 +1515,142 @@ function CreationFlowEditor({
                   />
                 </div>
 
+                {/* Quellen-Verwaltung für collectSource Step */}
+                {selectedStep.preset === 'collectSource' && (
+                  <div className="space-y-3 pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                          Unterstützte Quellen
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          Welche Quellen können Nutzer in diesem Step auswählen?
+                        </p>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={addSource}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Quelle hinzufügen
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {sources.map((source) => {
+                        const Icon = SOURCE_TYPE_ICONS[source.type]
+                        const colorClass = SOURCE_TYPE_COLORS[source.type]
+                        const isSelected = selectedSourceId === source.id
+
+                        return (
+                          <div
+                            key={source.id}
+                            onClick={() => setSelectedSourceId(isSelected ? null : source.id)}
+                            className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                              isSelected
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-primary/50"
+                            }`}
+                          >
+                            <div className={`p-1.5 rounded ${colorClass} flex-shrink-0`}>
+                              <Icon className="w-3.5 h-3.5" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-xs">{source.label || source.id}</div>
+                              <div className="text-xs text-muted-foreground truncate">{source.helpText || 'Kein Hilfetext'}</div>
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-xs text-muted-foreground font-mono">{source.type}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeSourceById(source.id)
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {sources.length === 0 && (
+                        <div className="text-center py-4 text-muted-foreground text-xs">
+                          <p>Noch keine Quellen definiert</p>
+                          <p className="mt-1">Klicke auf &quot;Quelle hinzufügen&quot; um zu beginnen</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Quelle Details (expandiert wenn ausgewählt) */}
+                    {selectedSource && (
+                      <div className="space-y-3 pt-2 border-t">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-xs font-semibold">Quelle bearbeiten</h5>
+                          <Button variant="ghost" size="sm" className="h-6" onClick={() => setSelectedSourceId(null)}>
+                            <ChevronRight className="w-3 h-3" />
+                          </Button>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Quelle ID</label>
+                            <Input
+                              value={selectedSource.id}
+                              onChange={(e) => {
+                                const newId = e.target.value
+                                updateSourceById(selectedSource.id, { id: newId })
+                                setSelectedSourceId(newId)
+                              }}
+                              className="text-xs font-mono h-8"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Typ</label>
+                            <Select
+                              value={selectedSource.type}
+                              onValueChange={(value) => updateSourceById(selectedSource.id, { type: value as TemplateCreationConfig['supportedSources'][0]['type'] })}
+                            >
+                              <SelectTrigger className="text-xs h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="text">Text (tippen oder diktieren)</SelectItem>
+                                <SelectItem value="url">URL</SelectItem>
+                                <SelectItem value="file">Datei</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Label</label>
+                            <Input
+                              value={selectedSource.label}
+                              onChange={(e) => updateSourceById(selectedSource.id, { label: e.target.value })}
+                              placeholder="z.B. Text (tippen oder diktieren)"
+                              className="text-xs h-8"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Hilfetext (optional)</label>
+                            <Textarea
+                              value={selectedSource.helpText || ''}
+                              onChange={(e) => updateSourceById(selectedSource.id, { helpText: e.target.value || undefined })}
+                              placeholder="Beschreibe, was der Nutzer hier tun kann..."
+                              rows={2}
+                              className="text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {selectedStep.preset === 'welcome' && (
                   <div className="space-y-3 pt-2 border-t">
                     <div>
@@ -1346,34 +1696,14 @@ function CreationFlowEditor({
                   </div>
                 )}
 
-                {selectedStep.preset === 'previewDetail' && (
+                {selectedStep.preset === 'previewDetail' ? (
                   <div className="space-y-2 pt-2 border-t">
-                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                      Detailansicht‑Typ
-                    </label>
-                    <Select
-                      value={localCreation?.preview?.detailViewType || 'session'}
-                      onValueChange={(value) => {
-                        // Validiere, dass value ein gültiger TemplatePreviewDetailViewType ist
-                        if (value === 'book' || value === 'session' || value === 'testimonial') {
-                          updatePreviewConfig({ detailViewType: value as 'book' | 'session' | 'testimonial' })
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="session">Event/Session (Detailseite)</SelectItem>
-                        <SelectItem value="book">Buch/Dokument (Detailseite)</SelectItem>
-                        <SelectItem value="testimonial">Testimonial (Detailseite)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Diese Einstellung wirkt sich auf den Preset‑Step <code className="font-mono">previewDetail</code> im Wizard aus.
-                    </p>
+                    <div className="text-xs text-muted-foreground">
+                      Die Detailansicht wird zentral im Tab <span className="font-semibold">„Detail‑Ansicht“</span> definiert.
+                      Der Preview‑Step übernimmt diese Einstellung automatisch.
+                    </div>
                   </div>
-                )}
+                ) : null}
 
                 {selectedStep.preset === 'editDraft' && (
                   <div className="space-y-4">
@@ -1492,12 +1822,6 @@ function CreationFlowEditor({
                   </div>
                 )}
 
-                {selectedStep.preset === 'briefing' && (
-                  <div className="text-xs text-muted-foreground p-2 border rounded-md bg-muted/50">
-                    Dieser Step zeigt automatisch einen Spickzettel der im <code className="font-mono">editDraft</code>-Step ausgewählten Felder an.
-                    Keine zusätzliche Konfiguration erforderlich.
-                  </div>
-                )}
 
                 {selectedStep.preset === 'welcome' && (
                   <div className="text-xs text-muted-foreground p-2 border rounded-md bg-muted/50">

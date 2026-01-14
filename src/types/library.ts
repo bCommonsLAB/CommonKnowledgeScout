@@ -166,6 +166,12 @@ export interface StorageConfig {
   /** Chat-/RAG-Konfiguration pro Library (öffentlich sichere Inhalte) */
   chat?: LibraryChatConfig;
 
+  /** Shadow-Twin-Modus pro Library */
+  shadowTwin?: {
+    /** Modus: 'legacy' (alte Heuristik) oder 'v2' (neue Namenskonventionen) */
+    mode?: 'legacy' | 'v2';
+  };
+
   /** Creation-Flow-Konfiguration pro Library */
   creation?: {
     /** Liste der verfügbaren Creation-Typen in dieser Library */

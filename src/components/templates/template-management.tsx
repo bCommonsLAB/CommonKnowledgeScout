@@ -1178,6 +1178,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                     metadata={form.watch('metadata')}
                     systemprompt={form.watch('systemprompt')}
                     creation={form.watch('creation')}
+                    availableTemplates={templates.map(t => ({ name: t.name, creation: t.creation || null }))}
                     magicMode={magicMode}
                     magicValues={{ body: magicBody, frontmatter: magicFrontmatter, system: magicSystem }}
                     onMagicChange={(next) => {
@@ -1193,6 +1194,7 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
                       // Erstelle eine Deep-Copy, damit React Hook Form die Änderung als "dirty" erkennt
                       const creationValue = creation ? {
                         ...creation,
+                        followWizards: creation.followWizards ? { ...creation.followWizards } : undefined,
                         supportedSources: creation.supportedSources ? [...creation.supportedSources] : [],
                         flow: creation.flow ? {
                           ...creation.flow,

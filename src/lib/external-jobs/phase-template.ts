@@ -18,12 +18,14 @@ import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
 import { runTemplateTransform } from '@/lib/external-jobs/template-run'
 import { analyzeAndMergeChapters } from '@/lib/external-jobs/chapters'
 import { saveMarkdown } from '@/lib/external-jobs/storage'
-import { processAllImageSources } from '@/lib/external-jobs/images'
 import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { handleJobError } from '@/lib/external-jobs/error-handler'
 import { FileLogger } from '@/lib/debug/logger'
 import type { LibraryChatConfig } from '@/types/library'
+import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
+import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
 
 export interface TemplatePhaseArgs {
   ctx: RequestContext
@@ -70,21 +72,33 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     bodyMetadata,
     policies,
     autoSkip,
-    imagesPhaseEnabled,
-    pagesArchiveData,
-    pagesArchiveUrl,
-    pagesArchiveFilename,
-    imagesArchiveData,
-    imagesArchiveFilename,
-    imagesArchiveUrl,
-    mistralOcrRaw,
-    hasMistralOcrImages,
-    mistralOcrImagesUrl,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesPhaseEnabled: _imagesPhaseEnabled,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pagesArchiveData: _pagesArchiveData,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pagesArchiveUrl: _pagesArchiveUrl,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pagesArchiveFilename: _pagesArchiveFilename,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesArchiveData: _imagesArchiveData,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesArchiveFilename: _imagesArchiveFilename,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesArchiveUrl: _imagesArchiveUrl,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    mistralOcrRaw: _mistralOcrRaw,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    hasMistralOcrImages: _hasMistralOcrImages,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    mistralOcrImagesUrl: _mistralOcrImagesUrl,
     targetParentId,
     // libraryConfig wird derzeit nicht verwendet
   } = args
 
   const { jobId, job } = ctx
+  const { getShadowTwinMode } = await import('@/lib/shadow-twin/mode-helper')
+  const mode = getShadowTwinMode(undefined)
   
   // Erweitere policies um ingest, falls nicht vorhanden
   const fullPolicies: PhasePolicies = {
@@ -92,6 +106,11 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     ingest: (policies.ingest || 'auto') as string
   }
   let templateStatus: 'completed' | 'failed' | 'skipped' = 'completed'
+  // WICHTIG: savedItemId muss im gesamten Funktions-Scope verfügbar sein (auch vor Skip-Branches),
+  // damit wir im Skip-Fall den globalen Contract erfüllen können:
+  // completed ⇒ result.savedItemId existiert.
+  // (Vorher wurde savedItemId erst später deklariert → TDZ → Setzen wurde geschluckt.)
+  let savedItemId: string | undefined
   let templateSkipped = false
   let templateCompletedMarked = false
 
@@ -153,7 +172,17 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     try {
       const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
       const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-      const uniqueName = `${baseName}.${lang}.md`
+      const sourceItemId = job.correlation?.source?.itemId || 'unknown'
+      const sourceName = job.correlation?.source?.name || `${baseName}.md`
+      const templateNameRaw = (job.parameters as { template?: unknown } | undefined)?.template
+      const templateName = typeof templateNameRaw === 'string' ? templateNameRaw.trim() : ''
+
+      // WICHTIG:
+      // Chapters gehören zur Transformation (nicht zum Transcript).
+      // Wenn ein Template gesetzt ist, prüfen wir daher die Transformationsdatei `{base}.{template}.{lang}.md`.
+      const uniqueName = templateName
+        ? buildArtifactName({ sourceId: sourceItemId, kind: 'transformation', targetLanguage: lang, templateName }, sourceName)
+        : `${baseName}.${lang}.md`
       
       bufferLog(jobId, {
         phase: 'template_check_chapters_before',
@@ -273,9 +302,88 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
    * - Frontmatter aus bodyMetadata übernehmen
    * - Pages aus Markdown-Body rekonstruieren (falls pages fehlt)
    * - Keine Template-Transformation, keine Kapitel-Analyse
+   * - WICHTIG: savedItemId auf bestehende Transformation setzen (für Contract-Erfüllung)
    */
   if (!shouldRunTemplate) {
     bufferLog(jobId, { phase: 'transform_meta_skipped', message: 'Template-Transformation übersprungen (chapters vorhanden)' })
+    
+    try {
+      // WICHTIG: ctx.job kann in diesem Pfad stale sein. Daher Job neu laden.
+      const latestJob = await repo.get(jobId)
+      const transformedRaw = (latestJob?.shadowTwinState as { transformed?: unknown } | undefined)?.transformed as
+        | { id?: unknown; metadata?: { name?: unknown } }
+        | undefined
+      const transformedId = typeof transformedRaw?.id === 'string' ? transformedRaw.id : undefined
+      const transformedName = typeof transformedRaw?.metadata?.name === 'string' ? transformedRaw.metadata.name : undefined
+
+      if (transformedId && transformedId.trim().length > 0) {
+        savedItemId = transformedId
+        bufferLog(jobId, {
+          phase: 'template_skip_saved_item_id',
+          message: 'savedItemId auf ShadowTwin.transformed gesetzt (Template übersprungen)',
+          savedItemId: transformedId,
+          fileName: transformedName,
+        })
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'template',
+            name: 'template_skip_saved_item_id_set',
+            attributes: {
+              savedItemId: transformedId,
+              fileName: transformedName,
+              reason: 'chapters_already_exist',
+              source: 'shadowTwinState.transformed',
+            },
+          })
+        } catch {}
+      } else {
+        // Fallback: versuche, die transformierte Datei über Artifact-Resolver zu finden (z.B. *.pdfanalyse.de.md)
+        const sourceItemId = job.correlation?.source?.itemId || ''
+        const sourceName = job.correlation?.source?.name || ''
+        const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+        const templateName = typeof (job.parameters as { template?: unknown } | undefined)?.template === 'string'
+          ? String((job.parameters as { template: string }).template).trim()
+          : ''
+
+        if (sourceItemId && sourceName && templateName) {
+          const resolved = await resolveArtifact(provider, {
+            sourceItemId,
+            sourceName,
+            parentId: targetParentId,
+            targetLanguage: lang,
+            templateName,
+            preferredKind: 'transformation',
+          })
+          if (resolved?.fileId) {
+            savedItemId = resolved.fileId
+            bufferLog(jobId, {
+              phase: 'template_skip_saved_item_id',
+              message: 'savedItemId über resolveArtifact gefunden (Template übersprungen)',
+              savedItemId: resolved.fileId,
+              fileName: resolved.fileName,
+            })
+          } else {
+            bufferLog(jobId, {
+              phase: 'template_skip_no_existing_file',
+              message: 'Template übersprungen, aber keine Transformation gefunden (shadowTwinState.transformed + resolveArtifact leer)',
+              targetParentId,
+            })
+          }
+        } else {
+          bufferLog(jobId, {
+            phase: 'template_skip_no_existing_file',
+            message: 'Template übersprungen, aber shadowTwinState.transformed.id fehlt und source/template fehlen für resolveArtifact',
+            targetParentId,
+          })
+        }
+      }
+    } catch (error) {
+      FileLogger.warn('phase-template', 'Fehler beim Setzen von savedItemId bei übersprungenem Template', {
+        jobId,
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
+    
     // Sichtbares Step-/Trace-Update für UI/Monitoring – nur wenn noch KEIN Template-Span existiert
     let hasTemplateSpan = false
     try {
@@ -381,6 +489,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     templateStatus = 'skipped'
     return {
       metadata: skippedMeta,
+      savedItemId,
       status: 'skipped',
       skipped: true,
     }
@@ -396,8 +505,43 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   if (templateAlreadyCompleted && policies.metadata !== 'force') {
     bufferLog(jobId, { phase: 'transform_gate_skip', message: 'already_completed' })
     templateStatus = 'skipped'
+    // WICHTIG:
+    // Duplicate/Retry-Callbacks dürfen den globalen Contract nicht verletzen.
+    // Auch wenn der Step bereits completed ist, liefern wir die bestehende Transformationsdatei zurück,
+    // damit der Caller (Callback-Route) `result.savedItemId` stabil setzen kann.
+    try {
+      const latestJob = await repo.get(jobId)
+      const transformedRaw = (latestJob?.shadowTwinState as { transformed?: unknown } | undefined)?.transformed as
+        | { id?: unknown; metadata?: { name?: unknown } }
+        | undefined
+      const transformedId = typeof transformedRaw?.id === 'string' ? transformedRaw.id : undefined
+      if (transformedId && transformedId.trim().length > 0) {
+        savedItemId = transformedId
+      } else {
+        const sourceItemId = job.correlation?.source?.itemId || ''
+        const sourceName = job.correlation?.source?.name || ''
+        const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+        const templateName = typeof (job.parameters as { template?: unknown } | undefined)?.template === 'string'
+          ? String((job.parameters as { template: string }).template).trim()
+          : ''
+        if (sourceItemId && sourceName && templateName) {
+          const resolved = await resolveArtifact(provider, {
+            sourceItemId,
+            sourceName,
+            parentId: targetParentId,
+            targetLanguage: lang,
+            templateName,
+            preferredKind: 'transformation',
+          })
+          if (resolved?.fileId) savedItemId = resolved.fileId
+        }
+      }
+    } catch {
+      // ignore
+    }
     return {
       metadata: fmFromBody || {},
+      savedItemId,
       status: 'skipped',
       skipped: true,
     }
@@ -670,7 +814,21 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
 
   const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
   const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-  const uniqueName = `${baseName}.${lang}.md`
+  const sourceItemId = job.correlation?.source?.itemId || 'unknown'
+  const sourceName = job.correlation?.source?.name || baseName
+  
+  // WICHTIG: Verwende zentrale buildArtifactName() Logik für Transformationen
+  // Transformation-Format: {baseName}.{templateName}.{language}.md
+  const usedTemplate = picked?.templateName || preferredTemplate || job.parameters?.template as string | undefined
+  const artifactKey: ArtifactKey = {
+    sourceId: sourceItemId,
+    kind: 'transformation',
+    targetLanguage: lang,
+    templateName: usedTemplate, // ERFORDERLICH für Transformationen
+  }
+  
+  // Generiere Dateinamen mit zentraler Logik
+  const uniqueName = buildArtifactName(artifactKey, sourceName)
 
   // SSOT: Flache, UI-taugliche Metafelder ergänzen (nur auf stabilem Meilenstein)
   const baseMeta = bodyMetadata || {}
@@ -683,7 +841,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   }
   // Template-Name im Frontmatter speichern, damit wir beim nächsten Mal prüfen können, ob es geändert wurde
   // Verwende das tatsächlich verwendete Template (picked.templateName) oder das Preferred Template
-  const usedTemplate = picked?.templateName || preferredTemplate || job.parameters?.template as string | undefined
+  // HINWEIS: usedTemplate wurde bereits oben deklariert (Zeile 683)
   if (usedTemplate) {
     ssotFlat['template'] = usedTemplate
   }
@@ -694,18 +852,27 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
 
   // Kapitel zentral normalisieren (Analyze-Endpoint), Ergebnis in Frontmatter mergen
   // Bestehendes Frontmatter laden (falls Datei existiert) und als Basis verwenden
-  // WICHTIG: Wir laden die transformierte Datei mit Sprachkürzel (z.B. Livique_Sørensen.de.md),
+  // WICHTIG: Wir laden die transformierte Datei mit Template-Namen und Sprachkürzel (z.B. Livique_Sørensen.Besprechung.de.md),
   // NICHT die OCR-generierte Datei ohne Frontmatter (z.B. Livique_Sørensen.md)
   let existingMeta: Record<string, unknown> | null = null
   let existingFileId: string | undefined = undefined
   let existingFileName: string | undefined = undefined
   try {
-    const siblings = await provider.listItemsById(targetParentId)
-    const existing = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === uniqueName) as { id: string; metadata: { name: string } } | undefined
-    if (existing) {
-      existingFileId = existing.id
-      existingFileName = existing.metadata.name
-      const bin = await provider.getBinary(existing.id)
+    // Verwende zentrale resolveArtifact() Logik für konsistente Suche
+    // Suche nach bestehender Transformation mit zentraler Logik
+    const resolved = await resolveArtifact(provider, {
+      sourceItemId,
+      sourceName,
+      parentId: targetParentId,
+      targetLanguage: lang,
+      templateName: usedTemplate,
+      preferredKind: 'transformation',
+    })
+    
+    if (resolved) {
+      existingFileId = resolved.fileId
+      existingFileName = resolved.fileName
+      const bin = await provider.getBinary(resolved.fileId)
       const text = await bin.blob.text()
       const parsed = parseSecretaryMarkdownStrict(text)
       existingMeta = parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta) ? parsed.meta as Record<string, unknown> : null
@@ -717,7 +884,9 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
         fileName: existingFileName,
         hasFrontmatter: !!existingMeta,
         frontmatterKeys: existingMeta ? Object.keys(existingMeta).length : 0,
-        hasChapters: Array.isArray(existingMeta?.chapters) && (existingMeta.chapters as Array<unknown>).length > 0
+        hasChapters: Array.isArray(existingMeta?.chapters) && (existingMeta.chapters as Array<unknown>).length > 0,
+        location: resolved.location,
+        mode
       })
       try {
         await repo.traceAddEvent(jobId, {
@@ -728,7 +897,9 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
             fileName: existingFileName,
             hasFrontmatter: !!existingMeta,
             frontmatterKeys: existingMeta ? Object.keys(existingMeta).length : 0,
-            hasChapters: Array.isArray(existingMeta?.chapters) && (existingMeta.chapters as Array<unknown>).length > 0
+            hasChapters: Array.isArray(existingMeta?.chapters) && (existingMeta.chapters as Array<unknown>).length > 0,
+            location: resolved.location,
+            mode
           }
         })
       } catch {}
@@ -737,7 +908,8 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
         phase: 'template_load_existing',
         message: `Keine bestehende transformierte Markdown-Datei gefunden: ${uniqueName}`,
         searchedFileName: uniqueName,
-        targetParentId
+        targetParentId,
+        mode
       })
     }
   } catch (error) {
@@ -966,13 +1138,14 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     }
   } catch { /* ignore */ }
 
-  let savedItemId: string | undefined
-
   // Doppelte Frontmatter vermeiden: bestehenden Block am Anfang entfernen (auch mehrfach)
   if (!templateSkipped) {
-    const bodyOnly = stripAllFrontmatter(textSource)
+    const transcriptBody = stripAllFrontmatter(textSource)
+    const metaForFrontmatter = omitTranscriptFromFrontmatter(mergedMeta)
+    const transformedBody = buildTemplateBodyFromMeta(metaForFrontmatter)
+    const bodyOnly = transformedBody || transcriptBody
     const { createMarkdownWithFrontmatter } = await import('@/lib/markdown/compose')
-    const markdown = createMarkdownWithFrontmatter(bodyOnly, mergedMeta)
+    const markdown = createMarkdownWithFrontmatter(bodyOnly, metaForFrontmatter)
     // Zielordner prüfen
     try {
       await provider.getPathById(targetParentId)
@@ -999,9 +1172,16 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       }
     }
     // Speichern via Modul
-    // WICHTIG: Wir speichern die transformierte Datei mit Sprachkürzel (z.B. Livique_Sørensen.de.md)
+    // WICHTIG: Wir speichern die transformierte Datei mit Template-Namen und Sprachkürzel (z.B. Livique_Sørensen.Besprechung.de.md)
     // Diese Datei enthält Frontmatter und wird im Shadow-Twin-Verzeichnis gespeichert
-    const saved = await saveMarkdown({ ctx, parentId: targetParentId, fileName: uniqueName, markdown })
+    // Verwende expliziten ArtifactKey für zentrale Logik
+    const saved = await saveMarkdown({ 
+      ctx, 
+      parentId: targetParentId, 
+      fileName: uniqueName, 
+      markdown,
+      artifactKey, // Expliziter ArtifactKey für Transformation
+    })
     savedItemId = saved.savedItemId
     bufferLog(jobId, {
       phase: 'template_save',
@@ -1025,7 +1205,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
         }
       })
     } catch {}
-    await repo.appendMeta(jobId, mergedMeta, 'template_transform')
+    await repo.appendMeta(jobId, metaForFrontmatter, 'template_transform')
   }
 
   // Final: Template zuverlässig abschließen (keine Hänger)
@@ -1046,37 +1226,9 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_completed' }) } catch {}
   }
 
-  // Bilder-ZIP optional verarbeiten (modular)
-  // Unterstützt alle Quellen: pages_archive_data, images_archive_data, mistral_ocr_raw, images_archive_url
-  if (imagesPhaseEnabled) {
-    try {
-      // Verwende Shadow-Twin-State aus Job-Dokument (beim Job-Start berechnet)
-      const shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
-
-      await processAllImageSources(ctx, provider, {
-        pagesArchiveData,
-        pagesArchiveUrl,
-        pagesArchiveFilename,
-        imagesArchiveData,
-        imagesArchiveFilename,
-        imagesArchiveUrl,
-        mistralOcrRaw,
-        hasMistralOcrImages: hasMistralOcrImages ?? false,
-        mistralOcrImagesUrl,
-        extractedText,
-        lang,
-        targetParentId,
-        imagesPhaseEnabled,
-        shadowTwinFolderId, // Verwende State aus Job-Dokument
-      })
-    } catch (err) {
-      FileLogger.error('phase-template', 'Fehler bei Bild-Verarbeitung', {
-        jobId,
-        error: err instanceof Error ? err.message : String(err),
-      })
-      // Bild-Verarbeitung ist nicht kritisch, daher nicht fatal
-    }
-  }
+  // WICHTIG: Bilder-Verarbeitung wurde in Phase 1 (Extract) verschoben
+  // Die Bilder werden beim Extract erstellt und sollten dort auch gespeichert werden
+  // Daher wird die Bild-Verarbeitung hier nicht mehr durchgeführt
 
   return {
     metadata: mergedMeta,
@@ -1084,6 +1236,42 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     status: templateStatus,
     skipped: templateSkipped,
   }
+}
+
+function omitTranscriptFromFrontmatter(meta: Record<string, unknown>): Record<string, unknown> {
+  // WICHTIG:
+  // Das Transkript existiert bereits als eigenes Artefakt (`*.de.md`).
+  // In der Transformationsdatei (`*.{template}.de.md`) erzeugt ein zusätzliches `transcript` Feld
+  // nur Duplikate (und wirkt so, als wäre der Body nicht transformiert).
+  const next: Record<string, unknown> = { ...meta }
+  delete next['transcript']
+  return next
+}
+
+function buildTemplateBodyFromMeta(meta: Record<string, unknown>): string {
+  function getString(key: string): string {
+    const v = meta[key]
+    if (typeof v === 'string') return v.trim()
+    if (Array.isArray(v)) {
+      const parts = v.map(x => (typeof x === 'string' ? x.trim() : '')).filter(s => s.length > 0)
+      return parts.join('\n')
+    }
+    return ''
+  }
+
+  const title = getString('title')
+  const summary = getString('summary')
+  const messages = getString('messages')
+  // historischer Tippfehler: `nexsSteps`
+  const nextSteps = getString('nextSteps') || getString('nexsSteps')
+
+  const blocks: string[] = []
+  if (title) blocks.push(`# ${title}`)
+  if (summary) blocks.push(`## Zusammenfassung\n${summary}`)
+  if (messages) blocks.push(`## Inhalte\n${messages}`)
+  if (nextSteps) blocks.push(`## Nächste Schritte\n${nextSteps}`)
+
+  return blocks.join('\n\n').trim()
 }
 
 

@@ -37,8 +37,6 @@ import { preprocessorTransformTemplate } from '@/lib/external-jobs/preprocessor-
 import { setJobCompleted } from '@/lib/external-jobs/complete'
 import { isInternalAuthorized } from '@/lib/external-jobs/auth'
 import { FileLogger } from '@/lib/debug/logger'
-import { adoptLegacyMarkdownToShadowTwin } from '@/lib/external-jobs/legacy-markdown-adoption'
-import { cleanupLegacyMarkdownAfterTemplate } from '@/lib/external-jobs/legacy-markdown-cleanup'
 import { checkJobStartability } from '@/lib/external-jobs/job-status-check'
 import { prepareSecretaryRequest } from '@/lib/external-jobs/secretary-request'
 import { tracePreprocessEvents } from '@/lib/external-jobs/trace-helpers'
@@ -111,6 +109,12 @@ function deriveExtractGateFromShadowTwinState(
   }
 }
 
+function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' {
+  if (jobType === 'audio') return 'extract_audio'
+  if (jobType === 'video') return 'extract_video'
+  return 'extract_pdf'
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
@@ -161,11 +165,34 @@ export async function POST(
       })
       // Watchdog-Fehler nicht kritisch - Job kann trotzdem fortgesetzt werden
     }
-    // Prüfe, ob Job gestartet werden kann
+    // Duplicate-Detection (nur Logging, kein Blockieren):
+    // Wir wollen doppelte /start Requests erkennen und Ursachen finden, statt hart zu blockieren.
     const startability = checkJobStartability(job)
+    const startRequestId = request.headers.get('x-start-request-id') || request.headers.get('x-request-id') || null
+    const workerIdFromHeader = request.headers.get('x-worker-id') || null
     if (!startability.canStart) {
-      try { await repo.traceAddEvent(jobId, { spanId: 'job', name: 'start_already_started' }) } catch {}
-      return NextResponse.json({ ok: true, status: 'already_started' }, { status: 202 })
+      FileLogger.warn('start-route', 'Start-Request erneut erhalten (nicht blockiert)', {
+        jobId,
+        reason: startability.reason || 'already_started',
+        jobStatus: job.status,
+        workerId: workerIdFromHeader,
+        startRequestId,
+        pid: process.pid,
+      })
+      try {
+        await repo.traceAddEvent(jobId, {
+          spanId: 'job',
+          name: 'start_duplicate_request',
+          level: 'warn',
+          attributes: {
+            reason: startability.reason || 'already_started',
+            jobStatus: job.status,
+            workerId: workerIdFromHeader,
+            startRequestId,
+            pid: process.pid,
+          },
+        })
+      } catch {}
     }
     
     // Erlaube Neustart, wenn Job fehlgeschlagen ist
@@ -421,10 +448,15 @@ export async function POST(
       }
     }
 
+    const extractStepName = getExtractStepName(job.job_type)
+
     // Phasen-spezifische Preprozessoren aufrufen (bauen auf derselben Storage/Library-Logik auf)
+    // WICHTIG: Die Preprozessoren sind aktuell PDF-spezifisch (findPdfMarkdown).
+    // Für Audio/Video laufen die Entscheidungen primär über Gate + ShadowTwinState.
     const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
     let preExtractResult: Awaited<ReturnType<typeof preprocessorPdfExtract>> | null = null
     let preTemplateResult: Awaited<ReturnType<typeof preprocessorTransformTemplate>> | null = null
+    if (job.job_type === 'pdf') {
     try {
       preExtractResult = await preprocessorPdfExtract(ctxPre)
     } catch (error) {
@@ -440,6 +472,7 @@ export async function POST(
         jobId,
         error: error instanceof Error ? error.message : String(error),
       })
+      }
     }
 
     // Trace-Events für Preprocess aus Template-Preprozessor ableiten (für Validatoren/Debugging)
@@ -453,7 +486,7 @@ export async function POST(
     const callbackUrl = `${appUrl.replace(/\/$/, '')}/api/external/jobs/${jobId}`
     try {
       await repo.initializeSteps(jobId, [
-        { name: 'extract_pdf', status: 'pending' },
+        { name: extractStepName, status: 'pending' },
         { name: 'transform_template', status: 'pending' },
         { name: 'ingest_rag', status: 'pending' },
       ], job.parameters)
@@ -466,7 +499,7 @@ export async function POST(
       return NextResponse.json({ error: 'Fehler beim Initialisieren der Steps' }, { status: 500 })
     }
     // Status wird erst nach erfolgreichem Request gesetzt (siehe Zeile 477)
-    await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: 'process_pdf_submit', attributes: {
+    await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: job.job_type === 'pdf' ? 'process_pdf_submit' : 'process_submit', attributes: {
       libraryId: job.libraryId,
       fileName: filename,
       extractionMethod: opts['extractionMethod'] ?? job.correlation?.options?.extractionMethod ?? undefined,
@@ -477,6 +510,11 @@ export async function POST(
       useCache: opts['useCache'] ?? job.correlation?.options?.useCache ?? undefined,
       template: (job.parameters as Record<string, unknown> | undefined)?.['template'] ?? undefined,
       phases: (job.parameters as Record<string, unknown> | undefined)?.['phases'] ?? undefined,
+      // Duplicate-Diagnose:
+      startRequestId: request.headers.get('x-start-request-id') || request.headers.get('x-request-id') || undefined,
+      workerId: request.headers.get('x-worker-id') || undefined,
+      workerTickId: request.headers.get('x-worker-tick-id') || undefined,
+      pid: process.pid,
     } })
 
     // Entscheidungslogik: Gate-basierte Prüfung für Extract-Phase
@@ -587,18 +625,11 @@ export async function POST(
     
     // Wenn Template nicht ausgeführt werden soll, aber Phase enabled ist, Step als skipped markieren
     // Dies passiert, wenn der Template-Preprozessor needTemplate === false liefert (Frontmatter valide)
-    // **WICHTIG**: Wenn Legacy-Datei im PDF-Ordner existiert und Frontmatter valide ist,
-    // muss sie in den Shadow-Twin-Folder übernommen werden (TC-2.5 Reparatur-Szenario)
     let templateSkipReason: string | undefined = undefined
     if (templateEnabled && !runTemplate) {
-      // Legacy-Datei-Übernahme: Wenn Frontmatter valide ist, Legacy-Datei in Shadow-Twin verschieben
-      const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
-      const legacyAdopted = await adoptLegacyMarkdownToShadowTwin(ctxPre, preTemplateResult, provider, repo)
-      
-      // Step-Reason basierend auf Legacy-Adoption setzen
-      templateSkipReason = legacyAdopted && preTemplateResult?.markdownFileId
-        ? 'legacy_markdown_adopted'
-        : 'preprocess_frontmatter_valid'
+      // v2-only: Keine Legacy-Adoption/Reparatur in Phase A.
+      // Wenn v2-Artefakte fehlen, soll das bewusst sichtbar bleiben.
+      templateSkipReason = 'preprocess_frontmatter_valid'
       
       try {
         await repo.updateStep(jobId, 'transform_template', {
@@ -622,23 +653,14 @@ export async function POST(
     }
 
     if (runIngestOnly) {
-      try { await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'preprocess_has_markdown' } }) } catch {}
+      try { await repo.updateStep(jobId, extractStepName, { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'preprocess_has_markdown' } }) } catch {}
       try { await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'preprocess_frontmatter_valid' } }) } catch {}
       try { await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() }) } catch {}
       try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_start', attributes: { libraryId: job.libraryId } }) } catch {}
 
-      // **WICHTIG**: Wenn Legacy-Datei im PDF-Ordner existiert und Frontmatter valide ist,
-      // muss sie in den Shadow-Twin-Folder übernommen werden (TC-2.5 Reparatur-Szenario)
       const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
-      await adoptLegacyMarkdownToShadowTwin(ctxPre, preTemplateResult, provider, repo)
-      
-      // Lade Job neu, um aktualisiertes shadowTwinState zu erhalten (kann sich durch adoptLegacyMarkdownToShadowTwin geändert haben)
-      const updatedJob = await repo.get(jobId)
-      if (updatedJob) {
-        ctxPre.job = updatedJob
-      }
-      
-      // Shadow-Twin-Markdown-Datei laden (verwendet jetzt shadowTwinState.transformed.id falls verfügbar)
+
+      // Shadow-Twin-Markdown-Datei laden (v2-only)
       const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider)
       if (!shadowTwinData) {
         await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'Shadow‑Twin nicht gefunden' } })
@@ -689,7 +711,20 @@ export async function POST(
         }
         
         const completed = await setJobCompleted({ ctx: ctx2, result: { savedItemId: shadowTwinData.fileId } })
-        getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'completed', progress: 100, updatedAt: new Date().toISOString(), message: 'completed', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, libraryId: job.libraryId })
+        getJobEventBus().emitUpdate(job.userEmail, { 
+          type: 'job_update', 
+          jobId, 
+          status: 'completed', 
+          progress: 100, 
+          updatedAt: new Date().toISOString(), 
+          message: 'completed', 
+          jobType: job.job_type, 
+          fileName: job.correlation?.source?.name, 
+          sourceItemId: job.correlation?.source?.itemId, 
+          libraryId: job.libraryId,
+          result: { savedItemId: shadowTwinData.fileId },
+          shadowTwinFolderId: job.shadowTwinState?.shadowTwinFolderId || null,
+        })
         return NextResponse.json({ ok: true, jobId: completed.jobId, kind: 'ingest_only' })
       }
 
@@ -701,7 +736,7 @@ export async function POST(
       // Markiere Extract-Step als skipped, wenn Extract übersprungen wurde (Gate oder Phase deaktiviert)
       // WICHTIG: Dies muss auch hier passieren, wenn Template ausgeführt wird
       try {
-        await repo.updateStep(jobId, 'extract_pdf', {
+        await repo.updateStep(jobId, extractStepName, {
           status: 'completed',
           endedAt: new Date(),
           details: {
@@ -712,13 +747,6 @@ export async function POST(
         })
       } catch {}
       
-      // Optionaler Hinweis auf ein Legacy-Markdown im PDF-Ordner aus dem Preprocess
-      // Dies wird insbesondere für Reparatur-Szenarien (z.B. TC-2.5) verwendet:
-      // - Vor dem Lauf existiert eine transformierte Datei im PDF-Ordner
-      // - Nach erfolgreichem Template-Lauf soll diese Datei entfernt werden,
-      //   damit nur noch konsolidierte Artefakte im Shadow-Twin-Verzeichnis liegen.
-      const legacyMarkdownId = preTemplateResult?.markdownFileId
-
       // WICHTIG: Job-Objekt neu laden, damit shadowTwinState sicher vorhanden ist.
       // Ohne Reload sieht loadShadowTwinMarkdown u.U. kein shadowTwinState und sucht "blind" im Storage.
       const refreshedJob = await repo.get(jobId)
@@ -795,8 +823,7 @@ export async function POST(
         return NextResponse.json({ error: errorMessage }, { status: 500 })
       }
 
-      // Reparatur-Logik: Legacy-Markdown im PDF-Ordner nach erfolgreichem Template-Lauf entfernen
-      await cleanupLegacyMarkdownAfterTemplate(jobId, legacyMarkdownId, preTemplateResult, provider, repo)
+      // v2-only: Keine Legacy-Cleanup/Reparatur in Phase A.
 
       // Shadow-Twin-State aktualisieren: processingStatus auf 'ready' setzen
       // Template-Only: Nach erfolgreichem Template-Lauf ist der Shadow-Twin vollständig
@@ -830,9 +857,9 @@ export async function POST(
     // Secretary-Flow (Extract/Template)
     const secret = (await import('crypto')).randomBytes(24).toString('base64url')
     const secretHash = repo.hashSecret(secret)
-    // WICHTIG: Hash SOFORT im Job speichern, BEVOR der Request gesendet wird
-    // Dies stellt sicher, dass Callbacks vom Secretary Service korrekt validiert werden können
-    // Der Hash muss verfügbar sein, bevor der Secretary Service den Callback sendet
+    // WICHTIG:
+    // Wir setzen Status+Hash idempotent, aber blockieren Start-Requests NICHT.
+    // Duplicate-Handling erfolgt über Logging/Root-Cause-Fix (Worker/Client).
     try {
       await repo.setStatus(jobId, 'running', { jobSecretHash: secretHash })
     } catch (error) {
@@ -863,7 +890,7 @@ export async function POST(
       
       // Markiere Extract-Step als skipped
       try {
-        await repo.updateStep(jobId, 'extract_pdf', {
+        await repo.updateStep(jobId, extractStepName, {
           status: 'completed',
           endedAt: new Date(),
           details: {
@@ -1019,7 +1046,21 @@ export async function POST(
     });
     
     try {
-      await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: 'request_ack', attributes: { status: resp.status, statusText: resp.statusText, url, extractionMethod } })
+      await repo.traceAddEvent(jobId, {
+        spanId: 'preprocess',
+        name: 'request_ack',
+        attributes: {
+          status: resp.status,
+          statusText: resp.statusText,
+          url,
+          extractionMethod,
+          // Duplicate-Diagnose:
+          startRequestId: request.headers.get('x-start-request-id') || request.headers.get('x-request-id') || undefined,
+          workerId: request.headers.get('x-worker-id') || undefined,
+          workerTickId: request.headers.get('x-worker-tick-id') || undefined,
+          pid: process.pid,
+        },
+      })
     } catch (error) {
       FileLogger.error('start-route', 'Fehler beim Hinzufügen des Trace-Events', {
         jobId,
@@ -1027,6 +1068,13 @@ export async function POST(
       })
       // Trace-Fehler nicht kritisch - Job kann trotzdem fortgesetzt werden
     }
+
+    // UX: Step sofort auf "running" setzen, sobald der Request zum Worker ack'ed wurde.
+    // Ohne dieses Update bleibt der Step in der UI lange auf "pending", obwohl der Job bereits läuft
+    // und nur auf den Callback wartet.
+    try {
+      await repo.updateStep(jobId, extractStepName, { status: 'running', startedAt: new Date() })
+    } catch {}
     // Status wurde bereits VOR dem Request gesetzt (siehe Zeile 360)
     // Hash wurde bereits gespeichert, damit Callbacks korrekt validiert werden können
     if (!resp.ok) {

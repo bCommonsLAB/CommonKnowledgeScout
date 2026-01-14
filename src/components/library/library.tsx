@@ -193,9 +193,11 @@ export function Library() {
       const expectedLibraryId = activeLibraryId;
       const expectedFolderId = currentFolderId;
 
-      // Prüfe Cache zuerst
-      if (libraryState.folderCache?.[currentFolderId]?.children) {
-        const cachedItems = libraryState.folderCache[currentFolderId].children;
+      // Prüfe Cache zuerst (verwende aktuellen State über setLibraryState)
+      // WICHTIG: libraryState.folderCache wird über Closure verwendet, nicht über Dependencies
+      const currentState = libraryState;
+      if (currentState.folderCache?.[currentFolderId]?.children) {
+        const cachedItems = currentState.folderCache[currentFolderId].children;
         NavigationLogger.info('Library', 'Using cached items', {
           folderId: currentFolderId,
           itemCount: cachedItems.length,
@@ -235,7 +237,9 @@ export function Library() {
       
       // Update Cache und State (auch für Root-Items)
       // PERFORMANCE-OPTIMIERUNG: Cache auch für Root-Items verwenden
-        const newFolderCache = { ...libraryState.folderCache };
+      // WICHTIG: Verwende aktuellen State über Closure, nicht über Dependencies
+      const currentCache = currentState.folderCache;
+      const newFolderCache = { ...currentCache };
       if (currentFolderId === 'root') {
         // Root-Items auch cachen (für FileTree und andere Komponenten)
         // Erstelle virtuelles Root-Item im Cache
@@ -324,7 +328,9 @@ export function Library() {
   }, [
     currentFolderId,
     listItems,
-    libraryState.folderCache,
+    // WICHTIG: libraryState.folderCache NICHT in Dependencies, um Endlosschleife zu vermeiden!
+    // libraryState.folderCache wird innerhalb der Funktion über Closure verwendet
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     providerInstance,
     libraryStatus,
     setLibraryState,
@@ -351,7 +357,7 @@ export function Library() {
     // verhindere das Laden von Root-Items (wird durch navigateToFolder geladen)
     // Dies verhindert unnötige Root-Loads beim direkten Navigieren zu einem Unterordner
     // WICHTIG: Prüfe direkt folderIdFromUrl, nicht urlInitAppliedRef (Race-Condition vermeiden)
-    if (folderIdFromUrl && currentFolderId === 'root') {
+    if (folderIdFromUrl && folderIdFromUrl !== 'root' && currentFolderId === 'root') {
       return;
     }
 
@@ -364,9 +370,14 @@ export function Library() {
       return;
     }
 
-    // Wenn eine folderId in der URL steht und noch nicht angewendet wurde,
-    // verhindere das initiale Laden des aktuellen Ordners (vermeidet Doppel-Load)
-    if (folderIdFromUrl && folderIdFromUrl !== currentFolderId && currentFolderId !== 'root') {
+    // WICHTIG: Bei Navigation (z.B. Breadcrumb-Klick) wird currentFolderId sofort gesetzt,
+    // aber folderIdFromUrl wird asynchron aktualisiert. Daher prüfen wir hier nur,
+    // ob currentFolderId sich geändert hat (lastLoadedFolder !== currentFolderId).
+    // Die folderIdFromUrl-Prüfung wird nur beim initialen Laden verwendet (wenn lastLoadedFolder noch null ist).
+    // Dies verhindert Race-Conditions bei Breadcrumb-Navigation.
+    if (lastLoadedFolder === null && folderIdFromUrl && folderIdFromUrl !== currentFolderId && currentFolderId !== 'root') {
+      // Nur beim initialen Laden: Wenn folderIdFromUrl vorhanden ist und nicht mit currentFolderId übereinstimmt,
+      // warte auf navigateToFolder, das die URL synchronisiert
       return;
     }
 

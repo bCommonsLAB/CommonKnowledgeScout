@@ -8,6 +8,8 @@ import {
   VideoTransformSettings
 } from '@/atoms/transcription-options';
 import { transformText, transformTextWithTemplate } from '@/lib/secretary/client';
+import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming';
+import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types';
 
 // Default-Einstellungen
 const DEFAULT_AUDIO_SETTINGS: AudioTransformSettings = {
@@ -79,11 +81,13 @@ export class BatchTransformService {
         // Konvertiere Blob zu File für die Verarbeitung
         const file = new File([blob], item.item.metadata.name, { type: item.item.metadata.mimeType });
         
-        // Generiere den Shadow-Twin-Namen über den TransformService
-        const shadowTwinName = TransformService.generateShadowTwinName(
-          item.item.metadata.name, 
-          baseOptions.targetLanguage
-        );
+        // Generiere den Shadow-Twin-Namen mit zentraler Logik
+        const artifactKey: ArtifactKey = {
+          sourceId: item.item.id,
+          kind: 'transcript',
+          targetLanguage: baseOptions.targetLanguage,
+        };
+        const shadowTwinName = buildArtifactName(artifactKey, item.item.metadata.name).replace(/\.md$/, '');
         
         switch (item.type) {
           case 'audio':
@@ -313,6 +317,7 @@ export class BatchTransformService {
         
         // Ergebnis speichern
         if (baseOptions.createShadowTwin) {
+          // Explizite Parameter übergeben statt aus Dateinamen zu parsen
           const result = await TransformService.saveTransformedText(
             transformedText,
             items[0].item, // Verwende das erste Item als Referenz
@@ -321,7 +326,10 @@ export class BatchTransformService {
               fileName: combinedFileName
             },
             provider,
-            refreshItems
+            refreshItems,
+            libraryId, // libraryId für Modus-Bestimmung
+            'transformation', // artifactKind: Template-Transformation
+            template // templateName: Explizit übergeben
           );
 
           // Aktualisiere das erste Ergebnis mit den Speicher-Informationen

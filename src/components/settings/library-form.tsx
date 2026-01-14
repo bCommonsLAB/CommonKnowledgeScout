@@ -99,9 +99,20 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const [shadowTwinMode, setShadowTwinMode] = useState<'legacy' | 'v2'>('legacy');
+  const [isUpgradingShadowTwinMode, setIsUpgradingShadowTwinMode] = useState(false);
   
   // Aktuelle Bibliothek aus dem globalen Zustand
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
+
+  // Shadow-Twin-Modus aus der Library-Config ableiten (Default: legacy)
+  useEffect(() => {
+    const modeFromLibrary = activeLibrary?.config?.shadowTwin
+      ? (activeLibrary.config.shadowTwin as { mode?: unknown }).mode
+      : undefined;
+
+    setShadowTwinMode(modeFromLibrary === 'v2' ? 'v2' : 'legacy');
+  }, [activeLibrary?.id, activeLibrary?.config]);
   
   const defaultValues = useMemo<LibraryFormValues>(() => ({
     label: "",
@@ -606,6 +617,78 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                   </FormItem>
                 )}
               />
+              
+              {/* Shadow-Twin-Modus Konvertierung */}
+              {!isNew && activeLibrary && (
+                <div className="space-y-4 rounded-lg border p-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium">Shadow-Twin-Modus</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Aktueller Modus: <span className="font-mono">{shadowTwinMode}</span>
+                        </p>
+                      </div>
+                    </div>
+                    {shadowTwinMode === 'legacy' && (
+                      <div className="mt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Dieser Modus ist in der Anwendung nicht mehr unterstützt (v2-only Runtime).
+                          Bitte stelle die Library auf <span className="font-mono">v2</span> um, damit normale Verarbeitung/Erstellung wieder möglich ist.
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={async () => {
+                            if (!activeLibrary?.id) return;
+                            
+                            setIsUpgradingShadowTwinMode(true);
+                            try {
+                              const response = await fetch(`/api/library/${activeLibrary.id}/shadow-twin-mode`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                // WICHTIG: Keine Migration/Conversion hier. Wir setzen nur das Config-Flag.
+                                body: JSON.stringify({ mode: 'v2' }),
+                              });
+                              
+                              if (!response.ok) {
+                                throw new Error('Fehler beim Konvertieren');
+                              }
+                              
+                              await response.json();
+                              setShadowTwinMode('v2');
+                              
+                              toast({
+                                title: 'Shadow-Twin-Modus aktualisiert',
+                                description: 'Die Bibliothek ist jetzt auf v2 gestellt (ohne Migration bestehender Artefakte).',
+                              });
+                            } catch (error) {
+                              toast({
+                                title: 'Fehler',
+                                description: error instanceof Error ? error.message : 'Fehler beim Konvertieren',
+                                variant: 'destructive',
+                              });
+                            } finally {
+                              setIsUpgradingShadowTwinMode(false);
+                            }
+                          }}
+                          disabled={isUpgradingShadowTwinMode}
+                        >
+                          {isUpgradingShadowTwinMode ? 'Stelle um...' : 'Auf v2 umstellen'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Setzt nur das Konfigurations-Flag. Eine Migration/Repair bestehender Artefakte erfolgt bewusst später.
+                        </p>
+                      </div>
+                    )}
+                    {shadowTwinMode === 'v2' && (
+                      <p className="text-xs text-muted-foreground">
+                        Diese Bibliothek verwendet bereits den v2-Modus.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
               
               <FormField
                 control={form.control}

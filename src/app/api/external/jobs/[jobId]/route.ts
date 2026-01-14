@@ -102,6 +102,9 @@ export async function GET(
       error: job.error,
       logs,
       result: job.result,
+      // UI-Fallback: ermöglicht Polling + Ableitung des Result-Items aus Shadow‑Twin, falls result.savedItemId fehlt.
+      shadowTwinState: job.shadowTwinState,
+      steps: job.steps,
     });
   } catch {
     return NextResponse.json({ error: 'Unerwarteter Fehler' }, { status: 500 });
@@ -126,6 +129,29 @@ export async function POST(
 
     // entfernt
 
+    // Prozess‑Guard (VOR Auth + VOR Status-Änderungen):
+    // Wenn ein alter/anderer Worker-Prozess versehentlich Callbacks an dieselbe Route sendet,
+    // ignorieren wir diese Events komplett. Sonst kann ein "falscher" Callback den Job-Status
+    // kurzzeitig auf failed setzen und Tests/UI verwirren, obwohl der korrekte Prozess später
+    // erfolgreich fertig wird.
+    try {
+      const incomingProcessId: string | undefined =
+        (body?.process && typeof body.process.id === 'string')
+          ? body.process.id
+          : (typeof body?.data?.processId === 'string' ? body.data.processId : undefined)
+      if (!internalBypass && job.processId && incomingProcessId && incomingProcessId !== job.processId) {
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'job',
+            name: 'ignored_mismatched_process',
+            level: 'warn',
+            attributes: { incomingProcessId, jobProcessId: job.processId }
+          })
+        } catch {}
+        return NextResponse.json({ status: 'ignored', reason: 'mismatched_process' });
+      }
+    } catch {}
+
     // Authorization and token guard
     await authorizeCallback(ctx)
     // entfernt
@@ -134,14 +160,7 @@ export async function POST(
     await repo.setStatus(jobId, 'running');
     // entfernt: doppeltes callback_received-Event (wir loggen unten via appendLog ausreichend Details)
     if (body?.process?.id) await repo.setProcess(jobId, body.process.id);
-    // Prozess‑Guard: Nur Events mit übereinstimmender processId akzeptieren (außer interner Bypass/Template-Callback)
-    try {
-      const incomingProcessId: string | undefined = (body?.process && typeof body.process.id === 'string') ? body.process.id : (typeof body?.data?.processId === 'string' ? body.data.processId : undefined);
-      if (!internalBypass && job.processId && incomingProcessId && incomingProcessId !== job.processId) {
-        try { await repo.traceAddEvent(jobId, { spanId: 'job', name: 'ignored_mismatched_process', level: 'warn', attributes: { incomingProcessId, jobProcessId: job.processId } }); } catch {}
-        return NextResponse.json({ status: 'ignored', reason: 'mismatched_process' });
-      }
-    } catch {}
+    // Prozess‑Guard ist bewusst bereits VOR Auth/Status-Änderungen (siehe oben).
 
     // Progress-Handling (Short-Circuit)
     const short = await handleProgressIfAny(ctx, repo, workerId)
@@ -249,7 +268,10 @@ export async function POST(
     if (!hasFinalPayload && !hasError && phase === 'failed') {
       clearWatchdog(jobId);
       bufferLog(jobId, { phase: 'failed', message: phase });
-      try { await repo.updateStep(jobId, 'extract_pdf', { status: 'failed', endedAt: new Date(), error: { message: phase || 'Worker meldete failed' } }); } catch {}
+      try {
+        const extractStepName = job.job_type === 'audio' ? 'extract_audio' : job.job_type === 'video' ? 'extract_video' : 'extract_pdf'
+        await repo.updateStep(jobId, extractStepName, { status: 'failed', endedAt: new Date(), error: { message: phase || 'Worker meldete failed' } })
+      } catch {}
       // gepufferte Logs persistieren
       // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
       void drainBufferedLogs(jobId);
@@ -332,8 +354,34 @@ export async function POST(
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed' });
     }
 
+    function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' {
+      if (jobType === 'audio') return 'extract_audio'
+      if (jobType === 'video') return 'extract_video'
+      return 'extract_pdf'
+    }
+
     // Finale Payload
-    const extractedText: string | undefined = (body?.data as { extracted_text?: unknown })?.extracted_text as string | undefined;
+    const extractedTextRaw: string | undefined = (body?.data as { extracted_text?: unknown })?.extracted_text as string | undefined;
+    const transcriptionTextRaw: string | undefined =
+      (body?.data as { transcription?: { text?: unknown } })?.transcription?.text as string | undefined
+
+    // Compatibility (audio/video): accept a few common payload shapes.
+    // Primary expected shape is: data.transcription.text
+    const audioTextCompat: string | undefined = (() => {
+      if (!(job.job_type === 'audio' || job.job_type === 'video')) return undefined
+      const data = body?.data as Record<string, unknown> | undefined
+      const directText = data && typeof data['text'] === 'string' ? String(data['text']) : undefined
+      const transcriptionText =
+        typeof transcriptionTextRaw === 'string' ? transcriptionTextRaw : undefined
+      const extractedTextFallback =
+        typeof extractedTextRaw === 'string' ? extractedTextRaw : undefined
+      return transcriptionText || directText || extractedTextFallback
+    })()
+
+    const extractedText: string | undefined = (() => {
+      if (job.job_type === 'audio' || job.job_type === 'video') return audioTextCompat
+      return typeof extractedTextRaw === 'string' ? extractedTextRaw : undefined
+    })()
     const imagesArchiveUrlFromWorker: string | undefined = (body?.data as { images_archive_url?: unknown })?.images_archive_url as string | undefined;
     
     // Mistral OCR: pages_archive_data kann direkt als Base64 vorhanden sein (Legacy)
@@ -400,6 +448,23 @@ export async function POST(
       mistralOcrRawKeys: mistralOcrRaw && typeof mistralOcrRaw === 'object' ? Object.keys(mistralOcrRaw as Record<string, unknown>) : [],
     });
 
+    // If the worker claims "completed" for audio/video but sends no transcription text,
+    // we must fail fast (otherwise the job hangs in pending forever).
+    if ((job.job_type === 'audio' || job.job_type === 'video') && body?.phase === 'completed' && !extractedText) {
+      clearWatchdog(jobId)
+      try {
+        await repo.updateStep(jobId, getExtractStepName(job.job_type), {
+          status: 'failed',
+          endedAt: new Date(),
+          error: { message: 'Worker completed but did not provide transcription text' },
+        })
+      } catch {}
+      await repo.setStatus(jobId, 'failed', {
+        error: { code: 'worker_payload_missing_transcription', message: 'Worker completed but did not provide transcription text' },
+      })
+      return NextResponse.json({ status: 'ok', jobId, kind: 'failed_missing_transcription' })
+    }
+
     // Prüfe auch auf pages_archive_data, pages_archive_url, mistral_ocr_images_url und mistral_ocr_raw für Mistral OCR
     // WICHTIG: mistral_ocr_images_url ist ein separater Endpoint für eingebettete Bilder (nicht in mistral_ocr_raw)
     if (!extractedText && !imagesArchiveUrlFromWorker && !pagesArchiveData && !pagesArchiveUrl && !imagesArchiveData && !mistralOcrImagesUrl && !hasMistralOcrImages && body?.phase !== 'template_completed') {
@@ -457,14 +522,16 @@ export async function POST(
     const savedItems: string[] = [];
     let docMetaForIngestion: Record<string, unknown> | undefined;
 
-    // Schrittstatus extract_pdf auf completed setzen, sobald OCR-Ergebnis vorliegt
+    const extractStepName = getExtractStepName(job.job_type)
+
+    // Schrittstatus extract_* auf completed setzen, sobald Ergebnis vorliegt
     // WICHTIG: nicht überschreiben, wenn bereits zuvor (z. B. im Retry-Gate) als completed markiert
     if (extractedText) {
       try {
         const latest = await repo.get(jobId)
-        const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === 'extract_pdf') : undefined
+        const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === extractStepName) : undefined
         const alreadyCompleted = !!st && st.status === 'completed'
-        if (!alreadyCompleted) await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date() })
+        if (!alreadyCompleted) await repo.updateStep(jobId, extractStepName, { status: 'completed', endedAt: new Date() })
       } catch {}
     }
 
@@ -479,22 +546,141 @@ export async function POST(
         // DETERMINISTISCHE ARCHITEKTUR: Verwende Shadow-Twin-Verzeichnis aus Job-State
         // Der Kontext wurde beim Job-Start bestimmt und im Job-State gespeichert
         // Jeder Job hat seinen eigenen isolierten Kontext - keine gegenseitige Beeinflussung
-        const shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
-        const targetParentId = shadowTwinFolderId || job.correlation?.source?.parentId || 'root';
+        // IMPORTANT:
+        // `targetParentId` must be able to switch to a newly created dot-folder during this callback.
+        // Otherwise: transcript can be written into a new dot-folder, but template output is still written
+        // into the original parent folder (and in some cases transcript can be overwritten by accident).
+        let shadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId
+        let targetParentId = shadowTwinFolderId || job.correlation?.source?.parentId || 'root';
 
-        // Optionale Template-Verarbeitung (Phase 2) - vereinfacht via runTemplatePhase
-        const fmFromBodyUnknown = (body?.data?.metadata as unknown) || null
-        const fmFromBody = (fmFromBodyUnknown && typeof fmFromBodyUnknown === 'object' && !Array.isArray(fmFromBodyUnknown)) ? (fmFromBodyUnknown as Record<string, unknown>) : null
+        // WICHTIG: Wenn Extract-Phase aktiviert ist und extractedText vorhanden ist,
+        // speichere das Transcript-Markdown SOFORT, bevor die Template-Phase ausgeführt wird.
+        // Dies stellt sicher, dass Schritt 1 sein Ergebnis speichert, bevor Schritt 2 beginnt.
+        // Die Schritte sollten unabhängig voneinander ihre Ergebnisse speichern.
+        if (extractedText) {
+          try {
+            const { writeArtifact } = await import('@/lib/shadow-twin/artifact-writer')
+            const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
+            const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+            const sourceItemId = job.correlation.source?.itemId || 'unknown'
+            const sourceName = job.correlation.source?.name || 'output'
+            
+            // Erstelle ArtifactKey für Transcript
+            const artifactKey = {
+              sourceId: sourceItemId,
+              kind: 'transcript' as const,
+              targetLanguage: lang,
+            }
+            
+            // Speichere Markdown OHNE Frontmatter (reines Transcript)
+            // Frontmatter wird erst bei Template-Phase hinzugefügt
+            const cleanText = stripAllFrontmatter(extractedText)
+            
+            // WICHTIG: Wenn shadowTwinFolderId vorhanden ist, ist parentId bereits das Shadow-Twin-Verzeichnis.
+            // In diesem Fall sollte createFolder false sein, da das Verzeichnis bereits existiert.
+            const createFolder = !shadowTwinFolderId
+            
+            // Nutze zentrale writeArtifact() Logik
+            const writeResult = await writeArtifact(provider, {
+              key: artifactKey,
+              sourceName,
+              parentId: targetParentId,
+              content: cleanText,
+              createFolder,
+            })
 
-        const templateResult = await runTemplatePhase({
-          ctx,
-          provider,
-          repo,
-          extractedText: extractedText || '',
-          bodyMetadata: fmFromBody || undefined,
-          policies: { metadata: policies.metadata as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
-          autoSkip,
-          imagesPhaseEnabled,
+            // If the transcript write created/used a dot-folder, use it for all subsequent phases in this callback.
+            // This ensures transformations are stored next to the transcript (Shadow‑Twin truth).
+            if (!shadowTwinFolderId && writeResult.shadowTwinFolderId) {
+              shadowTwinFolderId = writeResult.shadowTwinFolderId
+              targetParentId = shadowTwinFolderId
+            }
+
+            // Trace: Transcript-Speicherung explizit als Event persistieren (bufferLog allein ist im Trace nicht sichtbar).
+            try {
+              const parentPath = await provider.getPathById(targetParentId).catch(() => null)
+              await repo.traceAddEvent(jobId, {
+                spanId: 'extract',
+                name: 'extract_transcript_saved',
+                attributes: {
+                  artifactKind: artifactKey.kind,
+                  targetLanguage: artifactKey.targetLanguage,
+                  templateName: (artifactKey as { templateName?: string }).templateName || null,
+                  parentId: targetParentId,
+                  shadowTwinFolderId: shadowTwinFolderId || null,
+                  location: writeResult.location,
+                  wasUpdated: writeResult.wasUpdated,
+                  fileId: writeResult.file.id,
+                  fileName: writeResult.file.metadata.name,
+                  contentLength: cleanText.length,
+                  path: parentPath ? `${parentPath}/${writeResult.file.metadata.name}` : null,
+                },
+              })
+            } catch {
+              // Trace ist best-effort
+            }
+            
+            bufferLog(jobId, {
+              phase: 'extract_transcript_saved',
+              message: `Transcript-Markdown gespeichert${shadowTwinFolderId ? ' im Shadow-Twin-Verzeichnis' : ' direkt im Parent'}`,
+              parentId: targetParentId,
+              shadowTwinFolderId: shadowTwinFolderId || null,
+              savedItemId: writeResult.file.id,
+              fileName: writeResult.file.metadata.name,
+            })
+            
+            // WICHTIG: Shadow-Twin-State nach dem Speichern aktualisieren
+            // Dies stellt sicher, dass das Shadow-Twin-State im Job-Dokument aktualisiert wird
+            if (writeResult.file.id && job.correlation?.source?.itemId) {
+              try {
+                const { analyzeShadowTwin } = await import('@/lib/shadow-twin/analyze-shadow-twin')
+                const { toMongoShadowTwinState } = await import('@/lib/shadow-twin/shared')
+                const updatedShadowTwinState = await analyzeShadowTwin(job.correlation.source.itemId, provider)
+                if (updatedShadowTwinState) {
+                  const mongoState = toMongoShadowTwinState({
+                    ...updatedShadowTwinState,
+                    processingStatus: 'processing' as const, // Noch nicht ready, Template-Phase folgt noch
+                  })
+                  await repo.setShadowTwinState(jobId, mongoState)
+                  bufferLog(jobId, {
+                    phase: 'extract_shadow_twin_state_updated',
+                    message: 'Shadow-Twin-State nach Transcript-Speicherung aktualisiert',
+                    shadowTwinFolderId: updatedShadowTwinState.shadowTwinFolderId || null,
+                  })
+
+                  // Keep the callback-local targetParentId in sync with the analyzed state.
+                  if (updatedShadowTwinState.shadowTwinFolderId) {
+                    shadowTwinFolderId = updatedShadowTwinState.shadowTwinFolderId
+                    targetParentId = updatedShadowTwinState.shadowTwinFolderId
+                  }
+                }
+              } catch (error) {
+                bufferLog(jobId, {
+                  phase: 'extract_shadow_twin_state_update_error',
+                  message: `Fehler beim Aktualisieren des Shadow-Twin-States: ${error instanceof Error ? error.message : String(error)}`
+                })
+                // Fehler nicht kritisch - Template-Phase kann trotzdem fortgesetzt werden
+              }
+            }
+          } catch (error) {
+            bufferLog(jobId, {
+              phase: 'extract_transcript_save_failed',
+              message: `Fehler beim Speichern des Transcript-Markdowns: ${error instanceof Error ? error.message : String(error)}`
+            })
+            // Fehler nicht kritisch - Template-Phase kann trotzdem fortgesetzt werden
+          }
+        }
+
+        // WICHTIG: Bilder werden in Phase 1 (Extract) verarbeitet, nicht in Phase 2 (Template)
+        // Die Bilder werden beim Extract erstellt und sollten dort auch gespeichert werden
+        // Für Audio/Video: Images-Phase ist irrelevant und wird als disabled behandelt.
+        const imagesPhaseEnabledEffective = (job.job_type === 'pdf') ? imagesPhaseEnabled : false
+        if (extractedText && imagesPhaseEnabledEffective) {
+          try {
+            const { processAllImageSources } = await import('@/lib/external-jobs/images')
+            const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+            
+            await processAllImageSources(ctx, provider, {
               pagesArchiveData,
               pagesArchiveUrl,
               pagesArchiveFilename: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename,
@@ -503,8 +689,52 @@ export async function POST(
               imagesArchiveUrl: imagesArchiveUrlFromWorker,
               mistralOcrRaw,
               hasMistralOcrImages,
-          mistralOcrImagesUrl,
+              mistralOcrImagesUrl,
+              extractedText,
+              lang,
               targetParentId,
+              imagesPhaseEnabled: imagesPhaseEnabledEffective,
+              shadowTwinFolderId, // Verwende Shadow-Twin-Verzeichnis aus Job-State
+            })
+            
+            bufferLog(jobId, {
+              phase: 'extract_images_processed',
+              message: 'Bilder-Verarbeitung in Phase 1 (Extract) abgeschlossen'
+            })
+          } catch (error) {
+            bufferLog(jobId, {
+              phase: 'extract_images_error',
+              message: `Fehler bei der Bild-Verarbeitung in Phase 1: ${error instanceof Error ? error.message : String(error)}`
+            })
+            // Fehler nicht kritisch - Template-Phase kann trotzdem fortgesetzt werden
+          }
+        }
+
+        // Optionale Template-Verarbeitung (Phase 2) - vereinfacht via runTemplatePhase
+        const fmFromBodyUnknown = (body?.data?.metadata as unknown) || null
+        const fmFromBody = (fmFromBodyUnknown && typeof fmFromBodyUnknown === 'object' && !Array.isArray(fmFromBodyUnknown)) ? (fmFromBodyUnknown as Record<string, unknown>) : null
+
+        // WICHTIG: Bilder werden nicht mehr in der Template-Phase verarbeitet
+        // Sie wurden bereits in Phase 1 (Extract) verarbeitet
+        const templateResult = await runTemplatePhase({
+          ctx,
+          provider,
+          repo,
+          extractedText: extractedText || '',
+          bodyMetadata: fmFromBody || undefined,
+          policies: { metadata: policies.metadata as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
+          autoSkip,
+          imagesPhaseEnabled: false, // Bilder werden nicht mehr in Template-Phase verarbeitet
+          pagesArchiveData: undefined, // Nicht mehr benötigt - Bilder wurden bereits in Phase 1 verarbeitet
+          pagesArchiveUrl: undefined,
+          pagesArchiveFilename: undefined,
+          imagesArchiveData: undefined,
+          imagesArchiveFilename: undefined,
+          imagesArchiveUrl: undefined,
+          mistralOcrRaw: undefined,
+          hasMistralOcrImages: false,
+          mistralOcrImagesUrl: undefined,
+          targetParentId,
           libraryConfig: undefined, // libraryConfig wird derzeit nicht verwendet
         })
 
@@ -534,8 +764,47 @@ export async function POST(
         docMetaForIngestion = templateResult.metadata
         savedItemId = templateResult.savedItemId
 
-      // Bilder-Verarbeitung wurde bereits in runTemplatePhase durchgeführt
-      if (imagesPhaseEnabled && templateResult.savedItemId) {
+        // WICHTIG (Global Contract / HITL):
+        // In seltenen Duplicate-Callback/Retry-Fällen kann `templateResult.savedItemId` leer sein,
+        // obwohl die Transformationsdatei bereits gespeichert wurde (siehe Trace: postprocessing_saved).
+        // Dann leiten wir die Datei deterministisch über den Artifact-Resolver aus dem Shadow‑Twin ab.
+        if (!savedItemId) {
+          try {
+            const { resolveArtifact } = await import('@/lib/shadow-twin/artifact-resolver')
+            const sourceItemId = job.correlation?.source?.itemId || ''
+            const sourceName = job.correlation?.source?.name || ''
+            const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+            const templateName = typeof (job.parameters as { template?: unknown } | undefined)?.template === 'string'
+              ? String((job.parameters as { template: string }).template).trim()
+              : ''
+
+            if (sourceItemId && sourceName && templateName) {
+              const resolved = await resolveArtifact(provider, {
+                sourceItemId,
+                sourceName,
+                parentId: targetParentId,
+                targetLanguage: lang,
+                templateName,
+                preferredKind: 'transformation',
+              })
+              if (resolved?.fileId) {
+                savedItemId = resolved.fileId
+                bufferLog(jobId, {
+                  phase: 'template_saved_item_id_fallback',
+                  message: 'savedItemId via resolveArtifact abgeleitet (Template-Job)',
+                  savedItemId,
+                  fileName: resolved.fileName,
+                })
+              }
+            }
+          } catch {
+            // ignore – wenn auch das nicht klappt, greift später der Validator/Client-Fallback.
+          }
+        }
+
+      // WICHTIG: Bilder-Verarbeitung wurde bereits in Phase 1 (Extract) durchgeführt
+      // Die Template-Phase speichert nur das transformierte Markdown
+      if (templateResult.savedItemId) {
         savedItems.push(templateResult.savedItemId)
       }
 
@@ -552,15 +821,18 @@ export async function POST(
           try { getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 10, updatedAt: new Date().toISOString(), message: 'ingest_start', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, libraryId: job.libraryId }) } catch {}
 
           // Ingest-Phase ausführen
+          // WICHTIG: Übergebe leeres markdown, damit loadShadowTwinMarkdown() das transformierte Markdown lädt
+          // (nicht das rohe extractedText/Transcript)
+          // Die Bilder werden über shadowTwinFolderId aufgelöst
           const ingestResult = await runIngestPhase({
             ctx,
             provider,
             repo,
-            markdown: extractedText || '',
+            markdown: '', // Leer lassen, damit loadShadowTwinMarkdown() das transformierte Markdown lädt
             meta: docMetaForIngestion,
             savedItemId: savedItemId || '',
             policies: { ingest: policies.ingest as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
-            extractedText,
+            extractedText: undefined, // Nicht übergeben, damit loadShadowTwinMarkdown() verwendet wird
           })
 
           if (ingestResult.error) {
@@ -614,10 +886,11 @@ export async function POST(
         fileName: job.correlation?.source?.name, 
         sourceItemId: job.correlation?.source?.itemId,
         libraryId: job.libraryId,
+        result: { savedItemId: savedItemId || undefined },
         refreshFolderId: parentId, // Primary refresh folder (für Rückwärtskompatibilität)
         refreshFolderIds, // Array mit allen zu refreshenden Ordnern (Parent + Shadow-Twin)
         shadowTwinFolderId: refreshShadowTwinFolderId || null, // Shadow-Twin-Verzeichnis-ID für Client-Analyse
-      } as unknown as import('@/lib/events/job-event-bus').JobUpdateEvent);
+      });
       return NextResponse.json({ status: 'ok', jobId: completed.jobId, kind: 'final', savedItemId, savedItemsCount: savedItems.length });
     }
 
@@ -643,20 +916,27 @@ export async function POST(
       if (job) {
         bufferLog(jobId, { phase: 'failed', message });
         await repo.appendLog(jobId, { phase: 'failed', message, details: { code, status } } as unknown as Record<string, unknown>);
-        await handleJobErrorWithDetails(
-          new Error(message),
-          {
-            jobId,
-            userEmail: job.userEmail,
-            jobType: job.job_type,
-            fileName: job.correlation?.source?.name,
-            sourceItemId: job.correlation?.source?.itemId,
-          },
-          repo,
-          code,
-          { status },
-          'template'
-        );
+        // WICHTIG:
+        // 401/unauthorized sind i.d.R. Auth-/Token-Themen (z.B. falscher Bearer-Token oder alte Callbacks).
+        // Das darf einen bereits laufenden Job NICHT dauerhaft als failed markieren, sonst "flippt"
+        // der Job-Status kurz auf failed und Tests/UI brechen ab, obwohl der korrekte Prozess später
+        // erfolgreich fertig wird.
+        if (status !== 401) {
+          await handleJobErrorWithDetails(
+            new Error(message),
+            {
+              jobId,
+              userEmail: job.userEmail,
+              jobType: job.job_type,
+              fileName: job.correlation?.source?.name,
+              sourceItemId: job.correlation?.source?.itemId,
+            },
+            repo,
+            code,
+            { status },
+            'template'
+          );
+        }
       }
     } catch {
       // ignore secondary failures

@@ -44,3 +44,9 @@ export type FrontendShadowTwinState = ShadowTwinState & {
 export const shadowTwinStateAtom = atom<Map<string, FrontendShadowTwinState>>(new Map());
 shadowTwinStateAtom.debugLabel = 'shadowTwinStateAtom';
 
+/**
+ * Trigger-Atom, um die Shadow‑Twin Analyse in der File‑Liste gezielt neu zu starten.
+ * Wird z.B. vom Preview (Refresh Button) erhöht.
+ */
+export const shadowTwinAnalysisTriggerAtom = atom<number>(0);
+shadowTwinAnalysisTriggerAtom.debugLabel = 'shadowTwinAnalysisTriggerAtom';

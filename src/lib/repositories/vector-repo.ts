@@ -1050,6 +1050,9 @@ export async function findDocs(
       'docMetaJson.slug': 1,
       'docMetaJson.coverImageUrl': 1,
       'docMetaJson.pages': 1,
+      // Detailansicht-Auswahl (Wizard/Frontmatter)
+      'docMetaJson.detailViewType': 1,
+      'docMetaJson.docType': 1,
     },
   })
   

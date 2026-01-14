@@ -52,6 +52,28 @@ describe("buildCreationFileName", () => {
     })
     expect(res.fileName).toBe("test.md")
   })
+
+  it("adds timestamp with milliseconds when ensureUnique is true", () => {
+    const res = buildCreationFileName({
+      typeId: "testimonial",
+      metadata: {},
+      config: { fallbackPrefix: "testimonial", extension: "md", ensureUnique: true },
+      now: new Date("2025-01-02T14:30:45.123Z"),
+    })
+    // Sollte Datum + Timestamp mit Millisekunden enthalten: testimonial-2025-01-02-143045123.md
+    expect(res.fileName).toMatch(/^testimonial-2025-01-02-\d{9}\.md$/)
+    expect(res.fileName).toContain("143045123") // HHMMSSMMM aus 14:30:45.123
+  })
+
+  it("does not add timestamp when ensureUnique is false", () => {
+    const res = buildCreationFileName({
+      typeId: "testimonial",
+      metadata: {},
+      config: { fallbackPrefix: "testimonial", extension: "md", ensureUnique: false },
+      now: new Date("2025-01-02T14:30:45Z"),
+    })
+    expect(res.fileName).toBe("testimonial-2025-01-02.md")
+  })
 })
 
 
