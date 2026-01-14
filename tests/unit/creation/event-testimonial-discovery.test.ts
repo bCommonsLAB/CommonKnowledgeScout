@@ -74,7 +74,8 @@ describe("findRelatedEventTestimonialsFilesystem", () => {
 
     expect(res).toHaveLength(1)
     expect(res[0]?.kind).toBe("file")
-    expect(res[0]?.id).toBe("file-t1-md")
+    // ID basiert auf testimonialId (Ordnername), nicht auf fileId
+    expect(res[0]?.id).toBe("file-t1")
     expect(res[0]?.extractedText).toContain("Hallo Welt")
   })
 })

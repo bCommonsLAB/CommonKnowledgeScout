@@ -1,18 +1,17 @@
 ---
 title: {{title|Kurzer Titel (optional)}}
-
-# Antworten / Inhalte
 q1_experience: {{q1_experience|Wie hast du den Event erlebt?}}
 q2_key_insight: {{q2_key_insight|Was war deine wichtigste Erkenntnis?}}
 q3_why_important: {{q3_why_important|Warum ist das wichtig?}}
-
-# Autor / Kontext (optional)
 speakerName: {{speakerName|Name (optional)}}
-
-# System-Felder (werden beim Start aus dem Event gesetzt)
 source_event_file_id: {{source_event_file_id|Wird automatisch gesetzt (Event fileId)}}
-
+detailViewType: testimonial
 creation:
+  output:
+    fileName:
+      extension: md
+      fallbackPrefix: "testimonial"
+    createInOwnFolder: true
   supportedSources:
     - id: spoken
       type: spoken
@@ -45,13 +44,6 @@ creation:
       - id: Preview
         preset: previewDetail
         title: "Vorschau"
-  preview:
-    detailViewType: testimonial
-  output:
-    fileName:
-      fallbackPrefix: "testimonial"
-      extension: md
-    createInOwnFolder: true
   ui:
     displayName: "Testimonial aufnehmen"
     description: "Stimme/Text erfassen und als Testimonial speichern"
@@ -73,4 +65,3 @@ Return ONE valid JSON object only (no extra text):
   "speakerName": "string",
   "bodyInText": "string (markdown body)"
 }
-

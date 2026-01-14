@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Loader2, Wand2 } from "lucide-react"
@@ -12,6 +12,9 @@ interface GenerateDraftStepProps {
   input: string
   onGenerate: (draft: { metadata: Record<string, unknown>; markdown: string }) => void
   generatedDraft?: { metadata: Record<string, unknown>; markdown: string }
+  /** Optional: Telemetrie für Wizard-Session */
+  onGenerateStarted?: () => void
+  onGenerateFailed?: (error: unknown) => void
 }
 
 export function GenerateDraftStep({
@@ -20,12 +23,16 @@ export function GenerateDraftStep({
   input,
   onGenerate,
   generatedDraft,
+  onGenerateStarted,
+  onGenerateFailed,
 }: GenerateDraftStepProps) {
   const [isGenerating, setIsGenerating] = useState(false)
+  const didAutoStartRef = useRef(false)
 
   const handleGenerate = async () => {
     try {
       setIsGenerating(true)
+      onGenerateStarted?.()
 
       // Rufe Secretary Service auf
       const formData = new FormData()
@@ -57,10 +64,21 @@ export function GenerateDraftStep({
       toast.success("Entwurf erfolgreich generiert!")
     } catch (error) {
       toast.error(`Fehler beim Generieren: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
+      onGenerateFailed?.(error)
     } finally {
       setIsGenerating(false)
     }
   }
+
+  // Auto-Start (wie beim Publish-Step): sobald wir einen Input haben.
+  useEffect(() => {
+    if (didAutoStartRef.current) return
+    if (generatedDraft) return
+    if (!input || !input.trim()) return
+    didAutoStartRef.current = true
+    void handleGenerate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatedDraft, input])
 
   if (generatedDraft) {
     return (

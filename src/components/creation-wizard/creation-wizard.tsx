@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { loadTemplateConfig } from "@/lib/templates/template-service-client"
 import type { TemplateDocument, CreationSource, CreationSourceType } from "@/lib/templates/template-types"
 import { CollectSourceStep } from "./steps/collect-source-step"
@@ -141,6 +141,33 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   // Verwende targetFolderIdProp, falls gesetzt (für Child-Flows), sonst currentFolderIdAtom
   const currentFolderId = targetFolderIdProp || currentFolderIdAtomValue
   const router = useRouter()
+
+  // WICHTIG: Stabilisiere Callback für Testimonial-Auswahl, um Endlosschleifen zu vermeiden
+  const handleTestimonialSelectionChange = useCallback((selectedSources: WizardSource[]) => {
+    // Aktualisiere Sources: Dialograum bleibt, Testimonials werden gefiltert
+    setWizardState(prev => {
+      const dialograumSource = prev.sources.find(s => 
+        s.kind === 'file' && 
+        s.fileName && 
+        s.fileName.toLowerCase().includes('dialograum')
+      )
+      const updatedSources = dialograumSource 
+        ? [dialograumSource, ...selectedSources]
+        : selectedSources
+      
+      // Nur aktualisieren, wenn sich die Sources tatsächlich geändert haben
+      const currentIds = prev.sources.map(s => s.id).sort().join(',')
+      const newIds = updatedSources.map(s => s.id).sort().join(',')
+      if (currentIds === newIds) {
+        return prev // Keine Änderung, State unverändert zurückgeben
+      }
+      
+      return {
+        ...prev,
+        sources: updatedSources,
+      }
+    })
+  }, []) // Leere Dependencies, da wir setWizardState verwenden (funktional update)
 
   function resolveTemplateDetailViewType(): 'book' | 'session' | 'testimonial' | 'blog' {
     // SSOT: Template-Detailansicht (im Template-Editor Tab "Detail-Ansicht")
@@ -430,46 +457,66 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           createdAt: new Date(),
         }
         
+        // WICHTIG: Testimonials nur laden, wenn der Flow einen selectRelatedTestimonials Step hat
+        // (z.B. beim Finalize-Wizard). Beim Testimonial-Creation-Wizard sollen KEINE Testimonials
+        // als Quellen geladen werden, da dieser immer einen neuen Testimonial erstellen soll.
+        const steps = template.creation?.flow.steps || []
+        const hasSelectRelatedTestimonialsStep = steps.some(step => step.preset === 'selectRelatedTestimonials')
+        
         // Seed-DocType bestimmen: Event nutzt filesystem discovery; Dialograum nutzt bestehende discovery
         const { meta: seedMeta } = parseFrontmatter(content)
         const seedDocType = typeof seedMeta.docType === 'string' ? seedMeta.docType.trim().toLowerCase() : ''
 
-        const testimonialSources: WizardSource[] = seedDocType === 'event'
-          ? await findRelatedEventTestimonialsFilesystem({ provider, eventFileId: seedFileId, libraryId })
-          : await (async () => {
-            const testimonials = await findRelatedTestimonials({
-              provider,
-              startFileId: seedFileId,
-              libraryId,
-            })
+        const testimonialSources: WizardSource[] = hasSelectRelatedTestimonialsStep
+          ? (seedDocType === 'event'
+              ? await (async () => {
+                  try {
+                    return await findRelatedEventTestimonialsFilesystem({ provider, eventFileId: seedFileId, libraryId })
+                  } catch (error) {
+                    console.error('[Wizard] Fehler beim Laden von Testimonials:', error)
+                    return []
+                  }
+                })()
+              : await (async () => {
+                  const testimonials = await findRelatedTestimonials({
+                    provider,
+                    startFileId: seedFileId,
+                    libraryId,
+                  })
 
-            const sources: WizardSource[] = []
-            for (const testimonial of testimonials) {
-              try {
-                const { blob: testimonialBlob } = await provider.getBinary(testimonial.fileId)
-                const testimonialContent = await testimonialBlob.text()
-                const { body: testimonialBody } = parseFrontmatter(testimonialContent)
+                  const sources: WizardSource[] = []
+                  for (const testimonial of testimonials) {
+                    try {
+                      const { blob: testimonialBlob } = await provider.getBinary(testimonial.fileId)
+                      const testimonialContent = await testimonialBlob.text()
+                      const { body: testimonialBody } = parseFrontmatter(testimonialContent)
 
-                sources.push({
-                  id: `file-${testimonial.fileId}`,
-                  kind: 'file',
-                  fileName: testimonial.fileName,
-                  extractedText: testimonialBody.trim(),
-                  summary: `${testimonial.author_name || 'Teilnehmer'}: ${testimonial.teaser || testimonialBody.slice(0, 100)}...`,
-                  createdAt: new Date(),
-                })
-              } catch (error) {
-                console.error(`Fehler beim Laden von Testimonial ${testimonial.fileId}:`, error)
-              }
-            }
-            return sources
-          })()
+                      sources.push({
+                        id: `file-${testimonial.fileId}`,
+                        kind: 'file',
+                        fileName: testimonial.fileName,
+                        extractedText: testimonialBody.trim(),
+                        summary: `${testimonial.author_name || 'Teilnehmer'}: ${testimonial.teaser || testimonialBody.slice(0, 100)}...`,
+                        createdAt: new Date(),
+                      })
+                    } catch (error) {
+                      console.error(`Fehler beim Laden von Testimonial ${testimonial.fileId}:`, error)
+                    }
+                  }
+                  return sources
+                })())
+          : [] // Keine Testimonials laden für Creation-Wizards
         
-        // Kombiniere Sources: Seed zuerst, dann Testimonials
-        const allSources = [seedSource, ...testimonialSources]
+        // Kombiniere Sources: Seed zuerst, dann Testimonials (chronologisch sortiert)
+        // Testimonials werden nach createdAt sortiert (chronologisch)
+        const sortedTestimonialSources = [...testimonialSources].sort((a, b) => {
+          const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt || 0).getTime()
+          const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt || 0).getTime()
+          return aTime - bTime
+        })
+        const allSources = [seedSource, ...sortedTestimonialSources]
         
         // Finde ersten selectRelatedTestimonials Step (oder nächsten Step nach collectSource)
-        const steps = template.creation?.flow.steps || []
         let targetStepIndex = 0
         for (let i = 0; i < steps.length; i++) {
           if (steps[i]?.preset === 'selectRelatedTestimonials') {
@@ -490,7 +537,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           sources: allSources,
         })
         
-        toast.success(`Seed geladen, ${testimonialSources.length} Quelle(n) gefunden`)
+        // Toast-Nachricht: Nur Testimonials erwähnen, wenn welche geladen wurden
+        if (hasSelectRelatedTestimonialsStep && testimonialSources.length > 0) {
+          toast.success(`Seed geladen, ${testimonialSources.length} Testimonial(s) gefunden`)
+        } else {
+          toast.success('Seed geladen')
+        }
       } catch (error) {
         toast.error(`Fehler beim Laden der Seed-Datei: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
       }
@@ -647,6 +699,23 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
     setWizardState(prev => ({ ...prev, isExtracting: true }))
 
+    const extractionStartedAt = nowMs()
+    const sessionIdForLogs = wizardSessionIdRef.current
+
+    // Log extraction_started Event
+    if (sessionIdForLogs) {
+      const currentStepForLog = template?.creation?.flow?.steps?.[wizardState.currentStepIndex]
+      void logWizardEventClient(sessionIdForLogs, {
+        eventType: 'extraction_started',
+        stepIndex: wizardState.currentStepIndex,
+        stepPreset: currentStepForLog?.preset,
+        metadata: {
+          sourcesCount: sources.length,
+          templateId,
+        },
+      })
+    }
+
     try {
       // Baue Korpus-Text aus allen Quellen
       let corpusText = buildCorpusText(sources)
@@ -660,6 +729,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       if (!corpusText.trim()) {
         toast.error("Kein Text zum Verarbeiten vorhanden")
         setWizardState(prev => ({ ...prev, isExtracting: false }))
+        if (sessionIdForLogs) {
+          const currentStepForLog = template?.creation?.flow?.steps?.[wizardState.currentStepIndex]
+          void logWizardEventClient(sessionIdForLogs, {
+            eventType: 'extraction_failed',
+            stepIndex: wizardState.currentStepIndex,
+            stepPreset: currentStepForLog?.preset,
+            metadata: { durationMs: Math.max(0, nowMs() - extractionStartedAt) },
+            error: { code: 'empty_corpus', message: 'Kein Text zum Verarbeiten vorhanden' },
+          })
+        }
         return
       }
 
@@ -679,7 +758,18 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `HTTP ${response.status}`)
+        const errorMsg = errorData.error || `HTTP ${response.status}`
+        if (sessionIdForLogs) {
+          const currentStepForLog = template?.creation?.flow?.steps?.[wizardState.currentStepIndex]
+          void logWizardEventClient(sessionIdForLogs, {
+            eventType: 'extraction_failed',
+            stepIndex: wizardState.currentStepIndex,
+            stepPreset: currentStepForLog?.preset,
+            metadata: { durationMs: Math.max(0, nowMs() - extractionStartedAt) },
+            error: { code: 'api_error', message: errorMsg },
+          })
+        }
+        throw new Error(errorMsg)
       }
 
       const result = await response.json()
@@ -696,14 +786,46 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         extractionError: undefined,
       }))
 
+      // Log extraction_completed Event
+      if (sessionIdForLogs) {
+        const durationMs = Math.max(0, nowMs() - extractionStartedAt)
+        const currentStepForLog = template?.creation?.flow?.steps?.[wizardState.currentStepIndex]
+        void logWizardEventClient(sessionIdForLogs, {
+          eventType: 'extraction_completed',
+          stepIndex: wizardState.currentStepIndex,
+          stepPreset: currentStepForLog?.preset,
+          metadata: {
+            durationMs,
+            sourcesCount: sources.length,
+            corpusLength: corpusText.length,
+            metadataKeys: Object.keys(metadata).length,
+            markdownLength: markdown.length,
+          },
+        })
+      }
+
       toast.success("Quellen wurden ausgewertet")
     } catch (error) {
-      toast.error(`Fehler beim Auswerten: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
+      const errorMsg = error instanceof Error ? error.message : "Unbekannter Fehler"
+      toast.error(`Fehler beim Auswerten: ${errorMsg}`)
       setWizardState(prev => ({ 
         ...prev, 
         isExtracting: false,
-        extractionError: error instanceof Error ? error.message : "Unbekannter Fehler"
+        extractionError: errorMsg
       }))
+      
+      // Log extraction_failed Event (falls noch nicht geloggt)
+      if (sessionIdForLogs) {
+        const durationMs = Math.max(0, nowMs() - extractionStartedAt)
+        const currentStepForLog = template?.creation?.flow?.steps?.[wizardState.currentStepIndex]
+        void logWizardEventClient(sessionIdForLogs, {
+          eventType: 'extraction_failed',
+          stepIndex: wizardState.currentStepIndex,
+          stepPreset: currentStepForLog?.preset,
+          metadata: { durationMs },
+          error: { code: 'extraction_error', message: errorMsg },
+        })
+      }
     }
   }
 
@@ -1411,8 +1533,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
 
       // UX: Wenn wir bereits structured_data haben (durch Multi-Source Re-Extract), ist generateDraft redundant.
-      // Auch wenn wir Quellen haben, wurde bereits automatisch extrahiert.
-      if (nextStep?.preset === 'generateDraft' && (prev.generatedDraft || prev.sources.length > 0)) {
+      // WICHTIG: Nur überspringen, wenn der Draft wirklich existiert.
+      // `sources.length > 0` ist KEIN Indikator für einen generierten Draft (z.B. Finalize-Flow lädt Sources automatisch).
+      if (nextStep?.preset === 'generateDraft' && !!prev.generatedDraft) {
         return { ...prev, currentStepIndex: Math.min(nextRawIndex + 1, steps.length - 1) }
       }
 
@@ -1514,10 +1637,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return
       }
 
+      // Wenn createInOwnFolder=true, muss der Dateiname eindeutig sein, damit nicht mehrere
+      // Testimonials am selben Tag denselben Ordner verwenden und sich überschreiben
+      const createInOwnFolder = template.creation.output?.createInOwnFolder === true
       const { fileName, updatedMetadata: finalMetadata } = buildCreationFileName({
         typeId,
         metadata: baseMetadata,
-        config: template.creation.output?.fileName,
+        config: {
+          ...template.creation.output?.fileName,
+          ensureUnique: createInOwnFolder, // Eindeutigkeit sicherstellen bei createInOwnFolder
+        },
       })
 
       // Bestimme OwnerId (Dateiname ohne Extension)
@@ -1645,10 +1774,15 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
 
       // Body: bevorzugt explizites Markdown (vom LLM oder manuell), sonst aus Template-Body rendern
+      // WICHTIG: Wenn Template {{bodyInText}} enthält, sollte dieser aus aktuellen Metadaten neu generiert werden,
+      // damit Änderungen an Feldern wie speakerName korrekt reflektiert werden.
       // Verwende metadataWithImages, damit Bild-URLs im Body verfügbar sind
-      let finalBodyMarkdown = preferredMarkdown.trim().length > 0
+      const templateBody = template.markdownBody || ""
+      const hasBodyInTextPlaceholder = templateBody.includes('{{bodyInText')
+      
+      let finalBodyMarkdown = preferredMarkdown.trim().length > 0 && !hasBodyInTextPlaceholder
         ? preferredMarkdown
-        : renderTemplateBody({ body: template.markdownBody || "", values: metadataWithImages })
+        : renderTemplateBody({ body: templateBody, values: metadataWithImages })
 
       // Füge Bild automatisch oben im Body ein (nach Teaser, falls vorhanden)
       // Finde das erste Bildfeld mit einer URL
@@ -1778,6 +1912,19 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             }
           } catch (error) {
             console.error('[handleSave] Fehler beim Laden der Seed-Datei für slug:', error)
+          }
+        }
+
+        // Finalize-Wizard: Setze finalRunId und eventStatus
+        const isEventFinalize = (templateId || '').toLowerCase() === 'event-finalize-de'
+        if (isEventFinalize) {
+          if (frontmatterKeys.has('finalRunId')) {
+            // Importiere toEventRunId dynamisch (Client-seitig)
+            const { toEventRunId } = await import('@/lib/events/event-run-id-client')
+            frontmatterMetadata.finalRunId = toEventRunId()
+          }
+          if (frontmatterKeys.has('eventStatus') && !frontmatterMetadata.eventStatus) {
+            frontmatterMetadata.eventStatus = 'finalDraft'
           }
         }
         
@@ -2017,9 +2164,71 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }
       } else {
         // Normal-Modus: Neue Datei erstellen
+        const isEventFinalize = (templateId || '').toLowerCase() === 'event-finalize-de'
         const createInOwnFolder = creation.output?.createInOwnFolder === true
         
-        if (createInOwnFolder) {
+        // Finalize-Wizard: Speichere in finals/run-<runId>/event-final.md
+        if (isEventFinalize && seedFileIdState) {
+          try {
+            // Lade Event-Datei, um den Event-Ordner zu finden
+            const eventItem = await provider.getItemById(seedFileIdState)
+            if (!eventItem) throw new Error('Event-Datei nicht gefunden')
+            const eventFolderId = eventItem.parentId || 'root'
+            
+            // Erstelle finals-Ordner (falls nicht vorhanden)
+            const baseItems = await provider.listItemsById(eventFolderId)
+            let finalsFolder = baseItems.find(item => item.type === 'folder' && item.metadata.name === 'finals')
+            if (!finalsFolder) {
+              finalsFolder = await provider.createFolder(eventFolderId, 'finals')
+            }
+            
+            // Erstelle run-<runId> Ordner
+            const { toEventRunId } = await import('@/lib/events/event-run-id-client')
+            const runId = toEventRunId()
+            const runFolderName = runId // z.B. "run-20260114-143022"
+            const runItems = await provider.listItemsById(finalsFolder.id)
+            let runFolder = runItems.find(item => item.type === 'folder' && item.metadata.name === runFolderName)
+            if (!runFolder) {
+              runFolder = await provider.createFolder(finalsFolder.id, runFolderName)
+            }
+            
+            // Speichere event-final.md im run-Ordner
+            targetFolderId = runFolder.id
+            targetFileName = 'event-final.md'
+            const file = new File([markdownContent], targetFileName, { type: "text/markdown" })
+            const uploadedItem = await provider.uploadFile(targetFolderId, file)
+            savedItemId = uploadedItem.id
+            
+            toast.success(`Final-Draft erstellt in ${runFolderName}/event-final.md`)
+            
+            // Log file_saved Event (Finalize-Modus)
+            if (wizardSessionIdRef.current) {
+              try {
+                const filePaths = await getFilePaths(provider, {
+                  savedItemId: uploadedItem.id,
+                  transformFileId: wizardState.pdfTransformFileId,
+                  baseFileId: wizardState.pdfBaseFileId,
+                  transcriptFileId: wizardState.pdfTranscriptFileId,
+                })
+                await logWizardEvent(wizardSessionIdRef.current, {
+                  eventType: 'file_saved',
+                  fileIds: {
+                    savedItemId: uploadedItem.id,
+                    transformFileId: wizardState.pdfTransformFileId,
+                    baseFileId: wizardState.pdfBaseFileId,
+                    transcriptFileId: wizardState.pdfTranscriptFileId,
+                  },
+                  filePaths,
+                })
+              } catch (error) {
+                console.warn('[Wizard] Fehler beim Loggen von file_saved:', error)
+              }
+            }
+          } catch (error) {
+            toast.error(`Fehler beim Erstellen des Final-Drafts: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
+            throw error
+          }
+        } else if (createInOwnFolder) {
           // Container-Modus: Ordner erstellen und Source-Datei darin speichern
           // Ordnername = Dateiname ohne Extension (z.B. "mein-event")
           const folderName = fileName.replace(/\.[^.]+$/, '') // Entferne Extension
@@ -2486,7 +2695,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       case "generateDraft":
         // Im Interview-Modus ist generateDraft zwingend nach collectSource
         // Im Form-Modus kann generateDraft optional sein
-        if (wizardState.mode === 'interview' && !wizardState.collectedInput) {
+        // Finalize/Seed-Flows können ohne collectedInput arbeiten (Sources sind bereits gesetzt).
+        if (wizardState.mode === 'interview' && !wizardState.collectedInput && wizardState.sources.length === 0) {
           return (
             <div className="text-center text-muted-foreground p-8">
               Bitte zuerst Eingaben sammeln.
@@ -2494,12 +2704,26 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           )
         }
         // Im Form-Modus kann generateDraft auch ohne collectedInput aufgerufen werden (z.B. zur Initialbefüllung)
-        const inputForGeneration = wizardState.collectedInput?.content || ""
+        const inputForGeneration = wizardState.collectedInput?.content || buildCorpusText(wizardState.sources)
         return (
           <GenerateDraftStep
             templateId={templateId}
             libraryId={libraryId}
             input={inputForGeneration}
+            onGenerateStarted={() => {
+              const sessionId = wizardSessionIdRef.current
+              if (!sessionId) return
+              void logWizardEventClient(sessionId, {
+                eventType: 'extraction_started',
+                stepIndex: wizardState.currentStepIndex,
+                stepPreset: currentStep?.preset,
+                metadata: {
+                  sourcesCount: wizardState.sources.length,
+                  corpusLength: inputForGeneration.length,
+                  templateId,
+                },
+              })
+            }}
             onGenerate={(draft) => {
               setWizardState(prev => ({
                 ...prev,
@@ -2508,6 +2732,30 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 draftMetadata: prev.mode === 'form' ? draft.metadata : prev.draftMetadata,
                 draftText: prev.mode === 'form' ? draft.markdown : prev.draftText,
               }))
+              const sessionId = wizardSessionIdRef.current
+              if (!sessionId) return
+              void logWizardEventClient(sessionId, {
+                eventType: 'extraction_completed',
+                stepIndex: wizardState.currentStepIndex,
+                stepPreset: currentStep?.preset,
+                metadata: {
+                  sourcesCount: wizardState.sources.length,
+                  corpusLength: inputForGeneration.length,
+                  metadataKeys: Object.keys(draft.metadata || {}).length,
+                  markdownLength: (draft.markdown || '').length,
+                },
+              })
+            }}
+            onGenerateFailed={(error) => {
+              const sessionId = wizardSessionIdRef.current
+              if (!sessionId) return
+              const msg = error instanceof Error ? error.message : String(error)
+              void logWizardEventClient(sessionId, {
+                eventType: 'extraction_failed',
+                stepIndex: wizardState.currentStepIndex,
+                stepPreset: currentStep?.preset,
+                error: { code: 'process_text_failed', message: msg },
+              })
             }}
             generatedDraft={wizardState.generatedDraft}
           />
@@ -2678,22 +2926,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return (
           <SelectRelatedTestimonialsStep
             sources={wizardState.sources}
-            onSelectionChange={(selectedSources) => {
-              // Aktualisiere Sources: Dialograum bleibt, Testimonials werden gefiltert
-              const dialograumSource = wizardState.sources.find(s => 
-                s.kind === 'file' && 
-                s.fileName && 
-                s.fileName.toLowerCase().includes('dialograum')
-              )
-              const updatedSources = dialograumSource 
-                ? [dialograumSource, ...selectedSources]
-                : selectedSources
-              
-              setWizardState(prev => ({
-                ...prev,
-                sources: updatedSources,
-              }))
-            }}
+            onSelectionChange={handleTestimonialSelectionChange}
           />
         )
       }
@@ -2836,8 +3069,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         const onPublish = async () => {
           const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
           const isEventPublishFinal = (templateId || '').toLowerCase().includes('event-publish-final')
-          const isGenericPublish = !isPdfAnalyse && !isEventPublishFinal
-          if (!isPdfAnalyse && !isEventPublishFinal && !isGenericPublish) return
+          const isEventFinalize = (templateId || '').toLowerCase() === 'event-finalize-de'
+          const isGenericPublish = !isPdfAnalyse && !isEventPublishFinal && !isEventFinalize
+          if (!isPdfAnalyse && !isEventPublishFinal && !isEventFinalize && !isGenericPublish) return
           if (!libraryId) throw new Error('libraryId fehlt')
           if (!template) throw new Error('Template ist nicht geladen')
           const libId = libraryId
@@ -2994,7 +3228,130 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             }
           }
 
-          // Event Publish: Index-Swap (Final ingestieren, Original aus Index löschen).
+          // Event Finalize Publish: Speichere Final-Draft, patche Frontmatter (eventStatus), dann Index-Swap
+          if (isEventFinalize) {
+            if (!seedFileIdState) throw new Error('Event-Finalize: seedFileId fehlt (Event-Datei nicht bekannt).')
+            if (!provider) throw new Error('Provider fehlt')
+
+            setWizardState(prev => ({
+              ...prev,
+              isPublishing: true,
+              publishError: undefined,
+              publishingProgress: 10,
+              publishingMessage: 'Final-Draft speichern…',
+            }))
+
+            try {
+              // 1) Speichere Final-Draft (falls noch nicht gespeichert)
+              let finalFileId = resumeFileIdState
+              if (!finalFileId) {
+                const saveRes = await handleSave({ navigateToLibrary: false, ingestEvent: false, finalizeSession: false })
+                finalFileId = saveRes?.savedItemId
+                if (!finalFileId) throw new Error('Speichern fehlgeschlagen (savedItemId fehlt).')
+              }
+
+              setWizardState(prev => ({
+                ...prev,
+                publishingProgress: 40,
+                publishingMessage: 'Frontmatter aktualisieren…',
+              }))
+
+              // 2) Lade Final-Datei und patche Frontmatter (eventStatus auf "closed")
+              const { blob } = await provider.getBinary(finalFileId)
+              const markdown = await blob.text()
+              const { patchFrontmatter } = await import('@/lib/markdown/frontmatter-patch')
+              const patchedMarkdown = patchFrontmatter(markdown, { eventStatus: 'closed' })
+              
+              // 3) Überschreibe Datei mit gepatchtem Frontmatter
+              const finalItem = await provider.getItemById(finalFileId)
+              if (!finalItem) throw new Error('Final-Datei nicht gefunden')
+              await provider.deleteItem(finalFileId)
+              const file = new File([patchedMarkdown], finalItem.metadata.name || 'event-final.md', { type: 'text/markdown' })
+              const uploadedItem = await provider.uploadFile(finalItem.parentId || 'root', file)
+              finalFileId = uploadedItem.id
+
+              setWizardState(prev => ({
+                ...prev,
+                publishingProgress: 70,
+                publishingMessage: 'Final ingestieren + Index-Swap…',
+              }))
+
+              // 4) Rufe publish-final Endpoint auf (Index-Swap)
+              const res = await fetch(`/api/library/${libId}/events/publish-final`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ finalFileId }),
+              })
+              const json = await res.json().catch(() => ({} as Record<string, unknown>))
+              if (!res.ok) {
+                const msg = typeof (json as { error?: unknown })?.error === 'string' ? String((json as { error: string }).error) : `HTTP ${res.status}`
+                throw new Error(msg)
+              }
+
+              setWizardState(prev => ({
+                ...prev,
+                isPublishing: false,
+                isPublished: true,
+                publishingProgress: 100,
+                publishingMessage: 'Fertig.',
+              }))
+              if (sessionIdForLogs) {
+                const durationMs = Math.max(0, nowMs() - publishStartedAt)
+                void logWizardEventClient(sessionIdForLogs, {
+                  eventType: 'publish_completed',
+                  stepIndex: wizardState.currentStepIndex,
+                  stepPreset: currentStep?.preset,
+                  metadata: { durationMs, mode: 'event_finalize' },
+                })
+              }
+
+              // Wizard-Session finalisieren
+              if (sessionIdForLogs) {
+                try {
+                  const filePaths = await getFilePaths(provider, { savedItemId: finalFileId })
+                  await logWizardEventClient(sessionIdForLogs, {
+                    eventType: 'wizard_completed',
+                    stepIndex: wizardState.currentStepIndex,
+                    stepPreset: 'publish',
+                    fileIds: { savedItemId: finalFileId },
+                    filePaths: { savedPath: filePaths.savedPath },
+                  })
+                  wizardSessionCompletedRef.current = true
+                  await finalizeWizardSessionClient(sessionIdForLogs, 'completed', {
+                    finalStepIndex: wizardState.currentStepIndex,
+                    finalFileIds: { savedItemId: finalFileId },
+                    finalFilePaths: { savedPath: filePaths.savedPath },
+                  })
+                } catch (error) {
+                  console.warn('[Wizard] Fehler beim Finalisieren der Session (Event Finalize):', error)
+                }
+              }
+              return
+            } catch (error) {
+              const msg = error instanceof Error ? error.message : 'Unbekannter Fehler'
+              setWizardState(prev => ({
+                ...prev,
+                isPublishing: false,
+                publishError: msg,
+                publishingProgress: prev.publishingProgress ?? 0,
+                publishingMessage: msg,
+              }))
+              toast.error('Publizieren fehlgeschlagen', { description: msg })
+              if (sessionIdForLogs) {
+                const durationMs = Math.max(0, nowMs() - publishStartedAt)
+                void logWizardEventClient(sessionIdForLogs, {
+                  eventType: 'publish_failed',
+                  stepIndex: wizardState.currentStepIndex,
+                  stepPreset: currentStep?.preset,
+                  metadata: { durationMs, mode: 'event_finalize' },
+                  error: { code: 'publish_failed', message: msg },
+                })
+              }
+              return
+            }
+          }
+
+          // Event Publish Final (Legacy): Index-Swap (Final ingestieren, Original aus Index löschen).
           // Erwartung: Wizard wird als "Resume" auf einer Final-Datei gestartet.
           if (isEventPublishFinal) {
             const finalFileId = resumeFileIdState

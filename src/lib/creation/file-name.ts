@@ -11,6 +11,8 @@ export interface CreationOutputFileNameConfig {
   autoFillMetadataField?: boolean
   extension?: string
   fallbackPrefix?: string
+  /** Wenn true, wird eine eindeutige Komponente (Timestamp) zum Dateinamen hinzugefügt */
+  ensureUnique?: boolean
 }
 
 export interface BuildCreationFileNameArgs {
@@ -46,6 +48,14 @@ function toDateStamp(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
+function toTimeStamp(d: Date): string {
+  // HHMMSSMMM (für eindeutige Namen, inkl. Millisekunden)
+  const iso = d.toISOString()
+  const timePart = iso.slice(11, 19).replace(/:/g, '') // HHMMSS
+  const msPart = iso.slice(20, 23) // MMM (Millisekunden)
+  return `${timePart}${msPart}`
+}
+
 function normalizeExtension(ext: string | undefined): string {
   const raw = (ext || 'md').trim().replace(/^\./, '')
   return raw.length > 0 ? raw : 'md'
@@ -57,6 +67,7 @@ export function buildCreationFileName(args: BuildCreationFileNameArgs): BuildCre
   const extension = normalizeExtension(cfg?.extension)
   const fallbackPrefix = (cfg?.fallbackPrefix?.trim() || args.typeId).trim()
   const stamp = toDateStamp(now)
+  const ensureUnique = cfg?.ensureUnique === true
 
   const metadataFieldKey = cfg?.metadataFieldKey?.trim() || undefined
   const autoFill = cfg?.autoFillMetadataField === true
@@ -79,7 +90,17 @@ export function buildCreationFileName(args: BuildCreationFileNameArgs): BuildCre
     return title || `${fallbackPrefix} ${stamp}`
   })()
 
-  const base = toSafeSlug(candidateRaw) || toSafeSlug(`${fallbackPrefix}-${stamp}`) || `${args.typeId}-${stamp}`
+  let base = toSafeSlug(candidateRaw) || toSafeSlug(`${fallbackPrefix}-${stamp}`) || `${args.typeId}-${stamp}`
+  
+  // Wenn ensureUnique=true, füge Timestamp hinzu für Eindeutigkeit
+  if (ensureUnique) {
+    const timeStamp = toTimeStamp(now)
+    // Füge Timestamp hinzu, falls nicht bereits vorhanden
+    if (!base.includes(timeStamp)) {
+      base = `${base}-${timeStamp}`
+    }
+  }
+  
   const fileName = base.endsWith(`.${extension}`) ? base : `${base}.${extension}`
 
   return { fileName, updatedMetadata }

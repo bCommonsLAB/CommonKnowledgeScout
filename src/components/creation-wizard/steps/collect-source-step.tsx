@@ -1,15 +1,15 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import type { CreationSource, TemplateDocument } from "@/lib/templates/template-types"
-import { Mic, Link, Upload, Plus, Loader2, FileText } from "lucide-react"
+import { Link, Upload, Plus, Loader2, FileText, Mic } from "lucide-react"
 import { toast } from "sonner"
-import { AudioOscilloscope } from "@/components/creation-wizard/components/audio-oscilloscope"
+import { DictationTextarea } from "@/components/shared/dictation-textarea"
 import { SecretaryServiceError } from "@/lib/secretary/client"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildSourceSummary } from "@/lib/creation/corpus"
@@ -423,13 +423,8 @@ export function CollectSourceStep({
   const existingTextSource = sources.find(s => s.kind === 'text')
   const initialInput = collectedInput || existingTextSource?.text || ""
   const [input, setInput] = useState(initialInput)
-  const [isRecording, setIsRecording] = useState(false)
-  const [recordingSeconds, setRecordingSeconds] = useState(0)
-  const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null)
-  const [isTranscribing, setIsTranscribing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isExtractingUrl, setIsExtractingUrl] = useState(false)
-  const [liveStream, setLiveStream] = useState<MediaStream | null>(null)
   const [pendingFileSource, setPendingFileSource] = useState<WizardSource | null>(null)
   
   // Synchronisiere Input-State mit bestehender Text-Quelle, wenn sich sources ändern
@@ -441,21 +436,6 @@ export function CollectSourceStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sources]) // input absichtlich nicht in Dependencies, um Endlosschleife zu vermeiden
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const mediaStreamRef = useRef<MediaStream | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
-
-  const canUseMediaRecorder = useMemo(() => {
-    return typeof window !== "undefined" && typeof MediaRecorder !== "undefined" && !!navigator?.mediaDevices?.getUserMedia
-  }, [])
-
-  useEffect(() => {
-    if (!isRecording) return
-    const intervalId = window.setInterval(() => {
-      setRecordingSeconds((s) => s + 1)
-    }, 1000)
-    return () => window.clearInterval(intervalId)
-  }, [isRecording])
 
   // createSourceFromInput Funktion (wird später im useEffect verwendet)
   const createSourceFromInput = (): WizardSource | null => {
@@ -763,9 +743,10 @@ export function CollectSourceStep({
     }
   }
 
+  // transcribeAudio wird nur noch für Audio-Dateien verwendet (nicht für Diktat)
   async function transcribeAudio(file: File): Promise<void> {
     setErrorMessage(null)
-    setIsTranscribing(true)
+    // Kein setIsTranscribing mehr nötig, da Diktat über DictationTextarea läuft
     try {
       /**
        * Variante A1 (Hybrid): Audio wird als External Job verarbeitet.
@@ -979,76 +960,13 @@ export function CollectSourceStep({
       const msg = e instanceof Error ? e.message : "Unbekannter Fehler"
       setErrorMessage(msg)
       toast.error("Audio konnte nicht verarbeitet werden", { description: msg })
-    } finally {
-      setIsTranscribing(false)
     }
-  }
-
-  async function startRecording(): Promise<void> {
-    setErrorMessage(null)
-    if (!canUseMediaRecorder) {
-      setHasMicPermission(false)
-      setErrorMessage("Dein Browser unterstützt keine Audio-Aufnahme. Bitte lade eine Audio-Datei hoch.")
-      return
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      mediaStreamRef.current = stream
-      setLiveStream(stream)
-      setHasMicPermission(true)
-
-      // WEBM ist vom Secretary-Service unterstützt (WEBM).
-      const preferredMime =
-        MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-          ? "audio/webm;codecs=opus"
-          : MediaRecorder.isTypeSupported("audio/webm")
-            ? "audio/webm"
-            : ""
-
-      const recorder = preferredMime ? new MediaRecorder(stream, { mimeType: preferredMime }) : new MediaRecorder(stream)
-      mediaRecorderRef.current = recorder
-      audioChunksRef.current = []
-      setRecordingSeconds(0)
-
-      recorder.ondataavailable = (event: BlobEvent) => {
-        if (event.data && event.data.size > 0) audioChunksRef.current.push(event.data)
-      }
-
-      recorder.onstop = async () => {
-        try {
-          const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" })
-          const file = new File([blob], "interview.webm", { type: blob.type })
-          await transcribeAudio(file)
-        } finally {
-          // Stream clean up
-          mediaStreamRef.current?.getTracks().forEach((t) => t.stop())
-          mediaStreamRef.current = null
-          setLiveStream(null)
-          mediaRecorderRef.current = null
-          audioChunksRef.current = []
-        }
-      }
-
-      recorder.start()
-      setIsRecording(true)
-    } catch (e) {
-      setHasMicPermission(false)
-      const msg = e instanceof Error ? e.message : "Mikrofon-Zugriff fehlgeschlagen."
-      setErrorMessage(msg)
-    }
-  }
-
-  function stopRecording(): void {
-    setErrorMessage(null)
-    const recorder = mediaRecorderRef.current
-    if (!recorder) return
-    if (recorder.state !== "inactive") recorder.stop()
-    setIsRecording(false)
+    // Kein finally-Block mehr nötig, da kein setIsTranscribing
   }
 
   // handleAudioFileSelect wurde entfernt, da nicht verwendet
   // Audio-Dateien werden direkt über transcribeAudio verarbeitet
+  // Diktat-Logik wurde durch generische DictationTextarea ersetzt
   // createSourceFromInput wurde bereits oben definiert (vor dem frühen Return)
 
   return (
@@ -1074,63 +992,18 @@ export function CollectSourceStep({
         {/* Unified Text-Quelle: tippen oder diktieren - vereinfacht */}
         {(source.type === "spoken" || source.type === "text") && (
           <div className="space-y-6">
-            {/* Großer Diktier-Button (wenn verfügbar) */}
-            {canUseMediaRecorder && (
-              <div className="relative">
-                {/* Oszilloskop im Hintergrund (nur während Aufnahme) */}
-                {isRecording && liveStream && (
-                  <div className="absolute inset-0 rounded-lg overflow-hidden opacity-20 pointer-events-none">
-                    <AudioOscilloscope stream={liveStream} isActive={true} />
-                  </div>
-                )}
-                <Button
-                  type="button"
-                  onClick={() => (isRecording ? stopRecording() : void startRecording())}
-                  disabled={isTranscribing || isExtracting}
-                  size="lg"
-                  className={`relative w-full h-16 text-lg font-medium z-10 ${
-                    isRecording
-                      ? "bg-red-50 border-red-500 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400"
-                      : "bg-blue-50 border-blue-500 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400"
-                  }`}
-                  variant="outline"
-                >
-                  {isRecording ? (
-                    <>
-                      <Mic className="w-6 h-6 mr-3 animate-pulse" />
-                      Aufnahme stoppen ({recordingSeconds}s)
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="w-6 h-6 mr-3" />
-                      Jetzt sprechen
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-
-            {/* Großes Textfeld */}
-            <Textarea
+            <DictationTextarea
+              label="Erzähl mir von der Veranstaltung"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={setInput}
               rows={8}
-              className="w-full resize-none text-lg border-2 focus:border-blue-500"
               placeholder="z.B.: Am 15. Januar findet ein Workshop zum Thema KI statt. Der Eintritt ist frei..."
-              disabled={isExtracting || isTranscribing}
+              disabled={isExtracting}
+              showOscilloscope={true}
+              className="[&_textarea]:w-full [&_textarea]:resize-none [&_textarea]:text-lg [&_textarea]:border-2 [&_textarea]:focus:border-blue-500"
             />
 
             {/* Status-Meldungen */}
-            {isTranscribing && (
-              <p className="text-sm text-muted-foreground text-center">
-                Audio wird verarbeitet…
-              </p>
-            )}
-            {hasMicPermission === false && canUseMediaRecorder && (
-              <p className="text-xs text-muted-foreground text-center">
-                Mikrofon ist nicht verfügbar. Bitte tippe den Text direkt ein.
-              </p>
-            )}
             {errorMessage && (
               <p className="text-sm text-destructive text-center">
                 {errorMessage}

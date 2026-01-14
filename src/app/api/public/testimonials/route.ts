@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { resolveOwnerEmailForPublicLibrary } from '@/lib/public/public-library-owner'
+import { resolveOwnerForTestimonials } from '@/lib/public/public-library-owner'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { writeTestimonialArtifacts } from '@/lib/testimonials/testimonial-writer'
 import crypto from 'crypto'
-import type { Document } from 'mongodb'
-import { getCollection } from '@/lib/mongodb-service'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -39,59 +38,6 @@ async function readEventWriteKeyIfAny(args: {
   const { meta } = parseFrontmatter(markdown)
   const key = typeof meta.testimonialWriteKey === 'string' ? meta.testimonialWriteKey.trim() : ''
   return key || null
-}
-
-/**
- * Für den anonymen Testimonial-Flow benötigen wir den Storage-Provider des Owners.
- *
- * Ursprünglich war der Public-Endpoint nur für "public libraries" gedacht und hat die Owner-Email
- * ausschließlich über `config.publicPublishing.isPublic=true` aufgelöst.
- *
- * In der Praxis wird der anonyme Flow aber auch für private Libraries verwendet – dann aber nur
- * mit einem per-Event `testimonialWriteKey` (QR-Link enthält writeKey).
- *
- * Diese Funktion:
- * - bevorzugt weiterhin die Public-Library-Auflösung (ohne writeKey-Zwang)
- * - fällt für private Libraries NUR mit vorhandenem writeKey auf eine allgemeine Owner-Suche zurück
- *
- * Sicherheitsprinzip:
- * - private Library => writeKey muss vorhanden sein, sonst keine Owner-Auflösung
- */
-async function resolveOwnerForTestimonials(args: {
-  libraryId: string
-  writeKey?: string
-}): Promise<{ ownerEmail: string; isPublicLibrary: boolean }> {
-  const libraryId = String(args.libraryId || '').trim()
-  const writeKey = typeof args.writeKey === 'string' ? args.writeKey.trim() : ''
-  if (!libraryId) throw new Error('libraryId fehlt')
-
-  // 1) Public libraries: weiterhin wie bisher.
-  try {
-    const ownerEmail = await resolveOwnerEmailForPublicLibrary(libraryId)
-    return { ownerEmail, isPublicLibrary: true }
-  } catch {
-    // 2) Private libraries: Owner nur auflösen, wenn writeKey vorhanden ist.
-    if (!writeKey) {
-      throw new Error('Diese Library ist nicht public. writeKey ist erforderlich.')
-    }
-
-    const collectionName = process.env.MONGODB_COLLECTION_NAME || 'libraries'
-    const col = await getCollection<Document>(collectionName)
-
-    // Struktur in MongoDB: { email, libraries: [ { id, ... } ... ] }
-    const row = await col.findOne(
-      {
-        libraries: {
-          $elemMatch: { id: libraryId },
-        },
-      },
-      { projection: { email: 1 } }
-    )
-
-    const ownerEmail = typeof row?.email === 'string' ? row.email.trim() : ''
-    if (!ownerEmail) throw new Error('Owner-Email für library konnte nicht aufgelöst werden')
-    return { ownerEmail, isPublicLibrary: false }
-  }
 }
 
 /**
@@ -146,42 +92,40 @@ export async function GET(req: NextRequest) {
       folderName: 'testimonials',
     })
 
-    const children = await provider.listItemsById(testimonialsFolderId)
-    const testimonialFolders = children.filter((it) => it.type === 'folder')
+    // Verwende gemeinsame Discovery-Funktion
+    const { discoverTestimonials } = await import('@/lib/testimonials/testimonial-discovery')
+    const discovered = await discoverTestimonials({
+      provider,
+      eventFileId,
+    })
 
+    // Konvertiere zu API-Format
     const items = await Promise.all(
-      testimonialFolders.map(async (folder) => {
-        const folderId = folder.id
-        const testimonialId = folder.metadata?.name || folderId
-        const files = await provider.listItemsById(folderId)
+      discovered.map(async (t) => {
+        const audioUrl = t.audioFileId 
+          ? await provider.getStreamingUrl(t.audioFileId).catch(() => null) 
+          : null
 
-        const audio = files.find((f) => f.type === 'file' && /\.(mp3|m4a|wav|ogg|opus|flac|webm)$/.test(String(f.metadata?.name || '').toLowerCase()))
-        const metaFile = files.find((f) => f.type === 'file' && String(f.metadata?.name || '').toLowerCase() === 'meta.json')
-
-        const meta = await (async () => {
-          if (!metaFile) return null
-          try {
-            const { blob } = await provider.getBinary(metaFile.id)
-            const txt = await blob.text()
-            return JSON.parse(txt) as unknown
-          } catch {
-            return null
-          }
-        })()
-
-        const audioUrl = audio ? await provider.getStreamingUrl(audio.id).catch(() => null) : null
+        // Status: 'ready' wenn Text vorhanden, 'pending' wenn nur Audio
+        const status = t.text && t.text.trim().length > 0 ? 'ready' : 'pending'
 
         return {
-          testimonialId,
-          folderId,
-          audio: audio
+          testimonialId: t.testimonialId,
+          folderId: t.folderId,
+          status,
+          audio: t.hasAudio && t.audioFileId
             ? {
-                fileId: audio.id,
-                fileName: audio.metadata?.name || null,
+                fileId: t.audioFileId,
+                fileName: t.audioFileName,
                 url: audioUrl,
               }
             : null,
-          meta,
+          meta: {
+            testimonialId: t.testimonialId,
+            createdAt: t.createdAt,
+            speakerName: t.speakerName,
+            text: t.text,
+          },
         }
       })
     )
@@ -274,48 +218,78 @@ export async function POST(req: NextRequest) {
       folderName: testimonialId,
     })
 
-    const audioUpload = file
-      ? await (async () => {
-          const ext = getFileExtensionFromName(file.name) || (file.type.includes('webm') ? 'webm' : 'dat')
-          const audioName = `audio.${ext}`
-          return await provider.uploadFile(
-            testimonialFolderId,
-            new File([file], audioName, { type: file.type || 'audio/*' })
-          )
-        })()
-      : null
-
-    const meta = {
-      testimonialId,
-      createdAt: new Date().toISOString(),
-      eventFileId,
-      speakerName: speakerName || null,
-      consent: consent ?? null,
-      /**
-       * Text ist der "finale" Text – der Nutzer konnte ihn vor dem Speichern korrigieren.
-       * Wenn Audio vorhanden ist, kann man später weiterhin serverseitig nachtranskribieren,
-       * aber das ist bewusst nicht Teil dieses minimalen Flows.
-       */
-      text: text || null,
-      audio: audioUpload
-        ? {
-            fileId: audioUpload.id,
-            fileName: audioUpload.metadata?.name || null,
-            mimeType: audioUpload.metadata?.mimeType || (file ? file.type : null) || null,
-          }
-        : null,
+    // 1. Schreibe Source-File (Audio oder Text)
+    let sourceFile: Awaited<ReturnType<typeof provider.uploadFile>>
+    
+    if (file) {
+      // Audio-Datei hochladen
+      const ext = getFileExtensionFromName(file.name) || (file.type.includes('webm') ? 'webm' : 'dat')
+      const audioName = `audio.${ext}`
+      sourceFile = await provider.uploadFile(
+        testimonialFolderId,
+        new File([file], audioName, { type: file.type || 'audio/*' })
+      )
+    } else if (text && text.trim().length > 0) {
+      // Text-Datei hochladen (wenn nur Text, kein Audio)
+      const textName = 'source.txt'
+      sourceFile = await provider.uploadFile(
+        testimonialFolderId,
+        new File([text], textName, { type: 'text/plain' })
+      )
+    } else {
+      return NextResponse.json({ error: 'Entweder Text oder Audio ist erforderlich' }, { status: 400 })
     }
-    const metaFile = new File([JSON.stringify(meta, null, 2)], 'meta.json', { type: 'application/json' })
-    await provider.uploadFile(testimonialFolderId, metaFile)
 
-    return NextResponse.json(
-      {
-        status: 'ok',
-        testimonialId,
-        audioFileId: audioUpload?.id || null,
-      },
-      { status: 200 }
-    )
+    // 2. Wenn Text vorhanden: synchron Shadow-Twin-Artefakte schreiben
+    const createdAt = new Date().toISOString()
+    const targetLanguage = 'de' // TODO: könnte aus Event-Frontmatter kommen
+    const templateName = 'event-testimonial-creation-de' // TODO: könnte aus Event-Frontmatter kommen
+
+    if (text && text.trim().length > 0) {
+      // Schreibe synchron nur Transcript-Artefakt
+      // Transformation-Artefakt wird später im Finalisieren-Wizard erstellt
+      const artifacts = await writeTestimonialArtifacts({
+        provider,
+        eventFileId,
+        testimonialFolderId,
+        sourceFile,
+        text: text.trim(),
+        targetLanguage,
+        templateName,
+        libraryId,
+        userEmail: ownerEmail,
+        metadata: {
+          testimonialId,
+          createdAt,
+          eventFileId,
+          speakerName: speakerName || null,
+          consent: consent ?? null,
+        },
+      })
+
+      return NextResponse.json(
+        {
+          status: 'ok',
+          testimonialId,
+          audioFileId: file ? sourceFile.id : null,
+          transcriptFileId: artifacts.transcript?.file.id || null,
+          // Transformation wird später im Finalisieren-Wizard erstellt
+        },
+        { status: 200 }
+      )
+    } else {
+      // Audio-only: Job starten (TODO: wird später implementiert)
+      // Für jetzt: nur Source-File speichern, kein meta.json mehr
+      return NextResponse.json(
+        {
+          status: 'ok',
+          testimonialId,
+          audioFileId: sourceFile.id,
+          pending: true, // Transformation fehlt noch
+        },
+        { status: 200 }
+      )
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: msg }, { status: 500 })

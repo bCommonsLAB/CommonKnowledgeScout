@@ -125,6 +125,13 @@ export function PublicTestimonialRecorder() {
           onDictationAudio={({ blob, mimeType }) => setDictationAudio({ blob, mimeType })}
           rows={7}
           placeholder="Schreibe hier dein Testimonial…"
+          showOscilloscope={true}
+          transcribeEndpoint="/api/public/secretary/process-audio"
+          extraFormFields={{
+            libraryId,
+            eventFileId,
+            ...(writeKey ? { writeKey } : {}),
+          }}
         />
 
         {error ? <div className="text-sm text-destructive">{error}</div> : null}

@@ -129,11 +129,3 @@ export function AudioOscilloscope({ stream, isActive, className }: AudioOscillos
     </div>
   )
 }
-
-
-
-
-
-
-
-

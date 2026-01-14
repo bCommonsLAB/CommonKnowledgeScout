@@ -18,6 +18,21 @@ import { useLibraryRole } from "@/hooks/use-library-role";
 import { Separator } from "@/components/ui/separator";
 import { Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TestimonialList } from "@/components/shared/testimonial-list";
+import { useTestimonials } from "@/hooks/use-testimonials";
 
 /**
  * Interface für Session-Detail-Daten aus Event/Konferenz-Dokumenten
@@ -185,55 +200,43 @@ export function SessionDetail({
     return `${origin}/library/create/${encodeURIComponent(testimonialWizardTemplateId)}?${params.toString()}`
   }, [libraryId, eventFileId, storageContext?.testimonialsFolderId, data.wizard_testimonial_template_id])
 
-  const [testimonialItems, setTestimonialItems] = React.useState<Array<{
-    testimonialId: string
-    audio: { url: string | null; fileName: string | null } | null
-    meta: unknown
-  }>>([])
-  const [isLoadingTestimonials, setIsLoadingTestimonials] = React.useState(false)
+  // Verwende gemeinsamen Hook für Testimonials
+  const { items: testimonialItems, isLoading: isLoadingTestimonials, reload: loadTestimonials } = useTestimonials({
+    libraryId: isEvent ? libraryId : undefined,
+    eventFileId: isEvent ? eventFileId : undefined,
+    writeKey: isEvent ? writeKey : undefined,
+    enabled: isEvent,
+  })
 
-  React.useEffect(() => {
-    let cancelled = false
-    async function loadTestimonials() {
-      if (!isEvent) return
-      if (!libraryId || !eventFileId) return
-      setIsLoadingTestimonials(true)
-      try {
-        const qp = new URLSearchParams()
-        qp.set('libraryId', libraryId)
-        qp.set('eventFileId', eventFileId)
-        if (writeKey) qp.set('writeKey', writeKey)
-        const res = await fetch(`/api/public/testimonials?${qp.toString()}`, { cache: 'no-store' })
-        const json = await res.json().catch(() => ({} as Record<string, unknown>))
-        if (!res.ok) {
-          const msg = typeof (json as { error?: unknown })?.error === 'string' ? String((json as { error: string }).error) : `HTTP ${res.status}`
-          throw new Error(msg)
-        }
-        const items = Array.isArray((json as { items?: unknown }).items) ? ((json as { items: unknown[] }).items as unknown[]) : []
-        const mapped = items
-          .map((it) => (it && typeof it === 'object') ? (it as Record<string, unknown>) : null)
-          .filter((it): it is Record<string, unknown> => !!it)
-          .map((it) => ({
-            testimonialId: typeof it.testimonialId === 'string' ? it.testimonialId : 'unknown',
-            audio: it.audio && typeof it.audio === 'object'
-              ? {
-                  url: typeof (it.audio as Record<string, unknown>).url === 'string' ? String((it.audio as Record<string, unknown>).url) : null,
-                  fileName: typeof (it.audio as Record<string, unknown>).fileName === 'string' ? String((it.audio as Record<string, unknown>).fileName) : null,
-                }
-              : null,
-            meta: it.meta,
-          }))
-        if (!cancelled) setTestimonialItems(mapped)
-      } catch {
-        // Nicht fatal: Event-Seite soll trotzdem rendern
-        if (!cancelled) setTestimonialItems([])
-      } finally {
-        if (!cancelled) setIsLoadingTestimonials(false)
+  const canDeleteTestimonials = !!isOwnerOrModerator
+
+  async function deleteTestimonial(testimonialId: string): Promise<void> {
+    if (!libraryId || !eventFileId) return
+    const id = String(testimonialId || '').trim()
+    if (!id) return
+
+    try {
+      const qp = new URLSearchParams()
+      qp.set('eventFileId', eventFileId)
+      if (writeKey) qp.set('writeKey', writeKey)
+      const res = await fetch(
+        `/api/library/${encodeURIComponent(libraryId)}/events/testimonials/${encodeURIComponent(id)}?${qp.toString()}`,
+        { method: 'DELETE' }
+      )
+      const json = await res.json().catch(() => ({} as Record<string, unknown>))
+      if (!res.ok) {
+        const msg =
+          typeof (json as { error?: unknown })?.error === 'string'
+            ? String((json as { error: string }).error)
+            : `HTTP ${res.status}`
+        throw new Error(msg)
       }
+
+      await loadTestimonials()
+    } catch (error) {
+      throw error // Re-throw für TestimonialList
     }
-    void loadTestimonials()
-    return () => { cancelled = true }
-  }, [isEvent, libraryId, eventFileId, writeKey])
+  }
 
   async function copyPublicUrl(): Promise<void> {
     if (!publicWizardTestimonialUrl && !publicAnonTestimonialUrl) return
@@ -399,6 +402,23 @@ export function SessionDetail({
       {/* Main Content */}
       <div className="w-full max-w-full px-4 py-8 box-border overflow-x-hidden">
         <div className="space-y-8 w-full max-w-full">
+          {/* Markdown Content Section - full width (verwendet markdown Feld, fallback auf summary) */}
+          {(data.markdown || data.summary) && (
+            <>
+              <EventSummary
+                summary={data.markdown || data.summary || ''}
+                videoUrl={data.video_url}
+                provider={provider}
+                currentFolderId={currentFolderId}
+              />
+              {/* KI-Info-Hinweis für KI-generierte Zusammenfassung */}
+              <AIGeneratedNotice compact />
+            </>
+          )}
+
+          {/* Slides Section - full width */}
+          {slides.length > 0 && <EventSlides slides={slides} libraryId={libraryId} />}
+
           {/* Event: Moderator-Tools + Testimonials */}
           {isEvent ? (
             <Card className="p-4">
@@ -459,27 +479,16 @@ export function SessionDetail({
                 ) : null}
 
                 <Separator />
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Testimonials</div>
-                  {isLoadingTestimonials ? (
-                    <div className="text-xs text-muted-foreground">Lade…</div>
-                  ) : testimonialItems.length === 0 ? (
-                    <div className="text-xs text-muted-foreground">Noch keine Testimonials.</div>
-                  ) : (
-                    <div className="space-y-3">
-                      {testimonialItems.map((it) => (
-                        <div key={it.testimonialId} className="rounded border p-3">
-                          <div className="text-sm font-medium">{it.testimonialId}</div>
-                          {it.audio?.url ? (
-                            <audio className="mt-2 w-full" controls src={it.audio.url} />
-                          ) : (
-                            <div className="text-xs text-muted-foreground mt-1">Kein Audio-Link verfügbar.</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <TestimonialList
+                  items={testimonialItems}
+                  isLoading={isLoadingTestimonials}
+                  onRefresh={loadTestimonials}
+                  onDelete={canDeleteTestimonials ? deleteTestimonial : undefined}
+                  canDelete={canDeleteTestimonials}
+                  provider={provider}
+                  currentFolderId={currentFolderId}
+                  variant="list"
+                />
 
                   {canSeeModeratorTools && libraryId && eventFileId ? (
                   <>
@@ -508,23 +517,6 @@ export function SessionDetail({
               </div>
             </Card>
           ) : null}
-
-          {/* Markdown Content Section - full width (verwendet markdown Feld, fallback auf summary) */}
-          {(data.markdown || data.summary) && (
-            <>
-              <EventSummary
-                summary={data.markdown || data.summary || ''}
-                videoUrl={data.video_url}
-                provider={provider}
-                currentFolderId={currentFolderId}
-              />
-              {/* KI-Info-Hinweis für KI-generierte Zusammenfassung */}
-              <AIGeneratedNotice compact />
-            </>
-          )}
-
-          {/* Slides Section - full width */}
-          {slides.length > 0 && <EventSlides slides={slides} libraryId={libraryId} />}
         </div>
       </div>
 
@@ -540,7 +532,25 @@ export function SessionDetail({
                 <div><strong>docType:</strong> {data.docType || '—'}</div>
                 <div><strong>isEvent:</strong> {String(isEvent)}</div>
                 <div><strong>libraryId:</strong> {libraryId || '—'}</div>
-                <div><strong>eventFileId:</strong> {eventFileId || '—'}</div>
+                <div className="flex items-center gap-1">
+                  <strong>eventFileId:</strong>
+                  {eventFileId ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-block max-w-[200px] truncate cursor-help">
+                            {eventFileId.length > 40 ? `${eventFileId.slice(0, 40)}...` : eventFileId}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-md">
+                          <p className="break-all font-mono text-xs">{eventFileId}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <span>—</span>
+                  )}
+                </div>
                 <div><strong>hasWriteKey:</strong> {String(!!writeKey)}</div>
                 <div><strong>isOwnerOrModerator:</strong> {String(isOwnerOrModerator)}</div>
                 <div><strong>isLoadingRole:</strong> {String(isLoadingRole)}</div>
@@ -559,8 +569,22 @@ export function SessionDetail({
                   {data.fileName}
                 </div>
               )}
-              <div className="break-all">
-                {t('event.fileId')}: <code className="px-0.5 py-0 bg-muted rounded text-[10px] break-all">{data.fileId}</code>
+              <div className="flex items-center gap-1 flex-wrap">
+                <span>{t('event.fileId')}:</span>
+                {data.fileId ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <code className="px-0.5 py-0 bg-muted rounded text-[10px] max-w-[200px] truncate cursor-help inline-block">
+                          {data.fileId.length > 40 ? `${data.fileId.slice(0, 40)}...` : data.fileId}
+                        </code>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-md">
+                        <p className="break-all font-mono text-xs">{data.fileId}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : null}
                 {libraryId && (
                   <Link 
                     href={`/library?activeLibraryId=${encodeURIComponent(libraryId)}`}
