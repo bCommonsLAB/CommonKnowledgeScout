@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import type { TemplatePreviewDetailViewType } from "@/lib/templates/template-types"
 import { DetailViewRenderer } from "@/components/library/detail-view-renderer"
 import type { StorageProvider } from "@/lib/storage/types"
@@ -16,6 +16,8 @@ interface PreviewDetailStepProps {
   provider?: StorageProvider | null
   /** Optional: Folder-ID (base64) für relative Bilder im MarkdownPreview */
   currentFolderId?: string
+  /** Optional: Preview-Modus, blendet Event-spezifische Tools/Debug aus */
+  isPreviewOnly?: boolean
 }
 
 /**
@@ -29,15 +31,10 @@ export function PreviewDetailStep({
   libraryId,
   provider = null,
   currentFolderId = 'root',
+  isPreviewOnly = true,
 }: PreviewDetailStepProps) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Vorschau</CardTitle>
-        <CardDescription>
-          So sieht die Detailseite ungefähr aus. Wenn alles passt, klicke auf &quot;Weiter&quot; zum Speichern.
-        </CardDescription>
-      </CardHeader>
       <CardContent className="p-0">
         <div className="border-t">
           <DetailViewRenderer
@@ -48,6 +45,8 @@ export function PreviewDetailStep({
             showBackLink={false}
             provider={provider}
             currentFolderId={currentFolderId}
+            hideEventTools={isPreviewOnly}
+            hideDebug={isPreviewOnly}
           />
         </div>
       </CardContent>

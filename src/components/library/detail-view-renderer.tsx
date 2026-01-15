@@ -23,6 +23,10 @@ interface DetailViewRendererProps {
   provider?: StorageProvider | null
   /** Optional: Folder-ID (base64) für relative Bilder im MarkdownPreview */
   currentFolderId?: string
+  /** Optional: Blendet Event-Tools (QR/Testimonial-Liste/Co-Creation) aus */
+  hideEventTools?: boolean
+  /** Optional: Blendet Debug-Informationen aus */
+  hideDebug?: boolean
 }
 
 /**
@@ -39,6 +43,8 @@ export function DetailViewRenderer({
   showBackLink = false,
   provider = null,
   currentFolderId = 'root',
+  hideEventTools = false,
+  hideDebug = false,
 }: DetailViewRendererProps) {
   // Mapper erwarten API-ähnliche Struktur: { docMetaJson: { ... } }
   const docMetaJson = React.useMemo(() => {
@@ -66,6 +72,8 @@ export function DetailViewRenderer({
       libraryId={libraryId}
       provider={provider}
       currentFolderId={currentFolderId}
+      hideEventTools={hideEventTools}
+      hideDebug={hideDebug}
     />
   )
 }

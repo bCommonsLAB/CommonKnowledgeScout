@@ -1,6 +1,11 @@
 ---
 title: {{title|Titel des finalen Events}}
 teaser: {{teaser|Kurzüberblick (1-2 Sätze)}}
+date: {{date|Datum (ISO oder frei)}}
+location: {{location|Ort}}
+year: {{year|Jahr (z.B. 2026)}}
+tags: {{tags|Tags (Array oder Text)}}
+topics: {{topics|Themen (Array oder Text)}}
 
 # System-Felder (werden automatisch aus dem Original gesetzt)
 slug: {{slug|Wird automatisch gesetzt (slug des Original-Events)}}
@@ -31,6 +36,11 @@ creation:
         fields:
           - title
           - teaser
+          - date
+          - location
+          - year
+          - tags
+          - topics
           - slug
           - originalFileId
       - id: Preview
@@ -70,6 +80,11 @@ Return ONE valid JSON object only (no extra text):
 {
   "title": "string",
   "teaser": "string",
+  "date": "string",
+  "location": "string",
+  "year": "number|string",
+  "tags": ["string"],
+  "topics": ["string"],
   "bodyInText": "string (markdown body)",
   "EindruckDerTeilnehmer": "string (markdown or text)",
   "Testimonials": "string (markdown list or text)"

@@ -79,6 +79,10 @@ interface SessionDetailProps {
   libraryId?: string; // Optional: für Link zur Library
   provider?: StorageProvider | null;
   currentFolderId?: string;
+  /** Optional: Event-spezifische Tools/Listen ausblenden (z.B. in Wizard-Preview) */
+  hideEventTools?: boolean;
+  /** Optional: Debug-Block ausblenden (z.B. in Wizard-Preview) */
+  hideDebug?: boolean;
 }
 
 /**
@@ -92,6 +96,8 @@ export function SessionDetail({
   libraryId,
   provider = null,
   currentFolderId = 'root',
+  hideEventTools = false,
+  hideDebug = false,
 }: SessionDetailProps) {
   const { t } = useTranslation()
   const { isOwnerOrModerator, isLoading: isLoadingRole, error: roleError } = useLibraryRole(libraryId)
@@ -105,6 +111,8 @@ export function SessionDetail({
 
   const isEvent = (data.docType || '').toLowerCase() === 'event'
   const eventFileId = data.fileId
+  // Für Re-Finalisieren: immer das Original-Event als Basis verwenden (falls vorhanden).
+  const flowEventFileId = data.originalFileId || data.fileId
   const writeKey = typeof data.testimonialWriteKey === 'string' ? data.testimonialWriteKey.trim() : ''
   /**
    * Moderator-Tools (QR, Wizard-Buttons):
@@ -119,7 +127,7 @@ export function SessionDetail({
    * WICHTIG: Das ist bewusst konservativ:
    * - Ohne writeKey UND ohne isOwnerOrModerator zeigen wir nichts.
    */
-  const canSeeModeratorTools = !!isOwnerOrModerator || (isEvent && !!libraryId && !!eventFileId && !!writeKey)
+  const canSeeModeratorTools = !!isOwnerOrModerator || (isEvent && !!libraryId && !!flowEventFileId && !!writeKey)
 
   // Debug-Logging für Rollen-Check (direkt beim Rendern, damit es garantiert ausgelöst wird)
   if (typeof window !== 'undefined') {
@@ -137,15 +145,15 @@ export function SessionDetail({
     })
   }
   const publicAnonTestimonialUrl = React.useMemo(() => {
-    if (!libraryId || !eventFileId) return ''
+    if (!libraryId || !flowEventFileId) return ''
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     if (!origin) return ''
     const params = new URLSearchParams()
     params.set('libraryId', libraryId)
-    params.set('eventFileId', eventFileId)
+    params.set('eventFileId', flowEventFileId)
     if (writeKey) params.set('writeKey', writeKey)
     return `${origin}/public/testimonial?${params.toString()}`
-  }, [libraryId, eventFileId, writeKey])
+  }, [libraryId, flowEventFileId, writeKey])
 
   const [storageContext, setStorageContext] = React.useState<{
     eventFolderId: string
@@ -157,10 +165,10 @@ export function SessionDetail({
     async function loadStorageContext() {
       if (!isEvent) return
       if (!canSeeModeratorTools) return
-      if (!libraryId || !eventFileId) return
+      if (!libraryId || !flowEventFileId) return
       try {
         const qp = new URLSearchParams()
-        qp.set('eventFileId', eventFileId)
+        qp.set('eventFileId', flowEventFileId)
         const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/events/storage-context?${qp.toString()}`, { cache: 'no-store' })
         const json = await res.json().catch(() => ({} as Record<string, unknown>))
         if (!res.ok) return
@@ -174,38 +182,43 @@ export function SessionDetail({
     }
     void loadStorageContext()
     return () => { cancelled = true }
-  }, [isEvent, canSeeModeratorTools, libraryId, eventFileId])
+  }, [isEvent, canSeeModeratorTools, libraryId, flowEventFileId])
 
   const publicWizardTestimonialUrl = React.useMemo(() => {
-    if (!libraryId || !eventFileId) return ''
+    if (!libraryId || !flowEventFileId) return ''
     if (!storageContext?.testimonialsFolderId) return ''
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     if (!origin) return ''
     const testimonialWizardTemplateId = (data.wizard_testimonial_template_id || 'event-testimonial-creation-de').trim()
     const params = new URLSearchParams()
-    params.set('seedFileId', eventFileId)
+    params.set('seedFileId', flowEventFileId)
     params.set('targetFolderId', storageContext.testimonialsFolderId)
     return `${origin}/library/create/${encodeURIComponent(testimonialWizardTemplateId)}?${params.toString()}`
-  }, [libraryId, eventFileId, storageContext?.testimonialsFolderId, data.wizard_testimonial_template_id])
+  }, [libraryId, flowEventFileId, storageContext?.testimonialsFolderId, data.wizard_testimonial_template_id])
 
   // Verwende gemeinsamen Hook für Testimonials
   const { items: testimonialItems, isLoading: isLoadingTestimonials, reload: loadTestimonials } = useTestimonials({
     libraryId: isEvent ? libraryId : undefined,
-    eventFileId: isEvent ? eventFileId : undefined,
+    eventFileId: isEvent ? flowEventFileId : undefined,
     writeKey: isEvent ? writeKey : undefined,
     enabled: isEvent,
   })
 
+  // Finalisieren ist nur sinnvoll, wenn tatsächlich Testimonials vorhanden sind.
+  // Auch anonyme (public) Testimonials zählen mit, da sie in der Liste erscheinen.
+  const hasTestimonials = testimonialItems.length > 0
+  const canFinalizeWizard = !!storageContext?.eventFolderId && hasTestimonials && !isLoadingTestimonials
+
   const canDeleteTestimonials = !!isOwnerOrModerator
 
   async function deleteTestimonial(testimonialId: string): Promise<void> {
-    if (!libraryId || !eventFileId) return
+    if (!libraryId || !flowEventFileId) return
     const id = String(testimonialId || '').trim()
     if (!id) return
 
     try {
       const qp = new URLSearchParams()
-      qp.set('eventFileId', eventFileId)
+      qp.set('eventFileId', flowEventFileId)
       if (writeKey) qp.set('writeKey', writeKey)
       const res = await fetch(
         `/api/library/${encodeURIComponent(libraryId)}/events/testimonials/${encodeURIComponent(id)}?${qp.toString()}`,
@@ -236,29 +249,29 @@ export function SessionDetail({
   }
 
   async function openTestimonialWizard(): Promise<void> {
-    if (!libraryId || !eventFileId) return
+    if (!libraryId || !flowEventFileId) return
     if (!storageContext?.testimonialsFolderId) return
     const testimonialWizardTemplateId = (data.wizard_testimonial_template_id || 'event-testimonial-creation-de').trim()
     const params = new URLSearchParams()
-    params.set('seedFileId', eventFileId)
+    params.set('seedFileId', flowEventFileId)
     params.set('targetFolderId', storageContext.testimonialsFolderId)
     router.push(`/library/create/${encodeURIComponent(testimonialWizardTemplateId)}?${params.toString()}`)
   }
 
   async function openFinalizeWizard(): Promise<void> {
-    if (!libraryId || !eventFileId) return
+    if (!libraryId || !flowEventFileId) return
     if (!storageContext?.eventFolderId) return
     const finalizeWizardTemplateId = (data.wizard_finalize_template_id || 'event-finalize-de').trim()
     const params = new URLSearchParams()
-    params.set('seedFileId', eventFileId)
+    params.set('seedFileId', flowEventFileId)
     params.set('targetFolderId', storageContext.eventFolderId)
     router.push(`/library/create/${encodeURIComponent(finalizeWizardTemplateId)}?${params.toString()}`)
   }
 
   async function openPublishWizard(): Promise<void> {
-    if (!libraryId || !eventFileId) return
+    if (!libraryId || !flowEventFileId) return
     const params = new URLSearchParams()
-    params.set('resumeFileId', eventFileId)
+    params.set('resumeFileId', flowEventFileId)
     router.push(`/library/create/event-publish-final-de?${params.toString()}`)
   }
 
@@ -408,7 +421,7 @@ export function SessionDetail({
           {slides.length > 0 && <EventSlides slides={slides} libraryId={libraryId} />}
 
           {/* Event: Moderator-Tools + Testimonials */}
-          {isEvent ? (
+          {isEvent && !hideEventTools ? (
             <Card className="p-4">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
@@ -418,7 +431,7 @@ export function SessionDetail({
                   </div>
                 </div>
 
-                  {canSeeModeratorTools && !eventFileId ? (
+                  {canSeeModeratorTools && !flowEventFileId ? (
                   <>
                     <Separator />
                     <div className="text-xs text-muted-foreground">
@@ -478,7 +491,7 @@ export function SessionDetail({
                   variant="list"
                 />
 
-                  {canSeeModeratorTools && libraryId && eventFileId ? (
+                  {canSeeModeratorTools && libraryId && flowEventFileId ? (
                   <>
                     <Separator />
                     <div className="space-y-2">
@@ -489,14 +502,29 @@ export function SessionDetail({
                             <Button type="button" onClick={() => void openTestimonialWizard()} disabled={!storageContext?.testimonialsFolderId}>
                               Testimonial aufnehmen (Wizard)
                             </Button>
-                            <Button type="button" variant="outline" onClick={() => void openFinalizeWizard()} disabled={!storageContext?.eventFolderId}>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => void openFinalizeWizard()}
+                              disabled={!canFinalizeWizard}
+                            >
                               Finalisieren (Wizard)
                             </Button>
                           </>
                         ) : (
-                          <Button type="button" onClick={() => void openPublishWizard()}>
-                            Final veröffentlichen (Wizard)
-                          </Button>
+                          <>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => void openFinalizeWizard()}
+                              disabled={!canFinalizeWizard}
+                            >
+                              Finalisieren (Wizard)
+                            </Button>
+                            <Button type="button" onClick={() => void openPublishWizard()}>
+                              Final veröffentlichen (Wizard)
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -509,6 +537,7 @@ export function SessionDetail({
       </div>
 
       {/* Debug-Informationen am Ende */}
+      {!hideDebug ? (
       <div className="w-full px-4 pb-8">
         <div className="text-[10px] text-muted-foreground/50 text-center pt-4 border-t break-words space-y-1">
           {/* Debug-Modus: Detailansicht-Info */}
@@ -597,6 +626,7 @@ export function SessionDetail({
           )}
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

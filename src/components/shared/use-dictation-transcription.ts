@@ -99,6 +99,21 @@ export function useDictationTranscription(
   const [liveStream, setLiveStream] = React.useState<MediaStream | null>(null)
   const [error, setError] = React.useState<string | null>(null)
 
+  // Hilfs-Flags: für aussagekräftige Fehlermeldungen bei Permission-Problemen.
+  const isSecureContext = React.useMemo(() => {
+    return typeof window === "undefined" ? true : window.isSecureContext === true
+  }, [])
+
+  const isEmbeddedContext = React.useMemo(() => {
+    if (typeof window === "undefined") return false
+    try {
+      return window.self !== window.top
+    } catch {
+      // Zugriff auf window.top kann in Cross-Origin-Frames fehlschlagen
+      return true
+    }
+  }, [])
+
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null)
   const mediaStreamRef = React.useRef<MediaStream | null>(null)
   const audioChunksRef = React.useRef<Blob[]>([])
@@ -179,6 +194,15 @@ export function useDictationTranscription(
       return
     }
 
+    // Sicherheitscheck: getUserMedia braucht HTTPS oder localhost.
+    if (!isSecureContext) {
+      const msg = "Mikrofon benötigt eine sichere Verbindung (HTTPS) oder localhost."
+      setError(msg)
+      toast.error(msg)
+      setStatus("error")
+      return
+    }
+
     setError(null)
     setStatus("recording")
 
@@ -247,7 +271,19 @@ export function useDictationTranscription(
 
       recorder.start()
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Mikrofon-Zugriff fehlgeschlagen."
+      // Differenzierte Meldung für typische Permission-Probleme.
+      const err = e as { name?: string; message?: string }
+      const isPermissionError =
+        err?.name === "NotAllowedError" ||
+        err?.name === "PermissionDeniedError" ||
+        err?.name === "SecurityError"
+
+      const msg = isPermissionError
+        ? (isEmbeddedContext
+            ? "Mikrofon ist in eingebetteten Ansichten blockiert. Bitte im neuen Tab öffnen."
+            : "Mikrofon-Zugriff verweigert. Bitte im Browser die Mikrofon-Berechtigung erlauben.")
+        : (err?.message || "Mikrofon-Zugriff fehlgeschlagen.")
+
       setError(msg)
       toast.error(msg)
       setStatus("error")
@@ -257,7 +293,7 @@ export function useDictationTranscription(
       mediaStreamRef.current = null
       setLiveStream(null)
     }
-  }, [canUseMediaRecorder, onAudioBlob, onTranscriptionComplete, transcribe])
+  }, [canUseMediaRecorder, isSecureContext, isEmbeddedContext, onAudioBlob, onTranscriptionComplete, transcribe])
 
   const stopRecording = React.useCallback((): void => {
     const recorder = mediaRecorderRef.current

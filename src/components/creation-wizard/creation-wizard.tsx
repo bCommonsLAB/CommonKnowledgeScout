@@ -144,16 +144,19 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
   // WICHTIG: Stabilisiere Callback für Testimonial-Auswahl, um Endlosschleifen zu vermeiden
   const handleTestimonialSelectionChange = useCallback((selectedSources: WizardSource[]) => {
-    // Aktualisiere Sources: Dialograum bleibt, Testimonials werden gefiltert
+    // Aktualisiere Sources: Seed (Event/Dialograum) bleibt, Testimonials werden gefiltert
     setWizardState(prev => {
+      const seedId = seedFileIdState || seedFileId
+      const seedSource = seedId
+        ? prev.sources.find(s => s.id === `file-${seedId}`)
+        : undefined
       const dialograumSource = prev.sources.find(s => 
         s.kind === 'file' && 
         s.fileName && 
         s.fileName.toLowerCase().includes('dialograum')
       )
-      const updatedSources = dialograumSource 
-        ? [dialograumSource, ...selectedSources]
-        : selectedSources
+      const preserved = [seedSource, dialograumSource].filter(Boolean) as WizardSource[]
+      const updatedSources = [...preserved, ...selectedSources]
       
       // Nur aktualisieren, wenn sich die Sources tatsächlich geändert haben
       const currentIds = prev.sources.map(s => s.id).sort().join(',')
@@ -167,7 +170,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         sources: updatedSources,
       }
     })
-  }, []) // Leere Dependencies, da wir setWizardState verwenden (funktional update)
+  }, [seedFileIdState, seedFileId]) // Seed-ID ist relevant für die Auswahl
 
   function resolveTemplateDetailViewType(): 'book' | 'session' | 'testimonial' | 'blog' {
     // SSOT: Template-Detailansicht (im Template-Editor Tab "Detail-Ansicht")
@@ -445,14 +448,48 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
         const { blob } = await provider.getBinary(seedFileId)
         const content = await blob.text()
-        const { body } = parseFrontmatter(content)
+        const { body, meta } = parseFrontmatter(content)
         
         // Erstelle WizardSource für Seed-Datei (Dialograum/Event/etc.)
+        // Hinweis: Für Event-Finalisierung senden wir zusätzlich ausgewählte Metadaten mit.
+        const steps = template.creation?.flow.steps || []
+        const editDraftFields =
+          steps.find(step => step.preset === 'editDraft')?.fields || []
+        const fallbackMetaKeys = ['title', 'teaser', 'date', 'location', 'year', 'tags', 'topics']
+        const allowedMetaKeys = new Set<string>(
+          editDraftFields.length > 0 ? editDraftFields : fallbackMetaKeys
+        )
+        const deniedMetaKeys = new Set<string>([
+          'testimonialWriteKey',
+          'creationTemplateId',
+          'creationTypeId',
+          'wizard_testimonial_template_id',
+          'wizard_finalize_template_id',
+          'textSources',
+        ])
+
+        const metaRecord = (meta && typeof meta === 'object') ? (meta as Record<string, unknown>) : {}
+        const metaLines = Object.entries(metaRecord)
+          .filter(([key, value]) => allowedMetaKeys.has(key) && !deniedMetaKeys.has(key) && value !== undefined && value !== null && String(value).trim() !== '')
+          .map(([key, value]) => {
+            const normalized =
+              Array.isArray(value)
+                ? value.join(', ')
+                : typeof value === 'object'
+                  ? JSON.stringify(value)
+                  : String(value)
+            return `${key}: ${normalized}`
+          })
+
+        const seedMetaBlock = metaLines.length > 0 ? ['[Event-Metadaten]', ...metaLines].join('\n') : ''
+        const seedBody = body.trim()
+        const seedContextText = [seedMetaBlock, seedBody].filter(Boolean).join('\n\n')
+
         const seedSource: WizardSource = {
           id: `file-${seedFileId}`,
           kind: 'file',
           fileName: dialograumItem.metadata.name || 'unbekannt',
-          extractedText: body.trim(),
+          extractedText: seedContextText,
           summary: body.length > 200 ? `${body.slice(0, 200)}...` : body,
           createdAt: new Date(),
         }
@@ -460,7 +497,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         // WICHTIG: Testimonials nur laden, wenn der Flow einen selectRelatedTestimonials Step hat
         // (z.B. beim Finalize-Wizard). Beim Testimonial-Creation-Wizard sollen KEINE Testimonials
         // als Quellen geladen werden, da dieser immer einen neuen Testimonial erstellen soll.
-        const steps = template.creation?.flow.steps || []
         const hasSelectRelatedTestimonialsStep = steps.some(step => step.preset === 'selectRelatedTestimonials')
         
         // Seed-DocType bestimmen: Event nutzt filesystem discovery; Dialograum nutzt bestehende discovery
@@ -2660,6 +2696,15 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 collectedInput: mode === 'form' ? undefined : prev.collectedInput,
               }))
             }}
+            onResetSourceSelection={() => {
+              // Nutzer möchte die Quelle neu wählen: Auswahl + Eingaben zurücksetzen
+              setWizardState(prev => ({
+                ...prev,
+                selectedSource: undefined,
+                collectedInput: undefined,
+                mode: 'interview',
+              }))
+            }}
             template={template}
             steps={steps}
             onCanProceedChange={setCollectSourceCanProceed}
@@ -2704,6 +2749,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             </div>
           )
         }
+        const isEventFinalize = (templateId || '').toLowerCase() === 'event-finalize-de'
         // Im Form-Modus kann generateDraft auch ohne collectedInput aufgerufen werden (z.B. zur Initialbefüllung)
         const inputForGeneration = wizardState.collectedInput?.content || buildCorpusText(wizardState.sources)
         return (
@@ -2759,6 +2805,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               })
             }}
             generatedDraft={wizardState.generatedDraft}
+            autoAdvance={isEventFinalize}
+            onAdvance={() => handleNext()}
+            showResultPreview={!isEventFinalize}
           />
         )
 
@@ -2927,6 +2976,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return (
           <SelectRelatedTestimonialsStep
             sources={wizardState.sources}
+            seedSourceId={seedFileIdState ? `file-${seedFileIdState}` : undefined}
             onSelectionChange={handleTestimonialSelectionChange}
           />
         )

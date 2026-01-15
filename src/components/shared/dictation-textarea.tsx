@@ -57,6 +57,15 @@ export function DictationTextarea(props: {
    * Optional: CSS-Klassen für Container.
    */
   className?: string
+  /**
+   * Optional: Automatisch in der Höhe wachsen (default: true).
+   * Begrenzt durch maxAutoRows.
+   */
+  autoResize?: boolean
+  /**
+   * Optional: Maximale Zeilen für Auto-Resize (default: 5).
+   */
+  maxAutoRows?: number
 }) {
   const {
     label,
@@ -73,6 +82,8 @@ export function DictationTextarea(props: {
     targetLanguage,
     variant = "default",
     className,
+    autoResize = true,
+    maxAutoRows = 5,
   } = props
 
   const handleTranscriptionComplete = React.useCallback(
@@ -96,11 +107,32 @@ export function DictationTextarea(props: {
     [transcribeEndpoint, extraFormFields, sourceLanguage, targetLanguage, onDictationAudio, handleTranscriptionComplete]
   )
 
-  const { status, liveStream, startRecording, stopRecording, canUseMediaRecorder } =
+  const { status, liveStream, startRecording, stopRecording, canUseMediaRecorder, error } =
     useDictationTranscription(dictationOptions)
+
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
 
   const isRecording = status === "recording"
   const isTranscribing = status === "transcribing"
+
+  React.useEffect(() => {
+    if (!autoResize) return
+    const el = textareaRef.current
+    if (!el) return
+
+    el.style.height = "auto"
+    const computed = window.getComputedStyle(el)
+    const lineHeight = Number.parseFloat(computed.lineHeight || "0") || 0
+    const paddingTop = Number.parseFloat(computed.paddingTop || "0") || 0
+    const paddingBottom = Number.parseFloat(computed.paddingBottom || "0") || 0
+    const maxHeight = lineHeight > 0
+      ? Math.ceil(lineHeight * Math.max(1, maxAutoRows) + paddingTop + paddingBottom)
+      : undefined
+
+    const nextHeight = maxHeight ? Math.min(el.scrollHeight, maxHeight) : el.scrollHeight
+    el.style.height = `${Math.max(nextHeight, 0)}px`
+    el.style.overflowY = maxHeight && el.scrollHeight > maxHeight ? "auto" : "hidden"
+  }, [value, autoResize, maxAutoRows])
 
   const handleMicClick = React.useCallback(() => {
     if (isRecording) {
@@ -141,7 +173,9 @@ export function DictationTextarea(props: {
             {showOscilloscope && isRecording && liveStream ? (
               <AudioOscilloscope stream={liveStream} isActive={true} />
             ) : null}
+            {error ? <div className="text-xs text-destructive">{error}</div> : null}
             <Textarea
+              ref={textareaRef}
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder={placeholder || "Hier eingeben..."}
@@ -173,7 +207,9 @@ export function DictationTextarea(props: {
             {showOscilloscope && isRecording && liveStream ? (
               <AudioOscilloscope stream={liveStream} isActive={true} />
             ) : null}
+            {error ? <div className="text-xs text-destructive">{error}</div> : null}
             <Textarea
+              ref={textareaRef}
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder={placeholder || "Hier eingeben..."}

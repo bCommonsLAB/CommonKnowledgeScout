@@ -358,7 +358,7 @@ export function EditDraftStep({
 
     // Für Text-Felder mit Diktat: Nutze generische DictationTextarea
     if (!isArray && !imageFieldKeys?.includes(field.key)) {
-      const isLongText = field.key === "summary" || field.key.includes("experience") || field.key.includes("insight") || field.key.includes("important")
+      // Startet einzeilig, kann manuell vergrößert werden (UI‑Wunsch im Wizard).
       return (
         <div
           key={field.key}
@@ -369,10 +369,10 @@ export function EditDraftStep({
             value={displayValue}
             onChange={(next) => updateFieldValue(field.key, next)}
             placeholder="Hier eingeben..."
-            rows={isLongText ? 4 : undefined}
+            rows={1}
             showOscilloscope={true}
             variant="inline"
-            className="[&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 [&_textarea]:bg-white [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-base dark:[&_textarea]:border-slate-500 dark:[&_textarea]:bg-slate-600 dark:[&_textarea]:text-white"
+            className="[&_textarea]:w-full [&_textarea]:min-h-[2.5rem] [&_textarea]:resize-y [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 [&_textarea]:bg-white [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-base dark:[&_textarea]:border-slate-500 dark:[&_textarea]:bg-slate-600 dark:[&_textarea]:text-white"
           />
         </div>
       )

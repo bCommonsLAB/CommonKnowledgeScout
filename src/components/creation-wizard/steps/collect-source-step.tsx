@@ -60,6 +60,11 @@ interface CollectSourceStepProps {
   selectedSource?: CreationSource
   onSourceSelect?: (source: CreationSource) => void
   onModeSelect?: (mode: 'interview' | 'form') => void
+  /**
+   * Erlaubt dem Nutzer, die zuvor gewählte Quelle zu verwerfen
+   * und zur Auswahlmaske zurückzukehren.
+   */
+  onResetSourceSelection?: () => void
   template?: { metadata: TemplateMetadataSchema }
   steps?: Array<{ preset: string; fields?: string[] }>
 }
@@ -418,6 +423,7 @@ export function CollectSourceStep({
   selectedSource,
   onSourceSelect,
   onModeSelect,
+  onResetSourceSelection,
   template,
   steps,
 }: CollectSourceStepProps) {
@@ -979,13 +985,31 @@ export function CollectSourceStep({
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-2xl sm:text-3xl">
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="text-2xl sm:text-3xl">
             {source.type === "url" 
               ? "Link einfügen" 
               : source.type === "spoken" || source.type === "text" 
                 ? "Erzähl mir von der Veranstaltung" 
                 : "Datei hochladen"}
-          </CardTitle>
+            </CardTitle>
+            {/* Quelle wechseln: erlaubt neue Auswahl ohne Umweg über "Zurück" */}
+            {onResetSourceSelection ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  // UI-Reset: Eingaben löschen, Quelle im Parent zurücksetzen
+                  setInput("")
+                  setPendingFileSource(null)
+                  onResetSourceSelection()
+                }}
+              >
+                Quelle wechseln
+              </Button>
+            ) : null}
+          </div>
           <CardDescription className="text-lg mt-2">
             {source.type === "url"
               ? "Füge den Link zur Event-Seite ein"

@@ -7,6 +7,8 @@ import { TestimonialList, type TestimonialItem } from "@/components/shared/testi
 interface SelectRelatedTestimonialsStepProps {
   /** Alle gefundenen Testimonials als Sources */
   sources: WizardSource[]
+  /** Seed-Datei (Event/Dialograum) soll unsichtbar bleiben */
+  seedSourceId?: string
   /** Callback wenn Auswahl geändert wird */
   onSelectionChange: (selectedSources: WizardSource[]) => void
 }
@@ -75,6 +77,7 @@ function convertWizardSourceToTestimonialItem(source: WizardSource): Testimonial
  */
 export function SelectRelatedTestimonialsStep({
   sources,
+  seedSourceId,
   onSelectionChange,
 }: SelectRelatedTestimonialsStepProps) {
   // Filtere nur Testimonial-Sources (nicht Dialograum selbst)
@@ -83,9 +86,10 @@ export function SelectRelatedTestimonialsStep({
     sources.filter(s => 
       (s.kind === 'file' || s.kind === 'text') && 
       (s.id.startsWith('file-') || s.id.startsWith('text-')) && 
-      !s.fileName?.toLowerCase().includes('dialograum')
+      !s.fileName?.toLowerCase().includes('dialograum') &&
+      (!seedSourceId || s.id !== seedSourceId)
     ),
-    [sources]
+    [sources, seedSourceId]
   )
   
   // Konvertiere zu TestimonialItem[]

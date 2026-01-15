@@ -15,6 +15,12 @@ interface GenerateDraftStepProps {
   /** Optional: Telemetrie für Wizard-Session */
   onGenerateStarted?: () => void
   onGenerateFailed?: (error: unknown) => void
+  /** Optional: Auto-Weiter nach erfolgreicher Generierung */
+  autoAdvance?: boolean
+  /** Optional: Callback für Weiter-Schritt */
+  onAdvance?: () => void
+  /** Optional: Ergebnis-Preview anzeigen (default: true) */
+  showResultPreview?: boolean
 }
 
 export function GenerateDraftStep({
@@ -25,9 +31,13 @@ export function GenerateDraftStep({
   generatedDraft,
   onGenerateStarted,
   onGenerateFailed,
+  autoAdvance = false,
+  onAdvance,
+  showResultPreview = true,
 }: GenerateDraftStepProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const didAutoStartRef = useRef(false)
+  const didAutoAdvanceRef = useRef(false)
 
   const handleGenerate = async () => {
     try {
@@ -80,7 +90,15 @@ export function GenerateDraftStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generatedDraft, input])
 
-  if (generatedDraft) {
+  useEffect(() => {
+    if (!autoAdvance) return
+    if (!generatedDraft) return
+    if (didAutoAdvanceRef.current) return
+    didAutoAdvanceRef.current = true
+    onAdvance?.()
+  }, [autoAdvance, generatedDraft, onAdvance])
+
+  if (generatedDraft && showResultPreview) {
     return (
       <Card>
         <CardHeader>
@@ -104,6 +122,40 @@ export function GenerateDraftStep({
           </div>
           <Button onClick={handleGenerate} variant="outline" className="w-full">
             Neu generieren
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!showResultPreview) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{generatedDraft ? "Entwurf bereit" : "Entwurf wird erstellt"}</CardTitle>
+          <CardDescription>
+            {generatedDraft
+              ? "Wir wechseln automatisch zum nächsten Schritt."
+              : "Bitte kurz warten – der Entwurf wird im Hintergrund erzeugt."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={handleGenerate}
+            disabled={isGenerating || !input.trim() || !!generatedDraft}
+            className="w-full"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Generiere...
+              </>
+            ) : (
+              <>
+                <Wand2 className="w-4 h-4 mr-2" />
+                Entwurf generieren
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
