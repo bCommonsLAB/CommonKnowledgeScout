@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
 
     const targetLanguage = (formData.get('targetLanguage') as string) || 'de';
-    const extractionMethod = (formData.get('extractionMethod') as string) || 'native';
+    // Globaler Default: mistral_ocr (wenn nichts gesetzt ist)
+    const extractionMethod = (formData.get('extractionMethod') as string) || 'mistral_ocr';
     
     // Neue Parameter-Namen für Mistral OCR:
     // - includeOcrImages: Mistral OCR Bilder als Base64 (in mistral_ocr_raw.pages[*].images[*].image_base64)
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
     const includeOcrImages = includeOcrImagesRaw !== null 
       ? includeOcrImagesRaw === 'true'
       : (isMistralOcr ? true : (includeImagesRaw === 'true')); // Standard: true für Mistral OCR, sonst aus includeImages
+    // Bei Mistral OCR: includePageImages immer true (erzwungen)
     const includePageImages = includePageImagesRaw !== null
       ? includePageImagesRaw === 'true'
       : (isMistralOcr ? true : false); // Standard: true für Mistral OCR

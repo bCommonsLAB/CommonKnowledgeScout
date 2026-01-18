@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { activeLibraryIdAtom, currentFolderIdAtom, activeLibraryAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 import { StorageItem } from '@/lib/storage/types';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,12 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const { provider } = useStorage();
   const rootFolderId = useAtomValue(currentFolderIdAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibrary = useAtomValue(activeLibraryAtom);
   const pdfOverrides = useAtomValue(pdfOverridesAtom);
+  
+  // Lade targetLanguage aus Library-Config (config.chat.targetLanguage)
+  const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage;
+  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.pdfDefaults?.template;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -191,16 +196,24 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     if (candidates.length === 0) return;
     setIsEnqueuing(true);
     try {
-      const defaults = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
+      const defaults = getEffectivePdfDefaults(
+        activeLibraryId,
+        loadPdfDefaults(activeLibraryId),
+        pdfOverrides,
+        libraryConfigChatTargetLanguage,
+        libraryConfigPdfTemplate
+      );
       const payload = {
         libraryId: activeLibraryId,
         batchName: (batchName || '').trim() || undefined,
         options: {
+          // targetLanguage wird bereits in getEffectivePdfDefaults bestimmt (inkl. Library-Config)
           targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT,
-          extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native',
-          // Für Mistral OCR: Beide Parameter standardmäßig true
-          includeOcrImages: defaults.extractionMethod === 'mistral_ocr' ? true : undefined,
-          includePageImages: defaults.extractionMethod === 'mistral_ocr' ? true : undefined,
+          // Globaler Default: mistral_ocr (wird bereits in getEffectivePdfDefaults angewendet)
+          extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'mistral_ocr',
+          // Für Mistral OCR: Beide Parameter standardmäßig true (werden bereits in getEffectivePdfDefaults angewendet)
+          includeOcrImages: defaults.includeOcrImages,
+          includePageImages: defaults.includePageImages,
           includeImages: defaults.includeImages ?? false, // Rückwärtskompatibilität
           useCache: defaults.useCache ?? true,
           template: typeof defaults.template === 'string' ? defaults.template : undefined,
@@ -263,7 +276,13 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                 <Label htmlFor="phase-1">Phase 1: Extraktion (Methode: 
                   <span>
                     {(() => {
-                      const eff = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
+                      const eff = getEffectivePdfDefaults(
+                        activeLibraryId,
+                        loadPdfDefaults(activeLibraryId),
+                        pdfOverrides,
+                        libraryConfigChatTargetLanguage,
+                        libraryConfigPdfTemplate
+                      );
                       return eff.extractionMethod;
                     })()})
                   </span>
@@ -278,7 +297,13 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                 <Label htmlFor="phase-2">Phase 2: Metadaten (Template: 
                   <span>                    
                     {(() => {
-                      const eff = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
+                      const eff = getEffectivePdfDefaults(
+                        activeLibraryId,
+                        loadPdfDefaults(activeLibraryId),
+                        pdfOverrides,
+                        libraryConfigChatTargetLanguage,
+                        libraryConfigPdfTemplate
+                      );
                       return eff.template;
                     })()}
                   )

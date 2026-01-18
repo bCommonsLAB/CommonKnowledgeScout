@@ -58,6 +58,8 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
   const [customTemplateNames, setCustomTemplateNames] = useState<string[]>([]);
   const [customFileName, setCustomFileName] = useState<string>('');
   const [fileNameError, setFileNameError] = useState<string>('');
+  // Erklärung: Modus steuert, ob alle Texte kombiniert werden oder pro Datei ein Output entsteht.
+  const [textTransformMode, setTextTransformMode] = useState<'combined' | 'per-file'>('combined');
   
   const { provider, refreshItems } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
@@ -269,20 +271,33 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
         }));
       };
 
-      // Batch-Text-Transformation starten
-      const results = await BatchTransformService.transformTextBatch(
-        effectiveItems,
-        {
-          ...baseOptions,
-          targetLanguage: selectedLanguage,
-          fileName: customFileName.trim() || `Kombinierte_Transformation_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`
-        },
-        selectedTemplate,
-        provider,
-        refreshItems,
-        activeLibraryId,
-        onProgress
-      );
+      // Batch-Text-Transformation starten (kombiniert oder pro Datei)
+      const results = textTransformMode === 'per-file'
+        ? await BatchTransformService.transformTextBatchPerFile(
+            effectiveItems,
+            {
+              ...baseOptions,
+              targetLanguage: selectedLanguage,
+            },
+            selectedTemplate,
+            provider,
+            refreshItems,
+            activeLibraryId,
+            onProgress
+          )
+        : await BatchTransformService.transformTextBatch(
+            effectiveItems,
+            {
+              ...baseOptions,
+              targetLanguage: selectedLanguage,
+              fileName: customFileName.trim() || `Kombinierte_Transformation_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`
+            },
+            selectedTemplate,
+            provider,
+            refreshItems,
+            activeLibraryId,
+            onProgress
+          );
 
       setProgressState(prev => ({
         ...prev,
@@ -293,8 +308,10 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
       // Erfolgs-/Fehlermeldung anzeigen
       if (results.success) {
         const successCount = results.results.filter(r => r.success).length;
-        toast.success("Kombinierte Transformation abgeschlossen", {
-          description: `${successCount} von ${effectiveItems.length} Dateien erfolgreich verarbeitet. Eine kombinierte Datei wurde erstellt.`
+        toast.success(textTransformMode === 'per-file' ? "Per-Datei Transformation abgeschlossen" : "Kombinierte Transformation abgeschlossen", {
+          description: textTransformMode === 'per-file'
+            ? `${successCount} von ${effectiveItems.length} Dateien erfolgreich verarbeitet.`
+            : `${successCount} von ${effectiveItems.length} Dateien erfolgreich verarbeitet. Eine kombinierte Datei wurde erstellt.`
         });
         
         // Fileliste automatisch aktualisieren
@@ -319,7 +336,7 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
         }
       } else {
         const errorCount = results.results.filter(r => !r.success).length;
-        toast.error("Kombinierte Transformation mit Fehlern abgeschlossen", {
+        toast.error(textTransformMode === 'per-file' ? "Per-Datei Transformation mit Fehlern abgeschlossen" : "Kombinierte Transformation mit Fehlern abgeschlossen", {
           description: `${errorCount} von ${effectiveItems.length} Dateien konnten nicht verarbeitet werden.`
         });
       }
@@ -332,10 +349,10 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
       }));
       
       toast.error("Fehler", {
-        description: `Kombinierte Transformation fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+        description: `${textTransformMode === 'per-file' ? 'Per-Datei' : 'Kombinierte'} Transformation fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       });
     }
-  }, [provider, activeLibraryId, effectiveItems, baseOptions, selectedTemplate, refreshItems, customFileName, selectedLanguage, onRefreshFolder, selectedItems.length]);
+  }, [provider, activeLibraryId, effectiveItems, baseOptions, selectedTemplate, refreshItems, customFileName, selectedLanguage, onRefreshFolder, selectedItems.length, textTransformMode]);
 
   // Dialog schließen und State zurücksetzen
   const handleClose = useCallback(() => {
@@ -355,9 +372,9 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Mehrere Dateien zu einem Dokument transformieren</DialogTitle>
+          <DialogTitle>Mehrere Dateien transformieren</DialogTitle>
         </DialogHeader>
         
         <div className="py-6 space-y-6">
@@ -394,13 +411,32 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Die ausgewählten Texte werden zu einem einzigen Dokument kombiniert und anschließend mit dem gewählten Template verarbeitet.
+              {textTransformMode === 'per-file'
+                ? 'Jede Datei wird einzeln mit dem Template verarbeitet (ideal für Seiten-Splitting).'
+                : 'Die ausgewählten Texte werden zu einem einzigen Dokument kombiniert und anschließend mit dem Template verarbeitet.'}
             </p>
           </div>
 
           {/* Template-Auswahl */}
           {!progressState.isProcessing && !progressState.results && (
             <div className="space-y-4">
+              <div>
+                <Label htmlFor="mode">Transformationsmodus</Label>
+                <Select
+                  value={textTransformMode}
+                  onValueChange={(value) => setTextTransformMode(value as 'combined' | 'per-file')}
+                  disabled={progressState.isProcessing}
+                >
+                  <SelectTrigger id="mode">
+                    <SelectValue placeholder="Modus auswählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="combined">Alle Dateien kombinieren</SelectItem>
+                    <SelectItem value="per-file">Pro Datei transformieren</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div>
                 <Label htmlFor="template">Template für Transformation</Label>
                 <Select
@@ -457,24 +493,34 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="filename">Dateiname für kombinierte Datei</Label>
-                <Input
-                  id="filename"
-                  value={customFileName}
-                  onChange={(e) => handleFileNameChange(e.target.value)}
-                  placeholder="Dateiname eingeben..."
-                  disabled={progressState.isProcessing}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Der Dateiname wird automatisch mit der Endung .{baseOptions.fileExtension} gespeichert.
-                </p>
-                {fileNameError && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {fileNameError}
+              {textTransformMode === 'combined' ? (
+                <div>
+                  <Label htmlFor="filename">Dateiname für kombinierte Datei</Label>
+                  <Input
+                    id="filename"
+                    value={customFileName}
+                    onChange={(e) => handleFileNameChange(e.target.value)}
+                    placeholder="Dateiname eingeben..."
+                    disabled={progressState.isProcessing}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Der Dateiname wird automatisch mit der Endung .{baseOptions.fileExtension} gespeichert.
                   </p>
-                )}
-              </div>
+                  {fileNameError && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {fileNameError}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <Label>Ausgabe pro Datei</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Jede Datei erhält ein eigenes Ergebnis im gleichen Ordner
+                    (Dateiname: &lt;input&gt;.&lt;template&gt;.&lt;sprache&gt;.md).
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -514,7 +560,9 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
               </div>
               {progressState.results.results.some(r => r.savedItem) && (
                 <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">
-                  ✓ Eine kombinierte Datei wurde erfolgreich erstellt und gespeichert.
+                  ✓ {textTransformMode === 'per-file'
+                    ? 'Mehrere Einzeldokumente wurden erstellt.'
+                    : 'Eine kombinierte Datei wurde erfolgreich erstellt und gespeichert.'}
                 </div>
               )}
             </div>

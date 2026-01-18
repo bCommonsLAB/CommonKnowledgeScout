@@ -672,7 +672,7 @@ export async function transformVideo(
  * @param targetLanguage Die Zielsprache für die Verarbeitung
  * @param libraryId ID der aktiven Bibliothek
  * @param template Optionales Template für die Verarbeitung
- * @param extractionMethod Die Extraktionsmethode (native, ocr, both, preview, preview_and_native, llm, llm_and_ocr)
+ * @param extractionMethod Die Extraktionsmethode (native, ocr, both, preview, preview_and_native, llm, llm_and_ocr, mistral_ocr)
  * @param useCache Ob Cache verwendet werden soll
  * @param includeImages Ob Bilder mit extrahiert werden sollen
  * @returns Die vollständige Response vom Secretary Service
@@ -682,7 +682,7 @@ export async function transformPdf(
   targetLanguage: string,
   libraryId: string,
   template?: string,
-  extractionMethod: string = 'native',
+  extractionMethod: string = 'mistral_ocr', // Globaler Default: mistral_ocr
   useCache: boolean = true,
   includeOcrImages?: boolean, // Mistral OCR Bilder als Base64 (in mistral_ocr_raw.pages[*].images[*].image_base64)
   skipTemplate?: boolean,

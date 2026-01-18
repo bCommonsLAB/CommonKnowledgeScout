@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAtomValue } from "jotai";
-import { activeLibraryIdAtom } from "@/atoms/library-atom";
+import { activeLibraryAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { loadPdfDefaults, savePdfDefaults } from "@/lib/pdf-defaults";
 import { useStorage } from "@/contexts/storage-context";
 import { useAtom } from "jotai";
-import { pdfOverridesAtom } from "@/atoms/pdf-defaults";
+import { pdfOverridesAtom, getEffectivePdfDefaults } from "@/atoms/pdf-defaults";
 import type { PdfTransformOptions } from "@/lib/transform/transform-service";
 import {
   TARGET_LANGUAGE_VALUES,
@@ -27,6 +27,7 @@ interface PdfPhaseSettingsProps {
 export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) {
   const { t } = useTranslation()
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibrary = useAtomValue(activeLibraryAtom);
   // provider wird aktuell nicht verwendet, aber für zukünftige Verwendung bereitgehalten
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { provider: _unused_provider } = useStorage();
@@ -34,12 +35,21 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
   const [overrides, setOverrides] = useAtom(pdfOverridesAtom);
   const [values, setValues] = React.useState<Partial<PdfTransformOptions>>({});
 
+  const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage;
+  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.pdfDefaults?.template;
+
   React.useEffect(() => {
     if (!activeLibraryId) return;
     const db = loadPdfDefaults(activeLibraryId);
-    const ov = overrides[activeLibraryId] || {};
-    setValues({ ...db, ...ov });
-  }, [activeLibraryId, open, overrides]);
+    const eff = getEffectivePdfDefaults(
+      activeLibraryId,
+      db,
+      overrides,
+      libraryConfigChatTargetLanguage,
+      libraryConfigPdfTemplate
+    );
+    setValues(eff);
+  }, [activeLibraryId, open, overrides, libraryConfigChatTargetLanguage, libraryConfigPdfTemplate]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -64,19 +74,25 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
 
   function saveAndClose() {
     if (!activeLibraryId) return onOpenChange(false);
+    const effectiveTargetLanguage = typeof values.targetLanguage === 'string'
+      ? values.targetLanguage
+      : (libraryConfigChatTargetLanguage || TARGET_LANGUAGE_DEFAULT);
+    const effectiveTemplate = typeof values.template === 'string'
+      ? values.template
+      : libraryConfigPdfTemplate;
     const defaults: PdfTransformOptions = {
-      targetLanguage: typeof values.targetLanguage === 'string' ? values.targetLanguage : TARGET_LANGUAGE_DEFAULT,
+      targetLanguage: effectiveTargetLanguage,
       fileName: '',
       createShadowTwin: true,
       fileExtension: 'md',
-      extractionMethod: typeof values.extractionMethod === 'string' ? values.extractionMethod : 'native',
+      extractionMethod: typeof values.extractionMethod === 'string' ? values.extractionMethod : 'mistral_ocr',
       useCache: values.useCache ?? true,
       // Für Mistral OCR: Beide Parameter standardmäßig true
       includeOcrImages: values.extractionMethod === 'mistral_ocr' ? (values.includeOcrImages ?? true) : undefined,
       includePageImages: values.extractionMethod === 'mistral_ocr' ? (values.includePageImages ?? true) : undefined,
       includeImages: values.includeImages ?? false, // Rückwärtskompatibilität
       useIngestionPipeline: values.useIngestionPipeline ?? false,
-      template: typeof values.template === 'string' ? values.template : undefined,
+      template: effectiveTemplate,
     };
     // Speichere in localStorage (persistent)
     savePdfDefaults(activeLibraryId, defaults);
@@ -94,7 +110,10 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Zielsprache</Label>
-            <Select value={values.targetLanguage || TARGET_LANGUAGE_DEFAULT} onValueChange={(v) => update({ targetLanguage: v })}>
+            <Select
+              value={values.targetLanguage || libraryConfigChatTargetLanguage || TARGET_LANGUAGE_DEFAULT}
+              onValueChange={(v) => update({ targetLanguage: v })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Sprache wählen" />
               </SelectTrigger>
@@ -107,7 +126,10 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
           </div>
           <div className="space-y-2">
             <Label>Template</Label>
-            <Select value={values.template || ''} onValueChange={(v) => update({ template: v || undefined })}>
+            <Select
+              value={values.template || libraryConfigPdfTemplate || ''}
+              onValueChange={(v) => update({ template: v || undefined })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Template wählen" />
               </SelectTrigger>
@@ -141,7 +163,7 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
           </div>
           <div className="space-y-2">
             <Label>Extraktionsmethode</Label>
-            <Select value={values.extractionMethod || 'native'} onValueChange={(v) => update({ extractionMethod: v })}>
+            <Select value={values.extractionMethod || 'mistral_ocr'} onValueChange={(v) => update({ extractionMethod: v })}>
               <SelectTrigger>
                 <SelectValue placeholder="Methode wählen" />
               </SelectTrigger>

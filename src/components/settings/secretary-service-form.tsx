@@ -60,7 +60,7 @@ export function SecretaryServiceForm() {
       form.reset({
         apiUrl: activeLibrary.config?.secretaryService?.apiUrl || undefined,
         apiKey: activeLibrary.config?.secretaryService?.apiKey || '',
-        pdfExtractionMethod: activeLibrary.config?.secretaryService?.pdfDefaults?.extractionMethod || 'native',
+        pdfExtractionMethod: activeLibrary.config?.secretaryService?.pdfDefaults?.extractionMethod || 'mistral_ocr',
         pdfTemplate: activeLibrary.config?.secretaryService?.pdfDefaults?.template || '',
       })
     }

@@ -150,7 +150,8 @@ export function prepareSecretaryRequest(
   }
 
   // --- PDF (existing) ---
-  const extractionMethod = typeof opts['extractionMethod'] === 'string' ? String(opts['extractionMethod']) : 'native'
+  // Globaler Default: mistral_ocr (wenn nichts gesetzt ist)
+  const extractionMethod = typeof opts['extractionMethod'] === 'string' ? String(opts['extractionMethod']) : 'mistral_ocr'
 
   if (extractionMethod === 'mistral_ocr') {
     // Mistral OCR Endpoint
@@ -160,8 +161,9 @@ export function prepareSecretaryRequest(
     url = `${normalizedBaseUrl}${endpoint}`
 
     // Mistral OCR spezifische Parameter
-    const includeOcrImages = typeof opts['includeOcrImages'] === 'boolean' ? opts['includeOcrImages'] : true
+    // Bei Mistral OCR: includePageImages immer true (erzwungen)
     const includePageImages = typeof opts['includePageImages'] === 'boolean' ? opts['includePageImages'] : true
+    const includeOcrImages = typeof opts['includeOcrImages'] === 'boolean' ? opts['includeOcrImages'] : true
     const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true
 
     formData = new FormData()

@@ -50,14 +50,15 @@ export async function POST(request: NextRequest) {
     const batchName = typeof body?.batchName === 'string' ? body.batchName : undefined;
     const options = body?.options || {};
     
-    // Für Mistral OCR: Beide Parameter standardmäßig true
-    const extractionMethod = options?.extractionMethod || 'native';
+    // Globaler Default: mistral_ocr (wenn nichts gesetzt ist)
+    const extractionMethod = options?.extractionMethod || 'mistral_ocr';
     const isMistralOcr = extractionMethod === 'mistral_ocr';
-    const includeOcrImages = options?.includeOcrImages !== undefined
-      ? options.includeOcrImages
-      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    // Bei Mistral OCR: includePageImages immer true (erzwungen)
     const includePageImages = options?.includePageImages !== undefined
       ? options.includePageImages
+      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    const includeOcrImages = options?.includeOcrImages !== undefined
+      ? options.includeOcrImages
       : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
     
     // Diagnose: Eingehende Policies loggen (einmal pro Batch)

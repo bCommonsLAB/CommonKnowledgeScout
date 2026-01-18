@@ -51,6 +51,7 @@ nav:
       - Audio/Video (no template): analysis/audio-jobs-transcript-only.md
       - Ingestion: analysis/ingestion.md
       - Storage: analysis/storage.md
+      - Markdown Page Splitting: analysis/markdown-page-splitting.md
   # Guide: - Dateien existieren nicht
   #   - Start: guide/index.md
   #   - Setup: guide/setup.md

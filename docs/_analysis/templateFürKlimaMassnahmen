@@ -1,0 +1,267 @@
+
+# Konzept: Detailseite „Klimamaßnahme“
+
+## Ziel
+
+Erzeugung eines **verständlichen, öffentlichen Blogartikels** zu einer einzelnen Klimamaßnahme auf Basis formaler Verwaltungsdaten.
+
+Der Text soll:
+
+* informieren, nicht belehren
+* Orientierung geben
+* Transparenz schaffen
+* Beteiligung ermöglichen
+
+---
+
+## 1. Frontmatter – Metadaten (YAML)
+
+Diese Metadaten sind **maschinenlesbar**, filterbar und unabhängig vom Fließtext.
+
+```yaml
+id: {{id}}
+handlungsfeld: {{handlungsfeld}}
+thema: {{thema}}
+quelle: {{quelle}}
+zustaendigkeit: {{zustaendigkeit}}
+umsetzungsstand: {{umsetzungsstand}}
+bewertung: {{bewertung}}
+status: {{status}} # geplant | in_umsetzung | umgesetzt
+stand: {{stand}}   # z. B. 2025-08-14
+region: Südtirol
+sprache: de
+format: klimamassnahme-detail
+```
+
+**Hinweis:**
+Diese Felder werden **nicht erklärt**, sondern dienen:
+
+* Navigation
+* Filterung
+* Vergleich
+* späterem Tracking
+
+---
+
+## 2. Body – Grundstruktur (Markdown)
+
+Der Body ist **immer gleich aufgebaut**, nur der Inhalt variiert.
+
+```md
+# {{title}}
+
+{{intro}}
+
+---
+
+## Worum geht es?
+
+{{worum_geht_es}}
+
+---
+
+## Was wird vorgeschlagen?
+
+{{vorschlag_erklaert}}
+
+---
+
+## Warum ist diese Maßnahme wichtig?
+
+{{warum_wichtig}}
+
+---
+
+## Wer ist dafür zuständig?
+
+{{zustaendigkeit_erklaert}}
+
+---
+
+## Wie ist der aktuelle Stand?
+
+{{umsetzungsstand_erklaert}}
+
+> **Status:** {{umsetzungsstand}}
+
+---
+
+## Was bringt das konkret?
+
+{{nutzen_konkret}}
+
+---
+
+## Beispiele & Inspiration aus der Praxis
+
+{{beispiele}}
+
+---
+
+## Wie kann man sich beteiligen oder davon lernen?
+
+{{mitmachen}}
+
+```
+
+---
+
+## 3. Fragenlogik pro Abschnitt (für das LLM)
+
+Diese Fragen sind **implizit der Prompt** – das Modell beantwortet sie im Fließtext.
+
+### Titel
+
+**Frage:**
+
+> Wie lässt sich diese Maßnahme in einem kurzen, verständlichen Titel beschreiben, der für die Bevölkerung relevant ist?
+
+---
+
+### Intro
+
+**Fragen:**
+
+* Warum betrifft diese Maßnahme den Alltag von Menschen?
+* Welches Grundproblem oder Bedürfnis steht dahinter?
+
+---
+
+### Worum geht es?
+
+**Fragen:**
+
+* Welches Ziel verfolgt die Maßnahme?
+* In welchem gesellschaftlichen oder klimatischen Kontext steht sie?
+
+---
+
+### Was wird vorgeschlagen?
+
+**Fragen:**
+
+* Was soll konkret getan oder verändert werden?
+* Welche Idee steckt hinter dem Vorschlag?
+* Was unterscheidet ihn von bestehenden Maßnahmen?
+
+---
+
+### Warum ist diese Maßnahme wichtig?
+
+**Fragen:**
+
+* Welches Problem wird dadurch gelöst oder gemildert?
+* Warum reicht „Nichtstun“ oder der Status quo nicht aus?
+* Welche langfristige Wirkung ist zu erwarten?
+
+---
+
+### Wer ist dafür zuständig?
+
+**Fragen:**
+
+* Welche öffentliche Stelle trägt Verantwortung?
+* Welche Rolle spielt Verwaltung, Politik oder Institution?
+
+---
+
+### Wie ist der aktuelle Stand?
+
+**Fragen:**
+
+* Ist die Maßnahme geplant, in Umsetzung oder bereits umgesetzt?
+* Was wurde bereits getan?
+* Welche nächsten Schritte sind vorgesehen?
+
+---
+
+### Was bringt das konkret?
+
+**Fragen:**
+
+* Welche Vorteile entstehen für Bürger:innen, Gemeinden oder Initiativen?
+* Welche konkreten Verbesserungen sind zu erwarten?
+
+---
+
+### Beispiele & Inspiration
+
+**Fragen:**
+
+* Wo gibt es bereits ähnliche Ansätze?
+* Wie sieht erfolgreiche Umsetzung in der Praxis aus?
+* Welche Akteur:innen könnten Vorbilder sein?
+
+---
+
+### Mitmachen & Lernen
+
+**Fragen:**
+
+* Wer kann sich einbringen?
+* Wie kann man die Maßnahme nutzen, weitertragen oder adaptieren?
+* Wo entsteht Raum für Austausch?
+
+---
+
+## 4. Formatierungsregeln (wichtig für Konsistenz)
+
+* Absätze: **max. 4–6 Zeilen**
+* Keine Aufzählungsorgien, nur wo sinnvoll
+* Keine Amtsbegriffe ohne Erklärung
+* Keine Zitate aus Verwaltungstexten
+* Sprache: **klar, ruhig, sachlich, zugänglich**
+* Perspektive: **für die Bevölkerung**, nicht für Expert:innen
+
+---
+
+## 5. Systemprompt (Rolle & Arbeitsanweisung)
+
+Diesen Prompt setzt du **vor** das Template.
+
+```text
+Du bist eine redaktionelle Autorin bzw. ein redaktioneller Autor
+für öffentliche Klimakommunikation.
+
+Deine Aufgabe ist es, formale Verwaltungs- und Maßnahmenbeschreibungen
+in verständliche, sachliche und zugängliche Texte für die Bevölkerung
+zu übersetzen.
+
+Arbeitsweise:
+- Schreibe klar und ruhig
+- Erkläre Zusammenhänge ohne Fachjargon
+- Bleibe faktenbasiert und transparent
+- Trenne Information von Bewertung
+- Vermeide politische Wertungen oder Aktivismus
+
+Ziel:
+- Orientierung schaffen
+- Vertrauen fördern
+- Beteiligung ermöglichen
+
+Zielgruppe:
+- interessierte Bürger:innen
+- zivilgesellschaftliche Initiativen
+- Gemeinden und lokale Akteur:innen
+
+Nutze die vorgegebene Struktur strikt.
+Beantworte die impliziten Fragen je Abschnitt im Fließtext.
+Erfinde keine Fakten, sondern formuliere nachvollziehbare Einordnungen.
+```
+
+---
+
+## 6. Ergebnis
+
+Mit diesem Konzept hast du:
+
+* ✅ ein **stabil wiederholbares Template**
+* ✅ klare **Trennung von Daten & Erzählung**
+* ✅ ein **LLM-steuerbares System**, kein freies „Blogschreiben“
+* ✅ eine Basis für **hunderte Maßnahmen**, vergleichbar & erweiterbar
+
+Wenn du willst, können wir als Nächstes:
+
+* das Ganze **1:1 als Transformer-Template mit Platzhaltern** bauen
+* eine **Kurzversion (TL;DR)** ergänzen
+* oder **Kommentarfelder / Pro-&-Contra-Blöcke** strukturieren

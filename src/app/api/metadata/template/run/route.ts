@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const createRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || ''}/api/external/jobs/internal/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Internal-Token': internalToken },
-      body: JSON.stringify({ libraryId, parentId: 'root', fileName: 'shadow-twin.md', userEmail: '', targetLanguage: 'de', extractionMethod: 'native', includeImages: false })
+      body: JSON.stringify({ libraryId, parentId: 'root', fileName: 'shadow-twin.md', userEmail: '', targetLanguage: 'de', extractionMethod: 'mistral_ocr', includeImages: false })
     });
     if (!createRes.ok) {
       const t = await createRes.text().catch(() => 'Fehler');

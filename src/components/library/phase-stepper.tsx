@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Settings2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAtomValue } from "jotai";
-import { activeLibraryIdAtom, selectedFileAtom } from "@/atoms/library-atom";
+import { activeLibraryIdAtom, selectedFileAtom, activeLibraryAtom } from "@/atoms/library-atom";
 import { loadPdfDefaults } from "@/lib/pdf-defaults";
 import { pdfOverridesAtom, getEffectivePdfDefaults } from "@/atoms/pdf-defaults";
 import { TransformService, type PdfTransformOptions } from "@/lib/transform/transform-service";
@@ -29,9 +29,14 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
   const [forceRecreate, setForceRecreate] = React.useState<boolean>(false);
   const [phase, setPhase] = useAtom(activePdfPhaseAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibrary = useAtomValue(activeLibraryAtom);
   const item = useAtomValue(selectedFileAtom);
   const { provider, refreshItems } = useStorage();
   const pdfOverrides = useAtomValue(pdfOverridesAtom);
+  
+  // Lade targetLanguage aus Library-Config (config.chat.targetLanguage)
+  const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage;
+  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.pdfDefaults?.template;
 
   function canRun(): boolean {
     return Boolean(provider && activeLibraryId && item && item.type === 'file');
@@ -39,7 +44,13 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
 
   function buildOptions(targetPhase: PdfPhase): PdfTransformOptions | null {
     if (!provider || !activeLibraryId || !item || item.type !== 'file') return null;
-    const defaults = getEffectivePdfDefaults(activeLibraryId, loadPdfDefaults(activeLibraryId), pdfOverrides);
+    const defaults = getEffectivePdfDefaults(
+      activeLibraryId,
+      loadPdfDefaults(activeLibraryId),
+      pdfOverrides,
+      libraryConfigChatTargetLanguage,
+      libraryConfigPdfTemplate
+    );
     const targetLanguage = typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT;
     
     // Nutze zentrale buildArtifactName() Logik für Dateinamen-Generierung
@@ -55,11 +66,12 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
       fileName,
       createShadowTwin: true,
       fileExtension: 'md',
-      extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'native',
+      // Globaler Default: mistral_ocr (wird bereits in getEffectivePdfDefaults angewendet)
+      extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'mistral_ocr',
       useCache: defaults.useCache ?? true,
-      // Für Mistral OCR: Beide Parameter standardmäßig true
-      includeOcrImages: defaults.extractionMethod === 'mistral_ocr' ? true : undefined,
-      includePageImages: defaults.extractionMethod === 'mistral_ocr' ? true : undefined,
+      // Für Mistral OCR: Beide Parameter standardmäßig true (werden bereits in getEffectivePdfDefaults angewendet)
+      includeOcrImages: defaults.includeOcrImages,
+      includePageImages: defaults.includePageImages,
       includeImages: defaults.includeImages ?? false, // Rückwärtskompatibilität
       template: typeof defaults.template === 'string' ? defaults.template : undefined,
     };

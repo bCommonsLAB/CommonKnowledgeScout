@@ -43,6 +43,34 @@ export interface BatchTransformResult {
   }>;
 }
 
+/**
+ * Ermittelt Template-Inhalt für benutzerdefinierte Templates einmalig,
+ * damit wir pro Seite nicht mehrfach aus Mongo laden müssen.
+ */
+async function resolveTemplateContent(args: {
+  template: string
+  libraryId: string
+}): Promise<{ templateName: string; templateContent?: string; isStandard: boolean }> {
+  const standardTemplates = ['Besprechung', 'Gedanken', 'Interview', 'Zusammenfassung']
+  const isStandard = standardTemplates.includes(args.template)
+  if (isStandard) {
+    return { templateName: args.template, isStandard: true }
+  }
+
+  try {
+    const { loadTemplate } = await import('@/lib/templates/template-service-client')
+    const templateResult = await loadTemplate({
+      libraryId: args.libraryId,
+      preferredTemplateName: args.template,
+    })
+    return { templateName: args.template, templateContent: templateResult.templateContent, isStandard: false }
+  } catch (error) {
+    // Erklärung: Fallback auf Standard-Template, falls Custom-Template nicht geladen werden kann.
+    console.error('[BatchTransformService] Template-Load fehlgeschlagen, Fallback auf Standard-Template', error)
+    return { templateName: 'Besprechung', isStandard: true }
+  }
+}
+
 export class BatchTransformService {
   /**
    * Transformiert eine Batch von Audio/Video-Dateien (jede einzeln)
@@ -126,7 +154,7 @@ export class BatchTransformService {
               {
                 ...baseOptions,
                 fileName: shadowTwinName,
-                extractionMethod: "native" // Standard-Extraktionsmethode für Batch-Verarbeitung
+                extractionMethod: "mistral_ocr" // Globaler Default: mistral_ocr
               },
               provider,
               refreshItems,
@@ -371,5 +399,116 @@ export class BatchTransformService {
       success: !hasError,
       results
     };
+  }
+
+  /**
+   * Transformiert eine Batch von Text-Dateien – jede Datei wird separat transformiert.
+   * Diese Variante ist für Seiten-Splitting gedacht (1 Seite -> 1 Output).
+   */
+  static async transformTextBatchPerFile(
+    items: BatchTransformationItem[],
+    baseOptions: BaseTransformOptions,
+    template: string,
+    provider: StorageProvider,
+    refreshItems: (folderId: string) => Promise<StorageItem[]>,
+    libraryId: string,
+    onProgress?: (progress: BatchTransformProgress) => void
+  ): Promise<BatchTransformResult> {
+    const results: BatchTransformResult['results'] = []
+    let hasError = false
+
+    // Erklärung: Template-Inhalt nur einmal laden, um wiederholte DB-Calls zu vermeiden.
+    const resolvedTemplate = await resolveTemplateContent({ template, libraryId })
+
+    for (let i = 0; i < items.length; i += 1) {
+      const item = items[i]
+      onProgress?.({
+        currentItem: i + 1,
+        totalItems: items.length,
+        currentFileName: item.item.metadata.name,
+        status: 'processing',
+      })
+
+      try {
+        const { blob } = await provider.getBinary(item.item.id)
+        if (!blob) {
+          throw new Error(`Datei ${item.item.metadata.name} konnte nicht geladen werden`)
+        }
+
+        const content = await blob.text()
+        let transformedText: string
+
+        if (resolvedTemplate.isStandard) {
+          transformedText = await transformText(
+            content,
+            baseOptions.targetLanguage,
+            libraryId,
+            resolvedTemplate.templateName
+          )
+        } else if (resolvedTemplate.templateContent) {
+          transformedText = await transformTextWithTemplate(
+            content,
+            baseOptions.targetLanguage,
+            libraryId,
+            resolvedTemplate.templateContent
+          )
+        } else {
+          // Defensive: wenn templateContent fehlt, fallback auf Standard-Template.
+          transformedText = await transformText(
+            content,
+            baseOptions.targetLanguage,
+            libraryId,
+            'Besprechung'
+          )
+        }
+
+        // Erklärung: per-file Output wird neben der Seite gespeichert (nicht als Shadow-Twin),
+        // damit Explorer die Dokumente direkt sieht.
+        const baseName = item.item.metadata.name.replace(/\.mdx?$/i, '')
+        const extension = (baseOptions.fileExtension || 'md').replace(/^\./, '')
+        const fileName = `${baseName}.${template}.${baseOptions.targetLanguage}.${extension}`
+        const file = new File([transformedText], fileName, { type: 'text/markdown' })
+        const targetParentId = item.item.parentId || 'root'
+        const savedItem = await provider.uploadFile(targetParentId, file)
+
+        results.push({
+          item: item.item,
+          success: true,
+          savedItem,
+        })
+      } catch (error) {
+        hasError = true
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        results.push({
+          item: item.item,
+          success: false,
+          error: errorMessage,
+        })
+      }
+    }
+
+    // UI-Refresh: Wenn möglich, aktualisieren wir den Parent-Ordner einmalig.
+    if (items.length > 0) {
+      const parentId = items[0].item.parentId
+      if (parentId) {
+        try {
+          await refreshItems(parentId)
+        } catch (error) {
+          console.error('[BatchTransformService] Refresh fehlgeschlagen', error)
+        }
+      }
+    }
+
+    onProgress?.({
+      currentItem: items.length,
+      totalItems: items.length,
+      currentFileName: 'Transformation abgeschlossen',
+      status: 'success',
+    })
+
+    return {
+      success: !hasError,
+      results,
+    }
   }
 } 

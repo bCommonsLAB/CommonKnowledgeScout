@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { JobReportTab } from "@/components/library/job-report-tab"
 import { Textarea } from "@/components/ui/textarea"
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import type { TemplateCreationConfig, TemplateMetadataSchema } from '@/lib/templates/template-types'
 import { injectCreationIntoFrontmatter } from '@/lib/templates/template-frontmatter-utils'
 // Separator ungenutzt entfernt
@@ -68,6 +69,8 @@ export function TemplateManagement() {
   const [magicFrontmatter, setMagicFrontmatter] = useState<string>("")
   const [magicSystem, setMagicSystem] = useState<string>("")
   const [magicRunning, setMagicRunning] = useState<boolean>(false)
+  // Dialog-UI: Test-Umgebung vom Editor trennen, damit der Editor volle Breite nutzen kann
+  const [isTestDialogOpen, setIsTestDialogOpen] = useState<boolean>(false)
   // Magic-Diff/SavedId aktuell ungenutzt im UI – wir speichern nur per Setter
   const [, setMagicLastDiff] = useState<string>("")
   const [, setMagicSavedItemId] = useState<string | null>(null)
@@ -1085,6 +1088,143 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
     )
   }
 
+  /**
+   * Rendert die Test-UI im Dialog.
+   * Ziel: Wiederverwendung der bestehenden Test-Logik ohne Funktionsänderungen.
+   */
+  function renderTransformationTest(): JSX.Element {
+    return (
+      <div className="space-y-4">
+        {/* Hinweis: Der Test nutzt die aktuelle Template-Auswahl und optionalen Kontext */}
+        {!selectedTemplateName ? (
+          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+            Bitte oben eine Vorlage auswählen. Die Vorschau und Test‑Funktionen werden erst danach aktiviert.
+          </div>
+        ) : (
+          <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as typeof rightTab)}>
+            <TabsList className="grid grid-cols-3 w-full">
+              <TabsTrigger value="kontext">Daten‑Kontext</TabsTrigger>
+              <TabsTrigger value="preview">Prompt‑Vorschau</TabsTrigger>
+              <TabsTrigger value="testen">Testen</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="kontext" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Kontext-Texte</Label>
+                <div className="border rounded p-2 text-sm">
+                  {Array.isArray(contextDocs) && contextDocs.length > 0 ? (
+                    contextDocs.map(d => {
+                      const checked = selectedContextIds.includes(d.id)
+                      return (
+                        <label key={d.id} className="flex items-center gap-2 py-1">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              const isOn = v === true
+                              setSelectedContextIds(prev => isOn ? [...prev, d.id] : prev.filter(x => x !== d.id))
+                            }}
+                          />
+                          <span className="truncate">{d.name}</span>
+                        </label>
+                      )
+                    })
+                  ) : (
+                    <div className="text-muted-foreground text-sm">Keine Kontext-Texte verfügbar</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Gewählter Kontext (Lesemodus)</Label>
+                <div className="border rounded-md">
+                  <MarkdownPreview content={selectedContextMarkdown} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Freitext (optional)</Label>
+                <Textarea
+                  value={freeText}
+                  onChange={(e) => setFreeText(e.target.value)}
+                  placeholder="Hier Text einkleben, um schnell zu testen"
+                  className="min-h-[120px] font-mono text-sm"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="preview" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Generierter Prompt (Markdown)</Label>
+                <div className="border rounded-md">
+                  <MarkdownPreview content={generatePreview()} />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={testTemplate}
+                  disabled={!selectedTemplateName || isTesting}
+                >
+                  {isTesting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Teste...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Transformation starten
+                    </>
+                  )}
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="testen" className="space-y-4 mt-4">
+              <div className="flex gap-2 justify-end">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={testTemplate}
+                  disabled={!selectedTemplateName || isTesting}
+                >
+                  {isTesting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Teste...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Transformation starten
+                    </>
+                  )}
+                </Button>
+              </div>
+              {activeLibrary && providerInstance && (testResult || resultSavedItemId) ? (
+                <JobReportTab
+                  libraryId={activeLibrary.id}
+                  fileId={resultSavedItemId || 'preview'}
+                  provider={providerInstance}
+                  sourceMode="frontmatter"
+                  viewMode="metaOnly"
+                  mdFileId={resultSavedItemId || undefined}
+                  rawContent={testResult || undefined}
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground">Kein Ergebnis vorhanden.</div>
+              )}
+              <div className="flex gap-2">
+                <Button type="button" onClick={saveTestResult} disabled={!testResult}>Speichern</Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
 
@@ -1115,6 +1255,11 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
           <Upload className="h-4 w-4 mr-2" />
           Import
         </Button>
+        {/* Test-Dialog öffnen: bewusst immer sichtbar für schnellen Zugriff */}
+        <Button type="button" variant="secondary" size="sm" onClick={() => setIsTestDialogOpen(true)} disabled={isLoading}>
+          <Play className="h-4 w-4 mr-2" />
+          Transformation testen
+        </Button>
         {selectedTemplateName && (
           <>
             <Button type="button" variant="outline" size="sm" onClick={handleExport} disabled={isLoading || !userEmail}>
@@ -1127,7 +1272,8 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Einspaltiges Layout: Editor bekommt volle Breite */}
+      <div className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Vorlage gestalten</CardTitle>
@@ -1253,143 +1399,26 @@ IMPORTANT: Your response must be a valid JSON object where each key corresponds 
             </form>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Transformation testen</CardTitle>
-            <CardDescription>
-              Test mit Beispieltext. Nutzt Metadaten, Rollenanweisung und Struktur des Templates – unabhängig vom Creation Flow.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!selectedTemplateName ? (
-              <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                Bitte oben eine Vorlage auswählen. Die Vorschau und Test‑Funktionen werden erst danach aktiviert.
-              </div>
-            ) : (
-              <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as typeof rightTab)}>
-                <TabsList className="grid grid-cols-3 w-full">
-                  <TabsTrigger value="kontext">Daten‑Kontext</TabsTrigger>
-                  <TabsTrigger value="preview">Prompt‑Vorschau</TabsTrigger>
-                  <TabsTrigger value="testen">Testen</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="kontext" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>Kontext-Texte</Label>
-                    <div className="border rounded p-2 text-sm">
-                      {Array.isArray(contextDocs) && contextDocs.length > 0 ? (
-                        contextDocs.map(d => {
-                          const checked = selectedContextIds.includes(d.id)
-                          return (
-                            <label key={d.id} className="flex items-center gap-2 py-1">
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(v) => {
-                                  const isOn = v === true
-                                  setSelectedContextIds(prev => isOn ? [...prev, d.id] : prev.filter(x => x !== d.id))
-                                }}
-                              />
-                              <span className="truncate">{d.name}</span>
-                            </label>
-                          )
-                        })
-                      ) : (
-                        <div className="text-muted-foreground text-sm">Keine Kontext-Texte verfügbar</div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Gewählter Kontext (Lesemodus)</Label>
-                    <div className="border rounded-md">
-                      <MarkdownPreview content={selectedContextMarkdown} />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Freitext (optional)</Label>
-                    <Textarea
-                      value={freeText}
-                      onChange={(e) => setFreeText(e.target.value)}
-                      placeholder="Hier Text einkleben, um schnell zu testen"
-                      className="min-h-[120px] font-mono text-sm"
-                    />
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="preview" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>Generierter Prompt (Markdown)</Label>
-                    <div className="border rounded-md">
-                      <MarkdownPreview content={generatePreview()} />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={testTemplate}
-                      disabled={!selectedTemplateName || isTesting}
-                    >
-                      {isTesting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Teste...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 mr-2" />
-                          Transformation starten
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="testen" className="space-y-4 mt-4">
-                  <div className="flex gap-2 justify-end">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={testTemplate}
-                      disabled={!selectedTemplateName || isTesting}
-                    >
-                      {isTesting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Teste...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 mr-2" />
-                          Transformation starten
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  {activeLibrary && providerInstance && (testResult || resultSavedItemId) ? (
-                    <JobReportTab
-                      libraryId={activeLibrary.id}
-                      fileId={resultSavedItemId || 'preview'}
-                      provider={providerInstance}
-                      sourceMode="frontmatter"
-                      viewMode="metaOnly"
-                      mdFileId={resultSavedItemId || undefined}
-                      rawContent={testResult || undefined}
-                    />
-                  ) : (
-                    <div className="text-sm text-muted-foreground">Kein Ergebnis vorhanden.</div>
-                  )}
-                  <div className="flex gap-2">
-                    <Button type="button" onClick={saveTestResult} disabled={!testResult}>Speichern</Button>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            )}
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Test-Dialog: ausgelagert für bessere Übersicht */}
+      <Dialog open={isTestDialogOpen} onOpenChange={setIsTestDialogOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Transformation testen</DialogTitle>
+            <DialogDescription>
+              Test mit Beispieltext. Nutzt Metadaten, Rollenanweisung und Struktur des Templates – unabhängig vom Creation Flow.
+            </DialogDescription>
+          </DialogHeader>
+          {/* Bestehende Test-UI wiederverwenden */}
+          {renderTransformationTest()}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsTestDialogOpen(false)}>
+              Schließen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Validierungsfehler-Dialog */}
       <AlertDialog open={!!validationError} onOpenChange={(open) => !open && setValidationError(null)}>

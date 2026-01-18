@@ -25,6 +25,7 @@ import { DetailViewRenderer } from './detail-view-renderer';
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner'
 import { resolveArtifactClient } from '@/lib/shadow-twin/artifact-client';
 import { ExternalLink, RefreshCw } from "lucide-react";
 import { SourceAndTranscriptPane } from "@/components/library/shared/source-and-transcript-pane"
@@ -970,6 +971,8 @@ export function FilePreview({
     error: null,
     hasMetadata: false
   });
+  // Erklärung: separater State, damit der Split-Button sauber deaktiviert werden kann.
+  const [isSplittingPages, setIsSplittingPages] = React.useState(false)
 
   // Memoize computed values
   const fileType = React.useMemo(() => 
@@ -1073,6 +1076,49 @@ export function FilePreview({
           >
             Story Creator
           </Button>
+          {(fileType === 'pdf' || fileType === 'markdown') ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isSplittingPages}
+              onClick={async () => {
+                if (!activeLibraryId || !displayFile.id) return
+                // Erklärung: Split läuft serverseitig, weil große PDFs im Browser zu schwer sind.
+                setIsSplittingPages(true)
+                try {
+                  const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      sourceFileId: displayFile.id,
+                      targetLanguage: 'de',
+                    }),
+                  })
+                  const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
+                  if (!res.ok) {
+                    const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
+                    throw new Error(msg)
+                  }
+                  toast.success("Seiten gesplittet", {
+                    description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
+                  })
+                  // UI-Liste aktualisieren, damit der neue Ordner sichtbar wird.
+                  if (onRefreshFolder && displayFile.parentId) {
+                    const refreshed = await provider?.listItemsById(displayFile.parentId)
+                    if (refreshed) onRefreshFolder(displayFile.parentId, refreshed)
+                  }
+                } catch (error) {
+                  toast.error("Split fehlgeschlagen", {
+                    description: error instanceof Error ? error.message : "Unbekannter Fehler"
+                  })
+                } finally {
+                  setIsSplittingPages(false)
+                }
+              }}
+            >
+              Seiten splitten
+            </Button>
+          ) : null}
           {provider ? (
             <Button
               size="sm"

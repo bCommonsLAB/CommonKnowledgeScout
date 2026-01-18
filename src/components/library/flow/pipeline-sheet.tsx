@@ -21,7 +21,7 @@ interface PipelineSheetProps {
   onOpenChange: (open: boolean) => void
   libraryId: string
   sourceFileName: string
-  kind: "pdf" | "audio" | "video" | "other"
+  kind: "pdf" | "audio" | "video" | "markdown" | "other"
   targetLanguage: string
   onTargetLanguageChange: (value: string) => void
   templateName: string
@@ -36,22 +36,29 @@ function isNonEmptyString(v: unknown): v is string {
 }
 
 export function PipelineSheet(props: PipelineSheetProps) {
-  const [shouldExtract, setShouldExtract] = React.useState(true)
+  // Bei Markdown: Extract immer deaktiviert (Textquelle bereits vorhanden)
+  const isMarkdown = props.kind === "markdown"
+  const [shouldExtract, setShouldExtract] = React.useState(!isMarkdown)
   const [shouldTransform, setShouldTransform] = React.useState(true)
   const [shouldIngest, setShouldIngest] = React.useState(true)
   const [shouldForce, setShouldForce] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   // Default: alle Schritte aktiv, aber beim Öffnen (auto-open) nicht unerwartet resetten.
+  // Bei Markdown: Extract bleibt immer deaktiviert.
   React.useEffect(() => {
     if (!props.isOpen) return
+    // Bei Markdown: Extract immer false setzen
+    if (isMarkdown && shouldExtract) {
+      setShouldExtract(false)
+    }
     // Wenn alle drei aus sind (z.B. nach Back/Forward), setze auf Default.
-    if (!shouldExtract && !shouldTransform && !shouldIngest) {
+    if (!shouldExtract && !shouldTransform && !shouldIngest && !isMarkdown) {
       setShouldExtract(true)
       setShouldTransform(true)
       setShouldIngest(true)
     }
-  }, [props.isOpen, shouldExtract, shouldTransform, shouldIngest])
+  }, [props.isOpen, shouldExtract, shouldTransform, shouldIngest, isMarkdown])
 
   const step1Label = props.kind === "audio" || props.kind === "video" ? "Transkription" : "Extraktion"
 
@@ -71,8 +78,9 @@ export function PipelineSheet(props: PipelineSheetProps) {
     }
 
     const active: "do" | "force" = shouldForce ? "force" : "do"
+    // Bei Markdown: extract immer "ignore" (Textquelle bereits vorhanden)
     const policies: PipelinePolicies = {
-      extract: shouldExtract ? active : "ignore",
+      extract: isMarkdown ? "ignore" : (shouldExtract ? active : "ignore"),
       metadata: shouldTransform ? active : "ignore",
       ingest: shouldIngest ? active : "ignore",
     }
@@ -87,7 +95,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
     } finally {
       setIsSubmitting(false)
     }
-  }, [canStart, canTransform, props, shouldExtract, shouldForce, shouldIngest, shouldTransform])
+  }, [canStart, canTransform, props, shouldExtract, shouldForce, shouldIngest, shouldTransform, isMarkdown])
 
   return (
     <Sheet open={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -140,11 +148,20 @@ export function PipelineSheet(props: PipelineSheetProps) {
           <div className="space-y-3 rounded-md border p-3">
             <div className="text-sm font-medium">Pipeline</div>
             <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <Checkbox checked={shouldExtract} onCheckedChange={(v) => setShouldExtract(v === true)} id="step-extract" />
+              <div className={`flex items-start gap-3 ${isMarkdown ? "opacity-50" : ""}`}>
+                <Checkbox 
+                  checked={shouldExtract} 
+                  onCheckedChange={(v) => !isMarkdown && setShouldExtract(v === true)} 
+                  id="step-extract"
+                  disabled={isMarkdown}
+                />
                 <div className="space-y-0.5">
-                  <Label htmlFor="step-extract">{step1Label}</Label>
-                  <div className="text-xs text-muted-foreground">Erzeugt ein Transcript/Markdown aus der Quelle (Shadow‑Twin).</div>
+                  <Label htmlFor="step-extract" className={isMarkdown ? "cursor-not-allowed" : ""}>{step1Label}</Label>
+                  <div className="text-xs text-muted-foreground">
+                    {isMarkdown 
+                      ? "Textquelle vorhanden, Extraktion übersprungen." 
+                      : "Erzeugt ein Transcript/Markdown aus der Quelle (Shadow‑Twin)."}
+                  </div>
                 </div>
               </div>
 

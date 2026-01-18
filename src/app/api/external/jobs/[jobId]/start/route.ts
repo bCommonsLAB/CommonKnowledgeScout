@@ -382,10 +382,12 @@ export async function POST(
     // Deterministische Erstellung des Shadow-Twin-Verzeichnisses, wenn benötigt
     // Prüfe Job-Parameter, ob Bilder verarbeitet werden sollen
     const opts = (job.correlation?.options || {}) as Record<string, unknown>
-    const extractionMethod = typeof opts['extractionMethod'] === 'string' ? String(opts['extractionMethod']) : 'native'
+    // Globaler Default: mistral_ocr (wenn nichts gesetzt ist)
+    const extractionMethod = typeof opts['extractionMethod'] === 'string' ? String(opts['extractionMethod']) : 'mistral_ocr'
     const includeOcrImages = extractionMethod === 'mistral_ocr'
       ? (typeof opts['includeOcrImages'] === 'boolean' ? opts['includeOcrImages'] : true)
       : (typeof opts['includeOcrImages'] === 'boolean' ? opts['includeOcrImages'] : false)
+    // Bei Mistral OCR: includePageImages immer true (erzwungen)
     const includePageImages = typeof opts['includePageImages'] === 'boolean' 
       ? opts['includePageImages'] 
       : (extractionMethod === 'mistral_ocr' ? true : false)

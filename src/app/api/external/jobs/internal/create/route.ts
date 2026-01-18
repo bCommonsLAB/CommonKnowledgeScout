@@ -18,15 +18,17 @@ export async function POST(request: NextRequest) {
     const mimeType = typeof body.mimeType === 'string' ? body.mimeType : 'application/pdf'
     const userEmail = typeof body.userEmail === 'string' ? body.userEmail : 'test@example.com'
     const targetLanguage = typeof body.targetLanguage === 'string' ? body.targetLanguage : 'de'
-    const extractionMethod = typeof body.extractionMethod === 'string' ? body.extractionMethod : 'native'
+    // Globaler Default: mistral_ocr (wenn nichts gesetzt ist)
+    const extractionMethod = typeof body.extractionMethod === 'string' ? body.extractionMethod : 'mistral_ocr'
     
     // Für Mistral OCR: Beide Parameter standardmäßig true
     const isMistralOcr = extractionMethod === 'mistral_ocr';
-    const includeOcrImages = body.includeOcrImages !== undefined
-      ? Boolean(body.includeOcrImages)
-      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    // Bei Mistral OCR: includePageImages immer true (erzwungen)
     const includePageImages = body.includePageImages !== undefined
       ? Boolean(body.includePageImages)
+      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    const includeOcrImages = body.includeOcrImages !== undefined
+      ? Boolean(body.includeOcrImages)
       : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
     const includeImages = Boolean(body.includeImages) // Rückwärtskompatibilität
 

@@ -55,7 +55,7 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     fileName: getInitialFileName(),
     createShadowTwin: true,
     fileExtension: "md",
-    extractionMethod: "native",
+    extractionMethod: "mistral_ocr", // Globaler Default: mistral_ocr
     useCache: true, // Standardwert: Cache verwenden
     includeOcrImages: undefined, // Wird basierend auf extractionMethod gesetzt
     includePageImages: undefined, // Wird basierend auf extractionMethod gesetzt
@@ -198,13 +198,15 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     const isMistralOcr = options.extractionMethod === 'mistral_ocr';
     const pdfOptions: PdfTransformOptions = {
       ...options,
-      extractionMethod: options.extractionMethod || "native",
+      // Globaler Default: mistral_ocr (wenn nichts gesetzt ist)
+      extractionMethod: options.extractionMethod || "mistral_ocr",
       useCache: options.useCache ?? true, // Standardwert: Cache verwenden
-      includeOcrImages: options.includeOcrImages !== undefined 
-        ? options.includeOcrImages 
-        : (isMistralOcr ? true : undefined), // Standard: true für Mistral OCR
+      // Bei Mistral OCR: includePageImages immer true (erzwungen)
       includePageImages: options.includePageImages !== undefined
         ? options.includePageImages
+        : (isMistralOcr ? true : undefined), // Standard: true für Mistral OCR
+      includeOcrImages: options.includeOcrImages !== undefined 
+        ? options.includeOcrImages 
         : (isMistralOcr ? true : undefined), // Standard: true für Mistral OCR
       includeImages: options.includeImages ?? false // Rückwärtskompatibilität
     };
