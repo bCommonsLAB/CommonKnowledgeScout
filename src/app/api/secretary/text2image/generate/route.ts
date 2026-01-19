@@ -15,21 +15,16 @@ import { fetchWithTimeout } from '@/lib/utils/fetch-with-timeout'
  * - size?: string (default: "1024x1024")
  * - quality?: "standard" | "hd" (default: "standard")
  * - n?: number (default: 1)
- * - seed?: number (optional, für einzelnes Bild)
- * - seeds?: number[] (optional, für mehrere Bilder mit expliziten Seeds)
+ * - seed?: number (optional)
  * - useCache?: boolean (default: true)
  * 
- * Response (n=1):
+ * Response:
  * - image_base64: string
  * - image_format: string (z.B. "png")
  * - size: string
  * - model?: string
  * - prompt?: string
  * - seed?: number | null
- * - error?: { code: string; message: string }
- * 
- * Response (n>1 oder seeds):
- * - images: Array<{ image_base64: string, image_format: string, size: string, seed: number | null }>
  * - error?: { code: string; message: string }
  */
 export async function POST(request: NextRequest) {
@@ -53,7 +48,7 @@ export async function POST(request: NextRequest) {
       quality?: 'standard' | 'hd'
       n?: number
       seed?: number
-      seeds?: number[]
+      seeds?: number[] | string
       useCache?: boolean
     }
 
@@ -92,8 +87,6 @@ export async function POST(request: NextRequest) {
       quality,
       n,
       hasSeed: seed !== undefined,
-      hasSeeds: seeds !== undefined && Array.isArray(seeds),
-      seedsCount: seeds?.length,
       useCache
     })
 
@@ -106,10 +99,16 @@ export async function POST(request: NextRequest) {
       useCache
     }
     
-    // Seeds-Array hat Priorität über einzelnes Seed
-    if (seeds !== undefined && Array.isArray(seeds) && seeds.length > 0) {
-      requestBody.seeds = seeds
+    // Seeds-Array hinzufügen wenn vorhanden (für mehrere Varianten)
+    if (seeds) {
+      // Unterstütze sowohl Array als auch String (comma-separated)
+      if (Array.isArray(seeds)) {
+        requestBody.seeds = seeds
+      } else if (typeof seeds === 'string') {
+        requestBody.seeds = seeds.split(',').map(s => Number.parseInt(s.trim(), 10)).filter(n => !Number.isNaN(n))
+      }
     } else if (seed !== undefined) {
+      // Fallback: einzelner Seed
       requestBody.seed = seed
     }
 
@@ -123,7 +122,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
-      timeoutMs: 240000 // 4 Minuten Timeout für Bildgenerierung (mehrere Bilder können länger dauern)
+      timeoutMs: 120000 // 2 Minuten Timeout für Bildgenerierung
     })
 
     if (!response.ok) {
@@ -154,9 +153,9 @@ export async function POST(request: NextRequest) {
     const data = await response.json() as {
       status: string
       data?: {
-        image_base64?: string
-        image_format?: string
-        size?: string
+        image_base64: string
+        image_format: string
+        size: string
         model?: string
         prompt?: string
         seed?: number | null
@@ -164,7 +163,7 @@ export async function POST(request: NextRequest) {
           image_base64: string
           image_format: string
           size: string
-          seed: number | null
+          seed?: number | null
         }>
       }
       error?: { code: string; message: string }
@@ -192,65 +191,52 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Prüfe, ob mehrere Bilder angefordert wurden
-    const multipleImagesRequested = n > 1 || (seeds && Array.isArray(seeds) && seeds.length > 0)
-    
-    // Wenn mehrere Bilder angefordert wurden
-    if (multipleImagesRequested) {
-      if (data.data?.images && Array.isArray(data.data.images) && data.data.images.length > 0) {
-        FileLogger.info('text2image', 'Mehrere Bilder erfolgreich generiert', {
-          count: data.data.images.length,
-          requested: n,
-          seedsCount: seeds?.length,
-          processId: data.process?.id,
-          cost: data.process?.llm_info?.total_cost,
-          duration: data.process?.duration
-        })
-
-        return NextResponse.json({
-          images: data.data.images.map(img => ({
-            image_base64: img.image_base64,
-            image_format: img.image_format,
-            size: img.size,
-            seed: img.seed
-          })),
-          process: data.process ? {
-            id: data.process.id,
-            duration: data.process.duration,
-            cost: data.process.llm_info?.total_cost
-          } : undefined
-        })
-      } else {
-        // Mehrere Bilder angefordert, aber Response enthält kein images Array
-        FileLogger.error('text2image', 'Mehrere Bilder angefordert, aber Response enthält kein images Array', {
-          requested: n,
-          seedsCount: seeds?.length,
-          hasData: !!data.data,
-          hasImages: !!data.data?.images,
-          imagesIsArray: Array.isArray(data.data?.images),
-          imagesLength: data.data?.images?.length,
-          hasImageBase64: !!data.data?.image_base64
-        })
-        return NextResponse.json(
-          { 
-            error: 'Mehrere Bilder angefordert, aber Response enthält kein images Array', 
-            code: 'INVALID_RESPONSE',
-            requested: n,
-            seedsCount: seeds?.length
-          },
-          { status: 500 }
-        )
-      }
+    // Erfolgreiche Response: nur benötigte Felder zurückgeben
+    if (!data.data) {
+      FileLogger.error('text2image', 'Ungültige Response-Struktur', {
+        hasData: !!data.data
+      })
+      return NextResponse.json(
+        { error: 'Ungültige Response vom Secretary Service', code: 'INVALID_RESPONSE' },
+        { status: 500 }
+      )
     }
 
-    // Einzelnes Bild (n=1 oder kein seeds Array)
-    if (!data.data || !data.data.image_base64 || !data.data.image_format) {
-      FileLogger.error('text2image', 'Ungültige Response-Struktur für einzelnes Bild', {
-        hasData: !!data.data,
-        hasImageBase64: !!data.data?.image_base64,
-        hasImageFormat: !!data.data?.image_format,
-        hasImages: !!data.data?.images,
-        imagesLength: data.data?.images?.length
+    // Wenn mehrere Bilder vorhanden sind (images Array), verwende diese
+    if (data.data.images && Array.isArray(data.data.images) && data.data.images.length > 0) {
+      FileLogger.info('text2image', 'Mehrere Bilder erfolgreich generiert', {
+        count: data.data.images.length,
+        size: data.data.size,
+        format: data.data.image_format,
+        model: data.data.model,
+        processId: data.process?.id,
+        cost: data.process?.llm_info?.total_cost,
+        duration: data.process?.duration
+      })
+
+      return NextResponse.json({
+        images: data.data.images.map(img => ({
+          image_base64: img.image_base64,
+          image_format: img.image_format,
+          size: img.size,
+          seed: img.seed
+        })),
+        size: data.data.size,
+        model: data.data.model,
+        prompt: data.data.prompt,
+        process: data.process ? {
+          id: data.process.id,
+          duration: data.process.duration,
+          cost: data.process.llm_info?.total_cost
+        } : undefined
+      })
+    }
+
+    // Einzelnes Bild (Fallback für n=1)
+    if (!data.data.image_base64 || !data.data.image_format) {
+      FileLogger.error('text2image', 'Ungültige Response-Struktur', {
+        hasImageBase64: !!data.data.image_base64,
+        hasImageFormat: !!data.data.image_format
       })
       return NextResponse.json(
         { error: 'Ungültige Response vom Secretary Service', code: 'INVALID_RESPONSE' },
